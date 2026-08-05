@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="LilScript language and integration documentation.">
+    <title>Documentation | LilScript</title>
+    <link rel="stylesheet" href="/src/styles.css">
+  </head>
+  <body class="content-page docs-page">
+    <header class="site-header">
+      <a class="wordmark" href="/" aria-label="LilScript playground">
+        <span class="wordmark-mark" aria-hidden="true">L</span>
+        <span>LilScript</span>
+      </a>
+      <button class="nav-toggle icon-button" type="button" aria-label="Toggle navigation" aria-expanded="false">
+        <i data-lucide="menu" aria-hidden="true"></i>
+      </button>
+      <nav class="site-nav" aria-label="Primary navigation">
+        <a href="/">Playground</a>
+        <a class="active" href="/docs.html">Docs</a>
+        <a href="/about.html">About</a>
+      </nav>
+    </header>
+
+    <div class="docs-layout">
+      <aside class="docs-sidebar" aria-label="Documentation navigation">
+        <label class="docs-search">
+          <i data-lucide="search" aria-hidden="true"></i>
+          <span class="sr-only">Filter documentation</span>
+          <input id="docs-search" type="search" placeholder="Filter sections" autocomplete="off">
+        </label>
+        <nav id="docs-nav">
+          <p>Start</p>
+          <a href="#overview">Overview</a>
+          <a href="#install">Install and build</a>
+          <a href="#first-program">First program</a>
+          <a href="#cli">Compiler targets</a>
+          <p>Language</p>
+          <a href="#types">Types and declarations</a>
+          <a href="#arrays">Arrays and strings</a>
+          <a href="#aggregates">Structs and classes</a>
+          <a href="#functions">Functions and closures</a>
+          <a href="#control-flow">Control flow</a>
+          <p>Integration</p>
+          <a href="#javascript">JavaScript applications</a>
+          <a href="#native">Native applications</a>
+          <a href="#extern">Host boundaries</a>
+          <a href="#language-server">VS Code and LSP</a>
+          <p>Compiler</p>
+          <a href="#optimization">Optimization model</a>
+          <a href="#verification">Verification</a>
+        </nav>
+      </aside>
+
+      <main class="docs-content" id="docs-content">
+        <section id="overview" data-title="Overview introduction standalone language">
+          <p class="eyebrow">LilScript v0.1</p>
+          <h1>Language documentation</h1>
+          <p class="lead">LilScript is an independent statically typed language. It uses type-first declarations and familiar collection APIs, then compiles the complete program through a typed SSA optimizer to JavaScript or native code.</p>
+          <div class="callout important"><i data-lucide="badge-info" aria-hidden="true"></i><p>LilScript is not TypeScript and does not accept JavaScript or TypeScript source. The <code>.lil</code> file is the source of truth.</p></div>
+        </section>
+
+        <section id="install" data-title="Install build compiler Cargo Rust prerequisites">
+          <h2>Install and build</h2>
+          <p>Build the compiler and language server from the repository root. A native target additionally requires a C11 compiler such as Clang.</p>
+          <pre><code>cargo build --release --bins
+target/release/lilscript --help
+target/release/lilscript-lsp --help</code></pre>
+          <p>The compiler is a normal command-line executable. No JavaScript runtime is required unless you execute the JavaScript output or run the web playground.</p>
+        </section>
+
+        <section id="first-program" data-title="First program declarations print arrays example">
+          <h2>First program</h2>
+          <pre><code>int[] values = [1, 2, 3, 4];
+auto doubled = values.map((int value) =&gt; value * 2);
+int total = doubled.reduce(
+  (int sum, int value) =&gt; sum + value,
+  0
+);
+
+print(`total=${total}`);</code></pre>
+          <p>Save the file as <code>main.lil</code>, compile it, and run the generated module:</p>
+          <pre><code>lilscript main.lil -o main.js
+node main.js</code></pre>
+          <p>The expected output is <code>total=20</code>.</p>
+        </section>
+
+        <section id="cli" data-title="CLI JavaScript C native output compiler targets">
+          <h2>Compiler targets</h2>
+          <div class="definition-list">
+            <div><code>--target js</code><p>Default. Emits whole-program optimized, minified JavaScript.</p></div>
+            <div><code>--target c</code><p>Emits portable C11 for integration into an existing native build.</p></div>
+            <div><code>--target native</code><p>Emits C internally and invokes <code>${CC:-clang}</code> with <code>-std=c11 -O3</code>.</p></div>
+            <div><code>--target all</code><p>Optimizes once, then emits JavaScript, C, and a native executable from the same SSA module.</p></div>
+          </div>
+          <pre><code>lilscript app.lil -o app.js
+lilscript app.lil --target c -o app.c
+lilscript app.lil --target native -o app
+lilscript app.lil --target all -o build/app</code></pre>
+          <p>The final command creates <code>build/app.js</code>, <code>build/app.c</code>, and <code>build/app</code>.</p>
+        </section>
+
+        <section id="types" data-title="Types int float bool string auto arrays declarations">
+          <h2>Types and declarations</h2>
+          <p>Runtime declarations place the type before the binding name. Every runtime variable requires an initializer.</p>
+          <pre><code>int count = 5;
+float ratio = 3.14;
+string title = "LilScript";
+bool enabled = true;
+auto inferred = count * 2;
+int[] scores = [10, 20, 30];
+func(int)-&gt;int twice = (int value) =&gt; value * 2;</code></pre>
+          <table>
+            <thead><tr><th>Type</th><th>Semantics</th><th>JavaScript lowering</th></tr></thead>
+            <tbody>
+              <tr><td><code>int</code></td><td>Signed wrapping 32-bit integer</td><td>Number normalized with i32 operations</td></tr>
+              <tr><td><code>float</code></td><td>IEEE-754 binary64</td><td>Number</td></tr>
+              <tr><td><code>bool</code></td><td><code>true</code> or <code>false</code></td><td>Boolean</td></tr>
+              <tr><td><code>string</code></td><td>Immutable UTF-8 text</td><td>String</td></tr>
+              <tr><td><code>T[]</code></td><td>Mutable homogeneous array</td><td>Selected optimized array representation</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section id="arrays" data-title="Arrays strings map filter reduce forEach push pop methods">
+          <h2>Arrays and strings</h2>
+          <p>Collection methods are typed intrinsics rather than untyped dynamic dispatch. Their callback signatures are checked at compile time.</p>
+          <pre><code>int[] values = [1, 2, 3, 4];
+values.push(5);
+int last = values.pop();
+auto evens = values.filter((int value) =&gt; value % 2 == 0);
+int sum = evens.reduce((int total, int value) =&gt; total + value, 0);
+
+string name = "LilScript";
+bool valid = name.startsWith("Lil") &amp;&amp; name.endsWith("Script");
+string normalized = name.toLowerCase();</code></pre>
+          <p>Arrays provide <code>length</code>, <code>map</code>, <code>filter</code>, <code>reduce</code>, <code>forEach</code>, <code>push</code>, and <code>pop</code>. Strings provide <code>length</code>, <code>includes</code>, <code>startsWith</code>, <code>endsWith</code>, <code>toUpperCase</code>, and <code>toLowerCase</code>.</p>
+        </section>
+
+        <section id="aggregates" data-title="Struct class constructor init methods fields scalar replacement">
+          <h2>Structs and classes</h2>
+          <p>Structs are positional value aggregates. Classes are nominal reference values with an optional <code>init</code> constructor and typed methods.</p>
+          <pre><code>struct Point {
+  int x;
+  int y;
+}
+
+class Counter {
+  int value;
+
+  init(int initial) {
+    this.value = initial;
+  }
+
+  int add(int amount) {
+    this.value += amount;
+    return this.value;
+  }
+}
+
+Point origin = Point{0, 0};
+Counter counter = new Counter(10);</code></pre>
+          <p>If an aggregate remains inside the typed program, escape analysis can dissolve it into scalar SSA values. Objects are materialized only when representation or host access requires them.</p>
+        </section>
+
+        <section id="functions" data-title="Functions closures captures arrow callback callable">
+          <h2>Functions and closures</h2>
+          <pre><code>int add(int left, int right) {
+  return left + right;
+}
+
+int makeResult(int factor) {
+  auto scale = (int value) =&gt; value * factor;
+  return scale(4);
+}</code></pre>
+          <p>Local values are captured when the closure is created. Captured bindings cannot be rebound inside the closure, while captured arrays and classes can still be mutated through their reference. Top-level bindings are shared globals.</p>
+        </section>
+
+        <section id="control-flow" data-title="Control flow if else while for break continue return assignment">
+          <h2>Control flow</h2>
+          <pre><code>int total = 0;
+
+for (int index = 0; index &lt; 10; index++) {
+  if (index == 2) continue;
+  if (index == 8) break;
+  total += index;
+}
+
+while (total &gt; 20) {
+  total -= 1;
+}</code></pre>
+          <p>The language supports blocks, <code>if</code>/<code>else</code>, <code>while</code>, C-style <code>for</code>, <code>break</code>, <code>continue</code>, and <code>return</code>. Logical <code>&amp;&amp;</code> and <code>||</code> preserve short-circuit evaluation.</p>
+        </section>
+
+        <section id="javascript" data-title="JavaScript application integration web browser generated module">
+          <h2>JavaScript applications</h2>
+          <p>Compile a LilScript entry program during your build, then load the resulting JavaScript as a normal module or bundle input.</p>
+          <pre><code># package.json build step
+lilscript src/main.lil -o dist/lilscript-program.js</code></pre>
+          <pre><code>&lt;script type="module" src="/lilscript-program.js"&gt;&lt;/script&gt;</code></pre>
+          <p>Any host function called by LilScript must be declared with <code>extern</code> and available in the output program's JavaScript scope.</p>
+        </section>
+
+        <section id="native" data-title="Native C integration compiler ABI executable clang">
+          <h2>Native applications</h2>
+          <p>Use <code>--target native</code> for a standalone executable, <code>--target c</code> when an existing C build owns linking, or <code>--target all</code> to produce every backend artifact together.</p>
+          <pre><code>lilscript compute.lil --target native -o compute
+./compute
+
+lilscript compute.lil --target c -o generated.c
+clang -std=c11 -O3 host.c -o compute
+
+lilscript compute.lil --target all -o build/compute</code></pre>
+          <pre><code>// host.c
+#include "generated.c"
+
+int32_t hostFunction(int32_t value) {
+  return value + 1;
+}</code></pre>
+          <p>Both targets consume the same optimized SSA module used by JavaScript emission. Signed integer overflow, closures, arrays, strings, and control flow have native runtime lowering.</p>
+        </section>
+
+        <section id="extern" data-title="Extern host boundary ABI integration JavaScript C">
+          <h2>Host boundaries</h2>
+          <pre><code>struct Point {
+  int x;
+  int y;
+}
+
+extern int readPoint(Point point);
+
+Point point = Point{10, 20};
+int result = readPoint(point);</code></pre>
+          <p>Arguments and return values are fully type checked. JavaScript boundaries materialize structs and classes as named objects. Native C boundaries use generated positional value records for structs and pointer records for classes. Generated C declarations are the authoritative ABI for the host translation unit.</p>
+          <div class="callout"><i data-lucide="triangle-alert" aria-hidden="true"></i><p><code>extern</code> is the only intentionally untyped JavaScript boundary. Keep it narrow so whole-program scalar replacement and property elimination remain effective.</p></div>
+        </section>
+
+        <section id="language-server" data-title="VS Code language server LSP syntax highlighting diagnostics completion hover install">
+          <h2>VS Code and language server</h2>
+          <p>The repository includes <code>lilscript-lsp</code> and a VS Code extension under <code>vscode-extension/</code>. Build the server, package the extension, and install the resulting VSIX:</p>
+          <pre><code>cargo build --release --bin lilscript-lsp
+cd vscode-extension
+npm install
+npm run package
+code --install-extension lilscript-vscode-0.1.0.vsix</code></pre>
+          <p>The extension recognizes <code>.lil</code>, supplies syntax highlighting, brackets and comments, snippets, live compiler diagnostics, completion, hover documentation, and document symbols.</p>
+          <p>If the server is not on <code>PATH</code>, set <code>lilscript.server.path</code> to the absolute <code>target/release/lilscript-lsp</code> path in VS Code settings.</p>
+        </section>
+
+        <section id="optimization" data-title="Optimization SSA SRA DCE inlining devirtualization mangling">
+          <h2>Optimization model</h2>
+          <ol class="ordered-steps">
+            <li>Lower checked LilScript to typed control-flow IR and promote live locals to pruned SSA.</li>
+            <li>Propagate local and global constants, simplify algebra, value-number expressions, fold branches, and prune unreachable blocks to a fixed point.</li>
+            <li>Devirtualize class methods, infer effects, and inline eligible expression and multi-block CFG calls.</li>
+            <li>Analyze escapes, dissolve non-escaping structs and classes, and remove overwritten field stores.</li>
+            <li>Remove unused pure calls, allocations, instructions, functions, globals, and bindings.</li>
+            <li>Coalesce non-interfering SSA values, rank short names by use frequency, fuse expressions, and apply backend peepholes.</li>
+            <li>Emit minified JavaScript, portable C, or both plus a native executable from the same optimized module.</li>
+          </ol>
+          <p>The optimizer is whole-program by design. It covers the optimization responsibilities applicable to a closed, statically typed language; JavaScript-input passes for JSDoc, <code>goog.*</code>, polyfills, and prototype rewriting are intentionally not language features.</p>
+        </section>
+
+        <section id="verification" data-title="Verification tests benchmark Closure compiler conformance">
+          <h2>Verification</h2>
+          <pre><code>cargo fmt --all -- --check
+cargo clippy --all-targets -- -D warnings
+cargo test --all-targets
+scripts/verify.sh
+benchmarks/run.sh</code></pre>
+          <p>The matrix compiles 33 independent programs with <code>--target all</code>, then requires Node, the direct native output, independently compiled emitted C, and checked-in expected output to agree. Eight equivalent workloads are also executed before comparing raw, gzip-9, and Brotli-11 output against Closure ADVANCED v20260803. Current corpus totals are 1,465 / 1,193 / 1,003 bytes for LilScript and 2,235 / 1,553 / 1,274 bytes for Closure.</p>
+        </section>
+      </main>
+    </div>
+
+    <script type="module" src="/src/docs.js"></script>
+  </body>
+</html>

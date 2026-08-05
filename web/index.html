@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Compile and run LilScript in the browser playground.">
+    <title>Playground | LilScript</title>
+    <link rel="stylesheet" href="/src/styles.css">
+  </head>
+  <body class="playground-page">
+    <header class="site-header playground-header">
+      <a class="wordmark" href="/" aria-label="LilScript playground">
+        <span class="wordmark-mark" aria-hidden="true">L</span>
+        <span>LilScript</span>
+      </a>
+      <nav class="site-nav" aria-label="Primary navigation">
+        <a class="active" href="/">Playground</a>
+        <a href="/docs.html">Docs</a>
+        <a href="/about.html">About</a>
+      </nav>
+      <div class="playground-actions">
+        <span id="status" class="status" role="status">Ready</span>
+        <button id="run" class="primary-button" type="button">
+          <i data-lucide="play" aria-hidden="true"></i>
+          <span>Run</span>
+        </button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <section class="source-pane" aria-labelledby="source-title">
+        <div class="pane-bar">
+          <h1 id="source-title">Source</h1>
+          <span class="file-name">main.lil</span>
+        </div>
+        <textarea id="source" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="LilScript source code"></textarea>
+      </section>
+      <section class="result-pane" aria-label="Compiler results">
+        <div class="tabs" role="tablist" aria-label="Result view">
+          <button id="console-tab" class="tab active" role="tab" aria-selected="true" aria-controls="console">Console</button>
+          <button id="js-tab" class="tab" role="tab" aria-selected="false" aria-controls="javascript">JavaScript</button>
+        </div>
+        <pre id="console" class="result active" role="tabpanel" aria-labelledby="console-tab"></pre>
+        <pre id="javascript" class="result" role="tabpanel" aria-labelledby="js-tab"></pre>
+      </section>
+    </main>
+    <iframe id="runner" sandbox="allow-scripts" title="LilScript execution sandbox"></iframe>
+    <script type="module" src="/src/playground.js"></script>
+  </body>
+</html>

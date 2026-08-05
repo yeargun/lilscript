@@ -1,0 +1,17 @@
+{
+  "name": "lilscript-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 5173",
+    "build": "vite build",
+    "preview": "vite preview --port 4174"
+  },
+  "dependencies": {
+    "lucide": "^1.28.0"
+  },
+  "devDependencies": {
+    "vite": "^6.4.3"
+  }
+}

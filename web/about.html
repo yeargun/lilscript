@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="About LilScript, its compiler architecture, and optimization model.">
+    <title>About | LilScript</title>
+    <link rel="stylesheet" href="/src/styles.css">
+  </head>
+  <body class="content-page">
+    <header class="site-header">
+      <a class="wordmark" href="/" aria-label="LilScript playground">
+        <span class="wordmark-mark" aria-hidden="true">L</span>
+        <span>LilScript</span>
+      </a>
+      <button class="nav-toggle icon-button" type="button" aria-label="Toggle navigation" aria-expanded="false">
+        <i data-lucide="menu" aria-hidden="true"></i>
+      </button>
+      <nav class="site-nav" aria-label="Primary navigation">
+        <a href="/">Playground</a>
+        <a href="/docs.html">Docs</a>
+        <a class="active" href="/about.html">About</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="about-hero content-width">
+        <p class="eyebrow">Standalone systems language</p>
+        <h1>LilScript</h1>
+        <p class="hero-summary">A statically typed language with C-style declarations, familiar JavaScript ergonomics, whole-program SSA optimization, and JavaScript plus native targets.</p>
+        <div class="hero-actions">
+          <a class="primary-link" href="/docs.html">Read the docs <i data-lucide="arrow-right" aria-hidden="true"></i></a>
+          <a class="secondary-link" href="/">Open playground</a>
+        </div>
+      </section>
+
+      <section class="code-showcase" aria-label="LilScript source and generated output">
+        <div class="content-width code-comparison">
+          <div class="code-column">
+            <div class="code-label"><span>LilScript</span><span>v01.lil</span></div>
+            <pre><code>class Vector {
+  float x;
+  float y;
+
+  init(float x, float y) {
+    this.x = x;
+    this.y = y;
+  }
+
+  float lengthSquared() {
+    return this.x * this.x + this.y * this.y;
+  }
+}
+
+int[] values = [1, 2, 3, 4];
+auto doubled = values.map(
+  (int value) =&gt; value * 2
+);
+int sum = 0;
+for (int i = 0; i &lt; doubled.length; i++) {
+  sum += doubled[i];
+}
+Vector vector = new Vector(3.0, 4.0);
+if (vector.lengthSquared() == 25.0) {
+  print(`sum=${sum}`);
+}</code></pre>
+          </div>
+          <div class="code-column output-column">
+            <div class="code-label"><span>Optimized JavaScript</span><span>120 bytes</span></div>
+            <pre><code>var b=[1,2,3,4].map(a=&gt;Math.imul(a,2));
+var a=0,c=0;
+while(a&lt;b.length){
+  [a,c]=[(a+1|0),(c+b[a]|0)];
+}
+console.log(`sum=${c}`)</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <section class="content-band content-width">
+        <div class="section-heading">
+          <p class="eyebrow">Language design</p>
+          <h2>Typed from the first token</h2>
+        </div>
+        <div class="feature-grid">
+          <article>
+            <h3>Independent semantics</h3>
+            <p>LilScript source is parsed and checked as LilScript. JavaScript is a backend target, not the language definition, and TypeScript is not part of the pipeline.</p>
+          </article>
+          <article>
+            <h3>Familiar surface</h3>
+            <p>Arrays expose typed <code>map</code>, <code>filter</code>, <code>reduce</code>, and mutation methods. Structs, classes, closures, templates, and C-style control flow are built in.</p>
+          </article>
+          <article>
+            <h3>Explicit boundaries</h3>
+            <p>Whole-program analysis assumes a closed world. Host interaction uses typed <code>extern</code> declarations so escaping values receive a stable boundary representation.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="pipeline-band">
+        <div class="content-width">
+          <div class="section-heading">
+            <p class="eyebrow">Compiler architecture</p>
+            <h2>One typed IR, every target</h2>
+          </div>
+          <ol class="pipeline-list">
+            <li><span>01</span><strong>Frontend</strong><small>Logos lexer, arena parser, symbols and type checking</small></li>
+            <li><span>02</span><strong>SSA</strong><small>CFG lowering, mem2reg, phi insertion and escape analysis</small></li>
+            <li><span>03</span><strong>Optimize</strong><small>Propagation, value numbering, inlining, devirtualization, SRA and DCE</small></li>
+            <li><span>04</span><strong>Emit</strong><small>Minified JavaScript, portable C and a native executable together</small></li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="content-band content-width benchmark-section">
+        <div class="section-heading">
+          <p class="eyebrow">Measured output</p>
+          <h2>Bundle efficiency is tested, not assumed</h2>
+          <p>Eight equivalent programs execute first, then normalized output is measured against Closure Compiler ADVANCED v20260803.</p>
+        </div>
+        <div class="benchmark-table-wrap">
+          <table>
+            <thead><tr><th>Workload</th><th>Compiler</th><th>Raw</th><th>Gzip-9</th><th>Brotli-11</th></tr></thead>
+            <tbody>
+              <tr><th rowspan="2">v0.1</th><td>LilScript</td><td>120</td><td>132</td><td>113</td></tr>
+              <tr><td>Closure</td><td>212</td><td>190</td><td>166</td></tr>
+              <tr><th rowspan="2">Full conformance</th><td>LilScript</td><td>412</td><td>286</td><td>236</td></tr>
+              <tr><td>Closure</td><td>547</td><td>368</td><td>309</td></tr>
+              <tr><th rowspan="2">Eight-workload total</th><td>LilScript</td><td>1,465</td><td>1,193</td><td>1,003</td></tr>
+              <tr><td>Closure</td><td>2,235</td><td>1,553</td><td>1,274</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer content-width">
+      <span>LilScript v0.1</span>
+      <a href="/docs.html#language-server">VS Code setup</a>
+    </footer>
+    <script type="module" src="/src/site.js"></script>
+  </body>
+</html>
