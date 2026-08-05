@@ -59,8 +59,9 @@ Direct `value != null` guards narrow `value` inside the true branch, while
 `value == null` narrows it inside the false branch. Assignment invalidates the
 narrowing. This permits guarded member, method, and index access without a
 runtime wrapper in JavaScript; native code emits a typed tagged-payload unwrap.
-Compound-condition narrowing and propagation after an early-return guard are
-not part of this increment.
+When one branch of a direct null or member guard guarantees return, the other
+branch's narrowing continues after the `if`; assigning the binding invalidates
+that narrowing. Compound-condition narrowing is not part of this increment.
 
 Infix `|` forms a first-class union type. Parentheses control postfix binding,
 so `(string | int)[]` is an array whose elements may be strings or integers,
