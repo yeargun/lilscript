@@ -2741,6 +2741,7 @@ fn render_const(value: &ConstValue) -> String {
         ConstValue::Float(value) => value.to_string(),
         ConstValue::Bool(value) => value.to_string(),
         ConstValue::String(value) => render_string_literal(value),
+        ConstValue::Null => "null".to_string(),
     }
 }
 
@@ -2772,6 +2773,7 @@ fn default_value(ty: &Type<'_>) -> &'static str {
         Type::Bool => "false",
         Type::String => "\"\"",
         Type::Array(_) => "[]",
+        Type::Null | Type::Nullable(_) => "null",
         Type::Struct(_)
         | Type::Class(_)
         | Type::StructInstance { .. }

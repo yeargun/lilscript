@@ -26,8 +26,10 @@ pub enum Type<'src> {
     Float,
     String,
     Bool,
+    Null,
     Void,
     Array(Box<Type<'src>>),
+    Nullable(Box<Type<'src>>),
     Struct(&'src str),
     Class(&'src str),
     StructInstance {
@@ -60,8 +62,10 @@ impl fmt::Display for Type<'_> {
             Self::Float => f.write_str("float"),
             Self::String => f.write_str("string"),
             Self::Bool => f.write_str("bool"),
+            Self::Null => f.write_str("null"),
             Self::Void => f.write_str("void"),
             Self::Array(element) => write!(f, "{element}[]"),
+            Self::Nullable(inner) => write!(f, "{inner}?"),
             Self::Struct(name) | Self::Class(name) => f.write_str(name),
             Self::StructInstance { name, args } | Self::ClassInstance { name, args } => {
                 write!(f, "{name}<")?;
@@ -820,6 +824,12 @@ impl<'src> Analyzer<'src> {
                     "cannot infer a variable type from a void expression",
                 ));
             }
+            if inferred == Type::Null {
+                return Err(SemanticError::new(
+                    initializer.span(),
+                    "cannot infer a variable type from `null`; add an explicit nullable type",
+                ));
+            }
             inferred
         } else {
             let declared = self.resolve_value_type(decl.ty, "variable")?;
@@ -856,7 +866,7 @@ impl<'src> Analyzer<'src> {
             .expect("return context was checked above");
         match context {
             ReturnContext::Declared { ty, saw_return } => {
-                if !is_assignable(ty, &actual) {
+                if !is_type_assignable(ty, &actual) {
                     return Err(SemanticError::new(
                         span,
                         format!("expected return type `{ty}`, found `{actual}`"),
@@ -902,6 +912,7 @@ impl<'src> Analyzer<'src> {
             Expr::Float(_, _) => Type::Float,
             Expr::String(_, _) => Type::String,
             Expr::Bool(_, _) => Type::Bool,
+            Expr::Null(_) => Type::Null,
             Expr::Ident(ident) => {
                 let (id, ty) = {
                     let symbol = self.resolve(ident)?;
@@ -1391,8 +1402,8 @@ impl<'src> Analyzer<'src> {
             ));
         };
         if signature.params.len() != 1
-            || !is_assignable(&signature.params[0], &element_type)
-            || !is_assignable(&element_type, &signature.params[0])
+            || !is_type_assignable(&signature.params[0], &element_type)
+            || !is_type_assignable(&element_type, &signature.params[0])
         {
             return Err(SemanticError::new(
                 args[0].span(),
@@ -1484,7 +1495,7 @@ impl<'src> Analyzer<'src> {
                     _ => unreachable!(),
                 })
                 .all(|(actual, expected)| actual == expected)
-            || !is_assignable(&accumulator, &signature.return_type)
+            || !is_type_assignable(&accumulator, &signature.return_type)
         {
             return Err(SemanticError::new(
                 args[0].span(),
@@ -1672,7 +1683,7 @@ impl<'src> Analyzer<'src> {
         for (index, param) in params.iter().enumerate() {
             let ty = self.resolve_value_type(param.ty, "arrow parameter")?;
             if let Some(expected) = expected_signature.and_then(|sig| sig.params.get(index)) {
-                if !is_assignable(expected, &ty) || !is_assignable(&ty, expected) {
+                if !is_type_assignable(expected, &ty) || !is_type_assignable(&ty, expected) {
                     return Err(SemanticError::new(
                         param.span,
                         format!("callback parameter must be `{expected}`, found `{ty}`"),
@@ -1827,6 +1838,16 @@ impl<'src> Analyzer<'src> {
                 let element = self.resolve_value_type(*element, "array element")?;
                 Ok(Type::Array(Box::new(element)))
             }
+            TypeKind::Nullable(inner) => {
+                let inner = self.resolve_value_type(*inner, "nullable value")?;
+                if matches!(inner, Type::Nullable(_) | Type::Null) {
+                    return Err(SemanticError::new(
+                        ty.span,
+                        "nullable types cannot be nested",
+                    ));
+                }
+                Ok(Type::Nullable(Box::new(inner)))
+            }
             TypeKind::Function {
                 params,
                 return_type,
@@ -1899,7 +1920,7 @@ impl<'src> Analyzer<'src> {
         actual: &Type<'src>,
         span: Span,
     ) -> Result<(), SemanticError> {
-        if is_assignable(expected, actual) {
+        if is_type_assignable(expected, actual) {
             Ok(())
         } else {
             Err(SemanticError::new(
@@ -2028,6 +2049,7 @@ fn substitute_type<'src>(
             .cloned()
             .unwrap_or_else(|| ty.clone()),
         Type::Array(element) => Type::Array(Box::new(substitute_type(element, substitutions))),
+        Type::Nullable(inner) => Type::Nullable(Box::new(substitute_type(inner, substitutions))),
         Type::StructInstance { name, args } => Type::StructInstance {
             name,
             args: args
@@ -2103,6 +2125,7 @@ fn contains_type_parameter(ty: &Type<'_>, parameters: &AHashSet<&str>) -> bool {
     match ty {
         Type::TypeParameter(name) => parameters.contains(name),
         Type::Array(element) => contains_type_parameter(element, parameters),
+        Type::Nullable(inner) => contains_type_parameter(inner, parameters),
         Type::StructInstance { args, .. } | Type::ClassInstance { args, .. } => args
             .iter()
             .any(|argument| contains_type_parameter(argument, parameters)),
@@ -2135,7 +2158,7 @@ fn infer_type_arguments<'src>(
     match (pattern, actual) {
         (Type::TypeParameter(name), actual) if parameters.contains(name) => {
             if let Some(previous) = substitutions.get(name) {
-                if !is_assignable(previous, actual) || !is_assignable(actual, previous) {
+                if !is_type_assignable(previous, actual) || !is_type_assignable(actual, previous) {
                     return Err(SemanticError::new(
                         span,
                         format!("conflicting inferences for `{name}`: `{previous}` and `{actual}`"),
@@ -2146,6 +2169,12 @@ fn infer_type_arguments<'src>(
             }
         }
         (Type::Array(pattern), Type::Array(actual)) => {
+            infer_type_arguments(pattern, actual, parameters, substitutions, span)?;
+        }
+        (Type::Nullable(pattern), Type::Nullable(actual)) => {
+            infer_type_arguments(pattern, actual, parameters, substitutions, span)?;
+        }
+        (Type::Nullable(pattern), actual) if actual != &Type::Null => {
             infer_type_arguments(pattern, actual, parameters, substitutions, span)?;
         }
         (Type::Function(pattern), Type::Function(actual))
@@ -2191,13 +2220,16 @@ fn infer_type_arguments<'src>(
     Ok(())
 }
 
-fn is_assignable(expected: &Type<'_>, actual: &Type<'_>) -> bool {
+pub(crate) fn is_type_assignable(expected: &Type<'_>, actual: &Type<'_>) -> bool {
     if expected == actual {
         return true;
     }
     match (expected, actual) {
         (Type::Float, Type::Int) => true,
-        (Type::Array(expected), Type::Array(actual)) => is_assignable(expected, actual),
+        (Type::Array(expected), Type::Array(actual)) => is_type_assignable(expected, actual),
+        (Type::Nullable(_), Type::Null) => true,
+        (Type::Nullable(expected), Type::Nullable(actual)) => is_type_assignable(expected, actual),
+        (Type::Nullable(expected), actual) => is_type_assignable(expected, actual),
         _ => false,
     }
 }
@@ -2260,6 +2292,18 @@ fn common_type<'src>(lhs: &Type<'src>, rhs: &Type<'src>) -> Option<Type<'src>> {
         return Some(common_numeric_type(lhs, rhs));
     }
     match (lhs, rhs) {
+        (Type::Nullable(inner), Type::Null) | (Type::Null, Type::Nullable(inner)) => {
+            Some(Type::Nullable(inner.clone()))
+        }
+        (Type::Null, other) | (other, Type::Null) if !matches!(other, Type::Null | Type::Void) => {
+            Some(Type::Nullable(Box::new(other.clone())))
+        }
+        (Type::Nullable(lhs), Type::Nullable(rhs)) => {
+            common_type(lhs, rhs).map(|inner| Type::Nullable(Box::new(inner)))
+        }
+        (Type::Nullable(nullable), other) | (other, Type::Nullable(nullable)) => {
+            common_type(nullable, other).map(|inner| Type::Nullable(Box::new(inner)))
+        }
         (Type::Array(lhs), Type::Array(rhs)) => {
             common_type(lhs, rhs).map(|element| Type::Array(Box::new(element)))
         }
@@ -2276,9 +2320,35 @@ fn common_numeric_type<'src>(lhs: &Type<'src>, rhs: &Type<'src>) -> Type<'src> {
 }
 
 fn equality_comparable(lhs: &Type<'_>, rhs: &Type<'_>) -> bool {
-    common_type(lhs, rhs).is_some()
-        && !matches!(lhs, Type::Struct(_) | Type::Function(_) | Type::Void)
-        && !matches!(rhs, Type::Struct(_) | Type::Function(_) | Type::Void)
+    match (lhs, rhs) {
+        (Type::Null, Type::Null)
+        | (Type::Null, Type::Nullable(_))
+        | (Type::Nullable(_), Type::Null) => true,
+        (Type::Nullable(lhs), Type::Nullable(rhs)) => equality_comparable(lhs, rhs),
+        (Type::Nullable(lhs), rhs) => equality_comparable(lhs, rhs),
+        (lhs, Type::Nullable(rhs)) => equality_comparable(lhs, rhs),
+        _ => {
+            common_type(lhs, rhs).is_some()
+                && !matches!(
+                    lhs,
+                    Type::Null
+                        | Type::Struct(_)
+                        | Type::StructInstance { .. }
+                        | Type::Function(_)
+                        | Type::GenericFunction(_)
+                        | Type::Void
+                )
+                && !matches!(
+                    rhs,
+                    Type::Null
+                        | Type::Struct(_)
+                        | Type::StructInstance { .. }
+                        | Type::Function(_)
+                        | Type::GenericFunction(_)
+                        | Type::Void
+                )
+        }
+    }
 }
 
 fn is_stringable(ty: &Type<'_>) -> bool {
@@ -2335,6 +2405,25 @@ mod tests {
     fn rejects_wrong_initializer_type() {
         let error = check("int value=\"no\";").unwrap_err();
         assert!(error.message.contains("expected `int`, found `string`"));
+    }
+
+    #[test]
+    fn validates_nullable_assignments_calls_and_equality() {
+        check(
+            "T? maybe<T>(bool present,T value){if(present){return value;}return null;}int? value=maybe(true,7);bool present=value!=null;bool same=value==7;",
+        )
+        .unwrap();
+        let error = check("int value=null;").unwrap_err();
+        assert!(error.message.contains("expected `int`, found `null`"));
+        let error = check("auto value=null;").unwrap_err();
+        assert!(error.message.contains("explicit nullable type"));
+        let error = check("int value=1;bool same=value==null;").unwrap_err();
+        assert!(error.message.contains("cannot be applied"));
+        let error = check(
+            "struct Pair{int left;int right;}Pair? maybe=null;Pair pair=Pair{1,2};bool same=maybe==pair;",
+        )
+        .unwrap_err();
+        assert!(error.message.contains("cannot be applied"));
     }
 
     #[test]

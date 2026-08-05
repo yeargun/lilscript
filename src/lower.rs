@@ -741,6 +741,7 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
             Expr::Bool(value, span) => {
                 self.emit_value(ControlFlowOp::Const(ConstValue::Bool(*value)), ty, *span)
             }
+            Expr::Null(span) => self.emit_value(ControlFlowOp::Const(ConstValue::Null), ty, *span),
             Expr::Ident(ident) => self.lower_ident(*ident, ty),
             Expr::ArrayLiteral { elements, span } => {
                 let values = elements
@@ -1740,7 +1741,11 @@ fn collect_expr_symbols<'ast, 'src>(
                 }
             }
         }
-        Expr::Int(_, _) | Expr::Float(_, _) | Expr::String(_, _) | Expr::Bool(_, _) => {}
+        Expr::Int(_, _)
+        | Expr::Float(_, _)
+        | Expr::String(_, _)
+        | Expr::Bool(_, _)
+        | Expr::Null(_) => {}
     }
 }
 
@@ -1897,6 +1902,7 @@ fn collect_expr_arrows<'ast, 'src>(
         | Expr::Float(_, _)
         | Expr::String(_, _)
         | Expr::Bool(_, _)
+        | Expr::Null(_)
         | Expr::Ident(_) => {}
     }
 }

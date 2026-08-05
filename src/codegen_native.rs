@@ -40,7 +40,10 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
             "static inline int32_t lilscript_irem(int32_t a,int32_t b){if(!b)return 0;return a==INT32_MIN&&b==-1?0:a%b;}\n",
         );
         out.push_str(
-            "typedef struct LilScriptArrayHeader{void*data;int32_t len,cap;}*LilScriptArray;typedef struct{void*fn;void*env;}LilScriptClosure;typedef char* LilScriptString;typedef union{int32_t i;double f;bool b;const char*s;void*p;LilScriptClosure c;}LilScriptValue;\n",
+            "typedef struct LilScriptArrayHeader{void*data;int32_t len,cap;}*LilScriptArray;typedef struct{void*fn;void*env;}LilScriptClosure;typedef char* LilScriptString;typedef union{int32_t i;double f;bool b;const char*s;void*p;LilScriptClosure c;}LilScriptValue;typedef struct{bool has;LilScriptValue value;}LilScriptOptional;\n",
+        );
+        out.push_str(
+            "static inline LilScriptOptional lilscript_optional_f64(LilScriptOptional v){if(v.has){int32_t i=v.value.i;v.value.f=(double)i;}return v;}\n",
         );
         out.push_str(
             "static inline LilScriptArray lilscript_array(int32_t n,size_t z){LilScriptArray a=malloc(sizeof*a);if(!a)abort();a->data=calloc((size_t)n,z);a->len=a->cap=n;if(n&&!a->data)abort();return a;}\n",
@@ -346,12 +349,17 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                 )
                 .expect("writing to String cannot fail");
                 for (index, value) in values.iter().enumerate() {
+                    let converted = self.render_value_conversion(
+                        &format!("v{}", value.0),
+                        &types[value],
+                        element,
+                        instruction.span,
+                    )?;
                     write!(
                         out,
-                        "(({}*)v{}->data)[{index}]=v{};",
+                        "(({}*)v{}->data)[{index}]={converted};",
                         c_type(element),
-                        result.0,
-                        value.0
+                        result.0
                     )
                     .expect("writing to String cannot fail");
                 }
@@ -422,8 +430,15 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                         function.0, result.0, function.0, result.0
                     )
                     .expect("writing to String cannot fail");
+                    let closure = self.function(*function)?;
                     for (index, capture) in captures.iter().enumerate() {
-                        write!(out, "e{}->c{index}=v{};", result.0, capture.0)
+                        let converted = self.render_value_conversion(
+                            &format!("v{}", capture.0),
+                            &types[capture],
+                            &closure.params[index].ty,
+                            instruction.span,
+                        )?;
+                        write!(out, "e{}->c{index}={converted};", result.0)
                             .expect("writing to String cannot fail");
                     }
                     write!(
@@ -474,13 +489,18 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                         "indexed native store requires an array",
                     ));
                 };
+                let converted = self.render_value_conversion(
+                    &format!("v{}", value.0),
+                    &types[value],
+                    element,
+                    instruction.span,
+                )?;
                 write!(
                     out,
-                    "(({}*)v{}->data)[v{}]=v{};",
+                    "(({}*)v{}->data)[v{}]={converted};",
                     c_type(element),
                     object.0,
-                    index.0,
-                    value.0
+                    index.0
                 )
                 .expect("writing to String cannot fail");
                 return Ok(());
@@ -533,7 +553,22 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                 return Ok(());
             }
             ControlFlowOp::StoreGlobal { global, value } => {
-                write!(out, "g{}=v{};", global.0, value.0).expect("writing to String cannot fail");
+                let storage = self
+                    .module
+                    .globals
+                    .iter()
+                    .find(|binding| binding.symbol == *global)
+                    .map(|binding| &binding.ty)
+                    .ok_or_else(|| {
+                        CodegenError::new(instruction.span, "native global has no type")
+                    })?;
+                let converted = self.render_value_conversion(
+                    &format!("v{}", value.0),
+                    &types[value],
+                    storage,
+                    instruction.span,
+                )?;
+                write!(out, "g{}={converted};", global.0).expect("writing to String cannot fail");
                 return Ok(());
             }
             ControlFlowOp::Intrinsic {
@@ -551,7 +586,12 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
         }
 
         let expression = self.render_instruction(instruction, types)?;
-        if let Some(value) = instruction.out {
+        if instruction.ty.as_ref() == Some(&Type::Void) {
+            if !expression.is_empty() {
+                out.push_str(&expression);
+                out.push(';');
+            }
+        } else if let Some(value) = instruction.out {
             write!(out, "v{}={expression};", value.0).expect("writing to String cannot fail");
         } else if !expression.is_empty() {
             out.push_str(&expression);
@@ -600,7 +640,13 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
         )
         .expect("writing to String cannot fail");
         let item = format!("(({}*)v{}->data)[i{}]", c_type(input), receiver.0, result.0);
-        let call = self.render_closure_call(callback, &[item], signature, instruction.span)?;
+        let call = self.render_closure_call(
+            callback,
+            &[item],
+            &[input.as_ref().clone()],
+            signature,
+            instruction.span,
+        )?;
         write!(
             out,
             "(({}*)v{}->data)[i{}]={call};}}",
@@ -642,6 +688,7 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
         let call = self.render_closure_call(
             callback,
             std::slice::from_ref(&item),
+            &[element.as_ref().clone()],
             signature,
             instruction.span,
         )?;
@@ -687,7 +734,16 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
             format!("v{}", result.0),
             format!("(({element_type}*)v{}->data)[i{}]", receiver.0, result.0),
         ];
-        let call = self.render_closure_call(*callback, &args, signature, instruction.span)?;
+        let accumulator_type = instruction.ty.as_ref().ok_or_else(|| {
+            CodegenError::new(instruction.span, "array reduce has no accumulator type")
+        })?;
+        let call = self.render_closure_call(
+            *callback,
+            &args,
+            &[accumulator_type.clone(), element.as_ref().clone()],
+            signature,
+            instruction.span,
+        )?;
         write!(out, "v{}={call};}}", result.0).expect("writing to String cannot fail");
         Ok(())
     }
@@ -721,6 +777,7 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
         let call = self.render_closure_call(
             callback,
             std::slice::from_ref(&item),
+            &[element.as_ref().clone()],
             signature,
             instruction.span,
         )?;
@@ -823,12 +880,25 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
             )?,
             ControlFlowOp::Struct { name, fields } => {
                 let record = aggregate_type_name("Struct", name);
+                let layout = self
+                    .module
+                    .structs
+                    .iter()
+                    .find(|layout| layout.name == *name)
+                    .ok_or_else(|| {
+                        CodegenError::new(instruction.span, "missing native struct layout")
+                    })?;
                 let mut value = format!("({record}){{");
-                for (index, field) in fields.iter().enumerate() {
+                for (index, (field, storage)) in fields.iter().zip(&layout.fields).enumerate() {
                     if index != 0 {
                         value.push(',');
                     }
-                    write!(value, "v{}", field.0).expect("writing to String cannot fail");
+                    value.push_str(&self.render_value_conversion(
+                        &format!("v{}", field.0),
+                        &types[field],
+                        &storage.ty,
+                        instruction.span,
+                    )?);
                 }
                 value.push('}');
                 value
@@ -848,11 +918,15 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                         "native indirect call has no function type",
                     ));
                 };
+                let arg_types = args
+                    .iter()
+                    .map(|value| types[value].clone())
+                    .collect::<Vec<_>>();
                 let args = args
                     .iter()
                     .map(|value| format!("v{}", value.0))
                     .collect::<Vec<_>>();
-                self.render_closure_call(*callee, &args, signature, instruction.span)?
+                self.render_closure_call(*callee, &args, &arg_types, signature, instruction.span)?
             }
             ControlFlowOp::IndexGet { object, index } => {
                 let Some(Type::Array(element)) = types.get(object) else {
@@ -952,9 +1026,16 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
         &self,
         callee: ValueId,
         args: &[String],
+        arg_types: &[Type<'src>],
         signature: &crate::semantic::FunctionType<'src>,
         span: Span,
     ) -> Result<String, CodegenError> {
+        if args.len() != signature.params.len() || args.len() != arg_types.len() {
+            return Err(CodegenError::new(
+                span,
+                "native closure call argument count does not match its signature",
+            ));
+        }
         let universal = Type::TypeParameter("$closure");
         let mut cast = String::from("LilScriptValue(*)(void*");
         for _ in &signature.params {
@@ -962,9 +1043,15 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
         }
         cast.push(')');
         let mut call = format!("((({cast})v{}.fn)(v{}.env", callee.0, callee.0);
-        for (arg, parameter) in args.iter().zip(&signature.params) {
+        for ((arg, actual), parameter) in args.iter().zip(arg_types).zip(&signature.params) {
             call.push(',');
-            call.push_str(&self.render_value_conversion(arg, parameter, &universal, span)?);
+            let normalized = self.render_value_conversion(arg, actual, parameter, span)?;
+            call.push_str(&self.render_value_conversion(
+                &normalized,
+                parameter,
+                &universal,
+                span,
+            )?);
         }
         call.push_str("))");
         if signature.return_type.as_ref() == &Type::Void {
@@ -1037,8 +1124,64 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
         to: &Type<'src>,
         span: Span,
     ) -> Result<String, CodegenError> {
+        if let Type::Nullable(inner) = to {
+            return match from {
+                Type::Null => Ok("(LilScriptOptional){false,{0}}".to_string()),
+                Type::Nullable(source) if source == inner => Ok(expression.to_string()),
+                Type::Nullable(source)
+                    if source.as_ref() == &Type::Int && inner.as_ref() == &Type::Float =>
+                {
+                    Ok(format!("lilscript_optional_f64({expression})"))
+                }
+                Type::Nullable(source)
+                    if matches!(source.as_ref(), Type::TypeParameter(_))
+                        || matches!(inner.as_ref(), Type::TypeParameter(_)) =>
+                {
+                    Ok(expression.to_string())
+                }
+                Type::Nullable(_) => Err(CodegenError::new(
+                    span,
+                    format!("cannot convert native `{from}` to `{to}`"),
+                )),
+                Type::TypeParameter("$closure") => {
+                    Ok(format!("*(LilScriptOptional*)({expression}).p"))
+                }
+                _ => {
+                    if !crate::semantic::is_type_assignable(inner, from) {
+                        return Err(CodegenError::new(
+                            span,
+                            format!("cannot convert native `{from}` to `{to}`"),
+                        ));
+                    }
+                    let normalized = self.render_value_conversion(expression, from, inner, span)?;
+                    let boxed = self.render_value_conversion(
+                        &normalized,
+                        inner,
+                        &Type::TypeParameter("$optional"),
+                        span,
+                    )?;
+                    Ok(format!("(LilScriptOptional){{true,{boxed}}}"))
+                }
+            };
+        }
+        if matches!(to, Type::TypeParameter(_)) && matches!(from, Type::Null | Type::Nullable(_)) {
+            return Ok(format!(
+                "(LilScriptValue){{.p=lilscript_copy((LilScriptOptional[]){{{expression}}},sizeof(LilScriptOptional))}}"
+            ));
+        }
+        if matches!(from, Type::Nullable(_)) {
+            return self.render_value_conversion(
+                &format!("({expression}).value"),
+                &Type::TypeParameter("$optional"),
+                to,
+                span,
+            );
+        }
         if from == to || c_type(from) == c_type(to) {
             return Ok(expression.to_string());
+        }
+        if from == &Type::Int && to == &Type::Float {
+            return Ok(format!("(double)({expression})"));
         }
         if matches!(to, Type::TypeParameter(_)) {
             let member = match from {
@@ -1055,6 +1198,11 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                     ));
                 }
                 Type::TypeParameter(_) => return Ok(expression.to_string()),
+                Type::Null | Type::Nullable(_) => {
+                    return Ok(format!(
+                        "(LilScriptValue){{.p=lilscript_copy((LilScriptOptional[]){{{expression}}},sizeof(LilScriptOptional))}}"
+                    ));
+                }
                 Type::Void => {
                     return Err(CodegenError::new(span, "cannot box a native void value"));
                 }
@@ -1080,6 +1228,8 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                     format!("*({}*)({expression}).p", c_type(to))
                 }
                 Type::TypeParameter(_) => expression.to_string(),
+                Type::Nullable(_) => format!("*(LilScriptOptional*)({expression}).p"),
+                Type::Null => "(LilScriptOptional){false,{0}}".to_string(),
                 Type::Void => {
                     return Err(CodegenError::new(span, "cannot unbox a native void value"));
                 }
@@ -1122,6 +1272,20 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
     ) -> Result<String, CodegenError> {
         let lhs_name = format!("v{}", lhs.0);
         let rhs_name = format!("v{}", rhs.0);
+        let lhs_type = &types[&lhs];
+        let rhs_type = &types[&rhs];
+        if matches!(op, IrBinaryOp::Eq | IrBinaryOp::NotEq)
+            && (matches!(lhs_type, Type::Null | Type::Nullable(_))
+                || matches!(rhs_type, Type::Null | Type::Nullable(_)))
+        {
+            let equal =
+                self.render_nullable_equality(&lhs_name, lhs_type, &rhs_name, rhs_type, span)?;
+            return Ok(if op == IrBinaryOp::Eq {
+                equal
+            } else {
+                format!("!({equal})")
+            });
+        }
         if output_type == Some(&Type::Int) {
             return Ok(match op {
                 IrBinaryOp::Add => {
@@ -1163,6 +1327,61 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
             };
         }
         Ok(format!("({lhs_name}{}{rhs_name})", c_binary_operator(op)))
+    }
+
+    fn render_nullable_equality(
+        &self,
+        lhs: &str,
+        lhs_type: &Type<'src>,
+        rhs: &str,
+        rhs_type: &Type<'src>,
+        span: Span,
+    ) -> Result<String, CodegenError> {
+        match (lhs_type, rhs_type) {
+            (Type::Null, Type::Null) => Ok("true".to_string()),
+            (Type::Nullable(_), Type::Null) => Ok(format!("!({lhs}).has")),
+            (Type::Null, Type::Nullable(_)) => Ok(format!("!({rhs}).has")),
+            (Type::Nullable(lhs_inner), Type::Nullable(rhs_inner)) => {
+                let lhs_value = self.render_value_conversion(
+                    &format!("({lhs}).value"),
+                    &Type::TypeParameter("$optional"),
+                    lhs_inner,
+                    span,
+                )?;
+                let rhs_value = self.render_value_conversion(
+                    &format!("({rhs}).value"),
+                    &Type::TypeParameter("$optional"),
+                    rhs_inner,
+                    span,
+                )?;
+                let values =
+                    render_native_equality(&lhs_value, lhs_inner, &rhs_value, rhs_inner, span)?;
+                Ok(format!(
+                    "(({lhs}).has==({rhs}).has&&(!({lhs}).has||{values}))"
+                ))
+            }
+            (Type::Nullable(inner), other) => {
+                let value = self.render_value_conversion(
+                    &format!("({lhs}).value"),
+                    &Type::TypeParameter("$optional"),
+                    inner,
+                    span,
+                )?;
+                let values = render_native_equality(&value, inner, rhs, other, span)?;
+                Ok(format!("(({lhs}).has&&{values})"))
+            }
+            (other, Type::Nullable(inner)) => {
+                let value = self.render_value_conversion(
+                    &format!("({rhs}).value"),
+                    &Type::TypeParameter("$optional"),
+                    inner,
+                    span,
+                )?;
+                let values = render_native_equality(lhs, other, &value, inner, span)?;
+                Ok(format!("(({rhs}).has&&{values})"))
+            }
+            _ => Err(CodegenError::new(span, "invalid native nullable equality")),
+        }
     }
 
     fn emit_print(
@@ -1229,7 +1448,13 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                     )?;
                     write!(out, "return {converted};").expect("writing to String cannot fail");
                 } else {
-                    write!(out, "return v{};", value.0).expect("writing to String cannot fail");
+                    let converted = self.render_value_conversion(
+                        &format!("v{}", value.0),
+                        &types[value],
+                        &function.return_type,
+                        block.span,
+                    )?;
+                    write!(out, "return {converted};").expect("writing to String cannot fail");
                 }
             }
             Terminator::Return(None) if function.kind == FunctionKind::Entry => {
@@ -1268,7 +1493,16 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
             let ty = types
                 .get(target)
                 .ok_or_else(|| CodegenError::new(function.span, "phi target has no native type"))?;
-            write!(out, "{} p{}=v{};", c_type(ty), base + index, source.0)
+            let source_type = types
+                .get(source)
+                .ok_or_else(|| CodegenError::new(function.span, "phi source has no native type"))?;
+            let converted = self.render_value_conversion(
+                &format!("v{}", source.0),
+                source_type,
+                ty,
+                function.span,
+            )?;
+            write!(out, "{} p{}={converted};", c_type(ty), base + index)
                 .expect("writing to String cannot fail");
         }
         for (index, (target, _)) in copies.iter().enumerate() {
@@ -1335,12 +1569,38 @@ fn value_types<'src>(function: &ControlFlowFunction<'src>) -> AHashMap<ValueId, 
     types
 }
 
+fn render_native_equality(
+    lhs: &str,
+    lhs_type: &Type<'_>,
+    rhs: &str,
+    rhs_type: &Type<'_>,
+    span: Span,
+) -> Result<String, CodegenError> {
+    if lhs_type == &Type::String && rhs_type == &Type::String {
+        return Ok(format!("!strcmp({lhs},{rhs})"));
+    }
+    if matches!(
+        (lhs_type, rhs_type),
+        (
+            Type::Struct(_) | Type::StructInstance { .. },
+            Type::Struct(_) | Type::StructInstance { .. }
+        )
+    ) {
+        return Err(CodegenError::new(
+            span,
+            "native struct equality is not supported",
+        ));
+    }
+    Ok(format!("({lhs}=={rhs})"))
+}
+
 fn c_type(ty: &Type<'_>) -> String {
     match ty {
         Type::Int => "int32_t".to_string(),
         Type::Float => "double".to_string(),
         Type::Bool => "bool".to_string(),
         Type::String => "const char*".to_string(),
+        Type::Null | Type::Nullable(_) => "LilScriptOptional".to_string(),
         Type::Array(_) => "LilScriptArray".to_string(),
         Type::Struct(name) => aggregate_type_name("Struct", name),
         Type::Class(name) => aggregate_type_name("Class", name),
@@ -1366,6 +1626,7 @@ fn render_c_const(value: &ConstValue) -> String {
         ConstValue::Float(value) => format!("{value:.17}"),
         ConstValue::Bool(value) => value.to_string(),
         ConstValue::String(value) => format!("\"{value}\""),
+        ConstValue::Null => "(LilScriptOptional){false,{0}}".to_string(),
     }
 }
 

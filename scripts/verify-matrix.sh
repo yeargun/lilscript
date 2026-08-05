@@ -13,14 +13,20 @@ if [ ! -x "$LILSCRIPT" ]; then
 fi
 mkdir -p "$BUILD"
 
-count=0
+program_count=0
+execution_count=0
 verify_case() {
   source=$1
   expected=$2
   name=$3
+  config=$4
   base="$BUILD/$name"
 
-  "$LILSCRIPT" "$source" --target all -o "$base"
+  if [ -n "$config" ]; then
+    "$LILSCRIPT" "$source" --target all --config "$config" -o "$base"
+  else
+    "$LILSCRIPT" "$source" --target all -o "$base"
+  fi
   test -s "$base.js"
   test -s "$base.c"
   test -x "$base"
@@ -33,17 +39,32 @@ verify_case() {
   diff -u "$expected" "$base.js.out"
   diff -u "$expected" "$base.native.out"
   diff -u "$expected" "$base.c.out"
-  count=$((count + 1))
+  execution_count=$((execution_count + 1))
+}
+
+verify_case_modes() {
+  source=$1
+  expected=$2
+  name=$3
+  verify_case "$source" "$expected" "$name-maximum" ""
+  verify_case \
+    "$source" \
+    "$expected" \
+    "$name-none" \
+    "$ROOT/tests/config/no-optimization.toml"
+  program_count=$((program_count + 1))
 }
 
 for source in "$CASES"/*.lil; do
   name=$(basename "$source" .lil)
-  verify_case "$source" "$CASES/$name.out" "$name"
+  verify_case_modes "$source" "$CASES/$name.out" "$name"
 done
 
-verify_case \
+verify_case_modes \
   "$ROOT/tests/modules/main.lil" \
   "$ROOT/tests/modules/main.out" \
   module_graph
 
-printf '%s LilScript programs matched across JavaScript, emitted C, and native executables.\n' "$count"
+printf '%s LilScript programs matched across JavaScript, emitted C, and native executables in %s optimizer-mode executions.\n' \
+  "$program_count" \
+  "$execution_count"

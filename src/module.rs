@@ -455,6 +455,9 @@ fn type_contracts_match(left: TypeRef<'_, '_>, right: TypeRef<'_, '_>) -> bool {
                     .all(|(left, right)| type_contracts_match(*left, *right))
         }
         (TypeKind::Array(left), TypeKind::Array(right)) => type_contracts_match(*left, *right),
+        (TypeKind::Nullable(left), TypeKind::Nullable(right)) => {
+            type_contracts_match(*left, *right)
+        }
         (
             TypeKind::Function {
                 params: left_params,
@@ -805,6 +808,7 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
             Expr::Float(value, span) => Expr::Float(*value, self.span(*span)),
             Expr::String(value, span) => Expr::String(value, self.span(*span)),
             Expr::Bool(value, span) => Expr::Bool(*value, self.span(*span)),
+            Expr::Null(span) => Expr::Null(self.span(*span)),
             Expr::Ident(ident) => Expr::Ident(self.reference_ident(*ident)),
             Expr::ArrayLiteral { elements, span } => Expr::ArrayLiteral {
                 elements: self.clone_exprs(elements),
@@ -935,6 +939,9 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
             },
             TypeKind::Array(element) => {
                 TypeKind::Array(self.arena.alloc(self.clone_type(*element)))
+            }
+            TypeKind::Nullable(inner) => {
+                TypeKind::Nullable(self.arena.alloc(self.clone_type(*inner)))
             }
             TypeKind::Function {
                 params,

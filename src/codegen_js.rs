@@ -567,6 +567,7 @@ impl<'src> JsEmitter<'src> {
             Expr::Float(value, _) => write_float(*value, out),
             Expr::String(value, _) => write_string_literal(value, out),
             Expr::Bool(value, _) => out.push_str(if *value { "true" } else { "false" }),
+            Expr::Null(_) => out.push_str("null"),
             Expr::Ident(ident) => {
                 if ident.name == "this" {
                     out.push_str("this");

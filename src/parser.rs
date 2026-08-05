@@ -756,14 +756,26 @@ impl<'arena, 'src> Parser<'arena, 'src> {
             _ => return Err(ParseError::new(token.span, "expected type")),
         };
 
-        while self.match_kind(|kind| matches!(kind, TokenKind::LBracket)) {
-            let open = self.previous_span();
-            let close = self.expect(|kind| matches!(kind, TokenKind::RBracket), "expected `]`")?;
-            let element = self.arena.alloc(ty);
-            ty = TypeRef {
-                kind: TypeKind::Array(element),
-                span: open.merge(close.span).merge(element.span),
-            };
+        loop {
+            if self.match_kind(|kind| matches!(kind, TokenKind::LBracket)) {
+                let open = self.previous_span();
+                let close =
+                    self.expect(|kind| matches!(kind, TokenKind::RBracket), "expected `]`")?;
+                let element = self.arena.alloc(ty);
+                ty = TypeRef {
+                    kind: TypeKind::Array(element),
+                    span: open.merge(close.span).merge(element.span),
+                };
+            } else if self.match_kind(|kind| matches!(kind, TokenKind::Question)) {
+                let question = self.previous_span();
+                let inner = self.arena.alloc(ty);
+                ty = TypeRef {
+                    kind: TypeKind::Nullable(inner),
+                    span: inner.span.merge(question),
+                };
+            } else {
+                break;
+            }
         }
 
         Ok(ty)
@@ -929,6 +941,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
             TokenKind::TemplateLiteral(raw) => self.parse_template_literal(raw, token.span),
             TokenKind::True => Ok(Expr::Bool(true, token.span)),
             TokenKind::False => Ok(Expr::Bool(false, token.span)),
+            TokenKind::Null => Ok(Expr::Null(token.span)),
             TokenKind::New => {
                 let class = self.expect_ident("expected class name after `new`")?;
                 let type_args = self.parse_type_args()?;
@@ -1218,14 +1231,23 @@ impl<'arena, 'src> Parser<'arena, 'src> {
             _ => return None,
         }
 
-        while matches!(
-            (
+        loop {
+            if matches!(
+                (
+                    self.tokens.get(index).map(|token| &token.kind),
+                    self.tokens.get(index + 1).map(|token| &token.kind),
+                ),
+                (Some(TokenKind::LBracket), Some(TokenKind::RBracket))
+            ) {
+                index += 2;
+            } else if matches!(
                 self.tokens.get(index).map(|token| &token.kind),
-                self.tokens.get(index + 1).map(|token| &token.kind),
-            ),
-            (Some(TokenKind::LBracket), Some(TokenKind::RBracket))
-        ) {
-            index += 2;
+                Some(TokenKind::Question)
+            ) {
+                index += 1;
+            } else {
+                break;
+            }
         }
 
         Some(index)
@@ -1535,6 +1557,25 @@ export { Point };"#,
         assert!(matches!(
             binding.ty.kind,
             TypeKind::Named { name: "Box", args } if args.len() == 1
+        ));
+    }
+
+    #[test]
+    fn parses_nullable_types_and_null_literals() {
+        let arena = Bump::new();
+        let program = parse_source(&arena, "string? label=null;int?[] values=[null,1];").unwrap();
+
+        let Item::Stmt(Stmt::VarDecl(label)) = &program.items[0] else {
+            panic!("expected nullable binding");
+        };
+        assert!(matches!(label.ty.kind, TypeKind::Nullable(_)));
+        assert!(matches!(label.initializer, Some(Expr::Null(_))));
+        let Item::Stmt(Stmt::VarDecl(values)) = &program.items[1] else {
+            panic!("expected nullable array binding");
+        };
+        assert!(matches!(
+            values.ty.kind,
+            TypeKind::Array(element) if matches!(element.kind, TypeKind::Nullable(_))
         ));
     }
 }

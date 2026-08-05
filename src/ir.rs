@@ -19,6 +19,7 @@ pub enum ConstValue {
     Float(f64),
     Bool(bool),
     String(String),
+    Null,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

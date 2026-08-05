@@ -1,0 +1,80 @@
+T? maybe<T>(bool present, T value) {
+  if (present) {
+    return value;
+  }
+  return null;
+}
+
+int? chooseLocal(bool present) {
+  int? result = null;
+  if (present) {
+    result = 11;
+  }
+  return result;
+}
+
+float? widenMaybe(bool present) {
+  int? value = maybe(present, 14);
+  return value;
+}
+
+struct MaybePair {
+  int? left;
+  int? right;
+}
+
+class MaybeBox {
+  int? value;
+
+  init(int? value) {
+    this.value = value;
+  }
+}
+
+int? seven = maybe(true, 7);
+int? absentInt = maybe(false, 9);
+string? label = maybe(true, "lilscript");
+string? absentLabel = maybe(false, "unused");
+int? anotherSeven = 7;
+
+print(seven != null);
+print(absentInt == null);
+print(label != null);
+print(absentLabel == null);
+print(seven == 7);
+print(absentInt != 9);
+print(absentInt == 9);
+print(seven == anotherSeven);
+
+int?[] values = [seven, null, 3];
+print(values[0] == 7);
+print(values[1] == null);
+values[1] = 4;
+print(values[1] == 4);
+
+MaybePair pair = MaybePair{5, null};
+print(pair.left == 5);
+print(pair.right == null);
+
+MaybeBox box = new MaybeBox(6);
+print(box.value == 6);
+box.value = null;
+print(box.value == null);
+print(chooseLocal(true) == 11);
+print(chooseLocal(false) == null);
+
+func(int?)->int? echo = (int? value) => value;
+print(echo(12) == 12);
+print(echo(null) == null);
+
+float widened = 1;
+float? nullableFloat = 8;
+int? nullableInt = 9;
+float? widenedNullable = nullableInt;
+func(float?)->float? echoFloat = (float? value) => value;
+print(widened == 1.0);
+print(nullableFloat == 8.0);
+print(widenedNullable == 9.0);
+print(echoFloat(13) == 13.0);
+print(widenMaybe(true) == 14.0);
+print(widenMaybe(false) == null);

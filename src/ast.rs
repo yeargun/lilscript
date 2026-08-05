@@ -25,6 +25,7 @@ pub enum TypeKind<'ast, 'src> {
         args: &'ast [TypeRef<'ast, 'src>],
     },
     Array(&'ast TypeRef<'ast, 'src>),
+    Nullable(&'ast TypeRef<'ast, 'src>),
     Function {
         params: &'ast [TypeRef<'ast, 'src>],
         return_type: &'ast TypeRef<'ast, 'src>,
@@ -230,6 +231,7 @@ pub enum Expr<'ast, 'src> {
     Float(f64, Span),
     String(&'src str, Span),
     Bool(bool, Span),
+    Null(Span),
     Ident(Ident<'src>),
     ArrayLiteral {
         elements: &'ast [Expr<'ast, 'src>],
@@ -302,6 +304,7 @@ impl<'ast, 'src> Expr<'ast, 'src> {
             | Self::Float(_, span)
             | Self::String(_, span)
             | Self::Bool(_, span)
+            | Self::Null(span)
             | Self::ArrayLiteral { span, .. }
             | Self::StructLiteral { span, .. }
             | Self::New { span, .. }

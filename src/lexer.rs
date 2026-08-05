@@ -57,6 +57,8 @@ pub enum TokenKind<'src> {
     True,
     #[token("false")]
     False,
+    #[token("null")]
+    Null,
     #[token("new")]
     New,
 
@@ -140,6 +142,8 @@ pub enum TokenKind<'src> {
     LBracket,
     #[token("]")]
     RBracket,
+    #[token("?")]
+    Question,
 }
 
 #[derive(Debug, Clone, PartialEq)]

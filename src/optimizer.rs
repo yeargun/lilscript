@@ -579,6 +579,7 @@ enum ConstantNumber {
     Float(u64),
     Bool(bool),
     String(String),
+    Null,
 }
 
 impl From<&ConstValue> for ConstantNumber {
@@ -588,6 +589,7 @@ impl From<&ConstValue> for ConstantNumber {
             ConstValue::Float(value) => Self::Float(value.to_bits()),
             ConstValue::Bool(value) => Self::Bool(*value),
             ConstValue::String(value) => Self::String(value.clone()),
+            ConstValue::Null => Self::Null,
         }
     }
 }
@@ -2736,6 +2738,7 @@ fn constant_string_value(value: &ConstValue) -> Option<String> {
         ConstValue::Float(value) => value.to_string(),
         ConstValue::Bool(value) => value.to_string(),
         ConstValue::String(value) => value.clone(),
+        ConstValue::Null => "null".to_string(),
     })
 }
 
@@ -2750,6 +2753,22 @@ fn push_template_string(parts: &mut Vec<TemplateOperand>, value: &str) {
 fn fold_binary(op: IrBinaryOp, lhs: &ConstValue, rhs: &ConstValue) -> Option<ConstValue> {
     use ConstValue::{Bool, Float, Int, String};
     use IrBinaryOp::{Add, Div, Eq, Greater, GreaterEq, Less, LessEq, Mod, Mul, NotEq, Sub};
+
+    if let Some((lhs, rhs)) = mixed_numeric_constants(lhs, rhs) {
+        return match op {
+            Add => Some(Float(lhs + rhs)),
+            Sub => Some(Float(lhs - rhs)),
+            Mul => Some(Float(lhs * rhs)),
+            Div if rhs != 0.0 => Some(Float(lhs / rhs)),
+            Eq => Some(Bool(lhs == rhs)),
+            NotEq => Some(Bool(lhs != rhs)),
+            Less => Some(Bool(lhs < rhs)),
+            LessEq => Some(Bool(lhs <= rhs)),
+            Greater => Some(Bool(lhs > rhs)),
+            GreaterEq => Some(Bool(lhs >= rhs)),
+            _ => None,
+        };
+    }
 
     match (op, lhs, rhs) {
         (Add, Int(lhs), Int(rhs)) => Some(Int(i64::from((*lhs as i32).wrapping_add(*rhs as i32)))),
@@ -2776,6 +2795,14 @@ fn fold_binary(op: IrBinaryOp, lhs: &ConstValue, rhs: &ConstValue) -> Option<Con
         (GreaterEq, Float(lhs), Float(rhs)) => Some(Bool(lhs >= rhs)),
         (IrBinaryOp::And, Bool(lhs), Bool(rhs)) => Some(Bool(*lhs && *rhs)),
         (IrBinaryOp::Or, Bool(lhs), Bool(rhs)) => Some(Bool(*lhs || *rhs)),
+        _ => None,
+    }
+}
+
+fn mixed_numeric_constants(lhs: &ConstValue, rhs: &ConstValue) -> Option<(f64, f64)> {
+    match (lhs, rhs) {
+        (ConstValue::Int(lhs), ConstValue::Float(rhs)) => Some((*lhs as f64, *rhs)),
+        (ConstValue::Float(lhs), ConstValue::Int(rhs)) => Some((*lhs, *rhs as f64)),
         _ => None,
     }
 }
@@ -3413,6 +3440,22 @@ mod tests {
                 ..
             }
         ));
+    }
+
+    #[test]
+    fn folds_mixed_numeric_constants_by_value() {
+        assert_eq!(
+            fold_binary(IrBinaryOp::Eq, &ConstValue::Int(7), &ConstValue::Float(7.0),),
+            Some(ConstValue::Bool(true))
+        );
+        assert_eq!(
+            fold_binary(
+                IrBinaryOp::Add,
+                &ConstValue::Float(0.5),
+                &ConstValue::Int(2),
+            ),
+            Some(ConstValue::Float(2.5))
+        );
     }
 
     #[test]
