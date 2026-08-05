@@ -40,10 +40,13 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
             "static inline int32_t lilscript_irem(int32_t a,int32_t b){if(!b)return 0;return a==INT32_MIN&&b==-1?0:a%b;}\n",
         );
         out.push_str(
-            "typedef struct LilScriptArrayHeader{void*data;int32_t len,cap;}*LilScriptArray;typedef struct{void*fn;void*env;}LilScriptClosure;typedef char* LilScriptString;typedef union{int32_t i;double f;bool b;const char*s;void*p;LilScriptClosure c;}LilScriptValue;typedef struct{bool has;LilScriptValue value;}LilScriptOptional;\n",
+            "typedef struct LilScriptArrayHeader{void*data;int32_t len,cap;}*LilScriptArray;typedef struct{void*fn;void*env;}LilScriptClosure;typedef char* LilScriptString;typedef struct{uint8_t tag;union{int32_t i;double f;bool b;const char*s;void*p;LilScriptClosure c;};}LilScriptValue;typedef struct{bool has;LilScriptValue value;}LilScriptOptional;\n",
         );
         out.push_str(
-            "static inline LilScriptOptional lilscript_optional_f64(LilScriptOptional v){if(v.has){int32_t i=v.value.i;v.value.f=(double)i;}return v;}\n",
+            "static inline LilScriptOptional lilscript_optional_f64(LilScriptOptional v){if(v.has){int32_t i=v.value.i;v.value.tag=2;v.value.f=(double)i;}return v;}\n",
+        );
+        out.push_str(
+            "static inline bool lilscript_value_eq(LilScriptValue a,LilScriptValue b){if(a.tag!=b.tag)return false;switch(a.tag){case 0:return true;case 1:return a.i==b.i;case 2:return a.f==b.f;case 3:return a.b==b.b;case 4:return !strcmp(a.s,b.s);case 5:return a.c.fn==b.c.fn&&a.c.env==b.c.env;default:return a.p==b.p;}}\n",
         );
         out.push_str(
             "static inline LilScriptArray lilscript_array(int32_t n,size_t z){LilScriptArray a=malloc(sizeof*a);if(!a)abort();a->data=calloc((size_t)n,z);a->len=a->cap=n;if(n&&!a->data)abort();return a;}\n",
@@ -1178,7 +1181,7 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
         }
         if matches!(to, Type::TypeParameter(_)) && matches!(from, Type::Null | Type::Nullable(_)) {
             return Ok(format!(
-                "(LilScriptValue){{.p=lilscript_copy((LilScriptOptional[]){{{expression}}},sizeof(LilScriptOptional))}}"
+                "(LilScriptValue){{.tag=7,.p=lilscript_copy((LilScriptOptional[]){{{expression}}},sizeof(LilScriptOptional))}}"
             ));
         }
         if matches!(from, Type::Nullable(_)) {
@@ -1206,13 +1209,13 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                 Type::Struct(_) | Type::StructInstance { .. } => {
                     let native = c_type(from);
                     return Ok(format!(
-                        "(LilScriptValue){{.p=lilscript_copy(({native}[]){{{expression}}},sizeof({native}))}}"
+                        "(LilScriptValue){{.tag=7,.p=lilscript_copy(({native}[]){{{expression}}},sizeof({native}))}}"
                     ));
                 }
                 Type::TypeParameter(_) => return Ok(expression.to_string()),
                 Type::Null | Type::Nullable(_) => {
                     return Ok(format!(
-                        "(LilScriptValue){{.p=lilscript_copy((LilScriptOptional[]){{{expression}}},sizeof(LilScriptOptional))}}"
+                        "(LilScriptValue){{.tag=7,.p=lilscript_copy((LilScriptOptional[]){{{expression}}},sizeof(LilScriptOptional))}}"
                     ));
                 }
                 Type::Void => {
@@ -1224,7 +1227,10 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
             } else {
                 expression.to_string()
             };
-            return Ok(format!("(LilScriptValue){{.{member}={value}}}"));
+            return Ok(format!(
+                "(LilScriptValue){{.tag={},.{member}={value}}}",
+                generic_value_tag(from)
+            ));
         }
         if matches!(from, Type::TypeParameter(_)) {
             return Ok(match to {
@@ -1292,6 +1298,17 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
         {
             let equal =
                 self.render_nullable_equality(&lhs_name, lhs_type, &rhs_name, rhs_type, span)?;
+            return Ok(if op == IrBinaryOp::Eq {
+                equal
+            } else {
+                format!("!({equal})")
+            });
+        }
+        if matches!(op, IrBinaryOp::Eq | IrBinaryOp::NotEq)
+            && matches!(lhs_type, Type::TypeParameter(_))
+            && matches!(rhs_type, Type::TypeParameter(_))
+        {
+            let equal = format!("lilscript_value_eq({lhs_name},{rhs_name})");
             return Ok(if op == IrBinaryOp::Eq {
                 equal
             } else {
@@ -1588,6 +1605,9 @@ fn render_native_equality(
     rhs_type: &Type<'_>,
     span: Span,
 ) -> Result<String, CodegenError> {
+    if matches!(lhs_type, Type::TypeParameter(_)) && matches!(rhs_type, Type::TypeParameter(_)) {
+        return Ok(format!("lilscript_value_eq({lhs},{rhs})"));
+    }
     if lhs_type == &Type::String && rhs_type == &Type::String {
         return Ok(format!("!strcmp({lhs},{rhs})"));
     }
@@ -1604,6 +1624,19 @@ fn render_native_equality(
         ));
     }
     Ok(format!("({lhs}=={rhs})"))
+}
+
+fn generic_value_tag(ty: &Type<'_>) -> u8 {
+    match ty {
+        Type::Int => 1,
+        Type::Float => 2,
+        Type::Bool => 3,
+        Type::String => 4,
+        Type::Function(_) | Type::GenericFunction(_) => 5,
+        Type::Array(_) | Type::Class(_) | Type::ClassInstance { .. } => 6,
+        Type::Struct(_) | Type::StructInstance { .. } | Type::Null | Type::Nullable(_) => 7,
+        Type::TypeParameter(_) | Type::Void => 0,
+    }
 }
 
 fn c_type(ty: &Type<'_>) -> String {
@@ -1692,5 +1725,20 @@ mod tests {
         assert!(c.contains("typedef struct LilScriptClass_426f78*LilScriptClass_426f78;"));
         assert!(c.contains("extern int32_t consumePoint(LilScriptStruct_506f696e74);"));
         assert!(c.contains("extern int32_t consumeBox(LilScriptClass_426f78);"));
+    }
+
+    #[test]
+    fn emits_tagged_generic_equality() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "bool same<T>(T left,T right){return left==right;}print(same(7,7));print(same(1.0,-0.0));print(same(\"lil\",\"lil\"));",
+        )
+        .unwrap();
+        let c = compile_to_c(&program).unwrap();
+        assert!(c.contains("lilscript_value_eq"));
+        assert!(c.contains(".tag=1,.i="));
+        assert!(c.contains(".tag=2,.f="));
+        assert!(c.contains(".tag=4,.s="));
     }
 }

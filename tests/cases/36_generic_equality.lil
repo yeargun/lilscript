@@ -1,0 +1,20 @@
+bool same<T>(T left, T right) {
+  return left == right;
+}
+
+class Box {
+  int value;
+
+  init(int value) {
+    this.value = value;
+  }
+}
+
+Box shared = new Box(1);
+print(same(7, 7));
+print(same(7, 8));
+print(same(0.0, -0.0));
+print(same("lil", "lil"));
+print(same("lil", "script"));
+print(same(shared, shared));
+print(same(shared, new Box(1)));
