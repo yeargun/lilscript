@@ -79,6 +79,9 @@ rejected when another member has the same runtime category, so `int | float`
 cannot be distinguished with `is`; no backend-dependent reflection is exposed.
 JavaScript lowers guards to `typeof` or `Array.isArray`, while native code tests
 the union tag and unboxes the narrowed member.
+For `(A | B)?`, a preceding `value != null` guard first narrows to `A | B`;
+member guards then narrow that union normally and native lowering composes the
+optional-payload and union-tag unwraps.
 
 Generic functions declare type parameters after the function name. Calls infer
 their type arguments from ordinary values and callback parameter/return types:
