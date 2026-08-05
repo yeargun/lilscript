@@ -71,6 +71,15 @@ concrete values unboxed and uses `LilScriptValue` only when a value crosses a
 union boundary; equality and string conversion dispatch on that tag. A
 default-constructed union field uses the first member's default value.
 
+`value is Type` tests one concrete union member and narrows an identifier in
+both branches. `!` swaps the branch narrowings. Guards are deliberately limited
+to runtime categories that have identical JavaScript and native semantics:
+`int`/`float` numbers, `string`, `bool`, arrays, and functions. A guard is
+rejected when another member has the same runtime category, so `int | float`
+cannot be distinguished with `is`; no backend-dependent reflection is exposed.
+JavaScript lowers guards to `typeof` or `Array.isArray`, while native code tests
+the union tag and unboxes the narrowed member.
+
 Generic functions declare type parameters after the function name. Calls infer
 their type arguments from ordinary values and callback parameter/return types:
 

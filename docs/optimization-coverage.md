@@ -65,7 +65,7 @@ The current schedule is:
 
 ## Executable evidence
 
-`scripts/verify-matrix.sh` compiles 34 independent `.lil` programs, including a
+`scripts/verify-matrix.sh` compiles 43 independent `.lil` programs, including a
 multi-file module graph, with one
 `--target all` invocation per program. Each invocation emits JavaScript, emits
 C, and invokes Clang for a native executable. The script then compiles the
