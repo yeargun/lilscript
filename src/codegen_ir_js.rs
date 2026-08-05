@@ -768,12 +768,28 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             &mut else_visited,
                             &mut else_output,
                         )?;
-                        if else_output.is_empty() {
+                        if let Some((target, then_value, else_value)) =
+                            merge_conditional_assignments(&then_output, &else_output)
+                        {
+                            out.push_str(target);
+                            out.push('=');
+                            out.push_str(&condition);
+                            out.push('?');
+                            out.push_str(then_value);
+                            out.push(':');
+                            out.push_str(else_value);
+                            out.push(';');
+                        } else if else_output.is_empty() {
                             out.push_str("if(");
                             out.push_str(&condition);
-                            out.push_str("){");
-                            out.push_str(&then_output);
-                            out.push('}');
+                            if matches!(then_output.as_str(), "continue;" | "break;") {
+                                out.push(')');
+                                out.push_str(&then_output);
+                            } else {
+                                out.push_str("){");
+                                out.push_str(&then_output);
+                                out.push('}');
+                            }
                         } else if then_output.is_empty() {
                             out.push_str("if(");
                             out.push_str(&negate_condition(condition));
@@ -833,12 +849,56 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             &mut exit_output,
                         )?;
                         let compact_loop = header_output.is_empty() && exit_output.is_empty();
-                        if compact_loop {
-                            out.push_str("while(");
+                        let update_clause = if compact_loop {
+                            if let Some(update_block) = update {
+                                let mut update_visited = AHashSet::new();
+                                let mut update_cache = AHashMap::new();
+                                let mut update_output = String::new();
+                                let update_end = self.emit_structured_path(
+                                    function,
+                                    update_block,
+                                    Some(header),
+                                    None,
+                                    context,
+                                    uses,
+                                    &mut update_cache,
+                                    &mut update_visited,
+                                    &mut update_output,
+                                )?;
+                                (update_end == PathEnd::ReachedStop)
+                                    .then(|| for_update_clause(&update_output))
+                                    .flatten()
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        };
+                        if let Some(update_clause) = &update_clause {
+                            out.push_str("for(;");
                             if body_on_true {
                                 out.push_str(&condition);
                             } else {
                                 out.push_str(&negate_condition(condition.clone()));
+                            }
+                            out.push(';');
+                            out.push_str(update_clause);
+                            out.push_str("){");
+                        } else if compact_loop {
+                            let reuse_for_spelling =
+                                out.matches("for(").count() > out.matches("while(").count();
+                            if reuse_for_spelling {
+                                out.push_str("for(;");
+                            } else {
+                                out.push_str("while(");
+                            }
+                            if body_on_true {
+                                out.push_str(&condition);
+                            } else {
+                                out.push_str(&negate_condition(condition.clone()));
+                            }
+                            if reuse_for_spelling {
+                                out.push(';');
                             }
                             out.push_str("){");
                         } else {
@@ -859,7 +919,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         let nested_loop = LoopContext {
                             header,
                             continue_target,
-                            update,
+                            update: update_clause.is_none().then_some(update).flatten(),
                             exit,
                         };
                         let mut body_visited = AHashSet::new();
@@ -875,7 +935,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             &mut body_visited,
                             out,
                         )?;
-                        if body_end == PathEnd::ReachedStop {
+                        if body_end == PathEnd::ReachedStop && update_clause.is_none() {
                             if let Some(update_block) = update {
                                 let mut update_visited = AHashSet::new();
                                 let mut update_cache = body_cache;
@@ -1033,7 +1093,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             .collect::<Vec<_>>();
         let mut sources = Vec::with_capacity(copies.len());
         for (_, source) in &copies {
-            sources.push(take_value(*source, context, cache)?);
+            sources.push(strip_outer_parens(take_value(*source, context, cache)?));
         }
         let mut assignments = Vec::with_capacity(copies.len());
         let mut declaration_needed = false;
@@ -1052,6 +1112,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             out.push_str(&assignments[0].0);
             out.push('=');
             out.push_str(&assignments[0].1);
+            if declaration_needed {
+                for name in context.claim_remaining_declarations() {
+                    out.push(',');
+                    out.push_str(&name);
+                }
+            }
             out.push(';');
         } else if !assignments.is_empty() {
             let targets = assignments
@@ -1072,8 +1138,33 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     out.push('=');
                     out.push_str(source);
                 }
+                for name in context.claim_remaining_declarations() {
+                    out.push(',');
+                    out.push_str(&name);
+                }
                 out.push(';');
                 return Ok(());
+            }
+            if !declaration_needed {
+                if let Some(ordered) = order_scalar_assignments(&assignments) {
+                    let mut scalar = String::new();
+                    for (target, source) in ordered {
+                        scalar.push_str(target);
+                        scalar.push('=');
+                        scalar.push_str(source);
+                        scalar.push(';');
+                    }
+                    let tuple_size = assignments
+                        .iter()
+                        .map(|(target, source)| target.len() + source.len())
+                        .sum::<usize>()
+                        + assignments.len().saturating_sub(1) * 2
+                        + 6;
+                    if scalar.len() < tuple_size {
+                        out.push_str(&scalar);
+                        return Ok(());
+                    }
+                }
             }
             if declaration_needed {
                 out.push_str("var ");
@@ -1511,6 +1602,63 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     }
 }
 
+fn order_scalar_assignments(assignments: &[(String, String)]) -> Option<Vec<(&str, &str)>> {
+    let mut remaining = assignments.iter().collect::<Vec<_>>();
+    let mut ordered = Vec::with_capacity(assignments.len());
+    while !remaining.is_empty() {
+        let index = remaining.iter().position(|(target, _)| {
+            remaining.iter().all(|(other_target, source)| {
+                other_target == target || !expression_references_name(source, target)
+            })
+        })?;
+        let (target, source) = remaining.remove(index);
+        ordered.push((target.as_str(), source.as_str()));
+    }
+    Some(ordered)
+}
+
+fn merge_conditional_assignments<'a>(
+    then_output: &'a str,
+    else_output: &'a str,
+) -> Option<(&'a str, &'a str, &'a str)> {
+    let (then_target, then_value) = parse_single_assignment(then_output)?;
+    let (else_target, else_value) = parse_single_assignment(else_output)?;
+    (then_target == else_target).then_some((then_target, then_value, else_value))
+}
+
+fn for_update_clause(output: &str) -> Option<String> {
+    let clause = output.strip_suffix(';')?;
+    (!clause.contains(';') && parse_single_assignment(output).is_some()).then(|| clause.to_string())
+}
+
+fn parse_single_assignment(output: &str) -> Option<(&str, &str)> {
+    let statement = output.strip_suffix(';')?;
+    let assignment = statement.find('=')?;
+    let target = &statement[..assignment];
+    let value = &statement[assignment + 1..];
+    (!target.is_empty()
+        && target.bytes().all(is_js_identifier_byte)
+        && !value.is_empty()
+        && !value.contains(';'))
+    .then_some((target, value))
+}
+
+fn expression_references_name(expression: &str, name: &str) -> bool {
+    expression.match_indices(name).any(|(start, _)| {
+        let before = start
+            .checked_sub(1)
+            .and_then(|index| expression.as_bytes().get(index))
+            .copied();
+        let after = expression.as_bytes().get(start + name.len()).copied();
+        before.is_none_or(|byte| !is_js_identifier_byte(byte))
+            && after.is_none_or(|byte| !is_js_identifier_byte(byte))
+    })
+}
+
+const fn is_js_identifier_byte(byte: u8) -> bool {
+    byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'$'
+}
+
 struct LocalNames {
     value_names: AHashMap<ValueId, String>,
     parameter_values: AHashSet<ValueId>,
@@ -1750,6 +1898,21 @@ impl LocalNames {
         }
         let name = self.value_name(value)?.to_string();
         Ok(self.declared_names.borrow_mut().insert(name))
+    }
+
+    fn claim_remaining_declarations(&self) -> Vec<String> {
+        if !self.inline_declarations {
+            return Vec::new();
+        }
+        let mut values = self.stored_values.iter().copied().collect::<Vec<_>>();
+        values.sort_unstable_by_key(|value| value.0);
+        let mut declared = self.declared_names.borrow_mut();
+        values
+            .into_iter()
+            .filter_map(|value| self.value_names.get(&value))
+            .filter(|name| declared.insert((*name).clone()))
+            .cloned()
+            .collect()
     }
 
     fn non_parameter_names(&self, function: &ControlFlowFunction<'_>) -> Vec<&str> {
@@ -2453,6 +2616,53 @@ mod tests {
             ),
             "console.log(read())"
         );
+    }
+
+    #[test]
+    fn eliminates_unused_calls_to_declared_pure_externs() {
+        assert_eq!(
+            compile("pure extern int stableHash(int value);stableHash(7);print(2);"),
+            "console.log(2)"
+        );
+    }
+
+    #[test]
+    fn orders_acyclic_phi_copies_and_preserves_cycles() {
+        let assignments = vec![
+            ("b".to_string(), "(b+Math.imul(a,2)|0)".to_string()),
+            ("a".to_string(), "(a+1|0)".to_string()),
+        ];
+        assert_eq!(
+            order_scalar_assignments(&assignments).unwrap(),
+            vec![("b", "(b+Math.imul(a,2)|0)"), ("a", "(a+1|0)")]
+        );
+
+        let swap = vec![
+            ("a".to_string(), "b".to_string()),
+            ("b".to_string(), "a".to_string()),
+        ];
+        assert!(order_scalar_assignments(&swap).is_none());
+    }
+
+    #[test]
+    fn merges_matching_branch_assignments() {
+        assert_eq!(
+            merge_conditional_assignments("a=(a+1|0);", "a=(a-1|0);"),
+            Some(("a", "(a+1|0)", "(a-1|0)"))
+        );
+        assert!(merge_conditional_assignments("a=1;", "b=2;").is_none());
+    }
+
+    #[test]
+    fn hoists_loop_locals_into_the_first_var_group() {
+        let output = compile(
+            "int total=0;for(int outer=0;outer<12;outer++){if(outer%3==0){continue;}int inner=0;while(inner<4){total+=inner;inner++;}}print(total);",
+        );
+        assert!(output.starts_with("var "), "{output}");
+        assert!(output.contains(";for("), "{output}");
+        assert_eq!(output.matches("for(").count(), 2, "{output}");
+        assert!(!output.contains("while("), "{output}");
+        assert_eq!(output.matches("var ").count(), 1, "{output}");
     }
 
     #[test]
