@@ -40,13 +40,16 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
             "static inline int32_t lilscript_irem(int32_t a,int32_t b){if(!b)return 0;return a==INT32_MIN&&b==-1?0:a%b;}\n",
         );
         out.push_str(
-            "typedef struct LilScriptArrayHeader{void*data;int32_t len,cap;}*LilScriptArray;typedef struct{void*fn;void*env;}LilScriptClosure;typedef char* LilScriptString;typedef struct{uint8_t tag;union{int32_t i;double f;bool b;const char*s;void*p;LilScriptClosure c;};}LilScriptValue;typedef struct{bool has;LilScriptValue value;}LilScriptOptional;\n",
+            "typedef struct LilScriptArrayHeader{void*data;int32_t len,cap;}*LilScriptArray;typedef struct{void*fn;void*env;}LilScriptClosure;typedef char* LilScriptString;typedef struct{uint8_t tag;union{int32_t i;double f;bool b;const char*s;void*p;LilScriptClosure c;};}LilScriptValue;typedef struct{bool has;LilScriptValue value;}LilScriptOptional;typedef struct LilScriptMapHeader{LilScriptValue*keys,*values;int32_t len,cap;}*LilScriptMap;typedef struct LilScriptSetHeader{LilScriptValue*values;int32_t len,cap;}*LilScriptSet;typedef struct LilScriptBufferHeader{uint8_t*data;int32_t len;bool shared;}*LilScriptBuffer;typedef struct LilScriptUint8ArrayHeader{LilScriptBuffer buffer;int32_t offset,len;}*LilScriptUint8Array;\n",
         );
         out.push_str(
             "static inline LilScriptOptional lilscript_optional_f64(LilScriptOptional v){if(v.has){int32_t i=v.value.i;v.value.tag=2;v.value.f=(double)i;}return v;}\n",
         );
         out.push_str(
             "static inline bool lilscript_value_eq(LilScriptValue a,LilScriptValue b){if(a.tag!=b.tag)return false;switch(a.tag){case 0:return true;case 1:return a.i==b.i;case 2:return a.f==b.f;case 3:return a.b==b.b;case 4:return !strcmp(a.s,b.s);case 5:return a.c.fn==b.c.fn&&a.c.env==b.c.env;default:return a.p==b.p;}}\n",
+        );
+        out.push_str(
+            "static inline bool lilscript_collection_eq(LilScriptValue a,LilScriptValue b){return a.tag==2&&b.tag==2?(a.f==b.f||(a.f!=a.f&&b.f!=b.f)):lilscript_value_eq(a,b);}\n",
         );
         out.push_str(
             "static inline LilScriptValue lilscript_optional_value(LilScriptOptional v){return v.has?v.value:(LilScriptValue){0};}static inline LilScriptOptional lilscript_value_optional(LilScriptValue v){return(LilScriptOptional){v.tag!=0,v};}\n",
@@ -59,6 +62,15 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
         );
         out.push_str(
             "static inline void*lilscript_pop(LilScriptArray a,size_t z){if(!a->len)abort();return(char*)a->data+(size_t)--a->len*z;}\n",
+        );
+        out.push_str(
+            "static inline LilScriptMap lilscript_map(void){LilScriptMap m=calloc(1,sizeof*m);if(!m)abort();return m;}static inline void lilscript_map_reserve(LilScriptMap m){if(m->len<m->cap)return;m->cap=m->cap?m->cap*2:4;m->keys=realloc(m->keys,(size_t)m->cap*sizeof*m->keys);m->values=realloc(m->values,(size_t)m->cap*sizeof*m->values);if(!m->keys||!m->values)abort();}static inline int32_t lilscript_map_index(LilScriptMap m,LilScriptValue k){for(int32_t i=0;i<m->len;i++)if(lilscript_collection_eq(m->keys[i],k))return i;return -1;}static inline LilScriptOptional lilscript_map_get(LilScriptMap m,LilScriptValue k){int32_t i=lilscript_map_index(m,k);return i<0?(LilScriptOptional){false,{0}}:lilscript_value_optional(m->values[i]);}static inline bool lilscript_map_has(LilScriptMap m,LilScriptValue k){return lilscript_map_index(m,k)>=0;}static inline LilScriptMap lilscript_map_set(LilScriptMap m,LilScriptValue k,LilScriptValue v){int32_t i=lilscript_map_index(m,k);if(i>=0)m->values[i]=v;else{lilscript_map_reserve(m);m->keys[m->len]=k;m->values[m->len++]=v;}return m;}static inline bool lilscript_map_delete(LilScriptMap m,LilScriptValue k){int32_t i=lilscript_map_index(m,k);if(i<0)return false;int32_t n=--m->len-i;memmove(m->keys+i,m->keys+i+1,(size_t)n*sizeof*m->keys);memmove(m->values+i,m->values+i+1,(size_t)n*sizeof*m->values);return true;}static inline void lilscript_map_clear(LilScriptMap m){m->len=0;}\n",
+        );
+        out.push_str(
+            "static inline LilScriptSet lilscript_set(void){LilScriptSet s=calloc(1,sizeof*s);if(!s)abort();return s;}static inline int32_t lilscript_set_index(LilScriptSet s,LilScriptValue v){for(int32_t i=0;i<s->len;i++)if(lilscript_collection_eq(s->values[i],v))return i;return -1;}static inline LilScriptSet lilscript_set_add(LilScriptSet s,LilScriptValue v){if(lilscript_set_index(s,v)>=0)return s;if(s->len==s->cap){s->cap=s->cap?s->cap*2:4;s->values=realloc(s->values,(size_t)s->cap*sizeof*s->values);if(!s->values)abort();}s->values[s->len++]=v;return s;}static inline bool lilscript_set_has(LilScriptSet s,LilScriptValue v){return lilscript_set_index(s,v)>=0;}static inline bool lilscript_set_delete(LilScriptSet s,LilScriptValue v){int32_t i=lilscript_set_index(s,v);if(i<0)return false;int32_t n=--s->len-i;memmove(s->values+i,s->values+i+1,(size_t)n*sizeof*s->values);return true;}static inline void lilscript_set_clear(LilScriptSet s){s->len=0;}\n",
+        );
+        out.push_str(
+            "static inline LilScriptBuffer lilscript_buffer(int32_t n,bool shared){if(n<0)abort();LilScriptBuffer b=malloc(sizeof*b);if(!b)abort();b->data=calloc((size_t)n,1);if(n&&!b->data)abort();b->len=n;b->shared=shared;return b;}static inline int32_t lilscript_buffer_index(int32_t i,int32_t n){int64_t x=i<0?(int64_t)n+i:i;if(x<0)return 0;if(x>n)return n;return(int32_t)x;}static inline LilScriptBuffer lilscript_buffer_slice(LilScriptBuffer b,int32_t start,int32_t end){int32_t x=lilscript_buffer_index(start,b->len),y=lilscript_buffer_index(end,b->len);if(y<x)y=x;LilScriptBuffer r=lilscript_buffer(y-x,b->shared);if(y>x)memcpy(r->data,b->data+x,(size_t)(y-x));return r;}static inline LilScriptUint8Array lilscript_u8_buffer(LilScriptBuffer b){LilScriptUint8Array v=malloc(sizeof*v);if(!v)abort();v->buffer=b;v->offset=0;v->len=b->len;return v;}static inline LilScriptUint8Array lilscript_u8_length(int32_t n){return lilscript_u8_buffer(lilscript_buffer(n,false));}static inline LilScriptUint8Array lilscript_u8_subarray(LilScriptUint8Array v,int32_t start,int32_t end){int32_t x=lilscript_buffer_index(start,v->len),y=lilscript_buffer_index(end,v->len);if(y<x)y=x;LilScriptUint8Array r=malloc(sizeof*r);if(!r)abort();r->buffer=v->buffer;r->offset=v->offset+x;r->len=y-x;return r;}static inline LilScriptUint8Array lilscript_u8_slice(LilScriptUint8Array v,int32_t start,int32_t end){int32_t x=lilscript_buffer_index(start,v->len),y=lilscript_buffer_index(end,v->len);if(y<x)y=x;LilScriptUint8Array r=lilscript_u8_buffer(lilscript_buffer(y-x,false));if(y>x)memcpy(r->buffer->data,v->buffer->data+v->offset+x,(size_t)(y-x));return r;}\n",
         );
         out.push_str(
             "static inline LilScriptString lilscript_dup(const char*s){size_t n=strlen(s)+1;char*r=malloc(n);if(!r)abort();memcpy(r,s,n);return r;}\n",
@@ -505,6 +517,15 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                             result.0, field.index
                         )
                         .expect("writing to String cannot fail"),
+                        Type::Map(_, _)
+                        | Type::Set(_)
+                        | Type::ArrayBuffer
+                        | Type::SharedArrayBuffer
+                        | Type::Uint8Array => {
+                            let default = native_default_value(&field.ty)?;
+                            write!(out, "v{}->f{}={default};", result.0, field.index)
+                                .expect("writing to String cannot fail");
+                        }
                         Type::Union(members) => {
                             let member = members.first().ok_or_else(|| {
                                 CodegenError::new(
@@ -614,6 +635,21 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                 index,
                 value,
             } => {
+                if matches!(types.get(object), Some(Type::Uint8Array)) {
+                    let converted = self.render_value_conversion(
+                        &format!("v{}", value.0),
+                        &types[value],
+                        &Type::Int,
+                        instruction.span,
+                    )?;
+                    write!(
+                        out,
+                        "v{}->buffer->data[v{}->offset+v{}]=(uint8_t)({converted});",
+                        object.0, object.0, index.0
+                    )
+                    .expect("writing to String cannot fail");
+                    return Ok(());
+                }
                 let Some(Type::Array(element)) = types.get(object) else {
                     return Err(CodegenError::new(
                         instruction.span,
@@ -1027,6 +1063,23 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
         Ok(())
     }
 
+    fn render_collection_value(
+        &self,
+        value: ValueId,
+        expected: &Type<'src>,
+        types: &AHashMap<ValueId, Type<'src>>,
+        span: Span,
+    ) -> Result<String, CodegenError> {
+        let normalized =
+            self.render_value_conversion(&format!("v{}", value.0), &types[&value], expected, span)?;
+        self.render_value_conversion(
+            &normalized,
+            expected,
+            &Type::TypeParameter("$collection"),
+            span,
+        )
+    }
+
     fn render_instruction(
         &self,
         instruction: &ControlFlowInstruction<'src>,
@@ -1104,20 +1157,24 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                     .collect::<Vec<_>>();
                 self.render_closure_call(*callee, &args, &arg_types, signature, instruction.span)?
             }
-            ControlFlowOp::IndexGet { object, index } => {
-                let Some(Type::Array(element)) = types.get(object) else {
-                    return Err(CodegenError::new(
-                        instruction.span,
-                        "indexed native load requires an array",
-                    ));
-                };
-                self.render_value_conversion(
+            ControlFlowOp::IndexGet { object, index } => match types.get(object) {
+                Some(Type::Array(element)) => self.render_value_conversion(
                     &format!("((LilScriptValue*)v{}->data)[v{}]", object.0, index.0),
                     &Type::TypeParameter("$array"),
                     element,
                     instruction.span,
-                )?
-            }
+                )?,
+                Some(Type::Uint8Array) => format!(
+                    "(int32_t)v{}->buffer->data[v{}->offset+v{}]",
+                    object.0, object.0, index.0
+                ),
+                _ => {
+                    return Err(CodegenError::new(
+                        instruction.span,
+                        "indexed native load requires an array or Uint8Array",
+                    ));
+                }
+            },
             ControlFlowOp::FieldGet {
                 object,
                 owner,
@@ -1144,6 +1201,196 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                     })?,
                     instruction.span,
                 )?
+            }
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::MapNew,
+                ..
+            } => "lilscript_map()".to_string(),
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::SetNew,
+                ..
+            } => "lilscript_set()".to_string(),
+            ControlFlowOp::Intrinsic {
+                intrinsic: intrinsic @ (Intrinsic::ArrayBufferNew | Intrinsic::SharedArrayBufferNew),
+                args,
+                ..
+            } => {
+                let length = args.first().ok_or_else(|| {
+                    CodegenError::new(instruction.span, "buffer constructor requires a length")
+                })?;
+                format!(
+                    "lilscript_buffer(v{},{})",
+                    length.0,
+                    matches!(intrinsic, Intrinsic::SharedArrayBufferNew)
+                )
+            }
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::Uint8ArrayNew,
+                args,
+                ..
+            } => {
+                let source = args.first().ok_or_else(|| {
+                    CodegenError::new(instruction.span, "Uint8Array constructor requires a source")
+                })?;
+                match types.get(source) {
+                    Some(Type::Int) => format!("lilscript_u8_length(v{})", source.0),
+                    Some(Type::ArrayBuffer | Type::SharedArrayBuffer) => {
+                        format!("lilscript_u8_buffer(v{})", source.0)
+                    }
+                    _ => {
+                        return Err(CodegenError::new(
+                            instruction.span,
+                            "Uint8Array constructor has an unsupported native source",
+                        ));
+                    }
+                }
+            }
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::MapSize | Intrinsic::SetSize,
+                receiver: Some(receiver),
+                ..
+            } => format!("v{}->len", receiver.0),
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::BufferByteLength,
+                receiver: Some(receiver),
+                ..
+            } => format!("v{}->len", receiver.0),
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::Uint8ArrayLength | Intrinsic::Uint8ArrayByteLength,
+                receiver: Some(receiver),
+                ..
+            } => format!("v{}->len", receiver.0),
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::Uint8ArrayByteOffset,
+                receiver: Some(receiver),
+                ..
+            } => format!("v{}->offset", receiver.0),
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::Uint8ArrayBuffer,
+                receiver: Some(receiver),
+                ..
+            } => format!("(LilScriptValue){{.tag=6,.p=v{}->buffer}}", receiver.0),
+            ControlFlowOp::Intrinsic {
+                intrinsic:
+                    intrinsic @ (Intrinsic::MapGet | Intrinsic::MapHas | Intrinsic::MapDelete),
+                receiver: Some(receiver),
+                args,
+            } => {
+                let key = args.first().ok_or_else(|| {
+                    CodegenError::new(instruction.span, "map operation requires a key")
+                })?;
+                let Some(Type::Map(key_type, _)) = types.get(receiver) else {
+                    return Err(CodegenError::new(
+                        instruction.span,
+                        "map operation receiver has no map type",
+                    ));
+                };
+                let key = self.render_collection_value(*key, key_type, types, instruction.span)?;
+                let function = match intrinsic {
+                    Intrinsic::MapGet => "lilscript_map_get",
+                    Intrinsic::MapHas => "lilscript_map_has",
+                    Intrinsic::MapDelete => "lilscript_map_delete",
+                    _ => unreachable!(),
+                };
+                let call = format!("{function}(v{},{key})", receiver.0);
+                if matches!(intrinsic, Intrinsic::MapGet)
+                    && instruction.ty.as_ref().is_some_and(|ty| is_erased_type(ty))
+                {
+                    format!("lilscript_optional_value({call})")
+                } else {
+                    call
+                }
+            }
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::MapSet,
+                receiver: Some(receiver),
+                args,
+            } => {
+                let [key, value] = args.as_slice() else {
+                    return Err(CodegenError::new(
+                        instruction.span,
+                        "map set requires a key and value",
+                    ));
+                };
+                let Some(Type::Map(key_type, value_type)) = types.get(receiver) else {
+                    return Err(CodegenError::new(
+                        instruction.span,
+                        "map set receiver has no map type",
+                    ));
+                };
+                let key = self.render_collection_value(*key, key_type, types, instruction.span)?;
+                let value =
+                    self.render_collection_value(*value, value_type, types, instruction.span)?;
+                format!("lilscript_map_set(v{},{key},{value})", receiver.0)
+            }
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::MapClear,
+                receiver: Some(receiver),
+                ..
+            } => format!("lilscript_map_clear(v{})", receiver.0),
+            ControlFlowOp::Intrinsic {
+                intrinsic:
+                    intrinsic @ (Intrinsic::SetAdd | Intrinsic::SetHas | Intrinsic::SetDelete),
+                receiver: Some(receiver),
+                args,
+            } => {
+                let value = args.first().ok_or_else(|| {
+                    CodegenError::new(instruction.span, "set operation requires a value")
+                })?;
+                let Some(Type::Set(element)) = types.get(receiver) else {
+                    return Err(CodegenError::new(
+                        instruction.span,
+                        "set operation receiver has no set type",
+                    ));
+                };
+                let value =
+                    self.render_collection_value(*value, element, types, instruction.span)?;
+                let function = match intrinsic {
+                    Intrinsic::SetAdd => "lilscript_set_add",
+                    Intrinsic::SetHas => "lilscript_set_has",
+                    Intrinsic::SetDelete => "lilscript_set_delete",
+                    _ => unreachable!(),
+                };
+                format!("{function}(v{},{value})", receiver.0)
+            }
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::SetClear,
+                receiver: Some(receiver),
+                ..
+            } => format!("lilscript_set_clear(v{})", receiver.0),
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::BufferSlice,
+                receiver: Some(receiver),
+                args,
+            } => {
+                let [start, end] = args.as_slice() else {
+                    return Err(CodegenError::new(
+                        instruction.span,
+                        "buffer slice requires start and end offsets",
+                    ));
+                };
+                format!(
+                    "lilscript_buffer_slice(v{},v{},v{})",
+                    receiver.0, start.0, end.0
+                )
+            }
+            ControlFlowOp::Intrinsic {
+                intrinsic: intrinsic @ (Intrinsic::Uint8ArraySlice | Intrinsic::Uint8ArraySubarray),
+                receiver: Some(receiver),
+                args,
+            } => {
+                let [start, end] = args.as_slice() else {
+                    return Err(CodegenError::new(
+                        instruction.span,
+                        "Uint8Array range operation requires start and end offsets",
+                    ));
+                };
+                let function = if matches!(intrinsic, Intrinsic::Uint8ArraySlice) {
+                    "lilscript_u8_slice"
+                } else {
+                    "lilscript_u8_subarray"
+                };
+                format!("{function}(v{},v{},v{})", receiver.0, start.0, end.0)
             }
             ControlFlowOp::Intrinsic {
                 intrinsic: Intrinsic::UnwrapNullable | Intrinsic::UnwrapUnion,
@@ -1386,7 +1633,14 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                 Type::Bool => "b",
                 Type::String => "s",
                 Type::Function(_) | Type::GenericFunction(_) => "c",
-                Type::Array(_) | Type::Class(_) | Type::ClassInstance { .. } => "p",
+                Type::Array(_)
+                | Type::Map(_, _)
+                | Type::Set(_)
+                | Type::ArrayBuffer
+                | Type::SharedArrayBuffer
+                | Type::Uint8Array
+                | Type::Class(_)
+                | Type::ClassInstance { .. } => "p",
                 Type::Struct(_) | Type::StructInstance { .. } => {
                     let native = c_type(from);
                     return Ok(format!(
@@ -1420,7 +1674,14 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                 Type::Bool => format!("({expression}).b"),
                 Type::String => format!("({expression}).s"),
                 Type::Function(_) | Type::GenericFunction(_) => format!("({expression}).c"),
-                Type::Array(_) | Type::Class(_) | Type::ClassInstance { .. } => {
+                Type::Array(_)
+                | Type::Map(_, _)
+                | Type::Set(_)
+                | Type::ArrayBuffer
+                | Type::SharedArrayBuffer
+                | Type::Uint8Array
+                | Type::Class(_)
+                | Type::ClassInstance { .. } => {
                     format!("({})({expression}).p", c_type(to))
                 }
                 Type::Struct(_) | Type::StructInstance { .. } => {
@@ -1852,7 +2113,14 @@ fn generic_value_tag(ty: &Type<'_>) -> u8 {
         Type::Bool => 3,
         Type::String => 4,
         Type::Function(_) | Type::GenericFunction(_) => 5,
-        Type::Array(_) | Type::Class(_) | Type::ClassInstance { .. } => 6,
+        Type::Array(_)
+        | Type::Map(_, _)
+        | Type::Set(_)
+        | Type::ArrayBuffer
+        | Type::SharedArrayBuffer
+        | Type::Uint8Array
+        | Type::Class(_)
+        | Type::ClassInstance { .. } => 6,
         Type::Struct(_) | Type::StructInstance { .. } | Type::Null | Type::Nullable(_) => 7,
         Type::TypeParameter(_) | Type::Union(_) | Type::Void => 0,
     }
@@ -1866,6 +2134,10 @@ fn c_type(ty: &Type<'_>) -> String {
         Type::String => "const char*".to_string(),
         Type::Null | Type::Nullable(_) => "LilScriptOptional".to_string(),
         Type::Array(_) => "LilScriptArray".to_string(),
+        Type::Map(_, _) => "LilScriptMap".to_string(),
+        Type::Set(_) => "LilScriptSet".to_string(),
+        Type::ArrayBuffer | Type::SharedArrayBuffer => "LilScriptBuffer".to_string(),
+        Type::Uint8Array => "LilScriptUint8Array".to_string(),
         Type::Struct(name) => aggregate_type_name("Struct", name),
         Type::Class(name) => aggregate_type_name("Class", name),
         Type::StructInstance { name, .. } => aggregate_type_name("Struct", name),
@@ -1888,6 +2160,11 @@ fn native_default_value(ty: &Type<'_>) -> Result<String, CodegenError> {
         Type::String => "\"\"".to_string(),
         Type::Null | Type::Nullable(_) => "(LilScriptOptional){false,{0}}".to_string(),
         Type::Array(_) => "lilscript_array(0,sizeof(LilScriptValue))".to_string(),
+        Type::Map(_, _) => "lilscript_map()".to_string(),
+        Type::Set(_) => "lilscript_set()".to_string(),
+        Type::ArrayBuffer => "lilscript_buffer(0,false)".to_string(),
+        Type::SharedArrayBuffer => "lilscript_buffer(0,true)".to_string(),
+        Type::Uint8Array => "lilscript_u8_length(0)".to_string(),
         Type::Struct(_) | Type::StructInstance { .. } => format!("({}){{0}}", c_type(ty)),
         Type::Class(_) | Type::ClassInstance { .. } => "NULL".to_string(),
         Type::TypeParameter(_) => "(LilScriptValue){0}".to_string(),

@@ -1830,6 +1830,25 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         if intrinsic == Intrinsic::Print {
             return self.render_call("console.log", None, args, context, cache);
         }
+        let constructor = match intrinsic {
+            Intrinsic::MapNew => Some("Map"),
+            Intrinsic::SetNew => Some("Set"),
+            Intrinsic::ArrayBufferNew => Some("ArrayBuffer"),
+            Intrinsic::SharedArrayBufferNew => Some("SharedArrayBuffer"),
+            Intrinsic::Uint8ArrayNew => Some("Uint8Array"),
+            _ => None,
+        };
+        if let Some(constructor) = constructor {
+            let mut rendered = format!("new {constructor}(");
+            for (index, arg) in args.iter().enumerate() {
+                if index != 0 {
+                    rendered.push(',');
+                }
+                rendered.push_str(&strip_outer_parens(take_value(*arg, context, cache)?));
+            }
+            rendered.push(')');
+            return Ok(rendered);
+        }
         let receiver = receiver.ok_or_else(|| {
             CodegenError::new(
                 self.function(self.module.entry).unwrap().span,
@@ -1842,18 +1861,45 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             Intrinsic::ArrayLength | Intrinsic::StringLength => {
                 return Ok(format!("{receiver}.length"))
             }
+            Intrinsic::MapSize | Intrinsic::SetSize => return Ok(format!("{receiver}.size")),
+            Intrinsic::BufferByteLength | Intrinsic::Uint8ArrayByteLength => {
+                return Ok(format!("{receiver}.byteLength"));
+            }
+            Intrinsic::Uint8ArrayLength => return Ok(format!("{receiver}.length")),
+            Intrinsic::Uint8ArrayByteOffset => return Ok(format!("{receiver}.byteOffset")),
+            Intrinsic::Uint8ArrayBuffer => return Ok(format!("{receiver}.buffer")),
+            Intrinsic::MapGet => {
+                let call =
+                    self.render_call(&format!("{receiver}.get"), None, args, context, cache)?;
+                return Ok(format!("({call}??null)"));
+            }
             Intrinsic::ArrayMap => "map",
             Intrinsic::ArrayFilter => "filter",
             Intrinsic::ArrayReduce => "reduce",
             Intrinsic::ArrayForEach => "forEach",
             Intrinsic::ArrayPush => "push",
             Intrinsic::ArrayPop => "pop",
+            Intrinsic::MapSet => "set",
+            Intrinsic::MapHas => "has",
+            Intrinsic::MapDelete => "delete",
+            Intrinsic::MapClear => "clear",
+            Intrinsic::SetAdd => "add",
+            Intrinsic::SetHas => "has",
+            Intrinsic::SetDelete => "delete",
+            Intrinsic::SetClear => "clear",
+            Intrinsic::BufferSlice | Intrinsic::Uint8ArraySlice => "slice",
+            Intrinsic::Uint8ArraySubarray => "subarray",
             Intrinsic::StringIncludes => "includes",
             Intrinsic::StringStartsWith => "startsWith",
             Intrinsic::StringEndsWith => "endsWith",
             Intrinsic::StringToUpperCase => "toUpperCase",
             Intrinsic::StringToLowerCase => "toLowerCase",
-            Intrinsic::Print => unreachable!(),
+            Intrinsic::Print
+            | Intrinsic::MapNew
+            | Intrinsic::SetNew
+            | Intrinsic::ArrayBufferNew
+            | Intrinsic::SharedArrayBufferNew
+            | Intrinsic::Uint8ArrayNew => unreachable!(),
         };
         self.render_call(
             &format!("{receiver}.{property}"),
@@ -3151,7 +3197,13 @@ fn expression_only_op(op: &ControlFlowOp<'_>) -> bool {
                     | Intrinsic::ArrayReduce
                     | Intrinsic::ArrayForEach
                     | Intrinsic::ArrayPush
-                    | Intrinsic::ArrayPop,
+                    | Intrinsic::ArrayPop
+                    | Intrinsic::MapSet
+                    | Intrinsic::MapDelete
+                    | Intrinsic::MapClear
+                    | Intrinsic::SetAdd
+                    | Intrinsic::SetDelete
+                    | Intrinsic::SetClear,
                 ..
             }
     )
@@ -3175,7 +3227,13 @@ fn op_has_side_effects(op: &ControlFlowOp<'_>) -> bool {
                     | Intrinsic::ArrayReduce
                     | Intrinsic::ArrayForEach
                     | Intrinsic::ArrayPush
-                    | Intrinsic::ArrayPop,
+                    | Intrinsic::ArrayPop
+                    | Intrinsic::MapSet
+                    | Intrinsic::MapDelete
+                    | Intrinsic::MapClear
+                    | Intrinsic::SetAdd
+                    | Intrinsic::SetDelete
+                    | Intrinsic::SetClear,
                 ..
             }
     )
@@ -3238,6 +3296,11 @@ fn default_value(ty: &Type<'_>) -> &'static str {
         Type::Bool => "false",
         Type::String => "\"\"",
         Type::Array(_) => "[]",
+        Type::Map(_, _) => "new Map",
+        Type::Set(_) => "new Set",
+        Type::ArrayBuffer => "new ArrayBuffer(0)",
+        Type::SharedArrayBuffer => "new SharedArrayBuffer(0)",
+        Type::Uint8Array => "new Uint8Array",
         Type::Union(members) => members.first().map_or("null", default_value),
         Type::Null | Type::Nullable(_) => "null",
         Type::Struct(_)

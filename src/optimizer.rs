@@ -1399,6 +1399,8 @@ fn type_has_type_parameter(ty: &Type<'_>) -> bool {
     match ty {
         Type::TypeParameter(_) => true,
         Type::Array(element) => type_has_type_parameter(element),
+        Type::Map(key, value) => type_has_type_parameter(key) || type_has_type_parameter(value),
+        Type::Set(element) => type_has_type_parameter(element),
         Type::Nullable(inner) => type_has_type_parameter(inner),
         Type::Union(members) => members.iter().any(type_has_type_parameter),
         Type::StructInstance { args, .. } | Type::ClassInstance { args, .. } => {
@@ -2479,7 +2481,15 @@ fn control_flow_op_has_side_effects(
         }),
         ControlFlowOp::Intrinsic { intrinsic, .. } => matches!(
             intrinsic,
-            Intrinsic::Print | Intrinsic::ArrayPush | Intrinsic::ArrayPop
+            Intrinsic::Print
+                | Intrinsic::ArrayPush
+                | Intrinsic::ArrayPop
+                | Intrinsic::MapSet
+                | Intrinsic::MapDelete
+                | Intrinsic::MapClear
+                | Intrinsic::SetAdd
+                | Intrinsic::SetDelete
+                | Intrinsic::SetClear
         ),
         _ => false,
     }

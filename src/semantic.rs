@@ -29,6 +29,11 @@ pub enum Type<'src> {
     Null,
     Void,
     Array(Box<Type<'src>>),
+    Map(Box<Type<'src>>, Box<Type<'src>>),
+    Set(Box<Type<'src>>),
+    ArrayBuffer,
+    SharedArrayBuffer,
+    Uint8Array,
     Nullable(Box<Type<'src>>),
     Union(Vec<Type<'src>>),
     Struct(&'src str),
@@ -69,6 +74,11 @@ impl fmt::Display for Type<'_> {
                 Self::Union(_) => write!(f, "({element})[]"),
                 _ => write!(f, "{element}[]"),
             },
+            Self::Map(key, value) => write!(f, "Map<{key}, {value}>"),
+            Self::Set(element) => write!(f, "Set<{element}>"),
+            Self::ArrayBuffer => f.write_str("ArrayBuffer"),
+            Self::SharedArrayBuffer => f.write_str("SharedArrayBuffer"),
+            Self::Uint8Array => f.write_str("Uint8Array"),
             Self::Nullable(inner) => match inner.as_ref() {
                 Self::Union(_) => write!(f, "({inner})?"),
                 _ => write!(f, "{inner}?"),
@@ -1105,93 +1115,104 @@ impl<'src> Analyzer<'src> {
                 args,
                 span,
             } => {
-                let info = self.model.classes.get(class.name).cloned().ok_or_else(|| {
-                    SemanticError::new(class.span, format!("unknown class `{}`", class.name))
-                })?;
-                let params = info
-                    .constructor
-                    .as_ref()
-                    .map_or(&[][..], |signature| signature.params.as_slice());
-                let accepts_arity = info
-                    .constructor
-                    .as_ref()
-                    .map_or(args.is_empty(), |signature| {
-                        signature.accepts_arity(args.len())
-                    });
-                if !accepts_arity {
-                    return Err(SemanticError::new(
-                        *span,
-                        format!(
-                            "class `{}` constructor expects {} arguments, found {}",
-                            class.name,
-                            info.constructor
-                                .as_ref()
-                                .map_or(0, FunctionType::required_params),
-                            args.len()
-                        ),
-                    ));
-                }
-                let parameter_names = info.type_params.iter().copied().collect::<AHashSet<_>>();
-                let mut substitutions = AHashMap::new();
-                if !type_args.is_empty() {
-                    let resolved = self.resolve_type_arguments(
-                        class.name,
-                        type_args,
-                        &info.type_params,
-                        *span,
-                    )?;
-                    substitutions.extend(info.type_params.iter().copied().zip(resolved));
-                } else if let Some(Type::ClassInstance {
-                    name,
-                    args: expected_args,
-                }) = expected
+                if let Some(ty) =
+                    self.analyze_builtin_constructor(*class, type_args, args, *span, expected)?
                 {
-                    if *name == class.name && expected_args.len() == info.type_params.len() {
-                        substitutions.extend(
-                            info.type_params
-                                .iter()
-                                .copied()
-                                .zip(expected_args.iter().cloned()),
-                        );
-                    }
-                } else if info.type_params.is_empty() {
-                    self.resolve_type_arguments(class.name, type_args, &info.type_params, *span)?;
-                }
-                for (arg, pattern) in args.iter().zip(params) {
-                    let resolved = substitute_type(pattern, &substitutions);
-                    let expected = (!contains_type_parameter(&resolved, &parameter_names))
-                        .then_some(&resolved);
-                    let actual = self.analyze_expr(arg, expected)?;
-                    infer_type_arguments(
-                        pattern,
-                        &actual,
-                        &parameter_names,
-                        &mut substitutions,
-                        arg.span(),
-                    )?;
-                    let resolved = substitute_type(pattern, &substitutions);
-                    if !contains_type_parameter(&resolved, &parameter_names) {
-                        self.require_assignable(&resolved, &actual, arg.span())?;
-                    }
-                }
-                let resolved_args = info
-                    .type_params
-                    .iter()
-                    .map(|parameter| {
-                        substitutions.get(parameter).cloned().ok_or_else(|| {
-                            SemanticError::new(
-                                *span,
-                                format!("cannot infer type argument `{parameter}`"),
-                            )
-                        })
-                    })
-                    .collect::<Result<Vec<_>, _>>()?;
-                if info.type_params.is_empty() {
-                    Type::Class(class.name)
+                    ty
                 } else {
-                    Type::ClassInstance {
-                        name: class.name,
-                        args: resolved_args,
+                    let info = self.model.classes.get(class.name).cloned().ok_or_else(|| {
+                        SemanticError::new(class.span, format!("unknown class `{}`", class.name))
+                    })?;
+                    let params = info
+                        .constructor
+                        .as_ref()
+                        .map_or(&[][..], |signature| signature.params.as_slice());
+                    let accepts_arity = info
+                        .constructor
+                        .as_ref()
+                        .map_or(args.is_empty(), |signature| {
+                            signature.accepts_arity(args.len())
+                        });
+                    if !accepts_arity {
+                        return Err(SemanticError::new(
+                            *span,
+                            format!(
+                                "class `{}` constructor expects {} arguments, found {}",
+                                class.name,
+                                info.constructor
+                                    .as_ref()
+                                    .map_or(0, FunctionType::required_params),
+                                args.len()
+                            ),
+                        ));
+                    }
+                    let parameter_names = info.type_params.iter().copied().collect::<AHashSet<_>>();
+                    let mut substitutions = AHashMap::new();
+                    if !type_args.is_empty() {
+                        let resolved = self.resolve_type_arguments(
+                            class.name,
+                            type_args,
+                            &info.type_params,
+                            *span,
+                        )?;
+                        substitutions.extend(info.type_params.iter().copied().zip(resolved));
+                    } else if let Some(Type::ClassInstance {
+                        name,
+                        args: expected_args,
+                    }) = expected
+                    {
+                        if *name == class.name && expected_args.len() == info.type_params.len() {
+                            substitutions.extend(
+                                info.type_params
+                                    .iter()
+                                    .copied()
+                                    .zip(expected_args.iter().cloned()),
+                            );
+                        }
+                    } else if info.type_params.is_empty() {
+                        self.resolve_type_arguments(
+                            class.name,
+                            type_args,
+                            &info.type_params,
+                            *span,
+                        )?;
+                    }
+                    for (arg, pattern) in args.iter().zip(params) {
+                        let resolved = substitute_type(pattern, &substitutions);
+                        let expected = (!contains_type_parameter(&resolved, &parameter_names))
+                            .then_some(&resolved);
+                        let actual = self.analyze_expr(arg, expected)?;
+                        infer_type_arguments(
+                            pattern,
+                            &actual,
+                            &parameter_names,
+                            &mut substitutions,
+                            arg.span(),
+                        )?;
+                        let resolved = substitute_type(pattern, &substitutions);
+                        if !contains_type_parameter(&resolved, &parameter_names) {
+                            self.require_assignable(&resolved, &actual, arg.span())?;
+                        }
+                    }
+                    let resolved_args = info
+                        .type_params
+                        .iter()
+                        .map(|parameter| {
+                            substitutions.get(parameter).cloned().ok_or_else(|| {
+                                SemanticError::new(
+                                    *span,
+                                    format!("cannot infer type argument `{parameter}`"),
+                                )
+                            })
+                        })
+                        .collect::<Result<Vec<_>, _>>()?;
+                    if info.type_params.is_empty() {
+                        Type::Class(class.name)
+                    } else {
+                        Type::ClassInstance {
+                            name: class.name,
+                            args: resolved_args,
+                        }
                     }
                 }
             }
@@ -1278,6 +1299,7 @@ impl<'src> Analyzer<'src> {
                 match object_type {
                     Type::Array(element) => *element,
                     Type::String => Type::String,
+                    Type::Uint8Array => Type::Int,
                     other => {
                         return Err(SemanticError::new(
                             *span,
@@ -1382,6 +1404,7 @@ impl<'src> Analyzer<'src> {
                 self.require_assignable(&Type::Int, &index_type, index.span())?;
                 match object_type {
                     Type::Array(element) => *element,
+                    Type::Uint8Array => Type::Int,
                     other => {
                         return Err(SemanticError::new(
                             *span,
@@ -1476,6 +1499,17 @@ impl<'src> Analyzer<'src> {
                 ))
             }
             Type::Array(_) | Type::String if property.name == "length" => Ok(Type::Int),
+            Type::Map(_, _) | Type::Set(_) if property.name == "size" => Ok(Type::Int),
+            Type::ArrayBuffer | Type::SharedArrayBuffer if property.name == "byteLength" => {
+                Ok(Type::Int)
+            }
+            Type::Uint8Array if matches!(property.name, "length" | "byteLength" | "byteOffset") => {
+                Ok(Type::Int)
+            }
+            Type::Uint8Array if property.name == "buffer" => Ok(normalize_union(vec![
+                Type::ArrayBuffer,
+                Type::SharedArrayBuffer,
+            ])),
             Type::Array(element) => match property.name {
                 "map" | "filter" | "forEach" | "reduce" => Err(SemanticError::new(
                     span,
@@ -1494,6 +1528,66 @@ impl<'src> Analyzer<'src> {
                 _ => Err(SemanticError::new(
                     span,
                     format!("array has no member `{}`", property.name),
+                )),
+            },
+            Type::Map(key, value) => match property.name {
+                "get" => Ok(Type::Function(FunctionType {
+                    params: vec![key.as_ref().clone()],
+                    defaults: vec![None],
+                    return_type: Box::new(nullable_type(value.as_ref().clone())),
+                })),
+                "set" => Ok(Type::Function(FunctionType {
+                    params: vec![key.as_ref().clone(), value.as_ref().clone()],
+                    defaults: vec![None, None],
+                    return_type: Box::new(Type::Map(key, value)),
+                })),
+                "has" | "delete" => Ok(Type::Function(FunctionType {
+                    params: vec![*key],
+                    defaults: vec![None],
+                    return_type: Box::new(Type::Bool),
+                })),
+                "clear" => Ok(Type::Function(FunctionType {
+                    params: Vec::new(),
+                    defaults: Vec::new(),
+                    return_type: Box::new(Type::Void),
+                })),
+                _ => Err(SemanticError::new(
+                    span,
+                    format!("map has no member `{}`", property.name),
+                )),
+            },
+            Type::Set(element) => match property.name {
+                "add" => Ok(Type::Function(FunctionType {
+                    params: vec![element.as_ref().clone()],
+                    defaults: vec![None],
+                    return_type: Box::new(Type::Set(element)),
+                })),
+                "has" | "delete" => Ok(Type::Function(FunctionType {
+                    params: vec![*element],
+                    defaults: vec![None],
+                    return_type: Box::new(Type::Bool),
+                })),
+                "clear" => Ok(Type::Function(FunctionType {
+                    params: Vec::new(),
+                    defaults: Vec::new(),
+                    return_type: Box::new(Type::Void),
+                })),
+                _ => Err(SemanticError::new(
+                    span,
+                    format!("set has no member `{}`", property.name),
+                )),
+            },
+            Type::ArrayBuffer => buffer_member(property, span, Type::ArrayBuffer),
+            Type::SharedArrayBuffer => buffer_member(property, span, Type::SharedArrayBuffer),
+            Type::Uint8Array => match property.name {
+                "slice" | "subarray" => Ok(Type::Function(FunctionType {
+                    params: vec![Type::Int, Type::Int],
+                    defaults: vec![None, Some(DefaultValue::Int(i32::MAX as i64))],
+                    return_type: Box::new(Type::Uint8Array),
+                })),
+                _ => Err(SemanticError::new(
+                    span,
+                    format!("Uint8Array has no member `{}`", property.name),
                 )),
             },
             Type::String => match property.name {
@@ -1930,6 +2024,114 @@ impl<'src> Analyzer<'src> {
         self.resolve_type(ty, false, context)
     }
 
+    fn analyze_builtin_constructor<'ast>(
+        &mut self,
+        class: Ident<'src>,
+        type_args: &[TypeRef<'ast, 'src>],
+        args: &[Expr<'ast, 'src>],
+        span: Span,
+        expected: Option<&Type<'src>>,
+    ) -> Result<Option<Type<'src>>, SemanticError> {
+        let ty = match class.name {
+            "Map" => {
+                if !args.is_empty() {
+                    return Err(SemanticError::new(
+                        span,
+                        format!(
+                            "`Map` constructor expects 0 arguments, found {}",
+                            args.len()
+                        ),
+                    ));
+                }
+                if type_args.is_empty() {
+                    let Some(Type::Map(key, value)) = expected else {
+                        return Err(SemanticError::new(
+                            span,
+                            "cannot infer `Map` type arguments; write `new Map<K, V>()`",
+                        ));
+                    };
+                    Type::Map(key.clone(), value.clone())
+                } else {
+                    let resolved =
+                        self.resolve_type_arguments("Map", type_args, &["K", "V"], span)?;
+                    validate_collection_key(&resolved[0], span, "Map key")?;
+                    Type::Map(Box::new(resolved[0].clone()), Box::new(resolved[1].clone()))
+                }
+            }
+            "Set" => {
+                if !args.is_empty() {
+                    return Err(SemanticError::new(
+                        span,
+                        format!(
+                            "`Set` constructor expects 0 arguments, found {}",
+                            args.len()
+                        ),
+                    ));
+                }
+                if type_args.is_empty() {
+                    let Some(Type::Set(element)) = expected else {
+                        return Err(SemanticError::new(
+                            span,
+                            "cannot infer `Set` type argument; write `new Set<T>()`",
+                        ));
+                    };
+                    Type::Set(element.clone())
+                } else {
+                    let resolved = self.resolve_type_arguments("Set", type_args, &["T"], span)?;
+                    validate_collection_key(&resolved[0], span, "Set element")?;
+                    Type::Set(Box::new(resolved[0].clone()))
+                }
+            }
+            "ArrayBuffer" | "SharedArrayBuffer" => {
+                self.resolve_type_arguments(class.name, type_args, &[], span)?;
+                if args.len() != 1 {
+                    return Err(SemanticError::new(
+                        span,
+                        format!(
+                            "`{}` constructor expects 1 argument, found {}",
+                            class.name,
+                            args.len()
+                        ),
+                    ));
+                }
+                let actual = self.analyze_expr(&args[0], Some(&Type::Int))?;
+                self.require_assignable(&Type::Int, &actual, args[0].span())?;
+                if class.name == "ArrayBuffer" {
+                    Type::ArrayBuffer
+                } else {
+                    Type::SharedArrayBuffer
+                }
+            }
+            "Uint8Array" => {
+                self.resolve_type_arguments(class.name, type_args, &[], span)?;
+                if args.len() != 1 {
+                    return Err(SemanticError::new(
+                        span,
+                        format!(
+                            "`Uint8Array` constructor expects 1 argument, found {}",
+                            args.len()
+                        ),
+                    ));
+                }
+                let actual = self.analyze_expr(&args[0], None)?;
+                if !matches!(
+                    actual,
+                    Type::Int | Type::ArrayBuffer | Type::SharedArrayBuffer
+                ) {
+                    return Err(SemanticError::new(
+                        args[0].span(),
+                        format!(
+                            "`Uint8Array` expects an `int`, `ArrayBuffer`, or `SharedArrayBuffer`, found `{actual}`"
+                        ),
+                    ));
+                }
+                Type::Uint8Array
+            }
+            _ => return Ok(None),
+        };
+        Ok(Some(ty))
+    }
+
     fn resolve_type<'ast>(
         &self,
         ty: TypeRef<'ast, 'src>,
@@ -1964,6 +2166,40 @@ impl<'src> Analyzer<'src> {
                     ));
                 }
                 Ok(Type::TypeParameter(name))
+            }
+            TypeKind::Named { name: "Map", args } => {
+                let resolved = self.resolve_type_arguments("Map", args, &["K", "V"], ty.span)?;
+                validate_collection_key(&resolved[0], ty.span, "Map key")?;
+                Ok(Type::Map(
+                    Box::new(resolved[0].clone()),
+                    Box::new(resolved[1].clone()),
+                ))
+            }
+            TypeKind::Named { name: "Set", args } => {
+                let resolved = self.resolve_type_arguments("Set", args, &["T"], ty.span)?;
+                validate_collection_key(&resolved[0], ty.span, "Set element")?;
+                Ok(Type::Set(Box::new(resolved[0].clone())))
+            }
+            TypeKind::Named {
+                name: "ArrayBuffer",
+                args,
+            } => {
+                self.resolve_type_arguments("ArrayBuffer", args, &[], ty.span)?;
+                Ok(Type::ArrayBuffer)
+            }
+            TypeKind::Named {
+                name: "SharedArrayBuffer",
+                args,
+            } => {
+                self.resolve_type_arguments("SharedArrayBuffer", args, &[], ty.span)?;
+                Ok(Type::SharedArrayBuffer)
+            }
+            TypeKind::Named {
+                name: "Uint8Array",
+                args,
+            } => {
+                self.resolve_type_arguments("Uint8Array", args, &[], ty.span)?;
+                Ok(Type::Uint8Array)
             }
             TypeKind::Named { name, args } if self.model.structs.contains_key(name) => {
                 let parameters = self.model.structs[name].type_params.clone();
@@ -2477,6 +2713,11 @@ fn substitute_type<'src>(
             .cloned()
             .unwrap_or_else(|| ty.clone()),
         Type::Array(element) => Type::Array(Box::new(substitute_type(element, substitutions))),
+        Type::Map(key, value) => Type::Map(
+            Box::new(substitute_type(key, substitutions)),
+            Box::new(substitute_type(value, substitutions)),
+        ),
+        Type::Set(element) => Type::Set(Box::new(substitute_type(element, substitutions))),
         Type::Nullable(inner) => Type::Nullable(Box::new(substitute_type(inner, substitutions))),
         Type::Union(members) => normalize_union(
             members
@@ -2561,6 +2802,10 @@ fn contains_type_parameter(ty: &Type<'_>, parameters: &AHashSet<&str>) -> bool {
     match ty {
         Type::TypeParameter(name) => parameters.contains(name),
         Type::Array(element) => contains_type_parameter(element, parameters),
+        Type::Map(key, value) => {
+            contains_type_parameter(key, parameters) || contains_type_parameter(value, parameters)
+        }
+        Type::Set(element) => contains_type_parameter(element, parameters),
         Type::Nullable(inner) => contains_type_parameter(inner, parameters),
         Type::Union(members) => members
             .iter()
@@ -2613,6 +2858,13 @@ fn infer_type_arguments<'src>(
             }
         }
         (Type::Array(pattern), Type::Array(actual)) => {
+            infer_type_arguments(pattern, actual, parameters, substitutions, span)?;
+        }
+        (Type::Map(pattern_key, pattern_value), Type::Map(actual_key, actual_value)) => {
+            infer_type_arguments(pattern_key, actual_key, parameters, substitutions, span)?;
+            infer_type_arguments(pattern_value, actual_value, parameters, substitutions, span)?;
+        }
+        (Type::Set(pattern), Type::Set(actual)) => {
             infer_type_arguments(pattern, actual, parameters, substitutions, span)?;
         }
         (Type::Nullable(pattern), Type::Nullable(actual)) => {
@@ -2687,6 +2939,10 @@ pub(crate) fn is_type_assignable(expected: &Type<'_>, actual: &Type<'_>) -> bool
     match (expected, actual) {
         (Type::Float, Type::Int) => true,
         (Type::Array(expected), Type::Array(actual)) => is_type_assignable(expected, actual),
+        (Type::Map(expected_key, expected_value), Type::Map(actual_key, actual_value)) => {
+            expected_key == actual_key && expected_value == actual_value
+        }
+        (Type::Set(expected), Type::Set(actual)) => expected == actual,
         (Type::Nullable(_), Type::Null) => true,
         (Type::Nullable(expected), Type::Nullable(actual)) => is_type_assignable(expected, actual),
         (Type::Nullable(expected), actual) => is_type_assignable(expected, actual),
@@ -2764,6 +3020,61 @@ fn statement_contains_break(statement: &Stmt<'_, '_>) -> bool {
         }
         Stmt::While { .. } | Stmt::For { .. } => false,
         _ => false,
+    }
+}
+
+fn nullable_type<'src>(ty: Type<'src>) -> Type<'src> {
+    match ty {
+        Type::Null | Type::Nullable(_) => ty,
+        Type::Union(members)
+            if members
+                .iter()
+                .any(|member| matches!(member, Type::Null | Type::Nullable(_))) =>
+        {
+            Type::Union(members)
+        }
+        Type::Union(members) => Type::Nullable(Box::new(Type::Union(members))),
+        ty => Type::Nullable(Box::new(ty)),
+    }
+}
+
+fn validate_collection_key(ty: &Type<'_>, span: Span, context: &str) -> Result<(), SemanticError> {
+    let supported = match ty {
+        Type::Struct(_) | Type::StructInstance { .. } | Type::TypeParameter(_) | Type::Void => {
+            false
+        }
+        Type::Nullable(inner) => validate_collection_key(inner, span, context).is_ok(),
+        Type::Array(_) | Type::Map(_, _) | Type::Set(_) => true,
+        Type::Union(members) => members
+            .iter()
+            .all(|member| validate_collection_key(member, span, context).is_ok()),
+        _ => true,
+    };
+    if supported {
+        Ok(())
+    } else {
+        Err(SemanticError::new(
+            span,
+            format!("{context} type `{ty}` has no portable identity contract"),
+        ))
+    }
+}
+
+fn buffer_member<'src>(
+    property: Ident<'src>,
+    span: Span,
+    return_type: Type<'src>,
+) -> Result<Type<'src>, SemanticError> {
+    match property.name {
+        "slice" => Ok(Type::Function(FunctionType {
+            params: vec![Type::Int, Type::Int],
+            defaults: vec![None, Some(DefaultValue::Int(i32::MAX as i64))],
+            return_type: Box::new(return_type),
+        })),
+        _ => Err(SemanticError::new(
+            span,
+            format!("buffer has no member `{}`", property.name),
+        )),
     }
 }
 
@@ -3336,6 +3647,26 @@ mod tests {
             "int[] xs=[1,2,3];int[] ys=xs.filter((int x)=>x>1);int total=ys.reduce((int a,int x)=>a+x,0);int n=xs.push(4);int last=xs.pop();bool found=\"lilscript\".includes(\"pex\");",
         )
         .unwrap();
+    }
+
+    #[test]
+    fn validates_collections_and_binary_memory() {
+        check(
+            "Map<string,int> values=new Map();values.set(\"x\",1);int? value=values.get(\"x\");Set<int> seen=new Set<int>();seen.add(1);ArrayBuffer buffer=new ArrayBuffer(4);Uint8Array bytes=new Uint8Array(buffer);bytes[0]=255;Uint8Array tail=bytes.subarray(1);",
+        )
+        .unwrap();
+
+        let bad_key =
+            check("struct Point{int x;}Map<Point,int> values=new Map<Point,int>();").unwrap_err();
+        assert!(bad_key.message.contains("portable identity contract"));
+
+        let bad_buffer = check("ArrayBuffer buffer=new ArrayBuffer(\"four\");").unwrap_err();
+        assert!(bad_buffer
+            .message
+            .contains("expected `int`, found `string`"));
+
+        let bad_byte = check("Uint8Array bytes=new Uint8Array(4);bytes[0]=\"wrong\";").unwrap_err();
+        assert!(bad_byte.message.contains("expected `int`, found `string`"));
     }
 
     #[test]

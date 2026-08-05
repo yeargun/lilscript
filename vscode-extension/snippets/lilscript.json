@@ -40,6 +40,21 @@
     "body": ["map((${1:int} ${2:value}) => ${3:${2:value}})"],
     "description": "Map an array with a typed callback"
   },
+  "Map declaration": {
+    "prefix": "mapdecl",
+    "body": ["Map<${1:string}, ${2:int}> ${3:values} = new Map();"],
+    "description": "Declare a typed map"
+  },
+  "Set declaration": {
+    "prefix": "setdecl",
+    "body": ["Set<${1:int}> ${2:values} = new Set();"],
+    "description": "Declare a typed set"
+  },
+  "Byte view": {
+    "prefix": "u8array",
+    "body": ["Uint8Array ${1:bytes} = new Uint8Array(${2:length});"],
+    "description": "Declare an unsigned byte buffer view"
+  },
   "Extern function": {
     "prefix": "extern",
     "body": ["extern ${1:int} ${2:hostFunction}(${3:int} ${4:value});"],

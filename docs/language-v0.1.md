@@ -35,6 +35,11 @@ SSA optimization; they are not JavaScript wrappers in the generated bundle.
 | `bool` | `true` or `false` | boolean | C11 `bool` |
 | `string` | immutable UTF-8 text | string | runtime string handle |
 | `T[]` | mutable homogeneous array | optimized array representation | runtime array handle |
+| `Map<K, V>` | mutable insertion-ordered key/value collection | native `Map` | tagged-value map handle |
+| `Set<T>` | mutable insertion-ordered unique-value collection | native `Set` | tagged-value set handle |
+| `ArrayBuffer` | fixed-length byte storage | native `ArrayBuffer` | owned byte-buffer handle |
+| `SharedArrayBuffer` | fixed-length storage shared by views | native `SharedArrayBuffer` | shared-designated byte-buffer handle |
+| `Uint8Array` | unsigned byte view | native `Uint8Array` | byte-buffer view handle |
 | `T?` | either a `T` value or `null` | `T` or raw `null` | tagged `LilScriptOptional` |
 | `A \| B` | value belonging to either member type | raw member value | tagged `LilScriptValue` at union boundaries |
 | `struct S` | positional value aggregate | scalars, tuple, or boundary object | positional C value record |
@@ -49,6 +54,27 @@ for a local or top-level variable with an initializer.
 An `int` widens implicitly to `float`. Other conversions require an explicit
 standard conversion function. Arrays and nominal types do not implicitly
 coerce.
+
+`Map<K, V>` and `Set<T>` are mutable and invariant. `Map.get(key)` returns
+`V?`; missing keys and stored `null` values therefore have the same result, as
+they do after JavaScript lowering with `?? null`. Collection keys use
+SameValueZero for floats and identity for reference types. Struct keys and set
+elements are rejected because structs have value semantics and no portable
+identity contract yet. Native collection storage currently uses deterministic
+linear lookup; this is a correctness baseline that a later representation pass
+may specialize without changing source semantics.
+
+`ArrayBuffer` and `SharedArrayBuffer` accept one `int` byte length.
+`Uint8Array` accepts a byte length or either buffer type, supports indexed reads
+and writes, and exposes `length`, `byteLength`, `byteOffset`, and `buffer`.
+`slice(start, end)` copies; `subarray(start, end)` creates a zero-copy view. The
+`end` argument defaults to the view or buffer end. This increment deliberately
+does not expose resizable/growable options, `DataView`, other typed arrays, or
+`Atomics`. JavaScript `SharedArrayBuffer` availability remains a host concern;
+the ECMAScript host may omit its global constructor, and sharing it across web
+agents requires the browser's isolation policy. Native lowering preserves
+shared view identity in one process but does not yet claim concurrent or atomic
+memory semantics.
 
 Postfix `?` makes a value type nullable. `null` is assignable only to a nullable
 type, and `auto value = null;` is rejected because it has no concrete value type
@@ -330,6 +356,11 @@ Arrays provide typed `length`, `map`, `filter`, `reduce`, `forEach`, `push`, and
 `pop`. Strings provide `length`, `includes`, `startsWith`, `endsWith`,
 `toUpperCase`, and `toLowerCase`. Calls are statically checked and are intrinsic
 optimization candidates; they are not untyped JavaScript dispatch.
+
+Maps provide `size`, `get`, `set`, `has`, `delete`, and `clear`. Sets provide
+`size`, `add`, `has`, `delete`, and `clear`. `set` and `add` return their
+receiver for chaining. Binary-memory operations are the typed intrinsics listed
+in the Types section rather than arbitrary JavaScript property dispatch.
 
 String `+` accepts strings, numbers, and booleans. Template strings evaluate
 embedded expressions left to right and apply the same string conversion rules.

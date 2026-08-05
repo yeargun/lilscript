@@ -1,0 +1,55 @@
+class Token {
+  int id;
+
+  init(int id) {
+    this.id = id;
+  }
+}
+
+class Registry {
+  Map<string, int> values;
+  Set<int> seen;
+}
+
+Registry registry = new Registry();
+print(registry.values.size);
+print(registry.seen.size);
+
+Map<string, int> inferredMap = new Map();
+Set<int> inferredSet = new Set();
+print(inferredMap.size);
+print(inferredSet.size);
+
+Map<string, int> counts = new Map<string, int>();
+print(counts.size);
+counts.set("alpha", 10).set("beta", 20);
+counts.set("alpha", 11);
+print(counts.size);
+int? alpha = counts.get("alpha");
+if (alpha != null) {
+  print(alpha);
+}
+print(counts.get("missing") == null);
+print(counts.has("beta"));
+print(counts.delete("beta"));
+print(counts.delete("beta"));
+print(counts.size);
+counts.clear();
+print(counts.size);
+
+Set<int> values = new Set<int>();
+values.add(3).add(3).add(5);
+print(values.size);
+print(values.has(3));
+print(values.delete(3));
+print(values.has(3));
+values.clear();
+print(values.size);
+
+Token first = new Token(1);
+Token same = first;
+Token second = new Token(1);
+Map<Token, string> labels = new Map<Token, string>();
+labels.set(first, "first");
+print(labels.has(same));
+print(labels.has(second));

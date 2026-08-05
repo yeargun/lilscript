@@ -773,6 +773,26 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
             Expr::New {
                 class, args, span, ..
             } => {
+                let builtin = match &ty {
+                    Type::Map(_, _) => Some(Intrinsic::MapNew),
+                    Type::Set(_) => Some(Intrinsic::SetNew),
+                    Type::ArrayBuffer => Some(Intrinsic::ArrayBufferNew),
+                    Type::SharedArrayBuffer => Some(Intrinsic::SharedArrayBufferNew),
+                    Type::Uint8Array => Some(Intrinsic::Uint8ArrayNew),
+                    _ => None,
+                };
+                if let Some(intrinsic) = builtin {
+                    let args = self.lower_args(args)?;
+                    return self.emit_value(
+                        ControlFlowOp::Intrinsic {
+                            intrinsic,
+                            receiver: None,
+                            args,
+                        },
+                        ty,
+                        *span,
+                    );
+                }
                 let args = if let Some(signature) = self
                     .semantics
                     .class_info(class.name)
@@ -1042,6 +1062,57 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                 ty,
                 span,
             ),
+            Type::Map(_, _) if property.name == "size" => self.emit_value(
+                ControlFlowOp::Intrinsic {
+                    intrinsic: Intrinsic::MapSize,
+                    receiver: Some(object_value),
+                    args: Vec::new(),
+                },
+                ty,
+                span,
+            ),
+            Type::Set(_) if property.name == "size" => self.emit_value(
+                ControlFlowOp::Intrinsic {
+                    intrinsic: Intrinsic::SetSize,
+                    receiver: Some(object_value),
+                    args: Vec::new(),
+                },
+                ty,
+                span,
+            ),
+            Type::ArrayBuffer | Type::SharedArrayBuffer if property.name == "byteLength" => self
+                .emit_value(
+                    ControlFlowOp::Intrinsic {
+                        intrinsic: Intrinsic::BufferByteLength,
+                        receiver: Some(object_value),
+                        args: Vec::new(),
+                    },
+                    ty,
+                    span,
+                ),
+            Type::Uint8Array => {
+                let intrinsic = match property.name {
+                    "length" => Intrinsic::Uint8ArrayLength,
+                    "byteLength" => Intrinsic::Uint8ArrayByteLength,
+                    "byteOffset" => Intrinsic::Uint8ArrayByteOffset,
+                    "buffer" => Intrinsic::Uint8ArrayBuffer,
+                    _ => {
+                        return Err(LowerError::new(
+                            span,
+                            format!("member `{}` must be called in this context", property.name),
+                        ));
+                    }
+                };
+                self.emit_value(
+                    ControlFlowOp::Intrinsic {
+                        intrinsic,
+                        receiver: Some(object_value),
+                        args: Vec::new(),
+                    },
+                    ty,
+                    span,
+                )
+            }
             Type::String if property.name == "length" => self.emit_value(
                 ControlFlowOp::Intrinsic {
                     intrinsic: Intrinsic::StringLength,
@@ -1086,7 +1157,22 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
             let receiver_type = self.expression_type(object)?;
             if let Some(intrinsic) = member_intrinsic(&receiver_type, property.name) {
                 let receiver = self.lower_expr(object)?;
-                let args = self.lower_args(args)?;
+                let args = if matches!(
+                    intrinsic,
+                    Intrinsic::BufferSlice
+                        | Intrinsic::Uint8ArraySlice
+                        | Intrinsic::Uint8ArraySubarray
+                ) {
+                    let callee_type = self.expression_type(callee)?;
+                    let signature = match &callee_type {
+                        Type::Function(signature) => Some(signature.clone()),
+                        Type::GenericFunction(function) => Some(function.signature.clone()),
+                        _ => None,
+                    };
+                    self.lower_args_with_optional_signature(args, signature.as_ref(), span)?
+                } else {
+                    self.lower_args(args)?
+                };
                 return self.emit_value(
                     ControlFlowOp::Intrinsic {
                         intrinsic,
@@ -1837,6 +1923,18 @@ fn member_intrinsic(receiver: &Type<'_>, property: &str) -> Option<Intrinsic> {
         (Type::Array(_), "forEach") => Some(Intrinsic::ArrayForEach),
         (Type::Array(_), "push") => Some(Intrinsic::ArrayPush),
         (Type::Array(_), "pop") => Some(Intrinsic::ArrayPop),
+        (Type::Map(_, _), "get") => Some(Intrinsic::MapGet),
+        (Type::Map(_, _), "set") => Some(Intrinsic::MapSet),
+        (Type::Map(_, _), "has") => Some(Intrinsic::MapHas),
+        (Type::Map(_, _), "delete") => Some(Intrinsic::MapDelete),
+        (Type::Map(_, _), "clear") => Some(Intrinsic::MapClear),
+        (Type::Set(_), "add") => Some(Intrinsic::SetAdd),
+        (Type::Set(_), "has") => Some(Intrinsic::SetHas),
+        (Type::Set(_), "delete") => Some(Intrinsic::SetDelete),
+        (Type::Set(_), "clear") => Some(Intrinsic::SetClear),
+        (Type::ArrayBuffer | Type::SharedArrayBuffer, "slice") => Some(Intrinsic::BufferSlice),
+        (Type::Uint8Array, "slice") => Some(Intrinsic::Uint8ArraySlice),
+        (Type::Uint8Array, "subarray") => Some(Intrinsic::Uint8ArraySubarray),
         (Type::String, "includes") => Some(Intrinsic::StringIncludes),
         (Type::String, "startsWith") => Some(Intrinsic::StringStartsWith),
         (Type::String, "endsWith") => Some(Intrinsic::StringEndsWith),

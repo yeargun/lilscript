@@ -1,0 +1,47 @@
+class Memory {
+  ArrayBuffer buffer;
+  Uint8Array bytes;
+}
+
+Memory defaults = new Memory();
+print(defaults.buffer.byteLength);
+print(defaults.bytes.length);
+
+ArrayBuffer buffer = new ArrayBuffer(6);
+Uint8Array bytes = new Uint8Array(buffer);
+print(buffer.byteLength);
+print(bytes.length);
+print(bytes.byteLength);
+print(bytes.byteOffset);
+
+bytes[0] = 7;
+bytes[1] = 257;
+bytes[2] = -1;
+print(bytes[0]);
+print(bytes[1]);
+print(bytes[2]);
+
+Uint8Array window = bytes.subarray(1, 3);
+print(window.length);
+print(window.byteOffset);
+window[0] = 9;
+print(bytes[1]);
+
+Uint8Array copied = bytes.slice(1);
+print(copied.length);
+copied[0] = 4;
+print(copied[0]);
+print(bytes[1]);
+
+ArrayBuffer middle = buffer.slice(1, 4);
+print(middle.byteLength);
+Uint8Array middleBytes = new Uint8Array(middle);
+print(middleBytes[0]);
+
+SharedArrayBuffer shared = new SharedArrayBuffer(4);
+Uint8Array sharedBytes = new Uint8Array(shared);
+sharedBytes[2] = 42;
+print(shared.byteLength);
+print(sharedBytes[2]);
+SharedArrayBuffer sharedSlice = shared.slice(1, 3);
+print(sharedSlice.byteLength);

@@ -106,7 +106,7 @@
       "patterns": [
         {
           "name": "storage.type.primitive.lilscript",
-          "match": "\\b(int|float|string|bool|void|auto|func)\\b"
+          "match": "\\b(int|float|string|bool|void|auto|func|Map|Set|ArrayBuffer|SharedArrayBuffer|Uint8Array)\\b"
         }
       ]
     },

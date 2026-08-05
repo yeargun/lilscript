@@ -214,9 +214,9 @@ npm --prefix vscode-extension run package
 ```
 
 `scripts/verify.sh` compares Node and native output for two conformance suites
-and links a generated aggregate ABI against a C host. It also runs 48 programs
+and links a generated aggregate ABI against a C host. It also runs 50 programs
 through JavaScript, emitted C, and native executables with maximum and disabled
-optional optimization, for 96 matrix executions, plus a framed LSP session
+optional optimization, for 100 matrix executions, plus a framed LSP session
 through diagnostics, completion, hover, symbols, and shutdown.
 `benchmarks/run.sh`
 downloads the pinned Closure Compiler `v20260803`, runs `ADVANCED` compilation,
@@ -237,6 +237,7 @@ responsibility mapping is in
 ## v0.1 Scope
 
 The implemented v0.1 language includes primitive and nominal types, arrays,
+typed maps and sets, fixed-length array/shared buffers and unsigned byte views,
 functions and closures, structs, classes and constructors, static modules,
 checked purity contracts, control flow, compound assignment, templates,
 inferred generic functions and classes, nullable `T?` values with direct
