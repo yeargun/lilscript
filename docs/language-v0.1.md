@@ -54,8 +54,12 @@ type, and `auto value = null;` is rejected because it has no concrete value type
 to infer. Nullable values may be compared with `null`, their underlying value,
 or another compatible nullable. JavaScript keeps raw `null`; native code uses a
 tagged payload so nullable primitives and aggregates have the same semantics.
-Flow-sensitive narrowing and nullable member/index access are not part of this
-increment yet; nullable values can be passed, returned, stored, and compared.
+Direct `value != null` guards narrow `value` inside the true branch, while
+`value == null` narrows it inside the false branch. Assignment invalidates the
+narrowing. This permits guarded member, method, and index access without a
+runtime wrapper in JavaScript; native code emits a typed tagged-payload unwrap.
+Compound-condition narrowing and propagation after an early-return guard are
+not part of this increment.
 
 Generic functions declare type parameters after the function name. Calls infer
 their type arguments from ordinary values and callback parameter/return types:

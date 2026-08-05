@@ -113,6 +113,11 @@ bool enabled = true;
 auto inferred = count * 2;
 int[] scores = [10, 20, 30];
 func(int)-&gt;int twice = (int value) =&gt; value * 2;</code></pre>
+          <p>
+            A direct <code>value != null</code> guard narrows a nullable value in
+            its true branch; <code>value == null</code> narrows it in the false
+            branch. Assigning the binding invalidates that narrowing.
+          </p>
           <table>
             <thead><tr><th>Type</th><th>Semantics</th><th>JavaScript lowering</th></tr></thead>
             <tbody>

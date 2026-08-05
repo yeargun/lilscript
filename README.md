@@ -230,7 +230,7 @@ responsibility mapping is in
 The implemented v0.1 language includes primitive and nominal types, arrays,
 functions and closures, structs, classes and constructors, static modules,
 checked purity contracts, control flow, compound assignment, templates,
-inferred generic functions and classes, nullable `T?` values, explicit host `extern` declarations,
+inferred generic functions and classes, nullable `T?` values with direct null-guard narrowing, explicit host `extern` declarations,
 and the standard methods listed in the language contract. Package management,
 lazy module loading, runtime chunks, generic struct literals, exceptions, async
 execution, and a direct machine-code backend are outside v0.1; native
