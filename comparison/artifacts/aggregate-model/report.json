@@ -1,0 +1,15 @@
+{
+  "app": "aggregate-model",
+  "lilscriptVersion": "0.1.0",
+  "closureVersion": "v20260803",
+  "lilscript": {
+    "raw": 87,
+    "gzip9": 83,
+    "brotli11": 78
+  },
+  "closure": {
+    "raw": 249,
+    "gzip9": 172,
+    "brotli11": 137
+  }
+}

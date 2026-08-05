@@ -1,0 +1,15 @@
+{
+  "app": "higher-order-pipeline",
+  "lilscriptVersion": "0.1.0",
+  "closureVersion": "v20260803",
+  "lilscript": {
+    "raw": 137,
+    "gzip9": 137,
+    "brotli11": 116
+  },
+  "closure": {
+    "raw": 142,
+    "gzip9": 142,
+    "brotli11": 125
+  }
+}

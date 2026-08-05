@@ -1,0 +1,15 @@
+{
+  "app": "optimizer-pressure",
+  "lilscriptVersion": "0.1.0",
+  "closureVersion": "v20260803",
+  "lilscript": {
+    "raw": 128,
+    "gzip9": 87,
+    "brotli11": 69
+  },
+  "closure": {
+    "raw": 240,
+    "gzip9": 127,
+    "brotli11": 98
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "app": "control-flow-engine",
+  "lilscriptVersion": "0.1.0",
+  "closureVersion": "v20260803",
+  "lilscript": {
+    "raw": 139,
+    "gzip9": 137,
+    "brotli11": 112
+  },
+  "closure": {
+    "raw": 145,
+    "gzip9": 139,
+    "brotli11": 123
+  }
+}

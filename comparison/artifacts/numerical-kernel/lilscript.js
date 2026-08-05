@@ -1,0 +1,1 @@
+function a(b){return b<=1?1:Math.imul(b,a(b-1|0))}console.log(a(7));var c=1071,b=462,d;while(b!=0){[c,b]=[b,c%b|0];}console.log(c);b=0;c=1;d=0;while(d<12){[b,c,d]=[c,b+c|0,d+1|0];}console.log(b)

@@ -18,6 +18,14 @@ Run every program and regenerate the aggregate report:
 comparison/run-all.sh
 ```
 
+Ready-to-run generated JavaScript, emitted C, Closure ADVANCED output, and
+macOS ARM64 native executables are checked in under `comparison/artifacts`.
+Validate those snapshots without rebuilding either compiler with:
+
+```sh
+comparison/test-artifacts.sh
+```
+
 Run one program:
 
 ```sh

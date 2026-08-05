@@ -1,0 +1,15 @@
+{
+  "app": "text-report",
+  "lilscriptVersion": "0.1.0",
+  "closureVersion": "v20260803",
+  "lilscript": {
+    "raw": 119,
+    "gzip9": 97,
+    "brotli11": 77
+  },
+  "closure": {
+    "raw": 266,
+    "gzip9": 135,
+    "brotli11": 105
+  }
+}

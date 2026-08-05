@@ -1,0 +1,1 @@
+console.log(4);console.log(84);console.log(42);var a="application-build-identifier";console.log(a);console.log(a);console.log(a)

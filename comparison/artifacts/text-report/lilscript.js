@@ -1,0 +1,1 @@
+console.log("lilscript:true:true");var a="repeated-long-application-label";console.log(a);console.log(a);console.log(a)

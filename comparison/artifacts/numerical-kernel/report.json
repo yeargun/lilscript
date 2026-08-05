@@ -1,0 +1,15 @@
+{
+  "app": "numerical-kernel",
+  "lilscriptVersion": "0.1.0",
+  "closureVersion": "v20260803",
+  "lilscript": {
+    "raw": 194,
+    "gzip9": 165,
+    "brotli11": 137
+  },
+  "closure": {
+    "raw": 206,
+    "gzip9": 172,
+    "brotli11": 151
+  }
+}

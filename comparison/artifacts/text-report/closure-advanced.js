@@ -1,0 +1,1 @@
+console.log(`lilscript:${"LilScript".startsWith("Lil")&&"LilScript".endsWith("Script")}:${"LilScript".includes("Script")}`);console.log("repeated-long-application-label");console.log("repeated-long-application-label");console.log("repeated-long-application-label");

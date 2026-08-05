@@ -1,0 +1,1 @@
+class a{constructor(){this.value=b.origin.x+b.origin.y|0}add(d){return this.value=this.value+d|0}}const b={origin:{x:3,y:4},width:6,height:7},c=new a;console.log(Math.imul(b.width,b.height));console.log(c.add(b.width));console.log(c.add(b.height));

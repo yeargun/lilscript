@@ -1,0 +1,15 @@
+{
+  "app": "module-graph",
+  "lilscriptVersion": "0.1.0",
+  "closureVersion": "v20260803",
+  "lilscript": {
+    "raw": 116,
+    "gzip9": 130,
+    "brotli11": 104
+  },
+  "closure": {
+    "raw": 123,
+    "gzip9": 136,
+    "brotli11": 110
+  }
+}

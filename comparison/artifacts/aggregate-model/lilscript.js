@@ -1,0 +1,1 @@
+let a=[3,4];console.log(42);let b=((a[0]+a[1]|0)+6|0);console.log(b);console.log(b+7|0)

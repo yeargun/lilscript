@@ -1,0 +1,1 @@
+class a{constructor(){this.value=40}}const b=new a;console.log(4);console.log(84);console.log(b.value+2|0);console.log("application-build-identifier");console.log("application-build-identifier");console.log("application-build-identifier");
