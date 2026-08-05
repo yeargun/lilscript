@@ -1169,20 +1169,40 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                 .get(index)
                 .and_then(Option::as_ref)
                 .ok_or_else(|| LowerError::new(span, "missing lowered parameter default"))?;
-            let value = match default {
-                DefaultValue::Int(value) => ConstValue::Int(*value),
-                DefaultValue::Float(bits) => ConstValue::Float(f64::from_bits(*bits)),
-                DefaultValue::String(value) => ConstValue::String((*value).to_string()),
-                DefaultValue::Bool(value) => ConstValue::Bool(*value),
-                DefaultValue::Null => ConstValue::Null,
-            };
-            values.push(self.emit_value(
-                ControlFlowOp::Const(value),
-                signature.params[index].clone(),
-                span,
-            )?);
+            values.push(self.lower_default_value(default, &signature.params[index], span)?);
         }
         Ok(values)
+    }
+
+    fn lower_default_value(
+        &mut self,
+        default: &DefaultValue<'src>,
+        ty: &Type<'src>,
+        span: Span,
+    ) -> Result<ValueId, LowerError> {
+        if let DefaultValue::Array(elements) = default {
+            let element_ty = default_array_element_type(ty).ok_or_else(|| {
+                LowerError::new(span, "array default has no compatible array parameter type")
+            })?;
+            let values = elements
+                .iter()
+                .map(|element| self.lower_default_value(element, element_ty, span))
+                .collect::<Result<Vec<_>, _>>()?;
+            return self.emit_value(
+                ControlFlowOp::Array(values),
+                Type::Array(Box::new(element_ty.clone())),
+                span,
+            );
+        }
+        let value = match default {
+            DefaultValue::Int(value) => ConstValue::Int(*value),
+            DefaultValue::Float(bits) => ConstValue::Float(f64::from_bits(*bits)),
+            DefaultValue::String(value) => ConstValue::String((*value).to_string()),
+            DefaultValue::Bool(value) => ConstValue::Bool(*value),
+            DefaultValue::Null => ConstValue::Null,
+            DefaultValue::Array(_) => unreachable!(),
+        };
+        self.emit_value(ControlFlowOp::Const(value), ty.clone(), span)
     }
 
     fn lower_args<'ast>(&mut self, args: &[Expr<'ast, 'src>]) -> Result<Vec<ValueId>, LowerError> {
@@ -1591,6 +1611,15 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
             live: true,
             span: self.span,
         })
+    }
+}
+
+fn default_array_element_type<'ty, 'src>(ty: &'ty Type<'src>) -> Option<&'ty Type<'src>> {
+    match ty {
+        Type::Array(element) => Some(element),
+        Type::Nullable(inner) => default_array_element_type(inner),
+        Type::Union(members) => members.iter().find_map(default_array_element_type),
+        _ => None,
     }
 }
 

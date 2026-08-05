@@ -1,0 +1,33 @@
+int sum(int[] values = [1, 2, 3]) {
+  int total = 0;
+  for (int index = 0; index < values.length; index++) {
+    total += values[index];
+  }
+  return total;
+}
+
+int nestedLength(int[][] values = [[1], [2, 3]]) {
+  return values.length + values[1].length;
+}
+
+class Bag {
+  int[] values;
+
+  init(int[] values = []) {
+    this.values = values;
+  }
+
+  int size() {
+    return this.values.length;
+  }
+}
+
+print(sum());
+print(sum([4, 5]));
+print(nestedLength());
+
+Bag first = new Bag();
+Bag second = new Bag();
+first.values.push(9);
+print(first.size());
+print(second.size());

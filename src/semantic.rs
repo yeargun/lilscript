@@ -145,6 +145,7 @@ pub enum DefaultValue<'src> {
     String(&'src str),
     Bool(bool),
     Null,
+    Array(Vec<DefaultValue<'src>>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -2234,21 +2235,51 @@ fn resolve_parameter_defaults<'ast, 'src>(
             let Some(expression) = &param.default else {
                 return Ok(None);
             };
-            let (value, actual) = scalar_default_value(expression).ok_or_else(|| {
-                SemanticError::new(
-                    expression.span(),
-                    "parameter defaults must be scalar literals",
-                )
-            })?;
-            if !is_type_assignable(ty, &actual) {
-                return Err(SemanticError::new(
-                    expression.span(),
-                    format!("default value has type `{actual}`, expected `{ty}`"),
-                ));
+            if let Some((_, actual)) = scalar_default_value(expression) {
+                if !is_type_assignable(ty, &actual) {
+                    return Err(SemanticError::new(
+                        expression.span(),
+                        format!("default value has type `{actual}`, expected `{ty}`"),
+                    ));
+                }
             }
-            Ok(Some(value))
+            literal_default_value(expression, ty)
+                .map(Some)
+                .ok_or_else(|| {
+                    SemanticError::new(
+                        expression.span(),
+                        format!(
+                            "default value is not a supported literal for parameter type `{ty}`"
+                        ),
+                    )
+                })
         })
         .collect()
+}
+
+fn literal_default_value<'ast, 'src>(
+    expression: &Expr<'ast, 'src>,
+    expected: &Type<'src>,
+) -> Option<DefaultValue<'src>> {
+    if let Expr::ArrayLiteral { elements, .. } = expression {
+        let element = expected_array_element(expected)?;
+        return elements
+            .iter()
+            .map(|element_value| literal_default_value(element_value, element))
+            .collect::<Option<Vec<_>>>()
+            .map(DefaultValue::Array);
+    }
+    let (value, actual) = scalar_default_value(expression)?;
+    is_type_assignable(expected, &actual).then_some(value)
+}
+
+fn expected_array_element<'ty, 'src>(ty: &'ty Type<'src>) -> Option<&'ty Type<'src>> {
+    match ty {
+        Type::Array(element) => Some(element),
+        Type::Nullable(inner) => expected_array_element(inner),
+        Type::Union(members) => members.iter().find_map(expected_array_element),
+        _ => None,
+    }
 }
 
 fn scalar_default_value<'ast, 'src>(
@@ -2979,6 +3010,21 @@ mod tests {
         )
         .unwrap();
 
+        check(
+            r#"
+                int sum(int[] values=[1,2,3]){return values.length;}
+                int nested(int[][] values=[[1],[2,3]]){return values.length;}
+                class Bag {
+                    int[] values;
+                    init(int[] values=[]){this.values=values;}
+                }
+                int first=sum();
+                int second=nested();
+                Bag bag=new Bag();
+            "#,
+        )
+        .unwrap();
+
         analyze(&program).unwrap();
 
         check(
@@ -3007,7 +3053,18 @@ mod tests {
         let error = analyze(&non_literal).unwrap_err();
         assert!(error
             .message
-            .contains("parameter defaults must be scalar literals"));
+            .contains("not a supported literal for parameter type `int`"));
+
+        let arena = Bump::new();
+        let wrong_array = parse_source(
+            &arena,
+            r#"int value(int[] input=["no"]){return input.length;}"#,
+        )
+        .unwrap();
+        let error = analyze(&wrong_array).unwrap_err();
+        assert!(error
+            .message
+            .contains("not a supported literal for parameter type `int[]`"));
     }
 
     #[test]
