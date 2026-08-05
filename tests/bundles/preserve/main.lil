@@ -1,0 +1,5 @@
+import { setState, readState } from "./state";
+export { readState };
+
+setState(41);
+print(readState() + 1);

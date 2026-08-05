@@ -1,0 +1,6 @@
+import { shared } from "./shared";
+
+export int left() {
+  return shared(2);
+}
+

@@ -8,7 +8,8 @@ use clap::{Parser, ValueEnum};
 use lilscript::config::{load_project_config, BundleMode};
 use lilscript::{
     compile_path_all_configured, compile_path_configured, compile_path_to_c_configured,
-    compile_path_to_js_module_configured, render_module_diagnostic,
+    compile_path_to_js_bundle_configured, compile_path_to_js_module_configured,
+    render_module_diagnostic, JavaScriptBundle,
 };
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -51,22 +52,24 @@ fn run() -> Result<(), String> {
     let args = Args::parse();
     let loaded = load_project_config(&args.input, args.config.as_deref())
         .map_err(|error| error.to_string())?;
-    if loaded.config.bundle.mode != BundleMode::Single {
-        return Err(format!(
-            "bundle mode `{:?}` is configured, but this target currently emits only a single whole-program artifact",
-            loaded.config.bundle.mode
-        ));
-    }
     match args.target {
         Target::Js => {
-            let js = compile_path_configured(&args.input, &loaded.config)
-                .map_err(|error| render_module_diagnostic(&error))?;
-            write_or_print(args.output.as_deref(), &js)?;
+            if loaded.config.bundle.mode == BundleMode::Single {
+                let js = compile_path_configured(&args.input, &loaded.config)
+                    .map_err(|error| render_module_diagnostic(&error))?;
+                write_or_print(args.output.as_deref(), &js)?;
+            } else {
+                write_configured_bundle(&args.input, args.output.as_deref(), &loaded.config)?;
+            }
         }
         Target::JsModule => {
-            let js = compile_path_to_js_module_configured(&args.input, &loaded.config)
-                .map_err(|error| render_module_diagnostic(&error))?;
-            write_or_print(args.output.as_deref(), &js)?;
+            if loaded.config.bundle.mode == BundleMode::Single {
+                let js = compile_path_to_js_module_configured(&args.input, &loaded.config)
+                    .map_err(|error| render_module_diagnostic(&error))?;
+                write_or_print(args.output.as_deref(), &js)?;
+            } else {
+                write_configured_bundle(&args.input, args.output.as_deref(), &loaded.config)?;
+            }
         }
         Target::C => {
             let c = compile_path_to_c_configured(&args.input, &loaded.config)
@@ -94,14 +97,106 @@ fn run() -> Result<(), String> {
             let javascript = base.with_extension("js");
             let c = base.with_extension("c");
             ensure_parent(&base)?;
-            fs::write(&javascript, &artifacts.javascript)
-                .map_err(|error| format!("failed to write {}: {error}", javascript.display()))?;
+            if loaded.config.bundle.mode == BundleMode::Single {
+                fs::write(&javascript, &artifacts.javascript).map_err(|error| {
+                    format!("failed to write {}: {error}", javascript.display())
+                })?;
+            } else {
+                write_configured_bundle(&args.input, Some(&javascript), &loaded.config)?;
+            }
             fs::write(&c, &artifacts.c)
                 .map_err(|error| format!("failed to write {}: {error}", c.display()))?;
             compile_native(&artifacts.c, &base)?;
         }
     }
 
+    Ok(())
+}
+
+fn write_configured_bundle(
+    input: &Path,
+    output: Option<&Path>,
+    config: &lilscript::config::ProjectConfig,
+) -> Result<(), String> {
+    let output = output.ok_or_else(|| {
+        "split and preserve-modules bundle modes require an explicit --output entry file"
+            .to_string()
+    })?;
+    let entry_file = output
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| "bundle output must have a UTF-8 file name".to_string())?;
+    let bundle = compile_path_to_js_bundle_configured(input, config, entry_file)
+        .map_err(|error| render_module_diagnostic(&error))?;
+    write_javascript_bundle(output, &bundle)
+}
+
+fn write_javascript_bundle(output: &Path, bundle: &JavaScriptBundle) -> Result<(), String> {
+    ensure_parent(output)?;
+    let directory = output.parent().unwrap_or_else(|| Path::new("."));
+    let manifest_path = output.with_extension("manifest.json");
+    remove_stale_chunks(directory, &manifest_path, bundle)?;
+    for file in &bundle.files {
+        let path = if file.file_name == bundle.manifest.entry {
+            output.to_path_buf()
+        } else {
+            directory.join(&file.file_name)
+        };
+        fs::write(&path, &file.code)
+            .map_err(|error| format!("failed to write {}: {error}", path.display()))?;
+    }
+    let manifest = serde_json::to_string_pretty(&bundle.manifest)
+        .map_err(|error| format!("failed to serialize bundle manifest: {error}"))?;
+    fs::write(&manifest_path, format!("{manifest}\n")).map_err(|error| {
+        format!(
+            "failed to write bundle manifest {}: {error}",
+            manifest_path.display()
+        )
+    })
+}
+
+fn remove_stale_chunks(
+    directory: &Path,
+    manifest_path: &Path,
+    bundle: &JavaScriptBundle,
+) -> Result<(), String> {
+    let Ok(previous) = fs::read_to_string(manifest_path) else {
+        return Ok(());
+    };
+    let Ok(previous) = serde_json::from_str::<serde_json::Value>(&previous) else {
+        return Ok(());
+    };
+    let current = bundle
+        .manifest
+        .chunks
+        .iter()
+        .map(|chunk| chunk.file.as_str())
+        .collect::<std::collections::HashSet<_>>();
+    let Some(chunks) = previous.get("chunks").and_then(|chunks| chunks.as_array()) else {
+        return Ok(());
+    };
+    for file in chunks
+        .iter()
+        .filter_map(|chunk| chunk.get("file")?.as_str())
+    {
+        if current.contains(file)
+            || !(file.starts_with("chunk-") || file.starts_with("lil-chunk-"))
+            || Path::new(file).file_name().and_then(|name| name.to_str()) != Some(file)
+        {
+            continue;
+        }
+        let path = directory.join(file);
+        match fs::remove_file(&path) {
+            Ok(()) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => {
+                return Err(format!(
+                    "failed to remove stale bundle chunk {}: {error}",
+                    path.display()
+                ));
+            }
+        }
+    }
     Ok(())
 }
 

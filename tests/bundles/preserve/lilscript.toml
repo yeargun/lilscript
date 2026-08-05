@@ -1,0 +1,9 @@
+[optimization]
+inlining = false
+
+[mangle]
+identifiers = false
+
+[bundle]
+mode = "preserve-modules"
+

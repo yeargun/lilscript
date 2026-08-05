@@ -1,0 +1,6 @@
+import { shared } from "./shared";
+
+export int right() {
+  return shared(3);
+}
+

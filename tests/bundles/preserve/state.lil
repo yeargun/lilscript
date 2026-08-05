@@ -1,0 +1,10 @@
+int state = 40;
+
+export void setState(int value) {
+  state = value;
+}
+
+export int readState() {
+  return state;
+}
+

@@ -1,0 +1,9 @@
+[optimization]
+inlining = false
+
+[bundle]
+mode = "split"
+min_chunk_bytes = 1
+max_chunks = 1
+shared_min_imports = 2
+

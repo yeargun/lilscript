@@ -1,0 +1,5 @@
+import { left } from "./left";
+import { right } from "./right";
+
+print(left() + right());
+

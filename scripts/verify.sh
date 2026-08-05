@@ -40,5 +40,6 @@ if [ "$extern_result" != "6" ]; then
 fi
 
 node "$ROOT/scripts/test-lsp.mjs" "$ROOT/target/release/lilscript-lsp"
+node "$ROOT/scripts/verify-bundles.mjs" "$ROOT/target/release/lilscript"
 
 printf 'JavaScript/native/tooling conformance passed.\n'
