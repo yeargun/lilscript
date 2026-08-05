@@ -1972,6 +1972,17 @@ impl LocalNames {
             .collect();
         let uses = use_counts(function);
         let unstable_values = unstable_values(function);
+        let captured_values = function
+            .blocks
+            .iter()
+            .flat_map(|block| &block.instructions)
+            .filter_map(|instruction| match &instruction.op {
+                ControlFlowOp::Closure { captures, .. } => Some(captures),
+                _ => None,
+            })
+            .flatten()
+            .copied()
+            .collect::<AHashSet<_>>();
         let inlined_values = function
             .blocks
             .iter()
@@ -2014,6 +2025,8 @@ impl LocalNames {
                     let fused = use_count == 1 && can_fuse_value(block, index, value);
                     if (cross_block.contains(&value)
                         || use_count > 1
+                        || (captured_values.contains(&value)
+                            && !matches!(instruction.op, ControlFlowOp::Const(_)))
                         || (use_count != 0 && unstable_values.contains(&value) && !fused)
                         || matches!(
                             instruction.op,

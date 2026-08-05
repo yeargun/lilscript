@@ -724,6 +724,29 @@ mod tests {
     }
 
     #[test]
+    fn materializes_call_results_when_captured_by_closures() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "extern int current();extern void retain(func()->int callback);void install(){int snapshot=current();retain(()=>snapshot);}install();",
+        )
+        .unwrap();
+        let mut config = ProjectConfig::default();
+        config.optimization.preset = crate::config::OptimizationPreset::None;
+        config.mangle.identifiers = false;
+        let output = compile_program_to_js_configured(&program, &config).unwrap();
+
+        let snapshot = output
+            .find("=current();")
+            .unwrap_or_else(|| panic!("captured call result must be stored: {output}"));
+        let retain = output
+            .find("retain(")
+            .unwrap_or_else(|| panic!("closure must be retained: {output}"));
+        assert!(snapshot < retain, "{output}");
+        assert!(!output.contains("=>current()"), "{output}");
+    }
+
+    #[test]
     fn preserves_effectful_calls_before_conditional_returns() {
         let arena = Bump::new();
         let program = parse_source(
