@@ -8,8 +8,10 @@ semantics. JavaScript and native object code are backend targets of the same
 typed whole-program IR.
 
 Every executable program is analyzed as a closed world. An explicit `extern`
-declaration is required to cross into an untyped JavaScript boundary. Values
-that reach an `extern` boundary are considered escaping and must use the
+declaration is required to cross into a host boundary. An `extern` function is
+a typed call contract for JavaScript or C. An `extern class` plus an `extern`
+global declares a typed JavaScript host object such as `document` or `window`.
+Values that reach either boundary are considered escaping and must use the
 boundary ABI representation.
 
 The entry `.lil` file and every transitive static import form one compilation
@@ -44,6 +46,7 @@ SSA optimization; they are not JavaScript wrappers in the generated bundle.
 | `A \| B` | value belonging to either member type | raw member value | tagged `LilScriptValue` at union boundaries |
 | `struct S` | positional value aggregate | scalars, tuple, or boundary object | positional C value record |
 | `class C` | nominal reference value with methods | dissolved record or class at an escaping boundary | pointer to a C record |
+| `extern class C` | typed JavaScript host object interface | existing host object with exact member names | unsupported without an explicit user ABI |
 | `func(T...)->R` | callable value | function/closure | function plus environment |
 | `C<T...>` | applied generic class | same nominal class layout | pointer with boxed polymorphic fields |
 | `void` | no value | no value | no value |
@@ -75,6 +78,24 @@ the ECMAScript host may omit its global constructor, and sharing it across web
 agents requires the browser's isolation policy. Native lowering preserves
 shared view identity in one process but does not yet claim concurrent or atomic
 memory semantics.
+
+Browser object interfaces are declared rather than built into the parser:
+
+```lilscript
+extern class Document {
+  Element createElement(string tag);
+  Element? querySelector(string selector);
+}
+extern Document document;
+```
+
+External globals are read-only bindings, external classes cannot be constructed,
+and declared member accesses emit direct JavaScript property operations. Their
+global and member names are never mangled. Host property reads and methods are
+effectful unless a method has a trusted `pure` contract. The C and native targets
+reject host-object access because the Web platform has no portable C ABI. See
+[web-platform.md](web-platform.md) for the complete implemented boundary and
+current Web IDL limitations.
 
 Postfix `?` makes a value type nullable. `null` is assignable only to a nullable
 type, and `auto value = null;` is rejected because it has no concrete value type

@@ -141,6 +141,7 @@ pub struct IrGlobal<'src> {
     pub symbol: SymbolId,
     pub name: &'src str,
     pub ty: Type<'src>,
+    pub external: bool,
     pub span: Span,
 }
 
@@ -296,6 +297,15 @@ pub enum ControlFlowOp<'src> {
         index: usize,
         value: ValueId,
     },
+    HostFieldGet {
+        object: ValueId,
+        property: &'src str,
+    },
+    HostFieldSet {
+        object: ValueId,
+        property: &'src str,
+        value: ValueId,
+    },
     IndexGet {
         object: ValueId,
         index: ValueId,
@@ -319,6 +329,12 @@ pub enum ControlFlowOp<'src> {
         method: &'src str,
         function: FunctionId,
         args: Vec<ValueId>,
+    },
+    HostCall {
+        receiver: ValueId,
+        method: &'src str,
+        args: Vec<ValueId>,
+        pure: bool,
     },
     Intrinsic {
         intrinsic: Intrinsic,

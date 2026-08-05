@@ -785,6 +785,100 @@ mod tests {
     }
 
     #[test]
+    fn emits_typed_host_objects_as_direct_stable_javascript() {
+        let source = r#"
+            extern class Element {
+                string textContent;
+                void setAttribute(string name,string value);
+            }
+            extern class Document { Element createElement(string tag); }
+            extern Document document;
+            Element element=document.createElement("div");
+            element.textContent="ready";
+            element.setAttribute("data-state","active");
+            print(element.textContent);
+        "#;
+        let output = compile_source(source).unwrap();
+        assert!(output.contains("document.createElement(\"div\")"));
+        assert!(output.contains(".textContent=\"ready\""));
+        assert!(output.contains(".setAttribute(\"data-state\",\"active\")"));
+        assert!(!output.contains("let document"));
+
+        let arena = Bump::new();
+        let program = parse_source(&arena, source).unwrap();
+        let mut config = ProjectConfig::default();
+        config.mangle.properties = true;
+        let mangled = compile_program_to_js_configured(&program, &config).unwrap();
+        assert!(mangled.contains("document.createElement"));
+        assert!(mangled.contains(".textContent"));
+        assert!(mangled.contains(".setAttribute"));
+
+        let error = compile_source("extern int devicePixelRatio;devicePixelRatio=2;").unwrap_err();
+        assert!(error
+            .to_string()
+            .contains("extern global bindings are read-only"));
+    }
+
+    #[test]
+    fn preserves_effectful_host_reads_and_eliminates_trusted_pure_calls() {
+        let output = compile_source(
+            "extern class Host{string title;pure int cached();int current();}\
+             extern Host window;window.cached();window.current();window.title;",
+        )
+        .unwrap();
+        assert!(!output.contains(".cached("));
+        assert!(output.contains("window.current()"));
+        assert!(output.contains("window.title"));
+    }
+
+    #[test]
+    fn reports_javascript_only_host_objects_for_native_targets() {
+        let error = compile_source_to_c(
+            "extern class Document{string title;}extern Document document;print(document.title);",
+        )
+        .unwrap_err();
+        assert!(error
+            .to_string()
+            .contains("only available for JavaScript targets"));
+    }
+
+    #[test]
+    fn preserves_host_method_receivers_and_supports_callable_fields() {
+        let output = compile_source(
+            "extern class Host{func(string)->void callback;void method();}\
+             extern Host window;window.method();window.callback(\"ready\");",
+        )
+        .unwrap();
+        assert!(output.contains("window.method()"), "{output}");
+        assert!(output.contains("window.callback(\"ready\")"), "{output}");
+
+        let error = compile_source(
+            "extern class Host{void method();}extern Host window;\
+             func()->void detached=window.method;",
+        )
+        .unwrap_err();
+        assert!(error
+            .to_string()
+            .contains("must be called through their receiver"));
+    }
+
+    #[test]
+    fn treats_host_operations_as_aliasing_barriers() {
+        let output = compile_source(
+            "class Box{int value;}extern class Host{void observe(Box box);}\
+             extern Host window;Box box=new Box();box.value=1;\
+             window.observe(box);box.value=2;",
+        )
+        .unwrap();
+        let first = output.find(".value=1").expect("first write must survive");
+        let observe = output
+            .find("window.observe(")
+            .expect("host observation must survive");
+        let second = output.find(".value=2").expect("second write must survive");
+        assert!(first < observe && observe < second, "{output}");
+    }
+
+    #[test]
     fn compiles_and_tree_shakes_a_module_graph() {
         let directory =
             std::env::temp_dir().join(format!("lilscript-module-test-{}", std::process::id()));
@@ -1064,6 +1158,47 @@ mod tests {
     }
 
     #[test]
+    fn aliases_exported_host_globals_at_an_esm_boundary() {
+        let output = compile_source_to_js_module(
+            "export extern class Document{string title;}export extern Document document;",
+        )
+        .unwrap();
+        assert!(output.contains("=document;export{"), "{output}");
+        assert!(output.contains(" as document}"), "{output}");
+        assert!(!output.contains("let document"), "{output}");
+    }
+
+    #[test]
+    fn static_chunks_reference_host_globals_directly() {
+        let directory =
+            std::env::temp_dir().join(format!("lilscript-host-chunk-test-{}", std::process::id()));
+        std::fs::create_dir_all(&directory).unwrap();
+        std::fs::write(
+            directory.join("web.lil"),
+            "export extern class Document{string title;}export extern Document document;\
+             export string readTitle(){return document.title;}",
+        )
+        .unwrap();
+        let main = directory.join("main.lil");
+        std::fs::write(
+            &main,
+            "import {readTitle} from \"./web\";print(readTitle());",
+        )
+        .unwrap();
+        let mut config = ProjectConfig::default();
+        config.bundle.mode = BundleMode::PreserveModules;
+        config.optimization.inlining = Some(false);
+        config.mangle.identifiers = false;
+
+        let bundle = compile_path_to_js_bundle_configured(&main, &config, "entry.js").unwrap();
+        assert_eq!(bundle.files.len(), 2);
+        let chunk = &bundle.files[1].code;
+        assert!(chunk.contains("document.title"), "{chunk}");
+        assert!(!chunk.contains("from\"./entry.js\""), "{chunk}");
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
     fn materializes_aggregate_abi_for_exported_functions() {
         let arena = Bump::new();
         let program = parse_source(
@@ -1329,6 +1464,28 @@ mod tests {
 
         let error = compile_path(&main).unwrap_err();
         assert!(error.message.contains("conflicting declarations"));
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn links_typed_host_interfaces_from_a_module_without_wrappers() {
+        let directory =
+            std::env::temp_dir().join(format!("lilscript-module-host-test-{}", std::process::id()));
+        std::fs::create_dir_all(&directory).unwrap();
+        std::fs::write(
+            directory.join("web.lil"),
+            "export extern class Document{string title;}export extern Document document;",
+        )
+        .unwrap();
+        let main = directory.join("main.lil");
+        std::fs::write(
+            &main,
+            "import {Document,document} from \"./web\";print(document.title);",
+        )
+        .unwrap();
+
+        let output = compile_path(&main).unwrap();
+        assert_eq!(output, "console.log(document.title)");
         std::fs::remove_dir_all(directory).unwrap();
     }
 

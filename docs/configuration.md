@@ -34,11 +34,13 @@ Every optional optimization key overrides its preset independently. The
 normalization and correctness analyses. This makes it useful for debugging and
 for isolating pass regressions without changing language semantics.
 
-`mangle.properties` renames fields that cross an untyped JavaScript boundary.
-It is off by default because external JavaScript must otherwise use the renamed
-ABI. Internal struct and class fields already lower to scalar values or numeric
-slots. `mangle.exports` removes stable public ESM names and is intended for
-LilScript-only applications whose static imports are linked before codegen.
+`mangle.properties` renames LilScript-owned fields that cross an untyped
+JavaScript boundary. It is off by default because external JavaScript must
+otherwise use the renamed ABI. Members declared by `extern class` are host ABI
+names and are never renamed, regardless of this setting. Internal struct and
+class fields already lower to scalar values or numeric slots. `mangle.exports`
+removes stable public ESM names and is intended for LilScript-only applications
+whose static imports are linked before codegen.
 
 The bundle policy is separate from optimizer policy. Every mode first links and
 optimizes the complete static module graph, so cross-file inlining, scalar

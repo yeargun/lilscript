@@ -3,8 +3,9 @@ use bumpalo::Bump;
 
 use crate::ast::{
     ArrowBody, AssignmentOp, BinaryOp, ClassDecl, ClassMember, ConstructorDecl, ExportDecl, Expr,
-    ExternDecl, FieldDecl, ForInitializer, FunctionDecl, Ident, ImportDecl, ImportSpecifier, Item,
-    Param, Program, Stmt, StructDecl, TemplatePart, TypeKind, TypeRef, UnaryOp, UpdateOp, VarDecl,
+    ExternClassDecl, ExternClassMember, ExternDecl, ExternGlobalDecl, FieldDecl, ForInitializer,
+    FunctionDecl, Ident, ImportDecl, ImportSpecifier, Item, Param, Program, Stmt, StructDecl,
+    TemplatePart, TypeKind, TypeRef, UnaryOp, UpdateOp, VarDecl,
 };
 use crate::lexer::{lex, LexError, Token, TokenKind};
 use crate::span::Span;
@@ -232,9 +233,15 @@ impl<'arena, 'src> Parser<'arena, 'src> {
     fn parse_item(&mut self) -> Result<Item<'arena, 'src>, ParseError> {
         let declared_pure = self.match_kind(|kind| matches!(kind, TokenKind::Pure));
         if self.match_kind(|kind| matches!(kind, TokenKind::Extern)) {
-            return self
-                .parse_extern_after_keyword(declared_pure)
-                .map(Item::Extern);
+            if self.match_kind(|kind| matches!(kind, TokenKind::Class)) {
+                if declared_pure {
+                    return Err(self.error_here("`pure` cannot modify an extern class declaration"));
+                }
+                return self
+                    .parse_extern_class_after_keyword()
+                    .map(Item::ExternClass);
+            }
+            return self.parse_extern_after_keyword(declared_pure);
         }
 
         if self.match_kind(|kind| matches!(kind, TokenKind::Struct)) {
@@ -289,30 +296,100 @@ impl<'arena, 'src> Parser<'arena, 'src> {
     fn parse_extern_after_keyword(
         &mut self,
         declared_pure: bool,
-    ) -> Result<ExternDecl<'arena, 'src>, ParseError> {
+    ) -> Result<Item<'arena, 'src>, ParseError> {
         let start = self.previous_span();
-        let return_type = self.parse_type()?;
-        if return_type.is_auto() {
-            return Err(ParseError::new(
-                return_type.span,
-                "extern return type cannot be `auto`",
-            ));
+        let ty = self.parse_type()?;
+        if ty.is_auto() {
+            return Err(ParseError::new(ty.span, "extern type cannot be `auto`"));
         }
         let name = self.expect_ident("expected extern function name")?;
         let type_params = self.parse_type_params()?;
-        self.expect(
-            |kind| matches!(kind, TokenKind::LParen),
-            "expected `(` after extern function name",
-        )?;
-        let params = self.parse_params_after_open()?;
+        if self.match_kind(|kind| matches!(kind, TokenKind::LParen)) {
+            let params = self.parse_params_after_open()?;
+            let semi = self.expect_semicolon()?;
+            return Ok(Item::Extern(ExternDecl {
+                declared_pure,
+                return_type: ty,
+                name,
+                type_params,
+                params,
+                span: start.merge(semi.span),
+            }));
+        }
+        if declared_pure {
+            return Err(ParseError::new(
+                name.span,
+                "`pure` can only modify extern functions and methods",
+            ));
+        }
+        if !type_params.is_empty() {
+            return Err(ParseError::new(
+                name.span,
+                "type parameters require an extern function",
+            ));
+        }
         let semi = self.expect_semicolon()?;
-        Ok(ExternDecl {
-            declared_pure,
-            return_type,
+        Ok(Item::ExternGlobal(ExternGlobalDecl {
+            ty,
+            name,
+            span: start.merge(semi.span),
+        }))
+    }
+
+    fn parse_extern_class_after_keyword(
+        &mut self,
+    ) -> Result<ExternClassDecl<'arena, 'src>, ParseError> {
+        let start = self.previous_span();
+        let name = self.expect_ident("expected extern class name")?;
+        let type_params = self.parse_type_params()?;
+        self.expect(|kind| matches!(kind, TokenKind::LBrace), "expected `{`")?;
+        let mut members = BumpVec::new_in(self.arena);
+        while !self.check(|kind| matches!(kind, TokenKind::RBrace)) {
+            if self.is_at_end() {
+                return Err(self.error_here("unterminated extern class declaration"));
+            }
+            if self.check(|kind| matches!(kind, TokenKind::Init)) {
+                return Err(self.error_here("extern classes cannot declare `init`"));
+            }
+            let declared_pure = self.match_kind(|kind| matches!(kind, TokenKind::Pure));
+            let ty = self.parse_type()?;
+            let member_name = self.expect_ident("expected extern class member name")?;
+            let member_type_params = self.parse_type_params()?;
+            if self.match_kind(|kind| matches!(kind, TokenKind::LParen)) {
+                let params = self.parse_params_after_open()?;
+                let semi = self.expect_semicolon()?;
+                members.push(ExternClassMember::Method(ExternDecl {
+                    declared_pure,
+                    return_type: ty,
+                    name: member_name,
+                    type_params: member_type_params,
+                    params,
+                    span: ty.span.merge(semi.span),
+                }));
+            } else {
+                if declared_pure {
+                    return Err(ParseError::new(
+                        member_name.span,
+                        "`pure` can only modify extern methods",
+                    ));
+                }
+                if !member_type_params.is_empty() {
+                    return Err(ParseError::new(
+                        member_name.span,
+                        "type parameters require an extern method",
+                    ));
+                }
+                members.push(ExternClassMember::Field(
+                    self.parse_field_decl_after_name(ty, member_name)?,
+                ));
+            }
+        }
+        let close = self.expect(|kind| matches!(kind, TokenKind::RBrace), "expected `}`")?;
+        Ok(ExternClassDecl {
             name,
             type_params,
-            params,
-            span: start.merge(semi.span),
+            members: members.into_bump_slice(),
+            span: start.merge(close.span),
         })
     }
 
@@ -1512,8 +1589,10 @@ fn exported_item_name<'src>(item: &Item<'_, 'src>) -> Option<Ident<'src>> {
     match item {
         Item::Struct(decl) => Some(decl.name),
         Item::Class(decl) => Some(decl.name),
+        Item::ExternClass(decl) => Some(decl.name),
         Item::Function(decl) => Some(decl.name),
         Item::Extern(decl) => Some(decl.name),
+        Item::ExternGlobal(decl) => Some(decl.name),
         Item::Stmt(Stmt::VarDecl(decl)) => Some(decl.name),
         Item::Stmt(_) => None,
     }
@@ -1644,6 +1723,32 @@ mod tests {
         };
         assert_eq!(extern_decl.name.name, "hostAdd");
         assert_eq!(extern_decl.params.len(), 2);
+    }
+
+    #[test]
+    fn parses_extern_classes_methods_and_globals() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "extern class Document{string title;pure Element? querySelector(string selector);}\
+             extern Document document;",
+        )
+        .unwrap();
+
+        let Item::ExternClass(class) = &program.items[0] else {
+            panic!("expected extern class declaration");
+        };
+        assert_eq!(class.name.name, "Document");
+        assert!(matches!(class.members[0], ExternClassMember::Field(_)));
+        assert!(matches!(
+            &class.members[1],
+            ExternClassMember::Method(method)
+                if method.name.name == "querySelector" && method.declared_pure
+        ));
+        assert!(matches!(
+            &program.items[1],
+            Item::ExternGlobal(global) if global.name.name == "document"
+        ));
     }
 
     #[test]

@@ -257,6 +257,9 @@ fn field_store_barrier(op: &ControlFlowOp<'_>) -> bool {
             | ControlFlowOp::CallDirect { .. }
             | ControlFlowOp::CallValue { .. }
             | ControlFlowOp::CallMethod { .. }
+            | ControlFlowOp::HostFieldGet { .. }
+            | ControlFlowOp::HostFieldSet { .. }
+            | ControlFlowOp::HostCall { .. }
             | ControlFlowOp::Intrinsic { .. }
             | ControlFlowOp::Closure { .. }
     )
@@ -733,7 +736,8 @@ fn internalize_entry_globals(module: &mut ControlFlowModule<'_>) -> Optimization
         .globals
         .iter()
         .filter(|global| {
-            loaded_by_entry.contains(&global.symbol)
+            !global.external
+                && loaded_by_entry.contains(&global.symbol)
                 && !shared.contains(&global.symbol)
                 && !exported.contains(&global.symbol)
         })
@@ -1935,6 +1939,50 @@ fn analyze_escapes(module: &mut ControlFlowModule<'_>) -> OptimizationReport {
                             );
                         }
                     }
+                    ControlFlowOp::HostFieldGet { object, .. } => {
+                        mark_escape_node(
+                            &mut states,
+                            value_node(*object),
+                            EscapeState::EscapesToUntypedBoundary,
+                        );
+                        if let Some(out) = instruction.out {
+                            mark_escape_node(
+                                &mut states,
+                                value_node(out),
+                                EscapeState::EscapesToUntypedBoundary,
+                            );
+                        }
+                    }
+                    ControlFlowOp::HostFieldSet { object, value, .. } => {
+                        for value in [*object, *value] {
+                            mark_escape_node(
+                                &mut states,
+                                value_node(value),
+                                EscapeState::EscapesToUntypedBoundary,
+                            );
+                        }
+                    }
+                    ControlFlowOp::HostCall { receiver, args, .. } => {
+                        mark_escape_node(
+                            &mut states,
+                            value_node(*receiver),
+                            EscapeState::EscapesToUntypedBoundary,
+                        );
+                        for value in args {
+                            mark_escape_node(
+                                &mut states,
+                                value_node(*value),
+                                EscapeState::EscapesToUntypedBoundary,
+                            );
+                        }
+                        if let Some(out) = instruction.out {
+                            mark_escape_node(
+                                &mut states,
+                                value_node(out),
+                                EscapeState::EscapesToUntypedBoundary,
+                            );
+                        }
+                    }
                     ControlFlowOp::CallDirect {
                         function: callee,
                         args,
@@ -2344,8 +2392,11 @@ fn control_flow_used_values(op: &ControlFlowOp<'_>) -> Vec<ValueId> {
         ControlFlowOp::StoreLocal { value, .. } | ControlFlowOp::StoreGlobal { value, .. } => {
             vec![*value]
         }
-        ControlFlowOp::FieldGet { object, .. } => vec![*object],
-        ControlFlowOp::FieldSet { object, value, .. } => vec![*object, *value],
+        ControlFlowOp::FieldGet { object, .. } | ControlFlowOp::HostFieldGet { object, .. } => {
+            vec![*object]
+        }
+        ControlFlowOp::FieldSet { object, value, .. }
+        | ControlFlowOp::HostFieldSet { object, value, .. } => vec![*object, *value],
         ControlFlowOp::IndexGet { object, index } => vec![*object, *index],
         ControlFlowOp::IndexSet {
             object,
@@ -2360,6 +2411,12 @@ fn control_flow_used_values(op: &ControlFlowOp<'_>) -> Vec<ValueId> {
             values
         }
         ControlFlowOp::CallMethod { receiver, args, .. } => {
+            let mut values = Vec::with_capacity(args.len() + 1);
+            values.push(*receiver);
+            values.extend(args);
+            values
+        }
+        ControlFlowOp::HostCall { receiver, args, .. } => {
             let mut values = Vec::with_capacity(args.len() + 1);
             values.push(*receiver);
             values.extend(args);
@@ -2453,8 +2510,11 @@ fn control_flow_op_has_side_effects(
         ControlFlowOp::StoreLocal { .. }
         | ControlFlowOp::StoreGlobal { .. }
         | ControlFlowOp::FieldSet { .. }
+        | ControlFlowOp::HostFieldGet { .. }
+        | ControlFlowOp::HostFieldSet { .. }
         | ControlFlowOp::IndexSet { .. }
         | ControlFlowOp::CallMethod { .. } => true,
+        ControlFlowOp::HostCall { pure, .. } => !pure,
         ControlFlowOp::CallValue { callee, .. } => closure_targets
             .get(callee)
             .is_none_or(|function| effectful_functions.contains(function)),
@@ -3348,8 +3408,11 @@ fn rewrite_control_flow_values(op: &mut ControlFlowOp<'_>, mut rewrite: impl FnM
         ControlFlowOp::StoreLocal { value, .. } | ControlFlowOp::StoreGlobal { value, .. } => {
             rewrite(value)
         }
-        ControlFlowOp::FieldGet { object, .. } => rewrite(object),
-        ControlFlowOp::FieldSet { object, value, .. } => {
+        ControlFlowOp::FieldGet { object, .. } | ControlFlowOp::HostFieldGet { object, .. } => {
+            rewrite(object)
+        }
+        ControlFlowOp::FieldSet { object, value, .. }
+        | ControlFlowOp::HostFieldSet { object, value, .. } => {
             rewrite(object);
             rewrite(value);
         }
@@ -3368,6 +3431,10 @@ fn rewrite_control_flow_values(op: &mut ControlFlowOp<'_>, mut rewrite: impl FnM
         }
         ControlFlowOp::CallDirect { args, .. } => args.iter_mut().for_each(&mut rewrite),
         ControlFlowOp::CallMethod { receiver, args, .. } => {
+            rewrite(receiver);
+            args.iter_mut().for_each(&mut rewrite);
+        }
+        ControlFlowOp::HostCall { receiver, args, .. } => {
             rewrite(receiver);
             args.iter_mut().for_each(&mut rewrite);
         }

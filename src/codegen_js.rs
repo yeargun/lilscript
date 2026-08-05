@@ -302,7 +302,7 @@ impl<'src> JsEmitter<'src> {
             Item::Struct(_) => Ok(()),
             Item::Class(decl) => self.emit_class(decl, out),
             Item::Function(function) => self.emit_function(function, out),
-            Item::Extern(_) => Ok(()),
+            Item::Extern(_) | Item::ExternClass(_) | Item::ExternGlobal(_) => Ok(()),
             Item::Stmt(stmt) => self.emit_stmt(stmt, out),
         }
     }

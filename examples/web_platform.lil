@@ -1,0 +1,20 @@
+extern class Element {
+  string textContent;
+  void setAttribute(string name, string value);
+  void appendChild(Element child);
+}
+
+extern class Document {
+  Element createElement(string tag);
+  Element? querySelector(string selector);
+}
+
+extern Document document;
+
+Element? root = document.querySelector("#app");
+if (root != null) {
+  Element button = document.createElement("button");
+  button.textContent = "Run LilScript";
+  button.setAttribute("type", "button");
+  root.appendChild(button);
+}

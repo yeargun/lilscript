@@ -4,9 +4,9 @@ use ahash::{AHashMap, AHashSet};
 use indexmap::IndexMap;
 
 use crate::ast::{
-    ArrowBody, AssignmentOp, BinaryOp, ClassDecl, ClassMember, ConstructorDecl, Expr, ExternDecl,
-    ForInitializer, FunctionDecl, Ident, Item, Program, Stmt, StructDecl, TemplatePart, TypeKind,
-    TypeRef, UnaryOp, UpdateOp, VarDecl,
+    ArrowBody, AssignmentOp, BinaryOp, ClassDecl, ClassMember, ConstructorDecl, Expr,
+    ExternClassMember, ExternDecl, ForInitializer, FunctionDecl, Ident, Item, Program, Stmt,
+    StructDecl, TemplatePart, TypeKind, TypeRef, UnaryOp, UpdateOp, VarDecl,
 };
 use crate::span::Span;
 
@@ -196,6 +196,7 @@ pub struct ClassInfo<'src> {
     pub fields: IndexMap<&'src str, FieldInfo<'src>>,
     pub methods: IndexMap<&'src str, MethodInfo<'src>>,
     pub constructor: Option<FunctionType<'src>>,
+    pub external: bool,
     pub span: Span,
 }
 
@@ -203,6 +204,7 @@ pub struct ClassInfo<'src> {
 pub struct MethodInfo<'src> {
     pub type_params: Vec<&'src str>,
     pub signature: FunctionType<'src>,
+    pub declared_pure: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -283,6 +285,10 @@ impl<'src> SemanticModel<'src> {
 
     pub fn class_info(&self, name: &str) -> Option<&ClassInfo<'src>> {
         self.classes.get(name)
+    }
+
+    pub fn is_extern_class(&self, name: &str) -> bool {
+        self.classes.get(name).is_some_and(|class| class.external)
     }
 
     pub(crate) fn structs(&self) -> impl Iterator<Item = &StructInfo<'src>> {
@@ -366,14 +372,17 @@ impl<'src> Analyzer<'src> {
         self.declare_nominal_types(program)?;
         self.define_structs(program)?;
         self.define_classes(program)?;
+        self.define_extern_classes(program)?;
         self.declare_functions(program)?;
 
         for item in program.items {
             match item {
                 Item::Struct(_) => {}
                 Item::Class(class) => self.analyze_class(class)?,
+                Item::ExternClass(class) => self.analyze_extern_class_defaults(class)?,
                 Item::Function(function) => self.analyze_function(function, None)?,
                 Item::Extern(extern_decl) => self.analyze_extern_defaults(extern_decl)?,
+                Item::ExternGlobal(_) => {}
                 Item::Stmt(statement) => self.analyze_stmt(statement)?,
             }
         }
@@ -386,9 +395,12 @@ impl<'src> Analyzer<'src> {
         program: &Program<'ast, 'src>,
     ) -> Result<(), SemanticError> {
         for item in program.items {
-            let (name, type_params, span, is_struct) = match item {
-                Item::Struct(decl) => (decl.name.name, decl.type_params, decl.span, true),
-                Item::Class(decl) => (decl.name.name, decl.type_params, decl.span, false),
+            let (name, type_params, span, is_struct, external) = match item {
+                Item::Struct(decl) => (decl.name.name, decl.type_params, decl.span, true, false),
+                Item::Class(decl) => (decl.name.name, decl.type_params, decl.span, false, false),
+                Item::ExternClass(decl) => {
+                    (decl.name.name, decl.type_params, decl.span, false, true)
+                }
                 _ => continue,
             };
             let type_params = validate_type_params(type_params)?;
@@ -419,6 +431,7 @@ impl<'src> Analyzer<'src> {
                         fields: IndexMap::new(),
                         methods: IndexMap::new(),
                         constructor: None,
+                        external,
                         span,
                     },
                 );
@@ -498,6 +511,7 @@ impl<'src> Analyzer<'src> {
                             MethodInfo {
                                 type_params: validate_type_params(method.type_params)?,
                                 signature: self.function_type(method)?,
+                                declared_pure: method.declared_pure,
                             },
                         );
                     }
@@ -556,6 +570,77 @@ impl<'src> Analyzer<'src> {
                 })
             };
             self.declare(decl.name, constructor)?;
+        }
+        Ok(())
+    }
+
+    fn define_extern_classes<'ast>(
+        &mut self,
+        program: &Program<'ast, 'src>,
+    ) -> Result<(), SemanticError> {
+        for item in program.items {
+            let Item::ExternClass(decl) = item else {
+                continue;
+            };
+            self.push_type_params(decl.type_params)?;
+            let mut fields = IndexMap::new();
+            let mut methods = IndexMap::new();
+            for member in decl.members {
+                match member {
+                    ExternClassMember::Field(field) => {
+                        if fields.contains_key(field.name.name)
+                            || methods.contains_key(field.name.name)
+                        {
+                            return Err(SemanticError::new(
+                                field.name.span,
+                                format!(
+                                    "duplicate member `{}` in extern class `{}`",
+                                    field.name.name, decl.name.name
+                                ),
+                            ));
+                        }
+                        let index = fields.len();
+                        fields.insert(
+                            field.name.name,
+                            FieldInfo {
+                                name: field.name.name,
+                                ty: self.resolve_value_type(field.ty, "extern class field")?,
+                                index,
+                                span: field.span,
+                            },
+                        );
+                    }
+                    ExternClassMember::Method(method) => {
+                        if fields.contains_key(method.name.name)
+                            || methods.contains_key(method.name.name)
+                        {
+                            return Err(SemanticError::new(
+                                method.name.span,
+                                format!(
+                                    "duplicate member `{}` in extern class `{}`",
+                                    method.name.name, decl.name.name
+                                ),
+                            ));
+                        }
+                        methods.insert(
+                            method.name.name,
+                            MethodInfo {
+                                type_params: validate_type_params(method.type_params)?,
+                                signature: self.extern_type(method)?,
+                                declared_pure: method.declared_pure,
+                            },
+                        );
+                    }
+                }
+            }
+            self.pop_type_params();
+            let info = self
+                .model
+                .classes
+                .get_mut(decl.name.name)
+                .expect("extern class name was declared in the first semantic pass");
+            info.fields = fields;
+            info.methods = methods;
         }
         Ok(())
     }
@@ -629,6 +714,10 @@ impl<'src> Analyzer<'src> {
                         }
                         self.record_detached(param.name, ty);
                     }
+                }
+                Item::ExternGlobal(global) => {
+                    let ty = self.resolve_value_type(global.ty, "extern global")?;
+                    self.declare(global.name, ty)?;
                 }
                 _ => {}
             }
@@ -815,6 +904,20 @@ impl<'src> Analyzer<'src> {
         let result = self.analyze_parameter_defaults(extern_decl.params, &types);
         self.pop_type_params();
         result
+    }
+
+    fn analyze_extern_class_defaults<'ast>(
+        &mut self,
+        class: &crate::ast::ExternClassDecl<'ast, 'src>,
+    ) -> Result<(), SemanticError> {
+        self.push_type_params(class.type_params)?;
+        for member in class.members {
+            if let ExternClassMember::Method(method) = member {
+                self.analyze_extern_defaults(method)?;
+            }
+        }
+        self.pop_type_params();
+        Ok(())
     }
 
     fn analyze_parameter_defaults<'ast>(
@@ -1123,6 +1226,12 @@ impl<'src> Analyzer<'src> {
                     let info = self.model.classes.get(class.name).cloned().ok_or_else(|| {
                         SemanticError::new(class.span, format!("unknown class `{}`", class.name))
                     })?;
+                    if info.external {
+                        return Err(SemanticError::new(
+                            *span,
+                            format!("extern class `{}` cannot be constructed", class.name),
+                        ));
+                    }
                     let params = info
                         .constructor
                         .as_ref()
@@ -3726,6 +3835,37 @@ mod tests {
             .unwrap_err()
             .message
             .contains("2 arguments"));
+    }
+
+    #[test]
+    fn checks_typed_host_object_members() {
+        check(
+            r#"
+                extern class Element {
+                    string textContent;
+                    void setAttribute(string name, string value);
+                }
+                extern class Document {
+                    Element createElement(string tag);
+                    Element? querySelector(string selector);
+                }
+                extern Document document;
+                Element element=document.createElement("div");
+                element.textContent="ready";
+                element.setAttribute("data-state","active");
+                Element? existing=document.querySelector("main");
+            "#,
+        )
+        .unwrap();
+
+        let error = check(
+            "extern class Document{string title;}extern Document document;document.missing();",
+        )
+        .unwrap_err();
+        assert!(error.message.contains("has no member `missing`"));
+
+        let error = check("extern class Document{}Document value=new Document();").unwrap_err();
+        assert!(error.message.contains("cannot be constructed"));
     }
 
     #[test]

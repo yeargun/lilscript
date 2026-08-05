@@ -80,8 +80,10 @@ pub struct ExportDecl<'src> {
 pub enum Item<'ast, 'src> {
     Struct(StructDecl<'ast, 'src>),
     Class(ClassDecl<'ast, 'src>),
+    ExternClass(ExternClassDecl<'ast, 'src>),
     Function(FunctionDecl<'ast, 'src>),
     Extern(ExternDecl<'ast, 'src>),
+    ExternGlobal(ExternGlobalDecl<'ast, 'src>),
     Stmt(Stmt<'ast, 'src>),
 }
 
@@ -90,8 +92,10 @@ impl<'ast, 'src> Item<'ast, 'src> {
         match self {
             Self::Struct(decl) => decl.span,
             Self::Class(decl) => decl.span,
+            Self::ExternClass(decl) => decl.span,
             Self::Function(decl) => decl.span,
             Self::Extern(decl) => decl.span,
+            Self::ExternGlobal(decl) => decl.span,
             Self::Stmt(stmt) => stmt.span(),
         }
     }
@@ -111,6 +115,20 @@ pub struct ClassDecl<'ast, 'src> {
     pub type_params: &'ast [Ident<'src>],
     pub members: &'ast [ClassMember<'ast, 'src>],
     pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ExternClassDecl<'ast, 'src> {
+    pub name: Ident<'src>,
+    pub type_params: &'ast [Ident<'src>],
+    pub members: &'ast [ExternClassMember<'ast, 'src>],
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ExternClassMember<'ast, 'src> {
+    Field(FieldDecl<'ast, 'src>),
+    Method(ExternDecl<'ast, 'src>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -152,6 +170,13 @@ pub struct ExternDecl<'ast, 'src> {
     pub name: Ident<'src>,
     pub type_params: &'ast [Ident<'src>],
     pub params: &'ast [Param<'ast, 'src>],
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ExternGlobalDecl<'ast, 'src> {
+    pub ty: TypeRef<'ast, 'src>,
+    pub name: Ident<'src>,
     pub span: Span,
 }
 

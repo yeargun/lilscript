@@ -10,7 +10,8 @@ Included features:
 - compiler-backed, module-aware diagnostics;
 - keyword, snippet, and document completion;
 - language and standard-method hover documentation;
-- document symbols for structs, classes, fields, methods, functions, externs, and top-level bindings.
+- document symbols for structs, classes, typed host interfaces and globals,
+  fields, methods, functions, externs, and top-level bindings.
 
 Build the server before installing the extension:
 

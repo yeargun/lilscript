@@ -30,6 +30,7 @@ struct NativeEmitter<'module, 'src> {
 
 impl<'module, 'src> NativeEmitter<'module, 'src> {
     fn emit(&self) -> Result<String, CodegenError> {
+        self.validate_host_boundaries()?;
         let mut out = String::from(
             "#include <stdbool.h>\n#include <ctype.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n",
         );
@@ -147,6 +148,36 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
         }
         self.emit_function(self.function(self.module.entry)?, &mut out)?;
         Ok(out)
+    }
+
+    fn validate_host_boundaries(&self) -> Result<(), CodegenError> {
+        if let Some(instruction) = self
+            .module
+            .functions
+            .iter()
+            .flat_map(|function| &function.blocks)
+            .flat_map(|block| &block.instructions)
+            .find(|instruction| {
+                matches!(
+                    instruction.op,
+                    ControlFlowOp::HostFieldGet { .. }
+                        | ControlFlowOp::HostFieldSet { .. }
+                        | ControlFlowOp::HostCall { .. }
+                )
+            })
+        {
+            return Err(CodegenError::new(
+                instruction.span,
+                "extern object member access is only available for JavaScript targets",
+            ));
+        }
+        if let Some(global) = self.module.globals.iter().find(|global| global.external) {
+            return Err(CodegenError::new(
+                global.span,
+                "extern host globals are only available for JavaScript targets",
+            ));
+        }
+        Ok(())
     }
 
     fn closure_adapter_targets(&self) -> Vec<&ControlFlowFunction<'src>> {

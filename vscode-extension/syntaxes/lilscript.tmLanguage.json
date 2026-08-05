@@ -87,6 +87,14 @@
           }
         },
         {
+          "match": "\\b(extern)\\s+((?:int|float|string|bool|[A-Za-z_$][A-Za-z0-9_$]*)(?:\\[\\])?)\\s+([A-Za-z_$][A-Za-z0-9_$]*)(?=\\s*;)",
+          "captures": {
+            "1": { "name": "storage.modifier.lilscript" },
+            "2": { "name": "storage.type.lilscript" },
+            "3": { "name": "variable.other.readwrite.lilscript" }
+          }
+        },
+        {
           "match": "\\b((?:int|float|string|bool|void|[A-Z][A-Za-z0-9_$]*)(?:\\[\\])?)\\s+([A-Za-z_$][A-Za-z0-9_$]*)(?=\\s*\\()",
           "captures": {
             "1": { "name": "storage.type.lilscript" },

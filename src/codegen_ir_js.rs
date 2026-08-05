@@ -90,6 +90,7 @@ pub fn ir_function_can_move_to_chunk(module: &ControlFlowModule<'_>, function: F
 struct IrJsEmitter<'module, 'src> {
     module: &'module ControlFlowModule<'src>,
     global_names: AHashMap<SymbolId, String>,
+    external_export_aliases: AHashMap<SymbolId, String>,
     function_names: AHashMap<FunctionId, String>,
     top_level_mangler: Mangler,
     declared_globals: AHashSet<SymbolId>,
@@ -109,6 +110,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         Self {
             module,
             global_names: AHashMap::new(),
+            external_export_aliases: AHashMap::new(),
             function_names: AHashMap::new(),
             top_level_mangler: Mangler::default(),
             declared_globals: AHashSet::new(),
@@ -140,9 +142,15 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             out.push(';');
         }
 
-        if !self.module.globals.is_empty() {
+        let owned_globals = self
+            .module
+            .globals
+            .iter()
+            .filter(|global| !global.external)
+            .collect::<Vec<_>>();
+        if !owned_globals.is_empty() {
             out.push_str("let ");
-            for (index, global) in self.module.globals.iter().enumerate() {
+            for (index, global) in owned_globals.iter().enumerate() {
                 if index != 0 {
                     out.push(',');
                 }
@@ -151,6 +159,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             }
             out.push(';');
         }
+        self.emit_external_export_aliases(&mut out)?;
 
         let functions = self.module.functions.clone();
         for function in &functions {
@@ -183,6 +192,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
 
     fn prepare(&mut self) {
         self.assign_top_level_names();
+        self.assign_external_export_aliases();
         self.assign_string_aliases();
         self.assign_property_names();
     }
@@ -285,7 +295,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             if unit != 0 {
                 let entry_imports = imports[unit].entry(0).or_default();
                 for global in references.globals {
-                    entry_imports.insert(self.global_name(global)?.to_string());
+                    if !self
+                        .module
+                        .globals
+                        .iter()
+                        .any(|candidate| candidate.symbol == global && candidate.external)
+                    {
+                        entry_imports.insert(self.global_name(global)?.to_string());
+                    }
                 }
                 entry_imports.extend(references.strings);
             }
@@ -352,15 +369,35 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             }
             out.push(';');
         }
-        if !self.module.globals.is_empty() {
+        let owned_globals = self
+            .module
+            .globals
+            .iter()
+            .filter(|global| !global.external)
+            .collect::<Vec<_>>();
+        if !owned_globals.is_empty() {
             out.push_str("let ");
-            for (index, global) in self.module.globals.iter().enumerate() {
+            for (index, global) in owned_globals.iter().enumerate() {
                 if index != 0 {
                     out.push(',');
                 }
                 out.push_str(self.global_name(global.symbol)?);
                 self.declared_globals.insert(global.symbol);
             }
+            out.push(';');
+        }
+        self.emit_external_export_aliases(out)?;
+        Ok(())
+    }
+
+    fn emit_external_export_aliases(&self, out: &mut String) -> Result<(), CodegenError> {
+        let mut aliases = self.external_export_aliases.iter().collect::<Vec<_>>();
+        aliases.sort_unstable_by_key(|(symbol, _)| symbol.0);
+        for (symbol, alias) in aliases {
+            out.push_str("const ");
+            out.push_str(alias);
+            out.push('=');
+            out.push_str(self.global_name(*symbol)?);
             out.push(';');
         }
         Ok(())
@@ -412,7 +449,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         for export in &self.module.exports {
             let internal = match export.binding {
                 ExportBinding::Function(function) => self.function_name(function)?,
-                ExportBinding::Global(symbol) => self.global_name(symbol)?,
+                ExportBinding::Global(symbol) => self
+                    .external_export_aliases
+                    .get(&symbol)
+                    .map_or(self.global_name(symbol)?, String::as_str),
                 ExportBinding::TypeOnly => continue,
             };
             let public = if self.options.mangle_exports {
@@ -454,6 +494,13 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 }
             }
         }
+        for global in &self.module.globals {
+            if global.external {
+                self.top_level_mangler.reserve(global.name);
+                self.global_names
+                    .insert(global.symbol, global.name.to_string());
+            }
+        }
 
         if !self.options.mangle_identifiers {
             for function in &self.module.functions {
@@ -474,6 +521,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 self.function_names.insert(function.id, name);
             }
             for global in &self.module.globals {
+                if global.external {
+                    continue;
+                }
                 let name = self.top_level_mangler.unique_name(global.name);
                 self.global_names.insert(global.symbol, name);
             }
@@ -523,6 +573,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             ));
         }
         for global in &self.module.globals {
+            if global.external {
+                continue;
+            }
             bindings.push((
                 global_uses.get(&global.symbol).copied().unwrap_or(0) + 1,
                 1_u8,
@@ -543,6 +596,29 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             } else {
                 self.global_names.insert(SymbolId(id), name);
             }
+        }
+    }
+
+    fn assign_external_export_aliases(&mut self) {
+        for export in &self.module.exports {
+            let ExportBinding::Global(symbol) = export.binding else {
+                continue;
+            };
+            let Some(global) = self
+                .module
+                .globals
+                .iter()
+                .find(|global| global.symbol == symbol && global.external)
+            else {
+                continue;
+            };
+            let alias = if self.options.mangle_identifiers {
+                self.top_level_mangler.next_name()
+            } else {
+                self.top_level_mangler
+                    .unique_name(&format!("$host${}", global.name))
+            };
+            self.external_export_aliases.insert(symbol, alias);
         }
     }
 
@@ -1744,6 +1820,19 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     format!("{object_value}[{index}]")
                 }
             }
+            ControlFlowOp::HostFieldGet { object, property } => {
+                format!("{}.{}", value(*object, cache)?, property)
+            }
+            ControlFlowOp::HostFieldSet {
+                object,
+                property,
+                value: assigned,
+            } => format!(
+                "{}.{}={}",
+                value(*object, cache)?,
+                property,
+                value(*assigned, cache)?
+            ),
             ControlFlowOp::IndexGet { object, index } => {
                 format!("{}[{}]", value(*object, cache)?, value(*index, cache)?)
             }
@@ -1756,6 +1845,15 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     callee = format!("({callee})");
                 }
                 self.render_call(&callee, None, args, context, cache)?
+            }
+            ControlFlowOp::HostCall {
+                receiver,
+                method,
+                args,
+                ..
+            } => {
+                let receiver = value(*receiver, cache)?;
+                self.render_call(&format!("{receiver}.{method}"), None, args, context, cache)?
             }
             ControlFlowOp::Intrinsic {
                 intrinsic,
@@ -3126,6 +3224,8 @@ fn op_values(op: &ControlFlowOp<'_>) -> Vec<ValueId> {
         }
         ControlFlowOp::FieldGet { object, .. } => vec![*object],
         ControlFlowOp::FieldSet { object, value, .. } => vec![*object, *value],
+        ControlFlowOp::HostFieldGet { object, .. } => vec![*object],
+        ControlFlowOp::HostFieldSet { object, value, .. } => vec![*object, *value],
         ControlFlowOp::IndexGet { object, index } => vec![*object, *index],
         ControlFlowOp::IndexSet {
             object,
@@ -3139,6 +3239,11 @@ fn op_values(op: &ControlFlowOp<'_>) -> Vec<ValueId> {
             values
         }
         ControlFlowOp::CallMethod { receiver, args, .. } => {
+            let mut values = vec![*receiver];
+            values.extend(args);
+            values
+        }
+        ControlFlowOp::HostCall { receiver, args, .. } => {
             let mut values = vec![*receiver];
             values.extend(args);
             values
@@ -3182,6 +3287,7 @@ fn expression_only_op(op: &ControlFlowOp<'_>) -> bool {
         ControlFlowOp::StoreLocal { .. }
             | ControlFlowOp::StoreGlobal { .. }
             | ControlFlowOp::FieldSet { .. }
+            | ControlFlowOp::HostFieldSet { .. }
             | ControlFlowOp::IndexSet { .. }
             | ControlFlowOp::NewClass {
                 constructor: Some(_),
@@ -3190,6 +3296,7 @@ fn expression_only_op(op: &ControlFlowOp<'_>) -> bool {
             | ControlFlowOp::CallDirect { .. }
             | ControlFlowOp::CallValue { .. }
             | ControlFlowOp::CallMethod { .. }
+            | ControlFlowOp::HostCall { .. }
             | ControlFlowOp::Intrinsic {
                 intrinsic: Intrinsic::Print
                     | Intrinsic::ArrayMap
@@ -3215,10 +3322,13 @@ fn op_has_side_effects(op: &ControlFlowOp<'_>) -> bool {
         ControlFlowOp::StoreLocal { .. }
             | ControlFlowOp::StoreGlobal { .. }
             | ControlFlowOp::FieldSet { .. }
+            | ControlFlowOp::HostFieldGet { .. }
+            | ControlFlowOp::HostFieldSet { .. }
             | ControlFlowOp::IndexSet { .. }
             | ControlFlowOp::CallDirect { .. }
             | ControlFlowOp::CallValue { .. }
             | ControlFlowOp::CallMethod { .. }
+            | ControlFlowOp::HostCall { pure: false, .. }
             | ControlFlowOp::NewClass { .. }
             | ControlFlowOp::Intrinsic {
                 intrinsic: Intrinsic::Print

@@ -7,9 +7,9 @@ use bumpalo::collections::Vec as BumpVec;
 use bumpalo::Bump;
 
 use crate::ast::{
-    ArrowBody, ClassDecl, ClassMember, ConstructorDecl, ExportDecl, Expr, ExternDecl, FieldDecl,
-    ForInitializer, FunctionDecl, Ident, Item, Param, Program, Stmt, StructDecl, TemplatePart,
-    TypeKind, TypeRef, VarDecl,
+    ArrowBody, ClassDecl, ClassMember, ConstructorDecl, ExportDecl, Expr, ExternClassDecl,
+    ExternClassMember, ExternDecl, ExternGlobalDecl, FieldDecl, ForInitializer, FunctionDecl,
+    Ident, Item, Param, Program, Stmt, StructDecl, TemplatePart, TypeKind, TypeRef, VarDecl,
 };
 use crate::parser::{parse_source, ParseError};
 use crate::span::Span;
@@ -271,7 +271,9 @@ pub fn link_modules<'arena>(
             let Some(name) = top_level_name(item) else {
                 continue;
             };
-            let internal = if module_id == modules.root || matches!(item, Item::Extern(_)) {
+            let internal = if module_id == modules.root
+                || matches!(item, Item::Extern(_) | Item::ExternGlobal(_))
+            {
                 name.name
             } else {
                 let generated = format!("$m{module_id}${}", name.name);
@@ -514,8 +516,10 @@ fn top_level_name<'src>(item: &Item<'_, 'src>) -> Option<Ident<'src>> {
     match item {
         Item::Struct(decl) => Some(decl.name),
         Item::Class(decl) => Some(decl.name),
+        Item::ExternClass(decl) => Some(decl.name),
         Item::Function(decl) => Some(decl.name),
         Item::Extern(decl) => Some(decl.name),
+        Item::ExternGlobal(decl) => Some(decl.name),
         Item::Stmt(Stmt::VarDecl(decl)) => Some(decl.name),
         Item::Stmt(_) => None,
     }
@@ -576,6 +580,7 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
         match item {
             Item::Struct(decl) => Item::Struct(self.clone_struct(decl)),
             Item::Class(decl) => Item::Class(self.clone_class(decl)),
+            Item::ExternClass(decl) => Item::ExternClass(self.clone_extern_class(decl)),
             Item::Function(decl) => Item::Function(self.clone_function(decl, true)),
             Item::Extern(decl) => Item::Extern(ExternDecl {
                 declared_pure: decl.declared_pure,
@@ -583,6 +588,11 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
                 name: self.global_ident(decl.name),
                 type_params: self.clone_idents(decl.type_params),
                 params: self.clone_params(decl.params),
+                span: self.span(decl.span),
+            }),
+            Item::ExternGlobal(decl) => Item::ExternGlobal(ExternGlobalDecl {
+                ty: self.clone_type(decl.ty),
+                name: self.global_ident(decl.name),
                 span: self.span(decl.span),
             }),
             Item::Stmt(stmt) => Item::Stmt(self.clone_stmt(stmt, true)),
@@ -620,6 +630,34 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
             });
         }
         ClassDecl {
+            name: self.global_ident(decl.name),
+            type_params: self.clone_idents(decl.type_params),
+            members: members.into_bump_slice(),
+            span: self.span(decl.span),
+        }
+    }
+
+    fn clone_extern_class(
+        &mut self,
+        decl: &ExternClassDecl<'arena, 'arena>,
+    ) -> ExternClassDecl<'arena, 'arena> {
+        let mut members = BumpVec::new_in(self.arena);
+        for member in decl.members {
+            members.push(match member {
+                ExternClassMember::Field(field) => {
+                    ExternClassMember::Field(self.clone_field(field))
+                }
+                ExternClassMember::Method(method) => ExternClassMember::Method(ExternDecl {
+                    declared_pure: method.declared_pure,
+                    return_type: self.clone_type(method.return_type),
+                    name: self.plain_ident(method.name),
+                    type_params: self.clone_idents(method.type_params),
+                    params: self.clone_params(method.params),
+                    span: self.span(method.span),
+                }),
+            });
+        }
+        ExternClassDecl {
             name: self.global_ident(decl.name),
             type_params: self.clone_idents(decl.type_params),
             members: members.into_bump_slice(),

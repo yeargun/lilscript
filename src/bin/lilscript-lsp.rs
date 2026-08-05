@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use bumpalo::Bump;
 use clap::Parser;
-use lilscript::ast::{ClassMember, Item, Stmt};
+use lilscript::ast::{ClassMember, ExternClassMember, Item, Stmt};
 use lilscript::span::Span;
 use lilscript::{compile_path_with_source, compile_source, parse_source};
 use lsp_server::{Connection, ErrorCode, Message, Notification, Request, Response};
@@ -281,6 +281,8 @@ fn completion_result(source: Option<&str>) -> Value {
         snippet("pure function", "pure ${1:int} ${2:name}(${3:int} ${4:value}) {\n  return ${4:value};\n}", "Checked side-effect-free function"),
         snippet("struct", "struct ${1:Name} {\n  ${2:int} ${3:field};\n}", "Struct declaration"),
         snippet("class", "class ${1:Name} {\n  ${2:int} ${3:field};\n\n  init(${2:int} ${3:field}) {\n    this.${3:field} = ${3:field};\n  }\n}", "Class declaration"),
+        snippet("extern class", "extern class ${1:Document} {\n  ${2:string} ${3:title};\n  ${4:void} ${5:method}(${6:string} ${7:value});\n}", "Typed JavaScript host interface"),
+        snippet("extern global", "extern ${1:Document} ${2:document};", "Typed JavaScript host global"),
         snippet("function", "${1:int} ${2:name}(${3:int} ${4:value}) {\n  return ${4:value};\n}", "Typed function"),
         snippet("if", "if (${1:condition}) {\n  ${2}\n}", "Conditional block"),
         snippet("for", "for (int ${1:index} = 0; ${1:index} < ${2:length}; ${1:index}++) {\n  ${3}\n}", "Counted loop"),
@@ -340,11 +342,17 @@ fn append_document_completions(source: &str, items: &mut Vec<Value>) {
             Item::Class(decl) => {
                 json!({ "label": decl.name.name, "kind": 7, "detail": "LilScript class" })
             }
+            Item::ExternClass(decl) => {
+                json!({ "label": decl.name.name, "kind": 7, "detail": "LilScript host interface" })
+            }
             Item::Function(decl) => {
                 json!({ "label": decl.name.name, "kind": 3, "detail": "LilScript function" })
             }
             Item::Extern(decl) => {
                 json!({ "label": decl.name.name, "kind": 3, "detail": "LilScript extern function" })
+            }
+            Item::ExternGlobal(decl) => {
+                json!({ "label": decl.name.name, "kind": 6, "detail": "LilScript host global" })
             }
             Item::Stmt(Stmt::VarDecl(decl)) => {
                 json!({ "label": decl.name.name, "kind": 6, "detail": "LilScript binding" })
@@ -394,7 +402,7 @@ fn language_help(word: &str) -> Option<&'static str> {
         "struct" => "Declares a positional value aggregate eligible for scalar replacement.",
         "class" => "Declares a nominal reference type with fields, one `init`, and methods.",
         "init" => "Declares the constructor body for a class.",
-        "extern" => "Declares a typed function implemented by the JavaScript or native host.",
+        "extern" => "Declares a typed function, host interface, or host global. JavaScript host member names remain exact and are emitted without wrappers.",
         "import" => "Adds a relative `.lil` module to the closed-world compilation graph and binds selected exports.",
         "export" => "Makes a top-level module binding available to named imports without forcing it to remain in the final bundle.",
         "pure" => "Asserts that a function has no observable side effects; the compiler rejects a violated contract and infers purity without it.",
@@ -488,6 +496,38 @@ fn document_symbol_result(params: &Value, documents: &HashMap<String, Document>)
                     children,
                 ));
             }
+            Item::ExternClass(decl) => {
+                let children = decl
+                    .members
+                    .iter()
+                    .map(|member| match member {
+                        ExternClassMember::Field(field) => document_symbol(
+                            &document.text,
+                            field.name.name,
+                            8,
+                            field.span,
+                            field.name.span,
+                            Vec::new(),
+                        ),
+                        ExternClassMember::Method(method) => document_symbol(
+                            &document.text,
+                            method.name.name,
+                            6,
+                            method.span,
+                            method.name.span,
+                            Vec::new(),
+                        ),
+                    })
+                    .collect();
+                symbols.push(document_symbol(
+                    &document.text,
+                    decl.name.name,
+                    5,
+                    decl.span,
+                    decl.name.span,
+                    children,
+                ));
+            }
             Item::Function(decl) => symbols.push(document_symbol(
                 &document.text,
                 decl.name.name,
@@ -500,6 +540,14 @@ fn document_symbol_result(params: &Value, documents: &HashMap<String, Document>)
                 &document.text,
                 decl.name.name,
                 12,
+                decl.span,
+                decl.name.span,
+                Vec::new(),
+            )),
+            Item::ExternGlobal(decl) => symbols.push(document_symbol(
+                &document.text,
+                decl.name.name,
+                13,
                 decl.span,
                 decl.name.span,
                 Vec::new(),

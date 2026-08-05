@@ -178,6 +178,26 @@ The extension discovers the language server in this repository's release or
 debug target directory, then falls back to `PATH`. Set `lilscript.server.path` in
 VS Code settings when the executable is installed elsewhere.
 
+## Web platform
+
+Browser objects use typed, zero-wrapper host declarations. Exact host names are
+preserved even when property mangling is enabled:
+
+```lilscript
+extern class Document {
+  Element createElement(string tag);
+  Element? querySelector(string selector);
+}
+extern Document document;
+```
+
+`document.createElement(...)` emits as the same direct JavaScript operation.
+`ArrayBuffer`, `SharedArrayBuffer`, and `Uint8Array` are core types with direct
+JavaScript lowering and portable byte-storage lowering for C. Browser host-object
+access itself is rejected by native targets unless it is isolated behind an
+ordinary user-defined `extern` function ABI. The exact scope and deployment
+requirements are in [docs/web-platform.md](docs/web-platform.md).
+
 ## Compiler Pipeline
 
 ```text

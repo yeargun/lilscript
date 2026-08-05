@@ -1,9 +1,9 @@
 use ahash::{AHashMap, AHashSet};
 
 use crate::ast::{
-    ArrowBody, AssignmentOp, BinaryOp, ClassMember, ConstructorDecl, Expr, ExternDecl,
-    ForInitializer, FunctionDecl, Ident, Item, Param, Program, Stmt, TemplatePart, UnaryOp,
-    UpdateOp, VarDecl,
+    ArrowBody, AssignmentOp, BinaryOp, ClassMember, ConstructorDecl, Expr, ExternClassMember,
+    ExternDecl, ForInitializer, FunctionDecl, Ident, Item, Param, Program, Stmt, TemplatePart,
+    UnaryOp, UpdateOp, VarDecl,
 };
 use crate::ir::{
     AggregateField, AggregateLayout, BlockId, ConstValue, ControlFlowBlock, ControlFlowFunction,
@@ -77,6 +77,7 @@ struct ModuleLowerer<'model, 'ast, 'src> {
     arrows: AHashMap<Span, FunctionId>,
     arrow_captures: AHashMap<Span, Vec<SymbolId>>,
     global_symbols: AHashSet<SymbolId>,
+    external_globals: AHashSet<SymbolId>,
     globals: Vec<IrGlobal<'src>>,
     exports: Vec<IrExport<'src>>,
 }
@@ -95,6 +96,7 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
             arrows: AHashMap::new(),
             arrow_captures: AHashMap::new(),
             global_symbols: AHashSet::new(),
+            external_globals: AHashSet::new(),
             globals: Vec::new(),
             exports: Vec::new(),
         };
@@ -144,6 +146,28 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
                         }
                     }
                 }
+                Item::ExternClass(class) => {
+                    type_names.insert(class.name.name);
+                }
+                Item::ExternGlobal(global) => {
+                    let symbol = lowerer.binding_symbol(global.name)?;
+                    let ty = semantics
+                        .binding_type(global.name.span)
+                        .cloned()
+                        .ok_or_else(|| {
+                            LowerError::new(global.name.span, "missing extern global type")
+                        })?;
+                    lowerer.global_symbols.insert(symbol);
+                    lowerer.external_globals.insert(symbol);
+                    global_names.insert(global.name.name, symbol);
+                    lowerer.globals.push(IrGlobal {
+                        symbol,
+                        name: global.name.name,
+                        ty,
+                        external: true,
+                        span: global.span,
+                    });
+                }
                 Item::Stmt(Stmt::VarDecl(decl)) => {
                     let symbol = lowerer.binding_symbol(decl.name)?;
                     let ty = semantics
@@ -156,6 +180,7 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
                         symbol,
                         name: decl.name.name,
                         ty,
+                        external: false,
                         span: decl.span,
                     });
                 }
@@ -233,6 +258,7 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
                 &self.arrows,
                 &self.arrow_captures,
                 &self.global_symbols,
+                &self.external_globals,
                 plan_span(plan, program.span),
             );
 
@@ -389,6 +415,7 @@ struct FunctionBuilder<'model, 'maps, 'src> {
     arrows: &'maps AHashMap<Span, FunctionId>,
     arrow_captures: &'maps AHashMap<Span, Vec<SymbolId>>,
     global_symbols: &'maps AHashSet<SymbolId>,
+    external_globals: &'maps AHashSet<SymbolId>,
     params: Vec<IrParameter<'src>>,
     capture_count: usize,
     locals: Vec<IrLocal<'src>>,
@@ -413,6 +440,7 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
         arrows: &'maps AHashMap<Span, FunctionId>,
         arrow_captures: &'maps AHashMap<Span, Vec<SymbolId>>,
         global_symbols: &'maps AHashSet<SymbolId>,
+        external_globals: &'maps AHashSet<SymbolId>,
         span: Span,
     ) -> Self {
         Self {
@@ -428,6 +456,7 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
             arrows,
             arrow_captures,
             global_symbols,
+            external_globals,
             params: Vec::new(),
             capture_count: 0,
             locals: Vec::new(),
@@ -1032,6 +1061,26 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                 )
             }
             Type::Class(owner) | Type::ClassInstance { name: owner, .. } => {
+                if self.semantics.is_extern_class(owner) {
+                    let info = self
+                        .semantics
+                        .class_info(owner)
+                        .ok_or_else(|| LowerError::new(property.span, "missing extern class"))?;
+                    if info.methods.contains_key(property.name) {
+                        return Err(LowerError::new(
+                            property.span,
+                            "extern methods must be called through their receiver",
+                        ));
+                    }
+                    return self.emit_value(
+                        ControlFlowOp::HostFieldGet {
+                            object: object_value,
+                            property: property.name,
+                        },
+                        ty,
+                        span,
+                    );
+                }
                 let field = self
                     .semantics
                     .class_info(owner)
@@ -1205,6 +1254,30 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
         {
             let receiver_type = self.expression_type(object)?;
             if let Type::Class(class) | Type::ClassInstance { name: class, .. } = receiver_type {
+                if self.semantics.is_extern_class(class) {
+                    if let Some(method) = self
+                        .semantics
+                        .class_info(class)
+                        .and_then(|info| info.methods.get(property.name))
+                    {
+                        let receiver = self.lower_expr(object)?;
+                        let args = self.lower_args_with_optional_signature(
+                            args,
+                            signature.as_ref(),
+                            span,
+                        )?;
+                        return self.emit_value(
+                            ControlFlowOp::HostCall {
+                                receiver,
+                                method: property.name,
+                                args,
+                                pure: method.declared_pure,
+                            },
+                            ty,
+                            span,
+                        );
+                    }
+                }
                 if let Some(function) = self.method_functions.get(&(class, property.name)).copied()
                 {
                     let receiver = self.lower_expr(object)?;
@@ -1514,6 +1587,12 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                 if let Some(local) = self.local_by_symbol.get(&symbol).copied() {
                     Ok(Place::Local { local, ty })
                 } else if self.global_symbols.contains(&symbol) {
+                    if self.external_globals.contains(&symbol) {
+                        return Err(LowerError::new(
+                            ident.span,
+                            "extern global bindings are read-only",
+                        ));
+                    }
                     Ok(Place::Global { symbol, ty })
                 } else {
                     Err(LowerError::new(ident.span, "binding is not mutable here"))
@@ -1537,6 +1616,13 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                         (owner, index)
                     }
                     Type::Class(owner) | Type::ClassInstance { name: owner, .. } => {
+                        if self.semantics.is_extern_class(owner) {
+                            return Ok(Place::HostField {
+                                object: object_value,
+                                property: property.name,
+                                ty,
+                            });
+                        }
                         let index = self
                             .semantics
                             .class_info(owner)
@@ -1595,6 +1681,18 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                 ty.clone(),
                 span,
             ),
+            Place::HostField {
+                object,
+                property,
+                ty,
+            } => self.emit_value(
+                ControlFlowOp::HostFieldGet {
+                    object: *object,
+                    property,
+                },
+                ty.clone(),
+                span,
+            ),
             Place::Index { object, index, ty } => self.emit_value(
                 ControlFlowOp::IndexGet {
                     object: *object,
@@ -1632,6 +1730,13 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                 owner,
                 field,
                 index: *index,
+                value,
+            },
+            Place::HostField {
+                object, property, ..
+            } => ControlFlowOp::HostFieldSet {
+                object: *object,
+                property,
                 value,
             },
             Place::Index { object, index, .. } => ControlFlowOp::IndexSet {
@@ -1821,6 +1926,11 @@ enum Place<'src> {
         owner: &'src str,
         field: &'src str,
         index: usize,
+        ty: Type<'src>,
+    },
+    HostField {
+        object: ValueId,
+        property: &'src str,
         ty: Type<'src>,
     },
     Index {
@@ -2127,11 +2237,19 @@ fn collect_program_arrows<'ast, 'src>(
                     }
                 }
             }
+            Item::ExternClass(class) => {
+                for member in class.members {
+                    if let ExternClassMember::Method(method) = member {
+                        collect_param_arrows(method.params, out);
+                    }
+                }
+            }
             Item::Function(function) => {
                 collect_param_arrows(function.params, out);
                 collect_stmt_arrows(function.body, out);
             }
             Item::Extern(extern_decl) => collect_param_arrows(extern_decl.params, out),
+            Item::ExternGlobal(_) => {}
             Item::Stmt(statement) => collect_one_stmt_arrows(statement, out),
         }
     }
