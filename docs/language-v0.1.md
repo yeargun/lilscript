@@ -251,7 +251,10 @@ int doubled = scale(6);
 ```
 
 Defaults currently accept integer, float, string, boolean, `null`, and negative
-numeric literals. Required parameters cannot follow defaulted parameters.
+numeric literals. A nullable callback can therefore use `null` as an omitted
+sentinel and narrow it before invocation; explicit concrete callbacks are boxed
+into the same tagged native generic ABI. Required parameters cannot follow
+defaulted parameters.
 
 Parentheses disambiguate compound callable types. For example, the following
 declares an array of callbacks rather than a callback returning an array:
