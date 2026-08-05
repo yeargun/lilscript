@@ -247,11 +247,14 @@ pub fn analyze<'ast, 'src>(
 struct Analyzer<'src> {
     model: SemanticModel<'src>,
     scopes: Vec<AHashMap<&'src str, SymbolId>>,
+    narrowings: Vec<AHashMap<SymbolId, Type<'src>>>,
     return_contexts: Vec<ReturnContext<'src>>,
     capture_barriers: Vec<usize>,
     type_parameter_scopes: Vec<AHashSet<&'src str>>,
     loop_depth: usize,
 }
+
+type Narrowing<'src> = Option<(SymbolId, Type<'src>)>;
 
 #[derive(Debug)]
 enum ReturnContext<'src> {
@@ -277,6 +280,7 @@ impl<'src> Analyzer<'src> {
                 classes: AHashMap::new(),
             },
             scopes: vec![AHashMap::new()],
+            narrowings: vec![AHashMap::new()],
             return_contexts: Vec::new(),
             capture_barriers: Vec::new(),
             type_parameter_scopes: Vec::new(),
@@ -742,11 +746,14 @@ impl<'src> Analyzer<'src> {
             } => {
                 let condition_type = self.analyze_expr(condition, Some(&Type::Bool))?;
                 self.require_assignable(&Type::Bool, &condition_type, condition.span())?;
+                let (then_narrowing, else_narrowing) = self.null_narrowing(condition)?;
                 self.push_scope();
+                self.apply_narrowing(then_narrowing);
                 self.analyze_stmt(then_branch)?;
                 self.pop_scope();
                 if let Some(else_branch) = else_branch {
                     self.push_scope();
+                    self.apply_narrowing(else_narrowing);
                     self.analyze_stmt(else_branch)?;
                     self.pop_scope();
                 }
@@ -757,8 +764,10 @@ impl<'src> Analyzer<'src> {
             } => {
                 let condition_type = self.analyze_expr(condition, Some(&Type::Bool))?;
                 self.require_assignable(&Type::Bool, &condition_type, condition.span())?;
+                let (body_narrowing, _) = self.null_narrowing(condition)?;
                 self.loop_depth += 1;
                 self.push_scope();
+                self.apply_narrowing(body_narrowing);
                 self.analyze_stmt(body)?;
                 self.pop_scope();
                 self.loop_depth -= 1;
@@ -914,12 +923,12 @@ impl<'src> Analyzer<'src> {
             Expr::Bool(_, _) => Type::Bool,
             Expr::Null(_) => Type::Null,
             Expr::Ident(ident) => {
-                let (id, ty) = {
+                let (id, declared) = {
                     let symbol = self.resolve(ident)?;
                     (symbol.id, symbol.ty.clone())
                 };
                 self.model.identifier_symbols.insert(ident.span, id);
-                ty
+                self.narrowed_type(id).cloned().unwrap_or(declared)
             }
             Expr::ArrayLiteral { elements, span } => {
                 let expected_element = match expected {
@@ -1156,6 +1165,7 @@ impl<'src> Analyzer<'src> {
                         self.analyze_binary(binary_op, &target_type, &value_type, *span)?;
                     self.require_assignable(&target_type, &result, *span)?;
                 }
+                self.invalidate_assigned_narrowing(target);
                 target_type
             }
             Expr::Update {
@@ -1174,6 +1184,7 @@ impl<'src> Analyzer<'src> {
                         ),
                     ));
                 }
+                self.invalidate_assigned_narrowing(target);
                 target_type
             }
             Expr::Template { parts, .. } => {
@@ -1930,6 +1941,60 @@ impl<'src> Analyzer<'src> {
         }
     }
 
+    fn null_narrowing<'ast>(
+        &self,
+        condition: &Expr<'ast, 'src>,
+    ) -> Result<(Narrowing<'src>, Narrowing<'src>), SemanticError> {
+        let Expr::Binary { op, lhs, rhs, .. } = condition else {
+            return Ok((None, None));
+        };
+        if !matches!(op, BinaryOp::Eq | BinaryOp::NotEq) {
+            return Ok((None, None));
+        }
+        let ident = match (*lhs, *rhs) {
+            (Expr::Ident(ident), Expr::Null(_)) | (Expr::Null(_), Expr::Ident(ident)) => ident,
+            _ => return Ok((None, None)),
+        };
+        let symbol = self.resolve(ident)?;
+        let Type::Nullable(inner) = &symbol.ty else {
+            return Ok((None, None));
+        };
+        let narrowing = Some((symbol.id, inner.as_ref().clone()));
+        Ok(if *op == BinaryOp::NotEq {
+            (narrowing, None)
+        } else {
+            (None, narrowing)
+        })
+    }
+
+    fn apply_narrowing(&mut self, narrowing: Option<(SymbolId, Type<'src>)>) {
+        if let Some((symbol, ty)) = narrowing {
+            self.narrowings
+                .last_mut()
+                .expect("semantic analyzer always has a narrowing scope")
+                .insert(symbol, ty);
+        }
+    }
+
+    fn narrowed_type(&self, symbol: SymbolId) -> Option<&Type<'src>> {
+        self.narrowings
+            .iter()
+            .rev()
+            .find_map(|scope| scope.get(&symbol))
+    }
+
+    fn invalidate_assigned_narrowing<'ast>(&mut self, target: &Expr<'ast, 'src>) {
+        let Expr::Ident(ident) = target else {
+            return;
+        };
+        let Some(symbol) = self.model.identifier_symbols.get(&ident.span).copied() else {
+            return;
+        };
+        for scope in &mut self.narrowings {
+            scope.remove(&symbol);
+        }
+    }
+
     fn declare(&mut self, ident: Ident<'src>, ty: Type<'src>) -> Result<SymbolId, SemanticError> {
         let scope = self
             .scopes
@@ -1993,11 +2058,13 @@ impl<'src> Analyzer<'src> {
 
     fn push_scope(&mut self) {
         self.scopes.push(AHashMap::new());
+        self.narrowings.push(AHashMap::new());
     }
 
     fn pop_scope(&mut self) {
         debug_assert!(self.scopes.len() > 1);
         self.scopes.pop();
+        self.narrowings.pop();
     }
 }
 
@@ -2424,6 +2491,20 @@ mod tests {
         )
         .unwrap_err();
         assert!(error.message.contains("cannot be applied"));
+    }
+
+    #[test]
+    fn narrows_nullable_values_in_guarded_branches() {
+        check(
+            "class Box{int value;init(int value){this.value=value;}}int read(Box? box){if(box!=null){return box.value;}return -1;}int readElse(Box? box){if(box==null){return -1;}else{return box.value;}}",
+        )
+        .unwrap();
+
+        let error = check(
+            "class Box{int value;init(int value){this.value=value;}}void bad(Box? box){if(box!=null){box=null;print(box.value);}}",
+        )
+        .unwrap_err();
+        assert!(error.message.contains("Box?"), "{error}");
     }
 
     #[test]

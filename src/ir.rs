@@ -333,6 +333,7 @@ pub enum TemplateOperand {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Intrinsic {
     Print,
+    UnwrapNullable,
     ArrayLength,
     ArrayMap,
     ArrayFilter,

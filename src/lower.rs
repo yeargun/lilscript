@@ -868,9 +868,9 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
         }
     }
 
-    fn lower_ident(&mut self, ident: Ident<'src>, _ty: Type<'src>) -> Result<ValueId, LowerError> {
+    fn lower_ident(&mut self, ident: Ident<'src>, ty: Type<'src>) -> Result<ValueId, LowerError> {
         let symbol = self.symbol(ident)?;
-        self.lower_symbol_value(symbol, ident.span).map_err(|_| {
+        let value = self.lower_symbol_value(symbol, ident.span).map_err(|_| {
             LowerError::new(
                 ident.span,
                 format!(
@@ -878,7 +878,25 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                     ident.name
                 ),
             )
-        })
+        })?;
+        let declared = &self
+            .semantics
+            .symbols()
+            .get(symbol.0 as usize)
+            .ok_or_else(|| LowerError::new(ident.span, "missing identifier type"))?
+            .ty;
+        if matches!(declared, Type::Nullable(inner) if inner.as_ref() == &ty) {
+            return self.emit_value(
+                ControlFlowOp::Intrinsic {
+                    intrinsic: Intrinsic::UnwrapNullable,
+                    receiver: Some(value),
+                    args: Vec::new(),
+                },
+                ty,
+                ident.span,
+            );
+        }
+        Ok(value)
     }
 
     fn lower_symbol_value(&mut self, symbol: SymbolId, span: Span) -> Result<ValueId, LowerError> {

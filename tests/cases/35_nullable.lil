@@ -31,6 +31,21 @@ class MaybeBox {
   }
 }
 
+bool hasBoxValue(MaybeBox? box, int expected) {
+  if (box != null) {
+    return box.value == expected;
+  }
+  return false;
+}
+
+bool hasBoxValueElse(MaybeBox? box, int expected) {
+  if (box == null) {
+    return false;
+  } else {
+    return box.value == expected;
+  }
+}
+
 int? seven = maybe(true, 7);
 int? absentInt = maybe(false, 9);
 string? label = maybe(true, "lilscript");
@@ -78,3 +93,10 @@ print(widenedNullable == 9.0);
 print(echoFloat(13) == 13.0);
 print(widenMaybe(true) == 14.0);
 print(widenMaybe(false) == null);
+
+MaybeBox? presentBox = new MaybeBox(15);
+MaybeBox? absentBox = null;
+print(hasBoxValue(presentBox, 15));
+print(!hasBoxValue(absentBox, 15));
+print(hasBoxValueElse(presentBox, 15));
+print(!hasBoxValueElse(absentBox, 15));

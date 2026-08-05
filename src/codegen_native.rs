@@ -965,6 +965,18 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                 )?
             }
             ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::UnwrapNullable,
+                receiver: Some(receiver),
+                ..
+            } => self.render_value_conversion(
+                &format!("v{}", receiver.0),
+                &types[receiver],
+                instruction.ty.as_ref().ok_or_else(|| {
+                    CodegenError::new(instruction.span, "nullable unwrap has no output type")
+                })?,
+                instruction.span,
+            )?,
+            ControlFlowOp::Intrinsic {
                 intrinsic: Intrinsic::ArrayLength,
                 receiver: Some(receiver),
                 ..

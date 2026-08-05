@@ -1575,6 +1575,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         })?;
         let receiver = take_value(receiver, context, cache)?;
         let property = match intrinsic {
+            Intrinsic::UnwrapNullable => return Ok(receiver),
             Intrinsic::ArrayLength | Intrinsic::StringLength => {
                 return Ok(format!("{receiver}.length"))
             }
