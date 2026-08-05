@@ -43,6 +43,16 @@ pub enum TokenKind<'src> {
     Continue,
     #[token("extern")]
     Extern,
+    #[token("import")]
+    Import,
+    #[token("export")]
+    Export,
+    #[token("from")]
+    From,
+    #[token("as")]
+    As,
+    #[token("pure")]
+    Pure,
     #[token("true")]
     True,
     #[token("false")]

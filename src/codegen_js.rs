@@ -95,7 +95,7 @@ impl CompileError {
         match self {
             Self::Semantic(error) => error.span,
             Self::Lower(error) => error.span,
-            Self::Optimize(_) => Span::empty(0),
+            Self::Optimize(error) => error.span,
             Self::Codegen(error) => error.span,
         }
     }

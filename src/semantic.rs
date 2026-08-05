@@ -237,6 +237,12 @@ impl<'src> Analyzer<'src> {
         mut self,
         program: &Program<'ast, 'src>,
     ) -> Result<SemanticModel<'src>, SemanticError> {
+        if let Some(import) = program.imports.first() {
+            return Err(SemanticError::new(
+                import.span,
+                "imports require file-based compilation so the module graph can be resolved",
+            ));
+        }
         self.declare_nominal_types(program)?;
         self.define_structs(program)?;
         self.define_classes(program)?;

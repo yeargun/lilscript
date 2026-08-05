@@ -5,7 +5,7 @@ use std::process::{Command, Stdio};
 
 use clap::{Parser, ValueEnum};
 
-use lilscript::{compile_source, compile_source_all, compile_source_to_c, render_diagnostic};
+use lilscript::{compile_path, compile_path_all, compile_path_to_c, render_module_diagnostic};
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 enum Target {
@@ -40,22 +40,19 @@ fn main() {
 
 fn run() -> Result<(), String> {
     let args = Args::parse();
-    let source = fs::read_to_string(&args.input)
-        .map_err(|error| format!("failed to read {}: {error}", args.input.display()))?;
     match args.target {
         Target::Js => {
-            let js = compile_source(&source)
-                .map_err(|error| render_diagnostic(&args.input, &source, &error))?;
+            let js = compile_path(&args.input).map_err(|error| render_module_diagnostic(&error))?;
             write_or_print(args.output.as_deref(), &js)?;
         }
         Target::C => {
-            let c = compile_source_to_c(&source)
-                .map_err(|error| render_diagnostic(&args.input, &source, &error))?;
+            let c =
+                compile_path_to_c(&args.input).map_err(|error| render_module_diagnostic(&error))?;
             write_or_print(args.output.as_deref(), &c)?;
         }
         Target::Native => {
-            let c = compile_source_to_c(&source)
-                .map_err(|error| render_diagnostic(&args.input, &source, &error))?;
+            let c =
+                compile_path_to_c(&args.input).map_err(|error| render_module_diagnostic(&error))?;
             let output = args.output.unwrap_or_else(|| {
                 let mut output = args.input.clone();
                 output.set_extension("");
@@ -64,8 +61,8 @@ fn run() -> Result<(), String> {
             compile_native(&c, &output)?;
         }
         Target::All => {
-            let artifacts = compile_source_all(&source)
-                .map_err(|error| render_diagnostic(&args.input, &source, &error))?;
+            let artifacts =
+                compile_path_all(&args.input).map_err(|error| render_module_diagnostic(&error))?;
             let base = args.output.unwrap_or_else(|| {
                 let mut output = args.input.clone();
                 output.set_extension("");

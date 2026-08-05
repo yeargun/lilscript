@@ -206,6 +206,7 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
                 PlannedFunction::Function(function) => {
                     builder.name = Some(function.name.name);
                     builder.kind = FunctionKind::Function;
+                    builder.declared_pure = function.declared_pure;
                     builder.return_type = resolve_declared_return(self.semantics, function)?;
                     builder.add_params(function.params)?;
                     builder.lower_statements(function.body)?;
@@ -213,6 +214,7 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
                 PlannedFunction::Extern(extern_decl) => {
                     builder.name = Some(extern_decl.name.name);
                     builder.kind = FunctionKind::Extern;
+                    builder.declared_pure = extern_decl.declared_pure;
                     builder.return_type =
                         resolve_symbol_return(self.semantics, extern_decl.name, "extern function")?;
                     builder.add_params(extern_decl.params)?;
@@ -220,6 +222,7 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
                 PlannedFunction::Method { class, function } => {
                     builder.name = Some(function.name.name);
                     builder.kind = FunctionKind::Method { class };
+                    builder.declared_pure = function.declared_pure;
                     builder.return_type = self
                         .semantics
                         .class_info(class)
@@ -325,6 +328,7 @@ struct FunctionBuilder<'model, 'maps, 'src> {
     id: FunctionId,
     name: Option<&'src str>,
     kind: FunctionKind<'src>,
+    declared_pure: bool,
     return_type: Type<'src>,
     semantics: &'model SemanticModel<'src>,
     function_symbols: &'maps AHashMap<SymbolId, FunctionId>,
@@ -363,6 +367,7 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
             id,
             name: None,
             kind: FunctionKind::Function,
+            declared_pure: false,
             return_type: Type::Void,
             semantics,
             function_symbols,
@@ -1386,6 +1391,7 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
             id: self.id,
             name: self.name,
             kind: self.kind,
+            declared_pure: self.declared_pure,
             params: self.params,
             capture_count: self.capture_count,
             return_type: self.return_type,

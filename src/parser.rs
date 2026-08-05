@@ -2,9 +2,9 @@ use bumpalo::collections::Vec as BumpVec;
 use bumpalo::Bump;
 
 use crate::ast::{
-    ArrowBody, AssignmentOp, BinaryOp, ClassDecl, ClassMember, ConstructorDecl, Expr, ExternDecl,
-    FieldDecl, ForInitializer, FunctionDecl, Ident, Item, Param, Program, Stmt, StructDecl,
-    TemplatePart, TypeKind, TypeRef, UnaryOp, UpdateOp, VarDecl,
+    ArrowBody, AssignmentOp, BinaryOp, ClassDecl, ClassMember, ConstructorDecl, ExportDecl, Expr,
+    ExternDecl, FieldDecl, ForInitializer, FunctionDecl, Ident, ImportDecl, ImportSpecifier, Item,
+    Param, Program, Stmt, StructDecl, TemplatePart, TypeKind, TypeRef, UnaryOp, UpdateOp, VarDecl,
 };
 use crate::lexer::{lex, LexError, Token, TokenKind};
 use crate::span::Span;
@@ -94,8 +94,31 @@ impl<'arena, 'src> Parser<'arena, 'src> {
     pub fn parse_program(mut self) -> Result<Program<'arena, 'src>, ParseError> {
         let start = self.peek_span().unwrap_or_else(|| Span::empty(0));
         let mut items = BumpVec::new_in(self.arena);
+        let mut imports = BumpVec::new_in(self.arena);
+        let mut exports = BumpVec::new_in(self.arena);
 
         while !self.is_at_end() {
+            if self.match_kind(|kind| matches!(kind, TokenKind::Import)) {
+                imports.push(self.parse_import_after_keyword()?);
+                continue;
+            }
+            if self.match_kind(|kind| matches!(kind, TokenKind::Export)) {
+                let export_start = self.previous_span();
+                if self.match_kind(|kind| matches!(kind, TokenKind::LBrace)) {
+                    self.parse_export_list_after_open(export_start, &mut exports)?;
+                    continue;
+                }
+                let item = self.parse_item()?;
+                let local = exported_item_name(&item).ok_or_else(|| {
+                    ParseError::new(item.span(), "only declarations can be exported")
+                })?;
+                exports.push(ExportDecl {
+                    local,
+                    span: export_start.merge(item.span()),
+                });
+                items.push(item);
+                continue;
+            }
             items.push(self.parse_item()?);
         }
 
@@ -110,21 +133,114 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         };
 
         Ok(Program {
+            imports: imports.into_bump_slice(),
+            exports: exports.into_bump_slice(),
             items: items.into_bump_slice(),
             span,
         })
     }
 
+    fn parse_import_after_keyword(&mut self) -> Result<ImportDecl<'arena, 'src>, ParseError> {
+        let start = self.previous_span();
+        if let Some(TokenKind::StringLiteral(raw)) = self.peek_kind() {
+            let source = strip_quotes(raw);
+            self.advance();
+            let semi = self.expect_semicolon()?;
+            return Ok(ImportDecl {
+                specifiers: &[],
+                source,
+                span: start.merge(semi.span),
+            });
+        }
+
+        self.expect(
+            |kind| matches!(kind, TokenKind::LBrace),
+            "expected `{` or a module path after `import`",
+        )?;
+        let mut specifiers = BumpVec::new_in(self.arena);
+        if !self.check(|kind| matches!(kind, TokenKind::RBrace)) {
+            loop {
+                let imported = self.expect_ident("expected imported name")?;
+                let local = if self.match_kind(|kind| matches!(kind, TokenKind::As)) {
+                    self.expect_ident("expected local alias after `as`")?
+                } else {
+                    imported
+                };
+                specifiers.push(ImportSpecifier { imported, local });
+                if !self.match_kind(|kind| matches!(kind, TokenKind::Comma)) {
+                    break;
+                }
+            }
+        }
+        self.expect(
+            |kind| matches!(kind, TokenKind::RBrace),
+            "expected `}` after import names",
+        )?;
+        self.expect(
+            |kind| matches!(kind, TokenKind::From),
+            "expected `from` after import names",
+        )?;
+        let path = self
+            .advance()
+            .ok_or_else(|| self.error_here("expected module path after `from`"))?;
+        let TokenKind::StringLiteral(raw) = path.kind else {
+            return Err(ParseError::new(
+                path.span,
+                "expected string module path after `from`",
+            ));
+        };
+        let semi = self.expect_semicolon()?;
+        Ok(ImportDecl {
+            specifiers: specifiers.into_bump_slice(),
+            source: strip_quotes(raw),
+            span: start.merge(semi.span),
+        })
+    }
+
+    fn parse_export_list_after_open(
+        &mut self,
+        start: Span,
+        exports: &mut BumpVec<'arena, ExportDecl<'src>>,
+    ) -> Result<(), ParseError> {
+        if !self.check(|kind| matches!(kind, TokenKind::RBrace)) {
+            loop {
+                let local = self.expect_ident("expected exported name")?;
+                exports.push(ExportDecl {
+                    local,
+                    span: start.merge(local.span),
+                });
+                if !self.match_kind(|kind| matches!(kind, TokenKind::Comma)) {
+                    break;
+                }
+            }
+        }
+        self.expect(
+            |kind| matches!(kind, TokenKind::RBrace),
+            "expected `}` after export names",
+        )?;
+        self.expect_semicolon()?;
+        Ok(())
+    }
+
     fn parse_item(&mut self) -> Result<Item<'arena, 'src>, ParseError> {
+        let declared_pure = self.match_kind(|kind| matches!(kind, TokenKind::Pure));
         if self.match_kind(|kind| matches!(kind, TokenKind::Extern)) {
-            return self.parse_extern_after_keyword().map(Item::Extern);
+            return self
+                .parse_extern_after_keyword(declared_pure)
+                .map(Item::Extern);
         }
 
         if self.match_kind(|kind| matches!(kind, TokenKind::Struct)) {
+            if declared_pure {
+                return Err(self.error_here("`pure` can only modify functions and externs"));
+            }
             return self.parse_struct_after_keyword().map(Item::Struct);
         }
 
         if self.match_kind(|kind| matches!(kind, TokenKind::Class)) {
+            if declared_pure {
+                return Err(self.error_here("`pure` can only modify functions and externs"));
+            }
             return self.parse_class_after_keyword().map(Item::Class);
         }
 
@@ -133,8 +249,15 @@ impl<'arena, 'src> Parser<'arena, 'src> {
             let name = self.expect_ident("expected declaration name")?;
             if self.match_kind(|kind| matches!(kind, TokenKind::LParen)) {
                 return self
-                    .parse_function_after_signature(ty, name)
+                    .parse_function_after_signature(ty, name, declared_pure)
                     .map(Item::Function);
+            }
+
+            if declared_pure {
+                return Err(ParseError::new(
+                    name.span,
+                    "`pure` can only modify functions and externs",
+                ));
             }
 
             return self
@@ -142,10 +265,16 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                 .map(|decl| Item::Stmt(Stmt::VarDecl(decl)));
         }
 
+        if declared_pure {
+            return Err(self.error_here("expected function declaration after `pure`"));
+        }
         self.parse_statement().map(Item::Stmt)
     }
 
-    fn parse_extern_after_keyword(&mut self) -> Result<ExternDecl<'arena, 'src>, ParseError> {
+    fn parse_extern_after_keyword(
+        &mut self,
+        declared_pure: bool,
+    ) -> Result<ExternDecl<'arena, 'src>, ParseError> {
         let start = self.previous_span();
         let return_type = self.parse_type()?;
         if return_type.is_auto() {
@@ -162,6 +291,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         let params = self.parse_params_after_open()?;
         let semi = self.expect_semicolon()?;
         Ok(ExternDecl {
+            declared_pure,
             return_type,
             name,
             params,
@@ -267,12 +397,19 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                 continue;
             }
 
+            let declared_pure = self.match_kind(|kind| matches!(kind, TokenKind::Pure));
             let ty = self.parse_type()?;
             let member_name = self.expect_ident("expected class member name")?;
             if self.match_kind(|kind| matches!(kind, TokenKind::LParen)) {
-                let method = self.parse_function_after_signature(ty, member_name)?;
+                let method = self.parse_function_after_signature(ty, member_name, declared_pure)?;
                 members.push(ClassMember::Method(method));
             } else {
+                if declared_pure {
+                    return Err(ParseError::new(
+                        member_name.span,
+                        "`pure` can only modify methods",
+                    ));
+                }
                 let field = self.parse_field_decl_after_name(ty, member_name)?;
                 members.push(ClassMember::Field(field));
             }
@@ -309,6 +446,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         &mut self,
         return_type: TypeRef<'arena, 'src>,
         name: Ident<'src>,
+        declared_pure: bool,
     ) -> Result<FunctionDecl<'arena, 'src>, ParseError> {
         let params = self.parse_params_after_open()?;
         self.expect(
@@ -317,6 +455,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         )?;
         let (body, body_span) = self.parse_block_after_open()?;
         Ok(FunctionDecl {
+            declared_pure,
             return_type,
             name,
             params,
@@ -1138,6 +1277,17 @@ fn find_template_expression_end(content: &str, start: usize) -> Option<usize> {
     None
 }
 
+fn exported_item_name<'src>(item: &Item<'_, 'src>) -> Option<Ident<'src>> {
+    match item {
+        Item::Struct(decl) => Some(decl.name),
+        Item::Class(decl) => Some(decl.name),
+        Item::Function(decl) => Some(decl.name),
+        Item::Extern(decl) => Some(decl.name),
+        Item::Stmt(Stmt::VarDecl(decl)) => Some(decl.name),
+        Item::Stmt(_) => None,
+    }
+}
+
 fn strip_quotes(raw: &str) -> &str {
     raw.strip_prefix('"')
         .and_then(|value| value.strip_suffix('"'))
@@ -1213,5 +1363,28 @@ mod tests {
         };
         assert_eq!(extern_decl.name.name, "hostAdd");
         assert_eq!(extern_decl.params.len(), 2);
+    }
+
+    #[test]
+    fn parses_imports_exports_aliases_and_pure_functions() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            r#"import { square as sq, Point } from "./math";
+import "./startup.lil";
+export pure int squared(int value) { return sq(value); }
+export { Point };"#,
+        )
+        .unwrap();
+
+        assert_eq!(program.imports.len(), 2);
+        assert_eq!(program.imports[0].source, "./math");
+        assert_eq!(program.imports[0].specifiers[0].local.name, "sq");
+        assert!(program.imports[1].specifiers.is_empty());
+        assert_eq!(program.exports.len(), 2);
+        let Item::Function(function) = &program.items[0] else {
+            panic!("expected exported function");
+        };
+        assert!(function.declared_pure);
     }
 }

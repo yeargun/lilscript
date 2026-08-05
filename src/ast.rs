@@ -43,7 +43,28 @@ impl<'ast, 'src> TypeRef<'ast, 'src> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Program<'ast, 'src> {
+    pub imports: &'ast [ImportDecl<'ast, 'src>],
+    pub exports: &'ast [ExportDecl<'src>],
     pub items: &'ast [Item<'ast, 'src>],
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ImportDecl<'ast, 'src> {
+    pub specifiers: &'ast [ImportSpecifier<'src>],
+    pub source: &'src str,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ImportSpecifier<'src> {
+    pub imported: Ident<'src>,
+    pub local: Ident<'src>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ExportDecl<'src> {
+    pub local: Ident<'src>,
     pub span: Span,
 }
 
@@ -107,6 +128,7 @@ pub struct FieldDecl<'ast, 'src> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FunctionDecl<'ast, 'src> {
+    pub declared_pure: bool,
     pub return_type: TypeRef<'ast, 'src>,
     pub name: Ident<'src>,
     pub params: &'ast [Param<'ast, 'src>],
@@ -116,6 +138,7 @@ pub struct FunctionDecl<'ast, 'src> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ExternDecl<'ast, 'src> {
+    pub declared_pure: bool,
     pub return_type: TypeRef<'ast, 'src>,
     pub name: Ident<'src>,
     pub params: &'ast [Param<'ast, 'src>],

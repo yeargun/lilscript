@@ -6,6 +6,7 @@ use crate::ir::{
     IrUnaryOp, LocalId, Phi, TemplateOperand, Terminator, ValueId,
 };
 use crate::semantic::{EscapeState, Type};
+use crate::span::Span;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OptimizationReport {
@@ -20,12 +21,17 @@ pub trait OptimizationPass {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SsaError {
+    pub span: Span,
     pub message: String,
 }
 
 impl std::fmt::Display for SsaError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.message)
+        write!(
+            f,
+            "{} at byte range {}..{}",
+            self.message, self.span.start, self.span.end
+        )
     }
 }
 
@@ -81,6 +87,7 @@ pub fn optimize_control_flow(
 
     reports.push(propagate_single_assignment_globals(module));
     reports.push(devirtualize_methods(module));
+    reports.push(validate_declared_purity(module)?);
     loop {
         let inlining = inline_small_functions(module);
         let cfg_inlining = inline_single_use_control_flow_function(module);
@@ -1985,7 +1992,7 @@ fn find_effectful_functions(module: &ControlFlowModule<'_>) -> AHashSet<crate::i
     let mut effectful = module
         .functions
         .iter()
-        .filter(|function| function.kind == FunctionKind::Extern)
+        .filter(|function| function.kind == FunctionKind::Extern && !function.declared_pure)
         .map(|function| function.id)
         .collect::<AHashSet<_>>();
     loop {
@@ -2011,6 +2018,29 @@ fn find_effectful_functions(module: &ControlFlowModule<'_>) -> AHashSet<crate::i
             return effectful;
         }
     }
+}
+
+fn validate_declared_purity(
+    module: &ControlFlowModule<'_>,
+) -> Result<OptimizationReport, SsaError> {
+    let effectful = find_effectful_functions(module);
+    if let Some(function) = module
+        .functions
+        .iter()
+        .find(|function| function.declared_pure && effectful.contains(&function.id))
+    {
+        return Err(SsaError {
+            span: function.span,
+            message: format!(
+                "function `{}` is declared `pure` but may perform an observable side effect",
+                function.name.unwrap_or("<closure>")
+            ),
+        });
+    }
+    Ok(OptimizationReport {
+        pass_name: "pure-contract-validation",
+        changed: false,
+    })
 }
 
 fn control_flow_op_has_side_effects(
@@ -2529,6 +2559,7 @@ fn promote_function_locals(function: &mut ControlFlowFunction<'_>) -> Result<(),
         })
     }) {
         return Err(SsaError {
+            span: function.span,
             message: format!(
                 "local promotion left memory operations in function {:?}",
                 function.id
@@ -2745,12 +2776,14 @@ fn rename_block(
         match instruction.op {
             ControlFlowOp::LoadLocal(local) => {
                 let out = instruction.out.ok_or_else(|| SsaError {
+                    span: instruction.span,
                     message: "local load has no result value".to_string(),
                 })?;
                 let value = stacks[local.0 as usize]
                     .last()
                     .copied()
                     .ok_or_else(|| SsaError {
+                        span: instruction.span,
                         message: format!("local {:?} is read before definition", local),
                     })?;
                 aliases.insert(out, resolve_alias(value, aliases));
@@ -2771,6 +2804,7 @@ fn rename_block(
         rewrite_terminator(terminator, aliases);
     }
 
+    let block_span = function.blocks[block_index].span;
     let successors = terminator_successors(function.blocks[block_index].terminator.as_ref());
     for successor in successors {
         for phi in &mut function.blocks[successor].phis {
@@ -2781,6 +2815,7 @@ fn rename_block(
                 .last()
                 .copied()
                 .ok_or_else(|| SsaError {
+                    span: block_span,
                     message: format!(
                         "local {:?} has no reaching definition for block {:?}",
                         phi.local, phi.out

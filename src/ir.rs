@@ -143,6 +143,7 @@ pub struct ControlFlowFunction<'src> {
     pub id: FunctionId,
     pub name: Option<&'src str>,
     pub kind: FunctionKind<'src>,
+    pub declared_pure: bool,
     pub params: Vec<IrParameter<'src>>,
     pub capture_count: usize,
     pub return_type: Type<'src>,
