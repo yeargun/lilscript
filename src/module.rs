@@ -956,6 +956,7 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
             TypeKind::Nullable(inner) => {
                 TypeKind::Nullable(self.arena.alloc(self.clone_type(*inner)))
             }
+            TypeKind::Union(members) => TypeKind::Union(self.clone_types(members)),
             TypeKind::Function {
                 params,
                 return_type,

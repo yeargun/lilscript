@@ -564,6 +564,51 @@ mod tests {
     }
 
     #[test]
+    fn remaps_nominal_types_nested_in_imported_unions() {
+        let directory = std::env::temp_dir().join(format!(
+            "lilscript-module-union-type-test-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&directory).unwrap();
+        std::fs::write(
+            directory.join("dynamic.lil"),
+            r#"
+                export class Node {
+                    string text;
+                    init(string text) { this.text = text; }
+                }
+                export Node render<P>(string|func(P)->Node selected, P props) {
+                    if (selected is string) { return new Node(selected); }
+                    else { return selected(props); }
+                }
+            "#,
+        )
+        .unwrap();
+        let main = directory.join("main.lil");
+        std::fs::write(
+            &main,
+            r#"
+                import {Node, render} from "./dynamic";
+                class Props {
+                    string text;
+                    init(string text) { this.text = text; }
+                }
+                Node component(Props props) { return new Node(props.text); }
+                Props props = new Props("component");
+                string|func(Props)->Node selected = component;
+                Node result = render(selected, props);
+                print(result.text);
+            "#,
+        )
+        .unwrap();
+
+        let artifacts = compile_path_all(&main).unwrap();
+        assert!(artifacts.javascript.contains("component"));
+        assert!(artifacts.c.contains("component"));
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
     fn keeps_private_module_bindings_isolated() {
         let directory = std::env::temp_dir().join(format!(
             "lilscript-module-scope-test-{}",
