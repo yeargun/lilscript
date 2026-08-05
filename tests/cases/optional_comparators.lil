@@ -1,0 +1,25 @@
+T choose<T>(
+  T current,
+  T next,
+  (func(T,T)->bool)? equals = null
+) {
+  if (equals == null) {
+    if (current == next) {
+      return current;
+    }
+    return next;
+  }
+  func(T,T)->bool compare = equals;
+  if (compare(current, next)) {
+    return current;
+  }
+  return next;
+}
+
+bool sameLength(string previous, string next) {
+  return previous.length == next.length;
+}
+
+print(choose(4, 4));
+print(choose("old", "new"));
+print(choose("left", "next", sameLength));

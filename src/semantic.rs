@@ -2980,6 +2980,19 @@ mod tests {
         .unwrap();
 
         analyze(&program).unwrap();
+
+        check(
+            r#"
+                T choose<T>(T current,T next,(func(T,T)->bool)? equals=null){
+                    if(equals==null){if(current==next){return current;}return next;}
+                    func(T,T)->bool compare=equals;
+                    if(compare(current,next)){return current;}
+                    return next;
+                }
+                int result=choose(1,2);
+            "#,
+        )
+        .unwrap();
     }
 
     #[test]

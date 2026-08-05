@@ -1340,7 +1340,9 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                     Ok(format!("lilscript_value_optional({expression})"))
                 }
                 _ => {
-                    if !crate::semantic::is_type_assignable(inner, from) {
+                    if !crate::semantic::is_type_assignable(inner, from)
+                        && c_type(inner) != c_type(from)
+                    {
                         return Err(CodegenError::new(
                             span,
                             format!("cannot convert native `{from}` to `{to}`"),
