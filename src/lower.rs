@@ -312,7 +312,9 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
                     match body {
                         ArrowBody::Expr(expression) => {
                             let value = builder.lower_expr(expression)?;
-                            builder.terminate(Terminator::Return(Some(value)))?;
+                            builder.terminate(Terminator::Return(
+                                (builder.return_type != Type::Void).then_some(value),
+                            ))?;
                         }
                         ArrowBody::Block(statements) => builder.lower_statements(statements)?,
                     }

@@ -698,6 +698,45 @@ mod tests {
             .find("values.push(2)")
             .expect("array mutation must remain");
         assert!(load < mutation, "{output}");
+
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "int state=1;void run(){bool wasInitial=state==1;state=2;print(wasInitial);}run();",
+        )
+        .unwrap();
+        let output = compile_program_to_js_configured(&program, &config).unwrap();
+        let comparison = output
+            .find("state==1")
+            .unwrap_or_else(|| panic!("comparison must remain: {output}"));
+        let store = output
+            .find("state=2")
+            .unwrap_or_else(|| panic!("write must remain: {output}"));
+        assert!(comparison < store, "{output}");
+    }
+
+    #[test]
+    fn compiles_nested_capturing_closures_after_inlining() {
+        let source = "class Box{int value;init(int value){this.value=value;}void increment(){this.value+=1;}}extern void accept(func()->void callback);void run(){Box box=new Box(0);accept(()=>{accept(()=>box.increment());});}run();";
+        let output = compile_source(source).unwrap();
+
+        assert!(output.contains("accept("), "{output}");
+    }
+
+    #[test]
+    fn preserves_effectful_calls_before_conditional_returns() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "class Box{int value;init(int value){this.value=value;}void increment(){this.value+=1;}}extern void retain(func()->int callback);void install(bool flag){Box box=new Box(0);retain(()=>{box.increment();if(flag){return box.value;}return 0;});}install(true);",
+        )
+        .unwrap();
+        let mut config = ProjectConfig::default();
+        config.optimization.preset = crate::config::OptimizationPreset::None;
+        config.mangle.identifiers = false;
+        let output = compile_program_to_js_configured(&program, &config).unwrap();
+
+        assert_eq!(output.matches("Box$increment(").count(), 2, "{output}");
     }
 
     #[test]

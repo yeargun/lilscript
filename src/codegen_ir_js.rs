@@ -1648,9 +1648,45 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             &self.top_level_mangler,
             self.options.mangle_identifiers,
         );
+        let capture_params = &function.params[..function.capture_count];
+        let capture_values = capture_params
+            .iter()
+            .map(|parameter| parameter.value)
+            .collect::<AHashSet<_>>();
+        let hidden_names = capture_params
+            .iter()
+            .filter_map(|parameter| context.value_names.get(&parameter.value))
+            .cloned()
+            .collect::<AHashSet<_>>();
+        let mut mangler = self.top_level_mangler.clone();
+        for name in context.value_names.values().chain(captures) {
+            mangler.reserve(name);
+        }
+        let mut replacements = AHashMap::<String, String>::new();
+        for (value, name) in &context.value_names {
+            if !capture_values.contains(value)
+                && (hidden_names.contains(name) || captures.contains(name))
+            {
+                replacements
+                    .entry(name.clone())
+                    .or_insert_with(|| mangler.next_name());
+            }
+        }
+        for (value, name) in &mut context.value_names {
+            if !capture_values.contains(value) {
+                if let Some(replacement) = replacements.get(name) {
+                    *name = replacement.clone();
+                }
+            }
+        }
         for (param, capture) in function.params.iter().zip(captures) {
             context.value_names.insert(param.value, capture.clone());
         }
+        *context.declared_names.borrow_mut() = function.params[function.capture_count..]
+            .iter()
+            .filter_map(|parameter| context.value_names.get(&parameter.value))
+            .cloned()
+            .collect();
         let expression_closure = matches!(
             function.blocks[0].terminator,
             Some(Terminator::Return(Some(_)))
@@ -1840,6 +1876,8 @@ struct LocalNames {
     declared_names: RefCell<AHashSet<String>>,
     inline_declarations: bool,
     state: String,
+    function_name: String,
+    function_span: crate::span::Span,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1933,6 +1971,7 @@ impl LocalNames {
             })
             .collect();
         let uses = use_counts(function);
+        let unstable_values = unstable_values(function);
         let inlined_values = function
             .blocks
             .iter()
@@ -1975,7 +2014,7 @@ impl LocalNames {
                     let fused = use_count == 1 && can_fuse_value(block, index, value);
                     if (cross_block.contains(&value)
                         || use_count > 1
-                        || (use_count != 0 && !op_can_defer(&instruction.op) && !fused)
+                        || (use_count != 0 && unstable_values.contains(&value) && !fused)
                         || matches!(
                             instruction.op,
                             ControlFlowOp::NewClass {
@@ -2058,6 +2097,15 @@ impl LocalNames {
             declared_names: RefCell::new(declared_names),
             inline_declarations: false,
             state,
+            function_name: function
+                .name
+                .unwrap_or(if function.kind == FunctionKind::Entry {
+                    "<entry>"
+                } else {
+                    "<closure>"
+                })
+                .to_string(),
+            function_span: function.span,
         }
     }
 
@@ -2067,8 +2115,11 @@ impl LocalNames {
             .map(String::as_str)
             .ok_or_else(|| {
                 CodegenError::new(
-                    crate::span::Span::empty(0),
-                    format!("SSA value {} has no emitted name", value.0),
+                    self.function_span,
+                    format!(
+                        "SSA value {} has no emitted name in function `{}`",
+                        value.0, self.function_name
+                    ),
                 )
             })
     }
@@ -2138,6 +2189,39 @@ impl LocalNames {
             .filter(|name| !parameter_names.contains(*name))
             .filter(|name| seen.insert((*name).to_string()))
             .collect()
+    }
+}
+
+fn unstable_values(function: &ControlFlowFunction<'_>) -> AHashSet<ValueId> {
+    let mut unstable = AHashSet::new();
+    loop {
+        let mut changed = false;
+        for block in &function.blocks {
+            for phi in &block.phis {
+                if phi
+                    .incoming
+                    .iter()
+                    .any(|(_, value)| unstable.contains(value))
+                {
+                    changed |= unstable.insert(phi.out);
+                }
+            }
+            for instruction in &block.instructions {
+                let Some(out) = instruction.out else {
+                    continue;
+                };
+                if !op_can_defer(&instruction.op)
+                    || op_values(&instruction.op)
+                        .iter()
+                        .any(|value| unstable.contains(value))
+                {
+                    changed |= unstable.insert(out);
+                }
+            }
+        }
+        if !changed {
+            return unstable;
+        }
     }
 }
 
@@ -2317,6 +2401,24 @@ fn coalesce_value_names(
     for (position, parameter) in parameters.iter().enumerate() {
         for other in &parameters[position + 1..] {
             connect(*parameter, *other);
+        }
+    }
+
+    let captured = function
+        .blocks
+        .iter()
+        .flat_map(|block| &block.instructions)
+        .filter_map(|instruction| match &instruction.op {
+            ControlFlowOp::Closure { captures, .. } => Some(captures),
+            _ => None,
+        })
+        .flatten()
+        .filter(|value| named.contains(value))
+        .copied()
+        .collect::<AHashSet<_>>();
+    for capture in captured {
+        for value in &named {
+            connect(capture, *value);
         }
     }
 
@@ -2579,7 +2681,19 @@ fn expression_only_op(op: &ControlFlowOp<'_>) -> bool {
                 constructor: Some(_),
                 ..
             }
+            | ControlFlowOp::CallDirect { .. }
+            | ControlFlowOp::CallValue { .. }
             | ControlFlowOp::CallMethod { .. }
+            | ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::Print
+                    | Intrinsic::ArrayMap
+                    | Intrinsic::ArrayFilter
+                    | Intrinsic::ArrayReduce
+                    | Intrinsic::ArrayForEach
+                    | Intrinsic::ArrayPush
+                    | Intrinsic::ArrayPop,
+                ..
+            }
     )
 }
 
@@ -2890,6 +3004,57 @@ mod tests {
         let colors = coalesce_value_names(function, &named, &parameters, &use_counts(function));
 
         assert_ne!(colors[&callback], colors[&object]);
+    }
+
+    #[test]
+    fn captured_values_keep_a_dedicated_color() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "extern void retain(func()->int callback);void install(int value){func()->int callback=()=>value;retain(callback);int later=value+1;print(later);}install(1);",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+        crate::optimizer::promote_locals_to_ssa(&mut ir).unwrap();
+        let function = ir
+            .functions
+            .iter()
+            .find(|function| function.name == Some("install"))
+            .unwrap();
+        let captured = function
+            .blocks
+            .iter()
+            .flat_map(|block| &block.instructions)
+            .find_map(|instruction| match &instruction.op {
+                ControlFlowOp::Closure { captures, .. } => captures.first().copied(),
+                _ => None,
+            })
+            .unwrap();
+        let named = function
+            .params
+            .iter()
+            .map(|parameter| parameter.value)
+            .chain(
+                function
+                    .blocks
+                    .iter()
+                    .flat_map(|block| &block.instructions)
+                    .filter_map(|instruction| instruction.out),
+            )
+            .collect::<AHashSet<_>>();
+        let parameters = function
+            .params
+            .iter()
+            .map(|parameter| parameter.value)
+            .collect::<AHashSet<_>>();
+        let colors = coalesce_value_names(function, &named, &parameters, &use_counts(function));
+
+        for (value, color) in &colors {
+            if *value != captured {
+                assert_ne!(colors[&captured], *color);
+            }
+        }
     }
 
     #[test]
