@@ -112,6 +112,11 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
             self.emit_function_signature(function, false, &mut out)?;
             out.push_str(";\n");
         }
+        let closure_adapters = self.closure_adapter_targets();
+        for function in &closure_adapters {
+            self.emit_closure_adapter_signature(function, false, &mut out);
+            out.push_str(";\n");
+        }
         for function in &self.module.functions {
             if !function.live || matches!(function.kind, FunctionKind::Entry | FunctionKind::Extern)
             {
@@ -119,8 +124,98 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
             }
             self.emit_function(function, &mut out)?;
         }
+        for function in closure_adapters {
+            self.emit_closure_adapter(function, &mut out)?;
+        }
         self.emit_function(self.function(self.module.entry)?, &mut out)?;
         Ok(out)
+    }
+
+    fn closure_adapter_targets(&self) -> Vec<&ControlFlowFunction<'src>> {
+        let mut referenced = AHashSet::new();
+        for function in &self.module.functions {
+            if !function.live {
+                continue;
+            }
+            for block in &function.blocks {
+                for instruction in &block.instructions {
+                    if let ControlFlowOp::Closure { function, .. } = instruction.op {
+                        referenced.insert(function);
+                    }
+                }
+            }
+        }
+        self.module
+            .functions
+            .iter()
+            .filter(|function| {
+                function.live
+                    && function.kind != FunctionKind::Closure
+                    && referenced.contains(&function.id)
+            })
+            .collect()
+    }
+
+    fn emit_closure_adapter_signature(
+        &self,
+        function: &ControlFlowFunction<'src>,
+        names: bool,
+        out: &mut String,
+    ) {
+        write!(out, "static LilScriptValue a{}(void*", function.id.0)
+            .expect("writing to String cannot fail");
+        if names {
+            out.push_str(" env");
+        }
+        for (index, _) in function.params.iter().enumerate() {
+            out.push_str(",LilScriptValue");
+            if names {
+                write!(out, " a{index}").expect("writing to String cannot fail");
+            }
+        }
+        out.push(')');
+    }
+
+    fn emit_closure_adapter(
+        &self,
+        function: &ControlFlowFunction<'src>,
+        out: &mut String,
+    ) -> Result<(), CodegenError> {
+        self.emit_closure_adapter_signature(function, true, out);
+        out.push_str("{(void)env;");
+        let mut call = if function.kind == FunctionKind::Extern {
+            self.native_function_name(function.id)?.to_string()
+        } else {
+            format!("f{}", function.id.0)
+        };
+        call.push('(');
+        let universal = Type::TypeParameter("$closure");
+        for (index, parameter) in function.params.iter().enumerate() {
+            if index != 0 {
+                call.push(',');
+            }
+            call.push_str(&self.render_value_conversion(
+                &format!("a{index}"),
+                &universal,
+                &parameter.ty,
+                parameter.span,
+            )?);
+        }
+        call.push(')');
+        if function.return_type == Type::Void {
+            write!(out, "{call};return (LilScriptValue){{0}};}}")
+                .expect("writing to String cannot fail");
+        } else {
+            let result = self.render_value_conversion(
+                &call,
+                &function.return_type,
+                &universal,
+                function.span,
+            )?;
+            write!(out, "return {result};}}").expect("writing to String cannot fail");
+        }
+        out.push('\n');
+        Ok(())
     }
 
     fn emit_aggregate_types(&self, out: &mut String) -> Result<(), CodegenError> {
@@ -345,24 +440,28 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                 };
                 write!(
                     out,
-                    "v{}=lilscript_array({},sizeof({}));",
+                    "v{}=lilscript_array({},sizeof(LilScriptValue));",
                     result.0,
-                    values.len(),
-                    c_type(element)
+                    values.len()
                 )
                 .expect("writing to String cannot fail");
                 for (index, value) in values.iter().enumerate() {
-                    let converted = self.render_value_conversion(
+                    let normalized = self.render_value_conversion(
                         &format!("v{}", value.0),
                         &types[value],
                         element,
                         instruction.span,
                     )?;
+                    let converted = self.render_value_conversion(
+                        &normalized,
+                        element,
+                        &Type::TypeParameter("$array"),
+                        instruction.span,
+                    )?;
                     write!(
                         out,
-                        "(({}*)v{}->data)[{index}]={converted};",
-                        c_type(element),
-                        result.0
+                        "((LilScriptValue*)v{}->data)[{index}]={converted};",
+                        result.0,
                     )
                     .expect("writing to String cannot fail");
                 }
@@ -392,12 +491,10 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                     match &field.ty {
                         Type::String => write!(out, "v{}->f{}=\"\";", result.0, field.index)
                             .expect("writing to String cannot fail"),
-                        Type::Array(element) => write!(
+                        Type::Array(_) => write!(
                             out,
-                            "v{}->f{}=lilscript_array(0,sizeof({}));",
-                            result.0,
-                            field.index,
-                            c_type(element)
+                            "v{}->f{}=lilscript_array(0,sizeof(LilScriptValue));",
+                            result.0, field.index
                         )
                         .expect("writing to String cannot fail"),
                         _ => {}
@@ -419,11 +516,17 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
             }
             ControlFlowOp::Closure { function, captures } => {
                 let result = required_output(instruction)?;
+                let target = self.function(*function)?;
+                let prefix = if target.kind == FunctionKind::Closure {
+                    'f'
+                } else {
+                    'a'
+                };
                 if captures.is_empty() {
                     write!(
                         out,
-                        "v{}=(LilScriptClosure){{(void*)f{},NULL}};",
-                        result.0, function.0
+                        "v{}=(LilScriptClosure){{(void*){prefix}{},NULL}};",
+                        result.0, function.0,
                     )
                     .expect("writing to String cannot fail");
                 } else {
@@ -492,18 +595,22 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                         "indexed native store requires an array",
                     ));
                 };
-                let converted = self.render_value_conversion(
+                let normalized = self.render_value_conversion(
                     &format!("v{}", value.0),
                     &types[value],
                     element,
                     instruction.span,
                 )?;
+                let converted = self.render_value_conversion(
+                    &normalized,
+                    element,
+                    &Type::TypeParameter("$array"),
+                    instruction.span,
+                )?;
                 write!(
                     out,
-                    "(({}*)v{}->data)[v{}]={converted};",
-                    c_type(element),
-                    object.0,
-                    index.0
+                    "((LilScriptValue*)v{}->data)[v{}]={converted};",
+                    object.0, index.0
                 )
                 .expect("writing to String cannot fail");
                 return Ok(());
@@ -632,17 +739,21 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
         };
         write!(
             out,
-            "v{}=lilscript_array(v{}->len,sizeof({}));for(int32_t i{}=0;i{}<v{}->len;i{}++){{",
+            "v{}=lilscript_array(v{}->len,sizeof(LilScriptValue));for(int32_t i{}=0;i{}<v{}->len;i{}++){{",
             result.0,
             receiver.0,
-            c_type(output),
             result.0,
             result.0,
             receiver.0,
             result.0
         )
         .expect("writing to String cannot fail");
-        let item = format!("(({}*)v{}->data)[i{}]", c_type(input), receiver.0, result.0);
+        let item = self.render_value_conversion(
+            &format!("((LilScriptValue*)v{}->data)[i{}]", receiver.0, result.0),
+            &Type::TypeParameter("$array"),
+            input,
+            instruction.span,
+        )?;
         let call = self.render_closure_call(
             callback,
             &[item],
@@ -650,12 +761,16 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
             signature,
             instruction.span,
         )?;
+        let boxed = self.render_value_conversion(
+            &call,
+            output,
+            &Type::TypeParameter("$array"),
+            instruction.span,
+        )?;
         write!(
             out,
-            "(({}*)v{}->data)[i{}]={call};}}",
-            c_type(output),
-            result.0,
-            result.0
+            "((LilScriptValue*)v{}->data)[i{}]={boxed};}}",
+            result.0, result.0
         )
         .expect("writing to String cannot fail");
         Ok(())
@@ -680,14 +795,19 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
             ));
         };
         let signature = closure_signature(types, callback, instruction.span)?;
-        let element_type = c_type(element);
         write!(
             out,
-            "v{}=lilscript_array(v{}->len,sizeof({element_type}));v{}->len=0;for(int32_t i{}=0;i{}<v{}->len;i{}++){{",
+            "v{}=lilscript_array(v{}->len,sizeof(LilScriptValue));v{}->len=0;for(int32_t i{}=0;i{}<v{}->len;i{}++){{",
             result.0, receiver.0, result.0, result.0, result.0, receiver.0, result.0
         )
         .expect("writing to String cannot fail");
-        let item = format!("(({element_type}*)v{}->data)[i{}]", receiver.0, result.0);
+        let boxed_item = format!("((LilScriptValue*)v{}->data)[i{}]", receiver.0, result.0);
+        let item = self.render_value_conversion(
+            &boxed_item,
+            &Type::TypeParameter("$array"),
+            element,
+            instruction.span,
+        )?;
         let call = self.render_closure_call(
             callback,
             std::slice::from_ref(&item),
@@ -697,7 +817,7 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
         )?;
         write!(
             out,
-            "if({call})(({element_type}*)v{}->data)[v{}->len++]={item};}}",
+            "if({call})((LilScriptValue*)v{}->data)[v{}->len++]={boxed_item};}}",
             result.0, result.0
         )
         .expect("writing to String cannot fail");
@@ -726,7 +846,6 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
             ));
         };
         let signature = closure_signature(types, *callback, instruction.span)?;
-        let element_type = c_type(element);
         write!(
             out,
             "v{}=v{};for(int32_t i{}=0;i{}<v{}->len;i{}++){{",
@@ -735,7 +854,12 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
         .expect("writing to String cannot fail");
         let args = [
             format!("v{}", result.0),
-            format!("(({element_type}*)v{}->data)[i{}]", receiver.0, result.0),
+            self.render_value_conversion(
+                &format!("((LilScriptValue*)v{}->data)[i{}]", receiver.0, result.0),
+                &Type::TypeParameter("$array"),
+                element,
+                instruction.span,
+            )?,
         ];
         let accumulator_type = instruction.ty.as_ref().ok_or_else(|| {
             CodegenError::new(instruction.span, "array reduce has no accumulator type")
@@ -769,14 +893,18 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
             ));
         };
         let signature = closure_signature(types, callback, instruction.span)?;
-        let element_type = c_type(element);
         write!(
             out,
             "for(int32_t i{}=0;i{}<v{}->len;i{}++){{",
             callback.0, callback.0, receiver.0, callback.0
         )
         .expect("writing to String cannot fail");
-        let item = format!("(({element_type}*)v{}->data)[i{}]", receiver.0, callback.0);
+        let item = self.render_value_conversion(
+            &format!("((LilScriptValue*)v{}->data)[i{}]", receiver.0, callback.0),
+            &Type::TypeParameter("$array"),
+            element,
+            instruction.span,
+        )?;
         let call = self.render_closure_call(
             callback,
             std::slice::from_ref(&item),
@@ -804,7 +932,6 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                 "array mutation receiver has no array type",
             ));
         };
-        let element_type = c_type(element);
         match instruction.op {
             ControlFlowOp::Intrinsic {
                 intrinsic: Intrinsic::ArrayPush,
@@ -813,10 +940,22 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                 let value = args.first().ok_or_else(|| {
                     CodegenError::new(instruction.span, "array push requires a value")
                 })?;
+                let normalized = self.render_value_conversion(
+                    &format!("v{}", value.0),
+                    &types[value],
+                    element,
+                    instruction.span,
+                )?;
+                let boxed = self.render_value_conversion(
+                    &normalized,
+                    element,
+                    &Type::TypeParameter("$array"),
+                    instruction.span,
+                )?;
                 write!(
                     out,
-                    "*({element_type}*)lilscript_push(v{},sizeof({element_type}))=v{};v{}=v{}->len;",
-                    receiver.0, value.0, result.0, receiver.0
+                    "*(LilScriptValue*)lilscript_push(v{},sizeof(LilScriptValue))={boxed};v{}=v{}->len;",
+                    receiver.0, result.0, receiver.0
                 )
                 .expect("writing to String cannot fail");
             }
@@ -824,12 +963,17 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                 intrinsic: Intrinsic::ArrayPop,
                 ..
             } => {
-                write!(
-                    out,
-                    "v{}=*({element_type}*)lilscript_pop(v{},sizeof({element_type}));",
-                    result.0, receiver.0
-                )
-                .expect("writing to String cannot fail");
+                let popped = format!(
+                    "*(LilScriptValue*)lilscript_pop(v{},sizeof(LilScriptValue))",
+                    receiver.0
+                );
+                let converted = self.render_value_conversion(
+                    &popped,
+                    &Type::TypeParameter("$array"),
+                    element,
+                    instruction.span,
+                )?;
+                write!(out, "v{}={converted};", result.0).expect("writing to String cannot fail");
             }
             _ => unreachable!(),
         }
@@ -938,7 +1082,12 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                         "indexed native load requires an array",
                     ));
                 };
-                format!("(({}*)v{}->data)[v{}]", c_type(element), object.0, index.0)
+                self.render_value_conversion(
+                    &format!("((LilScriptValue*)v{}->data)[v{}]", object.0, index.0),
+                    &Type::TypeParameter("$array"),
+                    element,
+                    instruction.span,
+                )?
             }
             ControlFlowOp::FieldGet {
                 object,
@@ -1158,7 +1307,7 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                     span,
                     format!("cannot convert native `{from}` to `{to}`"),
                 )),
-                Type::TypeParameter("$closure") => {
+                Type::TypeParameter("$closure" | "$array") => {
                     Ok(format!("*(LilScriptOptional*)({expression}).p"))
                 }
                 _ => {
@@ -1740,5 +1889,18 @@ mod tests {
         assert!(c.contains(".tag=1,.i="));
         assert!(c.contains(".tag=2,.f="));
         assert!(c.contains(".tag=4,.s="));
+    }
+
+    #[test]
+    fn adapts_named_functions_used_as_closures() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "bool same(int left,int right){return left==right;}func(int,int)->bool callback=same;print(callback(4,4));",
+        )
+        .unwrap();
+        let c = compile_to_c(&program).unwrap();
+        assert!(c.contains("static LilScriptValue a"));
+        assert!(c.contains("(LilScriptClosure){(void*)a"));
     }
 }

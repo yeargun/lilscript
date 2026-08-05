@@ -1,0 +1,13 @@
+bool same(int left, int right) {
+  return left == right;
+}
+
+int increment(int value) {
+  return value + 1;
+}
+
+func(int,int)->bool comparator = same;
+func(int)->int transform = increment;
+print(comparator(4, 4));
+print(comparator(4, 5));
+print(transform(8));
