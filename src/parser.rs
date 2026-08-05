@@ -743,6 +743,17 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                     span: token.span.merge(return_type.span),
                 }
             }
+            TokenKind::LParen => {
+                let inner = self.parse_type()?;
+                let close = self.expect(
+                    |kind| matches!(kind, TokenKind::RParen),
+                    "expected `)` after parenthesized type",
+                )?;
+                TypeRef {
+                    kind: inner.kind,
+                    span: token.span.merge(close.span),
+                }
+            }
             TokenKind::Ident(name) => {
                 let args = self.parse_type_args()?;
                 let span = args
@@ -1239,6 +1250,13 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                 }
                 index = self.scan_type_end(index + 1)?;
             }
+            Some(TokenKind::LParen) => {
+                index = self.scan_type_end(index + 1)?;
+                if !matches!(self.tokens.get(index)?.kind, TokenKind::RParen) {
+                    return None;
+                }
+                index += 1;
+            }
             _ => return None,
         }
 
@@ -1497,6 +1515,28 @@ mod tests {
         let arena = Bump::new();
         let program = parse_source(&arena, "func(int)->int twice=(int x)=>x*2;").unwrap();
         assert!(matches!(&program.items[0], Item::Stmt(Stmt::VarDecl(_))));
+    }
+
+    #[test]
+    fn parses_arrays_of_parenthesized_function_types() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "(func(int)->int)[] transforms=[];func(int)->int first=transforms[0];",
+        )
+        .unwrap();
+
+        let Item::Stmt(Stmt::VarDecl(transforms)) = &program.items[0] else {
+            panic!("expected callback array declaration");
+        };
+        assert!(matches!(
+            transforms.ty.kind,
+            TypeKind::Array(element) if matches!(element.kind, TypeKind::Function { .. })
+        ));
+        let Item::Stmt(Stmt::VarDecl(first)) = &program.items[1] else {
+            panic!("expected callback declaration");
+        };
+        assert!(matches!(first.ty.kind, TypeKind::Function { .. }));
     }
 
     #[test]

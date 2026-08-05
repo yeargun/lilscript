@@ -1,0 +1,15 @@
+int doubleValue(int value) {
+  return value * 2;
+}
+
+int increment(int value) {
+  return value + 1;
+}
+
+(func(int)->int)[] transforms = [doubleValue, increment];
+int value = 3;
+for (int index = 0; index < transforms.length; index++) {
+  func(int)->int transform = transforms[index];
+  value = transform(value);
+}
+print(value);

@@ -215,6 +215,13 @@ inside the closure, while objects and arrays referenced by a capture remain
 mutable. Top-level bindings are shared globals rather than closure captures.
 All paths of a non-`void` function must return a value.
 
+Parentheses disambiguate compound callable types. For example, the following
+declares an array of callbacks rather than a callback returning an array:
+
+```lilscript
+(func(int)->int)[] transforms = [increment];
+```
+
 Purity is inferred for every function by interprocedural effect analysis. The
 optional `pure` modifier turns that inference into a checked contract:
 
