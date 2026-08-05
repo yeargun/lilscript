@@ -66,11 +66,12 @@ if (vector.lengthSquared() == 25.0) {
 }</code></pre>
           </div>
           <div class="code-column output-column">
-            <div class="code-label"><span>Optimized JavaScript</span><span>120 bytes</span></div>
+            <div class="code-label"><span>Optimized JavaScript</span><span>112 bytes</span></div>
             <pre><code>var b=[1,2,3,4].map(a=&gt;Math.imul(a,2));
 var a=0,c=0;
 while(a&lt;b.length){
-  [a,c]=[(a+1|0),(c+b[a]|0)];
+  c=c+b[a]|0;
+  a=a+1|0;
 }
 console.log(`sum=${c}`)</code></pre>
           </div>
@@ -117,18 +118,20 @@ console.log(`sum=${c}`)</code></pre>
         <div class="section-heading">
           <p class="eyebrow">Measured output</p>
           <h2>Bundle efficiency is tested, not assumed</h2>
-          <p>Eight equivalent programs execute first, then normalized output is measured against Closure Compiler ADVANCED v20260803.</p>
+          <p>Nine equivalent programs, including a three-module graph, execute first; normalized output is then measured against Closure Compiler ADVANCED v20260803.</p>
         </div>
         <div class="benchmark-table-wrap">
           <table>
             <thead><tr><th>Workload</th><th>Compiler</th><th>Raw</th><th>Gzip-9</th><th>Brotli-11</th></tr></thead>
             <tbody>
-              <tr><th rowspan="2">v0.1</th><td>LilScript</td><td>120</td><td>132</td><td>113</td></tr>
+              <tr><th rowspan="2">v0.1</th><td>LilScript</td><td>112</td><td>127</td><td>106</td></tr>
               <tr><td>Closure</td><td>212</td><td>190</td><td>166</td></tr>
-              <tr><th rowspan="2">Full conformance</th><td>LilScript</td><td>412</td><td>286</td><td>236</td></tr>
+              <tr><th rowspan="2">Full conformance</th><td>LilScript</td><td>355</td><td>271</td><td>221</td></tr>
               <tr><td>Closure</td><td>547</td><td>368</td><td>309</td></tr>
-              <tr><th rowspan="2">Eight-workload total</th><td>LilScript</td><td>1,465</td><td>1,193</td><td>1,003</td></tr>
-              <tr><td>Closure</td><td>2,235</td><td>1,553</td><td>1,274</td></tr>
+              <tr><th rowspan="2">Three modules</th><td>LilScript</td><td>116</td><td>130</td><td>104</td></tr>
+              <tr><td>Closure</td><td>122</td><td>134</td><td>108</td></tr>
+              <tr><th rowspan="2">Nine-workload total</th><td>LilScript</td><td>1,508</td><td>1,300</td><td>1,080</td></tr>
+              <tr><td>Closure</td><td>2,357</td><td>1,687</td><td>1,382</td></tr>
             </tbody>
           </table>
         </div>

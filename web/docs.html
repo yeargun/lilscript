@@ -38,6 +38,7 @@
           <a href="#cli">Compiler targets</a>
           <p>Language</p>
           <a href="#types">Types and declarations</a>
+          <a href="#modules">Modules and tree shaking</a>
           <a href="#arrays">Arrays and strings</a>
           <a href="#aggregates">Structs and classes</a>
           <a href="#functions">Functions and closures</a>
@@ -123,6 +124,21 @@ func(int)-&gt;int twice = (int value) =&gt; value * 2;</code></pre>
           </table>
         </section>
 
+        <section id="modules" data-title="Modules imports exports aliases pure tree shaking bundling">
+          <h2>Modules and tree shaking</h2>
+          <pre><code>// math.lil
+export pure int square(int value) {
+  return value * value;
+}
+
+// main.lil
+import { square as sq } from "./math";
+import "./startup.lil";
+print(sq(5));</code></pre>
+          <p>Imports are relative, static, and resolved from the entry file. Private names are isolated per module, dependencies initialize once before importers, and cycles are rejected. The compiler erases module boundaries before SSA optimization, so calls can inline and aggregates can dissolve across files.</p>
+          <p><code>export</code> controls visibility but does not keep unreachable code alive. The default JavaScript target emits one bundle with no import/export wrappers. This is smaller for fully static applications than forced runtime chunks.</p>
+        </section>
+
         <section id="arrays" data-title="Arrays strings map filter reduce forEach push pop methods">
           <h2>Arrays and strings</h2>
           <p>Collection methods are typed intrinsics rather than untyped dynamic dispatch. Their callback signatures are checked at compile time.</p>
@@ -166,7 +182,7 @@ Counter counter = new Counter(10);</code></pre>
 
         <section id="functions" data-title="Functions closures captures arrow callback callable">
           <h2>Functions and closures</h2>
-          <pre><code>int add(int left, int right) {
+          <pre><code>pure int add(int left, int right) {
   return left + right;
 }
 
@@ -175,6 +191,7 @@ int makeResult(int factor) {
   return scale(4);
 }</code></pre>
           <p>Local values are captured when the closure is created. Captured bindings cannot be rebound inside the closure, while captured arrays and classes can still be mutated through their reference. Top-level bindings are shared globals.</p>
+          <p>Purity is inferred automatically for effect-aware DCE. The optional <code>pure</code> modifier is a checked contract: printing, mutation, or calls to effectful code cause a compile error. <code>pure extern</code> is a trusted host promise.</p>
         </section>
 
         <section id="control-flow" data-title="Control flow if else while for break continue return assignment">
@@ -251,9 +268,10 @@ code --install-extension lilscript-vscode-0.1.0.vsix</code></pre>
         <section id="optimization" data-title="Optimization SSA SRA DCE inlining devirtualization mangling">
           <h2>Optimization model</h2>
           <ol class="ordered-steps">
+            <li>Resolve the complete module graph, validate exports, namespace private bindings, and preserve dependency initialization order.</li>
             <li>Lower checked LilScript to typed control-flow IR and promote live locals to pruned SSA.</li>
             <li>Propagate local and global constants, simplify algebra, value-number expressions, fold branches, and prune unreachable blocks to a fixed point.</li>
-            <li>Devirtualize class methods, infer effects, and inline eligible expression and multi-block CFG calls.</li>
+            <li>Devirtualize class methods, infer effects, validate <code>pure</code> contracts, and inline eligible expression and multi-block CFG calls across files.</li>
             <li>Analyze escapes, dissolve non-escaping structs and classes, and remove overwritten field stores.</li>
             <li>Remove unused pure calls, allocations, instructions, functions, globals, and bindings.</li>
             <li>Coalesce non-interfering SSA values, rank short names by use frequency, fuse expressions, and apply backend peepholes.</li>
@@ -269,7 +287,7 @@ cargo clippy --all-targets -- -D warnings
 cargo test --all-targets
 scripts/verify.sh
 benchmarks/run.sh</code></pre>
-          <p>The matrix compiles 33 independent programs with <code>--target all</code>, then requires Node, the direct native output, independently compiled emitted C, and checked-in expected output to agree. Eight equivalent workloads are also executed before comparing raw, gzip-9, and Brotli-11 output against Closure ADVANCED v20260803. Current corpus totals are 1,465 / 1,193 / 1,003 bytes for LilScript and 2,235 / 1,553 / 1,274 bytes for Closure.</p>
+          <p>The matrix compiles 34 programs, including a multi-file graph, with <code>--target all</code>, then requires Node, the direct native output, independently compiled emitted C, and checked-in expected output to agree. Nine equivalent workloads are also executed before comparing raw, gzip-9, and Brotli-11 output against Closure ADVANCED v20260803. Current corpus totals are 1,508 / 1,300 / 1,080 bytes for LilScript and 2,357 / 1,687 / 1,382 bytes for Closure. The three-module workload is 116 / 130 / 104 versus Closure at 122 / 134 / 108.</p>
         </section>
       </main>
     </div>

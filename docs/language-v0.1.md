@@ -12,6 +12,10 @@ declaration is required to cross into an untyped JavaScript boundary. Values
 that reach an `extern` boundary are considered escaping and must use the
 boundary ABI representation.
 
+The entry `.lil` file and every transitive static import form one compilation
+unit. Module boundaries are resolved before semantic analysis and erased before
+SSA optimization; they are not JavaScript wrappers in the generated bundle.
+
 ## Lexical grammar
 
 - Source text is UTF-8.
@@ -63,6 +67,39 @@ Bindings are block scoped. Reading before declaration is invalid. A binding may
 shadow one from an outer scope but cannot be declared twice in one scope.
 Every runtime variable declaration requires an initializer; fields are the only
 declarations initialized by their aggregate or class representation.
+
+## Modules
+
+LilScript modules use named, relative imports. The `.lil` extension may be
+omitted. A side-effect-only import is also supported.
+
+```lilscript
+import { square, Point as Coordinate } from "./math";
+import "./startup.lil";
+
+export pure int area(int width, int height) {
+  return width * height;
+}
+
+export { Coordinate };
+```
+
+Only explicitly exported top-level functions, variables, structs, classes, and
+externs can be imported. Imported names may be aliased with `as`. Module-private
+bindings are namespaced by the linker, so equal private names in different files
+cannot collide.
+
+Imports must begin with `./` or `../`, resolve to `.lil` files, and form an
+acyclic graph. Every module is initialized once in dependency-first order.
+Side-effect-only imports therefore preserve initialization behavior.
+
+An export is an accessibility declaration, not a retention root. In an
+executable build, unused imported and exported functions, types, globals, and
+pure initializers remain eligible for whole-program elimination. Static import
+and export syntax never appears in generated JavaScript. The v0.1 backend emits
+one optimized application bundle by default; lazy imports and runtime chunk
+loading are outside the current contract because forced chunks add boundaries
+and bytes to fully static programs.
 
 ## Aggregates and classes
 
@@ -122,6 +159,23 @@ inside the closure, while objects and arrays referenced by a capture remain
 mutable. Top-level bindings are shared globals rather than closure captures.
 All paths of a non-`void` function must return a value.
 
+Purity is inferred for every function by interprocedural effect analysis. The
+optional `pure` modifier turns that inference into a checked contract:
+
+```lilscript
+pure int square(int value) {
+  return value * value;
+}
+
+pure extern int stableHostHash(int value);
+```
+
+A declared-pure LilScript function is rejected if it can print, mutate a global,
+array, struct, or class, or call code with observable effects. Calls whose result
+is unused can be removed when their target is inferred or declared pure.
+`pure extern` is a trusted host ABI promise; violating it is a host integration
+error.
+
 Untyped host calls must be declared explicitly:
 
 ```lilscript
@@ -173,6 +227,10 @@ The optimized IR pipeline must run, in a fixed-point schedule where relevant:
 8. dead instruction and dead binding elimination;
 9. representation selection;
 10. frequency- and compression-aware symbol assignment.
+
+These requirements apply after the complete static module graph has been
+linked, so propagation, inlining, devirtualization, scalar replacement, effect
+analysis, and DCE operate across source-file boundaries.
 
 The detailed Closure `ADVANCED` responsibility mapping and pass schedule are in
 [optimization-coverage.md](optimization-coverage.md).

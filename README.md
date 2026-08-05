@@ -35,7 +35,7 @@ if (vector.lengthSquared() == 25.0) {
 }
 ```
 
-The optimized JavaScript for this program is 120 bytes. The class is
+The optimized JavaScript for this program is 112 bytes. The class is
 devirtualized and scalar-replaced, the method and constructor disappear, and
 the output preserves signed 32-bit `int` behavior.
 
@@ -60,6 +60,27 @@ target/release/lilscript examples/full_conformance.lil --target all -o build/app
 ```
 
 The native target invokes `${CC:-clang}` with C11 and `-O3`.
+
+## Modules and tree shaking
+
+Static imports are compiler inputs, not emitted JavaScript wrappers:
+
+```lilscript
+// math.lil
+export pure int square(int value) {
+  return value * value;
+}
+
+// main.lil
+import { square as sq } from "./math";
+print(sq(5));
+```
+
+Compiling `main.lil` discovers the complete relative module graph, validates
+exports, isolates private names, and optimizes the linked program once. Cross-file
+inlining and DCE can reduce this example to `console.log(25)`. Exported code is
+removed when unreachable. Purity is inferred automatically; `pure` is an
+optional checked contract, and `pure extern` is a trusted host promise.
 
 ## Playground
 
@@ -111,6 +132,7 @@ VS Code settings when the executable is installed elsewhere.
 LilScript source
   -> Logos lexer
   -> bumpalo arena recursive-descent parser
+  -> static module graph resolution and private-name linking
   -> symbols, scopes, type checking, capture analysis
   -> typed control-flow IR
   -> mem2reg SSA and phi insertion
@@ -123,7 +145,7 @@ LilScript source
 ```
 
 The major implementation boundaries are in `src/lexer.rs`, `src/parser.rs`,
-`src/semantic.rs`, `src/lower.rs`, `src/ir.rs`, `src/optimizer.rs`,
+`src/module.rs`, `src/semantic.rs`, `src/lower.rs`, `src/ir.rs`, `src/optimizer.rs`,
 `src/codegen_ir_js.rs`, and `src/codegen_native.rs`. The executable language
 contract is [docs/language-v0.1.md](docs/language-v0.1.md).
 
@@ -140,7 +162,7 @@ npm --prefix vscode-extension run package
 ```
 
 `scripts/verify.sh` compares Node and native output for two conformance suites
-and links a generated aggregate ABI against a C host. It also runs 33 programs
+and links a generated aggregate ABI against a C host. It also runs 34 programs
 through JavaScript, emitted C, and native executables, plus a framed LSP session
 through diagnostics, completion, hover, symbols, and shutdown.
 `benchmarks/run.sh`
@@ -148,9 +170,11 @@ downloads the pinned Closure Compiler `v20260803`, runs `ADVANCED` compilation,
 checks equivalent runtime output, and measures normalized raw, gzip-9, and
 Brotli-11 bytes.
 
-On the repository's eight current workloads LilScript is smaller in every measured
-raw, gzip-9, and Brotli-11 cell. Across the corpus it totals 1,465 raw / 1,193
-gzip / 1,003 Brotli bytes versus Closure at 2,235 / 1,553 / 1,274. These are
+On the repository's nine current workloads LilScript is smaller in every measured
+raw, gzip-9, and Brotli-11 cell. Across the corpus it totals 1,508 raw / 1,300
+gzip / 1,080 Brotli bytes versus Closure at 2,357 / 1,687 / 1,382. The module
+workload uses three real source modules for each compiler and measures
+116 / 130 / 104 bytes for LilScript versus 122 / 134 / 108 for Closure. These are
 workload-specific results, not a claim that one compiler wins for every
 possible program. Full methodology and tables are in
 [docs/benchmark-results.md](docs/benchmark-results.md); the pass-by-pass
@@ -160,9 +184,10 @@ responsibility mapping is in
 ## v0.1 Scope
 
 The implemented v0.1 language includes primitive and nominal types, arrays,
-functions and closures, structs, classes and constructors, control flow,
-compound assignment, templates, explicit host `extern` declarations, and the
-standard methods listed in the language contract. Modules, package management,
+functions and closures, structs, classes and constructors, static modules,
+checked purity contracts, control flow, compound assignment, templates,
+explicit host `extern` declarations, and the standard methods listed in the
+language contract. Package management, lazy module loading, runtime chunks,
 generics, exceptions, async execution, and a direct machine-code backend are
 outside v0.1; native executables currently use optimized C as the final lowering
 stage.

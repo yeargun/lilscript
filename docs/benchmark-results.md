@@ -12,7 +12,7 @@ Measured on 2026-08-05 with LilScript release mode and Google Closure Compiler
 
 | Compiler | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
-| LilScript | 120 | 132 | 113 |
+| LilScript | 112 | 127 | 106 |
 | Closure ADVANCED v20260803 | 212 | 190 | 166 |
 
 This case exercises class constructor/method devirtualization, scalar
@@ -33,7 +33,7 @@ string predicates, case conversion, templates, and constant propagation.
 
 | Compiler | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
-| LilScript | 412 | 286 | 236 |
+| LilScript | 355 | 271 | 221 |
 | Closure ADVANCED v20260803 | 547 | 368 | 309 |
 
 This broader case combines structs, mutable classes, direct functions, global
@@ -55,7 +55,7 @@ branch removal.
 
 | Compiler | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
-| LilScript | 202 | 168 | 142 |
+| LilScript | 194 | 165 | 137 |
 | Closure ADVANCED v20260803 | 205 | 169 | 144 |
 
 This case combines recursion with single-use multi-block CFG inlining, two
@@ -92,12 +92,24 @@ inlining, callback effects, and captured immutable globals.
 This case measures compile-time string predicates and case conversion,
 short-circuit folding, templates, and repeated long-string reuse.
 
+### `modules`
+
+| Compiler | Raw | Gzip-9 | Brotli-11 |
+| --- | ---: | ---: | ---: |
+| LilScript | 116 | 130 | 104 |
+| Closure ADVANCED v20260803 | 122 | 134 | 108 |
+
+This case gives each compiler three real source modules. It measures relative
+import resolution, transitive linking, aliases, exported and private bindings,
+cross-module multi-block inlining, purity-guided DCE, loop-phi copy ordering,
+and complete removal of module syntax and unused exports.
+
 ### Corpus total
 
 | Compiler | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
-| LilScript | 1,465 | 1,193 | 1,003 |
-| Closure ADVANCED v20260803 | 2,235 | 1,553 | 1,274 |
+| LilScript | 1,508 | 1,300 | 1,080 |
+| Closure ADVANCED v20260803 | 2,357 | 1,687 | 1,382 |
 
 ## Method
 
@@ -122,6 +134,6 @@ benchmarks/run.sh
 ```
 
 The measured conclusion is deliberately scoped: LilScript beats the pinned
-Closure release in every raw and compressed cell in these eight equivalent
+Closure release in every raw and compressed cell in these nine equivalent
 workloads. The suite is reproducible evidence for these features, not proof of
 universal superiority over arbitrary JavaScript or future language features.
