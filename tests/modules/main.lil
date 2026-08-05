@@ -1,0 +1,6 @@
+import "./effects";
+import { combined as score, unusedMath } from "./math";
+import { Pair, pairTotal } from "./model.lil";
+
+Pair pair = Pair{3, 4};
+print(`score=${score(5)},pair=${pairTotal(pair)}`);

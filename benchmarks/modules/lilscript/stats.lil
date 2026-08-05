@@ -1,0 +1,13 @@
+import { weight } from "./math";
+
+export pure int checksum(int[] values) {
+  int total = 0;
+  for (int index = 0; index < values.length; index++) {
+    total += weight(values[index], index);
+  }
+  return total;
+}
+
+export pure int unusedStats(int[] values) {
+  return values.length * 1000;
+}

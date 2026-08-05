@@ -23,8 +23,12 @@ fi
 mkdir -p "$BUILD"
 
 "$LILSCRIPT" "$APP/lilscript/main.lil" --target all -o "$BUILD/lilscript"
+set --
+for javascript in "$APP"/closure/*.js; do
+  set -- "$@" --js "$javascript"
+done
 java -jar "$JAR" \
-  --js "$APP/closure/main.js" \
+  "$@" \
   --js_output_file "$BUILD/closure.js" \
   --compilation_level ADVANCED \
   --language_in ECMASCRIPT_2021 \

@@ -1,0 +1,15 @@
+pure int privateDouble(int value) {
+  return value * 2;
+}
+
+export pure int square(int value) {
+  return value * value;
+}
+
+export pure int combined(int value) {
+  return square(value) + privateDouble(value);
+}
+
+export pure int unusedMath(int value) {
+  return value * 999;
+}

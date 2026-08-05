@@ -1,0 +1,12 @@
+export struct Pair {
+  int left;
+  int right;
+}
+
+export pure int pairTotal(Pair pair) {
+  return pair.left + pair.right;
+}
+
+pure int hiddenModelHelper(int value) {
+  return value + 1000;
+}

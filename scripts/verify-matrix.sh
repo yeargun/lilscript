@@ -14,9 +14,10 @@ fi
 mkdir -p "$BUILD"
 
 count=0
-for source in "$CASES"/*.lil; do
-  name=$(basename "$source" .lil)
-  expected="$CASES/$name.out"
+verify_case() {
+  source=$1
+  expected=$2
+  name=$3
   base="$BUILD/$name"
 
   "$LILSCRIPT" "$source" --target all -o "$base"
@@ -33,6 +34,16 @@ for source in "$CASES"/*.lil; do
   diff -u "$expected" "$base.native.out"
   diff -u "$expected" "$base.c.out"
   count=$((count + 1))
+}
+
+for source in "$CASES"/*.lil; do
+  name=$(basename "$source" .lil)
+  verify_case "$source" "$CASES/$name.out" "$name"
 done
+
+verify_case \
+  "$ROOT/tests/modules/main.lil" \
+  "$ROOT/tests/modules/main.out" \
+  module_graph
 
 printf '%s LilScript programs matched across JavaScript, emitted C, and native executables.\n' "$count"

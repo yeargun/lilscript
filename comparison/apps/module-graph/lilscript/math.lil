@@ -1,0 +1,7 @@
+export pure int weight(int value, int index) {
+  return value * (index + 3) + index;
+}
+
+export pure int unusedPolynomial(int value) {
+  return value * value * value + 77;
+}

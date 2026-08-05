@@ -4,6 +4,10 @@ Every directory under `apps/` is a self-contained program comparison. Each
 program includes independent LilScript and JavaScript sources, expected stdout,
 pinned compiler versions, and local build/test entry points.
 
+Applications may contain multiple source files. `module-graph` gives both
+compilers three modules and verifies transitive import resolution, cross-module
+optimization, and unused-export elimination.
+
 The JavaScript source is written for Closure `ADVANCED`: it is closed-world,
 does not export internal names, avoids dynamic property access, and explicitly
 normalizes integer arithmetic to LilScript's signed 32-bit semantics.
