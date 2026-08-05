@@ -1,0 +1,6 @@
+int apply(int factor) {
+  auto callback = (int value) => value * factor;
+  return callback(4);
+}
+
+print(apply(3));

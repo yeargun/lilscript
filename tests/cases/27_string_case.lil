@@ -1,0 +1,3 @@
+string mixed = "LilScript";
+print(mixed.toUpperCase());
+print(mixed.toLowerCase());

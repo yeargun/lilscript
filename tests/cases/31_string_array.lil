@@ -1,0 +1,6 @@
+string[] values = ["A", "B", "C"];
+string result = "";
+for (int index = 0; index < values.length; index++) {
+  result += values[index];
+}
+print(result);

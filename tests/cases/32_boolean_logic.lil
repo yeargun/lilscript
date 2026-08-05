@@ -1,0 +1,5 @@
+bool first = true;
+bool second = false;
+print(first && !second);
+print((first == true) || second);
+print(first != second);

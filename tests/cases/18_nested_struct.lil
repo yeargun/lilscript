@@ -1,0 +1,13 @@
+struct Point {
+  int x;
+  int y;
+}
+
+struct Line {
+  Point start;
+  Point end;
+}
+
+Line line = Line{Point{1, 2}, Point{8, 13}};
+print(line.end.x - line.start.x);
+print(line.end.y - line.start.y);

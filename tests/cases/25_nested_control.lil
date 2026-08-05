@@ -1,0 +1,11 @@
+int total = 0;
+for (int outer = 0; outer < 4; outer++) {
+  int inner = 0;
+  while (inner < 4) {
+    if ((outer + inner) % 2 == 0) {
+      total += outer * inner;
+    }
+    inner++;
+  }
+}
+print(total);

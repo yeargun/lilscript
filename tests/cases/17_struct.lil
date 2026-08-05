@@ -1,0 +1,11 @@
+struct Point {
+  int x;
+  int y;
+}
+
+int sum(Point point) {
+  return point.x + point.y;
+}
+
+Point point = Point{13, 29};
+print(sum(point));

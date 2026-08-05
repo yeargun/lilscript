@@ -1,0 +1,8 @@
+int unused(int value) {
+  return value * 100;
+}
+
+if (false) {
+  print(unused(9));
+}
+print(42);

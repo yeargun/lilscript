@@ -1,0 +1,19 @@
+struct Point {
+  int x;
+  int y;
+}
+
+class Box {
+  int value;
+
+  init(int value) {
+    this.value = value;
+  }
+}
+
+extern int consumePoint(Point point);
+extern int consumeBox(Box value);
+
+Point point = Point{1, 2};
+Box value = new Box(3);
+print(consumePoint(point) + consumeBox(value));

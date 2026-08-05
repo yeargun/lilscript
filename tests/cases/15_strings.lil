@@ -1,0 +1,6 @@
+string value = "LilScript";
+print(value.includes("Script"));
+print(value.startsWith("Lil"));
+print(value.endsWith("Script"));
+print("alpha" < "beta");
+print("same" == "same");

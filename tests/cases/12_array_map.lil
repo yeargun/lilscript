@@ -1,0 +1,4 @@
+int[] values = [1, 2, 3, 4];
+auto mapped = values.map((int value) => value * value);
+int total = mapped.reduce((int sum, int value) => sum + value, 0);
+print(total);

@@ -1,0 +1,20 @@
+int score(int limit) {
+  int total = 0;
+  for (int outer = 0; outer < limit; outer++) {
+    if (outer % 3 == 0) {
+      continue;
+    }
+    int inner = 0;
+    while (inner < 4) {
+      if ((outer + inner) % 2 == 0) {
+        total += outer * inner;
+      } else {
+        total += 1;
+      }
+      inner++;
+    }
+  }
+  return total;
+}
+
+print(score(12));

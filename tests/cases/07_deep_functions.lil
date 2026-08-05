@@ -1,0 +1,13 @@
+int increment(int value) {
+  return value + 1;
+}
+
+int twice(int value) {
+  return increment(increment(value));
+}
+
+int fourTimes(int value) {
+  return twice(twice(value));
+}
+
+print(fourTimes(1));

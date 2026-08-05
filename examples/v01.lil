@@ -1,0 +1,28 @@
+class Vector {
+  float x;
+  float y;
+
+  init(float x, float y) {
+    this.x = x;
+    this.y = y;
+  }
+
+  float lengthSquared() {
+    return this.x * this.x + this.y * this.y;
+  }
+}
+
+int[] values = [1, 2, 3, 4];
+auto doubled = values.map((int value) => value * 2);
+int sum = 0;
+
+for (int index = 0; index < doubled.length; index++) {
+  sum += doubled[index];
+}
+
+Vector vector = new Vector(3.0, 4.0);
+if (vector.lengthSquared() == 25.0) {
+  print(`sum=${sum}`);
+} else {
+  print("invalid");
+}

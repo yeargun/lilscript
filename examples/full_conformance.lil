@@ -1,0 +1,64 @@
+struct Pair {
+  int left;
+  int right;
+}
+
+class Counter {
+  int value;
+
+  init(int initial) {
+    this.value = initial;
+  }
+
+  int add(int amount) {
+    this.value += amount;
+    return this.value;
+  }
+}
+
+int square(int value) {
+  return value * value;
+}
+
+Pair pair = Pair{2, 5};
+Counter counter = new Counter(pair.left + pair.right);
+int classValue = counter.add(3);
+
+int factor = 2;
+auto scale = (int value) => value * factor;
+int[] values = [1, 2, 3, 4];
+auto mapped = values.map(scale);
+auto selected = mapped.filter((int value) => value >= 4);
+int total = selected.reduce((int sum, int value) => sum + value, 0);
+
+int whileTotal = 0;
+int whileIndex = 0;
+while (whileIndex < 3) {
+  whileTotal += square(whileIndex);
+  whileIndex++;
+}
+
+int flow = 0;
+for (int index = 0; index < 8; index++) {
+  if (index == 2) {
+    continue;
+  }
+  if (index == 6) {
+    break;
+  }
+  flow += index;
+}
+
+int arithmetic = 20;
+arithmetic -= 2;
+arithmetic *= 3;
+arithmetic /= 2;
+arithmetic %= 10;
+bool logic = total == 18 && flow == 13 || false;
+
+string label = "LilScript";
+string message = label.toLowerCase() + ":" + classValue;
+bool checks = label.includes("Script") && label.startsWith("Lil") && label.endsWith("Script");
+
+print(`values=${total},while=${whileTotal},flow=${flow},math=${arithmetic}`);
+print(`logic=${logic},checks=${checks},message=${message}`);

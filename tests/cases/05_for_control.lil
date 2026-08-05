@@ -1,0 +1,11 @@
+int total = 0;
+for (int index = 0; index < 10; index++) {
+  if (index == 2) {
+    continue;
+  }
+  if (index == 7) {
+    break;
+  }
+  total += index;
+}
+print(total);

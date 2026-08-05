@@ -1,0 +1,4 @@
+int[] values = [2, 4, 6];
+values[1] = values[0] + values[2];
+print(values[1]);
+print(values.length);

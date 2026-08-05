@@ -1,0 +1,30 @@
+int factorial(int value) {
+  if (value <= 1) {
+    return 1;
+  }
+  return value * factorial(value - 1);
+}
+
+int gcd(int left, int right) {
+  while (right != 0) {
+    int remainder = left % right;
+    left = right;
+    right = remainder;
+  }
+  return left;
+}
+
+int fibonacci(int count) {
+  int previous = 0;
+  int current = 1;
+  for (int index = 0; index < count; index++) {
+    int next = previous + current;
+    previous = current;
+    current = next;
+  }
+  return previous;
+}
+
+print(factorial(7));
+print(gcd(1071, 462));
+print(fibonacci(12));

@@ -1,0 +1,6 @@
+int[] values = [3, 5];
+int length = values.push(8);
+int last = values.pop();
+print(length);
+print(last);
+print(values.length);

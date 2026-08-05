@@ -1,0 +1,6 @@
+int apply(int factor, int input) {
+  auto scale = (int value) => value * factor;
+  return scale(input);
+}
+
+print(apply(7, 6));

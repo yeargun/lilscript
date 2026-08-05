@@ -1,0 +1,6 @@
+int value = 4;
+{
+  int value = 9;
+  print(value);
+}
+print(value);

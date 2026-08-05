@@ -1,0 +1,7 @@
+int factor = 6;
+
+int scale(int value) {
+  return value * factor;
+}
+
+print(scale(7));

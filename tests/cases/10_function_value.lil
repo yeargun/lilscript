@@ -1,0 +1,2 @@
+func(int)->int operation = (int value) => value * 2;
+print(operation(9));

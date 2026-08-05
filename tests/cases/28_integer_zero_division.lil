@@ -1,0 +1,3 @@
+int divisor = 0;
+print(7 / divisor);
+print(7 % divisor);

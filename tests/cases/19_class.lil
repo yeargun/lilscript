@@ -1,0 +1,16 @@
+class Counter {
+  int value;
+
+  init(int initial) {
+    this.value = initial;
+  }
+
+  int add(int amount) {
+    this.value += amount;
+    return this.value;
+  }
+}
+
+Counter counter = new Counter(10);
+print(counter.add(5));
+print(counter.add(-3));

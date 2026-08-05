@@ -1,0 +1,5 @@
+float width = 3.5;
+float height = 2.0;
+float area = width * height;
+print(area);
+print(area >= 7.0);

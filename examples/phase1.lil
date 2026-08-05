@@ -1,0 +1,12 @@
+int x = 5;
+
+struct Point {
+  int x;
+  int y;
+}
+
+Point p = Point{10, 20};
+int sum = p.x + p.y;
+
+int[] numbers = [1, 2, 3];
+auto doubled = numbers.map((int value) => value * 2);

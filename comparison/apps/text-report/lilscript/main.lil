@@ -1,0 +1,7 @@
+string product = "LilScript";
+bool valid = product.startsWith("Lil") && product.endsWith("Script");
+string normalized = product.toLowerCase();
+print(`${normalized}:${valid}:${product.includes("Script")}`);
+print("repeated-long-application-label");
+print("repeated-long-application-label");
+print("repeated-long-application-label");

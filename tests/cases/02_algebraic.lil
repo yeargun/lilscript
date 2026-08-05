@@ -1,0 +1,6 @@
+int value = 0;
+for (int index = 0; index < 5; index++) {
+  value += index;
+}
+print((value + 0) * 1);
+print(value - value);

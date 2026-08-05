@@ -1,0 +1,21 @@
+int[] values = [1, 2, 3, 4];
+int pushedLength = values.push(5);
+int last = values.pop();
+auto evens = values.filter((int value) => value % 2 == 0);
+int sum = evens.reduce((int total, int value) => total + value, 0);
+
+evens.forEach((int value) => {
+  print(value);
+});
+
+string name = "LilScript";
+bool includes = name.includes("Script");
+bool starts = name.startsWith("Lil");
+bool ends = name.endsWith("Script");
+string upper = name.toUpperCase();
+string lower = name.toLowerCase();
+
+print(`sum=${sum},last=${last},pushed=${pushedLength},len=${values.length}`);
+print(`checks=${includes},${starts},${ends}`);
+print(upper);
+print(lower);

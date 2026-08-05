@@ -1,0 +1,6 @@
+int total = 0;
+int[] values = [2, 3, 5, 7];
+values.forEach((int value) => {
+  total += value;
+});
+print(total);

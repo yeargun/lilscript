@@ -1,0 +1,9 @@
+int factor = 3;
+int[] values = [1, 2, 3, 4, 5, 6];
+auto scaled = values.map((int value) => value * factor);
+auto selected = scaled.filter((int value) => value % 2 == 0);
+int total = selected.reduce((int sum, int value) => sum + value, 0);
+selected.forEach((int value) => {
+  print(value);
+});
+print(total);

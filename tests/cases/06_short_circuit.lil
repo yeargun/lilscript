@@ -1,0 +1,10 @@
+int calls = 0;
+
+bool probe(bool value) {
+  calls++;
+  return value;
+}
+
+bool result = probe(false) && probe(true) || probe(true);
+print(result);
+print(calls);

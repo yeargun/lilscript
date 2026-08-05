@@ -1,0 +1,21 @@
+class Accumulator {
+  int total;
+
+  init() {
+    this.total = 0;
+  }
+
+  void add(int value) {
+    this.total += value;
+  }
+
+  int read() {
+    return this.total;
+  }
+}
+
+Accumulator accumulator = new Accumulator();
+for (int index = 1; index <= 5; index++) {
+  accumulator.add(index);
+}
+print(accumulator.read());
