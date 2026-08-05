@@ -657,6 +657,50 @@ mod tests {
     }
 
     #[test]
+    fn materializes_mutable_reads_before_later_writes() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "int state=1;void run(){int previous=state;state=2;print(previous);}run();",
+        )
+        .unwrap();
+        let mut config = ProjectConfig::default();
+        config.optimization.preset = crate::config::OptimizationPreset::None;
+        config.mangle.identifiers = false;
+        let output = compile_program_to_js_configured(&program, &config).unwrap();
+
+        let load = output
+            .find("=state;")
+            .unwrap_or_else(|| panic!("global read must be stored: {output}"));
+        let store = output
+            .find("state=2;")
+            .unwrap_or_else(|| panic!("global write must remain: {output}"));
+        let print = output
+            .find("console.log(")
+            .unwrap_or_else(|| panic!("saved value must be printed: {output}"));
+        assert!(load < store && store < print, "{output}");
+        assert!(
+            !output[print..].starts_with("console.log(state)"),
+            "{output}"
+        );
+
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "int[] values=[1];int length=values.length;values.push(2);print(length);",
+        )
+        .unwrap();
+        let output = compile_program_to_js_configured(&program, &config).unwrap();
+        let load = output
+            .find("=values.length;")
+            .expect("array length read must be stored");
+        let mutation = output
+            .find("values.push(2)")
+            .expect("array mutation must remain");
+        assert!(load < mutation, "{output}");
+    }
+
+    #[test]
     fn preserves_branch_local_shadowing_while_linking() {
         let directory = std::env::temp_dir().join(format!(
             "lilscript-module-shadow-test-{}",

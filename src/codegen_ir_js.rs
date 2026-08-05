@@ -2266,16 +2266,29 @@ fn coalesce_value_names(
             }
         }
         for instruction in block.instructions.iter().rev() {
+            let operands = op_values(&instruction.op)
+                .into_iter()
+                .filter(|value| named.contains(value))
+                .collect::<Vec<_>>();
             if let Some(out) = instruction.out.filter(|out| named.contains(out)) {
+                if matches!(
+                    instruction.op,
+                    ControlFlowOp::NewClass {
+                        constructor: Some(_),
+                        ..
+                    }
+                ) {
+                    for operand in &operands {
+                        connect(out, *operand);
+                    }
+                }
                 for value in &live {
                     connect(out, *value);
                 }
                 live.remove(&out);
             }
-            for value in op_values(&instruction.op) {
-                if named.contains(&value) {
-                    live.insert(value);
-                }
+            for value in operands {
+                live.insert(value);
             }
         }
         let phi_values = block
@@ -2548,10 +2561,8 @@ fn op_can_defer(op: &ControlFlowOp<'_>) -> bool {
             | ControlFlowOp::Struct { .. }
             | ControlFlowOp::Closure { .. }
             | ControlFlowOp::Template(_)
-            | ControlFlowOp::LoadGlobal(_)
-            | ControlFlowOp::FieldGet { .. }
             | ControlFlowOp::Intrinsic {
-                intrinsic: Intrinsic::ArrayLength | Intrinsic::StringLength,
+                intrinsic: Intrinsic::StringLength,
                 ..
             }
     )
@@ -2830,6 +2841,55 @@ mod tests {
     #[test]
     fn emits_compact_straight_line_ir() {
         assert_eq!(compile("print(1+2*3);"), "console.log(7)");
+    }
+
+    #[test]
+    fn constructor_results_do_not_coalesce_with_constructor_arguments() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "class Task{func()->void callback;bool marker;init(func()->void callback,bool marker){this.callback=callback;this.marker=marker;}}int install(func()->void callback,bool marker){Task task=new Task(callback,marker);return 1;}print(install(()=>{print(1);},true));",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+        crate::optimizer::promote_locals_to_ssa(&mut ir).unwrap();
+        let function = ir
+            .functions
+            .iter()
+            .find(|function| function.name == Some("install"))
+            .unwrap();
+        let callback = function.params[0].value;
+        let object = function
+            .blocks
+            .iter()
+            .flat_map(|block| &block.instructions)
+            .find_map(|instruction| {
+                matches!(instruction.op, ControlFlowOp::NewClass { .. })
+                    .then_some(instruction.out)
+                    .flatten()
+            })
+            .unwrap();
+        let named = function
+            .params
+            .iter()
+            .map(|parameter| parameter.value)
+            .chain(
+                function
+                    .blocks
+                    .iter()
+                    .flat_map(|block| &block.instructions)
+                    .filter_map(|instruction| instruction.out),
+            )
+            .collect::<AHashSet<_>>();
+        let parameters = function
+            .params
+            .iter()
+            .map(|parameter| parameter.value)
+            .collect::<AHashSet<_>>();
+        let colors = coalesce_value_names(function, &named, &parameters, &use_counts(function));
+
+        assert_ne!(colors[&callback], colors[&object]);
     }
 
     #[test]
