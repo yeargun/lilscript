@@ -753,6 +753,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                     span,
                 }
             }
+            TokenKind::From => TypeRef::named("from", token.span),
             _ => return Err(ParseError::new(token.span, "expected type")),
         };
 
@@ -967,6 +968,16 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                 }
                 Ok(Expr::Ident(ident))
             }
+            TokenKind::From => {
+                let ident = Ident {
+                    name: "from",
+                    span: token.span,
+                };
+                if self.match_kind(|kind| matches!(kind, TokenKind::LBrace)) {
+                    return self.parse_struct_literal_after_open(ident);
+                }
+                Ok(Expr::Ident(ident))
+            }
             TokenKind::LParen => {
                 let expr = self.parse_expression()?;
                 self.expect(|kind| matches!(kind, TokenKind::RParen), "expected `)`")?;
@@ -1161,7 +1172,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         };
         matches!(
             self.tokens.get(type_end).map(|token| &token.kind),
-            Some(TokenKind::Ident(_))
+            Some(TokenKind::Ident(_) | TokenKind::From)
         )
     }
 
@@ -1176,7 +1187,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                 | TokenKind::Void
                 | TokenKind::Auto,
             ) => index += 1,
-            Some(TokenKind::Ident(_)) => {
+            Some(TokenKind::Ident(_) | TokenKind::From) => {
                 index += 1;
                 if matches!(
                     self.tokens.get(index).map(|token| &token.kind),
@@ -1298,6 +1309,10 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         match token.kind {
             TokenKind::Ident(name) => Ok(Ident {
                 name,
+                span: token.span,
+            }),
+            TokenKind::From => Ok(Ident {
+                name: "from",
                 span: token.span,
             }),
             _ => Err(ParseError::new(token.span, message)),
@@ -1532,6 +1547,29 @@ export { Point };"#,
         assert_eq!(program.exports.len(), 1);
         assert_eq!(program.exports[0].local.name, "internalValue");
         assert_eq!(program.exports[0].exported.name, "publicValue");
+    }
+
+    #[test]
+    fn treats_from_as_a_contextual_import_keyword() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            r#"import {from as importedFrom} from "./source";
+export int from(int value){return value;}
+int result=from(3);"#,
+        )
+        .unwrap();
+
+        assert_eq!(program.imports[0].specifiers[0].imported.name, "from");
+        assert_eq!(program.imports[0].specifiers[0].local.name, "importedFrom");
+        let Item::Function(function) = &program.items[0] else {
+            panic!("expected exported function");
+        };
+        assert_eq!(function.name.name, "from");
+        let Item::Stmt(Stmt::VarDecl(binding)) = &program.items[1] else {
+            panic!("expected variable declaration");
+        };
+        assert!(matches!(binding.initializer, Some(Expr::Call { .. })));
     }
 
     #[test]
