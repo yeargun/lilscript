@@ -2684,11 +2684,7 @@ fn validate_type_guard(
             format!("type `{target}` has no portable runtime type guard"),
         )
     })?;
-    let members = match value {
-        Type::Union(members) => members.clone(),
-        Type::Nullable(inner) => vec![inner.as_ref().clone(), Type::Null],
-        value => vec![value.clone()],
-    };
+    let members = runtime_guard_members(value);
     if !members.iter().any(|member| member == target) {
         return Err(SemanticError::new(
             span,
@@ -2707,6 +2703,18 @@ fn validate_type_guard(
     Ok(())
 }
 
+fn runtime_guard_members<'src>(value: &Type<'src>) -> Vec<Type<'src>> {
+    match value {
+        Type::Union(members) => members.clone(),
+        Type::Nullable(inner) => {
+            let mut members = runtime_guard_members(inner);
+            members.push(Type::Null);
+            members
+        }
+        value => vec![value.clone()],
+    }
+}
+
 fn subtract_guarded_type<'src>(value: &Type<'src>, target: &Type<'src>) -> Option<Type<'src>> {
     match value {
         Type::Union(members) => {
@@ -2719,6 +2727,8 @@ fn subtract_guarded_type<'src>(value: &Type<'src>, target: &Type<'src>) -> Optio
         }
         Type::Nullable(inner) if target == &Type::Null => Some(inner.as_ref().clone()),
         Type::Nullable(inner) if target == inner.as_ref() => Some(Type::Null),
+        Type::Nullable(inner) => subtract_guarded_type(inner, target)
+            .map(|remaining| Type::Nullable(Box::new(remaining))),
         _ => None,
     }
 }
@@ -2887,6 +2897,11 @@ mod tests {
                     else if(value is int){return "number-"+value;}
                     else if(value){return "yes";}
                     else{return "no";}
+                }
+                string nullableUnion((string|int)? value){
+                    if(value==null){return "none";}
+                    else if(value is string){return value.toUpperCase();}
+                    else{return "number-"+value;}
                 }
             "#,
         )

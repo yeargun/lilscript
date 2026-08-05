@@ -900,24 +900,48 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                 ),
             )
         })?;
-        let declared = &self
+        let declared = self
             .semantics
             .symbols()
             .get(symbol.0 as usize)
             .ok_or_else(|| LowerError::new(ident.span, "missing identifier type"))?
-            .ty;
-        if matches!(declared, Type::Nullable(inner) if inner.as_ref() == &ty) {
-            return self.emit_value(
-                ControlFlowOp::Intrinsic {
-                    intrinsic: Intrinsic::UnwrapNullable,
-                    receiver: Some(value),
-                    args: Vec::new(),
-                },
-                ty,
-                ident.span,
-            );
+            .ty
+            .clone();
+        let current = declared;
+        if let Type::Nullable(inner) = &current {
+            if inner.as_ref() == &ty {
+                return self.emit_value(
+                    ControlFlowOp::Intrinsic {
+                        intrinsic: Intrinsic::UnwrapNullable,
+                        receiver: Some(value),
+                        args: Vec::new(),
+                    },
+                    ty,
+                    ident.span,
+                );
+            }
+            if matches!(inner.as_ref(), Type::Union(members) if members.contains(&ty)) {
+                let unwrapped = self.emit_value(
+                    ControlFlowOp::Intrinsic {
+                        intrinsic: Intrinsic::UnwrapNullable,
+                        receiver: Some(value),
+                        args: Vec::new(),
+                    },
+                    inner.as_ref().clone(),
+                    ident.span,
+                )?;
+                return self.emit_value(
+                    ControlFlowOp::Intrinsic {
+                        intrinsic: Intrinsic::UnwrapUnion,
+                        receiver: Some(unwrapped),
+                        args: Vec::new(),
+                    },
+                    ty,
+                    ident.span,
+                );
+            }
         }
-        if matches!(declared, Type::Union(members) if members.contains(&ty)) {
+        if matches!(current, Type::Union(ref members) if members.contains(&ty)) {
             return self.emit_value(
                 ControlFlowOp::Intrinsic {
                     intrinsic: Intrinsic::UnwrapUnion,

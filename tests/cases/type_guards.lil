@@ -1,4 +1,5 @@
 bool flip = false;
+int maybeIndex = 0;
 
 string|int nextValue() {
   flip = !flip;
@@ -44,9 +45,33 @@ string first((int[]|string) value) {
   }
 }
 
+(string|int)? nextMaybe() {
+  maybeIndex += 1;
+  if (maybeIndex == 1) {
+    return null;
+  }
+  if (maybeIndex == 2) {
+    return "maybe";
+  }
+  return 9;
+}
+
+string describeMaybe((string|int)? value) {
+  if (value == null) {
+    return "none";
+  } else if (value is string) {
+    return value.toUpperCase();
+  } else {
+    return "number-" + value;
+  }
+}
+
 print(describe(nextValue()));
 print(describe(nextValue()));
 print(invoke(nextHandler()));
 print(invoke(nextHandler()));
 print(first([7, 8]));
 print(first("none"));
+print(describeMaybe(nextMaybe()));
+print(describeMaybe(nextMaybe()));
+print(describeMaybe(nextMaybe()));
