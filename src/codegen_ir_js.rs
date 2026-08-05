@@ -6,13 +6,50 @@ use ahash::{AHashMap, AHashSet};
 use crate::codegen_js::CodegenError;
 use crate::ir::{
     BlockId, ConstValue, ControlFlowFunction, ControlFlowInstruction, ControlFlowModule,
-    ControlFlowOp, ControlShape, FunctionId, FunctionKind, Intrinsic, IrBinaryOp, IrUnaryOp,
-    TemplateOperand, Terminator, ValueId,
+    ControlFlowOp, ControlShape, ExportBinding, FunctionId, FunctionKind, Intrinsic, IrBinaryOp,
+    IrUnaryOp, TemplateOperand, Terminator, ValueId,
 };
 use crate::semantic::{EscapeState, SymbolId, Type};
 
 pub fn emit_optimized_ir_js(module: &ControlFlowModule<'_>) -> Result<String, CodegenError> {
-    IrJsEmitter::new(module).emit()
+    emit_optimized_ir_js_with_options(module, &IrJsOptions::default())
+}
+
+pub fn emit_optimized_ir_js_module(module: &ControlFlowModule<'_>) -> Result<String, CodegenError> {
+    emit_optimized_ir_js_module_with_options(module, &IrJsOptions::default())
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct IrJsOptions {
+    pub mangle_identifiers: bool,
+    pub mangle_properties: bool,
+    pub mangle_exports: bool,
+    pub pool_strings: bool,
+}
+
+impl Default for IrJsOptions {
+    fn default() -> Self {
+        Self {
+            mangle_identifiers: true,
+            mangle_properties: false,
+            mangle_exports: false,
+            pool_strings: true,
+        }
+    }
+}
+
+pub fn emit_optimized_ir_js_with_options(
+    module: &ControlFlowModule<'_>,
+    options: &IrJsOptions,
+) -> Result<String, CodegenError> {
+    IrJsEmitter::new(module, false, *options).emit()
+}
+
+pub fn emit_optimized_ir_js_module_with_options(
+    module: &ControlFlowModule<'_>,
+    options: &IrJsOptions,
+) -> Result<String, CodegenError> {
+    IrJsEmitter::new(module, true, *options).emit()
 }
 
 struct IrJsEmitter<'module, 'src> {
@@ -23,10 +60,17 @@ struct IrJsEmitter<'module, 'src> {
     declared_globals: AHashSet<SymbolId>,
     string_aliases: AHashMap<String, String>,
     pooled_strings: Vec<(String, String)>,
+    property_names: AHashMap<String, String>,
+    module_output: bool,
+    options: IrJsOptions,
 }
 
 impl<'module, 'src> IrJsEmitter<'module, 'src> {
-    fn new(module: &'module ControlFlowModule<'src>) -> Self {
+    fn new(
+        module: &'module ControlFlowModule<'src>,
+        module_output: bool,
+        options: IrJsOptions,
+    ) -> Self {
         Self {
             module,
             global_names: AHashMap::new(),
@@ -35,12 +79,16 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             declared_globals: AHashSet::new(),
             string_aliases: AHashMap::new(),
             pooled_strings: Vec::new(),
+            property_names: AHashMap::new(),
+            module_output,
+            options,
         }
     }
 
     fn emit(mut self) -> Result<String, CodegenError> {
         self.assign_top_level_names();
         self.assign_string_aliases();
+        self.assign_property_names();
         let entry = self.function(self.module.entry)?.clone();
         let entry_is_single_block = entry.blocks.len() == 1 && entry.blocks[0].phis.is_empty();
         let entry_can_structure = can_structure(&entry);
@@ -92,10 +140,50 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             self.emit_state_machine(&entry, &mut out)?;
             out.push_str(")();");
         }
-        if out.ends_with(';') {
+        if self.module_output {
+            self.emit_exports(&mut out)?;
+        } else if out.ends_with(';') {
             out.pop();
         }
         Ok(out)
+    }
+
+    fn emit_exports(&self, out: &mut String) -> Result<(), CodegenError> {
+        let runtime_exports = self
+            .module
+            .exports
+            .iter()
+            .filter(|export| export.binding != ExportBinding::TypeOnly)
+            .collect::<Vec<_>>();
+        if runtime_exports.is_empty() {
+            return Ok(());
+        }
+        if !out.is_empty() && !out.ends_with(';') {
+            out.push(';');
+        }
+        out.push_str("export{");
+        for (index, export) in runtime_exports.iter().enumerate() {
+            if index != 0 {
+                out.push(',');
+            }
+            let internal = match export.binding {
+                ExportBinding::Function(function) => self.function_name(function)?,
+                ExportBinding::Global(symbol) => self.global_name(symbol)?,
+                ExportBinding::TypeOnly => unreachable!(),
+            };
+            let public = if self.options.mangle_exports {
+                internal
+            } else {
+                export.name
+            };
+            out.push_str(internal);
+            if internal != public {
+                out.push_str(" as ");
+                out.push_str(public);
+            }
+        }
+        out.push('}');
+        Ok(())
     }
 
     fn assign_top_level_names(&mut self) {
@@ -106,6 +194,31 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     self.function_names.insert(function.id, name.to_string());
                 }
             }
+        }
+
+        if !self.options.mangle_identifiers {
+            for function in &self.module.functions {
+                if !function.live
+                    || matches!(function.kind, FunctionKind::Entry | FunctionKind::Extern)
+                    || (function.kind == FunctionKind::Closure && can_inline_closure(function))
+                {
+                    continue;
+                }
+                let source_name = function.name.unwrap_or("closure");
+                let preferred = match function.kind {
+                    FunctionKind::Method { class } => format!("{class}${source_name}"),
+                    FunctionKind::Constructor { class } => format!("{class}$init"),
+                    FunctionKind::Closure => format!("closure${}", function.id.0),
+                    _ => source_name.to_string(),
+                };
+                let name = self.top_level_mangler.unique_name(&preferred);
+                self.function_names.insert(function.id, name);
+            }
+            for global in &self.module.globals {
+                let name = self.top_level_mangler.unique_name(global.name);
+                self.global_names.insert(global.symbol, name);
+            }
+            return;
         }
 
         let mut function_uses = AHashMap::<FunctionId, usize>::new();
@@ -175,6 +288,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     }
 
     fn assign_string_aliases(&mut self) {
+        if !self.options.pool_strings {
+            return;
+        }
         let mut counts = AHashMap::<String, usize>::new();
         for function in self
             .module
@@ -217,6 +333,29 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         }
     }
 
+    fn assign_property_names(&mut self) {
+        if !self.options.mangle_properties {
+            return;
+        }
+        let mut mangler = Mangler::default();
+        for field in self
+            .module
+            .structs
+            .iter()
+            .chain(&self.module.classes)
+            .flat_map(|layout| &layout.fields)
+        {
+            if !self.property_names.contains_key(field.name) {
+                self.property_names
+                    .insert(field.name.to_string(), mangler.next_name());
+            }
+        }
+    }
+
+    fn property_name<'name>(&'name self, field: &'name str) -> &'name str {
+        self.property_names.get(field).map_or(field, String::as_str)
+    }
+
     fn emit_function(
         &mut self,
         function: &ControlFlowFunction<'src>,
@@ -232,6 +371,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             function,
             !single_block && !structured,
             &self.top_level_mangler,
+            self.options.mangle_identifiers,
         );
         context.inline_declarations = structured;
         for (index, param) in function.params.iter().enumerate() {
@@ -351,7 +491,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         wrapped: bool,
         out: &mut String,
     ) -> Result<(), CodegenError> {
-        let context = LocalNames::new(function, false, &self.top_level_mangler);
+        let context = LocalNames::new(
+            function,
+            false,
+            &self.top_level_mangler,
+            self.options.mangle_identifiers,
+        );
         self.emit_single_block_with_context(function, wrapped, context, out)
     }
 
@@ -460,7 +605,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             } => {
                 out.push_str(&take_value(*object, context, cache)?);
                 if context.is_untyped(*object) {
-                    write!(out, ".{field}=").expect("writing to String cannot fail");
+                    write!(out, ".{}=", self.property_name(field))
+                        .expect("writing to String cannot fail");
                 } else {
                     write!(out, "[{index}]=").expect("writing to String cannot fail");
                 }
@@ -549,7 +695,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         function: &ControlFlowFunction<'src>,
         out: &mut String,
     ) -> Result<(), CodegenError> {
-        let context = LocalNames::new(function, true, &self.top_level_mangler);
+        let context = LocalNames::new(
+            function,
+            true,
+            &self.top_level_mangler,
+            self.options.mangle_identifiers,
+        );
         self.emit_state_machine_with_context(function, context, out)
     }
 
@@ -658,7 +809,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         wrapped: bool,
         out: &mut String,
     ) -> Result<(), CodegenError> {
-        let mut context = LocalNames::new(function, false, &self.top_level_mangler);
+        let mut context = LocalNames::new(
+            function,
+            false,
+            &self.top_level_mangler,
+            self.options.mangle_identifiers,
+        );
         context.inline_declarations = true;
         self.emit_structured_with_context(function, wrapped, context, out)
     }
@@ -1244,7 +1400,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     if index != 0 {
                         rendered.push(',');
                     }
-                    rendered.push_str(field.name);
+                    rendered.push_str(self.property_name(field.name));
                     rendered.push(':');
                     rendered.push_str(&take_value(*value, context, cache)?);
                 }
@@ -1320,7 +1476,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             } => {
                 let object_value = value(*object, cache)?;
                 if context.is_untyped(*object) {
-                    format!("{object_value}.{field}")
+                    format!("{object_value}.{}", self.property_name(field))
                 } else {
                     format!("{object_value}[{index}]")
                 }
@@ -1461,7 +1617,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             if captures.is_empty() {
                 return Ok(name.to_string());
             }
-            let context = LocalNames::new(&function, false, &self.top_level_mangler);
+            let context = LocalNames::new(
+                &function,
+                false,
+                &self.top_level_mangler,
+                self.options.mangle_identifiers,
+            );
             let mut rendered = render_arrow_parameters(&function, &context)?;
             rendered.push_str("=>");
             rendered.push_str(name);
@@ -1481,7 +1642,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             rendered.push(')');
             return Ok(rendered);
         }
-        let mut context = LocalNames::new(&function, false, &self.top_level_mangler);
+        let mut context = LocalNames::new(
+            &function,
+            false,
+            &self.top_level_mangler,
+            self.options.mangle_identifiers,
+        );
         for (param, capture) in function.params.iter().zip(captures) {
             context.value_names.insert(param.value, capture.clone());
         }
@@ -1561,7 +1727,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 value.push(',');
             }
             if boundary {
-                value.push_str(field.name);
+                value.push_str(self.property_name(field.name));
                 value.push(':');
             }
             value.push_str(default_value(&field.ty));
@@ -1744,7 +1910,12 @@ fn shape_at(function: &ControlFlowFunction<'_>, block: BlockId) -> Option<Contro
 }
 
 impl LocalNames {
-    fn new(function: &ControlFlowFunction<'_>, all_values: bool, parent: &Mangler) -> Self {
+    fn new(
+        function: &ControlFlowFunction<'_>,
+        all_values: bool,
+        parent: &Mangler,
+        mangle_identifiers: bool,
+    ) -> Self {
         let mut mangler = parent.clone();
         let mut value_names = AHashMap::new();
         let parameter_values = function
@@ -1835,11 +2006,15 @@ impl LocalNames {
                 .then_with(|| left.0.cmp(&right.0))
         });
         let state = if all_values {
-            mangler.next_name()
+            if mangle_identifiers {
+                mangler.next_name()
+            } else {
+                mangler.unique_name("$state")
+            }
         } else {
             String::new()
         };
-        if function.blocks.len() > 1 {
+        if mangle_identifiers && function.blocks.len() > 1 {
             let colors = coalesce_value_names(function, &stored_values, &parameter_values, &uses);
             let color_count = colors.values().copied().max().map_or(0, |color| color + 1);
             let color_names = (0..color_count)
@@ -1852,9 +2027,21 @@ impl LocalNames {
             }
         }
         for value in values {
-            value_names
-                .entry(value)
-                .or_insert_with(|| mangler.next_name());
+            value_names.entry(value).or_insert_with(|| {
+                if mangle_identifiers {
+                    mangler.next_name()
+                } else {
+                    let preferred = function
+                        .params
+                        .iter()
+                        .find(|parameter| parameter.value == value)
+                        .map_or_else(
+                            || format!("v{}", value.0),
+                            |parameter| parameter.name.into(),
+                        );
+                    mangler.unique_name(&preferred)
+                }
+            });
         }
         let declared_names = function
             .params
@@ -2531,11 +2718,83 @@ impl Mangler {
         loop {
             let name = encode_identifier(self.next);
             self.next += 1;
-            if !self.reserved.contains(&name) {
+            if !self.reserved.contains(&name) && !is_js_reserved(&name) {
+                self.reserved.insert(name.clone());
                 return name;
             }
         }
     }
+
+    fn unique_name(&mut self, preferred: &str) -> String {
+        let base = if is_js_reserved(preferred) {
+            format!("${preferred}")
+        } else {
+            preferred.to_string()
+        };
+        if self.reserved.insert(base.clone()) {
+            return base;
+        }
+        let mut suffix = 2;
+        loop {
+            let candidate = format!("{base}${suffix}");
+            if self.reserved.insert(candidate.clone()) {
+                return candidate;
+            }
+            suffix += 1;
+        }
+    }
+}
+
+fn is_js_reserved(name: &str) -> bool {
+    matches!(
+        name,
+        "await"
+            | "break"
+            | "case"
+            | "catch"
+            | "class"
+            | "const"
+            | "continue"
+            | "debugger"
+            | "default"
+            | "delete"
+            | "do"
+            | "else"
+            | "enum"
+            | "export"
+            | "extends"
+            | "false"
+            | "finally"
+            | "for"
+            | "function"
+            | "if"
+            | "implements"
+            | "import"
+            | "in"
+            | "instanceof"
+            | "interface"
+            | "let"
+            | "new"
+            | "null"
+            | "package"
+            | "private"
+            | "protected"
+            | "public"
+            | "return"
+            | "static"
+            | "super"
+            | "switch"
+            | "this"
+            | "throw"
+            | "true"
+            | "try"
+            | "typeof"
+            | "var"
+            | "void"
+            | "while"
+            | "with"
+            | "yield"
+    )
 }
 
 fn encode_identifier(mut index: usize) -> String {

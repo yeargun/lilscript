@@ -114,6 +114,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                 })?;
                 exports.push(ExportDecl {
                     local,
+                    exported: local,
                     span: export_start.merge(item.span()),
                 });
                 items.push(item);
@@ -205,9 +206,15 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         if !self.check(|kind| matches!(kind, TokenKind::RBrace)) {
             loop {
                 let local = self.expect_ident("expected exported name")?;
+                let exported = if self.match_kind(|kind| matches!(kind, TokenKind::As)) {
+                    self.expect_ident("expected export alias after `as`")?
+                } else {
+                    local
+                };
                 exports.push(ExportDecl {
                     local,
-                    span: start.merge(local.span),
+                    exported,
+                    span: start.merge(exported.span),
                 });
                 if !self.match_kind(|kind| matches!(kind, TokenKind::Comma)) {
                     break;
@@ -1382,9 +1389,25 @@ export { Point };"#,
         assert_eq!(program.imports[0].specifiers[0].local.name, "sq");
         assert!(program.imports[1].specifiers.is_empty());
         assert_eq!(program.exports.len(), 2);
+        assert_eq!(program.exports[0].local.name, "squared");
+        assert_eq!(program.exports[0].exported.name, "squared");
         let Item::Function(function) = &program.items[0] else {
             panic!("expected exported function");
         };
         assert!(function.declared_pure);
+    }
+
+    #[test]
+    fn parses_export_aliases() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "int internalValue=7;export {internalValue as publicValue};",
+        )
+        .unwrap();
+
+        assert_eq!(program.exports.len(), 1);
+        assert_eq!(program.exports[0].local.name, "internalValue");
+        assert_eq!(program.exports[0].exported.name, "publicValue");
     }
 }

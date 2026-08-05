@@ -1,0 +1,7 @@
+export pure int square(int value) {
+    return value * value;
+}
+
+pure int hidden() {
+    return 99;
+}

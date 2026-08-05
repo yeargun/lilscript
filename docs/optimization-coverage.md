@@ -34,7 +34,7 @@ same module to the JavaScript and native C backends.
 | Alias strings | Repeated constants are value-numbered and profitable long strings receive shared short bindings |
 | Rename variables and globals | Frequency-ranked base-54/base-64 identifiers with extern names reserved |
 | Rescope globals | Entry-only globals become locals; immutable shared globals become constants |
-| Rewrite modules and tree shake exports | Relative module graphs are linked into private symbol namespaces; import aliases resolve statically and exports do not become retention roots |
+| Rewrite modules and tree shake exports | Relative module graphs are linked into private symbol namespaces; executable exports remain shakeable, while `js-module` roots runtime exports and emits mangled ESM aliases |
 | Cross-chunk code/method motion | Static modules are intentionally emitted as one optimized bundle; runtime lazy chunks are outside v0.1 |
 | Prototype extraction and dotted-property conversion | Not applicable: LilScript has no prototype mutation or dynamic property grammar |
 

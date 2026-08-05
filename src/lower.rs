@@ -7,9 +7,9 @@ use crate::ast::{
 };
 use crate::ir::{
     AggregateField, AggregateLayout, BlockId, ConstValue, ControlFlowBlock, ControlFlowFunction,
-    ControlFlowInstruction, ControlFlowModule, ControlFlowOp, ControlShape, FunctionId,
-    FunctionKind, Intrinsic, IrBinaryOp, IrGlobal, IrLocal, IrParameter, IrUnaryOp, LocalId, Phi,
-    TemplateOperand, Terminator, ValueId,
+    ControlFlowInstruction, ControlFlowModule, ControlFlowOp, ControlShape, ExportBinding,
+    FunctionId, FunctionKind, Intrinsic, IrBinaryOp, IrExport, IrGlobal, IrLocal, IrParameter,
+    IrUnaryOp, LocalId, Phi, TemplateOperand, Terminator, ValueId,
 };
 use crate::semantic::{EscapeState, SemanticModel, SymbolId, Type};
 use crate::span::Span;
@@ -78,6 +78,7 @@ struct ModuleLowerer<'model, 'ast, 'src> {
     arrow_captures: AHashMap<Span, Vec<SymbolId>>,
     global_symbols: AHashSet<SymbolId>,
     globals: Vec<IrGlobal<'src>>,
+    exports: Vec<IrExport<'src>>,
 }
 
 impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
@@ -95,7 +96,12 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
             arrow_captures: AHashMap::new(),
             global_symbols: AHashSet::new(),
             globals: Vec::new(),
+            exports: Vec::new(),
         };
+
+        let mut function_names = AHashMap::new();
+        let mut global_names = AHashMap::new();
+        let mut type_names = AHashSet::new();
 
         for item in program.items {
             match item {
@@ -103,15 +109,18 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
                     let id = FunctionId(lowerer.plans.len() as u32);
                     let symbol = lowerer.binding_symbol(function.name)?;
                     lowerer.function_symbols.insert(symbol, id);
+                    function_names.insert(function.name.name, id);
                     lowerer.plans.push(PlannedFunction::Function(function));
                 }
                 Item::Extern(extern_decl) => {
                     let id = FunctionId(lowerer.plans.len() as u32);
                     let symbol = lowerer.binding_symbol(extern_decl.name)?;
                     lowerer.function_symbols.insert(symbol, id);
+                    function_names.insert(extern_decl.name.name, id);
                     lowerer.plans.push(PlannedFunction::Extern(extern_decl));
                 }
                 Item::Class(class) => {
+                    type_names.insert(class.name.name);
                     for member in class.members {
                         let id = FunctionId(lowerer.plans.len() as u32);
                         match member {
@@ -142,6 +151,7 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
                         .cloned()
                         .ok_or_else(|| LowerError::new(decl.name.span, "missing binding type"))?;
                     lowerer.global_symbols.insert(symbol);
+                    global_names.insert(decl.name.name, symbol);
                     lowerer.globals.push(IrGlobal {
                         symbol,
                         name: decl.name.name,
@@ -149,8 +159,41 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
                         span: decl.span,
                     });
                 }
+                Item::Struct(decl) => {
+                    type_names.insert(decl.name.name);
+                }
                 _ => {}
             }
+        }
+
+        let mut exported_names = AHashSet::new();
+        for export in program.exports {
+            if !exported_names.insert(export.exported.name) {
+                return Err(LowerError::new(
+                    export.exported.span,
+                    format!("duplicate export `{}`", export.exported.name),
+                ));
+            }
+            let binding = if let Some(function) = function_names.get(export.local.name) {
+                ExportBinding::Function(*function)
+            } else if let Some(global) = global_names.get(export.local.name) {
+                ExportBinding::Global(*global)
+            } else if type_names.contains(export.local.name) {
+                ExportBinding::TypeOnly
+            } else {
+                return Err(LowerError::new(
+                    export.local.span,
+                    format!(
+                        "cannot export unknown module binding `{}`",
+                        export.local.name
+                    ),
+                ));
+            };
+            lowerer.exports.push(IrExport {
+                name: export.exported.name,
+                binding,
+                span: export.span,
+            });
         }
 
         let mut arrows = Vec::new();
@@ -281,6 +324,7 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
         Ok(ControlFlowModule {
             functions,
             globals: self.globals,
+            exports: self.exports,
             structs: self
                 .semantics
                 .structs()

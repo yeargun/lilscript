@@ -82,6 +82,7 @@ export pure int area(int width, int height) {
 }
 
 export { Coordinate };
+export { internalHelper as publicHelper };
 ```
 
 Only explicitly exported top-level functions, variables, structs, classes, and
@@ -93,13 +94,18 @@ Imports must begin with `./` or `../`, resolve to `.lil` files, and form an
 acyclic graph. Every module is initialized once in dependency-first order.
 Side-effect-only imports therefore preserve initialization behavior.
 
-An export is an accessibility declaration, not a retention root. In an
-executable build, unused imported and exported functions, types, globals, and
-pure initializers remain eligible for whole-program elimination. Static import
-and export syntax never appears in generated JavaScript. The v0.1 backend emits
-one optimized application bundle by default; lazy imports and runtime chunk
-loading are outside the current contract because forced chunks add boundaries
-and bytes to fully static programs.
+In an executable build, an export is an accessibility declaration rather than a
+retention root. Unused imported and exported functions, types, globals, and pure
+initializers remain eligible for whole-program elimination, and static module
+syntax does not appear in the generated bundle.
+
+The `js-module` target instead creates a reusable ESM boundary. Runtime exports
+from the root module are retention roots, their internal bindings remain
+mangleable, and a compact named export clause maps them back to stable public
+names. Struct and class names are compile-time type exports and therefore do not
+produce JavaScript bindings. The default backend emits one optimized application
+bundle; lazy imports and runtime chunk loading remain outside this contract
+because forced chunks add boundaries and bytes to fully static programs.
 
 ## Aggregates and classes
 

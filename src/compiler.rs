@@ -1,15 +1,22 @@
 use bumpalo::Bump;
 use std::path::Path;
 
-use crate::codegen_ir_js::emit_optimized_ir_js;
+use crate::codegen_ir_js::{
+    emit_optimized_ir_js, emit_optimized_ir_js_module, emit_optimized_ir_js_module_with_options,
+    emit_optimized_ir_js_with_options,
+};
 use crate::codegen_js::{compile_to_js, CompileError};
 use crate::codegen_native::{compile_to_c, emit_native_c};
+use crate::config::ProjectConfig;
 use crate::lower::lower_to_control_flow;
 use crate::module::{
     discover_modules, discover_modules_with_source, link_modules, locate_linked_span,
     parse_modules, ModuleError, ModuleSet,
 };
-use crate::optimizer::{optimize_control_flow, OptimizationReport};
+use crate::optimizer::{
+    optimize_control_flow, optimize_control_flow_for_module, optimize_control_flow_with_options,
+    OptimizationReport,
+};
 use crate::parser::{parse_source, ParseError};
 use crate::semantic::analyze;
 use crate::span::Span;
@@ -78,6 +85,12 @@ pub fn compile_source_to_c(source: &str) -> Result<String, SourceCompileError> {
     compile_to_c(&program).map_err(Into::into)
 }
 
+pub fn compile_source_to_js_module(source: &str) -> Result<String, SourceCompileError> {
+    let arena = Bump::new();
+    let program = parse_source(&arena, source)?;
+    compile_program_to_js_module(&program).map_err(Into::into)
+}
+
 /// Compiles both backends from one parsed, checked, and optimized IR module.
 ///
 /// Native object-code generation remains a CLI concern because it invokes the
@@ -101,6 +114,10 @@ pub fn compile_path(path: &Path) -> Result<String, ModuleError> {
     compile_path_js_inner(path, None)
 }
 
+pub fn compile_path_configured(path: &Path, config: &ProjectConfig) -> Result<String, ModuleError> {
+    compile_path_js_configured_inner(path, None, config)
+}
+
 pub fn compile_path_to_c(path: &Path) -> Result<String, ModuleError> {
     let modules = discover_modules(path)?;
     let arena = Bump::new();
@@ -109,8 +126,45 @@ pub fn compile_path_to_c(path: &Path) -> Result<String, ModuleError> {
     compile_program_to_c(&linked).map_err(|error| module_compile_error(&modules, error))
 }
 
+pub fn compile_path_to_c_configured(
+    path: &Path,
+    config: &ProjectConfig,
+) -> Result<String, ModuleError> {
+    let modules = discover_modules(path)?;
+    let arena = Bump::new();
+    let programs = parse_modules(&arena, &modules)?;
+    let linked = link_modules(&arena, &modules, &programs)?;
+    compile_program_to_c_configured(&linked, config)
+        .map_err(|error| module_compile_error(&modules, error))
+}
+
+pub fn compile_path_to_js_module(path: &Path) -> Result<String, ModuleError> {
+    compile_path_js_module_inner(path, None)
+}
+
+pub fn compile_path_to_js_module_configured(
+    path: &Path,
+    config: &ProjectConfig,
+) -> Result<String, ModuleError> {
+    compile_path_js_module_configured_inner(path, None, config)
+}
+
+pub fn compile_path_to_js_module_with_source(
+    path: &Path,
+    source: &str,
+) -> Result<String, ModuleError> {
+    compile_path_js_module_inner(path, Some(source))
+}
+
 pub fn compile_path_all(path: &Path) -> Result<CompilationArtifacts, ModuleError> {
     compile_path_all_inner(path, None)
+}
+
+pub fn compile_path_all_configured(
+    path: &Path,
+    config: &ProjectConfig,
+) -> Result<CompilationArtifacts, ModuleError> {
+    compile_path_all_configured_inner(path, None, config)
 }
 
 pub fn compile_path_with_source(path: &Path, source: &str) -> Result<String, ModuleError> {
@@ -128,6 +182,52 @@ fn compile_path_js_inner(path: &Path, root_source: Option<&str>) -> Result<Strin
     compile_program_to_js(&linked).map_err(|error| module_compile_error(&modules, error))
 }
 
+fn compile_path_js_configured_inner(
+    path: &Path,
+    root_source: Option<&str>,
+    config: &ProjectConfig,
+) -> Result<String, ModuleError> {
+    let modules = match root_source {
+        Some(source) => discover_modules_with_source(path, source)?,
+        None => discover_modules(path)?,
+    };
+    let arena = Bump::new();
+    let programs = parse_modules(&arena, &modules)?;
+    let linked = link_modules(&arena, &modules, &programs)?;
+    compile_program_to_js_configured(&linked, config)
+        .map_err(|error| module_compile_error(&modules, error))
+}
+
+fn compile_path_js_module_inner(
+    path: &Path,
+    root_source: Option<&str>,
+) -> Result<String, ModuleError> {
+    let modules = match root_source {
+        Some(source) => discover_modules_with_source(path, source)?,
+        None => discover_modules(path)?,
+    };
+    let arena = Bump::new();
+    let programs = parse_modules(&arena, &modules)?;
+    let linked = link_modules(&arena, &modules, &programs)?;
+    compile_program_to_js_module(&linked).map_err(|error| module_compile_error(&modules, error))
+}
+
+fn compile_path_js_module_configured_inner(
+    path: &Path,
+    root_source: Option<&str>,
+    config: &ProjectConfig,
+) -> Result<String, ModuleError> {
+    let modules = match root_source {
+        Some(source) => discover_modules_with_source(path, source)?,
+        None => discover_modules(path)?,
+    };
+    let arena = Bump::new();
+    let programs = parse_modules(&arena, &modules)?;
+    let linked = link_modules(&arena, &modules, &programs)?;
+    compile_program_to_js_module_configured(&linked, config)
+        .map_err(|error| module_compile_error(&modules, error))
+}
+
 fn compile_path_all_inner(
     path: &Path,
     root_source: Option<&str>,
@@ -140,6 +240,22 @@ fn compile_path_all_inner(
     let programs = parse_modules(&arena, &modules)?;
     let linked = link_modules(&arena, &modules, &programs)?;
     compile_program_all(&linked).map_err(|error| module_compile_error(&modules, error))
+}
+
+fn compile_path_all_configured_inner(
+    path: &Path,
+    root_source: Option<&str>,
+    config: &ProjectConfig,
+) -> Result<CompilationArtifacts, ModuleError> {
+    let modules = match root_source {
+        Some(source) => discover_modules_with_source(path, source)?,
+        None => discover_modules(path)?,
+    };
+    let arena = Bump::new();
+    let programs = parse_modules(&arena, &modules)?;
+    let linked = link_modules(&arena, &modules, &programs)?;
+    compile_program_all_configured(&linked, config)
+        .map_err(|error| module_compile_error(&modules, error))
 }
 
 fn compile_program_all<'ast, 'src>(
@@ -157,6 +273,23 @@ fn compile_program_all<'ast, 'src>(
     })
 }
 
+fn compile_program_all_configured<'ast, 'src>(
+    program: &crate::ast::Program<'ast, 'src>,
+    config: &ProjectConfig,
+) -> Result<CompilationArtifacts, CompileError> {
+    let semantics = analyze(program)?;
+    let mut ir = lower_to_control_flow(program, &semantics)?;
+    let optimization_reports =
+        optimize_control_flow_with_options(&mut ir, &config.optimizer_options(), false)?;
+    let javascript = emit_optimized_ir_js_with_options(&ir, &config.js_options())?;
+    let c = emit_native_c(&ir)?;
+    Ok(CompilationArtifacts {
+        javascript,
+        c,
+        optimization_reports,
+    })
+}
+
 fn compile_program_to_js<'ast, 'src>(
     program: &crate::ast::Program<'ast, 'src>,
 ) -> Result<String, CompileError> {
@@ -166,12 +299,51 @@ fn compile_program_to_js<'ast, 'src>(
     emit_optimized_ir_js(&ir).map_err(Into::into)
 }
 
+fn compile_program_to_js_configured<'ast, 'src>(
+    program: &crate::ast::Program<'ast, 'src>,
+    config: &ProjectConfig,
+) -> Result<String, CompileError> {
+    let semantics = analyze(program)?;
+    let mut ir = lower_to_control_flow(program, &semantics)?;
+    optimize_control_flow_with_options(&mut ir, &config.optimizer_options(), false)?;
+    emit_optimized_ir_js_with_options(&ir, &config.js_options()).map_err(Into::into)
+}
+
+fn compile_program_to_js_module<'ast, 'src>(
+    program: &crate::ast::Program<'ast, 'src>,
+) -> Result<String, CompileError> {
+    let semantics = analyze(program)?;
+    let mut ir = lower_to_control_flow(program, &semantics)?;
+    optimize_control_flow_for_module(&mut ir)?;
+    emit_optimized_ir_js_module(&ir).map_err(Into::into)
+}
+
+fn compile_program_to_js_module_configured<'ast, 'src>(
+    program: &crate::ast::Program<'ast, 'src>,
+    config: &ProjectConfig,
+) -> Result<String, CompileError> {
+    let semantics = analyze(program)?;
+    let mut ir = lower_to_control_flow(program, &semantics)?;
+    optimize_control_flow_with_options(&mut ir, &config.optimizer_options(), true)?;
+    emit_optimized_ir_js_module_with_options(&ir, &config.js_options()).map_err(Into::into)
+}
+
 fn compile_program_to_c<'ast, 'src>(
     program: &crate::ast::Program<'ast, 'src>,
 ) -> Result<String, CompileError> {
     let semantics = analyze(program)?;
     let mut ir = lower_to_control_flow(program, &semantics)?;
     optimize_control_flow(&mut ir)?;
+    emit_native_c(&ir).map_err(Into::into)
+}
+
+fn compile_program_to_c_configured<'ast, 'src>(
+    program: &crate::ast::Program<'ast, 'src>,
+    config: &ProjectConfig,
+) -> Result<String, CompileError> {
+    let semantics = analyze(program)?;
+    let mut ir = lower_to_control_flow(program, &semantics)?;
+    optimize_control_flow_with_options(&mut ir, &config.optimizer_options(), false)?;
     emit_native_c(&ir).map_err(Into::into)
 }
 
@@ -381,6 +553,107 @@ mod tests {
 
         assert_eq!(compile_path(&main).unwrap(), "console.log(3)");
         std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn emits_reusable_esm_with_mangled_live_exports() {
+        let directory =
+            std::env::temp_dir().join(format!("lilscript-esm-module-test-{}", std::process::id()));
+        std::fs::create_dir_all(&directory).unwrap();
+        std::fs::write(
+            directory.join("library.lil"),
+            "export pure int square(int value){return value*value;}pure int hidden(){return 99;}",
+        )
+        .unwrap();
+        let main = directory.join("main.lil");
+        std::fs::write(
+            &main,
+            "import {square as internalSquare} from \"./library\";export {internalSquare as square};export int answer=7;",
+        )
+        .unwrap();
+
+        let executable = compile_path(&main).unwrap();
+        assert!(!executable.contains("export{"));
+
+        let module = compile_path_to_js_module(&main).unwrap();
+        assert!(module.contains("export{"));
+        assert!(module.contains(" as square"));
+        assert!(module.contains(" as answer"));
+        assert!(!module.contains("hidden"));
+        assert!(!module.contains("internalSquare"));
+
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn applies_fine_grained_optimizer_and_mangling_config() {
+        let arena = Bump::new();
+        let program = parse_source(&arena, "print(1+2*3);").unwrap();
+        let mut config = ProjectConfig::default();
+        config.optimization.preset = crate::config::OptimizationPreset::None;
+        config.optimization.constant_folding = Some(false);
+        config.mangle.identifiers = false;
+        let unoptimized = compile_program_to_js_configured(&program, &config).unwrap();
+        assert_ne!(unoptimized, "console.log(7)");
+        assert!(unoptimized.contains("Math.imul(2,3)"));
+
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "struct Point{int horizontal;int vertical;}extern void send(Point point);Point point=Point{1,2};send(point);",
+        )
+        .unwrap();
+        config.mangle.properties = false;
+        let preserved = compile_program_to_js_configured(&program, &config).unwrap();
+        assert!(
+            preserved.contains("horizontal:") && preserved.contains("vertical:"),
+            "{preserved}"
+        );
+        config.mangle.properties = true;
+        let mangled = compile_program_to_js_configured(&program, &config).unwrap();
+        assert!(
+            mangled.contains("{a:") && mangled.contains(",b:"),
+            "{mangled}"
+        );
+    }
+
+    #[test]
+    fn can_mangle_public_esm_export_names() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "export pure int descriptiveFunction(int descriptiveValue){return descriptiveValue+1;}",
+        )
+        .unwrap();
+        let mut config = ProjectConfig::default();
+        config.mangle.exports = true;
+        let output = compile_program_to_js_module_configured(&program, &config).unwrap();
+        assert!(output.contains("export{"));
+        assert!(!output.contains("descriptiveFunction"));
+
+        config.mangle.identifiers = false;
+        config.mangle.exports = false;
+        let readable = compile_program_to_js_module_configured(&program, &config).unwrap();
+        assert!(readable.contains("function descriptiveFunction(descriptiveValue)"));
+        assert!(readable.contains("export{descriptiveFunction}"));
+    }
+
+    #[test]
+    fn materializes_aggregate_abi_for_exported_functions() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "struct Point{int x;int y;}export pure int sum(Point point){return point.x+point.y;}export pure Point origin(){return Point{0,0};}",
+        )
+        .unwrap();
+        let output =
+            compile_program_to_js_module_configured(&program, &ProjectConfig::default()).unwrap();
+
+        assert!(output.contains(".x"));
+        assert!(output.contains(".y"));
+        assert!(output.contains("{x:0,y:0}"));
+        assert!(output.contains(" as sum"));
+        assert!(output.contains(" as origin"));
     }
 
     #[test]

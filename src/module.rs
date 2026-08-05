@@ -368,6 +368,42 @@ pub fn link_modules<'arena>(
         }
     }
     let items = items.into_bump_slice();
+    let root = modules.root;
+    let mut linked_exports = BumpVec::new_in(arena);
+    for export in programs[root].exports {
+        let internal = bindings[root]
+            .get(export.local.name)
+            .copied()
+            .ok_or_else(|| {
+                module_error_at(
+                    modules,
+                    root,
+                    export.local.span,
+                    format!(
+                        "cannot export unknown module binding `{}`",
+                        export.local.name
+                    ),
+                )
+            })?;
+        let offset = modules.modules[root].offset;
+        linked_exports.push(ExportDecl {
+            local: Ident {
+                name: internal,
+                span: Span::new(
+                    export.local.span.start + offset,
+                    export.local.span.end + offset,
+                ),
+            },
+            exported: Ident {
+                name: export.exported.name,
+                span: Span::new(
+                    export.exported.span.start + offset,
+                    export.exported.span.end + offset,
+                ),
+            },
+            span: Span::new(export.span.start + offset, export.span.end + offset),
+        });
+    }
     let span = items
         .first()
         .zip(items.last())
@@ -376,7 +412,7 @@ pub fn link_modules<'arena>(
         });
     Ok(Program {
         imports: &[],
-        exports: &[],
+        exports: linked_exports.into_bump_slice(),
         items,
         span,
     })
@@ -443,12 +479,12 @@ fn resolve_exports<'arena>(
                 ),
             ));
         };
-        if exports.insert(export.local.name, internal).is_some() {
+        if exports.insert(export.exported.name, internal).is_some() {
             return Err(module_error_at(
                 modules,
                 module_id,
-                export.local.span,
-                format!("duplicate export `{}`", export.local.name),
+                export.exported.span,
+                format!("duplicate export `{}`", export.exported.name),
             ));
         }
     }

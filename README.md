@@ -51,6 +51,9 @@ cargo build --release
 target/release/lilscript examples/v01.lil
 target/release/lilscript examples/v01.lil -o app.js
 
+# Reusable ESM with retained, mangled named exports
+target/release/lilscript tests/modules/esm-entry.lil --target js-module -o library.mjs
+
 # Portable C or a native executable
 target/release/lilscript examples/full_conformance.lil --target c -o app.c
 target/release/lilscript examples/full_conformance.lil --target native -o app
@@ -60,6 +63,14 @@ target/release/lilscript examples/full_conformance.lil --target all -o build/app
 ```
 
 The native target invokes `${CC:-clang}` with C11 and `-O3`.
+
+Compiler policy is configured in an auto-discovered `lilscript.toml`, or with
+`--config path/to/lilscript.toml`. Presets and per-pass overrides control
+folding, CSE, global optimization, inlining, scalar replacement, DCE, identifier
+and boundary-property mangling, public-export mangling, and string pooling.
+Bundle policy also records chunk size/import/count thresholds. See
+[docs/configuration.md](docs/configuration.md) for the complete schema and the
+current chunking status.
 
 ## Modules and tree shaking
 
@@ -81,6 +92,14 @@ exports, isolates private names, and optimizes the linked program once. Cross-fi
 inlining and DCE can reduce this example to `console.log(25)`. Exported code is
 removed when unreachable. Purity is inferred automatically; `pure` is an
 optional checked contract, and `pure extern` is a trusted host promise.
+
+`--target js-module` is the reusable-library mode. It preserves the root
+module's runtime exports as optimization roots, still removes private dead code,
+and emits compact ESM aliases such as `export{b as square,a as answer}`. Export
+lists support aliases (`export { internalName as publicName };`). Struct and
+class exports are compile-time type exports; functions and globals are runtime
+ESM exports. The default `js`, `c`, `native`, and `all` targets remain
+closed-world executable builds, so their exports do not prevent DCE.
 
 ## Playground
 

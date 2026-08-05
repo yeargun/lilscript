@@ -1,0 +1,14 @@
+[optimization]
+preset = "maximum"
+
+[mangle]
+identifiers = true
+properties = false
+exports = false
+pool_strings = true
+
+[bundle]
+mode = "single"
+min_chunk_bytes = 16384
+max_chunks = 32
+shared_min_imports = 2

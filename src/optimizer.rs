@@ -2,16 +2,58 @@ use ahash::{AHashMap, AHashSet};
 
 use crate::ir::{
     BlockId, ConstValue, ControlFlowFunction, ControlFlowInstruction, ControlFlowModule,
-    ControlFlowOp, FunctionId, FunctionKind, Instruction, Intrinsic, IrBinaryOp, IrLocal, IrModule,
-    IrUnaryOp, LocalId, Phi, TemplateOperand, Terminator, ValueId,
+    ControlFlowOp, ExportBinding, FunctionId, FunctionKind, Instruction, Intrinsic, IrBinaryOp,
+    IrLocal, IrModule, IrUnaryOp, LocalId, Phi, TemplateOperand, Terminator, ValueId,
 };
-use crate::semantic::{EscapeState, Type};
+use crate::semantic::{EscapeState, SymbolId, Type};
 use crate::span::Span;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OptimizationReport {
     pub pass_name: &'static str,
     pub changed: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct OptimizationOptions {
+    pub constant_folding: bool,
+    pub algebraic_simplification: bool,
+    pub common_subexpression_elimination: bool,
+    pub global_optimization: bool,
+    pub inlining: bool,
+    pub scalar_replacement: bool,
+    pub dead_store_elimination: bool,
+    pub dead_code_elimination: bool,
+}
+
+impl Default for OptimizationOptions {
+    fn default() -> Self {
+        Self {
+            constant_folding: true,
+            algebraic_simplification: true,
+            common_subexpression_elimination: true,
+            global_optimization: true,
+            inlining: true,
+            scalar_replacement: true,
+            dead_store_elimination: true,
+            dead_code_elimination: true,
+        }
+    }
+}
+
+impl OptimizationOptions {
+    pub const fn disabled() -> Self {
+        Self {
+            constant_folding: false,
+            algebraic_simplification: false,
+            common_subexpression_elimination: false,
+            global_optimization: false,
+            inlining: false,
+            scalar_replacement: false,
+            dead_store_elimination: false,
+            dead_code_elimination: false,
+        }
+    }
 }
 
 pub trait OptimizationPass {
@@ -58,97 +100,112 @@ pub fn promote_locals_to_ssa(
 pub fn optimize_control_flow(
     module: &mut ControlFlowModule<'_>,
 ) -> Result<Vec<OptimizationReport>, SsaError> {
-    let mut reports = vec![
-        internalize_entry_globals(module),
-        eliminate_unread_globals(module),
-        promote_locals_to_ssa(module)?,
-    ];
+    module.exports.clear();
+    optimize_control_flow_inner(module, &OptimizationOptions::default())
+}
 
-    loop {
-        let propagation = fold_and_propagate_control_flow(module);
-        let phis = eliminate_redundant_phis(module);
-        let algebraic = simplify_algebraic_expressions(module);
-        let value_numbering = eliminate_common_subexpressions(module);
-        let unreachable = remove_unreachable_control_flow(module);
-        let changed = propagation.changed
-            || phis.changed
-            || algebraic.changed
-            || value_numbering.changed
-            || unreachable.changed;
-        reports.push(propagation);
-        reports.push(phis);
-        reports.push(algebraic);
-        reports.push(value_numbering);
-        reports.push(unreachable);
-        if !changed {
-            break;
-        }
+pub fn optimize_control_flow_for_module(
+    module: &mut ControlFlowModule<'_>,
+) -> Result<Vec<OptimizationReport>, SsaError> {
+    optimize_control_flow_inner(module, &OptimizationOptions::default())
+}
+
+pub fn optimize_control_flow_with_options(
+    module: &mut ControlFlowModule<'_>,
+    options: &OptimizationOptions,
+    preserve_exports: bool,
+) -> Result<Vec<OptimizationReport>, SsaError> {
+    if !preserve_exports {
+        module.exports.clear();
     }
+    optimize_control_flow_inner(module, options)
+}
 
-    reports.push(propagate_single_assignment_globals(module));
+fn optimize_control_flow_inner(
+    module: &mut ControlFlowModule<'_>,
+    options: &OptimizationOptions,
+) -> Result<Vec<OptimizationReport>, SsaError> {
+    let mut reports = Vec::new();
+    if options.global_optimization {
+        reports.push(internalize_entry_globals(module));
+    }
+    if options.dead_code_elimination {
+        reports.push(eliminate_unread_globals(module));
+    }
+    reports.push(promote_locals_to_ssa(module)?);
+    optimize_scalar_fixed_point(module, options, &mut reports);
+
+    if options.global_optimization {
+        reports.push(propagate_single_assignment_globals(module));
+    }
     reports.push(devirtualize_methods(module));
     reports.push(validate_declared_purity(module)?);
-    loop {
-        let inlining = inline_small_functions(module);
-        let cfg_inlining = inline_single_use_control_flow_function(module);
-        let changed = inlining.changed || cfg_inlining.changed;
-        reports.push(inlining);
-        reports.push(cfg_inlining);
-        if !changed {
-            break;
+    if options.inlining {
+        loop {
+            let inlining = inline_small_functions(module);
+            let cfg_inlining = inline_single_use_control_flow_function(module);
+            let changed = inlining.changed || cfg_inlining.changed;
+            reports.push(inlining);
+            reports.push(cfg_inlining);
+            if !changed {
+                break;
+            }
         }
     }
 
-    loop {
-        let propagation = fold_and_propagate_control_flow(module);
-        let phis = eliminate_redundant_phis(module);
-        let algebraic = simplify_algebraic_expressions(module);
-        let value_numbering = eliminate_common_subexpressions(module);
-        let unreachable = remove_unreachable_control_flow(module);
-        let changed = propagation.changed
-            || phis.changed
-            || algebraic.changed
-            || value_numbering.changed
-            || unreachable.changed;
-        reports.push(propagation);
-        reports.push(phis);
-        reports.push(algebraic);
-        reports.push(value_numbering);
-        reports.push(unreachable);
-        if !changed {
-            break;
-        }
-    }
+    optimize_scalar_fixed_point(module, options, &mut reports);
 
     reports.push(analyze_escapes(module));
-    reports.push(scalar_replace_linear_classes(module));
-    reports.push(scalar_replace_control_flow_aggregates(module));
-    reports.push(eliminate_overwritten_field_stores(module));
+    if options.scalar_replacement {
+        reports.push(scalar_replace_linear_classes(module));
+        reports.push(scalar_replace_control_flow_aggregates(module));
+    }
+    if options.dead_store_elimination {
+        reports.push(eliminate_overwritten_field_stores(module));
+    }
 
+    optimize_scalar_fixed_point(module, options, &mut reports);
+
+    if options.dead_code_elimination {
+        reports.push(eliminate_dead_control_flow_instructions(module));
+        reports.push(eliminate_dead_functions(module));
+    }
+    Ok(reports)
+}
+
+fn optimize_scalar_fixed_point(
+    module: &mut ControlFlowModule<'_>,
+    options: &OptimizationOptions,
+    reports: &mut Vec<OptimizationReport>,
+) {
     loop {
-        let propagation = fold_and_propagate_control_flow(module);
+        let propagation = options
+            .constant_folding
+            .then(|| fold_and_propagate_control_flow(module));
         let phis = eliminate_redundant_phis(module);
-        let algebraic = simplify_algebraic_expressions(module);
-        let value_numbering = eliminate_common_subexpressions(module);
+        let algebraic = options
+            .algebraic_simplification
+            .then(|| simplify_algebraic_expressions(module));
+        let value_numbering = options
+            .common_subexpression_elimination
+            .then(|| eliminate_common_subexpressions(module));
         let unreachable = remove_unreachable_control_flow(module);
-        let changed = propagation.changed
+        let changed = propagation.as_ref().is_some_and(|report| report.changed)
             || phis.changed
-            || algebraic.changed
-            || value_numbering.changed
+            || algebraic.as_ref().is_some_and(|report| report.changed)
+            || value_numbering
+                .as_ref()
+                .is_some_and(|report| report.changed)
             || unreachable.changed;
-        reports.push(propagation);
+        reports.extend(propagation);
         reports.push(phis);
-        reports.push(algebraic);
-        reports.push(value_numbering);
+        reports.extend(algebraic);
+        reports.extend(value_numbering);
         reports.push(unreachable);
         if !changed {
             break;
         }
     }
-
-    reports.push(eliminate_dead_control_flow_instructions(module));
-    reports.push(eliminate_dead_functions(module));
-    Ok(reports)
 }
 
 fn eliminate_overwritten_field_stores(module: &mut ControlFlowModule<'_>) -> OptimizationReport {
@@ -206,7 +263,7 @@ fn field_store_barrier(op: &ControlFlowOp<'_>) -> bool {
 }
 
 fn eliminate_unread_globals(module: &mut ControlFlowModule<'_>) -> OptimizationReport {
-    let loaded = module
+    let mut loaded = module
         .functions
         .iter()
         .flat_map(|function| &function.blocks)
@@ -216,6 +273,15 @@ fn eliminate_unread_globals(module: &mut ControlFlowModule<'_>) -> OptimizationR
             _ => None,
         })
         .collect::<AHashSet<_>>();
+    loaded.extend(
+        module
+            .exports
+            .iter()
+            .filter_map(|export| match export.binding {
+                ExportBinding::Global(symbol) => Some(symbol),
+                _ => None,
+            }),
+    );
     let unread = module
         .globals
         .iter()
@@ -248,6 +314,14 @@ fn eliminate_unread_globals(module: &mut ControlFlowModule<'_>) -> OptimizationR
 }
 
 fn propagate_single_assignment_globals(module: &mut ControlFlowModule<'_>) -> OptimizationReport {
+    let exported = module
+        .exports
+        .iter()
+        .filter_map(|export| match export.binding {
+            ExportBinding::Global(symbol) => Some(symbol),
+            _ => None,
+        })
+        .collect::<AHashSet<_>>();
     let mut stores = AHashMap::<crate::semantic::SymbolId, Vec<Option<ConstValue>>>::new();
     for function in &module.functions {
         let constants = function
@@ -271,9 +345,15 @@ fn propagate_single_assignment_globals(module: &mut ControlFlowModule<'_>) -> Op
 
     let propagated = stores
         .into_iter()
-        .filter_map(|(symbol, values)| match values.as_slice() {
-            [Some(value)] => Some((symbol, value.clone())),
-            _ => None,
+        .filter_map(|(symbol, values)| {
+            if exported.contains(&symbol) {
+                None
+            } else {
+                match values.as_slice() {
+                    [Some(value)] => Some((symbol, value.clone())),
+                    _ => None,
+                }
+            }
         })
         .collect::<AHashMap<_, _>>();
     if propagated.is_empty() {
@@ -598,6 +678,14 @@ fn control_flow_value_types<'src>(
 }
 
 fn internalize_entry_globals(module: &mut ControlFlowModule<'_>) -> OptimizationReport {
+    let exported = module
+        .exports
+        .iter()
+        .filter_map(|export| match export.binding {
+            ExportBinding::Global(symbol) => Some(symbol),
+            _ => None,
+        })
+        .collect::<AHashSet<_>>();
     let mut shared = AHashSet::new();
     for function in module
         .functions
@@ -632,7 +720,9 @@ fn internalize_entry_globals(module: &mut ControlFlowModule<'_>) -> Optimization
         .globals
         .iter()
         .filter(|global| {
-            loaded_by_entry.contains(&global.symbol) && !shared.contains(&global.symbol)
+            loaded_by_entry.contains(&global.symbol)
+                && !shared.contains(&global.symbol)
+                && !exported.contains(&global.symbol)
         })
         .cloned()
         .collect::<Vec<_>>();
@@ -1036,12 +1126,14 @@ fn remap_terminator_blocks(terminator: &mut Terminator, mapping: &[Option<BlockI
 fn inline_small_functions(module: &mut ControlFlowModule<'_>) -> OptimizationReport {
     const INLINE_LIMIT: usize = 12;
     let recursive = recursive_functions(module);
+    let exported = exported_functions(module);
     let candidates = module
         .functions
         .iter()
         .filter(|function| {
             !matches!(function.kind, FunctionKind::Entry | FunctionKind::Extern)
                 && !recursive.contains(&function.id)
+                && !exported.contains(&function.id)
                 && function.blocks.len() == 1
                 && function.blocks[0].phis.is_empty()
                 && function.blocks[0].instructions.len() <= INLINE_LIMIT
@@ -1188,6 +1280,7 @@ fn inline_single_use_control_flow_function(
 ) -> OptimizationReport {
     const INLINE_LIMIT: usize = 30;
     let recursive = recursive_functions(module);
+    let exported = exported_functions(module);
     let mut call_counts = AHashMap::<FunctionId, usize>::new();
     let mut address_taken = AHashSet::<FunctionId>::new();
     for instruction in module
@@ -1215,6 +1308,7 @@ fn inline_single_use_control_flow_function(
                 FunctionKind::Function | FunctionKind::Method { .. }
             ) && function.blocks.len() > 1
                 && !recursive.contains(&function.id)
+                && !exported.contains(&function.id)
                 && !address_taken.contains(&function.id)
                 && call_counts.get(&function.id) == Some(&1)
                 && function
@@ -1696,76 +1790,174 @@ fn default_scalar_constant(ty: &Type<'_>) -> Option<ConstValue> {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum EscapeNode {
+    Value(FunctionId, ValueId),
+    Global(SymbolId),
+}
+
 fn analyze_escapes(module: &mut ControlFlowModule<'_>) -> OptimizationReport {
-    let mut changed = false;
     let extern_functions = module
         .functions
         .iter()
         .filter(|function| function.kind == FunctionKind::Extern)
         .map(|function| function.id)
         .collect::<AHashSet<_>>();
-    for function in &mut module.functions {
-        let mut aggregates = AHashSet::new();
-        for block in &function.blocks {
-            for instruction in &block.instructions {
-                if let Some(out) = instruction.out {
-                    if matches!(
-                        instruction.op,
-                        ControlFlowOp::Array(_)
-                            | ControlFlowOp::Struct { .. }
-                            | ControlFlowOp::NewClass { .. }
-                            | ControlFlowOp::Closure { .. }
-                    ) {
-                        aggregates.insert(out);
-                    }
-                }
+    let exported_functions = exported_functions(module);
+    let exported_globals = module
+        .exports
+        .iter()
+        .filter_map(|export| match export.binding {
+            ExportBinding::Global(symbol) => Some(symbol),
+            _ => None,
+        })
+        .collect::<AHashSet<_>>();
+    let returns = module
+        .functions
+        .iter()
+        .map(|function| {
+            let values = function
+                .blocks
+                .iter()
+                .filter_map(|block| match block.terminator {
+                    Some(Terminator::Return(Some(value))) => Some(value),
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+            (function.id, values)
+        })
+        .collect::<AHashMap<_, _>>();
+    let mut states = AHashMap::<EscapeNode, EscapeState>::new();
+    let mut edges = AHashMap::<EscapeNode, AHashSet<EscapeNode>>::new();
+
+    for global in &module.globals {
+        let node = EscapeNode::Global(global.symbol);
+        mark_escape_node(&mut states, node, EscapeState::EscapesToTypedCode);
+        if exported_globals.contains(&global.symbol) {
+            mark_escape_node(&mut states, node, EscapeState::EscapesToUntypedBoundary);
+        }
+    }
+
+    for function in &module.functions {
+        let exported = exported_functions.contains(&function.id);
+        for (index, state) in function.value_escapes.iter().copied().enumerate() {
+            mark_escape_node(
+                &mut states,
+                EscapeNode::Value(function.id, ValueId(index as u32)),
+                state,
+            );
+        }
+        if exported {
+            for parameter in &function.params {
+                mark_escape_node(
+                    &mut states,
+                    EscapeNode::Value(function.id, parameter.value),
+                    EscapeState::EscapesToUntypedBoundary,
+                );
+            }
+            for value in &returns[&function.id] {
+                mark_escape_node(
+                    &mut states,
+                    EscapeNode::Value(function.id, *value),
+                    EscapeState::EscapesToUntypedBoundary,
+                );
             }
         }
-
-        let mut mark = |value: ValueId, state: EscapeState| {
-            if !aggregates.contains(&value) {
-                return;
-            }
-            let slot = &mut function.value_escapes[value.0 as usize];
-            if escape_rank(state) > escape_rank(*slot) {
-                *slot = state;
-                changed = true;
-            }
-        };
-
         for block in &function.blocks {
+            for phi in &block.phis {
+                for (_, incoming) in &phi.incoming {
+                    add_escape_edge(
+                        &mut edges,
+                        EscapeNode::Value(function.id, phi.out),
+                        EscapeNode::Value(function.id, *incoming),
+                    );
+                }
+            }
             for instruction in &block.instructions {
+                let value_node = |value| EscapeNode::Value(function.id, value);
                 match &instruction.op {
-                    ControlFlowOp::StoreGlobal { value, .. } => {
-                        mark(*value, EscapeState::EscapesToTypedCode)
+                    ControlFlowOp::StoreGlobal { global, value } => {
+                        add_escape_edge(
+                            &mut edges,
+                            value_node(*value),
+                            EscapeNode::Global(*global),
+                        );
+                    }
+                    ControlFlowOp::LoadGlobal(global) => {
+                        if let Some(out) = instruction.out {
+                            add_escape_edge(
+                                &mut edges,
+                                value_node(out),
+                                EscapeNode::Global(*global),
+                            );
+                        }
                     }
                     ControlFlowOp::CallDirect {
                         function: callee,
                         args,
                     } => {
-                        let escape = if extern_functions.contains(callee) {
-                            EscapeState::EscapesToUntypedBoundary
-                        } else {
-                            EscapeState::EscapesToTypedCode
-                        };
-                        for value in args {
-                            mark(*value, escape);
-                        }
-                        if escape == EscapeState::EscapesToUntypedBoundary {
+                        if extern_functions.contains(callee) {
+                            for value in args {
+                                mark_escape_node(
+                                    &mut states,
+                                    value_node(*value),
+                                    EscapeState::EscapesToUntypedBoundary,
+                                );
+                            }
                             if let Some(out) = instruction.out {
-                                mark(out, escape);
+                                mark_escape_node(
+                                    &mut states,
+                                    value_node(out),
+                                    EscapeState::EscapesToUntypedBoundary,
+                                );
+                            }
+                        } else if let Some(callee_function) =
+                            module.functions.get(callee.0 as usize)
+                        {
+                            for (argument, parameter) in args.iter().zip(&callee_function.params) {
+                                add_escape_edge(
+                                    &mut edges,
+                                    value_node(*argument),
+                                    EscapeNode::Value(*callee, parameter.value),
+                                );
+                            }
+                            if let Some(out) = instruction.out {
+                                for returned in &returns[callee] {
+                                    add_escape_edge(
+                                        &mut edges,
+                                        value_node(out),
+                                        EscapeNode::Value(*callee, *returned),
+                                    );
+                                }
                             }
                         }
                     }
-                    ControlFlowOp::CallMethod { args, .. } => {
+                    ControlFlowOp::CallMethod { receiver, args, .. } => {
+                        mark_escape_node(
+                            &mut states,
+                            value_node(*receiver),
+                            EscapeState::EscapesToTypedCode,
+                        );
                         for value in args {
-                            mark(*value, EscapeState::EscapesToTypedCode);
+                            mark_escape_node(
+                                &mut states,
+                                value_node(*value),
+                                EscapeState::EscapesToTypedCode,
+                            );
                         }
                     }
                     ControlFlowOp::CallValue { callee, args } => {
-                        mark(*callee, EscapeState::EscapesToTypedCode);
+                        mark_escape_node(
+                            &mut states,
+                            value_node(*callee),
+                            EscapeState::EscapesToTypedCode,
+                        );
                         for value in args {
-                            mark(*value, EscapeState::EscapesToTypedCode);
+                            mark_escape_node(
+                                &mut states,
+                                value_node(*value),
+                                EscapeState::EscapesToTypedCode,
+                            );
                         }
                     }
                     ControlFlowOp::Intrinsic {
@@ -1774,33 +1966,129 @@ fn analyze_escapes(module: &mut ControlFlowModule<'_>) -> OptimizationReport {
                         ..
                     } => {
                         for value in args {
-                            mark(*value, EscapeState::EscapesToUntypedBoundary);
+                            mark_escape_node(
+                                &mut states,
+                                value_node(*value),
+                                EscapeState::EscapesToUntypedBoundary,
+                            );
                         }
                     }
                     ControlFlowOp::Intrinsic { receiver, args, .. } => {
                         if let Some(receiver) = receiver {
-                            mark(*receiver, EscapeState::EscapesToTypedCode);
+                            mark_escape_node(
+                                &mut states,
+                                value_node(*receiver),
+                                EscapeState::EscapesToTypedCode,
+                            );
                         }
                         for value in args {
-                            mark(*value, EscapeState::EscapesToTypedCode);
+                            mark_escape_node(
+                                &mut states,
+                                value_node(*value),
+                                EscapeState::EscapesToTypedCode,
+                            );
                         }
                     }
                     ControlFlowOp::Closure { captures, .. } => {
                         for value in captures {
-                            mark(*value, EscapeState::EscapesToTypedCode);
+                            mark_escape_node(
+                                &mut states,
+                                value_node(*value),
+                                EscapeState::EscapesToTypedCode,
+                            );
+                        }
+                    }
+                    ControlFlowOp::NewClass {
+                        constructor: Some(constructor),
+                        args,
+                        ..
+                    } => {
+                        if let Some(callee) = module.functions.get(constructor.0 as usize) {
+                            let values = instruction.out.into_iter().chain(args.iter().copied());
+                            for (argument, parameter) in values.zip(&callee.params) {
+                                add_escape_edge(
+                                    &mut edges,
+                                    value_node(argument),
+                                    EscapeNode::Value(*constructor, parameter.value),
+                                );
+                            }
                         }
                     }
                     _ => {}
                 }
             }
             if let Some(Terminator::Return(Some(value))) = block.terminator {
-                mark(value, EscapeState::EscapesToTypedCode);
+                mark_escape_node(
+                    &mut states,
+                    EscapeNode::Value(function.id, value),
+                    if exported {
+                        EscapeState::EscapesToUntypedBoundary
+                    } else {
+                        EscapeState::EscapesToTypedCode
+                    },
+                );
+            }
+        }
+    }
+
+    loop {
+        let mut updates = Vec::new();
+        for (node, neighbors) in &edges {
+            let state = states.get(node).copied().unwrap_or(EscapeState::LocalOnly);
+            for neighbor in neighbors {
+                let current = states
+                    .get(neighbor)
+                    .copied()
+                    .unwrap_or(EscapeState::LocalOnly);
+                if escape_rank(state) > escape_rank(current) {
+                    updates.push((*neighbor, state));
+                }
+            }
+        }
+        if updates.is_empty() {
+            break;
+        }
+        for (node, state) in updates {
+            mark_escape_node(&mut states, node, state);
+        }
+    }
+
+    let mut changed = false;
+    for function in &mut module.functions {
+        for (index, slot) in function.value_escapes.iter_mut().enumerate() {
+            let state = states
+                .get(&EscapeNode::Value(function.id, ValueId(index as u32)))
+                .copied()
+                .unwrap_or(EscapeState::LocalOnly);
+            if *slot != state {
+                *slot = state;
+                changed = true;
             }
         }
     }
     OptimizationReport {
         pass_name: "escape-analysis",
         changed,
+    }
+}
+
+fn add_escape_edge(
+    edges: &mut AHashMap<EscapeNode, AHashSet<EscapeNode>>,
+    left: EscapeNode,
+    right: EscapeNode,
+) {
+    edges.entry(left).or_default().insert(right);
+    edges.entry(right).or_default().insert(left);
+}
+
+fn mark_escape_node(
+    states: &mut AHashMap<EscapeNode, EscapeState>,
+    node: EscapeNode,
+    state: EscapeState,
+) {
+    let slot = states.entry(node).or_insert(EscapeState::LocalOnly);
+    if escape_rank(state) > escape_rank(*slot) {
+        *slot = state;
     }
 }
 
@@ -1930,6 +2218,7 @@ fn eliminate_dead_control_flow_instructions(
 fn eliminate_dead_functions(module: &mut ControlFlowModule<'_>) -> OptimizationReport {
     let mut reachable = AHashSet::new();
     let mut work = vec![module.entry];
+    work.extend(exported_functions(module));
     while let Some(function_id) = work.pop() {
         if !reachable.insert(function_id) {
             continue;
@@ -1963,6 +2252,17 @@ fn eliminate_dead_functions(module: &mut ControlFlowModule<'_>) -> OptimizationR
         pass_name: "dead-function-elimination",
         changed,
     }
+}
+
+fn exported_functions(module: &ControlFlowModule<'_>) -> AHashSet<FunctionId> {
+    module
+        .exports
+        .iter()
+        .filter_map(|export| match export.binding {
+            ExportBinding::Function(function) => Some(function),
+            _ => None,
+        })
+        .collect()
 }
 
 fn control_flow_use_counts(function: &ControlFlowFunction<'_>) -> AHashMap<ValueId, usize> {

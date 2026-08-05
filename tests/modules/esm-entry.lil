@@ -1,0 +1,4 @@
+import { square as internalSquare } from "./esm-library";
+
+export { internalSquare as square };
+export int answer = 7;

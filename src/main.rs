@@ -5,11 +5,16 @@ use std::process::{Command, Stdio};
 
 use clap::{Parser, ValueEnum};
 
-use lilscript::{compile_path, compile_path_all, compile_path_to_c, render_module_diagnostic};
+use lilscript::config::{load_project_config, BundleMode};
+use lilscript::{
+    compile_path_all_configured, compile_path_configured, compile_path_to_c_configured,
+    compile_path_to_js_module_configured, render_module_diagnostic,
+};
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 enum Target {
     Js,
+    JsModule,
     C,
     Native,
     All,
@@ -29,6 +34,10 @@ struct Args {
     /// Compilation target.
     #[arg(long, value_enum, default_value_t = Target::Js)]
     target: Target,
+
+    /// Explicit config path. Otherwise `lilscript.toml` is discovered from the input directory.
+    #[arg(long)]
+    config: Option<PathBuf>,
 }
 
 fn main() {
@@ -40,19 +49,33 @@ fn main() {
 
 fn run() -> Result<(), String> {
     let args = Args::parse();
+    let loaded = load_project_config(&args.input, args.config.as_deref())
+        .map_err(|error| error.to_string())?;
+    if loaded.config.bundle.mode != BundleMode::Single {
+        return Err(format!(
+            "bundle mode `{:?}` is configured, but this target currently emits only a single whole-program artifact",
+            loaded.config.bundle.mode
+        ));
+    }
     match args.target {
         Target::Js => {
-            let js = compile_path(&args.input).map_err(|error| render_module_diagnostic(&error))?;
+            let js = compile_path_configured(&args.input, &loaded.config)
+                .map_err(|error| render_module_diagnostic(&error))?;
+            write_or_print(args.output.as_deref(), &js)?;
+        }
+        Target::JsModule => {
+            let js = compile_path_to_js_module_configured(&args.input, &loaded.config)
+                .map_err(|error| render_module_diagnostic(&error))?;
             write_or_print(args.output.as_deref(), &js)?;
         }
         Target::C => {
-            let c =
-                compile_path_to_c(&args.input).map_err(|error| render_module_diagnostic(&error))?;
+            let c = compile_path_to_c_configured(&args.input, &loaded.config)
+                .map_err(|error| render_module_diagnostic(&error))?;
             write_or_print(args.output.as_deref(), &c)?;
         }
         Target::Native => {
-            let c =
-                compile_path_to_c(&args.input).map_err(|error| render_module_diagnostic(&error))?;
+            let c = compile_path_to_c_configured(&args.input, &loaded.config)
+                .map_err(|error| render_module_diagnostic(&error))?;
             let output = args.output.unwrap_or_else(|| {
                 let mut output = args.input.clone();
                 output.set_extension("");
@@ -61,8 +84,8 @@ fn run() -> Result<(), String> {
             compile_native(&c, &output)?;
         }
         Target::All => {
-            let artifacts =
-                compile_path_all(&args.input).map_err(|error| render_module_diagnostic(&error))?;
+            let artifacts = compile_path_all_configured(&args.input, &loaded.config)
+                .map_err(|error| render_module_diagnostic(&error))?;
             let base = args.output.unwrap_or_else(|| {
                 let mut output = args.input.clone();
                 output.set_extension("");

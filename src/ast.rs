@@ -65,6 +65,7 @@ pub struct ImportSpecifier<'src> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ExportDecl<'src> {
     pub local: Ident<'src>,
+    pub exported: Ident<'src>,
     pub span: Span,
 }
 

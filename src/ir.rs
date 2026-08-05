@@ -102,9 +102,24 @@ pub struct IrModule {
 pub struct ControlFlowModule<'src> {
     pub functions: Vec<ControlFlowFunction<'src>>,
     pub globals: Vec<IrGlobal<'src>>,
+    pub exports: Vec<IrExport<'src>>,
     pub structs: Vec<AggregateLayout<'src>>,
     pub classes: Vec<AggregateLayout<'src>>,
     pub entry: FunctionId,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IrExport<'src> {
+    pub name: &'src str,
+    pub binding: ExportBinding,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExportBinding {
+    Function(FunctionId),
+    Global(SymbolId),
+    TypeOnly,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
