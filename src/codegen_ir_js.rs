@@ -1618,10 +1618,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             if captures.is_empty() {
                 return Ok(name.to_string());
             }
+            let mut wrapper_mangler = self.top_level_mangler.clone();
+            for capture in captures {
+                reserve_expression_identifiers(&mut wrapper_mangler, capture);
+            }
             let context = LocalNames::new(
                 &function,
                 false,
-                &self.top_level_mangler,
+                &wrapper_mangler,
                 self.options.mangle_identifiers,
             );
             let mut rendered = render_arrow_parameters(&function, &context)?;
@@ -1862,6 +1866,27 @@ fn expression_references_name(expression: &str, name: &str) -> bool {
         before.is_none_or(|byte| !is_js_identifier_byte(byte))
             && after.is_none_or(|byte| !is_js_identifier_byte(byte))
     })
+}
+
+fn reserve_expression_identifiers(mangler: &mut Mangler, expression: &str) {
+    let bytes = expression.as_bytes();
+    let mut start = 0;
+    while start < bytes.len() {
+        if !is_js_identifier_start(bytes[start]) {
+            start += 1;
+            continue;
+        }
+        let mut end = start + 1;
+        while end < bytes.len() && is_js_identifier_byte(bytes[end]) {
+            end += 1;
+        }
+        mangler.reserve(&expression[start..end]);
+        start = end;
+    }
+}
+
+const fn is_js_identifier_start(byte: u8) -> bool {
+    byte.is_ascii_alphabetic() || byte == b'_' || byte == b'$'
 }
 
 const fn is_js_identifier_byte(byte: u8) -> bool {
@@ -3077,6 +3102,14 @@ mod tests {
                 assert_ne!(colors[&captured], *color);
             }
         }
+    }
+
+    #[test]
+    fn closure_wrappers_reserve_capture_expression_identifiers() {
+        let mut mangler = Mangler::default();
+        reserve_expression_identifiers(&mut mangler, "a[0]+b.c+d");
+
+        assert_eq!(mangler.next_name(), "e");
     }
 
     #[test]
