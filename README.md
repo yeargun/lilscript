@@ -78,6 +78,9 @@ target/release/lilscript examples/v01.lil -o app.js
 # Reusable ESM with retained, mangled named exports
 target/release/lilscript tests/modules/esm-entry.lil --target js-module -o library.mjs
 
+# Static ESM chunks plus app.manifest.json, controlled by lilscript.toml
+target/release/lilscript src/main.lil --target js-module -o build/app.mjs
+
 # Portable C or a native executable
 target/release/lilscript examples/full_conformance.lil --target c -o app.c
 target/release/lilscript examples/full_conformance.lil --target native -o app
@@ -92,9 +95,10 @@ Compiler policy is configured in an auto-discovered `lilscript.toml`, or with
 `--config path/to/lilscript.toml`. Presets and per-pass overrides control
 folding, CSE, global optimization, inlining, scalar replacement, DCE, identifier
 and boundary-property mangling, public-export mangling, and string pooling.
-Bundle policy also records chunk size/import/count thresholds. See
-[docs/configuration.md](docs/configuration.md) for the complete schema and the
-current chunking status.
+Bundle policy selects a single artifact, source-module-preserving static ESM
+chunks, or size/import-limited shared chunks. See
+[docs/configuration.md](docs/configuration.md) for the complete schema and exact
+chunk eligibility rules.
 
 ## Modules and tree shaking
 
@@ -124,6 +128,11 @@ lists support aliases (`export { internalName as publicName };`). Struct and
 class exports are compile-time type exports; functions and globals are runtime
 ESM exports. The default `js`, `c`, `native`, and `all` targets remain
 closed-world executable builds, so their exports do not prevent DCE.
+
+When `bundle.mode` is `split` or `preserve-modules`, JavaScript output becomes a
+static ESM entry plus sibling chunks and a deterministic JSON manifest. The
+whole program is still optimized before partitioning. C and native output stay
+single artifacts, and `--target all` can emit both forms in one invocation.
 
 ## Playground
 

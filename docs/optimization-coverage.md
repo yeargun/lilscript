@@ -35,7 +35,7 @@ same module to the JavaScript and native C backends.
 | Rename variables and globals | Frequency-ranked base-54/base-64 identifiers with extern names reserved |
 | Rescope globals | Entry-only globals become locals; immutable shared globals become constants |
 | Rewrite modules and tree shake exports | Relative module graphs are linked into private symbol namespaces; executable exports remain shakeable, while `js-module` roots runtime exports and emits mangled ESM aliases |
-| Cross-chunk code/method motion | Static modules are intentionally emitted as one optimized bundle; runtime lazy chunks are outside v0.1 |
+| Cross-chunk code/method motion | Whole-program optimization runs before deterministic static ESM partitioning; preserve-module and shared size/import policies emit explicit imports, live exports, and a manifest. Dynamic/lazy imports remain unsupported |
 | Prototype extraction and dotted-property conversion | Not applicable: LilScript has no prototype mutation or dynamic property grammar |
 
 Closure also contains JavaScript-input processing for JSDoc, `goog.*`,
@@ -61,7 +61,9 @@ The current schedule is:
 8. another scalar fixed point;
 9. effect-aware SSA DCE and whole-program function DCE;
 10. liveness-based name coalescing, dependency-ordered phi copies, and minified
-    backend peepholes.
+    backend peepholes;
+11. optional source ownership or shared-module chunk planning over the surviving
+    IR, followed by cross-chunk binding analysis and deterministic ESM emission.
 
 ## Executable evidence
 
@@ -71,6 +73,9 @@ multi-file module graph, with one
 C, and invokes Clang for a native executable. The script then compiles the
 emitted C independently and requires the JavaScript, direct native executable,
 independently compiled C executable, and checked-in expected output to match.
+`scripts/verify-bundles.mjs` additionally executes preserve-module and shared
+split bundles, checks their manifests, and exercises live bindings across a
+circular ESM dependency between the entry and a reader chunk.
 
 `benchmarks/run.sh` compiles nine behaviorally equivalent LilScript/JavaScript
 workloads, runs both outputs, invokes Closure `ADVANCED`, and measures normalized

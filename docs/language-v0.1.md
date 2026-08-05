@@ -176,9 +176,12 @@ The `js-module` target instead creates a reusable ESM boundary. Runtime exports
 from the root module are retention roots, their internal bindings remain
 mangleable, and a compact named export clause maps them back to stable public
 names. Struct and class names are compile-time type exports and therefore do not
-produce JavaScript bindings. The default backend emits one optimized application
-bundle; lazy imports and runtime chunk loading remain outside this contract
-because forced chunks add boundaries and bytes to fully static programs.
+produce JavaScript bindings. The default bundle policy emits one optimized
+application artifact. A project can opt into static ESM chunks with
+`bundle.mode = "preserve-modules"` or `"split"`; partitioning occurs after
+whole-program optimization and produces a manifest. These imports are eager.
+Lazy imports and runtime chunk loading remain outside the language contract
+because LilScript does not yet define a dynamic import expression.
 
 ## Aggregates and classes
 
