@@ -35,6 +35,7 @@ SSA optimization; they are not JavaScript wrappers in the generated bundle.
 | `bool` | `true` or `false` | boolean | C11 `bool` |
 | `string` | immutable UTF-8 text | string | runtime string handle |
 | `T[]` | mutable homogeneous array | optimized array representation | runtime array handle |
+| `T?` | either a `T` value or `null` | `T` or raw `null` | tagged `LilScriptOptional` |
 | `struct S` | positional value aggregate | scalars, tuple, or boundary object | positional C value record |
 | `class C` | nominal reference value with methods | dissolved record or class at an escaping boundary | pointer to a C record |
 | `func(T...)->R` | callable value | function/closure | function plus environment |
@@ -47,6 +48,14 @@ for a local or top-level variable with an initializer.
 An `int` widens implicitly to `float`. Other conversions require an explicit
 standard conversion function. Arrays and nominal types do not implicitly
 coerce.
+
+Postfix `?` makes a value type nullable. `null` is assignable only to a nullable
+type, and `auto value = null;` is rejected because it has no concrete value type
+to infer. Nullable values may be compared with `null`, their underlying value,
+or another compatible nullable. JavaScript keeps raw `null`; native code uses a
+tagged payload so nullable primitives and aggregates have the same semantics.
+Flow-sensitive narrowing and nullable member/index access are not part of this
+increment yet; nullable values can be passed, returned, stored, and compared.
 
 Generic functions declare type parameters after the function name. Calls infer
 their type arguments from ordinary values and callback parameter/return types:
@@ -94,6 +103,7 @@ int count = 5;
 float ratio = 3.14;
 string name = "LilScript";
 bool enabled = true;
+string? subtitle = null;
 auto inferred = count * 2;
 int[] values = [1, 2, 3];
 func(int)->int twice = (int value) => value * 2;

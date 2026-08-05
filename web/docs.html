@@ -108,6 +108,7 @@ lilscript app.lil --target all -o build/app</code></pre>
           <pre><code>int count = 5;
 float ratio = 3.14;
 string title = "LilScript";
+string? subtitle = null;
 bool enabled = true;
 auto inferred = count * 2;
 int[] scores = [10, 20, 30];
@@ -119,6 +120,7 @@ func(int)-&gt;int twice = (int value) =&gt; value * 2;</code></pre>
               <tr><td><code>float</code></td><td>IEEE-754 binary64</td><td>Number</td></tr>
               <tr><td><code>bool</code></td><td><code>true</code> or <code>false</code></td><td>Boolean</td></tr>
               <tr><td><code>string</code></td><td>Immutable UTF-8 text</td><td>String</td></tr>
+              <tr><td><code>T?</code></td><td>A <code>T</code> value or <code>null</code></td><td>Raw value or <code>null</code></td></tr>
               <tr><td><code>T[]</code></td><td>Mutable homogeneous array</td><td>Selected optimized array representation</td></tr>
             </tbody>
           </table>

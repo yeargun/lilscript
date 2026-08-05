@@ -260,6 +260,7 @@ fn completion_result(source: Option<&str>) -> Value {
         keyword("bool", "Boolean type"),
         keyword("auto", "Infer a declaration type from its initializer"),
         keyword("void", "No-value return type"),
+        keyword("null", "Absent value for an explicitly nullable type"),
         keyword("return", "Return from the current function"),
         keyword("new", "Construct a class value"),
         keyword("extern", "Declare a typed host boundary"),
@@ -371,6 +372,7 @@ fn language_help(word: &str) -> Option<&'static str> {
         "string" => "Immutable UTF-8 text value.",
         "bool" => "Boolean value: `true` or `false`.",
         "auto" => "Infers the binding type from its required initializer.",
+        "null" => "Absent value assignable only to an explicitly nullable `T?` type.",
         "struct" => "Declares a positional value aggregate eligible for scalar replacement.",
         "class" => "Declares a nominal reference type with fields, one `init`, and methods.",
         "init" => "Declares the constructor body for a class.",
@@ -633,7 +635,7 @@ mod tests {
 
     #[test]
     fn lexer_accepts_documented_completion_keywords() {
-        assert!(lilscript::lexer::lex("struct Point{int x;}").is_ok());
+        assert!(lilscript::lexer::lex("struct Point{int? x;}Point? point=null;").is_ok());
     }
 
     #[test]

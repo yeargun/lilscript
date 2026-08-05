@@ -136,7 +136,8 @@
     },
     "constants": {
       "patterns": [
-        { "name": "constant.language.boolean.lilscript", "match": "\\b(true|false)\\b" }
+        { "name": "constant.language.boolean.lilscript", "match": "\\b(true|false)\\b" },
+        { "name": "constant.language.null.lilscript", "match": "\\bnull\\b" }
       ]
     },
     "numbers": {
