@@ -1,11 +1,12 @@
 use std::collections::HashMap;
 use std::error::Error;
+use std::path::PathBuf;
 
 use bumpalo::Bump;
 use clap::Parser;
 use lilscript::ast::{ClassMember, Item, Stmt};
 use lilscript::span::Span;
-use lilscript::{compile_source, parse_source};
+use lilscript::{compile_path_with_source, compile_source, parse_source};
 use lsp_server::{Connection, ErrorCode, Message, Notification, Request, Response};
 use serde_json::{json, Value};
 
@@ -164,7 +165,7 @@ fn publish_diagnostics(
         json!({
             "uri": uri,
             "version": version,
-            "diagnostics": diagnostics(source)
+            "diagnostics": diagnostics(Some(uri), source)
         }),
     )
 }
@@ -183,7 +184,35 @@ fn send_notification(
     Ok(())
 }
 
-fn diagnostics(source: &str) -> Vec<Value> {
+fn diagnostics(uri: Option<&str>, source: &str) -> Vec<Value> {
+    if let Some(path) = uri.and_then(file_uri_path) {
+        if path.is_file() {
+            return match compile_path_with_source(&path, source) {
+                Ok(_) => Vec::new(),
+                Err(error) => {
+                    let current = path.canonicalize().ok();
+                    let is_current = current.as_ref().is_some_and(|path| *path == error.path);
+                    let span = if is_current {
+                        error.span
+                    } else {
+                        Span::empty(0)
+                    };
+                    let message = if is_current {
+                        error.message
+                    } else {
+                        format!("{}: {}", error.path.display(), error.message)
+                    };
+                    vec![json!({
+                        "range": span_range(source, span),
+                        "severity": 1,
+                        "source": "lilscript",
+                        "message": message
+                    })]
+                }
+            };
+        }
+    }
+
     match compile_source(source) {
         Ok(_) => Vec::new(),
         Err(error) => vec![json!({
@@ -192,6 +221,34 @@ fn diagnostics(source: &str) -> Vec<Value> {
             "source": "lilscript",
             "message": error.to_string()
         })],
+    }
+}
+
+fn file_uri_path(uri: &str) -> Option<PathBuf> {
+    let encoded = uri.strip_prefix("file://")?;
+    let bytes = encoded.as_bytes();
+    let mut decoded = Vec::with_capacity(bytes.len());
+    let mut index = 0usize;
+    while index < bytes.len() {
+        if bytes[index] == b'%' && index + 2 < bytes.len() {
+            let high = hex_value(bytes[index + 1])?;
+            let low = hex_value(bytes[index + 2])?;
+            decoded.push(high * 16 + low);
+            index += 3;
+        } else {
+            decoded.push(bytes[index]);
+            index += 1;
+        }
+    }
+    String::from_utf8(decoded).ok().map(PathBuf::from)
+}
+
+const fn hex_value(value: u8) -> Option<u8> {
+    match value {
+        b'0'..=b'9' => Some(value - b'0'),
+        b'a'..=b'f' => Some(value - b'a' + 10),
+        b'A'..=b'F' => Some(value - b'A' + 10),
+        _ => None,
     }
 }
 
@@ -206,6 +263,12 @@ fn completion_result(source: Option<&str>) -> Value {
         keyword("return", "Return from the current function"),
         keyword("new", "Construct a class value"),
         keyword("extern", "Declare a typed host boundary"),
+        keyword("import", "Import exported bindings from a LilScript module"),
+        keyword("export", "Expose a module binding to importers"),
+        keyword("pure", "Require a function to be side-effect free"),
+        snippet("import", "import { ${1:name} } from \"${2:./module}\";", "Named module import"),
+        snippet("export function", "export ${1:int} ${2:name}(${3:int} ${4:value}) {\n  return ${4:value};\n}", "Exported typed function"),
+        snippet("pure function", "pure ${1:int} ${2:name}(${3:int} ${4:value}) {\n  return ${4:value};\n}", "Checked side-effect-free function"),
         snippet("struct", "struct ${1:Name} {\n  ${2:int} ${3:field};\n}", "Struct declaration"),
         snippet("class", "class ${1:Name} {\n  ${2:int} ${3:field};\n\n  init(${2:int} ${3:field}) {\n    this.${3:field} = ${3:field};\n  }\n}", "Class declaration"),
         snippet("function", "${1:int} ${2:name}(${3:int} ${4:value}) {\n  return ${4:value};\n}", "Typed function"),
@@ -247,6 +310,15 @@ fn append_document_completions(source: &str, items: &mut Vec<Value>) {
     let Ok(program) = parse_source(&arena, source) else {
         return;
     };
+    for import in program.imports {
+        for specifier in import.specifiers {
+            items.push(json!({
+                "label": specifier.local.name,
+                "kind": 6,
+                "detail": format!("imported from {}", import.source)
+            }));
+        }
+    }
     for item in program.items {
         let entry = match item {
             Item::Struct(decl) => {
@@ -303,6 +375,9 @@ fn language_help(word: &str) -> Option<&'static str> {
         "class" => "Declares a nominal reference type with fields, one `init`, and methods.",
         "init" => "Declares the constructor body for a class.",
         "extern" => "Declares a typed function implemented by the JavaScript or native host.",
+        "import" => "Adds a relative `.lil` module to the closed-world compilation graph and binds selected exports.",
+        "export" => "Makes a top-level module binding available to named imports without forcing it to remain in the final bundle.",
+        "pure" => "Asserts that a function has no observable side effects; the compiler rejects a violated contract and infers purity without it.",
         "map" => "Transforms every array element with a statically typed callback.",
         "filter" => "Returns elements for which a typed callback returns `true`.",
         "reduce" => "Combines array elements into one typed accumulator value.",
@@ -540,7 +615,7 @@ mod tests {
 
     #[test]
     fn returns_compiler_diagnostics() {
-        let result = diagnostics("int value=\"wrong\";");
+        let result = diagnostics(None, "int value=\"wrong\";");
         assert_eq!(result.len(), 1);
         assert!(result[0]["message"]
             .as_str()
@@ -559,5 +634,30 @@ mod tests {
     #[test]
     fn lexer_accepts_documented_completion_keywords() {
         assert!(lilscript::lexer::lex("struct Point{int x;}").is_ok());
+    }
+
+    #[test]
+    fn resolves_modules_for_saved_document_diagnostics() {
+        let directory =
+            std::env::temp_dir().join(format!("lilscript-lsp-module-test-{}", std::process::id()));
+        std::fs::create_dir_all(&directory).unwrap();
+        std::fs::write(
+            directory.join("math.lil"),
+            "export pure int square(int value){return value*value;}",
+        )
+        .unwrap();
+        let main = directory.join("main.lil");
+        let source = "import {square as sq} from \"./math\";print(sq(4));";
+        std::fs::write(&main, source).unwrap();
+        let uri = format!("file://{}", main.display());
+
+        assert!(diagnostics(Some(&uri), source).is_empty());
+        let completions = completion_result(Some(source));
+        assert!(completions["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|item| item["label"] == "sq"));
+        std::fs::remove_dir_all(directory).unwrap();
     }
 }

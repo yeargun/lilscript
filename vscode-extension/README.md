@@ -7,7 +7,7 @@ Included features:
 - TextMate syntax highlighting;
 - comments, brackets, auto-closing pairs, folding, and indentation;
 - declaration and control-flow snippets;
-- compiler-backed diagnostics;
+- compiler-backed, module-aware diagnostics;
 - keyword, snippet, and document completion;
 - language and standard-method hover documentation;
 - document symbols for structs, classes, fields, methods, functions, externs, and top-level bindings.

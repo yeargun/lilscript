@@ -63,6 +63,15 @@
     "declarations": {
       "patterns": [
         {
+          "match": "\\b(import)\\s*\\{([^}]*)\\}\\s*(from)\\s*(\"[^\"]+\")",
+          "captures": {
+            "1": { "name": "keyword.control.import.lilscript" },
+            "2": { "name": "variable.other.readwrite.lilscript" },
+            "3": { "name": "keyword.control.import.lilscript" },
+            "4": { "name": "string.quoted.double.lilscript" }
+          }
+        },
+        {
           "match": "\\b(struct|class)\\s+([A-Za-z_$][A-Za-z0-9_$]*)",
           "captures": {
             "1": { "name": "storage.type.lilscript" },
@@ -109,7 +118,11 @@
         },
         {
           "name": "storage.type.lilscript",
-          "match": "\\b(struct|class|init|extern)\\b"
+          "match": "\\b(struct|class|init|extern|pure)\\b"
+        },
+        {
+          "name": "keyword.control.module.lilscript",
+          "match": "\\b(import|export|from|as)\\b"
         },
         {
           "name": "keyword.operator.new.lilscript",

@@ -44,5 +44,28 @@
     "prefix": "extern",
     "body": ["extern ${1:int} ${2:hostFunction}(${3:int} ${4:value});"],
     "description": "Declare a typed host function"
+  },
+  "Named import": {
+    "prefix": "import",
+    "body": ["import { ${1:name} } from \"${2:./module}\";"],
+    "description": "Import named exports from a LilScript module"
+  },
+  "Exported function": {
+    "prefix": "exportfn",
+    "body": [
+      "export ${1:int} ${2:name}(${3:int} ${4:value}) {",
+      "  return ${5:value};",
+      "}"
+    ],
+    "description": "Declare a module-exported function"
+  },
+  "Pure function": {
+    "prefix": "purefn",
+    "body": [
+      "pure ${1:int} ${2:name}(${3:int} ${4:value}) {",
+      "  return ${5:value};",
+      "}"
+    ],
+    "description": "Declare a compiler-checked side-effect-free function"
   }
 }
