@@ -323,42 +323,48 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
             functions.push(builder.finish()?);
         }
 
+        let mut structs = self
+            .semantics
+            .structs()
+            .map(|info| AggregateLayout {
+                name: info.name,
+                fields: info
+                    .fields
+                    .values()
+                    .map(|field| AggregateField {
+                        name: field.name,
+                        ty: field.ty.clone(),
+                        index: field.index,
+                    })
+                    .collect(),
+            })
+            .collect::<Vec<_>>();
+        structs.sort_unstable_by_key(|layout| layout.name);
+
+        let mut classes = self
+            .semantics
+            .classes()
+            .map(|info| AggregateLayout {
+                name: info.name,
+                fields: info
+                    .fields
+                    .values()
+                    .map(|field| AggregateField {
+                        name: field.name,
+                        ty: field.ty.clone(),
+                        index: field.index,
+                    })
+                    .collect(),
+            })
+            .collect::<Vec<_>>();
+        classes.sort_unstable_by_key(|layout| layout.name);
+
         Ok(ControlFlowModule {
             functions,
             globals: self.globals,
             exports: self.exports,
-            structs: self
-                .semantics
-                .structs()
-                .map(|info| AggregateLayout {
-                    name: info.name,
-                    fields: info
-                        .fields
-                        .values()
-                        .map(|field| AggregateField {
-                            name: field.name,
-                            ty: field.ty.clone(),
-                            index: field.index,
-                        })
-                        .collect(),
-                })
-                .collect(),
-            classes: self
-                .semantics
-                .classes()
-                .map(|info| AggregateLayout {
-                    name: info.name,
-                    fields: info
-                        .fields
-                        .values()
-                        .map(|field| AggregateField {
-                            name: field.name,
-                            ty: field.ty.clone(),
-                            index: field.index,
-                        })
-                        .collect(),
-                })
-                .collect(),
+            structs,
+            classes,
             entry: FunctionId(0),
         })
     }

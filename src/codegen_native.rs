@@ -365,7 +365,9 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
         }
 
         let types = value_types(function);
-        for (value, ty) in &types {
+        let mut declarations = types.iter().collect::<Vec<_>>();
+        declarations.sort_unstable_by_key(|(value, _)| value.0);
+        for (value, ty) in declarations {
             let declared_parameter = if function.kind != FunctionKind::Closure {
                 function.params.iter().any(|param| param.value == *value)
             } else {

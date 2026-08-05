@@ -129,8 +129,12 @@ fn ensure_parent(output: &Path) -> Result<(), String> {
 
 fn compile_native(c: &str, output: &Path) -> Result<(), String> {
     let compiler = std::env::var("CC").unwrap_or_else(|_| "clang".to_string());
-    let mut child = Command::new(&compiler)
-        .args(["-x", "c", "-std=c11", "-O3", "-o"])
+    let mut command = Command::new(&compiler);
+    command.args(["-x", "c", "-std=c11", "-O3"]);
+    #[cfg(target_os = "macos")]
+    command.arg("-Wl,-no_uuid");
+    let mut child = command
+        .arg("-o")
         .arg(output)
         .arg("-")
         .stdin(Stdio::piped())

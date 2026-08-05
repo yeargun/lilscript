@@ -482,6 +482,42 @@ mod tests {
     }
 
     #[test]
+    fn repeated_compilation_is_byte_deterministic() {
+        let source = r#"
+            struct Zeta { int right; int left; }
+            struct Alpha { int x; int y; }
+            class Counter {
+                int value;
+                init(int value) { this.value = value; }
+                int read() { return this.value; }
+            }
+            extern void consumeAlpha(Alpha value);
+            extern void consumeZeta(Zeta value);
+            extern void consumeCounter(Counter value);
+            int calculate(int seed) {
+                int first = seed + 1;
+                int second = seed + 2;
+                int third = first * second;
+                if (third > 10) { return third - first; }
+                return third + second;
+            }
+            Alpha alpha = Alpha{calculate(3), 2};
+            Zeta zeta = Zeta{4, calculate(5)};
+            Counter counter = new Counter(calculate(7));
+            consumeAlpha(alpha);
+            consumeZeta(zeta);
+            consumeCounter(counter);
+        "#;
+        let expected = compile_source_all(source).unwrap();
+
+        for _ in 0..16 {
+            let actual = compile_source_all(source).unwrap();
+            assert_eq!(actual.javascript, expected.javascript);
+            assert_eq!(actual.c, expected.c);
+        }
+    }
+
+    #[test]
     fn validates_declared_pure_functions() {
         let error = compile_source("pure int bad(int value){print(value);return value;}")
             .expect_err("printing from a pure function must fail");
