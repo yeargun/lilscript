@@ -126,7 +126,7 @@
         },
         {
           "name": "keyword.operator.new.lilscript",
-          "match": "\\bnew\\b"
+          "match": "\\b(new|is)\\b"
         },
         {
           "name": "variable.language.this.lilscript",

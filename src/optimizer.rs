@@ -464,6 +464,13 @@ fn simplify_algebraic_expressions(module: &mut ControlFlowModule<'_>) -> Optimiz
                             replacement = Some(ConstValue::Bool(!value));
                         }
                     }
+                    ControlFlowOp::TypeCheck { value, ref target } => {
+                        if let Some(source) = value_types.get(&value) {
+                            if !matches!(source, Type::Union(_) | Type::Nullable(_)) {
+                                replacement = Some(ConstValue::Bool(source == target));
+                            }
+                        }
+                    }
                     ControlFlowOp::Binary { op, lhs, rhs } => {
                         let lhs_const = constants.get(&lhs);
                         let rhs_const = constants.get(&rhs);
@@ -2326,7 +2333,7 @@ fn control_flow_used_values(op: &ControlFlowOp<'_>) -> Vec<ValueId> {
         ControlFlowOp::Const(_) | ControlFlowOp::LoadLocal(_) | ControlFlowOp::LoadGlobal(_) => {
             Vec::new()
         }
-        ControlFlowOp::Unary { value, .. } => vec![*value],
+        ControlFlowOp::Unary { value, .. } | ControlFlowOp::TypeCheck { value, .. } => vec![*value],
         ControlFlowOp::Binary { lhs, rhs, .. } => vec![*lhs, *rhs],
         ControlFlowOp::Array(values) => values.clone(),
         ControlFlowOp::Struct { fields, .. } => fields.clone(),
@@ -3317,7 +3324,9 @@ fn rewrite_control_flow_op_once(op: &mut ControlFlowOp<'_>, mapping: &AHashMap<V
 fn rewrite_control_flow_values(op: &mut ControlFlowOp<'_>, mut rewrite: impl FnMut(&mut ValueId)) {
     match op {
         ControlFlowOp::Const(_) | ControlFlowOp::LoadLocal(_) | ControlFlowOp::LoadGlobal(_) => {}
-        ControlFlowOp::Unary { value, .. } => rewrite(value),
+        ControlFlowOp::Unary { value, .. } | ControlFlowOp::TypeCheck { value, .. } => {
+            rewrite(value)
+        }
         ControlFlowOp::Binary { lhs, rhs, .. } => {
             rewrite(lhs);
             rewrite(rhs);

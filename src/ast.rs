@@ -276,6 +276,11 @@ pub enum Expr<'ast, 'src> {
         rhs: &'ast Expr<'ast, 'src>,
         span: Span,
     },
+    TypeCheck {
+        value: &'ast Expr<'ast, 'src>,
+        target: TypeRef<'ast, 'src>,
+        span: Span,
+    },
     Index {
         object: &'ast Expr<'ast, 'src>,
         index: &'ast Expr<'ast, 'src>,
@@ -315,6 +320,7 @@ impl<'ast, 'src> Expr<'ast, 'src> {
             | Self::ArrowFunction { span, .. }
             | Self::Unary { span, .. }
             | Self::Binary { span, .. }
+            | Self::TypeCheck { span, .. }
             | Self::Index { span, .. }
             | Self::Assignment { span, .. }
             | Self::Update { span, .. }

@@ -228,6 +228,7 @@ impl std::error::Error for SemanticError {}
 #[derive(Debug, Clone)]
 pub struct SemanticModel<'src> {
     expression_types: AHashMap<Span, Type<'src>>,
+    type_check_types: AHashMap<Span, Type<'src>>,
     binding_types: AHashMap<Span, Type<'src>>,
     identifier_symbols: AHashMap<Span, SymbolId>,
     symbols: Vec<Symbol<'src>>,
@@ -246,6 +247,10 @@ impl<'src> SemanticModel<'src> {
 
     pub fn identifier_symbol(&self, span: Span) -> Option<SymbolId> {
         self.identifier_symbols.get(&span).copied()
+    }
+
+    pub(crate) fn type_check_type(&self, span: Span) -> Option<&Type<'src>> {
+        self.type_check_types.get(&span)
     }
 
     pub fn symbols(&self) -> &[Symbol<'src>] {
@@ -312,6 +317,7 @@ impl<'src> Analyzer<'src> {
         Self {
             model: SemanticModel {
                 expression_types: AHashMap::new(),
+                type_check_types: AHashMap::new(),
                 binding_types: AHashMap::new(),
                 identifier_symbols: AHashMap::new(),
                 symbols: Vec::new(),
@@ -793,7 +799,7 @@ impl<'src> Analyzer<'src> {
             } => {
                 let condition_type = self.analyze_expr(condition, Some(&Type::Bool))?;
                 self.require_assignable(&Type::Bool, &condition_type, condition.span())?;
-                let (then_narrowing, else_narrowing) = self.null_narrowing(condition)?;
+                let (then_narrowing, else_narrowing) = self.condition_narrowing(condition)?;
                 self.push_scope();
                 self.apply_narrowing(then_narrowing);
                 self.analyze_stmt(then_branch)?;
@@ -811,7 +817,7 @@ impl<'src> Analyzer<'src> {
             } => {
                 let condition_type = self.analyze_expr(condition, Some(&Type::Bool))?;
                 self.require_assignable(&Type::Bool, &condition_type, condition.span())?;
-                let (body_narrowing, _) = self.null_narrowing(condition)?;
+                let (body_narrowing, _) = self.condition_narrowing(condition)?;
                 self.loop_depth += 1;
                 self.push_scope();
                 self.apply_narrowing(body_narrowing);
@@ -1184,6 +1190,17 @@ impl<'src> Analyzer<'src> {
                 let lhs_type = self.analyze_expr(lhs, None)?;
                 let rhs_type = self.analyze_expr(rhs, None)?;
                 self.analyze_binary(*op, &lhs_type, &rhs_type, *span)?
+            }
+            Expr::TypeCheck {
+                value,
+                target,
+                span,
+            } => {
+                let value_type = self.analyze_expr(value, None)?;
+                let target_type = self.resolve_value_type(*target, "type guard")?;
+                validate_type_guard(&value_type, &target_type, *span)?;
+                self.model.type_check_types.insert(*span, target_type);
+                Type::Bool
             }
             Expr::Index {
                 object,
@@ -2015,10 +2032,41 @@ impl<'src> Analyzer<'src> {
         }
     }
 
-    fn null_narrowing<'ast>(
+    fn condition_narrowing<'ast>(
         &self,
         condition: &Expr<'ast, 'src>,
     ) -> Result<(Narrowing<'src>, Narrowing<'src>), SemanticError> {
+        if let Expr::Unary {
+            op: UnaryOp::Not,
+            expr,
+            ..
+        } = condition
+        {
+            let (then_narrowing, else_narrowing) = self.condition_narrowing(expr)?;
+            return Ok((else_narrowing, then_narrowing));
+        }
+        if let Expr::TypeCheck {
+            value: Expr::Ident(ident),
+            span,
+            ..
+        } = condition
+        {
+            let symbol = self.resolve(ident)?;
+            let target = self
+                .model
+                .type_check_types
+                .get(span)
+                .cloned()
+                .ok_or_else(|| {
+                    SemanticError::new(*span, "type guard was not analyzed before narrowing")
+                })?;
+            let current = self.narrowed_type(symbol.id).unwrap_or(&symbol.ty);
+            let remaining = subtract_guarded_type(current, &target);
+            return Ok((
+                Some((symbol.id, target)),
+                remaining.map(|ty| (symbol.id, ty)),
+            ));
+        }
         let Expr::Binary { op, lhs, rhs, .. } = condition else {
             return Ok((None, None));
         };
@@ -2597,6 +2645,84 @@ fn append_union_member<'src>(flattened: &mut Vec<Type<'src>>, member: Type<'src>
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RuntimeTypeCategory {
+    Number,
+    String,
+    Bool,
+    Null,
+    Array,
+    Function,
+}
+
+fn runtime_type_category(ty: &Type<'_>) -> Option<RuntimeTypeCategory> {
+    match ty {
+        Type::Int | Type::Float => Some(RuntimeTypeCategory::Number),
+        Type::String => Some(RuntimeTypeCategory::String),
+        Type::Bool => Some(RuntimeTypeCategory::Bool),
+        Type::Null => Some(RuntimeTypeCategory::Null),
+        Type::Array(_) => Some(RuntimeTypeCategory::Array),
+        Type::Function(_) | Type::GenericFunction(_) => Some(RuntimeTypeCategory::Function),
+        _ => None,
+    }
+}
+
+fn validate_type_guard(
+    value: &Type<'_>,
+    target: &Type<'_>,
+    span: Span,
+) -> Result<(), SemanticError> {
+    if matches!(target, Type::Union(_) | Type::Nullable(_)) {
+        return Err(SemanticError::new(
+            span,
+            "an `is` guard target must be one concrete member type",
+        ));
+    }
+    let target_category = runtime_type_category(target).ok_or_else(|| {
+        SemanticError::new(
+            span,
+            format!("type `{target}` has no portable runtime type guard"),
+        )
+    })?;
+    let members = match value {
+        Type::Union(members) => members.clone(),
+        Type::Nullable(inner) => vec![inner.as_ref().clone(), Type::Null],
+        value => vec![value.clone()],
+    };
+    if !members.iter().any(|member| member == target) {
+        return Err(SemanticError::new(
+            span,
+            format!("type `{target}` is not a member of `{value}`"),
+        ));
+    }
+    if members
+        .iter()
+        .any(|member| member != target && runtime_type_category(member) == Some(target_category))
+    {
+        return Err(SemanticError::new(
+            span,
+            format!("type guard `{target}` is runtime-ambiguous within `{value}`"),
+        ));
+    }
+    Ok(())
+}
+
+fn subtract_guarded_type<'src>(value: &Type<'src>, target: &Type<'src>) -> Option<Type<'src>> {
+    match value {
+        Type::Union(members) => {
+            let remaining = members
+                .iter()
+                .filter(|member| *member != target)
+                .cloned()
+                .collect::<Vec<_>>();
+            (!remaining.is_empty()).then(|| normalize_union(remaining))
+        }
+        Type::Nullable(inner) if target == &Type::Null => Some(inner.as_ref().clone()),
+        Type::Nullable(inner) if target == inner.as_ref() => Some(Type::Null),
+        _ => None,
+    }
+}
+
 fn common_numeric_type<'src>(lhs: &Type<'src>, rhs: &Type<'src>) -> Type<'src> {
     if lhs == &Type::Float || rhs == &Type::Float {
         Type::Float
@@ -2742,6 +2868,37 @@ mod tests {
 
         let error = check("bool same=1==true;").unwrap_err();
         assert!(error.message.contains("cannot be applied"), "{error}");
+    }
+
+    #[test]
+    fn narrows_portably_distinguishable_union_members() {
+        check(
+            r#"
+                string describe(string|int value){
+                    if(value is string){return value.toUpperCase();}
+                    else{return "number-"+value;}
+                }
+                string invoke((func(int)->int)|string value){
+                    if(value is func(int)->int){return "result-"+value(4);}
+                    else{return value;}
+                }
+                string nested(string|int|bool value){
+                    if(value is string){return value;}
+                    else if(value is int){return "number-"+value;}
+                    else if(value){return "yes";}
+                    else{return "no";}
+                }
+            "#,
+        )
+        .unwrap();
+
+        let ambiguous = check("bool test(int|float value){return value is int;}").unwrap_err();
+        assert!(
+            ambiguous.message.contains("runtime-ambiguous"),
+            "{ambiguous}"
+        );
+        let absent = check("bool test(string|int value){return value is bool;}").unwrap_err();
+        assert!(absent.message.contains("is not a member"), "{absent}");
     }
 
     #[test]

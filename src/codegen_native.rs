@@ -1050,6 +1050,10 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                 types,
                 instruction.span,
             )?,
+            ControlFlowOp::TypeCheck {
+                value: input,
+                target,
+            } => self.render_type_check(*input, &types[input], target, instruction.span)?,
             ControlFlowOp::Struct { name, fields } => {
                 let record = aggregate_type_name("Struct", name);
                 let layout = self
@@ -1142,14 +1146,14 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                 )?
             }
             ControlFlowOp::Intrinsic {
-                intrinsic: Intrinsic::UnwrapNullable,
+                intrinsic: Intrinsic::UnwrapNullable | Intrinsic::UnwrapUnion,
                 receiver: Some(receiver),
                 ..
             } => self.render_value_conversion(
                 &format!("v{}", receiver.0),
                 &types[receiver],
                 instruction.ty.as_ref().ok_or_else(|| {
-                    CodegenError::new(instruction.span, "nullable unwrap has no output type")
+                    CodegenError::new(instruction.span, "typed unwrap has no output type")
                 })?,
                 instruction.span,
             )?,
@@ -1534,6 +1538,37 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
             };
         }
         Ok(format!("({lhs_name}{}{rhs_name})", c_binary_operator(op)))
+    }
+
+    fn render_type_check(
+        &self,
+        value: ValueId,
+        source: &Type<'src>,
+        target: &Type<'src>,
+        span: Span,
+    ) -> Result<String, CodegenError> {
+        let name = format!("v{}", value.0);
+        if let Type::Nullable(inner) = source {
+            return Ok(if target == &Type::Null {
+                format!("!({name}).has")
+            } else if target == inner.as_ref() {
+                format!("({name}).has")
+            } else {
+                "false".to_string()
+            });
+        }
+        let tag = generic_value_tag(target);
+        if tag == 0 {
+            return Err(CodegenError::new(
+                span,
+                format!("type `{target}` has no native type guard"),
+            ));
+        }
+        if is_erased_type(source) {
+            Ok(format!("({name}).tag=={tag}"))
+        } else {
+            Ok((source == target).to_string())
+        }
     }
 
     fn render_nullable_equality(

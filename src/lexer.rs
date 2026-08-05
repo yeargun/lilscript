@@ -61,6 +61,8 @@ pub enum TokenKind<'src> {
     Null,
     #[token("new")]
     New,
+    #[token("is")]
+    Is,
 
     #[regex(r"[0-9]+\.[0-9]+([eE][+-]?[0-9]+)?", |lex| lex.slice().parse::<f64>().ok())]
     FloatLiteral(f64),

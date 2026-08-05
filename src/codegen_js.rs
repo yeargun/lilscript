@@ -672,6 +672,39 @@ impl<'src> JsEmitter<'src> {
             Expr::Binary { op, lhs, rhs, .. } => {
                 self.emit_binary_expr(*op, lhs, rhs, out)?;
             }
+            Expr::TypeCheck { value, target, .. } => match target.kind {
+                TypeKind::Int | TypeKind::Float => {
+                    out.push_str("typeof(");
+                    self.emit_expr(value, out)?;
+                    out.push_str(")==\"number\"");
+                }
+                TypeKind::String => {
+                    out.push_str("typeof(");
+                    self.emit_expr(value, out)?;
+                    out.push_str(")==\"string\"");
+                }
+                TypeKind::Bool => {
+                    out.push_str("typeof(");
+                    self.emit_expr(value, out)?;
+                    out.push_str(")==\"boolean\"");
+                }
+                TypeKind::Array(_) => {
+                    out.push_str("Array.isArray(");
+                    self.emit_expr(value, out)?;
+                    out.push(')');
+                }
+                TypeKind::Function { .. } => {
+                    out.push_str("typeof(");
+                    self.emit_expr(value, out)?;
+                    out.push_str(")==\"function\"");
+                }
+                _ => {
+                    return Err(CodegenError::new(
+                        target.span,
+                        "type has no JavaScript type guard",
+                    ));
+                }
+            },
             Expr::Index { object, index, .. } => {
                 self.emit_expr(object, out)?;
                 out.push('[');

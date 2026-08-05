@@ -837,6 +837,40 @@ mod tests {
     }
 
     #[test]
+    fn compiles_union_type_guards_and_narrowed_calls() {
+        let source = r#"
+            bool flip=false;
+            string|int next(){flip=!flip;if(flip){return "hello";}return 42;}
+            string describe(string|int value){
+                if(value is string){return value.toUpperCase();}
+                else{return "number-"+value;}
+            }
+            int increment(int value){return value+1;}
+            (func(int)->int)|string nextHandler(){
+                flip=!flip;
+                if(flip){return increment;}
+                return "ready";
+            }
+            string invoke((func(int)->int)|string value){
+                if(value is func(int)->int){return "result-"+value(4);}
+                else{return value;}
+            }
+            print(describe(next()));
+            print(describe(next()));
+            print(invoke(nextHandler()));
+        "#;
+        let output = compile_source_all(source).unwrap();
+
+        assert!(
+            output.javascript.contains("typeof"),
+            "{}",
+            output.javascript
+        );
+        assert!(output.c.contains(".tag==4"), "{}", output.c);
+        assert!(output.c.contains(".tag==5"), "{}", output.c);
+    }
+
+    #[test]
     fn preserves_branch_local_shadowing_while_linking() {
         let directory = std::env::temp_dir().join(format!(
             "lilscript-module-shadow-test-{}",

@@ -842,6 +842,15 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                     *span,
                 )
             }
+            Expr::TypeCheck { value, span, .. } => {
+                let value = self.lower_expr(value)?;
+                let target = self
+                    .semantics
+                    .type_check_type(*span)
+                    .cloned()
+                    .ok_or_else(|| LowerError::new(*span, "missing type guard target"))?;
+                self.emit_value(ControlFlowOp::TypeCheck { value, target }, ty, *span)
+            }
             Expr::Index {
                 object,
                 index,
@@ -901,6 +910,17 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
             return self.emit_value(
                 ControlFlowOp::Intrinsic {
                     intrinsic: Intrinsic::UnwrapNullable,
+                    receiver: Some(value),
+                    args: Vec::new(),
+                },
+                ty,
+                ident.span,
+            );
+        }
+        if matches!(declared, Type::Union(members) if members.contains(&ty)) {
+            return self.emit_value(
+                ControlFlowOp::Intrinsic {
+                    intrinsic: Intrinsic::UnwrapUnion,
                     receiver: Some(value),
                     args: Vec::new(),
                 },
@@ -1799,9 +1819,9 @@ fn collect_expr_symbols<'ast, 'src>(
                 collect_expr_symbols(value, semantics, out);
             }
         }
-        Expr::Member { object, .. } | Expr::Unary { expr: object, .. } => {
-            collect_expr_symbols(object, semantics, out)
-        }
+        Expr::Member { object, .. }
+        | Expr::Unary { expr: object, .. }
+        | Expr::TypeCheck { value: object, .. } => collect_expr_symbols(object, semantics, out),
         Expr::Call { callee, args, .. } => {
             collect_expr_symbols(callee, semantics, out);
             for arg in *args {
@@ -1956,9 +1976,9 @@ fn collect_expr_arrows<'ast, 'src>(
                 collect_expr_arrows(value, out);
             }
         }
-        Expr::Member { object, .. } | Expr::Unary { expr: object, .. } => {
-            collect_expr_arrows(object, out)
-        }
+        Expr::Member { object, .. }
+        | Expr::Unary { expr: object, .. }
+        | Expr::TypeCheck { value: object, .. } => collect_expr_arrows(object, out),
         Expr::Call { callee, args, .. } => {
             collect_expr_arrows(callee, out);
             for arg in *args {

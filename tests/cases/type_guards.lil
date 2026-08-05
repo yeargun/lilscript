@@ -1,0 +1,52 @@
+bool flip = false;
+
+string|int nextValue() {
+  flip = !flip;
+  if (flip) {
+    return "hello";
+  }
+  return 42;
+}
+
+string describe(string|int value) {
+  if (value is string) {
+    return value.toUpperCase();
+  } else {
+    return "number-" + value;
+  }
+}
+
+int increment(int value) {
+  return value + 1;
+}
+
+(func(int)->int)|string nextHandler() {
+  flip = !flip;
+  if (flip) {
+    return increment;
+  }
+  return "ready";
+}
+
+string invoke((func(int)->int)|string value) {
+  if (value is func(int)->int) {
+    return "result-" + value(4);
+  } else {
+    return value;
+  }
+}
+
+string first((int[]|string) value) {
+  if (value is string) {
+    return value;
+  } else {
+    return "first-" + value[0];
+  }
+}
+
+print(describe(nextValue()));
+print(describe(nextValue()));
+print(invoke(nextHandler()));
+print(invoke(nextHandler()));
+print(first([7, 8]));
+print(first("none"));

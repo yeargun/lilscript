@@ -875,6 +875,15 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
                 rhs: self.arena.alloc(self.clone_expr(rhs)),
                 span: self.span(*span),
             },
+            Expr::TypeCheck {
+                value,
+                target,
+                span,
+            } => Expr::TypeCheck {
+                value: self.arena.alloc(self.clone_expr(value)),
+                target: self.clone_type(*target),
+                span: self.span(*span),
+            },
             Expr::Index {
                 object,
                 index,

@@ -851,7 +851,26 @@ impl<'arena, 'src> Parser<'arena, 'src> {
     ) -> Result<Expr<'arena, 'src>, ParseError> {
         let mut lhs = self.parse_unary_expression()?;
 
-        while let Some((op, precedence)) = self.peek_binary_op() {
+        loop {
+            if self.check(|kind| matches!(kind, TokenKind::Is)) {
+                let precedence = 3;
+                if precedence < min_precedence {
+                    break;
+                }
+                self.advance();
+                let target = self.parse_type()?;
+                let value = self.arena.alloc(lhs);
+                lhs = Expr::TypeCheck {
+                    value,
+                    target,
+                    span: value.span().merge(target.span),
+                };
+                continue;
+            }
+
+            let Some((op, precedence)) = self.peek_binary_op() else {
+                break;
+            };
             if precedence < min_precedence {
                 break;
             }
@@ -1752,5 +1771,27 @@ int result=from(3);"#,
             TypeKind::Array(element)
                 if matches!(element.kind, TypeKind::Union(members) if members.len() == 2)
         ));
+    }
+
+    #[test]
+    fn parses_union_type_guards() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "bool isText(string|int value){return value is string;}",
+        )
+        .unwrap();
+
+        let Item::Function(function) = &program.items[0] else {
+            panic!("expected function");
+        };
+        let Stmt::Return {
+            value: Some(Expr::TypeCheck { target, .. }),
+            ..
+        } = &function.body[0]
+        else {
+            panic!("expected type guard return");
+        };
+        assert!(matches!(target.kind, TypeKind::String));
     }
 }

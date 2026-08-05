@@ -1444,6 +1444,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 binary_operator(*op),
                 value(*rhs, cache)?
             ),
+            ControlFlowOp::TypeCheck {
+                value: input,
+                target,
+            } => render_js_type_check(&value(*input, cache)?, target)?,
             ControlFlowOp::Array(values) | ControlFlowOp::Struct { fields: values, .. } => {
                 let mut rendered = String::from("[");
                 for (index, item) in values.iter().enumerate() {
@@ -1575,7 +1579,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         })?;
         let receiver = take_value(receiver, context, cache)?;
         let property = match intrinsic {
-            Intrinsic::UnwrapNullable => return Ok(receiver),
+            Intrinsic::UnwrapNullable | Intrinsic::UnwrapUnion => return Ok(receiver),
             Intrinsic::ArrayLength | Intrinsic::StringLength => {
                 return Ok(format!("{receiver}.length"))
             }
@@ -2648,7 +2652,7 @@ fn op_values(op: &ControlFlowOp<'_>) -> Vec<ValueId> {
         ControlFlowOp::Const(_) | ControlFlowOp::LoadLocal(_) | ControlFlowOp::LoadGlobal(_) => {
             Vec::new()
         }
-        ControlFlowOp::Unary { value, .. } => vec![*value],
+        ControlFlowOp::Unary { value, .. } | ControlFlowOp::TypeCheck { value, .. } => vec![*value],
         ControlFlowOp::Binary { lhs, rhs, .. } => vec![*lhs, *rhs],
         ControlFlowOp::Array(values) | ControlFlowOp::Struct { fields: values, .. } => {
             values.clone()
@@ -2698,6 +2702,7 @@ fn op_can_defer(op: &ControlFlowOp<'_>) -> bool {
         ControlFlowOp::Const(_)
             | ControlFlowOp::Unary { .. }
             | ControlFlowOp::Binary { .. }
+            | ControlFlowOp::TypeCheck { .. }
             | ControlFlowOp::Array(_)
             | ControlFlowOp::Struct { .. }
             | ControlFlowOp::Closure { .. }
@@ -2769,6 +2774,24 @@ fn render_const(value: &ConstValue) -> String {
         ConstValue::String(value) => render_string_literal(value),
         ConstValue::Null => "null".to_string(),
     }
+}
+
+fn render_js_type_check(value: &str, target: &Type<'_>) -> Result<String, CodegenError> {
+    Ok(match target {
+        Type::Int | Type::Float => format!("typeof({value})==\"number\""),
+        Type::String => format!("typeof({value})==\"string\""),
+        Type::Bool => format!("typeof({value})==\"boolean\""),
+        Type::Array(_) => format!("Array.isArray({value})"),
+        Type::Function(_) | Type::GenericFunction(_) => {
+            format!("typeof({value})==\"function\"")
+        }
+        _ => {
+            return Err(CodegenError::new(
+                crate::span::Span::empty(0),
+                format!("type `{target}` has no JavaScript type guard"),
+            ));
+        }
+    })
 }
 
 fn render_string_literal(value: &str) -> String {

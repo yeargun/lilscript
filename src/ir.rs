@@ -255,6 +255,10 @@ pub enum ControlFlowOp<'src> {
         lhs: ValueId,
         rhs: ValueId,
     },
+    TypeCheck {
+        value: ValueId,
+        target: Type<'src>,
+    },
     Array(Vec<ValueId>),
     Struct {
         name: &'src str,
@@ -334,6 +338,7 @@ pub enum TemplateOperand {
 pub enum Intrinsic {
     Print,
     UnwrapNullable,
+    UnwrapUnion,
     ArrayLength,
     ArrayMap,
     ArrayFilter,
