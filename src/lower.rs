@@ -11,7 +11,7 @@ use crate::ir::{
     FunctionId, FunctionKind, Intrinsic, IrBinaryOp, IrExport, IrGlobal, IrLocal, IrParameter,
     IrUnaryOp, LocalId, Phi, TemplateOperand, Terminator, ValueId,
 };
-use crate::semantic::{EscapeState, SemanticModel, SymbolId, Type};
+use crate::semantic::{DefaultValue, EscapeState, FunctionType, SemanticModel, SymbolId, Type};
 use crate::span::Span;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -767,10 +767,16 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
             Expr::New {
                 class, args, span, ..
             } => {
-                let args = args
-                    .iter()
-                    .map(|arg| self.lower_expr(arg))
-                    .collect::<Result<Vec<_>, _>>()?;
+                let args = if let Some(signature) = self
+                    .semantics
+                    .class_info(class.name)
+                    .and_then(|info| info.constructor.as_ref())
+                    .cloned()
+                {
+                    self.lower_args_with_defaults(args, &signature, *span)?
+                } else {
+                    self.lower_args(args)?
+                };
                 self.emit_value(
                     ControlFlowOp::NewClass {
                         class: class.name,
@@ -1022,13 +1028,7 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                     span,
                 );
             }
-            let symbol = self.symbol(*ident)?;
-            if let Some(function) = self.function_symbols.get(&symbol).copied() {
-                let args = self.lower_args(args)?;
-                return self.emit_value(ControlFlowOp::CallDirect { function, args }, ty, span);
-            }
         }
-
         if let Expr::Member {
             object, property, ..
         } = callee
@@ -1047,11 +1047,33 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                     span,
                 );
             }
+        }
+        let callee_type = self.expression_type(callee)?;
+        let signature = match &callee_type {
+            Type::Function(signature) => Some(signature.clone()),
+            Type::GenericFunction(function) => Some(function.signature.clone()),
+            _ => None,
+        };
+        if let Expr::Ident(ident) = callee {
+            let symbol = self.symbol(*ident)?;
+            if let Some(function) = self.function_symbols.get(&symbol).copied() {
+                let args =
+                    self.lower_args_with_optional_signature(args, signature.as_ref(), span)?;
+                return self.emit_value(ControlFlowOp::CallDirect { function, args }, ty, span);
+            }
+        }
+
+        if let Expr::Member {
+            object, property, ..
+        } = callee
+        {
+            let receiver_type = self.expression_type(object)?;
             if let Type::Class(class) | Type::ClassInstance { name: class, .. } = receiver_type {
                 if let Some(function) = self.method_functions.get(&(class, property.name)).copied()
                 {
                     let receiver = self.lower_expr(object)?;
-                    let args = self.lower_args(args)?;
+                    let args =
+                        self.lower_args_with_optional_signature(args, signature.as_ref(), span)?;
                     return self.emit_value(
                         ControlFlowOp::CallMethod {
                             receiver,
@@ -1068,8 +1090,49 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
         }
 
         let callee = self.lower_expr(callee)?;
-        let args = self.lower_args(args)?;
+        let args = self.lower_args_with_optional_signature(args, signature.as_ref(), span)?;
         self.emit_value(ControlFlowOp::CallValue { callee, args }, ty, span)
+    }
+
+    fn lower_args_with_optional_signature<'ast>(
+        &mut self,
+        args: &[Expr<'ast, 'src>],
+        signature: Option<&FunctionType<'src>>,
+        span: Span,
+    ) -> Result<Vec<ValueId>, LowerError> {
+        match signature {
+            Some(signature) => self.lower_args_with_defaults(args, signature, span),
+            None => self.lower_args(args),
+        }
+    }
+
+    fn lower_args_with_defaults<'ast>(
+        &mut self,
+        args: &[Expr<'ast, 'src>],
+        signature: &FunctionType<'src>,
+        span: Span,
+    ) -> Result<Vec<ValueId>, LowerError> {
+        let mut values = self.lower_args(args)?;
+        for index in args.len()..signature.params.len() {
+            let default = signature
+                .defaults
+                .get(index)
+                .and_then(Option::as_ref)
+                .ok_or_else(|| LowerError::new(span, "missing lowered parameter default"))?;
+            let value = match default {
+                DefaultValue::Int(value) => ConstValue::Int(*value),
+                DefaultValue::Float(bits) => ConstValue::Float(f64::from_bits(*bits)),
+                DefaultValue::String(value) => ConstValue::String((*value).to_string()),
+                DefaultValue::Bool(value) => ConstValue::Bool(*value),
+                DefaultValue::Null => ConstValue::Null,
+            };
+            values.push(self.emit_value(
+                ControlFlowOp::Const(value),
+                signature.params[index].clone(),
+                span,
+            )?);
+        }
+        Ok(values)
     }
 
     fn lower_args<'ast>(&mut self, args: &[Expr<'ast, 'src>]) -> Result<Vec<ValueId>, LowerError> {

@@ -1140,14 +1140,31 @@ impl<'arena, 'src> Parser<'arena, 'src> {
 
     fn parse_params_after_open(&mut self) -> Result<&'arena [Param<'arena, 'src>], ParseError> {
         let mut params = BumpVec::new_in(self.arena);
+        let mut saw_default = false;
         if !self.check(|kind| matches!(kind, TokenKind::RParen)) {
             loop {
                 let ty = self.parse_type()?;
                 let name = self.expect_ident("expected parameter name")?;
+                let default = if self.match_kind(|kind| matches!(kind, TokenKind::Eq)) {
+                    saw_default = true;
+                    Some(self.parse_expression()?)
+                } else {
+                    if saw_default {
+                        return Err(ParseError::new(
+                            name.span,
+                            "required parameters cannot follow defaulted parameters",
+                        ));
+                    }
+                    None
+                };
+                let span = default.as_ref().map_or(ty.span.merge(name.span), |value| {
+                    ty.span.merge(value.span())
+                });
                 params.push(Param {
                     ty,
                     name,
-                    span: ty.span.merge(name.span),
+                    default,
+                    span,
                 });
                 if !self.match_kind(|kind| matches!(kind, TokenKind::Comma)) {
                     break;
@@ -1537,6 +1554,34 @@ mod tests {
             panic!("expected callback declaration");
         };
         assert!(matches!(first.ty.kind, TypeKind::Function { .. }));
+    }
+
+    #[test]
+    fn parses_trailing_defaulted_parameters() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            r#"string greet(string name, string punctuation="!"){return name+punctuation;}"#,
+        )
+        .unwrap();
+
+        let Item::Function(function) = &program.items[0] else {
+            panic!("expected function");
+        };
+        assert!(function.params[0].default.is_none());
+        assert!(matches!(
+            function.params[1].default,
+            Some(Expr::String("!", _))
+        ));
+
+        let error = parse_source(
+            &arena,
+            "int invalid(int first=1,int second){return second;}",
+        )
+        .unwrap_err();
+        assert!(error
+            .message
+            .contains("required parameters cannot follow defaulted parameters"));
     }
 
     #[test]

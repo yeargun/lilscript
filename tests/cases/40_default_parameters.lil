@@ -1,0 +1,35 @@
+int scale(int value, int factor = 2) {
+  return value * factor;
+}
+
+int shifted(int value = -2) {
+  return value + 5;
+}
+
+string fallback(string? value = null) {
+  if (value == null) {
+    return "none";
+  } else {
+    return value;
+  }
+}
+
+class Counter {
+  int base;
+
+  init(int base = 10) {
+    this.base = base;
+  }
+
+  int add(int amount = 3) {
+    return this.base + amount;
+  }
+}
+
+auto scaler = scale;
+Counter counter = new Counter();
+print(scale(3));
+print(scaler(4));
+print(shifted());
+print(fallback());
+print(counter.add());

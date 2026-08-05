@@ -668,11 +668,15 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
         }
     }
 
-    fn clone_params(&self, params: &[Param<'arena, 'arena>]) -> &'arena [Param<'arena, 'arena>] {
+    fn clone_params(
+        &mut self,
+        params: &[Param<'arena, 'arena>],
+    ) -> &'arena [Param<'arena, 'arena>] {
         let mut cloned = BumpVec::new_in(self.arena);
         cloned.extend(params.iter().map(|param| Param {
             ty: self.clone_type(param.ty),
             name: self.plain_ident(param.name),
+            default: param.default.as_ref().map(|value| self.clone_expr(value)),
             span: self.span(param.span),
         }));
         cloned.into_bump_slice()

@@ -215,6 +215,21 @@ inside the closure, while objects and arrays referenced by a capture remain
 mutable. Top-level bindings are shared globals rather than closure captures.
 All paths of a non-`void` function must return a value.
 
+Trailing parameters can provide scalar literal defaults. Omitted arguments are
+materialized before SSA lowering, so JavaScript and native calls use the same
+full-arity ABI:
+
+```lilscript
+int scale(int value, int factor = 2) {
+  return value * factor;
+}
+
+int doubled = scale(6);
+```
+
+Defaults currently accept integer, float, string, boolean, `null`, and negative
+numeric literals. Required parameters cannot follow defaulted parameters.
+
 Parentheses disambiguate compound callable types. For example, the following
 declares an array of callbacks rather than a callback returning an array:
 

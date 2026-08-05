@@ -325,6 +325,10 @@ impl<'src> JsEmitter<'src> {
             }
             let param_name = self.declare_name(param.name)?;
             out.push_str(&param_name);
+            if let Some(default) = &param.default {
+                out.push('=');
+                self.emit_expr(default, out)?;
+            }
         }
         out.push(')');
         self.emit_stmt_list_as_block(function.body, out)?;
@@ -366,6 +370,10 @@ impl<'src> JsEmitter<'src> {
                 }
                 let name = self.declare_name(param.name)?;
                 out.push_str(&name);
+                if let Some(default) = &param.default {
+                    out.push('=');
+                    self.emit_expr(default, out)?;
+                }
             }
             out.push(')');
             self.emit_stmt_list_as_block(constructor.body, out)?;
@@ -388,6 +396,10 @@ impl<'src> JsEmitter<'src> {
                 }
                 let name = self.declare_name(param.name)?;
                 out.push_str(&name);
+                if let Some(default) = &param.default {
+                    out.push('=');
+                    self.emit_expr(default, out)?;
+                }
             }
             out.push(')');
             self.emit_stmt_list_as_block(method.body, out)?;
@@ -636,6 +648,10 @@ impl<'src> JsEmitter<'src> {
                     }
                     let name = self.declare_name(param.name)?;
                     out.push_str(&name);
+                    if let Some(default) = &param.default {
+                        out.push('=');
+                        self.emit_expr(default, out)?;
+                    }
                 }
                 out.push_str(")=>");
                 match body {

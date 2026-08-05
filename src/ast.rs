@@ -158,6 +158,7 @@ pub struct ExternDecl<'ast, 'src> {
 pub struct Param<'ast, 'src> {
     pub ty: TypeRef<'ast, 'src>,
     pub name: Ident<'src>,
+    pub default: Option<Expr<'ast, 'src>>,
     pub span: Span,
 }
 

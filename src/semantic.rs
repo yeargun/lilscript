@@ -105,7 +105,30 @@ impl fmt::Display for Type<'_> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FunctionType<'src> {
     pub params: Vec<Type<'src>>,
+    pub defaults: Vec<Option<DefaultValue<'src>>>,
     pub return_type: Box<Type<'src>>,
+}
+
+impl FunctionType<'_> {
+    pub fn required_params(&self) -> usize {
+        self.defaults
+            .iter()
+            .position(Option::is_some)
+            .unwrap_or(self.params.len())
+    }
+
+    pub fn accepts_arity(&self, arity: usize) -> bool {
+        arity >= self.required_params() && arity <= self.params.len()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DefaultValue<'src> {
+    Int(i64),
+    Float(u64),
+    String(&'src str),
+    Bool(bool),
+    Null,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -447,8 +470,11 @@ impl<'src> Analyzer<'src> {
                         for param in constructor_decl.params {
                             params.push(self.resolve_value_type(param.ty, "parameter")?);
                         }
+                        let defaults =
+                            resolve_parameter_defaults(constructor_decl.params, &params)?;
                         constructor = Some(FunctionType {
                             params,
+                            defaults,
                             return_type: Box::new(applied_nominal_type(
                                 decl.name.name,
                                 &validate_type_params(decl.type_params)?,
@@ -472,6 +498,7 @@ impl<'src> Analyzer<'src> {
 
             let constructor_signature = constructor.unwrap_or(FunctionType {
                 params: Vec::new(),
+                defaults: Vec::new(),
                 return_type: Box::new(applied_nominal_type(
                     decl.name.name,
                     &validate_type_params(decl.type_params)?,
@@ -585,9 +612,11 @@ impl<'src> Analyzer<'src> {
         for param in function.params {
             params.push(self.resolve_value_type(param.ty, "parameter")?);
         }
+        let defaults = resolve_parameter_defaults(function.params, &params)?;
         let return_type = self.resolve_type(function.return_type, true, "return type")?;
         Ok(FunctionType {
             params,
+            defaults,
             return_type: Box::new(return_type),
         })
     }
@@ -601,9 +630,11 @@ impl<'src> Analyzer<'src> {
         for param in extern_decl.params {
             params.push(self.resolve_value_type(param.ty, "extern parameter")?);
         }
+        let defaults = resolve_parameter_defaults(extern_decl.params, &params)?;
         let return_type = self.resolve_type(extern_decl.return_type, true, "extern return type")?;
         let signature = FunctionType {
             params,
+            defaults,
             return_type: Box::new(return_type),
         };
         self.pop_type_params();
@@ -994,13 +1025,21 @@ impl<'src> Analyzer<'src> {
                     .constructor
                     .as_ref()
                     .map_or(&[][..], |signature| signature.params.as_slice());
-                if args.len() != params.len() {
+                let accepts_arity = info
+                    .constructor
+                    .as_ref()
+                    .map_or(args.is_empty(), |signature| {
+                        signature.accepts_arity(args.len())
+                    });
+                if !accepts_arity {
                     return Err(SemanticError::new(
                         *span,
                         format!(
                             "class `{}` constructor expects {} arguments, found {}",
                             class.name,
-                            params.len(),
+                            info.constructor
+                                .as_ref()
+                                .map_or(0, FunctionType::required_params),
                             args.len()
                         ),
                     ));
@@ -1346,10 +1385,12 @@ impl<'src> Analyzer<'src> {
                 )),
                 "push" => Ok(Type::Function(FunctionType {
                     params: vec![*element],
+                    defaults: vec![None],
                     return_type: Box::new(Type::Int),
                 })),
                 "pop" => Ok(Type::Function(FunctionType {
                     params: Vec::new(),
+                    defaults: Vec::new(),
                     return_type: element,
                 })),
                 _ => Err(SemanticError::new(
@@ -1360,10 +1401,12 @@ impl<'src> Analyzer<'src> {
             Type::String => match property.name {
                 "includes" | "startsWith" | "endsWith" => Ok(Type::Function(FunctionType {
                     params: vec![Type::String],
+                    defaults: vec![None],
                     return_type: Box::new(Type::Bool),
                 })),
                 "toUpperCase" | "toLowerCase" => Ok(Type::Function(FunctionType {
                     params: Vec::new(),
+                    defaults: Vec::new(),
                     return_type: Box::new(Type::String),
                 })),
                 _ => Err(SemanticError::new(
@@ -1403,6 +1446,7 @@ impl<'src> Analyzer<'src> {
 
         let callback_expected = Type::Function(FunctionType {
             params: vec![(*element_type).clone()],
+            defaults: vec![None],
             return_type: Box::new(Type::Void),
         });
         let callback = self.analyze_expr(&args[0], Some(&callback_expected))?;
@@ -1488,6 +1532,7 @@ impl<'src> Analyzer<'src> {
         let accumulator = self.analyze_expr(&args[1], None)?;
         let expected = Type::Function(FunctionType {
             params: vec![accumulator.clone(), element_type],
+            defaults: vec![None, None],
             return_type: Box::new(accumulator.clone()),
         });
         let callback = self.analyze_expr(&args[0], Some(&expected))?;
@@ -1550,6 +1595,7 @@ impl<'src> Analyzer<'src> {
         }
         let expected = Type::Function(FunctionType {
             params: vec![element_type.clone()],
+            defaults: vec![None],
             return_type: Box::new(Type::Void),
         });
         let callback = self.analyze_expr(&args[0], Some(&expected))?;
@@ -1584,11 +1630,12 @@ impl<'src> Analyzer<'src> {
                 format!("cannot call a value of type `{callee}`"),
             ));
         };
-        if args.len() != signature.params.len() {
+        if !signature.accepts_arity(args.len()) {
             return Err(SemanticError::new(
                 span,
                 format!(
-                    "function expects {} arguments, found {}",
+                    "function expects {} to {} arguments, found {}",
+                    signature.required_params(),
                     signature.params.len(),
                     args.len()
                 ),
@@ -1608,11 +1655,12 @@ impl<'src> Analyzer<'src> {
         span: Span,
         expected_return: Option<&Type<'src>>,
     ) -> Result<Type<'src>, SemanticError> {
-        if args.len() != function.signature.params.len() {
+        if !function.signature.accepts_arity(args.len()) {
             return Err(SemanticError::new(
                 span,
                 format!(
-                    "function expects {} arguments, found {}",
+                    "function expects {} to {} arguments, found {}",
+                    function.signature.required_params(),
                     function.signature.params.len(),
                     args.len()
                 ),
@@ -1733,8 +1781,10 @@ impl<'src> Analyzer<'src> {
         self.capture_barriers.pop();
         self.pop_scope();
 
+        let defaults = resolve_parameter_defaults(params, &parameter_types)?;
         Ok(Type::Function(FunctionType {
             params: parameter_types,
+            defaults,
             return_type: Box::new(return_type),
         }))
     }
@@ -1870,6 +1920,7 @@ impl<'src> Analyzer<'src> {
                 let return_type = self.resolve_type(*return_type, true, "function return")?;
                 Ok(Type::Function(FunctionType {
                     params: resolved_params,
+                    defaults: vec![None; params.len()],
                     return_type: Box::new(return_type),
                 }))
             }
@@ -2083,6 +2134,56 @@ fn validate_type_params<'src>(params: &[Ident<'src>]) -> Result<Vec<&'src str>, 
     Ok(names)
 }
 
+fn resolve_parameter_defaults<'ast, 'src>(
+    params: &[crate::ast::Param<'ast, 'src>],
+    types: &[Type<'src>],
+) -> Result<Vec<Option<DefaultValue<'src>>>, SemanticError> {
+    params
+        .iter()
+        .zip(types)
+        .map(|(param, ty)| {
+            let Some(expression) = &param.default else {
+                return Ok(None);
+            };
+            let (value, actual) = scalar_default_value(expression).ok_or_else(|| {
+                SemanticError::new(
+                    expression.span(),
+                    "parameter defaults must be scalar literals",
+                )
+            })?;
+            if !is_type_assignable(ty, &actual) {
+                return Err(SemanticError::new(
+                    expression.span(),
+                    format!("default value has type `{actual}`, expected `{ty}`"),
+                ));
+            }
+            Ok(Some(value))
+        })
+        .collect()
+}
+
+fn scalar_default_value<'ast, 'src>(
+    expression: &Expr<'ast, 'src>,
+) -> Option<(DefaultValue<'src>, Type<'src>)> {
+    match expression {
+        Expr::Int(value, _) => Some((DefaultValue::Int(*value), Type::Int)),
+        Expr::Float(value, _) => Some((DefaultValue::Float(value.to_bits()), Type::Float)),
+        Expr::String(value, _) => Some((DefaultValue::String(value), Type::String)),
+        Expr::Bool(value, _) => Some((DefaultValue::Bool(*value), Type::Bool)),
+        Expr::Null(_) => Some((DefaultValue::Null, Type::Null)),
+        Expr::Unary {
+            op: UnaryOp::Neg,
+            expr,
+            ..
+        } => match *expr {
+            Expr::Int(value, _) => Some((DefaultValue::Int(value.wrapping_neg()), Type::Int)),
+            Expr::Float(value, _) => Some((DefaultValue::Float((-value).to_bits()), Type::Float)),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
 fn applied_nominal_type<'src>(
     name: &'src str,
     parameters: &[&'src str],
@@ -2137,6 +2238,7 @@ fn substitute_type<'src>(
                 .iter()
                 .map(|parameter| substitute_type(parameter, substitutions))
                 .collect(),
+            defaults: signature.defaults.clone(),
             return_type: Box::new(substitute_type(&signature.return_type, substitutions)),
         }),
         Type::GenericFunction(function) => Type::GenericFunction(GenericFunctionType {
@@ -2148,6 +2250,7 @@ fn substitute_type<'src>(
                     .iter()
                     .map(|parameter| substitute_type(parameter, substitutions))
                     .collect(),
+                defaults: function.signature.defaults.clone(),
                 return_type: Box::new(substitute_type(
                     &function.signature.return_type,
                     substitutions,
@@ -2297,6 +2400,18 @@ pub(crate) fn is_type_assignable(expected: &Type<'_>, actual: &Type<'_>) -> bool
         (Type::Nullable(_), Type::Null) => true,
         (Type::Nullable(expected), Type::Nullable(actual)) => is_type_assignable(expected, actual),
         (Type::Nullable(expected), actual) => is_type_assignable(expected, actual),
+        (Type::Function(expected), Type::Function(actual))
+            if expected.params.len() == actual.params.len() =>
+        {
+            expected
+                .params
+                .iter()
+                .zip(&actual.params)
+                .all(|(expected, actual)| {
+                    is_type_assignable(expected, actual) && is_type_assignable(actual, expected)
+                })
+                && is_type_assignable(&expected.return_type, &actual.return_type)
+        }
         _ => false,
     }
 }
@@ -2491,6 +2606,33 @@ mod tests {
         )
         .unwrap_err();
         assert!(error.message.contains("cannot be applied"));
+    }
+
+    #[test]
+    fn validates_scalar_parameter_defaults_and_optional_calls() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            r#"int add(int value,int amount=2){return value+amount;}int direct=add(3);auto callable=add;int indirect=callable(4);"#,
+        )
+        .unwrap();
+
+        analyze(&program).unwrap();
+    }
+
+    #[test]
+    fn rejects_invalid_parameter_defaults() {
+        let arena = Bump::new();
+        let wrong_type =
+            parse_source(&arena, r#"int value(int input="no"){return input;}"#).unwrap();
+        let error = analyze(&wrong_type).unwrap_err();
+        assert!(error.message.contains("default value has type `string`"));
+
+        let non_literal = parse_source(&arena, "int value(int input=1+2){return input;}").unwrap();
+        let error = analyze(&non_literal).unwrap_err();
+        assert!(error
+            .message
+            .contains("parameter defaults must be scalar literals"));
     }
 
     #[test]
