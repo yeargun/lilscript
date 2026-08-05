@@ -800,15 +800,26 @@ impl<'src> Analyzer<'src> {
                 let condition_type = self.analyze_expr(condition, Some(&Type::Bool))?;
                 self.require_assignable(&Type::Bool, &condition_type, condition.span())?;
                 let (then_narrowing, else_narrowing) = self.condition_narrowing(condition)?;
+                let then_returns = statement_guarantees_return(then_branch);
+                let else_returns =
+                    else_branch.is_some_and(|branch| statement_guarantees_return(branch));
                 self.push_scope();
-                self.apply_narrowing(then_narrowing);
+                self.apply_narrowing(then_narrowing.clone());
                 self.analyze_stmt(then_branch)?;
+                let then_survives = self.current_scope_preserves(&then_narrowing);
                 self.pop_scope();
+                let mut else_survives = else_branch.is_none() && else_narrowing.is_some();
                 if let Some(else_branch) = else_branch {
                     self.push_scope();
-                    self.apply_narrowing(else_narrowing);
+                    self.apply_narrowing(else_narrowing.clone());
                     self.analyze_stmt(else_branch)?;
+                    else_survives = self.current_scope_preserves(&else_narrowing);
                     self.pop_scope();
+                }
+                if then_returns && !else_returns && else_survives {
+                    self.apply_narrowing(else_narrowing);
+                } else if else_returns && !then_returns && then_survives {
+                    self.apply_narrowing(then_narrowing);
                 }
                 Ok(())
             }
@@ -2098,6 +2109,13 @@ impl<'src> Analyzer<'src> {
         }
     }
 
+    fn current_scope_preserves(&self, narrowing: &Narrowing<'src>) -> bool {
+        let Some((symbol, ty)) = narrowing else {
+            return false;
+        };
+        self.narrowings.last().and_then(|scope| scope.get(symbol)) == Some(ty)
+    }
+
     fn narrowed_type(&self, symbol: SymbolId) -> Option<&Type<'src>> {
         self.narrowings
             .iter()
@@ -2914,6 +2932,42 @@ mod tests {
         );
         let absent = check("bool test(string|int value){return value is bool;}").unwrap_err();
         assert!(absent.message.contains("is not a member"), "{absent}");
+    }
+
+    #[test]
+    fn propagates_narrowing_from_terminating_guard_branches() {
+        check(
+            r#"
+                string nullable(string? value){
+                    if(value==null){return "none";}
+                    return value.toUpperCase();
+                }
+                string unionValue(string|int value){
+                    if(value is string){return value;}
+                    return "number-"+value;
+                }
+                string negated(string|int value){
+                    if(!(value is string)){return "number-"+value;}
+                    return value.toUpperCase();
+                }
+            "#,
+        )
+        .unwrap();
+
+        let invalidated = check(
+            r#"
+                string invalid(string|int value){
+                    if(value is string){value=1;}
+                    else{return "number";}
+                    return value.toUpperCase();
+                }
+            "#,
+        )
+        .unwrap_err();
+        assert!(
+            invalidated.message.contains("string | int"),
+            "{invalidated}"
+        );
     }
 
     #[test]

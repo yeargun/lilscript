@@ -12,9 +12,8 @@ string|int nextValue() {
 string describe(string|int value) {
   if (value is string) {
     return value.toUpperCase();
-  } else {
-    return "number-" + value;
   }
+  return "number-" + value;
 }
 
 int increment(int value) {
@@ -32,9 +31,8 @@ int increment(int value) {
 string invoke((func(int)->int)|string value) {
   if (value is func(int)->int) {
     return "result-" + value(4);
-  } else {
-    return value;
   }
+  return value;
 }
 
 string first((int[]|string) value) {
@@ -59,11 +57,11 @@ string first((int[]|string) value) {
 string describeMaybe((string|int)? value) {
   if (value == null) {
     return "none";
-  } else if (value is string) {
-    return value.toUpperCase();
-  } else {
-    return "number-" + value;
   }
+  if (value is string) {
+    return value.toUpperCase();
+  }
+  return "number-" + value;
 }
 
 print(describe(nextValue()));
