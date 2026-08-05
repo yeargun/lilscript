@@ -146,6 +146,7 @@ pub enum DefaultValue<'src> {
     Bool(bool),
     Null,
     Array(Vec<DefaultValue<'src>>),
+    Arrow(Span),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -354,7 +355,7 @@ impl<'src> Analyzer<'src> {
                 Item::Struct(_) => {}
                 Item::Class(class) => self.analyze_class(class)?,
                 Item::Function(function) => self.analyze_function(function, None)?,
-                Item::Extern(_) => {}
+                Item::Extern(extern_decl) => self.analyze_extern_defaults(extern_decl)?,
                 Item::Stmt(statement) => self.analyze_stmt(statement)?,
             }
         }
@@ -686,6 +687,12 @@ impl<'src> Analyzer<'src> {
         constructor: &ConstructorDecl<'ast, 'src>,
         class_name: &'src str,
     ) -> Result<(), SemanticError> {
+        let parameter_types = constructor
+            .params
+            .iter()
+            .map(|param| self.resolve_value_type(param.ty, "parameter"))
+            .collect::<Result<Vec<_>, _>>()?;
+        self.analyze_parameter_defaults(constructor.params, &parameter_types)?;
         self.push_scope();
         let class_type_params = self
             .model
@@ -723,6 +730,7 @@ impl<'src> Analyzer<'src> {
     ) -> Result<(), SemanticError> {
         self.push_type_params(function.type_params)?;
         let signature = self.function_type_in_current_scope(function)?;
+        self.analyze_parameter_defaults(function.params, &signature.params)?;
         self.push_scope();
 
         if let Some(class_name) = class_name {
@@ -772,6 +780,36 @@ impl<'src> Analyzer<'src> {
                     ),
                 ));
             }
+        }
+        Ok(())
+    }
+
+    fn analyze_extern_defaults<'ast>(
+        &mut self,
+        extern_decl: &ExternDecl<'ast, 'src>,
+    ) -> Result<(), SemanticError> {
+        self.push_type_params(extern_decl.type_params)?;
+        let types = extern_decl
+            .params
+            .iter()
+            .map(|param| self.resolve_value_type(param.ty, "extern parameter"))
+            .collect::<Result<Vec<_>, _>>()?;
+        let result = self.analyze_parameter_defaults(extern_decl.params, &types);
+        self.pop_type_params();
+        result
+    }
+
+    fn analyze_parameter_defaults<'ast>(
+        &mut self,
+        params: &[crate::ast::Param<'ast, 'src>],
+        types: &[Type<'src>],
+    ) -> Result<(), SemanticError> {
+        for (param, expected) in params.iter().zip(types) {
+            let Some(expression @ Expr::ArrowFunction { .. }) = &param.default else {
+                continue;
+            };
+            let actual = self.analyze_expr(expression, Some(expected))?;
+            self.require_assignable(expected, &actual, expression.span())?;
         }
         Ok(())
     }
@@ -2261,6 +2299,9 @@ fn literal_default_value<'ast, 'src>(
     expression: &Expr<'ast, 'src>,
     expected: &Type<'src>,
 ) -> Option<DefaultValue<'src>> {
+    if let Expr::ArrowFunction { span, .. } = expression {
+        return matches!(expected, Type::Function(_)).then_some(DefaultValue::Arrow(*span));
+    }
     if let Expr::ArrayLiteral { elements, .. } = expression {
         let element = expected_array_element(expected)?;
         return elements
@@ -3021,6 +3062,11 @@ mod tests {
                 int first=sum();
                 int second=nested();
                 Bag bag=new Bag();
+
+                int apply(int value,func(int)->int transform=(int current)=>current+1){
+                    return transform(value);
+                }
+                int transformed=apply(4);
             "#,
         )
         .unwrap();
@@ -3065,6 +3111,15 @@ mod tests {
         assert!(error
             .message
             .contains("not a supported literal for parameter type `int[]`"));
+
+        let arena = Bump::new();
+        let wrong_callback = parse_source(
+            &arena,
+            r#"int value(func(int)->int transform=(int input)=>"no"){return transform(1);}"#,
+        )
+        .unwrap();
+        let error = analyze(&wrong_callback).unwrap_err();
+        assert!(error.message.contains("expected `function(int) -> int`"));
     }
 
     #[test]

@@ -1180,6 +1180,25 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
         ty: &Type<'src>,
         span: Span,
     ) -> Result<ValueId, LowerError> {
+        if let DefaultValue::Arrow(arrow_span) = default {
+            let function = self.arrows.get(arrow_span).copied().ok_or_else(|| {
+                LowerError::new(*arrow_span, "default arrow was not assigned an IR function")
+            })?;
+            let captures = self
+                .arrow_captures
+                .get(arrow_span)
+                .ok_or_else(|| {
+                    LowerError::new(*arrow_span, "default arrow captures were not analyzed")
+                })?
+                .iter()
+                .map(|symbol| self.lower_symbol_value(*symbol, *arrow_span))
+                .collect::<Result<Vec<_>, _>>()?;
+            return self.emit_value(
+                ControlFlowOp::Closure { function, captures },
+                ty.clone(),
+                *arrow_span,
+            );
+        }
         if let DefaultValue::Array(elements) = default {
             let element_ty = default_array_element_type(ty).ok_or_else(|| {
                 LowerError::new(span, "array default has no compatible array parameter type")
@@ -1200,7 +1219,7 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
             DefaultValue::String(value) => ConstValue::String((*value).to_string()),
             DefaultValue::Bool(value) => ConstValue::Bool(*value),
             DefaultValue::Null => ConstValue::Null,
-            DefaultValue::Array(_) => unreachable!(),
+            DefaultValue::Array(_) | DefaultValue::Arrow(_) => unreachable!(),
         };
         self.emit_value(ControlFlowOp::Const(value), ty.clone(), span)
     }
@@ -1921,15 +1940,33 @@ fn collect_program_arrows<'ast, 'src>(
                     match member {
                         ClassMember::Field(_) => {}
                         ClassMember::Constructor(constructor) => {
+                            collect_param_arrows(constructor.params, out);
                             collect_stmt_arrows(constructor.body, out)
                         }
-                        ClassMember::Method(method) => collect_stmt_arrows(method.body, out),
+                        ClassMember::Method(method) => {
+                            collect_param_arrows(method.params, out);
+                            collect_stmt_arrows(method.body, out);
+                        }
                     }
                 }
             }
-            Item::Function(function) => collect_stmt_arrows(function.body, out),
-            Item::Extern(_) => {}
+            Item::Function(function) => {
+                collect_param_arrows(function.params, out);
+                collect_stmt_arrows(function.body, out);
+            }
+            Item::Extern(extern_decl) => collect_param_arrows(extern_decl.params, out),
             Item::Stmt(statement) => collect_one_stmt_arrows(statement, out),
+        }
+    }
+}
+
+fn collect_param_arrows<'ast, 'src>(
+    params: &'ast [Param<'ast, 'src>],
+    out: &mut Vec<ArrowRef<'ast, 'src>>,
+) {
+    for param in params {
+        if let Some(default) = &param.default {
+            collect_expr_arrows(default, out);
         }
     }
 }

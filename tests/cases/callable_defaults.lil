@@ -1,0 +1,34 @@
+int offset = 2;
+
+int apply(
+  int value,
+  func(int)->int transform = (int current) => current + offset
+) {
+  return transform(value);
+}
+
+class Mapper {
+  func(int)->int transform;
+
+  init(func(int)->int transform = (int current) => current * 2) {
+    this.transform = transform;
+  }
+
+  int run(int value) {
+    return this.transform(value);
+  }
+}
+
+T identity<T>(T value, func(T)->T transform = (T current) => current) {
+  return transform(value);
+}
+
+print(apply(5));
+print(apply(5, (int current) => current - 1));
+
+Mapper first = new Mapper();
+Mapper second = new Mapper((int current) => current + 3);
+print(first.run(4));
+print(second.run(4));
+print(identity("ready"));
+
