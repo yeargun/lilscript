@@ -38,6 +38,7 @@ SSA optimization; they are not JavaScript wrappers in the generated bundle.
 | `struct S` | positional value aggregate | scalars, tuple, or boundary object | positional C value record |
 | `class C` | nominal reference value with methods | dissolved record or class at an escaping boundary | pointer to a C record |
 | `func(T...)->R` | callable value | function/closure | function plus environment |
+| `C<T...>` | applied generic class | same nominal class layout | pointer with boxed polymorphic fields |
 | `void` | no value | no value | no value |
 
 `auto` is a declaration inference marker, not a runtime type. It is legal only
@@ -46,6 +47,41 @@ for a local or top-level variable with an initializer.
 An `int` widens implicitly to `float`. Other conversions require an explicit
 standard conversion function. Arrays and nominal types do not implicitly
 coerce.
+
+Generic functions declare type parameters after the function name. Calls infer
+their type arguments from ordinary values and callback parameter/return types:
+
+```lilscript
+T apply<T>(T value, func(T)->T transform) {
+  return transform(value);
+}
+
+int answer = apply(20, (int value) => value + 22);
+```
+
+Generic classes declare parameters after the class name. Applied types use
+angle brackets; constructor calls may state arguments explicitly or infer them
+from constructor values and the expected binding type:
+
+```lilscript
+class Cell<T> {
+  T value;
+  func(T)->T transform;
+
+  init(T value, func(T)->T transform) {
+    this.value = value;
+    this.transform = transform;
+  }
+}
+
+Cell<int> cell = new Cell(2, (int value) => value * 3);
+```
+
+JavaScript erases generic types after checking. Native C stores abstract type
+parameters in `LilScriptValue` and boxes or unboxes at direct-call and field
+boundaries. Native closures use one universal calling convention, so a concrete
+callback remains callable through `func(T...)->R`. Polymorphic functions are
+not inlined until the optimizer can substitute their call-site types.
 
 Integer arithmetic wraps to signed 32-bit two's-complement values. Integer
 division truncates toward zero; division or remainder by zero produces `0` on

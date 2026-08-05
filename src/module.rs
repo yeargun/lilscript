@@ -437,7 +437,23 @@ fn type_contracts_match(left: TypeRef<'_, '_>, right: TypeRef<'_, '_>) -> bool {
         | (TypeKind::Bool, TypeKind::Bool)
         | (TypeKind::Void, TypeKind::Void)
         | (TypeKind::Auto, TypeKind::Auto) => true,
-        (TypeKind::Named(left), TypeKind::Named(right)) => left == right,
+        (
+            TypeKind::Named {
+                name: left,
+                args: left_args,
+            },
+            TypeKind::Named {
+                name: right,
+                args: right_args,
+            },
+        ) => {
+            left == right
+                && left_args.len() == right_args.len()
+                && left_args
+                    .iter()
+                    .zip(right_args)
+                    .all(|(left, right)| type_contracts_match(*left, *right))
+        }
         (TypeKind::Array(left), TypeKind::Array(right)) => type_contracts_match(*left, *right),
         (
             TypeKind::Function {
@@ -562,6 +578,7 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
                 declared_pure: decl.declared_pure,
                 return_type: self.clone_type(decl.return_type),
                 name: self.global_ident(decl.name),
+                type_params: self.clone_idents(decl.type_params),
                 params: self.clone_params(decl.params),
                 span: self.span(decl.span),
             }),
@@ -572,6 +589,7 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
     fn clone_struct(&mut self, decl: &StructDecl<'arena, 'arena>) -> StructDecl<'arena, 'arena> {
         StructDecl {
             name: self.global_ident(decl.name),
+            type_params: self.clone_idents(decl.type_params),
             fields: self.clone_fields(decl.fields),
             span: self.span(decl.span),
         }
@@ -600,6 +618,7 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
         }
         ClassDecl {
             name: self.global_ident(decl.name),
+            type_params: self.clone_idents(decl.type_params),
             members: members.into_bump_slice(),
             span: self.span(decl.span),
         }
@@ -622,6 +641,7 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
             } else {
                 self.plain_ident(decl.name)
             },
+            type_params: self.clone_idents(decl.type_params),
             params,
             body,
             span: self.span(decl.span),
@@ -795,8 +815,14 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
                 values: self.clone_exprs(values),
                 span: self.span(*span),
             },
-            Expr::New { class, args, span } => Expr::New {
+            Expr::New {
+                class,
+                type_args,
+                args,
+                span,
+            } => Expr::New {
                 class: self.global_ident(*class),
+                type_args: self.clone_types(type_args),
                 args: self.clone_exprs(args),
                 span: self.span(*span),
             },
@@ -903,9 +929,10 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
 
     fn clone_type(&self, ty: TypeRef<'arena, 'arena>) -> TypeRef<'arena, 'arena> {
         let kind = match ty.kind {
-            TypeKind::Named(name) => {
-                TypeKind::Named(self.globals.get(name).copied().unwrap_or(name))
-            }
+            TypeKind::Named { name, args } => TypeKind::Named {
+                name: self.globals.get(name).copied().unwrap_or(name),
+                args: self.clone_types(args),
+            },
             TypeKind::Array(element) => {
                 TypeKind::Array(self.arena.alloc(self.clone_type(*element)))
             }
@@ -926,6 +953,18 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
             kind,
             span: self.span(ty.span),
         }
+    }
+
+    fn clone_types(&self, types: &[TypeRef<'arena, 'arena>]) -> &'arena [TypeRef<'arena, 'arena>] {
+        let mut cloned = BumpVec::new_in(self.arena);
+        cloned.extend(types.iter().map(|ty| self.clone_type(*ty)));
+        cloned.into_bump_slice()
+    }
+
+    fn clone_idents(&self, idents: &[Ident<'arena>]) -> &'arena [Ident<'arena>] {
+        let mut cloned = BumpVec::new_in(self.arena);
+        cloned.extend(idents.iter().map(|ident| self.plain_ident(*ident)));
+        cloned.into_bump_slice()
     }
 
     fn global_ident(&self, ident: Ident<'arena>) -> Ident<'arena> {

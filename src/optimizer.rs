@@ -520,7 +520,11 @@ fn simplify_algebraic_expressions(module: &mut ControlFlowModule<'_>) -> Optimiz
                                     && matches!(
                                         value_types.get(&lhs),
                                         Some(
-                                            Type::Int | Type::Bool | Type::String | Type::Class(_)
+                                            Type::Int
+                                                | Type::Bool
+                                                | Type::String
+                                                | Type::Class(_)
+                                                | Type::ClassInstance { .. }
                                         )
                                     )
                                 {
@@ -1134,6 +1138,7 @@ fn inline_small_functions(module: &mut ControlFlowModule<'_>) -> OptimizationRep
             !matches!(function.kind, FunctionKind::Entry | FunctionKind::Extern)
                 && !recursive.contains(&function.id)
                 && !exported.contains(&function.id)
+                && !function_has_type_parameters(function)
                 && function.blocks.len() == 1
                 && function.blocks[0].phis.is_empty()
                 && function.blocks[0].instructions.len() <= INLINE_LIMIT
@@ -1307,6 +1312,7 @@ fn inline_single_use_control_flow_function(
                 function.kind,
                 FunctionKind::Function | FunctionKind::Method { .. }
             ) && function.blocks.len() > 1
+                && !function_has_type_parameters(function)
                 && !recursive.contains(&function.id)
                 && !exported.contains(&function.id)
                 && !address_taken.contains(&function.id)
@@ -1369,6 +1375,30 @@ fn inline_single_use_control_flow_function(
     OptimizationReport {
         pass_name: "cfg-inlining",
         changed: true,
+    }
+}
+
+fn function_has_type_parameters(function: &ControlFlowFunction<'_>) -> bool {
+    function
+        .params
+        .iter()
+        .any(|parameter| type_has_type_parameter(&parameter.ty))
+        || type_has_type_parameter(&function.return_type)
+}
+
+fn type_has_type_parameter(ty: &Type<'_>) -> bool {
+    match ty {
+        Type::TypeParameter(_) => true,
+        Type::Array(element) => type_has_type_parameter(element),
+        Type::StructInstance { args, .. } | Type::ClassInstance { args, .. } => {
+            args.iter().any(type_has_type_parameter)
+        }
+        Type::Function(signature) => {
+            signature.params.iter().any(type_has_type_parameter)
+                || type_has_type_parameter(&signature.return_type)
+        }
+        Type::GenericFunction(_) => true,
+        _ => false,
     }
 }
 

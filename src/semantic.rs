@@ -1,6 +1,6 @@
 use std::fmt;
 
-use ahash::AHashMap;
+use ahash::{AHashMap, AHashSet};
 use indexmap::IndexMap;
 
 use crate::ast::{
@@ -30,7 +30,17 @@ pub enum Type<'src> {
     Array(Box<Type<'src>>),
     Struct(&'src str),
     Class(&'src str),
+    StructInstance {
+        name: &'src str,
+        args: Vec<Type<'src>>,
+    },
+    ClassInstance {
+        name: &'src str,
+        args: Vec<Type<'src>>,
+    },
+    TypeParameter(&'src str),
     Function(FunctionType<'src>),
+    GenericFunction(GenericFunctionType<'src>),
 }
 
 impl Type<'_> {
@@ -53,6 +63,17 @@ impl fmt::Display for Type<'_> {
             Self::Void => f.write_str("void"),
             Self::Array(element) => write!(f, "{element}[]"),
             Self::Struct(name) | Self::Class(name) => f.write_str(name),
+            Self::StructInstance { name, args } | Self::ClassInstance { name, args } => {
+                write!(f, "{name}<")?;
+                for (index, argument) in args.iter().enumerate() {
+                    if index != 0 {
+                        f.write_str(", ")?;
+                    }
+                    write!(f, "{argument}")?;
+                }
+                f.write_str(">")
+            }
+            Self::TypeParameter(name) => f.write_str(name),
             Self::Function(signature) => {
                 f.write_str("function(")?;
                 for (index, parameter) in signature.params.iter().enumerate() {
@@ -63,6 +84,16 @@ impl fmt::Display for Type<'_> {
                 }
                 write!(f, ") -> {}", signature.return_type)
             }
+            Self::GenericFunction(function) => {
+                f.write_str("function<")?;
+                for (index, parameter) in function.type_params.iter().enumerate() {
+                    if index != 0 {
+                        f.write_str(", ")?;
+                    }
+                    f.write_str(parameter)?;
+                }
+                write!(f, ">({})", Type::Function(function.signature.clone()))
+            }
         }
     }
 }
@@ -71,6 +102,12 @@ impl fmt::Display for Type<'_> {
 pub struct FunctionType<'src> {
     pub params: Vec<Type<'src>>,
     pub return_type: Box<Type<'src>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GenericFunctionType<'src> {
+    pub type_params: Vec<&'src str>,
+    pub signature: FunctionType<'src>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -84,6 +121,7 @@ pub struct FieldInfo<'src> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StructInfo<'src> {
     pub name: &'src str,
+    pub type_params: Vec<&'src str>,
     pub fields: IndexMap<&'src str, FieldInfo<'src>>,
     pub span: Span,
 }
@@ -91,10 +129,17 @@ pub struct StructInfo<'src> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ClassInfo<'src> {
     pub name: &'src str,
+    pub type_params: Vec<&'src str>,
     pub fields: IndexMap<&'src str, FieldInfo<'src>>,
-    pub methods: IndexMap<&'src str, FunctionType<'src>>,
+    pub methods: IndexMap<&'src str, MethodInfo<'src>>,
     pub constructor: Option<FunctionType<'src>>,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MethodInfo<'src> {
+    pub type_params: Vec<&'src str>,
+    pub signature: FunctionType<'src>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -200,6 +245,7 @@ struct Analyzer<'src> {
     scopes: Vec<AHashMap<&'src str, SymbolId>>,
     return_contexts: Vec<ReturnContext<'src>>,
     capture_barriers: Vec<usize>,
+    type_parameter_scopes: Vec<AHashSet<&'src str>>,
     loop_depth: usize,
 }
 
@@ -229,6 +275,7 @@ impl<'src> Analyzer<'src> {
             scopes: vec![AHashMap::new()],
             return_contexts: Vec::new(),
             capture_barriers: Vec::new(),
+            type_parameter_scopes: Vec::new(),
             loop_depth: 0,
         }
     }
@@ -266,11 +313,12 @@ impl<'src> Analyzer<'src> {
         program: &Program<'ast, 'src>,
     ) -> Result<(), SemanticError> {
         for item in program.items {
-            let (name, span, is_struct) = match item {
-                Item::Struct(decl) => (decl.name.name, decl.span, true),
-                Item::Class(decl) => (decl.name.name, decl.span, false),
+            let (name, type_params, span, is_struct) = match item {
+                Item::Struct(decl) => (decl.name.name, decl.type_params, decl.span, true),
+                Item::Class(decl) => (decl.name.name, decl.type_params, decl.span, false),
                 _ => continue,
             };
+            let type_params = validate_type_params(type_params)?;
 
             if self.model.structs.contains_key(name) || self.model.classes.contains_key(name) {
                 return Err(SemanticError::new(
@@ -284,6 +332,7 @@ impl<'src> Analyzer<'src> {
                     name,
                     StructInfo {
                         name,
+                        type_params,
                         fields: IndexMap::new(),
                         span,
                     },
@@ -293,6 +342,7 @@ impl<'src> Analyzer<'src> {
                     name,
                     ClassInfo {
                         name,
+                        type_params,
                         fields: IndexMap::new(),
                         methods: IndexMap::new(),
                         constructor: None,
@@ -309,7 +359,9 @@ impl<'src> Analyzer<'src> {
             let Item::Struct(decl) = item else {
                 continue;
             };
+            self.push_type_params(decl.type_params)?;
             let fields = self.resolve_fields(decl)?;
+            self.pop_type_params();
             self.model
                 .structs
                 .get_mut(decl.name.name)
@@ -324,6 +376,8 @@ impl<'src> Analyzer<'src> {
             let Item::Class(decl) = item else {
                 continue;
             };
+
+            self.push_type_params(decl.type_params)?;
 
             let mut fields = IndexMap::new();
             let mut methods = IndexMap::new();
@@ -366,7 +420,13 @@ impl<'src> Analyzer<'src> {
                                 ),
                             ));
                         }
-                        methods.insert(method.name.name, self.function_type(method)?);
+                        methods.insert(
+                            method.name.name,
+                            MethodInfo {
+                                type_params: validate_type_params(method.type_params)?,
+                                signature: self.function_type(method)?,
+                            },
+                        );
                     }
                     ClassMember::Constructor(constructor_decl) => {
                         if constructor.is_some() {
@@ -381,7 +441,11 @@ impl<'src> Analyzer<'src> {
                         }
                         constructor = Some(FunctionType {
                             params,
-                            return_type: Box::new(Type::Class(decl.name.name)),
+                            return_type: Box::new(applied_nominal_type(
+                                decl.name.name,
+                                &validate_type_params(decl.type_params)?,
+                                true,
+                            )),
                         });
                     }
                 }
@@ -396,10 +460,24 @@ impl<'src> Analyzer<'src> {
             info.methods = methods;
             info.constructor = constructor.clone();
 
-            let constructor = Type::Function(constructor.unwrap_or(FunctionType {
+            self.pop_type_params();
+
+            let constructor_signature = constructor.unwrap_or(FunctionType {
                 params: Vec::new(),
-                return_type: Box::new(Type::Class(decl.name.name)),
-            }));
+                return_type: Box::new(applied_nominal_type(
+                    decl.name.name,
+                    &validate_type_params(decl.type_params)?,
+                    true,
+                )),
+            });
+            let constructor = if decl.type_params.is_empty() {
+                Type::Function(constructor_signature)
+            } else {
+                Type::GenericFunction(GenericFunctionType {
+                    type_params: validate_type_params(decl.type_params)?,
+                    signature: constructor_signature,
+                })
+            };
             self.declare(decl.name, constructor)?;
         }
         Ok(())
@@ -442,12 +520,27 @@ impl<'src> Analyzer<'src> {
         for item in program.items {
             match item {
                 Item::Function(function) => {
-                    let ty = Type::Function(self.function_type(function)?);
+                    let signature = self.function_type(function)?;
+                    let ty = if function.type_params.is_empty() {
+                        Type::Function(signature)
+                    } else {
+                        Type::GenericFunction(GenericFunctionType {
+                            type_params: validate_type_params(function.type_params)?,
+                            signature,
+                        })
+                    };
                     self.declare(function.name, ty)?;
                 }
                 Item::Extern(extern_decl) => {
                     let signature = self.extern_type(extern_decl)?;
-                    let ty = Type::Function(signature.clone());
+                    let ty = if extern_decl.type_params.is_empty() {
+                        Type::Function(signature.clone())
+                    } else {
+                        Type::GenericFunction(GenericFunctionType {
+                            type_params: validate_type_params(extern_decl.type_params)?,
+                            signature: signature.clone(),
+                        })
+                    };
                     self.declare(extern_decl.name, ty)?;
                     let mut names = AHashMap::new();
                     for (param, ty) in extern_decl.params.iter().zip(signature.params) {
@@ -467,6 +560,16 @@ impl<'src> Analyzer<'src> {
     }
 
     fn function_type<'ast>(
+        &mut self,
+        function: &FunctionDecl<'ast, 'src>,
+    ) -> Result<FunctionType<'src>, SemanticError> {
+        self.push_type_params(function.type_params)?;
+        let signature = self.function_type_in_current_scope(function);
+        self.pop_type_params();
+        signature
+    }
+
+    fn function_type_in_current_scope<'ast>(
         &self,
         function: &FunctionDecl<'ast, 'src>,
     ) -> Result<FunctionType<'src>, SemanticError> {
@@ -482,21 +585,25 @@ impl<'src> Analyzer<'src> {
     }
 
     fn extern_type<'ast>(
-        &self,
+        &mut self,
         extern_decl: &ExternDecl<'ast, 'src>,
     ) -> Result<FunctionType<'src>, SemanticError> {
+        self.push_type_params(extern_decl.type_params)?;
         let mut params = Vec::with_capacity(extern_decl.params.len());
         for param in extern_decl.params {
             params.push(self.resolve_value_type(param.ty, "extern parameter")?);
         }
         let return_type = self.resolve_type(extern_decl.return_type, true, "extern return type")?;
-        Ok(FunctionType {
+        let signature = FunctionType {
             params,
             return_type: Box::new(return_type),
-        })
+        };
+        self.pop_type_params();
+        Ok(signature)
     }
 
     fn analyze_class<'ast>(&mut self, class: &ClassDecl<'ast, 'src>) -> Result<(), SemanticError> {
+        self.push_type_params(class.type_params)?;
         for member in class.members {
             match member {
                 ClassMember::Method(method) => {
@@ -508,6 +615,7 @@ impl<'src> Analyzer<'src> {
                 ClassMember::Field(_) => {}
             }
         }
+        self.pop_type_params();
         Ok(())
     }
 
@@ -517,12 +625,18 @@ impl<'src> Analyzer<'src> {
         class_name: &'src str,
     ) -> Result<(), SemanticError> {
         self.push_scope();
+        let class_type_params = self
+            .model
+            .classes
+            .get(class_name)
+            .map(|class| class.type_params.clone())
+            .unwrap_or_default();
         self.declare(
             Ident {
                 name: "this",
                 span: constructor.span,
             },
-            Type::Class(class_name),
+            applied_nominal_type(class_name, &class_type_params, true),
         )?;
         for param in constructor.params {
             let ty = self.resolve_value_type(param.ty, "parameter")?;
@@ -545,7 +659,8 @@ impl<'src> Analyzer<'src> {
         function: &FunctionDecl<'ast, 'src>,
         class_name: Option<&'src str>,
     ) -> Result<(), SemanticError> {
-        let signature = self.function_type(function)?;
+        self.push_type_params(function.type_params)?;
+        let signature = self.function_type_in_current_scope(function)?;
         self.push_scope();
 
         if let Some(class_name) = class_name {
@@ -554,7 +669,16 @@ impl<'src> Analyzer<'src> {
                     name: "this",
                     span: function.name.span,
                 },
-                Type::Class(class_name),
+                applied_nominal_type(
+                    class_name,
+                    &self
+                        .model
+                        .classes
+                        .get(class_name)
+                        .map(|class| class.type_params.clone())
+                        .unwrap_or_default(),
+                    true,
+                ),
             )?;
         }
 
@@ -574,6 +698,7 @@ impl<'src> Analyzer<'src> {
             .pop()
             .expect("function analysis pushed a return context");
         self.pop_scope();
+        self.pop_type_params();
 
         if let ReturnContext::Declared { ty, .. } = context {
             if !ty.is_void() && !statements_guarantee_return(function.body) {
@@ -836,7 +961,12 @@ impl<'src> Analyzer<'src> {
                 }
                 Type::Struct(name.name)
             }
-            Expr::New { class, args, span } => {
+            Expr::New {
+                class,
+                type_args,
+                args,
+                span,
+            } => {
                 let info = self.model.classes.get(class.name).cloned().ok_or_else(|| {
                     SemanticError::new(class.span, format!("unknown class `{}`", class.name))
                 })?;
@@ -855,11 +985,69 @@ impl<'src> Analyzer<'src> {
                         ),
                     ));
                 }
-                for (arg, expected) in args.iter().zip(params) {
-                    let actual = self.analyze_expr(arg, Some(expected))?;
-                    self.require_assignable(expected, &actual, arg.span())?;
+                let parameter_names = info.type_params.iter().copied().collect::<AHashSet<_>>();
+                let mut substitutions = AHashMap::new();
+                if !type_args.is_empty() {
+                    let resolved = self.resolve_type_arguments(
+                        class.name,
+                        type_args,
+                        &info.type_params,
+                        *span,
+                    )?;
+                    substitutions.extend(info.type_params.iter().copied().zip(resolved));
+                } else if let Some(Type::ClassInstance {
+                    name,
+                    args: expected_args,
+                }) = expected
+                {
+                    if *name == class.name && expected_args.len() == info.type_params.len() {
+                        substitutions.extend(
+                            info.type_params
+                                .iter()
+                                .copied()
+                                .zip(expected_args.iter().cloned()),
+                        );
+                    }
+                } else if info.type_params.is_empty() {
+                    self.resolve_type_arguments(class.name, type_args, &info.type_params, *span)?;
                 }
-                Type::Class(class.name)
+                for (arg, pattern) in args.iter().zip(params) {
+                    let resolved = substitute_type(pattern, &substitutions);
+                    let expected = (!contains_type_parameter(&resolved, &parameter_names))
+                        .then_some(&resolved);
+                    let actual = self.analyze_expr(arg, expected)?;
+                    infer_type_arguments(
+                        pattern,
+                        &actual,
+                        &parameter_names,
+                        &mut substitutions,
+                        arg.span(),
+                    )?;
+                    let resolved = substitute_type(pattern, &substitutions);
+                    if !contains_type_parameter(&resolved, &parameter_names) {
+                        self.require_assignable(&resolved, &actual, arg.span())?;
+                    }
+                }
+                let resolved_args = info
+                    .type_params
+                    .iter()
+                    .map(|parameter| {
+                        substitutions.get(parameter).cloned().ok_or_else(|| {
+                            SemanticError::new(
+                                *span,
+                                format!("cannot infer type argument `{parameter}`"),
+                            )
+                        })
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+                if info.type_params.is_empty() {
+                    Type::Class(class.name)
+                } else {
+                    Type::ClassInstance {
+                        name: class.name,
+                        args: resolved_args,
+                    }
+                }
             }
             Expr::Member {
                 object,
@@ -887,12 +1075,12 @@ impl<'src> Analyzer<'src> {
                         "reduce" => self.analyze_array_reduce(object, args, *span)?,
                         _ => {
                             let callee_type = self.analyze_expr(callee, None)?;
-                            self.analyze_call(&callee_type, args, *span)?
+                            self.analyze_call(&callee_type, args, *span, expected)?
                         }
                     }
                 } else {
                     let callee_type = self.analyze_expr(callee, None)?;
-                    self.analyze_call(&callee_type, args, *span)?
+                    self.analyze_call(&callee_type, args, *span, expected)?
                 }
             }
             Expr::ArrowFunction { params, body, .. } => {
@@ -1076,6 +1264,23 @@ impl<'src> Analyzer<'src> {
                         format!("struct `{name}` has no field `{}`", property.name),
                     )
                 }),
+            Type::StructInstance { name, args } => {
+                let info = self
+                    .model
+                    .structs
+                    .get(name)
+                    .expect("struct instances always have struct metadata");
+                let substitutions = substitutions_for(&info.type_params, &args);
+                info.fields
+                    .get(property.name)
+                    .map(|field| substitute_type(&field.ty, &substitutions))
+                    .ok_or_else(|| {
+                        SemanticError::new(
+                            property.span,
+                            format!("struct `{name}` has no field `{}`", property.name),
+                        )
+                    })
+            }
             Type::Class(name) => {
                 let class = self
                     .model
@@ -1086,7 +1291,25 @@ impl<'src> Analyzer<'src> {
                     return Ok(field.ty.clone());
                 }
                 if let Some(method) = class.methods.get(property.name) {
-                    return Ok(Type::Function(method.clone()));
+                    return Ok(method_callable_type(method, &AHashMap::new()));
+                }
+                Err(SemanticError::new(
+                    property.span,
+                    format!("class `{name}` has no member `{}`", property.name),
+                ))
+            }
+            Type::ClassInstance { name, args } => {
+                let class = self
+                    .model
+                    .classes
+                    .get(name)
+                    .expect("class instances always have class metadata");
+                let substitutions = substitutions_for(&class.type_params, &args);
+                if let Some(field) = class.fields.get(property.name) {
+                    return Ok(substitute_type(&field.ty, &substitutions));
+                }
+                if let Some(method) = class.methods.get(property.name) {
+                    return Ok(method_callable_type(method, &substitutions));
                 }
                 Err(SemanticError::new(
                     property.span,
@@ -1328,7 +1551,11 @@ impl<'src> Analyzer<'src> {
         callee: &Type<'src>,
         args: &[Expr<'ast, 'src>],
         span: Span,
+        expected_return: Option<&Type<'src>>,
     ) -> Result<Type<'src>, SemanticError> {
+        if let Type::GenericFunction(function) = callee {
+            return self.analyze_generic_call(function, args, span, expected_return);
+        }
         let Type::Function(signature) = callee else {
             return Err(SemanticError::new(
                 span,
@@ -1350,6 +1577,69 @@ impl<'src> Analyzer<'src> {
             self.require_assignable(expected, &actual, arg.span())?;
         }
         Ok((*signature.return_type).clone())
+    }
+
+    fn analyze_generic_call<'ast>(
+        &mut self,
+        function: &GenericFunctionType<'src>,
+        args: &[Expr<'ast, 'src>],
+        span: Span,
+        expected_return: Option<&Type<'src>>,
+    ) -> Result<Type<'src>, SemanticError> {
+        if args.len() != function.signature.params.len() {
+            return Err(SemanticError::new(
+                span,
+                format!(
+                    "function expects {} arguments, found {}",
+                    function.signature.params.len(),
+                    args.len()
+                ),
+            ));
+        }
+        let parameters = function
+            .type_params
+            .iter()
+            .copied()
+            .collect::<AHashSet<_>>();
+        let mut substitutions = AHashMap::new();
+        if let Some(expected_return) = expected_return {
+            infer_type_arguments(
+                &function.signature.return_type,
+                expected_return,
+                &parameters,
+                &mut substitutions,
+                span,
+            )?;
+        }
+        for (arg, pattern) in args.iter().zip(&function.signature.params) {
+            let partially_resolved = substitute_type(pattern, &substitutions);
+            let expected = (!contains_type_parameter(&partially_resolved, &parameters))
+                .then_some(&partially_resolved);
+            let actual = self.analyze_expr(arg, expected)?;
+            infer_type_arguments(
+                pattern,
+                &actual,
+                &parameters,
+                &mut substitutions,
+                arg.span(),
+            )?;
+            let resolved = substitute_type(pattern, &substitutions);
+            if !contains_type_parameter(&resolved, &parameters) {
+                self.require_assignable(&resolved, &actual, arg.span())?;
+            }
+        }
+        for parameter in &function.type_params {
+            if !substitutions.contains_key(parameter) {
+                return Err(SemanticError::new(
+                    span,
+                    format!("cannot infer type argument `{parameter}`"),
+                ));
+            }
+        }
+        Ok(substitute_type(
+            &function.signature.return_type,
+            &substitutions,
+        ))
     }
 
     fn analyze_arrow<'ast>(
@@ -1490,11 +1780,46 @@ impl<'src> Analyzer<'src> {
                 ty.span,
                 format!("`auto` is not allowed as a {context} type"),
             )),
-            TypeKind::Named(name) if self.model.structs.contains_key(name) => {
-                Ok(Type::Struct(name))
+            TypeKind::Named { name, args }
+                if self
+                    .type_parameter_scopes
+                    .iter()
+                    .rev()
+                    .any(|scope| scope.contains(name)) =>
+            {
+                if !args.is_empty() {
+                    return Err(SemanticError::new(
+                        ty.span,
+                        format!("type parameter `{name}` does not accept type arguments"),
+                    ));
+                }
+                Ok(Type::TypeParameter(name))
             }
-            TypeKind::Named(name) if self.model.classes.contains_key(name) => Ok(Type::Class(name)),
-            TypeKind::Named(name) => Err(SemanticError::new(
+            TypeKind::Named { name, args } if self.model.structs.contains_key(name) => {
+                let parameters = self.model.structs[name].type_params.clone();
+                let arguments = self.resolve_type_arguments(name, args, &parameters, ty.span)?;
+                if parameters.is_empty() {
+                    Ok(Type::Struct(name))
+                } else {
+                    Ok(Type::StructInstance {
+                        name,
+                        args: arguments,
+                    })
+                }
+            }
+            TypeKind::Named { name, args } if self.model.classes.contains_key(name) => {
+                let parameters = self.model.classes[name].type_params.clone();
+                let arguments = self.resolve_type_arguments(name, args, &parameters, ty.span)?;
+                if parameters.is_empty() {
+                    Ok(Type::Class(name))
+                } else {
+                    Ok(Type::ClassInstance {
+                        name,
+                        args: arguments,
+                    })
+                }
+            }
+            TypeKind::Named { name, .. } => Err(SemanticError::new(
                 ty.span,
                 format!("unknown type `{name}`"),
             )),
@@ -1517,6 +1842,55 @@ impl<'src> Analyzer<'src> {
                 }))
             }
         }
+    }
+
+    fn resolve_type_arguments<'ast>(
+        &self,
+        name: &str,
+        args: &[TypeRef<'ast, 'src>],
+        parameters: &[&'src str],
+        span: Span,
+    ) -> Result<Vec<Type<'src>>, SemanticError> {
+        if args.len() != parameters.len() {
+            return Err(SemanticError::new(
+                span,
+                format!(
+                    "type `{name}` expects {} type arguments, found {}",
+                    parameters.len(),
+                    args.len()
+                ),
+            ));
+        }
+        args.iter()
+            .map(|argument| self.resolve_value_type(*argument, "type argument"))
+            .collect()
+    }
+
+    fn push_type_params(&mut self, params: &[Ident<'src>]) -> Result<(), SemanticError> {
+        let names = validate_type_params(params)?;
+        for parameter in params {
+            if self
+                .type_parameter_scopes
+                .iter()
+                .any(|scope| scope.contains(parameter.name))
+            {
+                return Err(SemanticError::new(
+                    parameter.span,
+                    format!(
+                        "type parameter `{}` shadows an enclosing type parameter",
+                        parameter.name
+                    ),
+                ));
+            }
+        }
+        self.type_parameter_scopes.push(names.into_iter().collect());
+        Ok(())
+    }
+
+    fn pop_type_params(&mut self) {
+        self.type_parameter_scopes
+            .pop()
+            .expect("type parameter scope was pushed before it was popped");
     }
 
     fn require_assignable(
@@ -1604,6 +1978,217 @@ impl<'src> Analyzer<'src> {
         debug_assert!(self.scopes.len() > 1);
         self.scopes.pop();
     }
+}
+
+fn validate_type_params<'src>(params: &[Ident<'src>]) -> Result<Vec<&'src str>, SemanticError> {
+    let mut names = Vec::with_capacity(params.len());
+    let mut seen = AHashSet::new();
+    for parameter in params {
+        if !seen.insert(parameter.name) {
+            return Err(SemanticError::new(
+                parameter.span,
+                format!("duplicate type parameter `{}`", parameter.name),
+            ));
+        }
+        names.push(parameter.name);
+    }
+    Ok(names)
+}
+
+fn applied_nominal_type<'src>(
+    name: &'src str,
+    parameters: &[&'src str],
+    class: bool,
+) -> Type<'src> {
+    if parameters.is_empty() {
+        return if class {
+            Type::Class(name)
+        } else {
+            Type::Struct(name)
+        };
+    }
+    let args = parameters
+        .iter()
+        .map(|parameter| Type::TypeParameter(parameter))
+        .collect();
+    if class {
+        Type::ClassInstance { name, args }
+    } else {
+        Type::StructInstance { name, args }
+    }
+}
+
+fn substitute_type<'src>(
+    ty: &Type<'src>,
+    substitutions: &AHashMap<&'src str, Type<'src>>,
+) -> Type<'src> {
+    match ty {
+        Type::TypeParameter(name) => substitutions
+            .get(name)
+            .cloned()
+            .unwrap_or_else(|| ty.clone()),
+        Type::Array(element) => Type::Array(Box::new(substitute_type(element, substitutions))),
+        Type::StructInstance { name, args } => Type::StructInstance {
+            name,
+            args: args
+                .iter()
+                .map(|argument| substitute_type(argument, substitutions))
+                .collect(),
+        },
+        Type::ClassInstance { name, args } => Type::ClassInstance {
+            name,
+            args: args
+                .iter()
+                .map(|argument| substitute_type(argument, substitutions))
+                .collect(),
+        },
+        Type::Function(signature) => Type::Function(FunctionType {
+            params: signature
+                .params
+                .iter()
+                .map(|parameter| substitute_type(parameter, substitutions))
+                .collect(),
+            return_type: Box::new(substitute_type(&signature.return_type, substitutions)),
+        }),
+        Type::GenericFunction(function) => Type::GenericFunction(GenericFunctionType {
+            type_params: function.type_params.clone(),
+            signature: FunctionType {
+                params: function
+                    .signature
+                    .params
+                    .iter()
+                    .map(|parameter| substitute_type(parameter, substitutions))
+                    .collect(),
+                return_type: Box::new(substitute_type(
+                    &function.signature.return_type,
+                    substitutions,
+                )),
+            },
+        }),
+        _ => ty.clone(),
+    }
+}
+
+fn substitutions_for<'src>(
+    parameters: &[&'src str],
+    arguments: &[Type<'src>],
+) -> AHashMap<&'src str, Type<'src>> {
+    parameters
+        .iter()
+        .copied()
+        .zip(arguments.iter().cloned())
+        .collect()
+}
+
+fn method_callable_type<'src>(
+    method: &MethodInfo<'src>,
+    substitutions: &AHashMap<&'src str, Type<'src>>,
+) -> Type<'src> {
+    let signature = match substitute_type(&Type::Function(method.signature.clone()), substitutions)
+    {
+        Type::Function(signature) => signature,
+        _ => unreachable!("substituting a function signature preserves its kind"),
+    };
+    if method.type_params.is_empty() {
+        Type::Function(signature)
+    } else {
+        Type::GenericFunction(GenericFunctionType {
+            type_params: method.type_params.clone(),
+            signature,
+        })
+    }
+}
+
+fn contains_type_parameter(ty: &Type<'_>, parameters: &AHashSet<&str>) -> bool {
+    match ty {
+        Type::TypeParameter(name) => parameters.contains(name),
+        Type::Array(element) => contains_type_parameter(element, parameters),
+        Type::StructInstance { args, .. } | Type::ClassInstance { args, .. } => args
+            .iter()
+            .any(|argument| contains_type_parameter(argument, parameters)),
+        Type::Function(signature) => {
+            signature
+                .params
+                .iter()
+                .any(|parameter| contains_type_parameter(parameter, parameters))
+                || contains_type_parameter(&signature.return_type, parameters)
+        }
+        Type::GenericFunction(function) => {
+            function
+                .signature
+                .params
+                .iter()
+                .any(|parameter| contains_type_parameter(parameter, parameters))
+                || contains_type_parameter(&function.signature.return_type, parameters)
+        }
+        _ => false,
+    }
+}
+
+fn infer_type_arguments<'src>(
+    pattern: &Type<'src>,
+    actual: &Type<'src>,
+    parameters: &AHashSet<&'src str>,
+    substitutions: &mut AHashMap<&'src str, Type<'src>>,
+    span: Span,
+) -> Result<(), SemanticError> {
+    match (pattern, actual) {
+        (Type::TypeParameter(name), actual) if parameters.contains(name) => {
+            if let Some(previous) = substitutions.get(name) {
+                if !is_assignable(previous, actual) || !is_assignable(actual, previous) {
+                    return Err(SemanticError::new(
+                        span,
+                        format!("conflicting inferences for `{name}`: `{previous}` and `{actual}`"),
+                    ));
+                }
+            } else {
+                substitutions.insert(name, actual.clone());
+            }
+        }
+        (Type::Array(pattern), Type::Array(actual)) => {
+            infer_type_arguments(pattern, actual, parameters, substitutions, span)?;
+        }
+        (Type::Function(pattern), Type::Function(actual))
+            if pattern.params.len() == actual.params.len() =>
+        {
+            for (pattern, actual) in pattern.params.iter().zip(&actual.params) {
+                infer_type_arguments(pattern, actual, parameters, substitutions, span)?;
+            }
+            infer_type_arguments(
+                &pattern.return_type,
+                &actual.return_type,
+                parameters,
+                substitutions,
+                span,
+            )?;
+        }
+        (
+            Type::StructInstance {
+                name: pattern_name,
+                args: pattern_args,
+            },
+            Type::StructInstance {
+                name: actual_name,
+                args: actual_args,
+            },
+        )
+        | (
+            Type::ClassInstance {
+                name: pattern_name,
+                args: pattern_args,
+            },
+            Type::ClassInstance {
+                name: actual_name,
+                args: actual_args,
+            },
+        ) if pattern_name == actual_name && pattern_args.len() == actual_args.len() => {
+            for (pattern, actual) in pattern_args.iter().zip(actual_args) {
+                infer_type_arguments(pattern, actual, parameters, substitutions, span)?;
+            }
+        }
+        _ => {}
+    }
+    Ok(())
 }
 
 fn is_assignable(expected: &Type<'_>, actual: &Type<'_>) -> bool {
@@ -1893,5 +2478,26 @@ mod tests {
             .unwrap_err()
             .message
             .contains("2 arguments"));
+    }
+
+    #[test]
+    fn infers_generic_functions_and_substitutes_class_members() {
+        check(
+            "T identity<T>(T value){return value;}int answer=identity(7);string text=identity(\"ok\");class Box<T>{T value;init(T value){this.value=value;}T get(){return this.value;}}Box<int> box=new Box(7);int value=box.get();",
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn rejects_conflicting_generic_inferences() {
+        let error =
+            check("T choose<T>(T left,T right){return left;}int value=choose(1,\"wrong\");")
+                .unwrap_err();
+        assert!(error.message.contains("conflicting inferences"));
+    }
+
+    #[test]
+    fn infers_zero_argument_generics_from_the_expected_return_type() {
+        check("class Box<T>{}Box<T> make<T>(){return new Box<T>();}Box<int> box=make();").unwrap();
     }
 }

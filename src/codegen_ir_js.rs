@@ -2759,7 +2759,13 @@ fn default_value(ty: &Type<'_>) -> &'static str {
         Type::Bool => "false",
         Type::String => "\"\"",
         Type::Array(_) => "[]",
-        Type::Struct(_) | Type::Class(_) | Type::Function(_) => "null",
+        Type::Struct(_)
+        | Type::Class(_)
+        | Type::StructInstance { .. }
+        | Type::ClassInstance { .. }
+        | Type::TypeParameter(_)
+        | Type::Function(_)
+        | Type::GenericFunction(_) => "null",
         Type::Void => "void 0",
     }
 }

@@ -1,0 +1,42 @@
+T identity<T>(T value) {
+  return value;
+}
+
+T apply<T>(T value, func(T)->T callback) {
+  return callback(value);
+}
+
+class Box<T> {
+  T value;
+
+  init(T value) {
+    this.value = value;
+  }
+
+  T get() {
+    return this.value;
+  }
+}
+
+class Cell<T> {
+  T value;
+  func(T)->T transform;
+
+  init(T value, func(T)->T transform) {
+    this.value = value;
+    this.transform = transform;
+  }
+
+  T update() {
+    this.value = this.transform(this.value);
+    return this.value;
+  }
+}
+
+int seed = 6;
+seed += 1;
+Box<int> box = new Box(seed);
+print(identity(box.get()));
+print(apply(3, (int value) => value + 4));
+Cell<int> cell = new Cell(2, (int value) => value * 3);
+print(cell.update());

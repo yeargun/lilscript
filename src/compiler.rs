@@ -740,6 +740,15 @@ mod tests {
     }
 
     #[test]
+    fn compiles_inferred_generics_to_optimized_javascript() {
+        let source = "T identity<T>(T value){return value;}class Box<T>{T value;init(T value){this.value=value;}T get(){return this.value;}}Box<int> box=new Box(7);print(identity(box.get()));";
+        let output = compile_source(source).unwrap();
+
+        assert!(output.contains("console.log"), "{output}");
+        assert!(!output.contains("identity"), "{output}");
+    }
+
+    #[test]
     fn preserves_branch_local_shadowing_while_linking() {
         let directory = std::env::temp_dir().join(format!(
             "lilscript-module-shadow-test-{}",

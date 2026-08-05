@@ -40,7 +40,7 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
             "static inline int32_t lilscript_irem(int32_t a,int32_t b){if(!b)return 0;return a==INT32_MIN&&b==-1?0:a%b;}\n",
         );
         out.push_str(
-            "typedef struct LilScriptArrayHeader{void*data;int32_t len,cap;}*LilScriptArray;typedef struct{void*fn;void*env;}LilScriptClosure;typedef char* LilScriptString;\n",
+            "typedef struct LilScriptArrayHeader{void*data;int32_t len,cap;}*LilScriptArray;typedef struct{void*fn;void*env;}LilScriptClosure;typedef char* LilScriptString;typedef union{int32_t i;double f;bool b;const char*s;void*p;LilScriptClosure c;}LilScriptValue;\n",
         );
         out.push_str(
             "static inline LilScriptArray lilscript_array(int32_t n,size_t z){LilScriptArray a=malloc(sizeof*a);if(!a)abort();a->data=calloc((size_t)n,z);a->len=a->cap=n;if(n&&!a->data)abort();return a;}\n",
@@ -68,6 +68,9 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
         );
         out.push_str(
             "static inline LilScriptString lilscript_case(const char*s,bool upper){LilScriptString r=lilscript_dup(s);for(char*p=r;*p;p++)*p=(char)(upper?toupper((unsigned char)*p):tolower((unsigned char)*p));return r;}\n",
+        );
+        out.push_str(
+            "static inline void*lilscript_copy(const void*value,size_t size){void*copy=malloc(size);if(!copy)abort();memcpy(copy,value,size);return copy;}\n",
         );
 
         self.emit_aggregate_types(&mut out)?;
@@ -177,7 +180,11 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
         write!(
             out,
             "static {} f{}(",
-            c_type(&function.return_type),
+            if function.kind == FunctionKind::Closure {
+                "LilScriptValue".to_string()
+            } else {
+                c_type(&function.return_type)
+            },
             function.id.0
         )
         .expect("writing to String cannot fail");
@@ -188,9 +195,9 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
             }
             for param in &function.params[function.capture_count..] {
                 out.push(',');
-                out.push_str(&c_type(&param.ty));
+                out.push_str("LilScriptValue");
                 if names {
-                    write!(out, " v{}", param.value.0).expect("writing to String cannot fail");
+                    write!(out, " a{}", param.value.0).expect("writing to String cannot fail");
                 }
             }
         } else if function.params.is_empty() {
@@ -258,12 +265,10 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
 
         let types = value_types(function);
         for (value, ty) in &types {
-            let declared_parameter = if function.kind == FunctionKind::Closure {
-                function.params[function.capture_count..]
-                    .iter()
-                    .any(|param| param.value == *value)
-            } else {
+            let declared_parameter = if function.kind != FunctionKind::Closure {
                 function.params.iter().any(|param| param.value == *value)
+            } else {
+                false
             };
             if declared_parameter {
                 continue;
@@ -284,6 +289,17 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                     write!(out, "v{}=e->c{index};", capture.value.0)
                         .expect("writing to String cannot fail");
                 }
+            }
+            let universal = Type::TypeParameter("$closure");
+            for parameter in &function.params[function.capture_count..] {
+                let converted = self.render_value_conversion(
+                    &format!("a{}", parameter.value.0),
+                    &universal,
+                    &parameter.ty,
+                    parameter.span,
+                )?;
+                write!(out, "v{}={converted};", parameter.value.0)
+                    .expect("writing to String cannot fail");
             }
         }
         write!(out, "uint32_t s={};for(;;)switch(s){{", function.entry.0)
@@ -379,10 +395,13 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                 if let Some(constructor) = constructor {
                     let mut call_args = vec![result];
                     call_args.extend(args);
-                    out.push_str(&render_c_call(
-                        &self.native_function_name(*constructor)?,
+                    out.push_str(&self.render_direct_call(
+                        *constructor,
                         &call_args,
-                    ));
+                        types,
+                        Some(&Type::Void),
+                        instruction.span,
+                    )?);
                     out.push(';');
                 }
                 return Ok(());
@@ -418,13 +437,14 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
             }
             ControlFlowOp::FieldSet {
                 object,
+                owner,
                 index,
                 value,
                 ..
             } => {
                 let access = match types.get(object) {
-                    Some(Type::Struct(_)) => ".",
-                    Some(Type::Class(_)) => "->",
+                    Some(Type::Struct(_) | Type::StructInstance { .. }) => ".",
+                    Some(Type::Class(_) | Type::ClassInstance { .. }) => "->",
                     _ => {
                         return Err(CodegenError::new(
                             instruction.span,
@@ -432,7 +452,14 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                         ));
                     }
                 };
-                write!(out, "v{}{access}f{index}=v{};", object.0, value.0)
+                let storage = self.field_storage_type(owner, *index, instruction.span)?;
+                let converted = self.render_value_conversion(
+                    &format!("v{}", value.0),
+                    &types[value],
+                    storage,
+                    instruction.span,
+                )?;
+                write!(out, "v{}{access}f{index}={converted};", object.0)
                     .expect("writing to String cannot fail");
                 return Ok(());
             }
@@ -807,10 +834,13 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                 value
             }
             ControlFlowOp::LoadGlobal(symbol) => format!("g{}", symbol.0),
-            ControlFlowOp::CallDirect { function, args } => {
-                let name = self.native_function_name(*function)?;
-                render_c_call(&name, args)
-            }
+            ControlFlowOp::CallDirect { function, args } => self.render_direct_call(
+                *function,
+                args,
+                types,
+                instruction.ty.as_ref(),
+                instruction.span,
+            )?,
             ControlFlowOp::CallValue { callee, args } => {
                 let Some(Type::Function(signature)) = types.get(callee) else {
                     return Err(CodegenError::new(
@@ -833,10 +863,15 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                 };
                 format!("(({}*)v{}->data)[v{}]", c_type(element), object.0, index.0)
             }
-            ControlFlowOp::FieldGet { object, index, .. } => {
+            ControlFlowOp::FieldGet {
+                object,
+                owner,
+                index,
+                ..
+            } => {
                 let access = match types.get(object) {
-                    Some(Type::Struct(_)) => ".",
-                    Some(Type::Class(_)) => "->",
+                    Some(Type::Struct(_) | Type::StructInstance { .. }) => ".",
+                    Some(Type::Class(_) | Type::ClassInstance { .. }) => "->",
                     _ => {
                         return Err(CodegenError::new(
                             instruction.span,
@@ -844,7 +879,16 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                         ));
                     }
                 };
-                format!("v{}{access}f{index}", object.0)
+                let storage = self.field_storage_type(owner, *index, instruction.span)?;
+                let loaded = format!("v{}{access}f{index}", object.0);
+                self.render_value_conversion(
+                    &loaded,
+                    storage,
+                    instruction.ty.as_ref().ok_or_else(|| {
+                        CodegenError::new(instruction.span, "native field load has no type")
+                    })?,
+                    instruction.span,
+                )?
             }
             ControlFlowOp::Intrinsic {
                 intrinsic: Intrinsic::ArrayLength,
@@ -909,21 +953,142 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
         callee: ValueId,
         args: &[String],
         signature: &crate::semantic::FunctionType<'src>,
-        _span: Span,
+        span: Span,
     ) -> Result<String, CodegenError> {
-        let mut cast = format!("{}(*)(void*", c_type(&signature.return_type));
-        for param in &signature.params {
-            cast.push(',');
-            cast.push_str(&c_type(param));
+        let universal = Type::TypeParameter("$closure");
+        let mut cast = String::from("LilScriptValue(*)(void*");
+        for _ in &signature.params {
+            cast.push_str(",LilScriptValue");
         }
         cast.push(')');
         let mut call = format!("((({cast})v{}.fn)(v{}.env", callee.0, callee.0);
-        for arg in args {
+        for (arg, parameter) in args.iter().zip(&signature.params) {
             call.push(',');
-            call.push_str(arg);
+            call.push_str(&self.render_value_conversion(arg, parameter, &universal, span)?);
         }
         call.push_str("))");
-        Ok(call)
+        if signature.return_type.as_ref() == &Type::Void {
+            Ok(call)
+        } else {
+            self.render_value_conversion(&call, &universal, &signature.return_type, span)
+        }
+    }
+
+    fn render_direct_call(
+        &self,
+        function: FunctionId,
+        args: &[ValueId],
+        types: &AHashMap<ValueId, Type<'src>>,
+        output_type: Option<&Type<'src>>,
+        span: Span,
+    ) -> Result<String, CodegenError> {
+        let callee = self.function(function)?;
+        if callee.params.len() != args.len() {
+            return Err(CodegenError::new(
+                span,
+                "native direct call argument count does not match its function",
+            ));
+        }
+        let mut call = format!("{}(", self.native_function_name(function)?);
+        for (index, (argument, parameter)) in args.iter().zip(&callee.params).enumerate() {
+            if index != 0 {
+                call.push(',');
+            }
+            let source = types.get(argument).ok_or_else(|| {
+                CodegenError::new(span, "native direct call argument has no type")
+            })?;
+            call.push_str(&self.render_value_conversion(
+                &format!("v{}", argument.0),
+                source,
+                &parameter.ty,
+                span,
+            )?);
+        }
+        call.push(')');
+        let Some(output_type) = output_type else {
+            return Ok(call);
+        };
+        if output_type == &Type::Void || callee.return_type == Type::Void {
+            return Ok(call);
+        }
+        self.render_value_conversion(&call, &callee.return_type, output_type, span)
+    }
+
+    fn field_storage_type(
+        &self,
+        owner: &str,
+        index: usize,
+        span: Span,
+    ) -> Result<&Type<'src>, CodegenError> {
+        self.module
+            .structs
+            .iter()
+            .chain(&self.module.classes)
+            .find(|layout| layout.name == owner)
+            .and_then(|layout| layout.fields.get(index))
+            .map(|field| &field.ty)
+            .ok_or_else(|| CodegenError::new(span, "native field has no aggregate layout"))
+    }
+
+    fn render_value_conversion(
+        &self,
+        expression: &str,
+        from: &Type<'src>,
+        to: &Type<'src>,
+        span: Span,
+    ) -> Result<String, CodegenError> {
+        if from == to || c_type(from) == c_type(to) {
+            return Ok(expression.to_string());
+        }
+        if matches!(to, Type::TypeParameter(_)) {
+            let member = match from {
+                Type::Int => "i",
+                Type::Float => "f",
+                Type::Bool => "b",
+                Type::String => "s",
+                Type::Function(_) | Type::GenericFunction(_) => "c",
+                Type::Array(_) | Type::Class(_) | Type::ClassInstance { .. } => "p",
+                Type::Struct(_) | Type::StructInstance { .. } => {
+                    let native = c_type(from);
+                    return Ok(format!(
+                        "(LilScriptValue){{.p=lilscript_copy(({native}[]){{{expression}}},sizeof({native}))}}"
+                    ));
+                }
+                Type::TypeParameter(_) => return Ok(expression.to_string()),
+                Type::Void => {
+                    return Err(CodegenError::new(span, "cannot box a native void value"));
+                }
+            };
+            let value = if member == "p" {
+                format!("(void*)({expression})")
+            } else {
+                expression.to_string()
+            };
+            return Ok(format!("(LilScriptValue){{.{member}={value}}}"));
+        }
+        if matches!(from, Type::TypeParameter(_)) {
+            return Ok(match to {
+                Type::Int => format!("({expression}).i"),
+                Type::Float => format!("({expression}).f"),
+                Type::Bool => format!("({expression}).b"),
+                Type::String => format!("({expression}).s"),
+                Type::Function(_) | Type::GenericFunction(_) => format!("({expression}).c"),
+                Type::Array(_) | Type::Class(_) | Type::ClassInstance { .. } => {
+                    format!("({})({expression}).p", c_type(to))
+                }
+                Type::Struct(_) | Type::StructInstance { .. } => {
+                    format!("*({}*)({expression}).p", c_type(to))
+                }
+                Type::TypeParameter(_) => expression.to_string(),
+                Type::Void => {
+                    return Err(CodegenError::new(span, "cannot unbox a native void value"));
+                }
+            });
+        }
+        Err(CodegenError::new(
+            span,
+            format!("cannot convert native `{from}` to `{to}`"),
+        ))
     }
 
     fn render_string_value(
@@ -1054,10 +1219,24 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                     .expect("writing to String cannot fail");
             }
             Terminator::Return(Some(value)) => {
-                write!(out, "return v{};", value.0).expect("writing to String cannot fail");
+                if function.kind == FunctionKind::Closure {
+                    let universal = Type::TypeParameter("$closure");
+                    let converted = self.render_value_conversion(
+                        &format!("v{}", value.0),
+                        &types[value],
+                        &universal,
+                        block.span,
+                    )?;
+                    write!(out, "return {converted};").expect("writing to String cannot fail");
+                } else {
+                    write!(out, "return v{};", value.0).expect("writing to String cannot fail");
+                }
             }
             Terminator::Return(None) if function.kind == FunctionKind::Entry => {
                 out.push_str("return 0;");
+            }
+            Terminator::Return(None) if function.kind == FunctionKind::Closure => {
+                out.push_str("return (LilScriptValue){0};")
             }
             Terminator::Return(None) => out.push_str("return;"),
             Terminator::Unreachable => out.push_str("abort();"),
@@ -1165,7 +1344,10 @@ fn c_type(ty: &Type<'_>) -> String {
         Type::Array(_) => "LilScriptArray".to_string(),
         Type::Struct(name) => aggregate_type_name("Struct", name),
         Type::Class(name) => aggregate_type_name("Class", name),
-        Type::Function(_) => "LilScriptClosure".to_string(),
+        Type::StructInstance { name, .. } => aggregate_type_name("Struct", name),
+        Type::ClassInstance { name, .. } => aggregate_type_name("Class", name),
+        Type::TypeParameter(_) => "LilScriptValue".to_string(),
+        Type::Function(_) | Type::GenericFunction(_) => "LilScriptClosure".to_string(),
         Type::Void => "void".to_string(),
     }
 }
@@ -1185,18 +1367,6 @@ fn render_c_const(value: &ConstValue) -> String {
         ConstValue::Bool(value) => value.to_string(),
         ConstValue::String(value) => format!("\"{value}\""),
     }
-}
-
-fn render_c_call(name: &str, args: &[ValueId]) -> String {
-    let mut call = format!("{name}(");
-    for (index, arg) in args.iter().enumerate() {
-        if index != 0 {
-            call.push(',');
-        }
-        write!(call, "v{}", arg.0).expect("writing to String cannot fail");
-    }
-    call.push(')');
-    call
 }
 
 fn c_binary_operator(op: IrBinaryOp) -> &'static str {

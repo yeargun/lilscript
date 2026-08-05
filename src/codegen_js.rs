@@ -538,7 +538,7 @@ impl<'src> JsEmitter<'src> {
             .binding_types
             .get(&decl.name.span)
             .and_then(|ty| match ty {
-                Type::Struct(name) => Some(*name),
+                Type::Struct(name) | Type::StructInstance { name, .. } => Some(*name),
                 _ => None,
             });
         let syntax_struct =
@@ -795,7 +795,7 @@ impl<'src> JsEmitter<'src> {
                 self.expression_types
                     .get(&object.span())
                     .and_then(|ty| match ty {
-                        Type::Struct(name) => Some(*name),
+                        Type::Struct(name) | Type::StructInstance { name, .. } => Some(*name),
                         _ => None,
                     });
             let scoped_struct = if let Expr::Ident(object_ident) = object {
@@ -830,7 +830,13 @@ impl<'src> JsEmitter<'src> {
             }
         }
 
-        if let Some(Type::Class(class_name)) = self.expression_types.get(&object.span()) {
+        if let Some(
+            Type::Class(class_name)
+            | Type::ClassInstance {
+                name: class_name, ..
+            },
+        ) = self.expression_types.get(&object.span())
+        {
             let emitted = self.class_member_name(class_name, property)?.to_string();
             self.emit_expr(object, out)?;
             out.push('.');
@@ -1023,7 +1029,7 @@ fn encode_identifier(mut index: usize) -> String {
 
 fn named_struct_type<'ast, 'src>(ty: TypeRef<'ast, 'src>) -> Option<&'src str> {
     match ty.kind {
-        TypeKind::Named(name) => Some(name),
+        TypeKind::Named { name, .. } => Some(name),
         _ => None,
     }
 }

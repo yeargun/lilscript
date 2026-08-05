@@ -2,7 +2,8 @@
 
 LilScript is a standalone, statically typed language with type-first declarations,
 nominal structs and classes, typed closures, and JavaScript-style array and
-string methods. It has its own lexer, parser, type system, SSA IR, optimizer,
+string methods. Generic functions and classes use inferred, statically checked
+type arguments. It has its own lexer, parser, type system, SSA IR, optimizer,
 JavaScript backend, and native C backend. It does not parse or emit TypeScript.
 
 ```lilscript
@@ -38,6 +39,29 @@ if (vector.lengthSquared() == 25.0) {
 The optimized JavaScript for this program is 112 bytes. The class is
 devirtualized and scalar-replaced, the method and constructor disappear, and
 the output preserves signed 32-bit `int` behavior.
+
+Generic values keep the same type-first declaration style:
+
+```lilscript
+class Box<T> {
+  T value;
+
+  init(T value) {
+    this.value = value;
+  }
+
+  T get() {
+    return this.value;
+  }
+}
+
+T apply<T>(T value, func(T)->T transform) {
+  return transform(value);
+}
+
+Box<int> box = new Box(7);
+print(apply(box.get(), (int value) => value + 1));
+```
 
 ## Toolchain
 
@@ -181,7 +205,7 @@ npm --prefix vscode-extension run package
 ```
 
 `scripts/verify.sh` compares Node and native output for two conformance suites
-and links a generated aggregate ABI against a C host. It also runs 34 programs
+and links a generated aggregate ABI against a C host. It also runs 35 programs
 through JavaScript, emitted C, and native executables, plus a framed LSP session
 through diagnostics, completion, hover, symbols, and shutdown.
 `benchmarks/run.sh`
@@ -205,8 +229,8 @@ responsibility mapping is in
 The implemented v0.1 language includes primitive and nominal types, arrays,
 functions and closures, structs, classes and constructors, static modules,
 checked purity contracts, control flow, compound assignment, templates,
-explicit host `extern` declarations, and the standard methods listed in the
-language contract. Package management, lazy module loading, runtime chunks,
-generics, exceptions, async execution, and a direct machine-code backend are
-outside v0.1; native executables currently use optimized C as the final lowering
-stage.
+inferred generic functions and classes, explicit host `extern` declarations,
+and the standard methods listed in the language contract. Package management,
+lazy module loading, runtime chunks, generic struct literals, exceptions, async
+execution, and a direct machine-code backend are outside v0.1; native
+executables currently use optimized C as the final lowering stage.

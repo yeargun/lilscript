@@ -254,10 +254,18 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         if self.looks_like_typed_binding() {
             let ty = self.parse_type()?;
             let name = self.expect_ident("expected declaration name")?;
+            let type_params = self.parse_type_params()?;
             if self.match_kind(|kind| matches!(kind, TokenKind::LParen)) {
                 return self
-                    .parse_function_after_signature(ty, name, declared_pure)
+                    .parse_function_after_signature(ty, name, type_params, declared_pure)
                     .map(Item::Function);
+            }
+
+            if !type_params.is_empty() {
+                return Err(ParseError::new(
+                    name.span,
+                    "type parameters require a function declaration",
+                ));
             }
 
             if declared_pure {
@@ -291,6 +299,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
             ));
         }
         let name = self.expect_ident("expected extern function name")?;
+        let type_params = self.parse_type_params()?;
         self.expect(
             |kind| matches!(kind, TokenKind::LParen),
             "expected `(` after extern function name",
@@ -301,6 +310,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
             declared_pure,
             return_type,
             name,
+            type_params,
             params,
             span: start.merge(semi.span),
         })
@@ -355,6 +365,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
     fn parse_struct_after_keyword(&mut self) -> Result<StructDecl<'arena, 'src>, ParseError> {
         let keyword_span = self.previous_span();
         let name = self.expect_ident("expected struct name")?;
+        let type_params = self.parse_type_params()?;
         self.expect(|kind| matches!(kind, TokenKind::LBrace), "expected `{`")?;
 
         let mut fields = BumpVec::new_in(self.arena);
@@ -368,6 +379,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         let close = self.expect(|kind| matches!(kind, TokenKind::RBrace), "expected `}`")?;
         Ok(StructDecl {
             name,
+            type_params,
             fields: fields.into_bump_slice(),
             span: keyword_span.merge(close.span),
         })
@@ -376,6 +388,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
     fn parse_class_after_keyword(&mut self) -> Result<ClassDecl<'arena, 'src>, ParseError> {
         let keyword_span = self.previous_span();
         let name = self.expect_ident("expected class name")?;
+        let type_params = self.parse_type_params()?;
         self.expect(|kind| matches!(kind, TokenKind::LBrace), "expected `{`")?;
 
         let mut members = BumpVec::new_in(self.arena);
@@ -407,10 +420,22 @@ impl<'arena, 'src> Parser<'arena, 'src> {
             let declared_pure = self.match_kind(|kind| matches!(kind, TokenKind::Pure));
             let ty = self.parse_type()?;
             let member_name = self.expect_ident("expected class member name")?;
+            let type_params = self.parse_type_params()?;
             if self.match_kind(|kind| matches!(kind, TokenKind::LParen)) {
-                let method = self.parse_function_after_signature(ty, member_name, declared_pure)?;
+                let method = self.parse_function_after_signature(
+                    ty,
+                    member_name,
+                    type_params,
+                    declared_pure,
+                )?;
                 members.push(ClassMember::Method(method));
             } else {
+                if !type_params.is_empty() {
+                    return Err(ParseError::new(
+                        member_name.span,
+                        "type parameters require a method declaration",
+                    ));
+                }
                 if declared_pure {
                     return Err(ParseError::new(
                         member_name.span,
@@ -425,6 +450,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         let close = self.expect(|kind| matches!(kind, TokenKind::RBrace), "expected `}`")?;
         Ok(ClassDecl {
             name,
+            type_params,
             members: members.into_bump_slice(),
             span: keyword_span.merge(close.span),
         })
@@ -453,6 +479,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         &mut self,
         return_type: TypeRef<'arena, 'src>,
         name: Ident<'src>,
+        type_params: &'arena [Ident<'src>],
         declared_pure: bool,
     ) -> Result<FunctionDecl<'arena, 'src>, ParseError> {
         let params = self.parse_params_after_open()?;
@@ -465,6 +492,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
             declared_pure,
             return_type,
             name,
+            type_params,
             params,
             body,
             span: return_type.span.merge(body_span),
@@ -618,6 +646,42 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         Ok((statements.into_bump_slice(), start.merge(close.span)))
     }
 
+    fn parse_type_params(&mut self) -> Result<&'arena [Ident<'src>], ParseError> {
+        if !self.match_kind(|kind| matches!(kind, TokenKind::Less)) {
+            return Ok(&[]);
+        }
+        let mut params = BumpVec::new_in(self.arena);
+        loop {
+            params.push(self.expect_ident("expected type parameter name")?);
+            if !self.match_kind(|kind| matches!(kind, TokenKind::Comma)) {
+                break;
+            }
+        }
+        self.expect(
+            |kind| matches!(kind, TokenKind::Greater),
+            "expected `>` after type parameters",
+        )?;
+        Ok(params.into_bump_slice())
+    }
+
+    fn parse_type_args(&mut self) -> Result<&'arena [TypeRef<'arena, 'src>], ParseError> {
+        if !self.match_kind(|kind| matches!(kind, TokenKind::Less)) {
+            return Ok(&[]);
+        }
+        let mut args = BumpVec::new_in(self.arena);
+        loop {
+            args.push(self.parse_type()?);
+            if !self.match_kind(|kind| matches!(kind, TokenKind::Comma)) {
+                break;
+            }
+        }
+        self.expect(
+            |kind| matches!(kind, TokenKind::Greater),
+            "expected `>` after type arguments",
+        )?;
+        Ok(args.into_bump_slice())
+    }
+
     fn parse_type(&mut self) -> Result<TypeRef<'arena, 'src>, ParseError> {
         let token = self
             .advance()
@@ -679,7 +743,16 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                     span: token.span.merge(return_type.span),
                 }
             }
-            TokenKind::Ident(name) => TypeRef::named(name, token.span),
+            TokenKind::Ident(name) => {
+                let args = self.parse_type_args()?;
+                let span = args
+                    .last()
+                    .map_or(token.span, |argument| token.span.merge(argument.span));
+                TypeRef {
+                    kind: TypeKind::Named { name, args },
+                    span,
+                }
+            }
             _ => return Err(ParseError::new(token.span, "expected type")),
         };
 
@@ -858,6 +931,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
             TokenKind::False => Ok(Expr::Bool(false, token.span)),
             TokenKind::New => {
                 let class = self.expect_ident("expected class name after `new`")?;
+                let type_args = self.parse_type_args()?;
                 self.expect(
                     |kind| matches!(kind, TokenKind::LParen),
                     "expected `(` after class name",
@@ -865,6 +939,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                 let (args, close_span) = self.parse_args_after_open()?;
                 Ok(Expr::New {
                     class,
+                    type_args,
                     args,
                     span: token.span.merge(close_span),
                 })
@@ -1086,9 +1161,35 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                 | TokenKind::String
                 | TokenKind::Bool
                 | TokenKind::Void
-                | TokenKind::Auto
-                | TokenKind::Ident(_),
+                | TokenKind::Auto,
             ) => index += 1,
+            Some(TokenKind::Ident(_)) => {
+                index += 1;
+                if matches!(
+                    self.tokens.get(index).map(|token| &token.kind),
+                    Some(TokenKind::Less)
+                ) {
+                    index += 1;
+                    loop {
+                        index = self.scan_type_end(index)?;
+                        if matches!(
+                            self.tokens.get(index).map(|token| &token.kind),
+                            Some(TokenKind::Comma)
+                        ) {
+                            index += 1;
+                            continue;
+                        }
+                        break;
+                    }
+                    if !matches!(
+                        self.tokens.get(index).map(|token| &token.kind),
+                        Some(TokenKind::Greater)
+                    ) {
+                        return None;
+                    }
+                    index += 1;
+                }
+            }
             Some(TokenKind::Func) => {
                 index += 1;
                 if !matches!(self.tokens.get(index)?.kind, TokenKind::LParen) {
@@ -1409,5 +1510,31 @@ export { Point };"#,
         assert_eq!(program.exports.len(), 1);
         assert_eq!(program.exports[0].local.name, "internalValue");
         assert_eq!(program.exports[0].exported.name, "publicValue");
+    }
+
+    #[test]
+    fn parses_generic_functions_and_applied_class_types() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "T identity<T>(T value){return value;}class Box<T>{T value;init(T value){this.value=value;}}Box<int> box=new Box<int>(7);",
+        )
+        .unwrap();
+
+        let Item::Function(function) = &program.items[0] else {
+            panic!("expected generic function");
+        };
+        assert_eq!(function.type_params[0].name, "T");
+        let Item::Class(class) = &program.items[1] else {
+            panic!("expected generic class");
+        };
+        assert_eq!(class.type_params[0].name, "T");
+        let Item::Stmt(Stmt::VarDecl(binding)) = &program.items[2] else {
+            panic!("expected applied class binding");
+        };
+        assert!(matches!(
+            binding.ty.kind,
+            TypeKind::Named { name: "Box", args } if args.len() == 1
+        ));
     }
 }

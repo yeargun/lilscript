@@ -270,7 +270,7 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
                         .semantics
                         .class_info(class)
                         .and_then(|info| info.methods.get(function.name.name))
-                        .map(|signature| (*signature.return_type).clone())
+                        .map(|method| (*method.signature.return_type).clone())
                         .ok_or_else(|| {
                             LowerError::new(function.name.span, "missing method signature")
                         })?;
@@ -442,12 +442,18 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
         }
     }
 
-    fn add_this(&mut self, span: Span, class: &'src str) -> Result<(), LowerError> {
+    fn add_this(&mut self, span: Span, _class: &'src str) -> Result<(), LowerError> {
         let symbol = self
             .semantics
             .identifier_symbol(span)
             .ok_or_else(|| LowerError::new(span, "missing `this` symbol"))?;
-        self.add_param(symbol, "this", Type::Class(class), span)
+        let ty = self
+            .semantics
+            .symbols()
+            .get(symbol.0 as usize)
+            .map(|symbol| symbol.ty.clone())
+            .ok_or_else(|| LowerError::new(span, "missing `this` type"))?;
+        self.add_param(symbol, "this", ty, span)
     }
 
     fn add_params<'ast>(&mut self, params: &[Param<'ast, 'src>]) -> Result<(), LowerError> {
@@ -757,7 +763,9 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                     *span,
                 )
             }
-            Expr::New { class, args, span } => {
+            Expr::New {
+                class, args, span, ..
+            } => {
                 let args = args
                     .iter()
                     .map(|arg| self.lower_expr(arg))
@@ -911,7 +919,7 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
         let object_type = self.expression_type(object)?;
         let object_value = self.lower_expr(object)?;
         match object_type {
-            Type::Struct(owner) => {
+            Type::Struct(owner) | Type::StructInstance { name: owner, .. } => {
                 let field = self
                     .semantics
                     .struct_info(owner)
@@ -928,7 +936,7 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                     span,
                 )
             }
-            Type::Class(owner) => {
+            Type::Class(owner) | Type::ClassInstance { name: owner, .. } => {
                 let field = self
                     .semantics
                     .class_info(owner)
@@ -1007,9 +1015,9 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
         } = callee
         {
             let receiver_type = self.expression_type(object)?;
-            let receiver = self.lower_expr(object)?;
-            let args = self.lower_args(args)?;
             if let Some(intrinsic) = member_intrinsic(&receiver_type, property.name) {
+                let receiver = self.lower_expr(object)?;
+                let args = self.lower_args(args)?;
                 return self.emit_value(
                     ControlFlowOp::Intrinsic {
                         intrinsic,
@@ -1020,23 +1028,23 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                     span,
                 );
             }
-            if let Type::Class(class) = receiver_type {
-                let function = self
-                    .method_functions
-                    .get(&(class, property.name))
-                    .copied()
-                    .ok_or_else(|| LowerError::new(property.span, "missing method function"))?;
-                return self.emit_value(
-                    ControlFlowOp::CallMethod {
-                        receiver,
-                        class,
-                        method: property.name,
-                        function,
-                        args,
-                    },
-                    ty,
-                    span,
-                );
+            if let Type::Class(class) | Type::ClassInstance { name: class, .. } = receiver_type {
+                if let Some(function) = self.method_functions.get(&(class, property.name)).copied()
+                {
+                    let receiver = self.lower_expr(object)?;
+                    let args = self.lower_args(args)?;
+                    return self.emit_value(
+                        ControlFlowOp::CallMethod {
+                            receiver,
+                            class,
+                            method: property.name,
+                            function,
+                            args,
+                        },
+                        ty,
+                        span,
+                    );
+                }
             }
         }
 
@@ -1183,7 +1191,7 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                 let object_type = self.expression_type(object)?;
                 let object_value = self.lower_expr(object)?;
                 let (owner, index) = match object_type {
-                    Type::Struct(owner) => {
+                    Type::Struct(owner) | Type::StructInstance { name: owner, .. } => {
                         let index = self
                             .semantics
                             .struct_info(owner)
@@ -1192,7 +1200,7 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                             .ok_or_else(|| LowerError::new(*span, "missing struct field"))?;
                         (owner, index)
                     }
-                    Type::Class(owner) => {
+                    Type::Class(owner) | Type::ClassInstance { name: owner, .. } => {
                         let index = self
                             .semantics
                             .class_info(owner)
@@ -1491,6 +1499,7 @@ fn resolve_declared_return<'ast, 'src>(
         .ok_or_else(|| LowerError::new(function.name.span, "missing function type"))?;
     match function_type {
         Type::Function(signature) => Ok(*signature.return_type),
+        Type::GenericFunction(function) => Ok(*function.signature.return_type),
         _ => Err(LowerError::new(
             function.name.span,
             "function symbol does not have a callable type",
@@ -1512,6 +1521,7 @@ fn resolve_symbol_return<'src>(
         .map(|symbol| symbol.ty.clone())
     {
         Some(Type::Function(signature)) => Ok(*signature.return_type),
+        Some(Type::GenericFunction(function)) => Ok(*function.signature.return_type),
         _ => Err(LowerError::new(
             name.span,
             format!("{kind} symbol does not have a callable type"),

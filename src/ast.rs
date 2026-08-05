@@ -20,7 +20,10 @@ pub enum TypeKind<'ast, 'src> {
     Bool,
     Void,
     Auto,
-    Named(&'src str),
+    Named {
+        name: &'src str,
+        args: &'ast [TypeRef<'ast, 'src>],
+    },
     Array(&'ast TypeRef<'ast, 'src>),
     Function {
         params: &'ast [TypeRef<'ast, 'src>],
@@ -35,7 +38,7 @@ impl<'ast, 'src> TypeRef<'ast, 'src> {
 
     pub const fn named(name: &'src str, span: Span) -> Self {
         Self {
-            kind: TypeKind::Named(name),
+            kind: TypeKind::Named { name, args: &[] },
             span,
         }
     }
@@ -95,6 +98,7 @@ impl<'ast, 'src> Item<'ast, 'src> {
 #[derive(Debug, Clone, PartialEq)]
 pub struct StructDecl<'ast, 'src> {
     pub name: Ident<'src>,
+    pub type_params: &'ast [Ident<'src>],
     pub fields: &'ast [FieldDecl<'ast, 'src>],
     pub span: Span,
 }
@@ -102,6 +106,7 @@ pub struct StructDecl<'ast, 'src> {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ClassDecl<'ast, 'src> {
     pub name: Ident<'src>,
+    pub type_params: &'ast [Ident<'src>],
     pub members: &'ast [ClassMember<'ast, 'src>],
     pub span: Span,
 }
@@ -132,6 +137,7 @@ pub struct FunctionDecl<'ast, 'src> {
     pub declared_pure: bool,
     pub return_type: TypeRef<'ast, 'src>,
     pub name: Ident<'src>,
+    pub type_params: &'ast [Ident<'src>],
     pub params: &'ast [Param<'ast, 'src>],
     pub body: &'ast [Stmt<'ast, 'src>],
     pub span: Span,
@@ -142,6 +148,7 @@ pub struct ExternDecl<'ast, 'src> {
     pub declared_pure: bool,
     pub return_type: TypeRef<'ast, 'src>,
     pub name: Ident<'src>,
+    pub type_params: &'ast [Ident<'src>],
     pub params: &'ast [Param<'ast, 'src>],
     pub span: Span,
 }
@@ -235,6 +242,7 @@ pub enum Expr<'ast, 'src> {
     },
     New {
         class: Ident<'src>,
+        type_args: &'ast [TypeRef<'ast, 'src>],
         args: &'ast [Expr<'ast, 'src>],
         span: Span,
     },
