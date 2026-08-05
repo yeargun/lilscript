@@ -226,8 +226,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         out.push_str("function ");
         out.push_str(&name);
         out.push('(');
-        let mut context = LocalNames::new(function, false, &self.top_level_mangler);
-        context.inline_declarations = function.blocks.len() > 1 && can_structure(function);
+        let single_block = function.blocks.len() == 1 && function.blocks[0].phis.is_empty();
+        let structured = !single_block && can_structure(function);
+        let mut context = LocalNames::new(
+            function,
+            !single_block && !structured,
+            &self.top_level_mangler,
+        );
+        context.inline_declarations = structured;
         for (index, param) in function.params.iter().enumerate() {
             if index != 0 {
                 out.push(',');
@@ -241,9 +247,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             out.push('}');
             return Ok(());
         }
-        if function.blocks.len() == 1 && function.blocks[0].phis.is_empty() {
+        if single_block {
             self.emit_single_block_with_context(function, true, context, out)
-        } else if can_structure(function) {
+        } else if structured {
             self.emit_structured_with_context(function, true, context, out)
         } else {
             self.emit_state_machine_with_context(function, context, out)
@@ -922,7 +928,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             update: update_clause.is_none().then_some(update).flatten(),
                             exit,
                         };
-                        let mut body_visited = AHashSet::new();
+                        let mut body_visited = visited.clone();
                         let mut body_cache = cache.clone();
                         let body_end = self.emit_structured_path(
                             function,

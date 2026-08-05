@@ -724,6 +724,7 @@ fn fold_and_propagate_control_flow(module: &mut ControlFlowModule<'_>) -> Optimi
     for function in &mut module.functions {
         let mut constants = AHashMap::<ValueId, ConstValue>::new();
         let mut array_lengths = AHashMap::<ValueId, usize>::new();
+        let fold_array_lengths = literal_array_lengths_are_stable(function);
         let mut local_change = true;
         while local_change {
             local_change = false;
@@ -757,7 +758,9 @@ fn fold_and_propagate_control_flow(module: &mut ControlFlowModule<'_>) -> Optimi
                             }
                         }
                         ControlFlowOp::Array(values) => {
-                            array_lengths.insert(out, values.len());
+                            if fold_array_lengths {
+                                array_lengths.insert(out, values.len());
+                            }
                         }
                         ControlFlowOp::Unary { op, value } => {
                             if let Some(folded) = constants
@@ -887,6 +890,32 @@ fn fold_and_propagate_control_flow(module: &mut ControlFlowModule<'_>) -> Optimi
         pass_name: "constant-propagation",
         changed,
     }
+}
+
+fn literal_array_lengths_are_stable(function: &ControlFlowFunction<'_>) -> bool {
+    function
+        .blocks
+        .iter()
+        .flat_map(|block| &block.instructions)
+        .all(|instruction| match instruction.op {
+            ControlFlowOp::IndexSet { .. }
+            | ControlFlowOp::CallDirect { .. }
+            | ControlFlowOp::CallValue { .. }
+            | ControlFlowOp::CallMethod { .. }
+            | ControlFlowOp::NewClass { .. } => false,
+            ControlFlowOp::Intrinsic { intrinsic, .. } => matches!(
+                intrinsic,
+                Intrinsic::Print
+                    | Intrinsic::ArrayLength
+                    | Intrinsic::StringLength
+                    | Intrinsic::StringIncludes
+                    | Intrinsic::StringStartsWith
+                    | Intrinsic::StringEndsWith
+                    | Intrinsic::StringToUpperCase
+                    | Intrinsic::StringToLowerCase
+            ),
+            _ => true,
+        })
 }
 
 fn remove_unreachable_control_flow(module: &mut ControlFlowModule<'_>) -> OptimizationReport {
@@ -1200,13 +1229,9 @@ fn inline_single_use_control_flow_function(
 
     let mut site = None;
     'functions: for (function_index, caller) in module.functions.iter().enumerate() {
-        let shaped_headers = caller
-            .shapes
-            .iter()
-            .map(crate::ir::ControlShape::header)
-            .collect::<AHashSet<_>>();
+        let structured_interiors = structured_interior_blocks(caller);
         for (block_index, block) in caller.blocks.iter().enumerate() {
-            if shaped_headers.contains(&block.id) {
+            if structured_interiors.contains(&block.id) {
                 continue;
             }
             for (instruction_index, instruction) in block.instructions.iter().enumerate() {
@@ -1263,6 +1288,9 @@ fn inline_control_flow_call<'src>(
     call_out: Option<ValueId>,
     call_type: Option<Type<'src>>,
 ) {
+    let insertion_block = caller.blocks[block_index].id;
+    let shapes_compose_safely =
+        callee.shapes.is_empty() || !structured_interior_blocks(caller).contains(&insertion_block);
     let base = caller.blocks.len() as u32;
     let block_mapping = callee
         .blocks
@@ -1362,7 +1390,11 @@ fn inline_control_flow_call<'src>(
         });
     }
 
-    for shape in &callee.shapes {
+    // Nested region metadata needs a full region-tree rewrite; use the CFG state machine meanwhile.
+    if !shapes_compose_safely {
+        caller.shapes.clear();
+    }
+    for shape in callee.shapes.iter().filter(|_| shapes_compose_safely) {
         caller.shapes.push(match shape {
             crate::ir::ControlShape::If {
                 header,
@@ -1408,6 +1440,32 @@ fn inline_control_flow_call<'src>(
         terminator: original_terminator,
         span: original_span,
     });
+}
+
+fn structured_interior_blocks(function: &ControlFlowFunction<'_>) -> AHashSet<BlockId> {
+    let mut blocks = AHashSet::new();
+    for shape in &function.shapes {
+        match shape {
+            crate::ir::ControlShape::If {
+                header,
+                then_block,
+                else_block,
+                ..
+            } => {
+                blocks.extend([*header, *then_block, *else_block]);
+            }
+            crate::ir::ControlShape::Loop {
+                header,
+                body,
+                update,
+                ..
+            } => {
+                blocks.extend([*header, *body]);
+                blocks.extend(update);
+            }
+        }
+    }
+    blocks
 }
 
 fn allocate_inlined_value(

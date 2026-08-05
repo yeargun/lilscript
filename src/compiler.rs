@@ -98,11 +98,15 @@ pub fn compile_source_all(source: &str) -> Result<CompilationArtifacts, SourceCo
 }
 
 pub fn compile_path(path: &Path) -> Result<String, ModuleError> {
-    compile_path_all(path).map(|artifacts| artifacts.javascript)
+    compile_path_js_inner(path, None)
 }
 
 pub fn compile_path_to_c(path: &Path) -> Result<String, ModuleError> {
-    compile_path_all(path).map(|artifacts| artifacts.c)
+    let modules = discover_modules(path)?;
+    let arena = Bump::new();
+    let programs = parse_modules(&arena, &modules)?;
+    let linked = link_modules(&arena, &modules, &programs)?;
+    compile_program_to_c(&linked).map_err(|error| module_compile_error(&modules, error))
 }
 
 pub fn compile_path_all(path: &Path) -> Result<CompilationArtifacts, ModuleError> {
@@ -110,7 +114,18 @@ pub fn compile_path_all(path: &Path) -> Result<CompilationArtifacts, ModuleError
 }
 
 pub fn compile_path_with_source(path: &Path, source: &str) -> Result<String, ModuleError> {
-    compile_path_all_inner(path, Some(source)).map(|artifacts| artifacts.javascript)
+    compile_path_js_inner(path, Some(source))
+}
+
+fn compile_path_js_inner(path: &Path, root_source: Option<&str>) -> Result<String, ModuleError> {
+    let modules = match root_source {
+        Some(source) => discover_modules_with_source(path, source)?,
+        None => discover_modules(path)?,
+    };
+    let arena = Bump::new();
+    let programs = parse_modules(&arena, &modules)?;
+    let linked = link_modules(&arena, &modules, &programs)?;
+    compile_program_to_js(&linked).map_err(|error| module_compile_error(&modules, error))
 }
 
 fn compile_path_all_inner(
@@ -140,6 +155,24 @@ fn compile_program_all<'ast, 'src>(
         c,
         optimization_reports,
     })
+}
+
+fn compile_program_to_js<'ast, 'src>(
+    program: &crate::ast::Program<'ast, 'src>,
+) -> Result<String, CompileError> {
+    let semantics = analyze(program)?;
+    let mut ir = lower_to_control_flow(program, &semantics)?;
+    optimize_control_flow(&mut ir)?;
+    emit_optimized_ir_js(&ir).map_err(Into::into)
+}
+
+fn compile_program_to_c<'ast, 'src>(
+    program: &crate::ast::Program<'ast, 'src>,
+) -> Result<String, CompileError> {
+    let semantics = analyze(program)?;
+    let mut ir = lower_to_control_flow(program, &semantics)?;
+    optimize_control_flow(&mut ir)?;
+    emit_native_c(&ir).map_err(Into::into)
 }
 
 fn module_compile_error(modules: &ModuleSet, error: CompileError) -> ModuleError {
@@ -224,6 +257,37 @@ mod tests {
         let output = compile_source(source).unwrap();
         assert!(!output.contains("switch("));
         assert!(output.contains("console.log"));
+    }
+
+    #[test]
+    fn compiles_nested_control_flow_after_cfg_inlining() {
+        let output = compile_source(
+            "int scan(int limit){for(int index=0;index<limit;index++){if(index==3){return index;}}return 0;}int outer(){int total=0;for(int index=0;index<5;index++){total+=scan(index);}return total;}print(outer());",
+        )
+        .unwrap();
+        assert!(output.contains("console.log"));
+        assert!(!output.contains("let ="));
+        assert!(!output.contains("switch("));
+    }
+
+    #[test]
+    fn does_not_fold_array_length_across_mutation() {
+        let output =
+            compile_source("int[] values=[];values.push(1);print(values.length);").unwrap();
+        assert!(output.contains(".push(1)"));
+        assert!(output.contains(".length"));
+        assert!(!output.contains("console.log(0)"));
+    }
+
+    #[test]
+    fn inlines_disjoint_top_level_control_flow_regions() {
+        let output = compile_source(
+            "int gcd(int a,int b){while(b!=0){int next=a%b;a=b;b=next;}return a;}int fib(int count){int a=0;int b=1;for(int i=0;i<count;i++){int next=a+b;a=b;b=next;}return a;}print(gcd(21,14));print(fib(8));",
+        )
+        .unwrap();
+        assert!(!output.contains("function"));
+        assert!(!output.contains("switch("));
+        assert_eq!(output.matches("while(").count(), 2);
     }
 
     #[test]
