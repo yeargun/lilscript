@@ -36,6 +36,7 @@ SSA optimization; they are not JavaScript wrappers in the generated bundle.
 | `string` | immutable UTF-8 text | string | runtime string handle |
 | `T[]` | mutable homogeneous array | optimized array representation | runtime array handle |
 | `T?` | either a `T` value or `null` | `T` or raw `null` | tagged `LilScriptOptional` |
+| `A \| B` | value belonging to either member type | raw member value | tagged `LilScriptValue` at union boundaries |
 | `struct S` | positional value aggregate | scalars, tuple, or boundary object | positional C value record |
 | `class C` | nominal reference value with methods | dissolved record or class at an escaping boundary | pointer to a C record |
 | `func(T...)->R` | callable value | function/closure | function plus environment |
@@ -60,6 +61,15 @@ narrowing. This permits guarded member, method, and index access without a
 runtime wrapper in JavaScript; native code emits a typed tagged-payload unwrap.
 Compound-condition narrowing and propagation after an early-return guard are
 not part of this increment.
+
+Infix `|` forms a first-class union type. Parentheses control postfix binding,
+so `(string | int)[]` is an array whose elements may be strings or integers,
+while `string | int[]` is either one string or one integer array. Assignments,
+returns, generic inference, callbacks, fields, and arrays accept any declared
+member. JavaScript erases the union after static checking. Native code keeps
+concrete values unboxed and uses `LilScriptValue` only when a value crosses a
+union boundary; equality and string conversion dispatch on that tag. A
+default-constructed union field uses the first member's default value.
 
 Generic functions declare type parameters after the function name. Calls infer
 their type arguments from ordinary values and callback parameter/return types:
