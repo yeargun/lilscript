@@ -1,0 +1,35 @@
+class Holder<T> {
+  T value;
+  func(T,T)->bool equals;
+
+  init(T value, func(T,T)->bool equals) {
+    this.value = value;
+    this.equals = equals;
+  }
+
+  bool same(T next) {
+    func(T,T)->bool compare = this.equals;
+    return compare(this.value, next);
+  }
+}
+
+Holder<T> holder<T>(
+  T value,
+  (func(T,T)->bool)? equals = null
+) {
+  if (equals == null) {
+    return new Holder(value, (T previous, T next) => previous == next);
+  }
+  return new Holder(value, equals);
+}
+
+bool sameParity(int previous, int next) {
+  return previous % 2 == next % 2;
+}
+
+Holder<int> exact = holder(4);
+Holder<int> parity = holder(4, sameParity);
+print(exact.same(4));
+print(exact.same(6));
+print(parity.same(6));
+print(parity.same(5));

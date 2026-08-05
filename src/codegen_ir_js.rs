@@ -2072,6 +2072,34 @@ impl LocalNames {
                 }
             }
         }
+        let constant_values = function
+            .blocks
+            .iter()
+            .flat_map(|block| &block.instructions)
+            .filter_map(|instruction| {
+                matches!(instruction.op, ControlFlowOp::Const(_))
+                    .then_some(instruction.out)
+                    .flatten()
+            })
+            .collect::<AHashSet<_>>();
+        for argument in function
+            .blocks
+            .iter()
+            .flat_map(|block| &block.instructions)
+            .filter_map(|instruction| match &instruction.op {
+                ControlFlowOp::NewClass {
+                    constructor: Some(_),
+                    args,
+                    ..
+                } => Some(args),
+                _ => None,
+            })
+            .flatten()
+        {
+            if !constant_values.contains(argument) && !inlined_values.contains_key(argument) {
+                stored_values.insert(*argument);
+            }
+        }
         values.sort_unstable_by_key(|value| value.0);
         values.dedup();
         values.sort_unstable_by(|left, right| {
@@ -3075,6 +3103,88 @@ mod tests {
         let colors = coalesce_value_names(function, &named, &parameters, &use_counts(function));
 
         assert_ne!(colors[&callback], colors[&object]);
+
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "class Holder<T>{T value;func(T,T)->bool equals;init(T value,func(T,T)->bool equals){this.value=value;this.equals=equals;}}Holder<T> holder<T>(T value,(func(T,T)->bool)? equals=null){if(equals==null){return new Holder(value,(T previous,T next)=>previous==next);}return new Holder(value,equals);}bool same(int a,int b){return a==b;}Holder<int> result=holder(1,same);print(result.value);",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+        crate::optimizer::optimize_control_flow(&mut ir).unwrap();
+        let function = ir
+            .functions
+            .iter()
+            .find(|function| function.name == Some("holder"))
+            .unwrap();
+        let named = function
+            .params
+            .iter()
+            .map(|parameter| parameter.value)
+            .chain(
+                function
+                    .blocks
+                    .iter()
+                    .flat_map(|block| &block.instructions)
+                    .filter_map(|instruction| instruction.out),
+            )
+            .collect::<AHashSet<_>>();
+        let parameters = function
+            .params
+            .iter()
+            .map(|parameter| parameter.value)
+            .collect::<AHashSet<_>>();
+        let colors = coalesce_value_names(function, &named, &parameters, &use_counts(function));
+        for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
+            if let (
+                Some(output),
+                ControlFlowOp::NewClass {
+                    constructor: Some(_),
+                    args,
+                    ..
+                },
+            ) = (instruction.out, &instruction.op)
+            {
+                for argument in args {
+                    assert_ne!(colors[&output], colors[argument]);
+                }
+            }
+        }
+        let context = LocalNames::new(function, false, &Mangler::default(), true);
+        let mut checked_unwrap = false;
+        for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
+            let (Some(output), ControlFlowOp::NewClass { args, .. }) =
+                (instruction.out, &instruction.op)
+            else {
+                continue;
+            };
+            for argument in args {
+                let is_unwrap = function
+                    .blocks
+                    .iter()
+                    .flat_map(|block| &block.instructions)
+                    .any(|candidate| {
+                        candidate.out == Some(*argument)
+                            && matches!(
+                                &candidate.op,
+                                ControlFlowOp::Intrinsic {
+                                    intrinsic: Intrinsic::UnwrapNullable,
+                                    ..
+                                }
+                            )
+                    });
+                if is_unwrap {
+                    checked_unwrap = true;
+                    assert!(context.is_stored(*argument));
+                    assert_ne!(
+                        context.value_name(output).unwrap(),
+                        context.value_name(*argument).unwrap()
+                    );
+                }
+            }
+        }
+        assert!(checked_unwrap);
     }
 
     #[test]
