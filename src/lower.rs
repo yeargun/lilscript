@@ -1180,6 +1180,82 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
         ty: &Type<'src>,
         span: Span,
     ) -> Result<ValueId, LowerError> {
+        if let DefaultValue::Struct { name, values } = default {
+            let fields = self
+                .semantics
+                .struct_info(name)
+                .ok_or_else(|| LowerError::new(span, format!("missing struct `{name}`")))?
+                .fields
+                .values()
+                .map(|field| field.ty.clone())
+                .collect::<Vec<_>>();
+            if fields.len() != values.len() {
+                return Err(LowerError::new(
+                    span,
+                    format!("default struct `{name}` has the wrong field count"),
+                ));
+            }
+            let values = values
+                .iter()
+                .zip(&fields)
+                .map(|(value, field_ty)| self.lower_default_value(value, field_ty, span))
+                .collect::<Result<Vec<_>, _>>()?;
+            return self.emit_value(
+                ControlFlowOp::Struct {
+                    name,
+                    fields: values,
+                },
+                ty.clone(),
+                span,
+            );
+        }
+        if let DefaultValue::NewClass { name, args } = default {
+            let signature = self
+                .semantics
+                .class_info(name)
+                .and_then(|class| class.constructor.as_ref())
+                .cloned();
+            let mut lowered = Vec::new();
+            if let Some(signature) = signature {
+                for (index, argument) in args.iter().enumerate() {
+                    let expected = signature.params.get(index).ok_or_else(|| {
+                        LowerError::new(span, format!("too many default arguments for `{name}`"))
+                    })?;
+                    lowered.push(self.lower_default_value(argument, expected, span)?);
+                }
+                for index in args.len()..signature.params.len() {
+                    let omitted = signature
+                        .defaults
+                        .get(index)
+                        .and_then(Option::as_ref)
+                        .ok_or_else(|| {
+                            LowerError::new(
+                                span,
+                                format!("missing default constructor argument for `{name}`"),
+                            )
+                        })?;
+                    lowered.push(self.lower_default_value(
+                        omitted,
+                        &signature.params[index],
+                        span,
+                    )?);
+                }
+            } else if !args.is_empty() {
+                return Err(LowerError::new(
+                    span,
+                    format!("default construction for `{name}` does not accept arguments"),
+                ));
+            }
+            return self.emit_value(
+                ControlFlowOp::NewClass {
+                    class: name,
+                    constructor: self.constructors.get(name).copied(),
+                    args: lowered,
+                },
+                ty.clone(),
+                span,
+            );
+        }
         if let DefaultValue::Arrow(arrow_span) = default {
             let function = self.arrows.get(arrow_span).copied().ok_or_else(|| {
                 LowerError::new(*arrow_span, "default arrow was not assigned an IR function")
@@ -1219,7 +1295,10 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
             DefaultValue::String(value) => ConstValue::String((*value).to_string()),
             DefaultValue::Bool(value) => ConstValue::Bool(*value),
             DefaultValue::Null => ConstValue::Null,
-            DefaultValue::Array(_) | DefaultValue::Arrow(_) => unreachable!(),
+            DefaultValue::Array(_)
+            | DefaultValue::Arrow(_)
+            | DefaultValue::Struct { .. }
+            | DefaultValue::NewClass { .. } => unreachable!(),
         };
         self.emit_value(ControlFlowOp::Const(value), ty.clone(), span)
     }

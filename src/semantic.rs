@@ -147,6 +147,14 @@ pub enum DefaultValue<'src> {
     Null,
     Array(Vec<DefaultValue<'src>>),
     Arrow(Span),
+    Struct {
+        name: &'src str,
+        values: Vec<DefaultValue<'src>>,
+    },
+    NewClass {
+        name: &'src str,
+        args: Vec<DefaultValue<'src>>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -805,10 +813,17 @@ impl<'src> Analyzer<'src> {
         types: &[Type<'src>],
     ) -> Result<(), SemanticError> {
         for (param, expected) in params.iter().zip(types) {
-            let Some(expression @ Expr::ArrowFunction { .. }) = &param.default else {
+            let Some(expression) = &param.default else {
                 continue;
             };
-            let actual = self.analyze_expr(expression, Some(expected))?;
+            if scalar_default_value(expression).is_some() {
+                continue;
+            }
+            let contextual = match expression {
+                Expr::ArrayLiteral { .. } => expected_array_type(expected).unwrap_or(expected),
+                _ => expected,
+            };
+            let actual = self.analyze_expr(expression, Some(contextual))?;
             self.require_assignable(expected, &actual, expression.span())?;
         }
         Ok(())
@@ -2302,6 +2317,34 @@ fn literal_default_value<'ast, 'src>(
     if let Expr::ArrowFunction { span, .. } = expression {
         return matches!(expected, Type::Function(_)).then_some(DefaultValue::Arrow(*span));
     }
+    if let Expr::StructLiteral { name, values, .. } = expression {
+        let expected_name = nominal_default_name(expected, false)?;
+        if name.name != expected_name {
+            return None;
+        }
+        return values
+            .iter()
+            .map(uncontextualized_default_value)
+            .collect::<Option<Vec<_>>>()
+            .map(|values| DefaultValue::Struct {
+                name: name.name,
+                values,
+            });
+    }
+    if let Expr::New { class, args, .. } = expression {
+        let expected_name = nominal_default_name(expected, true)?;
+        if class.name != expected_name {
+            return None;
+        }
+        return args
+            .iter()
+            .map(uncontextualized_default_value)
+            .collect::<Option<Vec<_>>>()
+            .map(|args| DefaultValue::NewClass {
+                name: class.name,
+                args,
+            });
+    }
     if let Expr::ArrayLiteral { elements, .. } = expression {
         let element = expected_array_element(expected)?;
         return elements
@@ -2312,6 +2355,62 @@ fn literal_default_value<'ast, 'src>(
     }
     let (value, actual) = scalar_default_value(expression)?;
     is_type_assignable(expected, &actual).then_some(value)
+}
+
+fn uncontextualized_default_value<'ast, 'src>(
+    expression: &Expr<'ast, 'src>,
+) -> Option<DefaultValue<'src>> {
+    if let Some((value, _)) = scalar_default_value(expression) {
+        return Some(value);
+    }
+    match expression {
+        Expr::ArrayLiteral { elements, .. } => elements
+            .iter()
+            .map(uncontextualized_default_value)
+            .collect::<Option<Vec<_>>>()
+            .map(DefaultValue::Array),
+        Expr::ArrowFunction { span, .. } => Some(DefaultValue::Arrow(*span)),
+        Expr::StructLiteral { name, values, .. } => values
+            .iter()
+            .map(uncontextualized_default_value)
+            .collect::<Option<Vec<_>>>()
+            .map(|values| DefaultValue::Struct {
+                name: name.name,
+                values,
+            }),
+        Expr::New { class, args, .. } => args
+            .iter()
+            .map(uncontextualized_default_value)
+            .collect::<Option<Vec<_>>>()
+            .map(|args| DefaultValue::NewClass {
+                name: class.name,
+                args,
+            }),
+        _ => None,
+    }
+}
+
+fn nominal_default_name<'src>(ty: &Type<'src>, class: bool) -> Option<&'src str> {
+    match (class, ty) {
+        (false, Type::Struct(name)) | (true, Type::Class(name)) => Some(name),
+        (false, Type::StructInstance { name, .. }) | (true, Type::ClassInstance { name, .. }) => {
+            Some(name)
+        }
+        (_, Type::Nullable(inner)) => nominal_default_name(inner, class),
+        (_, Type::Union(members)) => members
+            .iter()
+            .find_map(|member| nominal_default_name(member, class)),
+        _ => None,
+    }
+}
+
+fn expected_array_type<'ty, 'src>(ty: &'ty Type<'src>) -> Option<&'ty Type<'src>> {
+    match ty {
+        Type::Array(_) => Some(ty),
+        Type::Nullable(inner) => expected_array_type(inner),
+        Type::Union(members) => members.iter().find_map(expected_array_type),
+        _ => None,
+    }
 }
 
 fn expected_array_element<'ty, 'src>(ty: &'ty Type<'src>) -> Option<&'ty Type<'src>> {
@@ -3067,6 +3166,14 @@ mod tests {
                     return transform(value);
                 }
                 int transformed=apply(4);
+
+                struct Point { int x; int y; }
+                int pointSum(Point point=Point{2,3}){return point.x+point.y;}
+                class Box {
+                    int value;
+                    init(int value=4){this.value=value;}
+                }
+                int boxValue(Box box=new Box()){return box.value;}
             "#,
         )
         .unwrap();
@@ -3120,6 +3227,17 @@ mod tests {
         .unwrap();
         let error = analyze(&wrong_callback).unwrap_err();
         assert!(error.message.contains("expected `function(int) -> int`"));
+
+        let arena = Bump::new();
+        let wrong_aggregate = parse_source(
+            &arena,
+            "struct Left{int value;}struct Right{int value;}int read(Left value=Right{1}){return value.value;}",
+        )
+        .unwrap();
+        let error = analyze(&wrong_aggregate).unwrap_err();
+        assert!(error
+            .message
+            .contains("not a supported literal for parameter type `Left`"));
     }
 
     #[test]

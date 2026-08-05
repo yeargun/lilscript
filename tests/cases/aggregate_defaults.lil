@@ -1,0 +1,44 @@
+struct Point {
+  int x;
+  int y;
+}
+
+int pointSum(Point point = Point{2, 3}) {
+  return point.x + point.y;
+}
+
+class Counter {
+  int value;
+
+  init(int value = 0) {
+    this.value = value;
+  }
+
+  int increment() {
+    this.value += 1;
+    return this.value;
+  }
+}
+
+int bump(Counter counter = new Counter()) {
+  return counter.increment();
+}
+
+class Holder {
+  Counter counter;
+
+  init(Counter counter = new Counter(5)) {
+    this.counter = counter;
+  }
+}
+
+int holderValue(Holder holder = new Holder()) {
+  return holder.counter.value;
+}
+
+print(pointSum());
+print(pointSum(Point{4, 5}));
+print(bump());
+print(bump());
+print(holderValue());
+
