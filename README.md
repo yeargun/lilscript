@@ -214,9 +214,9 @@ npm --prefix vscode-extension run package
 ```
 
 `scripts/verify.sh` compares Node and native output for two conformance suites
-and links a generated aggregate ABI against a C host. It also runs 45 programs
+and links a generated aggregate ABI against a C host. It also runs 46 programs
 through JavaScript, emitted C, and native executables with maximum and disabled
-optional optimization, for 90 matrix executions, plus a framed LSP session
+optional optimization, for 92 matrix executions, plus a framed LSP session
 through diagnostics, completion, hover, symbols, and shutdown.
 `benchmarks/run.sh`
 downloads the pinned Closure Compiler `v20260803`, runs `ADVANCED` compilation,
