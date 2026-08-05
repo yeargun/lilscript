@@ -241,10 +241,10 @@ inside the closure, while objects and arrays referenced by a capture remain
 mutable. Top-level bindings are shared globals rather than closure captures.
 All paths of a non-`void` function must return a value.
 
-Trailing parameters can provide scalar literals, typed array literals, or typed
-arrow defaults. Omitted arguments are materialized before SSA lowering, so
-JavaScript and native calls use the same full-arity ABI. Array and arrow
-defaults allocate a fresh value for every omitted call:
+Trailing parameters can provide scalar, typed array, struct, class-construction,
+or typed arrow defaults. Omitted arguments are materialized before SSA lowering,
+so JavaScript and native calls use the same full-arity ABI. Reference defaults
+allocate a fresh value for every omitted call:
 
 ```lilscript
 int scale(int value, int factor = 2) {
@@ -269,10 +269,12 @@ int apply(
 
 Defaults currently accept integer, float, string, boolean, `null`, and negative
 numeric literals, recursively typed array literals, and arrows assignable to the
-declared callable type. Default arrows are declaration-scoped: they may read
-globals but cannot capture caller locals or `this`. A nullable callback can also
-use `null` as an omitted sentinel and narrow it before invocation. Required
-parameters cannot follow defaulted parameters.
+declared callable type, plus typed struct literals and `new` class expressions
+whose arguments are themselves supported defaults. Default arrows are
+declaration-scoped: they may read globals but cannot capture caller locals or
+`this`. A nullable callback can also use `null` as an omitted sentinel and
+narrow it before invocation. Required parameters cannot follow defaulted
+parameters.
 
 Parentheses disambiguate compound callable types. For example, the following
 declares an array of callbacks rather than a callback returning an array:
