@@ -1,13 +1,17 @@
+use ahash::AHashMap;
 use bumpalo::Bump;
+use serde::Serialize;
 use std::path::Path;
 
 use crate::codegen_ir_js::{
-    emit_optimized_ir_js, emit_optimized_ir_js_module, emit_optimized_ir_js_module_with_options,
-    emit_optimized_ir_js_with_options,
+    emit_optimized_ir_js, emit_optimized_ir_js_chunks_with_options, emit_optimized_ir_js_module,
+    emit_optimized_ir_js_module_with_options, emit_optimized_ir_js_with_options,
+    ir_function_can_move_to_chunk, IrJsChunkPlan, IrJsChunkSpec,
 };
 use crate::codegen_js::{compile_to_js, CompileError};
 use crate::codegen_native::{compile_to_c, emit_native_c};
-use crate::config::ProjectConfig;
+use crate::config::{BundleMode, ProjectConfig};
+use crate::ir::{ControlFlowModule, FunctionId};
 use crate::lower::lower_to_control_flow;
 use crate::module::{
     discover_modules, discover_modules_with_source, link_modules, locate_linked_span,
@@ -26,6 +30,33 @@ pub struct CompilationArtifacts {
     pub javascript: String,
     pub c: String,
     pub optimization_reports: Vec<OptimizationReport>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct JavaScriptBundle {
+    pub files: Vec<JavaScriptBundleFile>,
+    pub manifest: JavaScriptBundleManifest,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct JavaScriptBundleFile {
+    pub file_name: String,
+    pub code: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct JavaScriptBundleManifest {
+    pub version: u32,
+    pub mode: String,
+    pub entry: String,
+    pub chunks: Vec<JavaScriptBundleManifestChunk>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct JavaScriptBundleManifestChunk {
+    pub file: String,
+    pub modules: Vec<String>,
+    pub bytes: usize,
 }
 
 #[derive(Debug)]
@@ -149,6 +180,81 @@ pub fn compile_path_to_js_module_configured(
     compile_path_js_module_configured_inner(path, None, config)
 }
 
+pub fn compile_path_to_js_bundle_configured(
+    path: &Path,
+    config: &ProjectConfig,
+    entry_file: &str,
+) -> Result<JavaScriptBundle, ModuleError> {
+    let modules = discover_modules(path)?;
+    if entry_file.is_empty()
+        || Path::new(entry_file)
+            .file_name()
+            .and_then(|name| name.to_str())
+            != Some(entry_file)
+    {
+        return Err(ModuleError::new(
+            path,
+            modules.modules[modules.root].source.clone(),
+            Span::empty(0),
+            "bundle entry file must be a file name without directory components",
+        ));
+    }
+    let arena = Bump::new();
+    let programs = parse_modules(&arena, &modules)?;
+    let linked = link_modules(&arena, &modules, &programs)?;
+    let semantics = analyze(&linked)
+        .map_err(CompileError::from)
+        .map_err(|error| module_compile_error(&modules, error))?;
+    let mut ir = lower_to_control_flow(&linked, &semantics)
+        .map_err(CompileError::from)
+        .map_err(|error| module_compile_error(&modules, error))?;
+    optimize_control_flow_with_options(&mut ir, &config.optimizer_options(), true)
+        .map_err(CompileError::from)
+        .map_err(|error| module_compile_error(&modules, error))?;
+
+    let specs = plan_javascript_chunks(&ir, &modules, config, entry_file)?;
+    let plan = IrJsChunkPlan {
+        entry_file: entry_file.to_string(),
+        chunks: specs
+            .iter()
+            .map(|spec| IrJsChunkSpec {
+                file_name: spec.file_name.clone(),
+                functions: spec.functions.clone(),
+            })
+            .collect(),
+    };
+    let emitted = emit_optimized_ir_js_chunks_with_options(&ir, &config.js_options(), &plan)
+        .map_err(CompileError::from)
+        .map_err(|error| module_compile_error(&modules, error))?;
+    let files = emitted
+        .into_iter()
+        .map(|chunk| JavaScriptBundleFile {
+            file_name: chunk.file_name,
+            code: chunk.code,
+        })
+        .collect::<Vec<_>>();
+    let chunks = specs
+        .iter()
+        .map(|spec| JavaScriptBundleManifestChunk {
+            file: spec.file_name.clone(),
+            modules: vec![relative_module_name(&modules, spec.module)],
+            bytes: files
+                .iter()
+                .find(|file| file.file_name == spec.file_name)
+                .map_or(0, |file| file.code.len()),
+        })
+        .collect();
+    Ok(JavaScriptBundle {
+        files,
+        manifest: JavaScriptBundleManifest {
+            version: 1,
+            mode: bundle_mode_name(config.bundle.mode).to_string(),
+            entry: entry_file.to_string(),
+            chunks,
+        },
+    })
+}
+
 pub fn compile_path_to_js_module_with_source(
     path: &Path,
     source: &str,
@@ -256,6 +362,152 @@ fn compile_path_all_configured_inner(
     let linked = link_modules(&arena, &modules, &programs)?;
     compile_program_all_configured(&linked, config)
         .map_err(|error| module_compile_error(&modules, error))
+}
+
+#[derive(Debug, Clone)]
+struct PlannedChunk {
+    module: usize,
+    file_name: String,
+    functions: Vec<FunctionId>,
+}
+
+fn plan_javascript_chunks(
+    ir: &ControlFlowModule<'_>,
+    modules: &ModuleSet,
+    config: &ProjectConfig,
+    entry_file: &str,
+) -> Result<Vec<PlannedChunk>, ModuleError> {
+    if config.bundle.mode == BundleMode::Single {
+        return Ok(Vec::new());
+    }
+    let mut by_module = AHashMap::<usize, Vec<FunctionId>>::new();
+    for function in &ir.functions {
+        if !ir_function_can_move_to_chunk(ir, function.id) {
+            continue;
+        }
+        let module = linked_module_for_offset(modules, function.span.start);
+        if module != modules.root {
+            by_module.entry(module).or_default().push(function.id);
+        }
+    }
+    let mut candidates = by_module
+        .into_iter()
+        .map(|(module, mut functions)| {
+            functions.sort_unstable_by_key(|function| function.0);
+            PlannedChunk {
+                module,
+                file_name: module_chunk_file(modules, module, entry_file),
+                functions,
+            }
+        })
+        .collect::<Vec<_>>();
+    candidates.sort_unstable_by_key(|chunk| chunk.module);
+    if config.bundle.mode == BundleMode::PreserveModules {
+        return Ok(candidates);
+    }
+
+    let mut importer_counts = vec![0usize; modules.modules.len()];
+    for module in &modules.modules {
+        let mut unique = module.dependencies.clone();
+        unique.sort_unstable();
+        unique.dedup();
+        for dependency in unique {
+            importer_counts[dependency] += 1;
+        }
+    }
+    candidates.retain(|chunk| importer_counts[chunk.module] >= config.bundle.shared_min_imports);
+    if candidates.is_empty() {
+        return Ok(candidates);
+    }
+
+    let provisional_plan = IrJsChunkPlan {
+        entry_file: entry_file.to_string(),
+        chunks: candidates
+            .iter()
+            .map(|chunk| IrJsChunkSpec {
+                file_name: chunk.file_name.clone(),
+                functions: chunk.functions.clone(),
+            })
+            .collect(),
+    };
+    let provisional =
+        emit_optimized_ir_js_chunks_with_options(ir, &config.js_options(), &provisional_plan)
+            .map_err(CompileError::from)
+            .map_err(|error| module_compile_error(modules, error))?;
+    let sizes = provisional
+        .into_iter()
+        .map(|chunk| (chunk.file_name, chunk.code.len()))
+        .collect::<AHashMap<_, _>>();
+    candidates.retain(|chunk| {
+        sizes.get(&chunk.file_name).copied().unwrap_or(0) >= config.bundle.min_chunk_bytes
+    });
+    candidates.sort_unstable_by(|left, right| {
+        sizes[&right.file_name]
+            .cmp(&sizes[&left.file_name])
+            .then_with(|| left.module.cmp(&right.module))
+    });
+    candidates.truncate(config.bundle.max_chunks);
+    candidates.sort_unstable_by_key(|chunk| chunk.module);
+    Ok(candidates)
+}
+
+fn linked_module_for_offset(modules: &ModuleSet, offset: usize) -> usize {
+    modules
+        .modules
+        .iter()
+        .enumerate()
+        .rev()
+        .find(|(_, module)| offset >= module.offset)
+        .map_or(modules.root, |(module, _)| module)
+}
+
+fn module_chunk_file(modules: &ModuleSet, module: usize, entry_file: &str) -> String {
+    let stem = modules.modules[module]
+        .path
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .unwrap_or("module");
+    let sanitized = stem
+        .chars()
+        .map(|character| {
+            if character.is_ascii_alphanumeric() || matches!(character, '-' | '_') {
+                character
+            } else {
+                '_'
+            }
+        })
+        .collect::<String>();
+    let extension = Path::new(entry_file)
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .unwrap_or("js");
+    let candidate = format!("chunk-{module}-{sanitized}.{extension}");
+    if candidate == entry_file {
+        format!("lil-{candidate}")
+    } else {
+        candidate
+    }
+}
+
+fn relative_module_name(modules: &ModuleSet, module: usize) -> String {
+    let root_directory = modules.modules[modules.root]
+        .path
+        .parent()
+        .unwrap_or_else(|| Path::new("."));
+    modules.modules[module]
+        .path
+        .strip_prefix(root_directory)
+        .unwrap_or(&modules.modules[module].path)
+        .to_string_lossy()
+        .replace('\\', "/")
+}
+
+const fn bundle_mode_name(mode: BundleMode) -> &'static str {
+    match mode {
+        BundleMode::Single => "single",
+        BundleMode::Split => "split",
+        BundleMode::PreserveModules => "preserve-modules",
+    }
 }
 
 fn compile_program_all<'ast, 'src>(
@@ -696,6 +948,98 @@ mod tests {
             mangled.contains("{a:") && mangled.contains(",b:"),
             "{mangled}"
         );
+    }
+
+    #[test]
+    fn preserves_surviving_dependency_functions_as_esm_chunks() {
+        let directory = std::env::temp_dir().join(format!(
+            "lilscript-preserve-bundle-test-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&directory).unwrap();
+        std::fs::write(
+            directory.join("library.lil"),
+            "int state=40;export void set(int value){state=value;}export int read(){return state;}",
+        )
+        .unwrap();
+        let main = directory.join("main.lil");
+        std::fs::write(
+            &main,
+            "import {set,read} from \"./library\";set(41);print(read()+1);",
+        )
+        .unwrap();
+        let mut config = ProjectConfig::default();
+        config.bundle.mode = BundleMode::PreserveModules;
+        config.optimization.inlining = Some(false);
+        config.mangle.identifiers = false;
+
+        let bundle = compile_path_to_js_bundle_configured(&main, &config, "entry.js").unwrap();
+        for _ in 0..8 {
+            assert_eq!(
+                compile_path_to_js_bundle_configured(&main, &config, "entry.js").unwrap(),
+                bundle
+            );
+        }
+        assert_eq!(bundle.files.len(), 2);
+        assert_eq!(bundle.manifest.chunks.len(), 1);
+        assert_eq!(bundle.manifest.chunks[0].modules, ["library.lil"]);
+        let entry = &bundle.files[0].code;
+        let chunk = &bundle.files[1].code;
+        assert!(entry.contains("from\"./chunk-1-library.js\""), "{entry}");
+        assert!(entry.contains("function $m1$set"), "{entry}");
+        assert!(chunk.contains("function $m1$read"), "{chunk}");
+        assert!(chunk.contains("from\"./entry.js\""), "{chunk}");
+
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn splits_only_shared_modules_that_meet_size_policy() {
+        let directory = std::env::temp_dir().join(format!(
+            "lilscript-split-bundle-test-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&directory).unwrap();
+        std::fs::write(
+            directory.join("shared.lil"),
+            "export int shared(int value){if(value<=0){return 1;}return shared(value-1)+1;}",
+        )
+        .unwrap();
+        std::fs::write(
+            directory.join("left.lil"),
+            "import {shared} from \"./shared\";export int left(){return shared(2);}",
+        )
+        .unwrap();
+        std::fs::write(
+            directory.join("right.lil"),
+            "import {shared} from \"./shared\";export int right(){return shared(3);}",
+        )
+        .unwrap();
+        let main = directory.join("main.lil");
+        std::fs::write(
+            &main,
+            "import {left} from \"./left\";import {right} from \"./right\";print(left()+right());",
+        )
+        .unwrap();
+        let mut config = ProjectConfig::default();
+        config.bundle.mode = BundleMode::Split;
+        config.bundle.min_chunk_bytes = 1;
+        config.bundle.max_chunks = 1;
+        config.bundle.shared_min_imports = 2;
+        config.optimization.inlining = Some(false);
+
+        let bundle = compile_path_to_js_bundle_configured(&main, &config, "entry.js").unwrap();
+        assert_eq!(bundle.files.len(), 2);
+        assert_eq!(bundle.manifest.chunks.len(), 1);
+        assert_eq!(bundle.manifest.chunks[0].modules, ["shared.lil"]);
+        assert!(bundle.manifest.chunks[0].bytes > 0);
+
+        config.bundle.min_chunk_bytes = usize::MAX;
+        let unsplit = compile_path_to_js_bundle_configured(&main, &config, "entry.js").unwrap();
+        assert_eq!(unsplit.files.len(), 1);
+        assert!(unsplit.manifest.chunks.is_empty());
+
+        std::fs::remove_dir_all(directory).unwrap();
     }
 
     #[test]

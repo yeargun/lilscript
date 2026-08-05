@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::fmt::Write;
+use std::path::Path;
 
 use ahash::{AHashMap, AHashSet};
 
@@ -52,6 +53,40 @@ pub fn emit_optimized_ir_js_module_with_options(
     IrJsEmitter::new(module, true, *options).emit()
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IrJsChunkSpec {
+    pub file_name: String,
+    pub functions: Vec<FunctionId>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IrJsChunkPlan {
+    pub entry_file: String,
+    pub chunks: Vec<IrJsChunkSpec>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IrJsChunk {
+    pub file_name: String,
+    pub code: String,
+}
+
+pub fn emit_optimized_ir_js_chunks_with_options(
+    module: &ControlFlowModule<'_>,
+    options: &IrJsOptions,
+    plan: &IrJsChunkPlan,
+) -> Result<Vec<IrJsChunk>, CodegenError> {
+    IrJsEmitter::new(module, true, *options).emit_chunks(plan)
+}
+
+pub fn ir_function_can_move_to_chunk(module: &ControlFlowModule<'_>, function: FunctionId) -> bool {
+    module
+        .functions
+        .get(function.0 as usize)
+        .is_some_and(is_emitted_function)
+        && !function_writes_global(module, function, &mut AHashSet::new())
+}
+
 struct IrJsEmitter<'module, 'src> {
     module: &'module ControlFlowModule<'src>,
     global_names: AHashMap<SymbolId, String>,
@@ -86,9 +121,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     }
 
     fn emit(mut self) -> Result<String, CodegenError> {
-        self.assign_top_level_names();
-        self.assign_string_aliases();
-        self.assign_property_names();
+        self.prepare();
         let entry = self.function(self.module.entry)?.clone();
         let entry_is_single_block = entry.blocks.len() == 1 && entry.blocks[0].phis.is_empty();
         let entry_can_structure = can_structure(&entry);
@@ -148,13 +181,249 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         Ok(out)
     }
 
-    fn emit_exports(&self, out: &mut String) -> Result<(), CodegenError> {
-        let runtime_exports = self
+    fn prepare(&mut self) {
+        self.assign_top_level_names();
+        self.assign_string_aliases();
+        self.assign_property_names();
+    }
+
+    fn emit_chunks(mut self, plan: &IrJsChunkPlan) -> Result<Vec<IrJsChunk>, CodegenError> {
+        let fallback_span = self.function(self.module.entry)?.span;
+        let mut files = AHashSet::new();
+        for file in std::iter::once(&plan.entry_file)
+            .chain(plan.chunks.iter().map(|chunk| &chunk.file_name))
+        {
+            if file.is_empty()
+                || Path::new(file).file_name().and_then(|name| name.to_str()) != Some(file)
+            {
+                return Err(CodegenError::new(
+                    fallback_span,
+                    "chunk file names must not contain directory components",
+                ));
+            }
+            if !files.insert(file) {
+                return Err(CodegenError::new(
+                    fallback_span,
+                    format!("duplicate chunk file name `{file}`"),
+                ));
+            }
+        }
+        self.prepare();
+        let emitted = self
             .module
-            .exports
+            .functions
             .iter()
-            .filter(|export| export.binding != ExportBinding::TypeOnly)
+            .filter(|function| is_emitted_function(function))
+            .map(|function| function.id)
+            .collect::<AHashSet<_>>();
+        let mut owners = emitted
+            .iter()
+            .copied()
+            .map(|function| (function, None))
+            .collect::<AHashMap<_, Option<usize>>>();
+        for (chunk_index, chunk) in plan.chunks.iter().enumerate() {
+            for function in &chunk.functions {
+                if !emitted.contains(function) {
+                    return Err(CodegenError::new(
+                        self.module
+                            .functions
+                            .get(function.0 as usize)
+                            .map_or(fallback_span, |item| item.span),
+                        format!("function {} cannot be emitted as a chunk", function.0),
+                    ));
+                }
+                if owners
+                    .insert(*function, Some(chunk_index))
+                    .flatten()
+                    .is_some()
+                {
+                    return Err(CodegenError::new(
+                        self.function(*function)?.span,
+                        format!("function {} belongs to more than one chunk", function.0),
+                    ));
+                }
+                if function_writes_global(self.module, *function, &mut AHashSet::new()) {
+                    return Err(CodegenError::new(
+                        self.function(*function)?.span,
+                        "functions that mutate module globals must remain in the entry chunk",
+                    ));
+                }
+            }
+        }
+
+        let mut unit_functions = vec![Vec::new(); plan.chunks.len() + 1];
+        for function in emitted {
+            let unit = owners[&function].map_or(0, |chunk| chunk + 1);
+            unit_functions[unit].push(function);
+        }
+        for functions in &mut unit_functions {
+            functions.sort_unstable_by_key(|function| function.0);
+        }
+
+        let unit_files = std::iter::once(plan.entry_file.clone())
+            .chain(plan.chunks.iter().map(|chunk| chunk.file_name.clone()))
             .collect::<Vec<_>>();
+        let mut imports = vec![AHashMap::<usize, AHashSet<String>>::new(); unit_files.len()];
+        for (unit, functions) in unit_functions.iter().enumerate() {
+            let mut roots = functions.clone();
+            if unit == 0 {
+                roots.push(self.module.entry);
+            }
+            let references = collect_chunk_references(self.module, &roots, &self.string_aliases);
+            for function in references.functions {
+                let Some(owner) = owners.get(&function) else {
+                    continue;
+                };
+                let source = owner.map_or(0, |chunk| chunk + 1);
+                if source != unit {
+                    imports[unit]
+                        .entry(source)
+                        .or_default()
+                        .insert(self.function_name(function)?.to_string());
+                }
+            }
+            if unit != 0 {
+                let entry_imports = imports[unit].entry(0).or_default();
+                for global in references.globals {
+                    entry_imports.insert(self.global_name(global)?.to_string());
+                }
+                entry_imports.extend(references.strings);
+            }
+        }
+        for export in &self.module.exports {
+            if let ExportBinding::Function(function) = export.binding {
+                let source = owners
+                    .get(&function)
+                    .copied()
+                    .flatten()
+                    .map_or(0, |chunk| chunk + 1);
+                if source != 0 {
+                    imports[0]
+                        .entry(source)
+                        .or_default()
+                        .insert(self.function_name(function)?.to_string());
+                }
+            }
+        }
+
+        let mut internal_exports = vec![AHashSet::<String>::new(); unit_files.len()];
+        for dependencies in &imports {
+            for (source, names) in dependencies {
+                internal_exports[*source].extend(names.iter().cloned());
+            }
+        }
+
+        let mut output = Vec::with_capacity(unit_files.len());
+        for unit in 0..unit_files.len() {
+            let mut code = String::new();
+            emit_chunk_imports(&mut code, unit, &unit_files, &imports[unit]);
+            if unit == 0 {
+                self.emit_module_preamble(&mut code)?;
+            }
+            for function in &unit_functions[unit] {
+                let function = self.function(*function)?.clone();
+                self.emit_function(&function, &mut code)?;
+            }
+            if unit == 0 {
+                self.emit_entry_body(&mut code)?;
+                self.emit_named_exports(&internal_exports[unit], &mut code);
+                self.emit_exports_excluding(&internal_exports[unit], &mut code)?;
+            } else {
+                self.emit_named_exports(&internal_exports[unit], &mut code);
+            }
+            output.push(IrJsChunk {
+                file_name: unit_files[unit].clone(),
+                code,
+            });
+        }
+        Ok(output)
+    }
+
+    fn emit_module_preamble(&mut self, out: &mut String) -> Result<(), CodegenError> {
+        if !self.pooled_strings.is_empty() {
+            out.push_str("let ");
+            for (index, (value, name)) in self.pooled_strings.iter().enumerate() {
+                if index != 0 {
+                    out.push(',');
+                }
+                out.push_str(name);
+                out.push('=');
+                out.push_str(&render_string_literal(value));
+            }
+            out.push(';');
+        }
+        if !self.module.globals.is_empty() {
+            out.push_str("let ");
+            for (index, global) in self.module.globals.iter().enumerate() {
+                if index != 0 {
+                    out.push(',');
+                }
+                out.push_str(self.global_name(global.symbol)?);
+                self.declared_globals.insert(global.symbol);
+            }
+            out.push(';');
+        }
+        Ok(())
+    }
+
+    fn emit_entry_body(&mut self, out: &mut String) -> Result<(), CodegenError> {
+        let entry = self.function(self.module.entry)?.clone();
+        if entry.blocks.len() == 1 && entry.blocks[0].phis.is_empty() {
+            self.emit_single_block(&entry, false, out)
+        } else if can_structure(&entry) {
+            self.emit_structured(&entry, false, out)
+        } else {
+            out.push_str("(()=>");
+            self.emit_state_machine(&entry, out)?;
+            out.push_str(")();");
+            Ok(())
+        }
+    }
+
+    fn emit_named_exports(&self, names: &AHashSet<String>, out: &mut String) {
+        if names.is_empty() {
+            return;
+        }
+        let mut names = names.iter().collect::<Vec<_>>();
+        names.sort_unstable();
+        if !out.is_empty() && !out.ends_with(';') {
+            out.push(';');
+        }
+        out.push_str("export{");
+        for (index, name) in names.iter().enumerate() {
+            if index != 0 {
+                out.push(',');
+            }
+            out.push_str(name);
+        }
+        out.push_str("};");
+    }
+
+    fn emit_exports(&self, out: &mut String) -> Result<(), CodegenError> {
+        self.emit_exports_excluding(&AHashSet::new(), out)
+    }
+
+    fn emit_exports_excluding(
+        &self,
+        already_exported: &AHashSet<String>,
+        out: &mut String,
+    ) -> Result<(), CodegenError> {
+        let mut runtime_exports = Vec::<(&str, &str)>::new();
+        for export in &self.module.exports {
+            let internal = match export.binding {
+                ExportBinding::Function(function) => self.function_name(function)?,
+                ExportBinding::Global(symbol) => self.global_name(symbol)?,
+                ExportBinding::TypeOnly => continue,
+            };
+            let public = if self.options.mangle_exports {
+                internal
+            } else {
+                export.name
+            };
+            if internal != public || !already_exported.contains(internal) {
+                runtime_exports.push((internal, public));
+            }
+        }
         if runtime_exports.is_empty() {
             return Ok(());
         }
@@ -162,20 +431,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             out.push(';');
         }
         out.push_str("export{");
-        for (index, export) in runtime_exports.iter().enumerate() {
+        for (index, (internal, public)) in runtime_exports.iter().enumerate() {
             if index != 0 {
                 out.push(',');
             }
-            let internal = match export.binding {
-                ExportBinding::Function(function) => self.function_name(function)?,
-                ExportBinding::Global(symbol) => self.global_name(symbol)?,
-                ExportBinding::TypeOnly => unreachable!(),
-            };
-            let public = if self.options.mangle_exports {
-                internal
-            } else {
-                export.name
-            };
             out.push_str(internal);
             if internal != public {
                 out.push_str(" as ");
@@ -1819,6 +2078,133 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     }
 }
 
+#[derive(Debug, Default)]
+struct ChunkReferences {
+    functions: AHashSet<FunctionId>,
+    globals: AHashSet<SymbolId>,
+    strings: AHashSet<String>,
+}
+
+fn is_emitted_function(function: &ControlFlowFunction<'_>) -> bool {
+    function.live
+        && !matches!(function.kind, FunctionKind::Entry | FunctionKind::Extern)
+        && !(function.kind == FunctionKind::Closure && can_inline_closure(function))
+}
+
+fn collect_chunk_references(
+    module: &ControlFlowModule<'_>,
+    roots: &[FunctionId],
+    string_aliases: &AHashMap<String, String>,
+) -> ChunkReferences {
+    let mut references = ChunkReferences::default();
+    let mut pending = roots.to_vec();
+    let mut visited = AHashSet::new();
+    while let Some(function_id) = pending.pop() {
+        if !visited.insert(function_id) {
+            continue;
+        }
+        let Some(function) = module.functions.get(function_id.0 as usize) else {
+            continue;
+        };
+        for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
+            match &instruction.op {
+                ControlFlowOp::LoadGlobal(global) | ControlFlowOp::StoreGlobal { global, .. } => {
+                    references.globals.insert(*global);
+                }
+                ControlFlowOp::Const(ConstValue::String(value)) => {
+                    if let Some(alias) = string_aliases.get(value) {
+                        references.strings.insert(alias.clone());
+                    }
+                }
+                ControlFlowOp::NewClass {
+                    constructor: Some(target),
+                    ..
+                }
+                | ControlFlowOp::Closure {
+                    function: target, ..
+                }
+                | ControlFlowOp::CallDirect {
+                    function: target, ..
+                }
+                | ControlFlowOp::CallMethod {
+                    function: target, ..
+                } => {
+                    let Some(target_function) = module.functions.get(target.0 as usize) else {
+                        continue;
+                    };
+                    if target_function.kind == FunctionKind::Closure
+                        && can_inline_closure(target_function)
+                    {
+                        pending.push(*target);
+                    } else if is_emitted_function(target_function) {
+                        references.functions.insert(*target);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    references
+}
+
+fn function_writes_global(
+    module: &ControlFlowModule<'_>,
+    function_id: FunctionId,
+    visited: &mut AHashSet<FunctionId>,
+) -> bool {
+    if !visited.insert(function_id) {
+        return false;
+    }
+    let Some(function) = module.functions.get(function_id.0 as usize) else {
+        return false;
+    };
+    function
+        .blocks
+        .iter()
+        .flat_map(|block| &block.instructions)
+        .any(|instruction| match &instruction.op {
+            ControlFlowOp::StoreGlobal { .. } => true,
+            ControlFlowOp::Closure {
+                function: target, ..
+            } => module
+                .functions
+                .get(target.0 as usize)
+                .is_some_and(|target_function| {
+                    target_function.kind == FunctionKind::Closure
+                        && can_inline_closure(target_function)
+                        && function_writes_global(module, *target, visited)
+                }),
+            _ => false,
+        })
+}
+
+fn emit_chunk_imports(
+    out: &mut String,
+    current: usize,
+    files: &[String],
+    imports: &AHashMap<usize, AHashSet<String>>,
+) {
+    let mut sources = imports.iter().collect::<Vec<_>>();
+    sources.sort_unstable_by(|(left, _), (right, _)| files[**left].cmp(&files[**right]));
+    for (source, names) in sources {
+        if *source == current || names.is_empty() {
+            continue;
+        }
+        let mut names = names.iter().collect::<Vec<_>>();
+        names.sort_unstable();
+        out.push_str("import{");
+        for (index, name) in names.iter().enumerate() {
+            if index != 0 {
+                out.push(',');
+            }
+            out.push_str(name);
+        }
+        out.push_str("}from");
+        out.push_str(&render_string_literal(&format!("./{}", files[*source])));
+        out.push(';');
+    }
+}
+
 fn order_scalar_assignments(assignments: &[(String, String)]) -> Option<Vec<(&str, &str)>> {
     let mut remaining = assignments.iter().collect::<Vec<_>>();
     let mut ordered = Vec::with_capacity(assignments.len());
@@ -3042,7 +3428,11 @@ mod tests {
     use bumpalo::Bump;
 
     use super::*;
-    use crate::{analyze, lower_to_control_flow, optimizer::optimize_control_flow, parse_source};
+    use crate::{
+        analyze, lower_to_control_flow,
+        optimizer::{optimize_control_flow, optimize_control_flow_for_module},
+        parse_source,
+    };
 
     fn compile(source: &str) -> String {
         let arena = Bump::new();
@@ -3056,6 +3446,59 @@ mod tests {
     #[test]
     fn emits_compact_straight_line_ir() {
         assert_eq!(compile("print(1+2*3);"), "console.log(7)");
+    }
+
+    #[test]
+    fn emits_cross_chunk_imports_and_live_global_exports() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "int base=40;void setBase(int value){base=value;}int read(){return base;}int apply(int value){return read()+value;}export{setBase,read,apply};",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+        optimize_control_flow_for_module(&mut ir).unwrap();
+        let read = ir
+            .functions
+            .iter()
+            .find(|function| function.name == Some("read"))
+            .unwrap()
+            .id;
+        let chunks = emit_optimized_ir_js_chunks_with_options(
+            &ir,
+            &IrJsOptions::default(),
+            &IrJsChunkPlan {
+                entry_file: "entry.js".to_string(),
+                chunks: vec![IrJsChunkSpec {
+                    file_name: "shared.js".to_string(),
+                    functions: vec![read],
+                }],
+            },
+        )
+        .unwrap();
+
+        assert_eq!(chunks.len(), 2);
+        assert_eq!(chunks[0].file_name, "entry.js");
+        assert_eq!(chunks[1].file_name, "shared.js");
+        assert!(chunks[0].code.contains("from\"./shared.js\""));
+        assert!(chunks[1].code.contains("from\"./entry.js\""));
+        assert!(chunks[0].code.contains(" as apply"));
+        assert!(chunks[0].code.contains(" as read"));
+
+        let error = emit_optimized_ir_js_chunks_with_options(
+            &ir,
+            &IrJsOptions::default(),
+            &IrJsChunkPlan {
+                entry_file: "entry.js".to_string(),
+                chunks: vec![IrJsChunkSpec {
+                    file_name: "entry.js".to_string(),
+                    functions: vec![read],
+                }],
+            },
+        )
+        .unwrap_err();
+        assert!(error.message.contains("duplicate chunk file name"));
     }
 
     #[test]
