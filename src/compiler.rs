@@ -808,6 +808,35 @@ mod tests {
     }
 
     #[test]
+    fn compiles_union_values_and_heterogeneous_arrays() {
+        let source = r#"
+            bool flip=false;
+            bool next(){flip=!flip;return flip;}
+            string|int choose(bool text){if(text){return "hello";}return 42;}
+            string|int first=choose(next());
+            string|int second=choose(next());
+            (string|int)[] values=[first,second];
+            class Box { string|int value; }
+            Box box=new Box();
+            print(first);
+            print(second);
+            print(values[0]=="hello");
+            print(values[1]==42);
+            print(box.value=="");
+        "#;
+        let output = compile_source_all(source).unwrap();
+
+        assert!(
+            output.javascript.contains("console.log"),
+            "{}",
+            output.javascript
+        );
+        assert!(output.c.contains("LilScriptValue"));
+        assert!(output.c.contains("lilscript_print_value"));
+        assert!(output.c.contains("lilscript_value_eq"));
+    }
+
+    #[test]
     fn preserves_branch_local_shadowing_while_linking() {
         let directory = std::env::temp_dir().join(format!(
             "lilscript-module-shadow-test-{}",

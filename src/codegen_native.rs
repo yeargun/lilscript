@@ -49,6 +49,9 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
             "static inline bool lilscript_value_eq(LilScriptValue a,LilScriptValue b){if(a.tag!=b.tag)return false;switch(a.tag){case 0:return true;case 1:return a.i==b.i;case 2:return a.f==b.f;case 3:return a.b==b.b;case 4:return !strcmp(a.s,b.s);case 5:return a.c.fn==b.c.fn&&a.c.env==b.c.env;default:return a.p==b.p;}}\n",
         );
         out.push_str(
+            "static inline LilScriptValue lilscript_optional_value(LilScriptOptional v){return v.has?v.value:(LilScriptValue){0};}static inline LilScriptOptional lilscript_value_optional(LilScriptValue v){return(LilScriptOptional){v.tag!=0,v};}\n",
+        );
+        out.push_str(
             "static inline LilScriptArray lilscript_array(int32_t n,size_t z){LilScriptArray a=malloc(sizeof*a);if(!a)abort();a->data=calloc((size_t)n,z);a->len=a->cap=n;if(n&&!a->data)abort();return a;}\n",
         );
         out.push_str(
@@ -68,6 +71,9 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
         );
         out.push_str(
             "static inline LilScriptString lilscript_f64(double v){char b[32];snprintf(b,sizeof b,\"%.17g\",v);return lilscript_dup(b);}\n",
+        );
+        out.push_str(
+            "static inline LilScriptString lilscript_value_string(LilScriptValue v){switch(v.tag){case 0:return lilscript_dup(\"null\");case 1:return lilscript_i32(v.i);case 2:return lilscript_f64(v.f);case 3:return lilscript_dup(v.b?\"true\":\"false\");case 4:return lilscript_dup(v.s);default:abort();}}static inline void lilscript_print_value(LilScriptValue v){switch(v.tag){case 0:puts(\"null\");break;case 1:printf(\"%d\\n\",v.i);break;case 2:printf(\"%.17g\\n\",v.f);break;case 3:puts(v.b?\"true\":\"false\");break;case 4:puts(v.s);break;default:abort();}}\n",
         );
         out.push_str(
             "static inline bool lilscript_ends(const char*s,const char*x){size_t a=strlen(s),b=strlen(x);return a>=b&&!memcmp(s+a-b,x,b);}\n",
@@ -499,6 +505,23 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                             result.0, field.index
                         )
                         .expect("writing to String cannot fail"),
+                        Type::Union(members) => {
+                            let member = members.first().ok_or_else(|| {
+                                CodegenError::new(
+                                    instruction.span,
+                                    "union field has no native member type",
+                                )
+                            })?;
+                            let default = native_default_value(member)?;
+                            let converted = self.render_value_conversion(
+                                &default,
+                                member,
+                                &field.ty,
+                                instruction.span,
+                            )?;
+                            write!(out, "v{}->f{}={converted};", result.0, field.index)
+                                .expect("writing to String cannot fail");
+                        }
                         _ => {}
                     }
                 }
@@ -1309,8 +1332,8 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                     span,
                     format!("cannot convert native `{from}` to `{to}`"),
                 )),
-                Type::TypeParameter("$closure" | "$array") => {
-                    Ok(format!("*(LilScriptOptional*)({expression}).p"))
+                Type::TypeParameter("$closure" | "$array") | Type::Union(_) => {
+                    Ok(format!("lilscript_value_optional({expression})"))
                 }
                 _ => {
                     if !crate::semantic::is_type_assignable(inner, from) {
@@ -1330,10 +1353,11 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                 }
             };
         }
-        if matches!(to, Type::TypeParameter(_)) && matches!(from, Type::Null | Type::Nullable(_)) {
-            return Ok(format!(
-                "(LilScriptValue){{.tag=7,.p=lilscript_copy((LilScriptOptional[]){{{expression}}},sizeof(LilScriptOptional))}}"
-            ));
+        if is_erased_type(to) && from == &Type::Null {
+            return Ok("(LilScriptValue){0}".to_string());
+        }
+        if is_erased_type(to) && matches!(from, Type::Nullable(_)) {
+            return Ok(format!("lilscript_optional_value({expression})"));
         }
         if matches!(from, Type::Nullable(_)) {
             return self.render_value_conversion(
@@ -1349,7 +1373,7 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
         if from == &Type::Int && to == &Type::Float {
             return Ok(format!("(double)({expression})"));
         }
-        if matches!(to, Type::TypeParameter(_)) {
+        if is_erased_type(to) {
             let member = match from {
                 Type::Int => "i",
                 Type::Float => "f",
@@ -1363,7 +1387,7 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                         "(LilScriptValue){{.tag=7,.p=lilscript_copy(({native}[]){{{expression}}},sizeof({native}))}}"
                     ));
                 }
-                Type::TypeParameter(_) => return Ok(expression.to_string()),
+                Type::TypeParameter(_) | Type::Union(_) => return Ok(expression.to_string()),
                 Type::Null | Type::Nullable(_) => {
                     return Ok(format!(
                         "(LilScriptValue){{.tag=7,.p=lilscript_copy((LilScriptOptional[]){{{expression}}},sizeof(LilScriptOptional))}}"
@@ -1383,7 +1407,7 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                 generic_value_tag(from)
             ));
         }
-        if matches!(from, Type::TypeParameter(_)) {
+        if is_erased_type(from) {
             return Ok(match to {
                 Type::Int => format!("({expression}).i"),
                 Type::Float => format!("({expression}).f"),
@@ -1396,8 +1420,8 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                 Type::Struct(_) | Type::StructInstance { .. } => {
                     format!("*({}*)({expression}).p", c_type(to))
                 }
-                Type::TypeParameter(_) => expression.to_string(),
-                Type::Nullable(_) => format!("*(LilScriptOptional*)({expression}).p"),
+                Type::TypeParameter(_) | Type::Union(_) => expression.to_string(),
+                Type::Nullable(_) => format!("lilscript_value_optional({expression})"),
                 Type::Null => "(LilScriptOptional){false,{0}}".to_string(),
                 Type::Void => {
                     return Err(CodegenError::new(span, "cannot unbox a native void value"));
@@ -1421,6 +1445,7 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
             Type::Int => format!("lilscript_i32(v{})", value.0),
             Type::Float => format!("lilscript_f64(v{})", value.0),
             Type::Bool => format!("(v{}?\"true\":\"false\")", value.0),
+            Type::Union(_) => format!("lilscript_value_string(v{})", value.0),
             _ => {
                 return Err(CodegenError::new(
                     span,
@@ -1456,10 +1481,12 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
             });
         }
         if matches!(op, IrBinaryOp::Eq | IrBinaryOp::NotEq)
-            && matches!(lhs_type, Type::TypeParameter(_))
-            && matches!(rhs_type, Type::TypeParameter(_))
+            && (is_erased_type(lhs_type) || is_erased_type(rhs_type))
         {
-            let equal = format!("lilscript_value_eq({lhs_name},{rhs_name})");
+            let erased = Type::TypeParameter("$equality");
+            let lhs = self.render_value_conversion(&lhs_name, lhs_type, &erased, span)?;
+            let rhs = self.render_value_conversion(&rhs_name, rhs_type, &erased, span)?;
+            let equal = format!("lilscript_value_eq({lhs},{rhs})");
             return Ok(if op == IrBinaryOp::Eq {
                 equal
             } else {
@@ -1576,6 +1603,7 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
             Type::Float => write!(out, "printf(\"%.17g\\n\",v{});", value.0),
             Type::Bool => write!(out, "puts(v{}?\"true\":\"false\");", value.0),
             Type::String => write!(out, "puts(v{});", value.0),
+            Type::Union(_) => write!(out, "lilscript_print_value(v{});", value.0),
             _ => {
                 return Err(CodegenError::new(
                     span,
@@ -1756,8 +1784,11 @@ fn render_native_equality(
     rhs_type: &Type<'_>,
     span: Span,
 ) -> Result<String, CodegenError> {
-    if matches!(lhs_type, Type::TypeParameter(_)) && matches!(rhs_type, Type::TypeParameter(_)) {
-        return Ok(format!("lilscript_value_eq({lhs},{rhs})"));
+    if is_erased_type(lhs_type) || is_erased_type(rhs_type) {
+        return Err(CodegenError::new(
+            span,
+            "erased native equality must be normalized before rendering",
+        ));
     }
     if lhs_type == &Type::String && rhs_type == &Type::String {
         return Ok(format!("!strcmp({lhs},{rhs})"));
@@ -1786,7 +1817,7 @@ fn generic_value_tag(ty: &Type<'_>) -> u8 {
         Type::Function(_) | Type::GenericFunction(_) => 5,
         Type::Array(_) | Type::Class(_) | Type::ClassInstance { .. } => 6,
         Type::Struct(_) | Type::StructInstance { .. } | Type::Null | Type::Nullable(_) => 7,
-        Type::TypeParameter(_) | Type::Void => 0,
+        Type::TypeParameter(_) | Type::Union(_) | Type::Void => 0,
     }
 }
 
@@ -1802,10 +1833,41 @@ fn c_type(ty: &Type<'_>) -> String {
         Type::Class(name) => aggregate_type_name("Class", name),
         Type::StructInstance { name, .. } => aggregate_type_name("Struct", name),
         Type::ClassInstance { name, .. } => aggregate_type_name("Class", name),
-        Type::TypeParameter(_) => "LilScriptValue".to_string(),
+        Type::TypeParameter(_) | Type::Union(_) => "LilScriptValue".to_string(),
         Type::Function(_) | Type::GenericFunction(_) => "LilScriptClosure".to_string(),
         Type::Void => "void".to_string(),
     }
+}
+
+fn is_erased_type(ty: &Type<'_>) -> bool {
+    matches!(ty, Type::TypeParameter(_) | Type::Union(_))
+}
+
+fn native_default_value(ty: &Type<'_>) -> Result<String, CodegenError> {
+    Ok(match ty {
+        Type::Int => "(int32_t)0".to_string(),
+        Type::Float => "0.0".to_string(),
+        Type::Bool => "false".to_string(),
+        Type::String => "\"\"".to_string(),
+        Type::Null | Type::Nullable(_) => "(LilScriptOptional){false,{0}}".to_string(),
+        Type::Array(_) => "lilscript_array(0,sizeof(LilScriptValue))".to_string(),
+        Type::Struct(_) | Type::StructInstance { .. } => format!("({}){{0}}", c_type(ty)),
+        Type::Class(_) | Type::ClassInstance { .. } => "NULL".to_string(),
+        Type::TypeParameter(_) => "(LilScriptValue){0}".to_string(),
+        Type::Function(_) | Type::GenericFunction(_) => "(LilScriptClosure){0}".to_string(),
+        Type::Union(members) => {
+            let member = members.first().ok_or_else(|| {
+                CodegenError::new(Span::empty(0), "union has no native member type")
+            })?;
+            native_default_value(member)?
+        }
+        Type::Void => {
+            return Err(CodegenError::new(
+                Span::empty(0),
+                "native void has no default value",
+            ));
+        }
+    })
 }
 
 fn aggregate_type_name(kind: &str, name: &str) -> String {

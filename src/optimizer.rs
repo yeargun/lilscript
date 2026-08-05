@@ -1392,6 +1392,8 @@ fn type_has_type_parameter(ty: &Type<'_>) -> bool {
     match ty {
         Type::TypeParameter(_) => true,
         Type::Array(element) => type_has_type_parameter(element),
+        Type::Nullable(inner) => type_has_type_parameter(inner),
+        Type::Union(members) => members.iter().any(type_has_type_parameter),
         Type::StructInstance { args, .. } | Type::ClassInstance { args, .. } => {
             args.iter().any(type_has_type_parameter)
         }

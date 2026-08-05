@@ -683,6 +683,31 @@ impl<'arena, 'src> Parser<'arena, 'src> {
     }
 
     fn parse_type(&mut self) -> Result<TypeRef<'arena, 'src>, ParseError> {
+        let first = self.parse_postfix_type()?;
+        if !self.match_kind(|kind| matches!(kind, TokenKind::Pipe)) {
+            return Ok(first);
+        }
+
+        let mut members = BumpVec::new_in(self.arena);
+        members.push(first);
+        loop {
+            members.push(self.parse_postfix_type()?);
+            if !self.match_kind(|kind| matches!(kind, TokenKind::Pipe)) {
+                break;
+            }
+        }
+        let span = members
+            .first()
+            .expect("union has a first type")
+            .span
+            .merge(members.last().expect("union has a last type").span);
+        Ok(TypeRef {
+            kind: TypeKind::Union(members.into_bump_slice()),
+            span,
+        })
+    }
+
+    fn parse_postfix_type(&mut self) -> Result<TypeRef<'arena, 'src>, ParseError> {
         let token = self
             .advance()
             .ok_or_else(|| self.error_here("expected type"))?;
@@ -1296,6 +1321,13 @@ impl<'arena, 'src> Parser<'arena, 'src> {
             }
         }
 
+        if matches!(
+            self.tokens.get(index).map(|token| &token.kind),
+            Some(TokenKind::Pipe)
+        ) {
+            index = self.scan_type_end(index + 1)?;
+        }
+
         Some(index)
     }
 
@@ -1699,6 +1731,26 @@ int result=from(3);"#,
         assert!(matches!(
             values.ty.kind,
             TypeKind::Array(element) if matches!(element.kind, TypeKind::Nullable(_))
+        ));
+    }
+
+    #[test]
+    fn parses_union_types_with_postfix_precedence() {
+        let arena = Bump::new();
+        let program =
+            parse_source(&arena, "string|int value=1;(string|int)[] values=[value];").unwrap();
+
+        let Item::Stmt(Stmt::VarDecl(value)) = &program.items[0] else {
+            panic!("expected union binding");
+        };
+        assert!(matches!(value.ty.kind, TypeKind::Union(members) if members.len() == 2));
+        let Item::Stmt(Stmt::VarDecl(values)) = &program.items[1] else {
+            panic!("expected union array binding");
+        };
+        assert!(matches!(
+            values.ty.kind,
+            TypeKind::Array(element)
+                if matches!(element.kind, TypeKind::Union(members) if members.len() == 2)
         ));
     }
 }

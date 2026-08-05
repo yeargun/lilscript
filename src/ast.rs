@@ -26,6 +26,7 @@ pub enum TypeKind<'ast, 'src> {
     },
     Array(&'ast TypeRef<'ast, 'src>),
     Nullable(&'ast TypeRef<'ast, 'src>),
+    Union(&'ast [TypeRef<'ast, 'src>]),
     Function {
         params: &'ast [TypeRef<'ast, 'src>],
         return_type: &'ast TypeRef<'ast, 'src>,

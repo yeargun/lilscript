@@ -1,0 +1,28 @@
+bool flip = false;
+
+bool nextFlip() {
+  flip = !flip;
+  return flip;
+}
+
+string|int choose(bool textValue) {
+  if (textValue) {
+    return "hello";
+  }
+  return 42;
+}
+
+class Box {
+  string|int value;
+}
+
+string|int first = choose(nextFlip());
+string|int second = choose(nextFlip());
+(string|int)[] values = [first, second];
+Box box = new Box();
+
+print(first);
+print(second);
+print(values[0] == "hello");
+print(values[1] == 42);
+print(box.value == "");

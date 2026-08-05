@@ -2799,6 +2799,7 @@ fn default_value(ty: &Type<'_>) -> &'static str {
         Type::Bool => "false",
         Type::String => "\"\"",
         Type::Array(_) => "[]",
+        Type::Union(members) => members.first().map_or("null", default_value),
         Type::Null | Type::Nullable(_) => "null",
         Type::Struct(_)
         | Type::Class(_)

@@ -30,6 +30,7 @@ pub enum Type<'src> {
     Void,
     Array(Box<Type<'src>>),
     Nullable(Box<Type<'src>>),
+    Union(Vec<Type<'src>>),
     Struct(&'src str),
     Class(&'src str),
     StructInstance {
@@ -64,8 +65,23 @@ impl fmt::Display for Type<'_> {
             Self::Bool => f.write_str("bool"),
             Self::Null => f.write_str("null"),
             Self::Void => f.write_str("void"),
-            Self::Array(element) => write!(f, "{element}[]"),
-            Self::Nullable(inner) => write!(f, "{inner}?"),
+            Self::Array(element) => match element.as_ref() {
+                Self::Union(_) => write!(f, "({element})[]"),
+                _ => write!(f, "{element}[]"),
+            },
+            Self::Nullable(inner) => match inner.as_ref() {
+                Self::Union(_) => write!(f, "({inner})?"),
+                _ => write!(f, "{inner}?"),
+            },
+            Self::Union(members) => {
+                for (index, member) in members.iter().enumerate() {
+                    if index != 0 {
+                        f.write_str(" | ")?;
+                    }
+                    write!(f, "{member}")?;
+                }
+                Ok(())
+            }
             Self::Struct(name) | Self::Class(name) => f.write_str(name),
             Self::StructInstance { name, args } | Self::ClassInstance { name, args } => {
                 write!(f, "{name}<")?;
@@ -1909,6 +1925,13 @@ impl<'src> Analyzer<'src> {
                 }
                 Ok(Type::Nullable(Box::new(inner)))
             }
+            TypeKind::Union(members) => {
+                let mut resolved = Vec::with_capacity(members.len());
+                for member in members {
+                    resolved.push(self.resolve_value_type(*member, "union member")?);
+                }
+                Ok(normalize_union(resolved))
+            }
             TypeKind::Function {
                 params,
                 return_type,
@@ -2218,6 +2241,12 @@ fn substitute_type<'src>(
             .unwrap_or_else(|| ty.clone()),
         Type::Array(element) => Type::Array(Box::new(substitute_type(element, substitutions))),
         Type::Nullable(inner) => Type::Nullable(Box::new(substitute_type(inner, substitutions))),
+        Type::Union(members) => normalize_union(
+            members
+                .iter()
+                .map(|member| substitute_type(member, substitutions))
+                .collect(),
+        ),
         Type::StructInstance { name, args } => Type::StructInstance {
             name,
             args: args
@@ -2296,6 +2325,9 @@ fn contains_type_parameter(ty: &Type<'_>, parameters: &AHashSet<&str>) -> bool {
         Type::TypeParameter(name) => parameters.contains(name),
         Type::Array(element) => contains_type_parameter(element, parameters),
         Type::Nullable(inner) => contains_type_parameter(inner, parameters),
+        Type::Union(members) => members
+            .iter()
+            .any(|member| contains_type_parameter(member, parameters)),
         Type::StructInstance { args, .. } | Type::ClassInstance { args, .. } => args
             .iter()
             .any(|argument| contains_type_parameter(argument, parameters)),
@@ -2328,7 +2360,12 @@ fn infer_type_arguments<'src>(
     match (pattern, actual) {
         (Type::TypeParameter(name), actual) if parameters.contains(name) => {
             if let Some(previous) = substitutions.get(name) {
-                if !is_type_assignable(previous, actual) || !is_type_assignable(actual, previous) {
+                if is_type_assignable(previous, actual) {
+                    return Ok(());
+                }
+                if is_type_assignable(actual, previous) {
+                    substitutions.insert(name, actual.clone());
+                } else {
                     return Err(SemanticError::new(
                         span,
                         format!("conflicting inferences for `{name}`: `{previous}` and `{actual}`"),
@@ -2346,6 +2383,22 @@ fn infer_type_arguments<'src>(
         }
         (Type::Nullable(pattern), actual) if actual != &Type::Null => {
             infer_type_arguments(pattern, actual, parameters, substitutions, span)?;
+        }
+        (Type::Union(pattern), Type::Union(actual)) => {
+            for actual_member in actual {
+                if let Some(pattern_member) = pattern
+                    .iter()
+                    .find(|candidate| is_type_assignable(candidate, actual_member))
+                {
+                    infer_type_arguments(
+                        pattern_member,
+                        actual_member,
+                        parameters,
+                        substitutions,
+                        span,
+                    )?;
+                }
+            }
         }
         (Type::Function(pattern), Type::Function(actual))
             if pattern.params.len() == actual.params.len() =>
@@ -2400,6 +2453,17 @@ pub(crate) fn is_type_assignable(expected: &Type<'_>, actual: &Type<'_>) -> bool
         (Type::Nullable(_), Type::Null) => true,
         (Type::Nullable(expected), Type::Nullable(actual)) => is_type_assignable(expected, actual),
         (Type::Nullable(expected), actual) => is_type_assignable(expected, actual),
+        (Type::Union(expected), Type::Union(actual)) => actual.iter().all(|actual| {
+            expected
+                .iter()
+                .any(|expected| is_type_assignable(expected, actual))
+        }),
+        (Type::Union(expected), actual) => expected
+            .iter()
+            .any(|expected| is_type_assignable(expected, actual)),
+        (expected, Type::Union(actual)) => actual
+            .iter()
+            .all(|actual| is_type_assignable(expected, actual)),
         (Type::Function(expected), Type::Function(actual))
             if expected.params.len() == actual.params.len() =>
         {
@@ -2489,7 +2553,47 @@ fn common_type<'src>(lhs: &Type<'src>, rhs: &Type<'src>) -> Option<Type<'src>> {
         (Type::Array(lhs), Type::Array(rhs)) => {
             common_type(lhs, rhs).map(|element| Type::Array(Box::new(element)))
         }
+        _ if !matches!(lhs, Type::Void | Type::GenericFunction(_))
+            && !matches!(rhs, Type::Void | Type::GenericFunction(_)) =>
+        {
+            Some(normalize_union(vec![lhs.clone(), rhs.clone()]))
+        }
         _ => None,
+    }
+}
+
+fn normalize_union<'src>(members: Vec<Type<'src>>) -> Type<'src> {
+    let mut flattened = Vec::new();
+    for member in members {
+        append_union_member(&mut flattened, member);
+    }
+    if flattened
+        .iter()
+        .any(|member| matches!(member, Type::Nullable(_)))
+    {
+        flattened.retain(|member| member != &Type::Null);
+    }
+    if flattened.len() == 2 {
+        let null = flattened.iter().position(|member| member == &Type::Null);
+        if let Some(null) = null {
+            let inner = flattened.remove(1 - null);
+            return Type::Nullable(Box::new(inner));
+        }
+    }
+    if flattened.len() == 1 {
+        flattened.pop().expect("one union member remains")
+    } else {
+        Type::Union(flattened)
+    }
+}
+
+fn append_union_member<'src>(flattened: &mut Vec<Type<'src>>, member: Type<'src>) {
+    if let Type::Union(nested) = member {
+        for member in nested {
+            append_union_member(flattened, member);
+        }
+    } else if !flattened.contains(&member) {
+        flattened.push(member);
     }
 }
 
@@ -2509,32 +2613,37 @@ fn equality_comparable(lhs: &Type<'_>, rhs: &Type<'_>) -> bool {
         (Type::Nullable(lhs), Type::Nullable(rhs)) => equality_comparable(lhs, rhs),
         (Type::Nullable(lhs), rhs) => equality_comparable(lhs, rhs),
         (lhs, Type::Nullable(rhs)) => equality_comparable(lhs, rhs),
+        (Type::Union(lhs), Type::Union(rhs)) => lhs
+            .iter()
+            .any(|lhs| rhs.iter().any(|rhs| equality_comparable(lhs, rhs))),
+        (Type::Union(lhs), rhs) => lhs.iter().any(|lhs| equality_comparable(lhs, rhs)),
+        (lhs, Type::Union(rhs)) => rhs.iter().any(|rhs| equality_comparable(lhs, rhs)),
         _ => {
-            common_type(lhs, rhs).is_some()
-                && !matches!(
-                    lhs,
-                    Type::Null
-                        | Type::Struct(_)
-                        | Type::StructInstance { .. }
-                        | Type::Function(_)
-                        | Type::GenericFunction(_)
-                        | Type::Void
-                )
-                && !matches!(
-                    rhs,
-                    Type::Null
-                        | Type::Struct(_)
-                        | Type::StructInstance { .. }
-                        | Type::Function(_)
-                        | Type::GenericFunction(_)
-                        | Type::Void
-                )
+            (lhs == rhs || (lhs.is_numeric() && rhs.is_numeric()))
+                && equality_type_supported(lhs)
+                && equality_type_supported(rhs)
         }
     }
 }
 
+fn equality_type_supported(ty: &Type<'_>) -> bool {
+    match ty {
+        Type::Union(members) => members.iter().all(equality_type_supported),
+        Type::Null
+        | Type::Struct(_)
+        | Type::StructInstance { .. }
+        | Type::Function(_)
+        | Type::GenericFunction(_)
+        | Type::Void => false,
+        _ => true,
+    }
+}
+
 fn is_stringable(ty: &Type<'_>) -> bool {
-    matches!(ty, Type::String | Type::Int | Type::Float | Type::Bool)
+    match ty {
+        Type::Union(members) => members.iter().all(is_stringable),
+        _ => matches!(ty, Type::String | Type::Int | Type::Float | Type::Bool),
+    }
 }
 
 fn invalid_binary(op: BinaryOp, lhs: &Type<'_>, rhs: &Type<'_>, span: Span) -> SemanticError {
@@ -2606,6 +2715,33 @@ mod tests {
         )
         .unwrap_err();
         assert!(error.message.contains("cannot be applied"));
+    }
+
+    #[test]
+    fn validates_union_assignments_arrays_and_generic_inference() {
+        check(
+            r#"
+                T choose<T>(T left,T right){return left;}
+                string|int value=1;
+                value="ready";
+                int|string reordered=value;
+                (string|int)[] values=[1,"two",3];
+                string|int selected=choose(reordered,"fallback");
+                bool same=selected=="ready";
+            "#,
+        )
+        .unwrap();
+
+        let error = check("string|int value=true;").unwrap_err();
+        assert!(
+            error
+                .message
+                .contains("expected `string | int`, found `bool`"),
+            "{error}"
+        );
+
+        let error = check("bool same=1==true;").unwrap_err();
+        assert!(error.message.contains("cannot be applied"), "{error}");
     }
 
     #[test]

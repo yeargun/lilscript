@@ -144,6 +144,8 @@ pub enum TokenKind<'src> {
     RBracket,
     #[token("?")]
     Question,
+    #[token("|")]
+    Pipe,
 }
 
 #[derive(Debug, Clone, PartialEq)]

@@ -154,7 +154,7 @@
     },
     "operators": {
       "patterns": [
-        { "name": "keyword.operator.lilscript", "match": "=>|->|==|!=|<=|>=|&&|\\|\\||\\+\\+|--|[+\\-*/%]=|[=+\\-*/%!<>]" }
+        { "name": "keyword.operator.lilscript", "match": "=>|->|==|!=|<=|>=|&&|\\|\\||\\||\\+\\+|--|[+\\-*/%]=|[=+\\-*/%!<>]" }
       ]
     }
   }
