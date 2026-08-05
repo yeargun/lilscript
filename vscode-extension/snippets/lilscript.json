@@ -1,0 +1,48 @@
+{
+  "Variable declaration": {
+    "prefix": "var",
+    "body": ["${1:int} ${2:name} = ${3:0};"],
+    "description": "Declare an initialized LilScript binding"
+  },
+  "Function": {
+    "prefix": "fn",
+    "body": [
+      "${1:int} ${2:name}(${3:int} ${4:value}) {",
+      "  return ${5:value};",
+      "}"
+    ],
+    "description": "Declare a typed LilScript function"
+  },
+  "Struct": {
+    "prefix": "struct",
+    "body": [
+      "struct ${1:Name} {",
+      "  ${2:int} ${3:field};",
+      "}"
+    ],
+    "description": "Declare an LilScript struct"
+  },
+  "Class": {
+    "prefix": "class",
+    "body": [
+      "class ${1:Name} {",
+      "  ${2:int} ${3:field};",
+      "",
+      "  init(${2:int} ${3:field}) {",
+      "    this.${3:field} = ${3:field};",
+      "  }",
+      "}"
+    ],
+    "description": "Declare an LilScript class and constructor"
+  },
+  "Typed map": {
+    "prefix": "map",
+    "body": ["map((${1:int} ${2:value}) => ${3:${2:value}})"],
+    "description": "Map an array with a typed callback"
+  },
+  "Extern function": {
+    "prefix": "extern",
+    "body": ["extern ${1:int} ${2:hostFunction}(${3:int} ${4:value});"],
+    "description": "Declare a typed host function"
+  }
+}

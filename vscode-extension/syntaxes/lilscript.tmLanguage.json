@@ -1,0 +1,147 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "LilScript",
+  "scopeName": "source.lilscript",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#templates" },
+    { "include": "#strings" },
+    { "include": "#declarations" },
+    { "include": "#types" },
+    { "include": "#keywords" },
+    { "include": "#constants" },
+    { "include": "#numbers" },
+    { "include": "#properties" },
+    { "include": "#operators" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.lilscript",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.lilscript",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.lilscript",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            { "name": "constant.character.escape.lilscript", "match": "\\\\." }
+          ]
+        }
+      ]
+    },
+    "templates": {
+      "patterns": [
+        {
+          "name": "string.quoted.template.lilscript",
+          "begin": "`",
+          "end": "`",
+          "patterns": [
+            { "name": "constant.character.escape.lilscript", "match": "\\\\." },
+            {
+              "name": "meta.embedded.expression.lilscript",
+              "begin": "\\$\\{",
+              "beginCaptures": { "0": { "name": "punctuation.section.embedded.begin.lilscript" } },
+              "end": "\\}",
+              "endCaptures": { "0": { "name": "punctuation.section.embedded.end.lilscript" } },
+              "patterns": [{ "include": "source.lilscript" }]
+            }
+          ]
+        }
+      ]
+    },
+    "declarations": {
+      "patterns": [
+        {
+          "match": "\\b(struct|class)\\s+([A-Za-z_$][A-Za-z0-9_$]*)",
+          "captures": {
+            "1": { "name": "storage.type.lilscript" },
+            "2": { "name": "entity.name.type.lilscript" }
+          }
+        },
+        {
+          "match": "\\b(extern)\\s+((?:int|float|string|bool|void|[A-Za-z_$][A-Za-z0-9_$]*)(?:\\[\\])?)\\s+([A-Za-z_$][A-Za-z0-9_$]*)(?=\\s*\\()",
+          "captures": {
+            "1": { "name": "storage.modifier.lilscript" },
+            "2": { "name": "storage.type.lilscript" },
+            "3": { "name": "entity.name.function.lilscript" }
+          }
+        },
+        {
+          "match": "\\b((?:int|float|string|bool|void|[A-Z][A-Za-z0-9_$]*)(?:\\[\\])?)\\s+([A-Za-z_$][A-Za-z0-9_$]*)(?=\\s*\\()",
+          "captures": {
+            "1": { "name": "storage.type.lilscript" },
+            "2": { "name": "entity.name.function.lilscript" }
+          }
+        },
+        {
+          "match": "\\b(new)\\s+([A-Za-z_$][A-Za-z0-9_$]*)",
+          "captures": {
+            "1": { "name": "keyword.operator.new.lilscript" },
+            "2": { "name": "entity.name.type.lilscript" }
+          }
+        }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "name": "storage.type.primitive.lilscript",
+          "match": "\\b(int|float|string|bool|void|auto|func)\\b"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.lilscript",
+          "match": "\\b(if|else|while|for|break|continue|return)\\b"
+        },
+        {
+          "name": "storage.type.lilscript",
+          "match": "\\b(struct|class|init|extern)\\b"
+        },
+        {
+          "name": "keyword.operator.new.lilscript",
+          "match": "\\bnew\\b"
+        },
+        {
+          "name": "variable.language.this.lilscript",
+          "match": "\\bthis\\b"
+        }
+      ]
+    },
+    "constants": {
+      "patterns": [
+        { "name": "constant.language.boolean.lilscript", "match": "\\b(true|false)\\b" }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        { "name": "constant.numeric.float.lilscript", "match": "\\b[0-9]+\\.[0-9]+(?:[eE][+-]?[0-9]+)?\\b" },
+        { "name": "constant.numeric.integer.lilscript", "match": "\\b(?:0|[1-9][0-9]*)\\b" }
+      ]
+    },
+    "properties": {
+      "patterns": [
+        { "name": "variable.other.property.lilscript", "match": "(?<=\\.)[A-Za-z_$][A-Za-z0-9_$]*" },
+        { "name": "support.function.builtin.lilscript", "match": "\\bprint(?=\\s*\\()" }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        { "name": "keyword.operator.lilscript", "match": "=>|->|==|!=|<=|>=|&&|\\|\\||\\+\\+|--|[+\\-*/%]=|[=+\\-*/%!<>]" }
+      ]
+    }
+  }
+}

@@ -1,0 +1,98 @@
+{
+  "name": "lilscript-vscode",
+  "displayName": "LilScript Language Support",
+  "description": "Syntax highlighting and language-server support for the standalone LilScript language.",
+  "version": "0.1.0",
+  "publisher": "lilscript",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters",
+    "Snippets"
+  ],
+  "keywords": [
+    "lilscript",
+    "language server",
+    "compiler",
+    "ssa"
+  ],
+  "activationEvents": [
+    "onLanguage:lilscript"
+  ],
+  "main": "./extension.js",
+  "extensionKind": [
+    "workspace"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "lilscript",
+        "aliases": [
+          "LilScript",
+          "lilscript"
+        ],
+        "extensions": [
+          ".lil"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "lilscript",
+        "scopeName": "source.lilscript",
+        "path": "./syntaxes/lilscript.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "lilscript",
+        "path": "./snippets/lilscript.json"
+      }
+    ],
+    "configuration": {
+      "title": "LilScript",
+      "properties": {
+        "lilscript.server.path": {
+          "type": "string",
+          "default": "",
+          "scope": "machine-overridable",
+          "description": "Absolute path to lilscript-lsp. Empty uses the bundled repository build or PATH."
+        },
+        "lilscript.trace.server": {
+          "type": "string",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "default": "off",
+          "scope": "window",
+          "description": "Trace communication between VS Code and lilscript-lsp."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "esbuild client/extension.js --bundle --minify --platform=node --format=cjs --external:vscode --outfile=extension.js",
+    "package": "npm run build && vsce package --no-dependencies --allow-missing-repository"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^10.1.0"
+  },
+  "devDependencies": {
+    "@vscode/vsce": "^3.9.2",
+    "esbuild": "^0.28.1"
+  },
+  "files": [
+    "extension.js",
+    "language-configuration.json",
+    "syntaxes",
+    "snippets",
+    "README.md",
+    "LICENSE"
+  ]
+}
