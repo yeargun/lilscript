@@ -2072,14 +2072,14 @@ impl LocalNames {
                 }
             }
         }
-        let constant_values = function
+        let stable_constructor_values = function
             .blocks
             .iter()
             .flat_map(|block| &block.instructions)
-            .filter_map(|instruction| {
-                matches!(instruction.op, ControlFlowOp::Const(_))
-                    .then_some(instruction.out)
-                    .flatten()
+            .filter_map(|instruction| match &instruction.op {
+                ControlFlowOp::Const(_) => instruction.out,
+                ControlFlowOp::Closure { captures, .. } if captures.is_empty() => instruction.out,
+                _ => None,
             })
             .collect::<AHashSet<_>>();
         for argument in function
@@ -2096,7 +2096,9 @@ impl LocalNames {
             })
             .flatten()
         {
-            if !constant_values.contains(argument) && !inlined_values.contains_key(argument) {
+            if !stable_constructor_values.contains(argument)
+                && !inlined_values.contains_key(argument)
+            {
                 stored_values.insert(*argument);
             }
         }
@@ -3153,6 +3155,7 @@ mod tests {
         }
         let context = LocalNames::new(function, false, &Mangler::default(), true);
         let mut checked_unwrap = false;
+        let mut checked_captureless_closure = false;
         for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
             let (Some(output), ControlFlowOp::NewClass { args, .. }) =
                 (instruction.out, &instruction.op)
@@ -3182,9 +3185,25 @@ mod tests {
                         context.value_name(*argument).unwrap()
                     );
                 }
+                let is_captureless_closure = function
+                    .blocks
+                    .iter()
+                    .flat_map(|block| &block.instructions)
+                    .any(|candidate| {
+                        candidate.out == Some(*argument)
+                            && matches!(
+                                &candidate.op,
+                                ControlFlowOp::Closure { captures, .. } if captures.is_empty()
+                            )
+                    });
+                if is_captureless_closure {
+                    checked_captureless_closure = true;
+                    assert!(!context.is_stored(*argument));
+                }
             }
         }
         assert!(checked_unwrap);
+        assert!(checked_captureless_closure);
     }
 
     #[test]
