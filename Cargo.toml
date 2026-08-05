@@ -1,0 +1,24 @@
+[package]
+name = "lilscript"
+version = "0.1.0"
+edition = "2021"
+description = "Compiler for the standalone LilScript language with optimized JavaScript code generation."
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+logos = "0.16"
+bumpalo = { version = "3", features = ["collections"] }
+clap = { version = "4.5", features = ["derive"] }
+ahash = "0.8"
+indexmap = "2"
+rayon = "1.10"
+lsp-server = "0.10"
+serde_json = "1"
+
+[lib]
+name = "lilscript"
+path = "src/lib.rs"
+
+[[bin]]
+name = "lilscript"
+path = "src/main.rs"

@@ -1,0 +1,8 @@
+/target/
+/benchmarks/build/
+/web/node_modules/
+/web/dist/
+/vscode-extension/node_modules/
+/vscode-extension/extension.js
+/vscode-extension/*.vsix
+.DS_Store

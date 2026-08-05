@@ -1,0 +1,1253 @@
+use std::fmt::Write;
+
+use ahash::{AHashMap, AHashSet};
+
+use crate::codegen_js::{CodegenError, CompileError};
+use crate::ir::{
+    BlockId, ConstValue, ControlFlowFunction, ControlFlowInstruction, ControlFlowModule,
+    ControlFlowOp, FunctionId, FunctionKind, Intrinsic, IrBinaryOp, IrUnaryOp, TemplateOperand,
+    Terminator, ValueId,
+};
+use crate::lower::lower_to_control_flow;
+use crate::optimizer::optimize_control_flow;
+use crate::semantic::{analyze, Type};
+use crate::{ast::Program, span::Span};
+
+pub fn compile_to_c<'ast, 'src>(program: &Program<'ast, 'src>) -> Result<String, CompileError> {
+    let semantics = analyze(program)?;
+    let mut ir = lower_to_control_flow(program, &semantics)?;
+    optimize_control_flow(&mut ir)?;
+    emit_native_c(&ir).map_err(Into::into)
+}
+
+pub fn emit_native_c(module: &ControlFlowModule<'_>) -> Result<String, CodegenError> {
+    NativeEmitter { module }.emit()
+}
+
+struct NativeEmitter<'module, 'src> {
+    module: &'module ControlFlowModule<'src>,
+}
+
+impl<'module, 'src> NativeEmitter<'module, 'src> {
+    fn emit(&self) -> Result<String, CodegenError> {
+        let mut out = String::from(
+            "#include <stdbool.h>\n#include <ctype.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n",
+        );
+        out.push_str(
+            "static inline int32_t lilscript_idiv(int32_t a,int32_t b){if(!b)return 0;return a==INT32_MIN&&b==-1?INT32_MIN:a/b;}\n",
+        );
+        out.push_str(
+            "static inline int32_t lilscript_irem(int32_t a,int32_t b){if(!b)return 0;return a==INT32_MIN&&b==-1?0:a%b;}\n",
+        );
+        out.push_str(
+            "typedef struct LilScriptArrayHeader{void*data;int32_t len,cap;}*LilScriptArray;typedef struct{void*fn;void*env;}LilScriptClosure;typedef char* LilScriptString;\n",
+        );
+        out.push_str(
+            "static inline LilScriptArray lilscript_array(int32_t n,size_t z){LilScriptArray a=malloc(sizeof*a);if(!a)abort();a->data=calloc((size_t)n,z);a->len=a->cap=n;if(n&&!a->data)abort();return a;}\n",
+        );
+        out.push_str(
+            "static inline void*lilscript_push(LilScriptArray a,size_t z){if(a->len==a->cap){a->cap=a->cap?a->cap*2:4;a->data=realloc(a->data,(size_t)a->cap*z);if(!a->data)abort();}return(char*)a->data+(size_t)a->len++*z;}\n",
+        );
+        out.push_str(
+            "static inline void*lilscript_pop(LilScriptArray a,size_t z){if(!a->len)abort();return(char*)a->data+(size_t)--a->len*z;}\n",
+        );
+        out.push_str(
+            "static inline LilScriptString lilscript_dup(const char*s){size_t n=strlen(s)+1;char*r=malloc(n);if(!r)abort();memcpy(r,s,n);return r;}\n",
+        );
+        out.push_str(
+            "static inline LilScriptString lilscript_cat(const char*a,const char*b){size_t x=strlen(a),y=strlen(b);char*r=malloc(x+y+1);if(!r)abort();memcpy(r,a,x);memcpy(r+x,b,y+1);return r;}\n",
+        );
+        out.push_str(
+            "static inline LilScriptString lilscript_i32(int32_t v){char b[16];snprintf(b,sizeof b,\"%d\",v);return lilscript_dup(b);}\n",
+        );
+        out.push_str(
+            "static inline LilScriptString lilscript_f64(double v){char b[32];snprintf(b,sizeof b,\"%.17g\",v);return lilscript_dup(b);}\n",
+        );
+        out.push_str(
+            "static inline bool lilscript_ends(const char*s,const char*x){size_t a=strlen(s),b=strlen(x);return a>=b&&!memcmp(s+a-b,x,b);}\n",
+        );
+        out.push_str(
+            "static inline LilScriptString lilscript_case(const char*s,bool upper){LilScriptString r=lilscript_dup(s);for(char*p=r;*p;p++)*p=(char)(upper?toupper((unsigned char)*p):tolower((unsigned char)*p));return r;}\n",
+        );
+
+        self.emit_aggregate_types(&mut out)?;
+
+        for global in &self.module.globals {
+            writeln!(out, "static {} g{};", c_type(&global.ty), global.symbol.0)
+                .expect("writing to String cannot fail");
+        }
+        for function in &self.module.functions {
+            if function.live && function.kind == FunctionKind::Extern {
+                self.emit_extern(function, &mut out)?;
+            }
+        }
+        for function in &self.module.functions {
+            if function.live
+                && function.kind == FunctionKind::Closure
+                && function.capture_count != 0
+            {
+                write!(out, "typedef struct{{").expect("writing to String cannot fail");
+                for (index, capture) in function.params[..function.capture_count].iter().enumerate()
+                {
+                    write!(out, "{} c{index};", c_type(&capture.ty))
+                        .expect("writing to String cannot fail");
+                }
+                writeln!(out, "}}E{};", function.id.0).expect("writing to String cannot fail");
+            }
+        }
+        for function in &self.module.functions {
+            if !function.live || matches!(function.kind, FunctionKind::Entry | FunctionKind::Extern)
+            {
+                continue;
+            }
+            self.emit_function_signature(function, false, &mut out)?;
+            out.push_str(";\n");
+        }
+        for function in &self.module.functions {
+            if !function.live || matches!(function.kind, FunctionKind::Entry | FunctionKind::Extern)
+            {
+                continue;
+            }
+            self.emit_function(function, &mut out)?;
+        }
+        self.emit_function(self.function(self.module.entry)?, &mut out)?;
+        Ok(out)
+    }
+
+    fn emit_aggregate_types(&self, out: &mut String) -> Result<(), CodegenError> {
+        for layout in &self.module.structs {
+            let name = aggregate_type_name("Struct", layout.name);
+            writeln!(out, "typedef struct {name} {name};").expect("writing to String cannot fail");
+        }
+        for layout in &self.module.classes {
+            let name = aggregate_type_name("Class", layout.name);
+            writeln!(out, "typedef struct {name}*{name};").expect("writing to String cannot fail");
+        }
+
+        let mut emitted = AHashSet::new();
+        while emitted.len() != self.module.structs.len() {
+            let mut changed = false;
+            for layout in &self.module.structs {
+                if emitted.contains(layout.name)
+                    || layout.fields.iter().any(
+                        |field| matches!(&field.ty, Type::Struct(name) if !emitted.contains(name)),
+                    )
+                {
+                    continue;
+                }
+                self.emit_aggregate_body("Struct", layout, out)?;
+                emitted.insert(layout.name);
+                changed = true;
+            }
+            if !changed {
+                return Err(CodegenError::new(
+                    self.function(self.module.entry)?.span,
+                    "native value structs contain a recursive by-value cycle",
+                ));
+            }
+        }
+        for layout in &self.module.classes {
+            self.emit_aggregate_body("Class", layout, out)?;
+        }
+        Ok(())
+    }
+
+    fn emit_aggregate_body(
+        &self,
+        kind: &str,
+        layout: &crate::ir::AggregateLayout<'src>,
+        out: &mut String,
+    ) -> Result<(), CodegenError> {
+        let name = aggregate_type_name(kind, layout.name);
+        write!(out, "struct {name}{{").expect("writing to String cannot fail");
+        for field in &layout.fields {
+            write!(out, "{} f{};", c_type(&field.ty), field.index)
+                .expect("writing to String cannot fail");
+        }
+        out.push_str("};\n");
+        Ok(())
+    }
+
+    fn emit_function_signature(
+        &self,
+        function: &ControlFlowFunction<'src>,
+        names: bool,
+        out: &mut String,
+    ) -> Result<(), CodegenError> {
+        write!(
+            out,
+            "static {} f{}(",
+            c_type(&function.return_type),
+            function.id.0
+        )
+        .expect("writing to String cannot fail");
+        if function.kind == FunctionKind::Closure {
+            out.push_str("void*");
+            if names {
+                out.push_str(" env");
+            }
+            for param in &function.params[function.capture_count..] {
+                out.push(',');
+                out.push_str(&c_type(&param.ty));
+                if names {
+                    write!(out, " v{}", param.value.0).expect("writing to String cannot fail");
+                }
+            }
+        } else if function.params.is_empty() {
+            out.push_str("void");
+        } else {
+            for (index, param) in function.params.iter().enumerate() {
+                if index != 0 {
+                    out.push(',');
+                }
+                out.push_str(&c_type(&param.ty));
+                if names {
+                    write!(out, " v{}", param.value.0).expect("writing to String cannot fail");
+                }
+            }
+        }
+        out.push(')');
+        Ok(())
+    }
+
+    fn emit_extern(
+        &self,
+        function: &ControlFlowFunction<'src>,
+        out: &mut String,
+    ) -> Result<(), CodegenError> {
+        let name = function
+            .name
+            .ok_or_else(|| CodegenError::new(function.span, "extern function has no name"))?;
+        write!(out, "extern {} {name}(", c_type(&function.return_type))
+            .expect("writing to String cannot fail");
+        self.emit_parameter_types(function, out)?;
+        out.push_str(");\n");
+        Ok(())
+    }
+
+    fn emit_parameter_types(
+        &self,
+        function: &ControlFlowFunction<'src>,
+        out: &mut String,
+    ) -> Result<(), CodegenError> {
+        if function.params.is_empty() {
+            out.push_str("void");
+        } else {
+            for (index, param) in function.params.iter().enumerate() {
+                if index != 0 {
+                    out.push(',');
+                }
+                out.push_str(&c_type(&param.ty));
+            }
+        }
+        Ok(())
+    }
+
+    fn emit_function(
+        &self,
+        function: &ControlFlowFunction<'src>,
+        out: &mut String,
+    ) -> Result<(), CodegenError> {
+        let entry = function.kind == FunctionKind::Entry;
+        if entry {
+            out.push_str("int main(void){");
+        } else {
+            self.emit_function_signature(function, true, out)?;
+            out.push('{');
+        }
+
+        let types = value_types(function);
+        for (value, ty) in &types {
+            let declared_parameter = if function.kind == FunctionKind::Closure {
+                function.params[function.capture_count..]
+                    .iter()
+                    .any(|param| param.value == *value)
+            } else {
+                function.params.iter().any(|param| param.value == *value)
+            };
+            if declared_parameter {
+                continue;
+            }
+            if *ty == Type::Void {
+                continue;
+            }
+            write!(out, "{} v{};", c_type(ty), value.0).expect("writing to String cannot fail");
+        }
+        if function.kind == FunctionKind::Closure {
+            if function.capture_count == 0 {
+                out.push_str("(void)env;");
+            } else {
+                write!(out, "E{}*e=(E{}*)env;", function.id.0, function.id.0)
+                    .expect("writing to String cannot fail");
+                for (index, capture) in function.params[..function.capture_count].iter().enumerate()
+                {
+                    write!(out, "v{}=e->c{index};", capture.value.0)
+                        .expect("writing to String cannot fail");
+                }
+            }
+        }
+        write!(out, "uint32_t s={};for(;;)switch(s){{", function.entry.0)
+            .expect("writing to String cannot fail");
+
+        let mut phi_temp = 0usize;
+        for block in &function.blocks {
+            write!(out, "case {}:{{", block.id.0).expect("writing to String cannot fail");
+            for instruction in &block.instructions {
+                self.emit_instruction(instruction, &types, out)?;
+            }
+            self.emit_terminator(function, block.id, &types, &mut phi_temp, out)?;
+            out.push('}');
+        }
+        out.push('}');
+        if entry {
+            out.push_str("return 0;");
+        }
+        out.push_str("}\n");
+        Ok(())
+    }
+
+    fn emit_instruction(
+        &self,
+        instruction: &ControlFlowInstruction<'src>,
+        types: &AHashMap<ValueId, Type<'src>>,
+        out: &mut String,
+    ) -> Result<(), CodegenError> {
+        match &instruction.op {
+            ControlFlowOp::Array(values) => {
+                let result = required_output(instruction)?;
+                let Some(Type::Array(element)) = instruction.ty.as_ref() else {
+                    return Err(CodegenError::new(
+                        instruction.span,
+                        "array instruction has no array type",
+                    ));
+                };
+                write!(
+                    out,
+                    "v{}=lilscript_array({},sizeof({}));",
+                    result.0,
+                    values.len(),
+                    c_type(element)
+                )
+                .expect("writing to String cannot fail");
+                for (index, value) in values.iter().enumerate() {
+                    write!(
+                        out,
+                        "(({}*)v{}->data)[{index}]=v{};",
+                        c_type(element),
+                        result.0,
+                        value.0
+                    )
+                    .expect("writing to String cannot fail");
+                }
+                return Ok(());
+            }
+            ControlFlowOp::NewClass {
+                class,
+                constructor,
+                args,
+            } => {
+                let result = required_output(instruction)?;
+                write!(
+                    out,
+                    "v{}=calloc(1,sizeof*v{});if(!v{})abort();",
+                    result.0, result.0, result.0
+                )
+                .expect("writing to String cannot fail");
+                let layout = self
+                    .module
+                    .classes
+                    .iter()
+                    .find(|layout| layout.name == *class)
+                    .ok_or_else(|| {
+                        CodegenError::new(instruction.span, "missing native class layout")
+                    })?;
+                for field in &layout.fields {
+                    match &field.ty {
+                        Type::String => write!(out, "v{}->f{}=\"\";", result.0, field.index)
+                            .expect("writing to String cannot fail"),
+                        Type::Array(element) => write!(
+                            out,
+                            "v{}->f{}=lilscript_array(0,sizeof({}));",
+                            result.0,
+                            field.index,
+                            c_type(element)
+                        )
+                        .expect("writing to String cannot fail"),
+                        _ => {}
+                    }
+                }
+                if let Some(constructor) = constructor {
+                    let mut call_args = vec![result];
+                    call_args.extend(args);
+                    out.push_str(&render_c_call(
+                        &self.native_function_name(*constructor)?,
+                        &call_args,
+                    ));
+                    out.push(';');
+                }
+                return Ok(());
+            }
+            ControlFlowOp::Closure { function, captures } => {
+                let result = required_output(instruction)?;
+                if captures.is_empty() {
+                    write!(
+                        out,
+                        "v{}=(LilScriptClosure){{(void*)f{},NULL}};",
+                        result.0, function.0
+                    )
+                    .expect("writing to String cannot fail");
+                } else {
+                    write!(
+                        out,
+                        "E{}*e{}=malloc(sizeof(E{}));if(!e{})abort();",
+                        function.0, result.0, function.0, result.0
+                    )
+                    .expect("writing to String cannot fail");
+                    for (index, capture) in captures.iter().enumerate() {
+                        write!(out, "e{}->c{index}=v{};", result.0, capture.0)
+                            .expect("writing to String cannot fail");
+                    }
+                    write!(
+                        out,
+                        "v{}=(LilScriptClosure){{(void*)f{},e{}}};",
+                        result.0, function.0, result.0
+                    )
+                    .expect("writing to String cannot fail");
+                }
+                return Ok(());
+            }
+            ControlFlowOp::FieldSet {
+                object,
+                index,
+                value,
+                ..
+            } => {
+                let access = match types.get(object) {
+                    Some(Type::Struct(_)) => ".",
+                    Some(Type::Class(_)) => "->",
+                    _ => {
+                        return Err(CodegenError::new(
+                            instruction.span,
+                            "native field store requires an aggregate",
+                        ));
+                    }
+                };
+                write!(out, "v{}{access}f{index}=v{};", object.0, value.0)
+                    .expect("writing to String cannot fail");
+                return Ok(());
+            }
+            ControlFlowOp::IndexSet {
+                object,
+                index,
+                value,
+            } => {
+                let Some(Type::Array(element)) = types.get(object) else {
+                    return Err(CodegenError::new(
+                        instruction.span,
+                        "indexed native store requires an array",
+                    ));
+                };
+                write!(
+                    out,
+                    "(({}*)v{}->data)[v{}]=v{};",
+                    c_type(element),
+                    object.0,
+                    index.0,
+                    value.0
+                )
+                .expect("writing to String cannot fail");
+                return Ok(());
+            }
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::ArrayMap,
+                receiver: Some(receiver),
+                args,
+            } => {
+                let callback = *args.first().ok_or_else(|| {
+                    CodegenError::new(instruction.span, "array map requires a callback")
+                })?;
+                self.emit_array_map(instruction, *receiver, callback, types, out)?;
+                return Ok(());
+            }
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::ArrayFilter,
+                receiver: Some(receiver),
+                args,
+            } => {
+                self.emit_array_filter(instruction, *receiver, args, types, out)?;
+                return Ok(());
+            }
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::ArrayReduce,
+                receiver: Some(receiver),
+                args,
+            } => {
+                self.emit_array_reduce(instruction, *receiver, args, types, out)?;
+                return Ok(());
+            }
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::ArrayForEach,
+                receiver: Some(receiver),
+                args,
+            } => {
+                self.emit_array_for_each(instruction, *receiver, args, types, out)?;
+                return Ok(());
+            }
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::ArrayPush | Intrinsic::ArrayPop,
+                receiver: Some(receiver),
+                args,
+            } => {
+                self.emit_array_mutation(instruction, *receiver, args, types, out)?;
+                return Ok(());
+            }
+            ControlFlowOp::Template(parts) => {
+                self.emit_template(instruction, parts, types, out)?;
+                return Ok(());
+            }
+            ControlFlowOp::StoreGlobal { global, value } => {
+                write!(out, "g{}=v{};", global.0, value.0).expect("writing to String cannot fail");
+                return Ok(());
+            }
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::Print,
+                args,
+                ..
+            } => {
+                let value = *args
+                    .first()
+                    .ok_or_else(|| CodegenError::new(instruction.span, "print requires a value"))?;
+                self.emit_print(value, &types[&value], instruction.span, out)?;
+                return Ok(());
+            }
+            _ => {}
+        }
+
+        let expression = self.render_instruction(instruction, types)?;
+        if let Some(value) = instruction.out {
+            write!(out, "v{}={expression};", value.0).expect("writing to String cannot fail");
+        } else if !expression.is_empty() {
+            out.push_str(&expression);
+            out.push(';');
+        }
+        Ok(())
+    }
+
+    fn emit_array_map(
+        &self,
+        instruction: &ControlFlowInstruction<'src>,
+        receiver: ValueId,
+        callback: ValueId,
+        types: &AHashMap<ValueId, Type<'src>>,
+        out: &mut String,
+    ) -> Result<(), CodegenError> {
+        let result = required_output(instruction)?;
+        let Some(Type::Array(input)) = types.get(&receiver) else {
+            return Err(CodegenError::new(
+                instruction.span,
+                "array map receiver has no array type",
+            ));
+        };
+        let Some(Type::Array(output)) = instruction.ty.as_ref() else {
+            return Err(CodegenError::new(
+                instruction.span,
+                "array map output has no array type",
+            ));
+        };
+        let Some(Type::Function(signature)) = types.get(&callback) else {
+            return Err(CodegenError::new(
+                instruction.span,
+                "array map callback has no function type",
+            ));
+        };
+        write!(
+            out,
+            "v{}=lilscript_array(v{}->len,sizeof({}));for(int32_t i{}=0;i{}<v{}->len;i{}++){{",
+            result.0,
+            receiver.0,
+            c_type(output),
+            result.0,
+            result.0,
+            receiver.0,
+            result.0
+        )
+        .expect("writing to String cannot fail");
+        let item = format!("(({}*)v{}->data)[i{}]", c_type(input), receiver.0, result.0);
+        let call = self.render_closure_call(callback, &[item], signature, instruction.span)?;
+        write!(
+            out,
+            "(({}*)v{}->data)[i{}]={call};}}",
+            c_type(output),
+            result.0,
+            result.0
+        )
+        .expect("writing to String cannot fail");
+        Ok(())
+    }
+
+    fn emit_array_filter(
+        &self,
+        instruction: &ControlFlowInstruction<'src>,
+        receiver: ValueId,
+        args: &[ValueId],
+        types: &AHashMap<ValueId, Type<'src>>,
+        out: &mut String,
+    ) -> Result<(), CodegenError> {
+        let result = required_output(instruction)?;
+        let callback = *args.first().ok_or_else(|| {
+            CodegenError::new(instruction.span, "array filter requires a callback")
+        })?;
+        let Some(Type::Array(element)) = types.get(&receiver) else {
+            return Err(CodegenError::new(
+                instruction.span,
+                "array filter receiver has no array type",
+            ));
+        };
+        let signature = closure_signature(types, callback, instruction.span)?;
+        let element_type = c_type(element);
+        write!(
+            out,
+            "v{}=lilscript_array(v{}->len,sizeof({element_type}));v{}->len=0;for(int32_t i{}=0;i{}<v{}->len;i{}++){{",
+            result.0, receiver.0, result.0, result.0, result.0, receiver.0, result.0
+        )
+        .expect("writing to String cannot fail");
+        let item = format!("(({element_type}*)v{}->data)[i{}]", receiver.0, result.0);
+        let call = self.render_closure_call(
+            callback,
+            std::slice::from_ref(&item),
+            signature,
+            instruction.span,
+        )?;
+        write!(
+            out,
+            "if({call})(({element_type}*)v{}->data)[v{}->len++]={item};}}",
+            result.0, result.0
+        )
+        .expect("writing to String cannot fail");
+        Ok(())
+    }
+
+    fn emit_array_reduce(
+        &self,
+        instruction: &ControlFlowInstruction<'src>,
+        receiver: ValueId,
+        args: &[ValueId],
+        types: &AHashMap<ValueId, Type<'src>>,
+        out: &mut String,
+    ) -> Result<(), CodegenError> {
+        let result = required_output(instruction)?;
+        let [callback, initial] = args else {
+            return Err(CodegenError::new(
+                instruction.span,
+                "array reduce requires a callback and initial value",
+            ));
+        };
+        let Some(Type::Array(element)) = types.get(&receiver) else {
+            return Err(CodegenError::new(
+                instruction.span,
+                "array reduce receiver has no array type",
+            ));
+        };
+        let signature = closure_signature(types, *callback, instruction.span)?;
+        let element_type = c_type(element);
+        write!(
+            out,
+            "v{}=v{};for(int32_t i{}=0;i{}<v{}->len;i{}++){{",
+            result.0, initial.0, result.0, result.0, receiver.0, result.0
+        )
+        .expect("writing to String cannot fail");
+        let args = [
+            format!("v{}", result.0),
+            format!("(({element_type}*)v{}->data)[i{}]", receiver.0, result.0),
+        ];
+        let call = self.render_closure_call(*callback, &args, signature, instruction.span)?;
+        write!(out, "v{}={call};}}", result.0).expect("writing to String cannot fail");
+        Ok(())
+    }
+
+    fn emit_array_for_each(
+        &self,
+        instruction: &ControlFlowInstruction<'src>,
+        receiver: ValueId,
+        args: &[ValueId],
+        types: &AHashMap<ValueId, Type<'src>>,
+        out: &mut String,
+    ) -> Result<(), CodegenError> {
+        let callback = *args.first().ok_or_else(|| {
+            CodegenError::new(instruction.span, "array forEach requires a callback")
+        })?;
+        let Some(Type::Array(element)) = types.get(&receiver) else {
+            return Err(CodegenError::new(
+                instruction.span,
+                "array forEach receiver has no array type",
+            ));
+        };
+        let signature = closure_signature(types, callback, instruction.span)?;
+        let element_type = c_type(element);
+        write!(
+            out,
+            "for(int32_t i{}=0;i{}<v{}->len;i{}++){{",
+            callback.0, callback.0, receiver.0, callback.0
+        )
+        .expect("writing to String cannot fail");
+        let item = format!("(({element_type}*)v{}->data)[i{}]", receiver.0, callback.0);
+        let call = self.render_closure_call(
+            callback,
+            std::slice::from_ref(&item),
+            signature,
+            instruction.span,
+        )?;
+        out.push_str(&call);
+        out.push_str(";}");
+        Ok(())
+    }
+
+    fn emit_array_mutation(
+        &self,
+        instruction: &ControlFlowInstruction<'src>,
+        receiver: ValueId,
+        args: &[ValueId],
+        types: &AHashMap<ValueId, Type<'src>>,
+        out: &mut String,
+    ) -> Result<(), CodegenError> {
+        let result = required_output(instruction)?;
+        let Some(Type::Array(element)) = types.get(&receiver) else {
+            return Err(CodegenError::new(
+                instruction.span,
+                "array mutation receiver has no array type",
+            ));
+        };
+        let element_type = c_type(element);
+        match instruction.op {
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::ArrayPush,
+                ..
+            } => {
+                let value = args.first().ok_or_else(|| {
+                    CodegenError::new(instruction.span, "array push requires a value")
+                })?;
+                write!(
+                    out,
+                    "*({element_type}*)lilscript_push(v{},sizeof({element_type}))=v{};v{}=v{}->len;",
+                    receiver.0, value.0, result.0, receiver.0
+                )
+                .expect("writing to String cannot fail");
+            }
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::ArrayPop,
+                ..
+            } => {
+                write!(
+                    out,
+                    "v{}=*({element_type}*)lilscript_pop(v{},sizeof({element_type}));",
+                    result.0, receiver.0
+                )
+                .expect("writing to String cannot fail");
+            }
+            _ => unreachable!(),
+        }
+        Ok(())
+    }
+
+    fn emit_template(
+        &self,
+        instruction: &ControlFlowInstruction<'src>,
+        parts: &[TemplateOperand],
+        types: &AHashMap<ValueId, Type<'src>>,
+        out: &mut String,
+    ) -> Result<(), CodegenError> {
+        let result = required_output(instruction)?;
+        write!(out, "v{}=lilscript_dup(\"\");", result.0).expect("writing to String cannot fail");
+        for part in parts {
+            let value = match part {
+                TemplateOperand::String(value) => format!("\"{value}\""),
+                TemplateOperand::Value(value) => {
+                    self.render_string_value(*value, &types[value], instruction.span)?
+                }
+            };
+            write!(out, "v{}=lilscript_cat(v{},{value});", result.0, result.0)
+                .expect("writing to String cannot fail");
+        }
+        Ok(())
+    }
+
+    fn render_instruction(
+        &self,
+        instruction: &ControlFlowInstruction<'src>,
+        types: &AHashMap<ValueId, Type<'src>>,
+    ) -> Result<String, CodegenError> {
+        let value = |value: ValueId| format!("v{}", value.0);
+        Ok(match &instruction.op {
+            ControlFlowOp::Const(value) => render_c_const(value),
+            ControlFlowOp::Unary { op, value: operand } => match (op, instruction.ty.as_ref()) {
+                (IrUnaryOp::Neg, Some(Type::Int)) => {
+                    format!("(int32_t)(0u-(uint32_t){})", value(*operand))
+                }
+                (IrUnaryOp::Neg, _) => format!("-{}", value(*operand)),
+                (IrUnaryOp::Not, _) => format!("!{}", value(*operand)),
+            },
+            ControlFlowOp::Binary { op, lhs, rhs } => self.render_binary(
+                *op,
+                *lhs,
+                *rhs,
+                instruction.ty.as_ref(),
+                types,
+                instruction.span,
+            )?,
+            ControlFlowOp::Struct { name, fields } => {
+                let record = aggregate_type_name("Struct", name);
+                let mut value = format!("({record}){{");
+                for (index, field) in fields.iter().enumerate() {
+                    if index != 0 {
+                        value.push(',');
+                    }
+                    write!(value, "v{}", field.0).expect("writing to String cannot fail");
+                }
+                value.push('}');
+                value
+            }
+            ControlFlowOp::LoadGlobal(symbol) => format!("g{}", symbol.0),
+            ControlFlowOp::CallDirect { function, args } => {
+                let name = self.native_function_name(*function)?;
+                render_c_call(&name, args)
+            }
+            ControlFlowOp::CallValue { callee, args } => {
+                let Some(Type::Function(signature)) = types.get(callee) else {
+                    return Err(CodegenError::new(
+                        instruction.span,
+                        "native indirect call has no function type",
+                    ));
+                };
+                let args = args
+                    .iter()
+                    .map(|value| format!("v{}", value.0))
+                    .collect::<Vec<_>>();
+                self.render_closure_call(*callee, &args, signature, instruction.span)?
+            }
+            ControlFlowOp::IndexGet { object, index } => {
+                let Some(Type::Array(element)) = types.get(object) else {
+                    return Err(CodegenError::new(
+                        instruction.span,
+                        "indexed native load requires an array",
+                    ));
+                };
+                format!("(({}*)v{}->data)[v{}]", c_type(element), object.0, index.0)
+            }
+            ControlFlowOp::FieldGet { object, index, .. } => {
+                let access = match types.get(object) {
+                    Some(Type::Struct(_)) => ".",
+                    Some(Type::Class(_)) => "->",
+                    _ => {
+                        return Err(CodegenError::new(
+                            instruction.span,
+                            "native field load requires an aggregate",
+                        ));
+                    }
+                };
+                format!("v{}{access}f{index}", object.0)
+            }
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::ArrayLength,
+                receiver: Some(receiver),
+                ..
+            } => format!("v{}->len", receiver.0),
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::StringLength,
+                receiver: Some(receiver),
+                ..
+            } => format!("(int32_t)strlen(v{})", receiver.0),
+            ControlFlowOp::Intrinsic {
+                intrinsic:
+                    intrinsic @ (Intrinsic::StringIncludes
+                    | Intrinsic::StringStartsWith
+                    | Intrinsic::StringEndsWith),
+                receiver: Some(receiver),
+                args,
+            } => {
+                let arg = args.first().ok_or_else(|| {
+                    CodegenError::new(instruction.span, "string method requires an argument")
+                })?;
+                match intrinsic {
+                    Intrinsic::StringIncludes => {
+                        format!("strstr(v{},v{})!=NULL", receiver.0, arg.0)
+                    }
+                    Intrinsic::StringStartsWith => {
+                        format!("strncmp(v{},v{},strlen(v{}))==0", receiver.0, arg.0, arg.0)
+                    }
+                    Intrinsic::StringEndsWith => {
+                        format!("lilscript_ends(v{},v{})", receiver.0, arg.0)
+                    }
+                    _ => unreachable!(),
+                }
+            }
+            ControlFlowOp::Intrinsic {
+                intrinsic: intrinsic @ (Intrinsic::StringToUpperCase | Intrinsic::StringToLowerCase),
+                receiver: Some(receiver),
+                ..
+            } => format!(
+                "lilscript_case(v{}, {})",
+                receiver.0,
+                matches!(intrinsic, Intrinsic::StringToUpperCase)
+            ),
+            ControlFlowOp::StoreLocal { .. } | ControlFlowOp::LoadLocal(_) => {
+                return Err(CodegenError::new(
+                    instruction.span,
+                    "native backend received locals before SSA promotion",
+                ));
+            }
+            _ => {
+                return Err(CodegenError::new(
+                    instruction.span,
+                    "operation is not supported by the native backend yet",
+                ));
+            }
+        })
+    }
+
+    fn render_closure_call(
+        &self,
+        callee: ValueId,
+        args: &[String],
+        signature: &crate::semantic::FunctionType<'src>,
+        _span: Span,
+    ) -> Result<String, CodegenError> {
+        let mut cast = format!("{}(*)(void*", c_type(&signature.return_type));
+        for param in &signature.params {
+            cast.push(',');
+            cast.push_str(&c_type(param));
+        }
+        cast.push(')');
+        let mut call = format!("((({cast})v{}.fn)(v{}.env", callee.0, callee.0);
+        for arg in args {
+            call.push(',');
+            call.push_str(arg);
+        }
+        call.push_str("))");
+        Ok(call)
+    }
+
+    fn render_string_value(
+        &self,
+        value: ValueId,
+        ty: &Type<'src>,
+        span: Span,
+    ) -> Result<String, CodegenError> {
+        Ok(match ty {
+            Type::String => format!("v{}", value.0),
+            Type::Int => format!("lilscript_i32(v{})", value.0),
+            Type::Float => format!("lilscript_f64(v{})", value.0),
+            Type::Bool => format!("(v{}?\"true\":\"false\")", value.0),
+            _ => {
+                return Err(CodegenError::new(
+                    span,
+                    "value cannot be converted to a native string",
+                ));
+            }
+        })
+    }
+
+    fn render_binary(
+        &self,
+        op: IrBinaryOp,
+        lhs: ValueId,
+        rhs: ValueId,
+        output_type: Option<&Type<'src>>,
+        types: &AHashMap<ValueId, Type<'src>>,
+        span: Span,
+    ) -> Result<String, CodegenError> {
+        let lhs_name = format!("v{}", lhs.0);
+        let rhs_name = format!("v{}", rhs.0);
+        if output_type == Some(&Type::Int) {
+            return Ok(match op {
+                IrBinaryOp::Add => {
+                    format!("(int32_t)((uint32_t){lhs_name}+(uint32_t){rhs_name})")
+                }
+                IrBinaryOp::Sub => {
+                    format!("(int32_t)((uint32_t){lhs_name}-(uint32_t){rhs_name})")
+                }
+                IrBinaryOp::Mul => {
+                    format!("(int32_t)((uint32_t){lhs_name}*(uint32_t){rhs_name})")
+                }
+                IrBinaryOp::Div => format!("lilscript_idiv({lhs_name},{rhs_name})"),
+                IrBinaryOp::Mod => format!("lilscript_irem({lhs_name},{rhs_name})"),
+                _ => {
+                    return Err(CodegenError::new(span, "invalid integer binary operation"));
+                }
+            });
+        }
+        let operand_type = types.get(&lhs);
+        if output_type == Some(&Type::String) && op == IrBinaryOp::Add {
+            return Ok(format!(
+                "lilscript_cat({},{})",
+                self.render_string_value(lhs, &types[&lhs], span)?,
+                self.render_string_value(rhs, &types[&rhs], span)?
+            ));
+        }
+        if matches!(operand_type, Some(Type::String)) {
+            return match op {
+                IrBinaryOp::Eq => Ok(format!("!strcmp({lhs_name},{rhs_name})")),
+                IrBinaryOp::NotEq => Ok(format!("strcmp({lhs_name},{rhs_name})!=0")),
+                IrBinaryOp::Less => Ok(format!("strcmp({lhs_name},{rhs_name})<0")),
+                IrBinaryOp::LessEq => Ok(format!("strcmp({lhs_name},{rhs_name})<=0")),
+                IrBinaryOp::Greater => Ok(format!("strcmp({lhs_name},{rhs_name})>0")),
+                IrBinaryOp::GreaterEq => Ok(format!("strcmp({lhs_name},{rhs_name})>=0")),
+                _ => Err(CodegenError::new(
+                    span,
+                    "native string operation is not implemented yet",
+                )),
+            };
+        }
+        Ok(format!("({lhs_name}{}{rhs_name})", c_binary_operator(op)))
+    }
+
+    fn emit_print(
+        &self,
+        value: ValueId,
+        ty: &Type<'src>,
+        span: Span,
+        out: &mut String,
+    ) -> Result<(), CodegenError> {
+        match ty {
+            Type::Int => write!(out, "printf(\"%d\\n\",v{});", value.0),
+            Type::Float => write!(out, "printf(\"%.17g\\n\",v{});", value.0),
+            Type::Bool => write!(out, "puts(v{}?\"true\":\"false\");", value.0),
+            Type::String => write!(out, "puts(v{});", value.0),
+            _ => {
+                return Err(CodegenError::new(
+                    span,
+                    "native print does not support this type yet",
+                ));
+            }
+        }
+        .expect("writing to String cannot fail");
+        Ok(())
+    }
+
+    fn emit_terminator(
+        &self,
+        function: &ControlFlowFunction<'src>,
+        from: BlockId,
+        types: &AHashMap<ValueId, Type<'src>>,
+        phi_temp: &mut usize,
+        out: &mut String,
+    ) -> Result<(), CodegenError> {
+        let block = &function.blocks[from.0 as usize];
+        match block
+            .terminator
+            .as_ref()
+            .ok_or_else(|| CodegenError::new(block.span, "IR block has no terminator"))?
+        {
+            Terminator::Jump(target) => {
+                self.emit_phi_edge(function, from, *target, types, phi_temp, out)?;
+                write!(out, "s={};continue;", target.0).expect("writing to String cannot fail");
+            }
+            Terminator::Branch {
+                condition,
+                then_block,
+                else_block,
+            } => {
+                write!(out, "if(v{}){{", condition.0).expect("writing to String cannot fail");
+                self.emit_phi_edge(function, from, *then_block, types, phi_temp, out)?;
+                write!(out, "s={};}}else{{", then_block.0).expect("writing to String cannot fail");
+                self.emit_phi_edge(function, from, *else_block, types, phi_temp, out)?;
+                write!(out, "s={};}}continue;", else_block.0)
+                    .expect("writing to String cannot fail");
+            }
+            Terminator::Return(Some(value)) => {
+                write!(out, "return v{};", value.0).expect("writing to String cannot fail");
+            }
+            Terminator::Return(None) if function.kind == FunctionKind::Entry => {
+                out.push_str("return 0;");
+            }
+            Terminator::Return(None) => out.push_str("return;"),
+            Terminator::Unreachable => out.push_str("abort();"),
+        }
+        Ok(())
+    }
+
+    fn emit_phi_edge(
+        &self,
+        function: &ControlFlowFunction<'src>,
+        from: BlockId,
+        to: BlockId,
+        types: &AHashMap<ValueId, Type<'src>>,
+        phi_temp: &mut usize,
+        out: &mut String,
+    ) -> Result<(), CodegenError> {
+        let copies = function.blocks[to.0 as usize]
+            .phis
+            .iter()
+            .filter_map(|phi| {
+                phi.incoming
+                    .iter()
+                    .find(|(block, _)| *block == from)
+                    .map(|(_, source)| (phi.out, *source))
+            })
+            .collect::<Vec<_>>();
+        let base = *phi_temp;
+        for (index, (target, source)) in copies.iter().enumerate() {
+            let ty = types
+                .get(target)
+                .ok_or_else(|| CodegenError::new(function.span, "phi target has no native type"))?;
+            write!(out, "{} p{}=v{};", c_type(ty), base + index, source.0)
+                .expect("writing to String cannot fail");
+        }
+        for (index, (target, _)) in copies.iter().enumerate() {
+            write!(out, "v{}=p{};", target.0, base + index).expect("writing to String cannot fail");
+        }
+        *phi_temp += copies.len();
+        Ok(())
+    }
+
+    fn native_function_name(&self, id: FunctionId) -> Result<String, CodegenError> {
+        let function = self.function(id)?;
+        if function.kind == FunctionKind::Extern {
+            function
+                .name
+                .map(ToString::to_string)
+                .ok_or_else(|| CodegenError::new(function.span, "extern function has no name"))
+        } else {
+            Ok(format!("f{}", id.0))
+        }
+    }
+
+    fn function(&self, id: FunctionId) -> Result<&ControlFlowFunction<'src>, CodegenError> {
+        self.module.functions.get(id.0 as usize).ok_or_else(|| {
+            CodegenError::new(Span::empty(0), format!("missing IR function {}", id.0))
+        })
+    }
+}
+
+fn required_output(instruction: &ControlFlowInstruction<'_>) -> Result<ValueId, CodegenError> {
+    instruction
+        .out
+        .ok_or_else(|| CodegenError::new(instruction.span, "native instruction has no result"))
+}
+
+fn closure_signature<'a, 'src>(
+    types: &'a AHashMap<ValueId, Type<'src>>,
+    value: ValueId,
+    span: Span,
+) -> Result<&'a crate::semantic::FunctionType<'src>, CodegenError> {
+    match types.get(&value) {
+        Some(Type::Function(signature)) => Ok(signature),
+        _ => Err(CodegenError::new(
+            span,
+            "native callback has no function type",
+        )),
+    }
+}
+
+fn value_types<'src>(function: &ControlFlowFunction<'src>) -> AHashMap<ValueId, Type<'src>> {
+    let mut types = AHashMap::new();
+    for param in &function.params {
+        types.insert(param.value, param.ty.clone());
+    }
+    for block in &function.blocks {
+        for phi in &block.phis {
+            types.insert(phi.out, phi.ty.clone());
+        }
+        for instruction in &block.instructions {
+            if let (Some(value), Some(ty)) = (instruction.out, &instruction.ty) {
+                types.insert(value, ty.clone());
+            }
+        }
+    }
+    types
+}
+
+fn c_type(ty: &Type<'_>) -> String {
+    match ty {
+        Type::Int => "int32_t".to_string(),
+        Type::Float => "double".to_string(),
+        Type::Bool => "bool".to_string(),
+        Type::String => "const char*".to_string(),
+        Type::Array(_) => "LilScriptArray".to_string(),
+        Type::Struct(name) => aggregate_type_name("Struct", name),
+        Type::Class(name) => aggregate_type_name("Class", name),
+        Type::Function(_) => "LilScriptClosure".to_string(),
+        Type::Void => "void".to_string(),
+    }
+}
+
+fn aggregate_type_name(kind: &str, name: &str) -> String {
+    let mut encoded = format!("LilScript{kind}_");
+    for byte in name.bytes() {
+        write!(encoded, "{byte:02x}").expect("writing to String cannot fail");
+    }
+    encoded
+}
+
+fn render_c_const(value: &ConstValue) -> String {
+    match value {
+        ConstValue::Int(value) => format!("((int32_t){value})"),
+        ConstValue::Float(value) => format!("{value:.17}"),
+        ConstValue::Bool(value) => value.to_string(),
+        ConstValue::String(value) => format!("\"{value}\""),
+    }
+}
+
+fn render_c_call(name: &str, args: &[ValueId]) -> String {
+    let mut call = format!("{name}(");
+    for (index, arg) in args.iter().enumerate() {
+        if index != 0 {
+            call.push(',');
+        }
+        write!(call, "v{}", arg.0).expect("writing to String cannot fail");
+    }
+    call.push(')');
+    call
+}
+
+fn c_binary_operator(op: IrBinaryOp) -> &'static str {
+    match op {
+        IrBinaryOp::Add => "+",
+        IrBinaryOp::Sub => "-",
+        IrBinaryOp::Mul => "*",
+        IrBinaryOp::Div => "/",
+        IrBinaryOp::Mod => "%",
+        IrBinaryOp::Eq => "==",
+        IrBinaryOp::NotEq => "!=",
+        IrBinaryOp::Less => "<",
+        IrBinaryOp::LessEq => "<=",
+        IrBinaryOp::Greater => ">",
+        IrBinaryOp::GreaterEq => ">=",
+        IrBinaryOp::And => "&&",
+        IrBinaryOp::Or => "||",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use bumpalo::Bump;
+
+    use super::*;
+    use crate::parse_source;
+
+    #[test]
+    fn emits_c_from_optimized_ssa() {
+        let arena = Bump::new();
+        let program =
+            parse_source(&arena, "int sum=0;for(int i=0;i<4;i++){sum+=i;}print(sum);").unwrap();
+        let c = compile_to_c(&program).unwrap();
+        assert!(c.contains("int main(void)"));
+        assert!(c.contains("switch(s)"));
+        assert!(c.contains("printf(\"%d\\n\""));
+        assert!(!c.contains("StoreLocal"));
+    }
+
+    #[test]
+    fn emits_nominal_c_abi_for_escaping_aggregates() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "struct Point{int x;int y;}class Box{int value;init(int value){this.value=value;}}extern int consumePoint(Point point);extern int consumeBox(Box value);Point point=Point{1,2};Box value=new Box(3);print(consumePoint(point)+consumeBox(value));",
+        )
+        .unwrap();
+        let c = compile_to_c(&program).unwrap();
+        assert!(c.contains("typedef struct LilScriptStruct_506f696e74 LilScriptStruct_506f696e74;"));
+        assert!(c.contains("typedef struct LilScriptClass_426f78*LilScriptClass_426f78;"));
+        assert!(c.contains("extern int32_t consumePoint(LilScriptStruct_506f696e74);"));
+        assert!(c.contains("extern int32_t consumeBox(LilScriptClass_426f78);"));
+    }
+}
