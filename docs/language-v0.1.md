@@ -381,10 +381,16 @@ The v0.1 statement set is:
 - `return`.
 
 Assignments support `=`, `+=`, `-=`, `*=`, `/=`, `%=`, `&=`, `|=`, `^=`,
-`<<=`, `>>=`, and `>>>=`. Prefix `!` and `-`,
-postfix calls/member/index access, and the standard arithmetic, comparison,
-equality, bitwise, shift, and short-circuit logical operators are supported.
-Assignment is an expression and evaluates to the assigned value.
+`<<=`, `>>=`, and `>>>=`. Numeric assignable locations support prefix and
+postfix updates: `++value`, `--value`, `value++`, and `value--`. Prefix updates
+evaluate to the new value; postfix updates evaluate to the old value. Members
+and array elements are valid update targets, while literals and computed
+expressions are not.
+
+Prefix `!` and `-`, postfix calls/member/index access, and the standard
+arithmetic, comparison, equality, bitwise, shift, and short-circuit logical
+operators are supported. Assignment is an expression and evaluates to the
+assigned value.
 
 ## Standard library surface
 

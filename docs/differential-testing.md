@@ -13,7 +13,7 @@ The evaluator currently covers:
 - lexical bindings through semantic symbol IDs, including shadowing and global
   mutation;
 - direct functions, defaults, return, recursion limits, blocks, branches,
-  `while`, `for`, `break`, `continue`, assignments, and postfix updates;
+  `while`, `for`, `break`, `continue`, assignments, and prefix/postfix updates;
 - short-circuit evaluation and the observable `print` intrinsic.
 
 Aggregate storage, classes, closures, and host calls are rejected explicitly.

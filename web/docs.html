@@ -235,8 +235,11 @@ for (int index = 0; index &lt; 10; index++) {
 
 while (total &gt; 20) {
   total -= 1;
-}</code></pre>
-          <p>The language supports blocks, <code>if</code>/<code>else</code>, <code>while</code>, C-style <code>for</code>, <code>break</code>, <code>continue</code>, and <code>return</code>. Logical <code>&amp;&amp;</code> and <code>||</code> preserve short-circuit evaluation.</p>
+}
+
+int before = total++;
+int after = ++total;</code></pre>
+          <p>The language supports blocks, <code>if</code>/<code>else</code>, <code>while</code>, C-style <code>for</code>, <code>break</code>, <code>continue</code>, and <code>return</code>. Prefix updates evaluate to the new value; postfix updates evaluate to the old value. Both forms accept numeric variables, members, and array elements. Logical <code>&amp;&amp;</code> and <code>||</code> preserve short-circuit evaluation.</p>
         </section>
 
         <section id="javascript" data-title="JavaScript application integration web browser generated module">
