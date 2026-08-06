@@ -805,12 +805,18 @@ fn select_javascript_candidate(
     }
     candidates.sort_by(|left, right| (left.0, left.1, &left.2).cmp(&(right.0, right.1, &right.2)));
     if config.loop_spelling_selection_enabled() {
+        let finalists = candidates
+            .iter()
+            .take(8)
+            .map(|candidate| candidate.3)
+            .collect::<Vec<_>>();
         extend_javascript_candidate_beam(
             ir,
             module_output,
             config.javascript.cost_model,
             &integer_analysis,
             &mut candidates,
+            finalists,
             |options| {
                 [
                     crate::codegen_ir_js::IrJsOptions {
@@ -826,12 +832,34 @@ fn select_javascript_candidate(
         )?;
     }
     if config.mutation_spelling_selection_enabled() {
+        let mut finalists = Vec::new();
+        for loop_spelling in [
+            crate::codegen_ir_js::LoopSpelling::Auto,
+            crate::codegen_ir_js::LoopSpelling::While,
+            crate::codegen_ir_js::LoopSpelling::For,
+        ] {
+            let mut retained = 0;
+            for options in candidates
+                .iter()
+                .filter(|candidate| candidate.3.loop_spelling == loop_spelling)
+                .map(|candidate| candidate.3)
+            {
+                if !finalists.contains(&options) {
+                    finalists.push(options);
+                    retained += 1;
+                    if retained == 8 {
+                        break;
+                    }
+                }
+            }
+        }
         extend_javascript_candidate_beam(
             ir,
             module_output,
             config.javascript.cost_model,
             &integer_analysis,
             &mut candidates,
+            finalists,
             |options| {
                 [
                     crate::codegen_ir_js::IrJsOptions {
@@ -867,14 +895,9 @@ fn extend_javascript_candidate_beam<const N: usize>(
     cost_model: CompressionCostModel,
     integer_analysis: &Arc<IntegerValueAnalysis>,
     candidates: &mut Vec<JavaScriptEmissionCandidate>,
+    finalists: Vec<crate::codegen_ir_js::IrJsOptions>,
     variants: impl Fn(crate::codegen_ir_js::IrJsOptions) -> [crate::codegen_ir_js::IrJsOptions; N],
 ) -> Result<(), CompileError> {
-    const BEAM_WIDTH: usize = 8;
-    let finalists = candidates
-        .iter()
-        .take(BEAM_WIDTH)
-        .map(|candidate| candidate.3)
-        .collect::<Vec<_>>();
     for options in finalists {
         for candidate_options in variants(options) {
             let code = emit_javascript_candidate(

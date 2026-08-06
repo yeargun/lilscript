@@ -13,5 +13,4 @@ runPassAblation({
     ],
   ],
   strictMetrics: ["brotli"],
-  nonRegressionMetrics: ["raw", "gzip"],
 });

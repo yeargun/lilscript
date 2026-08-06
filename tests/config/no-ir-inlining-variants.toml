@@ -15,4 +15,7 @@ compression = [
   "string-array-packing",
   "scalar-phi-copies",
   "phi-affinity-coalescing",
+  "ir-closure-factory-variants",
+  "loop-spelling-selection",
+  "mutation-spelling-selection",
 ]

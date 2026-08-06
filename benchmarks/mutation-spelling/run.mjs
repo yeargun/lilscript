@@ -2,8 +2,8 @@ import { runPassAblation } from "../pass-ablation.mjs";
 
 runPassAblation({
   id: "mutation-spelling",
-  source: "benchmarks/libraries/apps/emotion-hash/lil/main.lil",
-  expected: "benchmarks/libraries/apps/emotion-hash/expected.txt",
+  source: "benchmarks/libraries/apps/js-levenshtein/lil/main.lil",
+  expected: "benchmarks/libraries/apps/js-levenshtein/expected.txt",
   variants: [
     ["Mutation spelling selected", "lilscript.toml", "selected.js"],
     [

@@ -20,4 +20,5 @@ compression = [
   "phi-affinity-coalescing",
   "ir-inlining-variants",
   "loop-spelling-selection",
+  "mutation-spelling-selection",
 ]
