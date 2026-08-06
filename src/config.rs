@@ -4,7 +4,9 @@ use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 
-use crate::codegen_ir_js::{IdentifierAlphabet, IrJsOptions, PhiAffinityMode, StringQuote};
+use crate::codegen_ir_js::{
+    IdentifierAlphabet, IrJsOptions, LoopSpelling, PhiAffinityMode, StringQuote,
+};
 use crate::optimizer::OptimizationOptions;
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize)]
@@ -91,6 +93,7 @@ impl ProjectConfig {
             } else {
                 PhiAffinityMode::Conservative
             },
+            loop_spelling: LoopSpelling::Auto,
             identifier_alphabet: IdentifierAlphabet::canonical(),
             string_quote: StringQuote::Double,
         }
@@ -111,6 +114,13 @@ impl ProjectConfig {
             && self
                 .javascript
                 .compression_enabled(CompressionDecision::IrInliningVariants)
+    }
+
+    pub fn loop_spelling_selection_enabled(&self) -> bool {
+        self.javascript.candidate_search_enabled()
+            && self
+                .javascript
+                .compression_enabled(CompressionDecision::LoopSpellingSelection)
     }
 
     pub fn validate(&self) -> Result<(), String> {
@@ -189,6 +199,7 @@ impl JavaScriptPriority {
             CompressionDecision::ScalarPhiCopies => matches!(self, Self::SizeFirst),
             CompressionDecision::PhiAffinityCoalescing => true,
             CompressionDecision::IrInliningVariants => matches!(self, Self::SizeFirst),
+            CompressionDecision::LoopSpellingSelection => matches!(self, Self::SizeFirst),
             CompressionDecision::PropertyMangling | CompressionDecision::ExportMangling => false,
         }
     }
@@ -232,6 +243,7 @@ pub enum CompressionDecision {
     ScalarPhiCopies,
     PhiAffinityCoalescing,
     IrInliningVariants,
+    LoopSpellingSelection,
 }
 
 impl CompressionDecision {
@@ -251,6 +263,7 @@ impl CompressionDecision {
             Self::ScalarPhiCopies => "scalar-phi-copies",
             Self::PhiAffinityCoalescing => "phi-affinity-coalescing",
             Self::IrInliningVariants => "ir-inlining-variants",
+            Self::LoopSpellingSelection => "loop-spelling-selection",
         }
     }
 }
@@ -662,6 +675,7 @@ shared_min_imports = 3
         assert!(size.js_options().pack_string_arrays);
         assert!(size.js_options().scalar_phi_copies);
         assert!(size.ir_inlining_variants_enabled());
+        assert!(size.loop_spelling_selection_enabled());
         assert_eq!(
             size.js_options().phi_affinity_mode,
             PhiAffinityMode::Grouped
@@ -674,6 +688,7 @@ shared_min_imports = 3
         assert!(!performance.entropy_aware_mangling_enabled());
         assert!(!performance.js_options().compact_boolean_literals);
         assert!(!performance.ir_inlining_variants_enabled());
+        assert!(!performance.loop_spelling_selection_enabled());
 
         let explicit_pooling: ProjectConfig = toml::from_str(
             "[javascript]\npriority='performance-first'\n[mangle]\npool_strings=true\n",
@@ -712,6 +727,7 @@ max_inline_growth = 3
         assert!(codegen.pool_strings);
         assert!(!codegen.elide_safe_integer_coercions);
         assert!(!custom.ir_inlining_variants_enabled());
+        assert!(!custom.loop_spelling_selection_enabled());
 
         let none: ProjectConfig = toml::from_str("[javascript]\ncompression=[]\n").unwrap();
         let none_codegen = none.js_options();

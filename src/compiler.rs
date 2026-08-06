@@ -766,14 +766,17 @@ fn select_javascript_candidate(
                     )?
                 };
                 for code in top_level_declaration_variants(code) {
-                    if candidates.iter().any(|(_, _, existing)| existing == &code) {
+                    if candidates
+                        .iter()
+                        .any(|(_, _, existing, _): &(usize, usize, String, _)| existing == &code)
+                    {
                         continue;
                     }
                     let cost = compressed_size(code.as_bytes(), config.javascript.cost_model)
                         .map_err(|message| {
                             crate::codegen_js::CodegenError::new(Span::empty(0), message)
                         })?;
-                    candidates.push((cost, code.len(), code));
+                    candidates.push((cost, code.len(), code, candidate_options));
                     if candidates.len() == config.javascript.candidate_limit {
                         break;
                     }
@@ -791,10 +794,50 @@ fn select_javascript_candidate(
         }
     }
     candidates.sort_by(|left, right| (left.0, left.1, &left.2).cmp(&(right.0, right.1, &right.2)));
+    if config.loop_spelling_selection_enabled() {
+        const LOOP_SPELLING_BEAM_WIDTH: usize = 8;
+        let finalists = candidates
+            .iter()
+            .take(LOOP_SPELLING_BEAM_WIDTH)
+            .map(|candidate| candidate.3)
+            .collect::<Vec<_>>();
+        for options in finalists {
+            for loop_spelling in [
+                crate::codegen_ir_js::LoopSpelling::While,
+                crate::codegen_ir_js::LoopSpelling::For,
+            ] {
+                let candidate_options = crate::codegen_ir_js::IrJsOptions {
+                    loop_spelling,
+                    ..options
+                };
+                let code = emit_javascript_candidate(
+                    ir,
+                    module_output,
+                    candidate_options,
+                    Arc::clone(&integer_analysis),
+                )?;
+                for code in top_level_declaration_variants(code) {
+                    if candidates
+                        .iter()
+                        .any(|(_, _, existing, _)| existing == &code)
+                    {
+                        continue;
+                    }
+                    let cost = compressed_size(code.as_bytes(), config.javascript.cost_model)
+                        .map_err(|message| {
+                            crate::codegen_js::CodegenError::new(Span::empty(0), message)
+                        })?;
+                    candidates.push((cost, code.len(), code, candidate_options));
+                }
+            }
+        }
+        candidates
+            .sort_by(|left, right| (left.0, left.1, &left.2).cmp(&(right.0, right.1, &right.2)));
+    }
     candidates
         .into_iter()
         .next()
-        .map(|(_, _, code)| code)
+        .map(|(_, _, code, _)| code)
         .ok_or_else(|| {
             crate::codegen_js::CodegenError::new(
                 Span::empty(0),

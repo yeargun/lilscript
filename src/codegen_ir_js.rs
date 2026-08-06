@@ -34,6 +34,7 @@ pub struct IrJsOptions {
     pub pack_string_arrays: bool,
     pub scalar_phi_copies: bool,
     pub phi_affinity_mode: PhiAffinityMode,
+    pub loop_spelling: LoopSpelling,
     pub identifier_alphabet: IdentifierAlphabet,
     pub string_quote: StringQuote,
 }
@@ -51,6 +52,7 @@ impl Default for IrJsOptions {
             pack_string_arrays: true,
             scalar_phi_copies: false,
             phi_affinity_mode: PhiAffinityMode::Grouped,
+            loop_spelling: LoopSpelling::Auto,
             identifier_alphabet: IdentifierAlphabet::canonical(),
             string_quote: StringQuote::Double,
         }
@@ -70,6 +72,14 @@ pub enum PhiAffinityMode {
     Direct,
     #[default]
     Grouped,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum LoopSpelling {
+    #[default]
+    Auto,
+    While,
+    For,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1649,8 +1659,13 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             out.push_str(update_clause);
                             out.push_str("){");
                         } else if compact_loop {
-                            let reuse_for_spelling =
-                                out.matches("for(").count() > out.matches("while(").count();
+                            let reuse_for_spelling = match self.options.loop_spelling {
+                                LoopSpelling::Auto => {
+                                    out.matches("for(").count() > out.matches("while(").count()
+                                }
+                                LoopSpelling::While => false,
+                                LoopSpelling::For => true,
+                            };
                             if reuse_for_spelling {
                                 out.push_str("for(;");
                             } else {
@@ -5834,6 +5849,28 @@ mod tests {
             "extern int read();int count=read();for(int index=0;index<count;index++){print(index);}",
         );
         assert!(!output.contains("{console.log"), "{output}");
+    }
+
+    #[test]
+    fn obeys_forced_condition_loop_spelling() {
+        let source = "extern bool ready();while(ready()){print(1);}";
+        let as_while = compile_with_options(
+            source,
+            IrJsOptions {
+                loop_spelling: LoopSpelling::While,
+                ..IrJsOptions::default()
+            },
+        );
+        let as_for = compile_with_options(
+            source,
+            IrJsOptions {
+                loop_spelling: LoopSpelling::For,
+                ..IrJsOptions::default()
+            },
+        );
+
+        assert!(as_while.contains("while(ready())"), "{as_while}");
+        assert!(as_for.contains("for(;ready();)"), "{as_for}");
     }
 
     #[test]

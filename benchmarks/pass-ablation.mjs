@@ -27,7 +27,14 @@ function sizes(path) {
   };
 }
 
-export function runPassAblation({ id, source, expected, variants }) {
+export function runPassAblation({
+  id,
+  source,
+  expected,
+  variants,
+  strictMetrics = ["raw", "gzip", "brotli"],
+  nonRegressionMetrics = [],
+}) {
   const build = join(root, "target/pass-ablation", id);
   const expectedOutput = readFileSync(join(root, expected), "utf8").trimEnd();
   mkdirSync(build, { recursive: true });
@@ -55,10 +62,17 @@ export function runPassAblation({ id, source, expected, variants }) {
   }
 
   const [enabled, disabled] = results;
-  for (const metric of ["raw", "gzip", "brotli"]) {
+  for (const metric of strictMetrics) {
     if (enabled[metric] >= disabled[metric]) {
       throw new Error(
         `${id} did not reduce ${metric}: ${enabled[metric]} >= ${disabled[metric]}`,
+      );
+    }
+  }
+  for (const metric of nonRegressionMetrics) {
+    if (enabled[metric] > disabled[metric]) {
+      throw new Error(
+        `${id} regressed ${metric}: ${enabled[metric]} > ${disabled[metric]}`,
       );
     }
   }
