@@ -2064,6 +2064,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             | IrBinaryOp::UnsignedShiftRight
                     ) =>
                 {
+                    let lhs_child = context.binary_operator(*lhs);
+                    let rhs_child = context.binary_operator(*rhs);
                     let mut lhs = take_value(*lhs, context, cache)?;
                     let mut rhs = take_value(*rhs, context, cache)?;
                     if matches!(
@@ -2078,6 +2080,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         lhs = strip_redundant_i32_coercion(lhs);
                         rhs = strip_redundant_i32_coercion(rhs);
                     }
+                    lhs = render_binary_operand(lhs, lhs_child, *op, BinaryOperandSide::Left);
+                    rhs = render_binary_operand(rhs, rhs_child, *op, BinaryOperandSide::Right);
+                    let rhs = token_safe_binary_rhs(*op, rhs);
                     return Ok(match op {
                         IrBinaryOp::Mul if coercion_is_elidable => format!("({lhs}*{rhs})"),
                         IrBinaryOp::Mul => format!("({lhs}*{rhs}|0)"),
@@ -2170,6 +2175,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     *op,
                     BinaryOperandSide::Right,
                 );
+                let rhs = token_safe_binary_rhs(*op, rhs);
                 if matches!(op, IrBinaryOp::Eq | IrBinaryOp::NotEq)
                     && is_rendered_string_literal(&lhs)
                     && is_rendered_string_literal(&rhs)
@@ -3418,9 +3424,9 @@ fn can_inline_closure(function: &ControlFlowFunction<'_>, inline_structured: boo
 
 fn strip_redundant_i32_coercion(expression: String) -> String {
     expression
-        .strip_prefix('(')
-        .and_then(|value| value.strip_suffix("|0)"))
-        .map_or(expression.clone(), str::to_string)
+        .strip_suffix("|0)")
+        .filter(|value| value.starts_with('('))
+        .map_or_else(|| expression.clone(), |value| format!("{value})"))
 }
 
 fn render_arrow_parameters(
@@ -3548,9 +3554,7 @@ impl LocalNames {
             .flat_map(|block| &block.instructions)
             .filter_map(
                 |instruction| match (instruction.out, &instruction.ty, &instruction.op) {
-                    (Some(out), Some(ty), ControlFlowOp::Binary { op, .. }) if ty != &Type::Int => {
-                        Some((out, *op))
-                    }
+                    (Some(out), Some(_), ControlFlowOp::Binary { op, .. }) => Some((out, *op)),
                     _ => None,
                 },
             )
@@ -4816,6 +4820,14 @@ fn binary_operator(op: IrBinaryOp) -> &'static str {
     }
 }
 
+fn token_safe_binary_rhs(op: IrBinaryOp, rhs: String) -> String {
+    if op == IrBinaryOp::Sub && rhs.starts_with('-') {
+        format!("({rhs})")
+    } else {
+        rhs
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum BinaryOperandSide {
     Left,
@@ -4828,6 +4840,9 @@ fn render_binary_operand(
     parent: IrBinaryOp,
     side: BinaryOperandSide,
 ) -> String {
+    if expression.ends_with("|0)") {
+        return expression;
+    }
     let Some(child) = child else {
         return expression;
     };
@@ -5891,6 +5906,34 @@ mod tests {
         let large = compile("extern int read();print(read()*8388608);");
         assert!(large.contains("*8388608|0"), "{large}");
         assert!(!large.contains("Math.imul"), "{large}");
+    }
+
+    #[test]
+    fn separates_subtraction_from_negative_operands() {
+        assert_eq!(
+            token_safe_binary_rhs(IrBinaryOp::Sub, "-626380242".to_string()),
+            "(-626380242)"
+        );
+        let output = compile("extern int read();print(read()-(-626380242));");
+        assert!(!output.contains("--626380242"), "{output}");
+    }
+
+    #[test]
+    fn preserves_nested_shift_associativity_after_coercion_elision() {
+        let output = compile_with_options(
+            "extern int read();int value=read();print(value>>((value%2)>>>18));",
+            IrJsOptions {
+                elide_safe_integer_coercions: false,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(output.contains(">>(a%2>>>18)"), "{output}");
+    }
+
+    #[test]
+    fn keeps_integer_coercions_grouped_inside_comparisons() {
+        let output = compile("extern int read();print(15>=(read()%0));");
+        assert!(output.contains(">=(read()%0|0)"), "{output}");
     }
 
     #[test]
