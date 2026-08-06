@@ -112,6 +112,8 @@ checked-in benchmark workload. Passing a synthetic example alone is not enough.
 - [x] Application lanes for reactive state, events, binary memory, and modules.
 - [x] Build a real Motion package integration with Vite as context-only
   ecosystem evidence, isolated from comparable compiler totals.
+- [x] Add a complete-root-entrypoint library lab for `@motionone/easing`,
+  `clamp`, `lerp`, and `string-hash` with upstream and differential gates.
 - [ ] Implement the audited Motion v13 package surface and pass applicable
   upstream unit/browser tests before publishing any compatibility comparison.
 - [ ] Add router, validation, parser, state-machine, worker/buffer, and DOM

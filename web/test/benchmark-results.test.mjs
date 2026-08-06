@@ -29,7 +29,7 @@ test("published data uses the installed Vite and omits timing samples", () => {
 });
 
 test("static copy makes no Motion implementation claim", () => {
-  assert.match(page, /Motion is not implemented yet/);
+  assert.match(page, /Motion 13 is not implemented yet/);
   assert.doesNotMatch(page, /Motion value pipeline/);
   assert.doesNotMatch(page, /LilScript is \d+ bytes smaller/);
 });

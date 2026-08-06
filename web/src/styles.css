@@ -470,6 +470,31 @@ pre,
   margin-top: 18px;
 }
 
+.benchmark-links {
+  margin-top: 24px;
+}
+
+.library-lab-callout .primary-link {
+  width: fit-content;
+  margin-top: 22px;
+}
+
+.deploy-details {
+  margin-top: 24px;
+}
+
+.deploy-details summary {
+  width: fit-content;
+  color: var(--blue);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.deploy-details .benchmark-table-wrap {
+  margin-top: 18px;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;

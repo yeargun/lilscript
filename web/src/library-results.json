@@ -1,0 +1,272 @@
+{
+  "metadata": {
+    "generatedAt": "2026-08-06T11:05:14.344Z",
+    "compilerRevision": "39f4c8f",
+    "node": "v24.11.1",
+    "vite": "8.2.0",
+    "esbuild": "0.28.1",
+    "closure": "20260803.0.0",
+    "system": "darwin 24.6.0 arm64",
+    "warmups": 5,
+    "samples": 25,
+    "downloadWindow": "last-month"
+  },
+  "eligibilityRule": "Every documented callable in the selected published root entrypoint is implemented for its typed input domain, translated upstream assertions pass, npm and LilScript app contracts match, and the LilScript port compiles to JavaScript, C, and a native executable.",
+  "results": [
+    {
+      "id": "motion-easing",
+      "title": "Motion easing",
+      "scope": "Complete @motionone/easing root entrypoint",
+      "packages": [
+        {
+          "name": "@motionone/easing",
+          "version": "10.18.0"
+        }
+      ],
+      "monthlyDownloads": 9574633,
+      "translatedAssertions": 27,
+      "expected": "motion-easing:27:560673:541722",
+      "source": {
+        "npmApp": 1421,
+        "lilscriptAppAndPort": 3336
+      },
+      "artifacts": [
+        {
+          "id": "vite",
+          "label": "Installed npm package + Vite",
+          "raw": 1091,
+          "gzip": 595,
+          "brotli": 560,
+          "deploy": {
+            "raw": 1371,
+            "gzip": 817,
+            "brotli": 686
+          },
+          "files": [
+            "assets/index-BmYbPJ1t.js",
+            "index.html"
+          ],
+          "medianMs": 5.383166999999958
+        },
+        {
+          "id": "closure",
+          "label": "Installed npm package + Closure ADVANCED",
+          "raw": 1023,
+          "gzip": 574,
+          "brotli": 524,
+          "deploy": {
+            "raw": 1209,
+            "gzip": 733,
+            "brotli": 610
+          },
+          "files": [
+            "app.js",
+            "index.html"
+          ],
+          "medianMs": 4.130583999999999
+        },
+        {
+          "id": "lilscript",
+          "label": "LilScript port",
+          "raw": 1536,
+          "gzip": 852,
+          "brotli": 751,
+          "deploy": {
+            "raw": 1722,
+            "gzip": 1011,
+            "brotli": 837
+          },
+          "files": [
+            "app.js",
+            "index.html"
+          ],
+          "medianMs": 4.631958999999995,
+          "nativeVerified": true,
+          "cEmitted": true
+        }
+      ]
+    },
+    {
+      "id": "micro-math",
+      "title": "Clamp and lerp",
+      "scope": "Complete clamp and lerp root entrypoints",
+      "packages": [
+        {
+          "name": "clamp",
+          "version": "1.0.1"
+        },
+        {
+          "name": "lerp",
+          "version": "1.0.3"
+        }
+      ],
+      "monthlyDownloads": 4609993,
+      "translatedAssertions": 10,
+      "expected": "micro-math:10:1800000:86076",
+      "source": {
+        "npmApp": 711,
+        "lilscriptAppAndPort": 1328
+      },
+      "artifacts": [
+        {
+          "id": "vite",
+          "label": "Installed npm package + Vite",
+          "raw": 1134,
+          "gzip": 607,
+          "brotli": 554,
+          "deploy": {
+            "raw": 1411,
+            "gzip": 828,
+            "brotli": 687
+          },
+          "files": [
+            "assets/index-B6IEu8zq.js",
+            "index.html"
+          ],
+          "medianMs": 2.337417000000002
+        },
+        {
+          "id": "closure",
+          "label": "Installed npm package + Closure ADVANCED",
+          "raw": 1169,
+          "gzip": 630,
+          "brotli": 562,
+          "deploy": {
+            "raw": 1355,
+            "gzip": 789,
+            "brotli": 648
+          },
+          "files": [
+            "app.js",
+            "index.html"
+          ],
+          "medianMs": 2.3488749999999925
+        },
+        {
+          "id": "lilscript",
+          "label": "LilScript port",
+          "raw": 593,
+          "gzip": 356,
+          "brotli": 316,
+          "deploy": {
+            "raw": 779,
+            "gzip": 515,
+            "brotli": 402
+          },
+          "files": [
+            "app.js",
+            "index.html"
+          ],
+          "medianMs": 0.961624999999998,
+          "nativeVerified": true,
+          "cEmitted": true
+        }
+      ]
+    },
+    {
+      "id": "string-hash",
+      "title": "String hash",
+      "scope": "Complete string-hash root entrypoint",
+      "packages": [
+        {
+          "name": "string-hash",
+          "version": "1.1.3"
+        }
+      ],
+      "monthlyDownloads": 19930081,
+      "translatedAssertions": 2,
+      "expected": "string-hash:4:1670934855",
+      "source": {
+        "npmApp": 581,
+        "lilscriptAppAndPort": 949
+      },
+      "artifacts": [
+        {
+          "id": "vite",
+          "label": "Installed npm package + Vite",
+          "raw": 1076,
+          "gzip": 637,
+          "brotli": 568,
+          "deploy": {
+            "raw": 1354,
+            "gzip": 857,
+            "brotli": 698
+          },
+          "files": [
+            "assets/index-Bf76Xsi8.js",
+            "index.html"
+          ],
+          "medianMs": 3.267916999999983
+        },
+        {
+          "id": "closure",
+          "label": "Installed npm package + Closure ADVANCED",
+          "raw": 1113,
+          "gzip": 656,
+          "brotli": 581,
+          "deploy": {
+            "raw": 1299,
+            "gzip": 815,
+            "brotli": 667
+          },
+          "files": [
+            "app.js",
+            "index.html"
+          ],
+          "medianMs": 3.2510410000000007
+        },
+        {
+          "id": "lilscript",
+          "label": "LilScript port",
+          "raw": 529,
+          "gzip": 411,
+          "brotli": 362,
+          "deploy": {
+            "raw": 715,
+            "gzip": 570,
+            "brotli": 448
+          },
+          "files": [
+            "app.js",
+            "index.html"
+          ],
+          "medianMs": 2.8760420000000124,
+          "nativeVerified": true,
+          "cEmitted": true
+        }
+      ]
+    }
+  ],
+  "auditedButIneligible": [
+    {
+      "package": "motion",
+      "version": "13.0.0",
+      "reason": "The 312-export root and DOM animation engine are not implemented; it remains context-only in the application lab."
+    },
+    {
+      "package": "mitt",
+      "version": "3.0.1",
+      "reason": "Exact compatibility requires symbol event keys, wildcard payload unions, and the public handler Map contract."
+    },
+    {
+      "package": "nanoid",
+      "version": "6.0.1",
+      "reason": "The complete package requires secure host randomness, custom random byte generators, CLI behavior, and string character extraction."
+    },
+    {
+      "package": "clsx",
+      "version": "2.1.1",
+      "reason": "Its API is recursive variadic unknown input over arrays and dynamic object keys."
+    },
+    {
+      "package": "yocto-queue",
+      "version": "1.2.2",
+      "reason": "Its public API includes getters and Symbol.iterator semantics."
+    },
+    {
+      "package": "@emotion/hash",
+      "version": "0.9.2",
+      "reason": "Exact output still requires logical right shift and unsigned radix conversion support."
+    }
+  ]
+}

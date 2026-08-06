@@ -155,8 +155,8 @@ cargo run --release --bin lilscript-playground
 Open `http://127.0.0.1:4173`. The playground compiles LilScript on the Rust server,
 shows generated JavaScript and source diagnostics, and executes output in a
 sandboxed iframe. The same vanilla Vite project includes `/docs.html`,
-`/benchmarks.html`, and `/about.html`; it contains plain HTML, CSS, and
-JavaScript with no Astro files.
+`/benchmarks.html`, `/libraries.html`, and `/about.html`; it contains plain
+HTML, CSS, and JavaScript with no Astro files.
 
 For Vite development with hot reload, run the compiler API and Vite in separate
 terminals:
@@ -240,14 +240,16 @@ scripts/verify.sh
 benchmarks/run.sh
 npm --prefix benchmarks/apps ci
 npm --prefix benchmarks/apps run benchmark
+npm --prefix benchmarks/libraries ci
+npm --prefix benchmarks/libraries run benchmark
 npm --prefix web run build
 npm --prefix vscode-extension run package
 ```
 
 `scripts/verify.sh` compares Node and native output for two conformance suites
-and links a generated aggregate ABI against a C host. It also runs 51 programs
+and links a generated aggregate ABI against a C host. It also runs 53 programs
 through JavaScript, emitted C, and native executables with maximum and disabled
-optional optimization, for 102 matrix executions, plus a framed LSP session
+optional optimization, for 106 matrix executions, plus a framed LSP session
 through diagnostics, completion, hover, symbols, and shutdown.
 `benchmarks/run.sh`
 downloads the pinned Closure Compiler `v20260803`, runs `ADVANCED` compilation,
@@ -272,6 +274,15 @@ parity is not yet claimed. Compiler methodology and tables are in
 [docs/benchmark-results.md](docs/benchmark-results.md); the pass-by-pass
 responsibility mapping is in
 [docs/optimization-coverage.md](docs/optimization-coverage.md).
+
+The complete-library lab measures installed npm packages against LilScript
+ports after translated upstream assertions, dense differential API checks, and
+JavaScript/C/native app contracts. LilScript Brotli output is 43.0% smaller than
+npm/Vite for the complete `clamp` + `lerp` app and 36.3% smaller for
+`string-hash`; it is 34.1% larger for `@motionone/easing`. Those mixed results
+are published without a universal superiority claim in
+[benchmarks/libraries/RESULTS.md](benchmarks/libraries/RESULTS.md) and at
+`/libraries.html` in the Vite site.
 The maintained implementation and research backlog is in
 [docs/roadmap.md](docs/roadmap.md).
 Motion's audited compatibility gate is in

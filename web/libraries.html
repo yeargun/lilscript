@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Complete LilScript ports compared with installed npm packages through Vite and Closure ADVANCED.">
+    <title>Library Lab | LilScript</title>
+    <link rel="stylesheet" href="/src/styles.css">
+  </head>
+  <body class="content-page">
+    <header class="site-header">
+      <a class="wordmark" href="/" aria-label="LilScript playground">
+        <span class="wordmark-mark" aria-hidden="true">L</span>
+        <span>LilScript</span>
+      </a>
+      <button class="nav-toggle icon-button" type="button" aria-label="Toggle navigation" aria-expanded="false">
+        <i data-lucide="menu" aria-hidden="true"></i>
+      </button>
+      <nav class="site-nav" aria-label="Primary navigation">
+        <a href="/">Playground</a>
+        <a href="/docs.html">Docs</a>
+        <a class="active" href="/benchmarks.html">Benchmarks</a>
+        <a href="/about.html">About</a>
+      </nav>
+    </header>
+
+    <main class="comparison-main content-width">
+      <section class="comparison-intro">
+        <p class="eyebrow">Complete port evidence</p>
+        <h1>Real packages, checked end to end</h1>
+        <p class="lead">Installed npm packages and complete LilScript ports execute the same apps. Vite 8 and Closure ADVANCED optimize the npm implementation; LilScript emits JavaScript, C, and a native executable.</p>
+        <p class="comparison-note" data-library-summary>Loading generated library results.</p>
+        <div class="benchmark-links"><a class="secondary-link" href="/benchmarks.html"><i data-lucide="arrow-right" aria-hidden="true"></i>Compiler corpus</a></div>
+      </section>
+
+      <div data-library-results></div>
+
+      <section class="comparison-method" aria-labelledby="excluded-title">
+        <p class="eyebrow">Audited, not claimed</p>
+        <h2 id="excluded-title">Packages outside the compatibility boundary</h2>
+        <p>A popular package stays out of measured totals when LilScript cannot express its complete documented root API. The blocker inventory is generated from the checked compatibility manifest.</p>
+        <div class="benchmark-table-wrap" data-ineligible-table></div>
+      </section>
+
+      <section class="comparison-method" aria-labelledby="library-method-title">
+        <p class="eyebrow">Method</p>
+        <h2 id="library-method-title">Measurements follow behavior gates</h2>
+        <p data-library-method>Loading benchmark metadata.</p>
+        <p>Transfer columns independently compress each served file with gzip level 9 and Brotli quality 11. Runtime is cache-busted Node module parsing plus deterministic app execution, not a browser rendering benchmark.</p>
+      </section>
+    </main>
+
+    <footer class="site-footer content-width"><span>LilScript library lab</span><a href="/docs.html#verification">Verification method</a></footer>
+    <script type="module" src="/src/libraries.js"></script>
+  </body>
+</html>

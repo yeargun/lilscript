@@ -41,6 +41,15 @@
         <div class="benchmark-table-wrap corpus-table" data-corpus-table></div>
       </section>
 
+      <section class="benchmark-project library-lab-callout" aria-labelledby="library-lab-title">
+        <header>
+          <p class="eyebrow">Complete npm ports</p>
+          <h2 id="library-lab-title">Library compatibility lab</h2>
+          <p>Version-pinned Motion easing, clamp, lerp, and string-hash ports run translated upstream assertions, dense differential tests, Vite and Closure builds, and LilScript JavaScript/C/native outputs.</p>
+          <a class="primary-link" href="/libraries.html">Open library results<i data-lucide="arrow-right" aria-hidden="true"></i></a>
+        </header>
+      </section>
+
       <section class="benchmark-project" id="reactive-store">
         <header><p class="eyebrow">Typed signal graph</p><h2>Reactive store</h2><p>The compiler comparison uses equivalent signal classes. A real Alien Signals application appears only in the separate Vite context.</p><code class="benchmark-contract">reactive:1890621774:408</code></header>
         <div class="benchmark-table-wrap" data-compiler-table="reactive-store"></div>
@@ -70,8 +79,8 @@
       </section>
 
       <section class="comparison-method">
-        <p class="eyebrow">Compatibility status</p><h2>Motion is not implemented yet</h2>
-        <p>The current npm package exposes 312 root exports and spans approximately 64,000 source lines across Motion, Motion Utils, Motion DOM, and Framer Motion. A complete LilScript port must pass the applicable upstream unit and browser suites before it can enter a library comparison.</p>
+        <p class="eyebrow">Compatibility status</p><h2>Motion 13 is not implemented yet</h2>
+        <p>The current npm package exposes 312 root exports and spans approximately 64,000 source lines across Motion, Motion Utils, Motion DOM, and Framer Motion. The independently published two-export <code>@motionone/easing</code> package now has a complete measured port, but that does not imply compatibility with the current Motion DOM engine.</p>
         <p>The versioned scope, missing language/platform facilities, port sequence, and no-false-claim gates are documented in <code>docs/motion-compatibility.md</code>.</p>
       </section>
 

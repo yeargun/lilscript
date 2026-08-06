@@ -15,6 +15,7 @@ export default defineConfig({
         playground: resolve(import.meta.dirname, "index.html"),
         about: resolve(import.meta.dirname, "about.html"),
         benchmarks: resolve(import.meta.dirname, "benchmarks.html"),
+        libraries: resolve(import.meta.dirname, "libraries.html"),
         docs: resolve(import.meta.dirname, "docs.html"),
       },
     },

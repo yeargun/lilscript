@@ -140,3 +140,19 @@ superiority over arbitrary JavaScript or future language features. The broader
 application comparison, including ecosystem dependencies, hand-specialized
 JavaScript, runtime samples, generated C, and native behavior checks, is in
 [`../benchmarks/apps/RESULTS.md`](../benchmarks/apps/RESULTS.md).
+
+## Complete library ports
+
+The separate [`../benchmarks/libraries`](../benchmarks/libraries) project uses
+installed, version-pinned npm packages rather than matching-scope synthetic
+implementations. It currently covers the complete documented callable root
+entrypoints of `@motionone/easing@10.18.0`, `clamp@1.0.1`, `lerp@1.0.3`, and
+`string-hash@1.1.3` for their typed input domains.
+
+Each case must match through Vite, an esbuild-to-Closure ADVANCED pipeline,
+LilScript JavaScript, emitted C, and a native executable. Translated upstream
+assertions and dense differential API grids run after the app contracts. The
+generated tables are in
+[`../benchmarks/libraries/RESULTS.md`](../benchmarks/libraries/RESULTS.md).
+They show smaller LilScript Brotli payloads for the clamp/lerp and string-hash
+apps, but a larger payload for Motion easing; no universal size claim follows.
