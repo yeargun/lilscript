@@ -30,6 +30,8 @@ LILSCRIPT="$ROOT/target/release/lilscript" \
   CC="$CC" \
   "$ROOT/scripts/verify-matrix.sh"
 
+CC="$CC" "$ROOT/target/release/lilscript-differential" --cases 64
+
 "$ROOT/target/release/lilscript" "$ROOT/examples/extern_abi.lil" \
   --target c -o "$BUILD/extern_abi.c"
 "$CC" -std=c11 -O3 "$ROOT/tests/extern_abi_host.c" -o "$BUILD/extern_abi-host"
@@ -44,4 +46,4 @@ node "$ROOT/scripts/verify-bundles.mjs" "$ROOT/target/release/lilscript"
 "$ROOT/target/release/lilscript-fmt" "$ROOT/tests/tooling/canonical.lil" --check
 "$ROOT/target/release/lilscript-lint" "$ROOT/tests/tooling/canonical.lil" --deny-warnings
 
-printf 'JavaScript/native/tooling conformance passed.\n'
+printf 'JavaScript/native/reference/tooling conformance passed.\n'

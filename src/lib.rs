@@ -5,6 +5,7 @@ pub mod codegen_native;
 pub mod compiler;
 pub mod config;
 pub mod formatter;
+pub mod interpreter;
 pub mod ir;
 pub mod lexer;
 pub mod lint;
@@ -27,6 +28,9 @@ pub use compiler::{
     compile_source_to_js_module, render_diagnostic, render_module_diagnostic, CompilationArtifacts,
     JavaScriptBundle, JavaScriptBundleFile, JavaScriptBundleManifest,
     JavaScriptBundleManifestChunk, JavaScriptCompilation, SourceCompileError,
+};
+pub use interpreter::{
+    interpret_program, interpret_program_with_limits, InterpretError, InterpreterLimits,
 };
 pub use lower::{lower_to_control_flow, LowerError};
 pub use module::ModuleError;
