@@ -183,6 +183,21 @@ token context rather than a source-length heuristic.
 
 Run it with `node benchmarks/loop-spelling/run.mjs`.
 
+## Mutation spelling ablation
+
+The complete Emotion hash port holds every optimizer and emitter choice
+constant while omitting only `mutation-spelling-selection`. Prefix or postfix
+increment is considered only for a one-use SSA add feeding its own phi and
+only when range analysis proves no signed-i32 coercion is required. Both
+artifacts execute the same package contract before measurement.
+
+| Variant | Raw | Gzip-9 | Brotli-11 |
+| --- | ---: | ---: | ---: |
+| Mutation spelling selected | 814 | 536 | 455 |
+| Assignment spelling only | 816 | 538 | 456 |
+
+Run it with `node benchmarks/mutation-spelling/run.mjs`.
+
 ## Method
 
 Each LilScript workload has a behaviorally equivalent JavaScript input under

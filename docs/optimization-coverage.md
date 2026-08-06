@@ -81,8 +81,9 @@ The current schedule is:
     liveness-reused cycle temporaries, codec-selected conservative/direct-phi
     affinity/group and scalar/tuple copy layouts, induction ranges, shortest
     numeric literals, SSA-root binary precedence, structured closure selection,
-    string-table packing, minified backend peepholes, and deterministic
-    compressor-aware candidate selection;
+    range-proven prefix/postfix mutation spelling, string-table packing,
+    minified backend peepholes, and deterministic compressor-aware candidate
+    selection;
 11. optional source ownership or shared-module chunk planning over the surviving
     IR, followed by cross-chunk binding analysis and deterministic ESM emission.
 
@@ -131,6 +132,13 @@ with identical optimizer and final-emission settings while omitting only
 the package contract before measurement. The complete Motion easing port also
 improves from `614/562` to `610/557` gzip/Brotli while spending eight raw bytes
 under the explicitly selected Brotli objective.
+
+`benchmarks/mutation-spelling/run.mjs` compiles and executes the complete
+Emotion hash port while omitting only `mutation-spelling-selection`. SSA use
+counts and integer ranges gate every shorthand before exact prefix/postfix
+scoring. The isolated production artifact improves from `816/538/456` to
+`814/536/455` raw/gzip/Brotli; Levenshtein independently improves from
+`1582/899/778` to `1580/897/776`.
 
 `benchmarks/run.sh` compiles ten behaviorally equivalent LilScript/JavaScript
 workloads, runs both outputs, invokes Closure `ADVANCED`, and measures normalized

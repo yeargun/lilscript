@@ -90,6 +90,10 @@ checked-in benchmark workload. Passing a synthetic example alone is not enough.
   complete MurmurHash port keeps raw/gzip at `1741/840` and reduces Brotli from
   `740` to `734`; Motion easing improves gzip/Brotli from `614/562` to
   `610/557` under the configured Brotli objective.
+- [x] Score assignment, prefix, and postfix forms for one-use loop-carried
+  increments only after range analysis proves coercion-free i32 behavior. The
+  complete Emotion hash port improves from `816/538/456` to `814/536/455`, and
+  Levenshtein improves from `1582/899/778` to `1580/897/776`.
 - [ ] Expand optimizer-level IR variants from the current inlining choice to
   specialization, structural loop shape, and SSA destruction under the
   selected codec.
@@ -98,7 +102,7 @@ checked-in benchmark workload. Passing a synthetic example alone is not enough.
   parsing generated strings.
 - [ ] Expand candidate search from current declaration and condition-only loop
   alternatives to conditional/comma expressions, `do` loops, update-bearing
-  loop layouts, switch lowering, and local mutation forms.
+  loop layouts, switch lowering, and compound local mutation forms.
 - [ ] Add entropy-aware cross-scope name reuse and property-name assignment.
 - [ ] Add a parsed post-codegen peephole/superoptimizer whose every rewrite is
   differential-tested against optimized and disabled-optimizer executions.

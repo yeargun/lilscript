@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "generatedAt": "2026-08-06T22:39:52.803Z",
-    "compilerRevision": "1e4e6cd",
+    "generatedAt": "2026-08-06T22:51:20.822Z",
+    "compilerRevision": "0e3efd1",
     "node": "v24.11.1",
     "vite": "8.2.0",
     "esbuild": "0.28.1",
@@ -47,7 +47,7 @@
             "assets/index-BdTNmHk3.js",
             "index.html"
           ],
-          "medianMs": 5.031374999999969
+          "medianMs": 5.396834000000013
         },
         {
           "id": "closure",
@@ -64,24 +64,24 @@
             "app.js",
             "index.html"
           ],
-          "medianMs": 3.967917
+          "medianMs": 4.256000000000029
         },
         {
           "id": "lilscript",
           "label": "LilScript port",
-          "raw": 1159,
-          "gzip": 610,
+          "raw": 1148,
+          "gzip": 611,
           "brotli": 557,
           "deploy": {
-            "raw": 1345,
-            "gzip": 769,
+            "raw": 1334,
+            "gzip": 770,
             "brotli": 643
           },
           "files": [
             "app.js",
             "index.html"
           ],
-          "medianMs": 4.3910000000000196,
+          "medianMs": 4.68558299999998,
           "nativeVerified": true,
           "cEmitted": true
         }
@@ -125,7 +125,7 @@
             "assets/index-B6IEu8zq.js",
             "index.html"
           ],
-          "medianMs": 2.544125000000008
+          "medianMs": 2.3346250000000026
         },
         {
           "id": "closure",
@@ -142,24 +142,24 @@
             "app.js",
             "index.html"
           ],
-          "medianMs": 2.5913329999999917
+          "medianMs": 2.382666999999998
         },
         {
           "id": "lilscript",
           "label": "LilScript port",
-          "raw": 529,
-          "gzip": 319,
-          "brotli": 280,
+          "raw": 528,
+          "gzip": 320,
+          "brotli": 279,
           "deploy": {
-            "raw": 715,
-            "gzip": 478,
-            "brotli": 366
+            "raw": 714,
+            "gzip": 479,
+            "brotli": 365
           },
           "files": [
             "app.js",
             "index.html"
           ],
-          "medianMs": 0.9717500000000001,
+          "medianMs": 0.9559580000000096,
           "nativeVerified": true,
           "cEmitted": true
         }
@@ -199,7 +199,7 @@
             "assets/index-Bf76Xsi8.js",
             "index.html"
           ],
-          "medianMs": 3.4524579999999787
+          "medianMs": 3.6103330000000113
         },
         {
           "id": "closure",
@@ -216,7 +216,7 @@
             "app.js",
             "index.html"
           ],
-          "medianMs": 3.4087080000000185
+          "medianMs": 3.614457999999999
         },
         {
           "id": "lilscript",
@@ -233,7 +233,7 @@
             "app.js",
             "index.html"
           ],
-          "medianMs": 2.8668329999999855,
+          "medianMs": 3.0395420000000115,
           "nativeVerified": true,
           "cEmitted": true
         }
@@ -273,7 +273,7 @@
             "assets/index-B4X7I0S2.js",
             "index.html"
           ],
-          "medianMs": 6.12362499999999
+          "medianMs": 6.500750000000039
         },
         {
           "id": "closure",
@@ -290,24 +290,24 @@
             "app.js",
             "index.html"
           ],
-          "medianMs": 6.1310419999999795
+          "medianMs": 6.554957999999999
         },
         {
           "id": "lilscript",
           "label": "LilScript port",
-          "raw": 1582,
-          "gzip": 899,
-          "brotli": 778,
+          "raw": 1580,
+          "gzip": 897,
+          "brotli": 776,
           "deploy": {
-            "raw": 1768,
-            "gzip": 1058,
-            "brotli": 864
+            "raw": 1766,
+            "gzip": 1056,
+            "brotli": 862
           },
           "files": [
             "app.js",
             "index.html"
           ],
-          "medianMs": 6.292749999999984,
+          "medianMs": 6.6703339999999685,
           "nativeVerified": true,
           "cEmitted": true
         }
@@ -347,7 +347,7 @@
             "assets/index-DHXm0Jix.js",
             "index.html"
           ],
-          "medianMs": 11.774584000000004
+          "medianMs": 11.830084
         },
         {
           "id": "closure",
@@ -364,24 +364,24 @@
             "app.js",
             "index.html"
           ],
-          "medianMs": 11.732541999999995
+          "medianMs": 11.837249999999926
         },
         {
           "id": "lilscript",
           "label": "LilScript port",
-          "raw": 816,
-          "gzip": 538,
-          "brotli": 456,
+          "raw": 814,
+          "gzip": 536,
+          "brotli": 455,
           "deploy": {
-            "raw": 1002,
-            "gzip": 697,
-            "brotli": 542
+            "raw": 1000,
+            "gzip": 695,
+            "brotli": 541
           },
           "files": [
             "app.js",
             "index.html"
           ],
-          "medianMs": 11.379792000000009,
+          "medianMs": 11.473542000000066,
           "nativeVerified": true,
           "cEmitted": true
         }
@@ -421,7 +421,7 @@
             "assets/index-B9SN9_CL.js",
             "index.html"
           ],
-          "medianMs": 5.19954199999998
+          "medianMs": 5.320042000000001
         },
         {
           "id": "closure",
@@ -438,7 +438,7 @@
             "app.js",
             "index.html"
           ],
-          "medianMs": 5.250084000000015
+          "medianMs": 5.284082999999995
         },
         {
           "id": "lilscript",
@@ -455,7 +455,7 @@
             "app.js",
             "index.html"
           ],
-          "medianMs": 4.423000000000002,
+          "medianMs": 4.49208299999998,
           "nativeVerified": true,
           "cEmitted": true
         }
