@@ -16,7 +16,7 @@ JavaScript and native C backends.
 | Closure responsibility | LilScript implementation |
 | --- | --- |
 | Early/late peephole optimization | Constant folding, algebraic identities, boolean simplification, branch inversion, compact loops, conditional returns, declaration collapse, trailing-semicolon removal |
-| Numeric representation lowering | Signed-i32 range analysis removes `|0` and `Math.imul` only for proven-safe operations; overflow-capable arithmetic retains exact wrapping behavior |
+| Numeric representation lowering | Signed-i32 range analysis removes coercions only for proven-safe operations and emits `x*y|0` when the integer product is double-exact; overflow-capable products retain `Math.imul` and exact wrapping behavior |
 | Inline variables and constants | mem2reg SSA, constant propagation, single-assignment global propagation, constant rematerialization, one-use expression fusion |
 | Inline functions and simple methods | Fixed-point expression inlining plus single-use multi-block CFG inlining |
 | Inline/collapse properties | Nominal field resolution, positional field indexes, struct/class scalar replacement |
@@ -32,8 +32,8 @@ JavaScript and native C backends.
 | Coalesce variable names | CFG liveness, interference graph coloring, and phi move affinity |
 | Collapse variable declarations | Adjacent bindings and first phi assignments are combined by the JS backend |
 | Rewrite/collapse anonymous functions | Small typed closures become expression or block arrows; capturing closures pass explicit environments |
-| Alias strings | Repeated constants are value-numbered and profitable long strings receive shared short bindings; final pooling and coercion variants are selected against exact raw/gzip/Brotli cost |
-| Rename variables and globals | Frequency-ranked base-54/base-64 identifiers with extern names reserved |
+| Alias strings | Repeated constants are value-numbered and profitable long strings receive shared short bindings; final pooling, quote, and coercion variants are selected against exact raw/gzip/Brotli cost |
+| Rename variables and globals | Use-frequency-ranked base-54/base-64 identifiers with extern names reserved, plus exact-compressor selection of emitted-character-ranked alphabets |
 | Rescope globals | Entry-only globals become locals; immutable shared globals become constants |
 | Rewrite modules and tree shake exports | Relative module graphs are linked into private symbol namespaces; executable exports remain shakeable, while `js-module` roots runtime exports and emits mangled ESM aliases |
 | Cross-chunk code/method motion | Whole-program optimization runs before deterministic static ESM partitioning; preserve-module and shared size/import policies emit explicit imports, live exports, and a manifest. Dynamic/lazy imports remain unsupported |

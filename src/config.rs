@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 
-use crate::codegen_ir_js::IrJsOptions;
+use crate::codegen_ir_js::{IdentifierAlphabet, IrJsOptions, StringQuote};
 use crate::optimizer::OptimizationOptions;
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize)]
@@ -25,6 +25,7 @@ impl ProjectConfig {
 
     pub fn js_optimizer_options(&self) -> OptimizationOptions {
         let mut options = self.optimization.resolve();
+        options.specialize_tagged_constants = true;
         if !options.inlining {
             return options;
         }
@@ -70,7 +71,22 @@ impl ProjectConfig {
             elide_safe_integer_coercions: self
                 .javascript
                 .compression_enabled(CompressionDecision::SafeIntegerCoercionElision),
+            lower_exact_integer_multiplication: self
+                .javascript
+                .compression_enabled(CompressionDecision::DoubleExactIntegerMultiplication),
+            identifier_alphabet: IdentifierAlphabet::canonical(),
+            string_quote: StringQuote::Double,
         }
+    }
+
+    pub fn entropy_aware_mangling_enabled(&self) -> bool {
+        self.javascript
+            .compression_enabled(CompressionDecision::EntropyAwareMangling)
+    }
+
+    pub fn quote_style_selection_enabled(&self) -> bool {
+        self.javascript
+            .compression_enabled(CompressionDecision::QuoteStyleSelection)
     }
 
     pub fn validate(&self) -> Result<(), String> {
@@ -134,9 +150,14 @@ impl JavaScriptPriority {
     const fn enables_compression(self, decision: CompressionDecision) -> bool {
         match decision {
             CompressionDecision::IdentifierMangling => true,
+            CompressionDecision::EntropyAwareMangling => !matches!(self, Self::PerformanceFirst),
+            CompressionDecision::QuoteStyleSelection => !matches!(self, Self::PerformanceFirst),
             CompressionDecision::StringPooling => !matches!(self, Self::PerformanceFirst),
             CompressionDecision::SizeAwareInlining => !matches!(self, Self::PerformanceFirst),
             CompressionDecision::SafeIntegerCoercionElision => {
+                !matches!(self, Self::PerformanceFirst)
+            }
+            CompressionDecision::DoubleExactIntegerMultiplication => {
                 !matches!(self, Self::PerformanceFirst)
             }
             CompressionDecision::PropertyMangling | CompressionDecision::ExportMangling => false,
@@ -169,22 +190,28 @@ impl JavaScriptPolicy {
 #[serde(rename_all = "kebab-case")]
 pub enum CompressionDecision {
     IdentifierMangling,
+    EntropyAwareMangling,
+    QuoteStyleSelection,
     PropertyMangling,
     ExportMangling,
     StringPooling,
     SizeAwareInlining,
     SafeIntegerCoercionElision,
+    DoubleExactIntegerMultiplication,
 }
 
 impl CompressionDecision {
     const fn name(self) -> &'static str {
         match self {
             Self::IdentifierMangling => "identifier-mangling",
+            Self::EntropyAwareMangling => "entropy-aware-mangling",
+            Self::QuoteStyleSelection => "quote-style-selection",
             Self::PropertyMangling => "property-mangling",
             Self::ExportMangling => "export-mangling",
             Self::StringPooling => "string-pooling",
             Self::SizeAwareInlining => "size-aware-inlining",
             Self::SafeIntegerCoercionElision => "safe-integer-coercion-elision",
+            Self::DoubleExactIntegerMultiplication => "double-exact-integer-multiplication",
         }
     }
 }
@@ -212,7 +239,7 @@ impl Default for JavaScriptConfig {
             max_inline_growth: None,
             cost_model: CompressionCostModel::Brotli,
             candidate_search: CandidateSearch::Production,
-            candidate_limit: 32,
+            candidate_limit: 64,
         }
     }
 }
@@ -380,6 +407,7 @@ impl OptimizationConfig {
             dead_code_elimination: self
                 .dead_code_elimination
                 .unwrap_or(base.dead_code_elimination),
+            specialize_tagged_constants: base.specialize_tagged_constants,
             inline_instruction_limit: base.inline_instruction_limit,
             inline_control_flow_limit: base.inline_control_flow_limit,
             inline_growth_limit: base.inline_growth_limit,
@@ -552,8 +580,10 @@ shared_min_imports = 3
         assert_eq!(realistic_optimizer.inline_control_flow_limit, 45);
         assert_eq!(realistic_optimizer.inline_growth_limit, Some(16));
         assert!(realistic.js_options().mangle_identifiers);
+        assert!(realistic.entropy_aware_mangling_enabled());
         assert!(realistic.js_options().pool_strings);
         assert!(realistic.js_options().elide_safe_integer_coercions);
+        assert!(realistic.js_options().lower_exact_integer_multiplication);
 
         let alias: ProjectConfig =
             toml::from_str("[javascript]\npriority='realisticperf-first'\n").unwrap();
@@ -574,6 +604,8 @@ shared_min_imports = 3
         assert_eq!(size.js_optimizer_options().inline_growth_limit, Some(0));
         assert!(size.js_options().pool_strings);
         assert!(size.js_options().elide_safe_integer_coercions);
+
+        assert!(!performance.entropy_aware_mangling_enabled());
 
         let explicit_pooling: ProjectConfig = toml::from_str(
             "[javascript]\npriority='performance-first'\n[mangle]\npool_strings=true\n",
@@ -620,6 +652,8 @@ max_inline_growth = 3
         assert!(!none_codegen.mangle_exports);
         assert!(!none_codegen.pool_strings);
         assert!(!none_codegen.elide_safe_integer_coercions);
+        assert!(!none_codegen.lower_exact_integer_multiplication);
+        assert!(!none.entropy_aware_mangling_enabled());
 
         let explicit_mangle: ProjectConfig = toml::from_str(
             "[javascript]\ncompression=[]\n[mangle]\nidentifiers=true\npool_strings=true\n",

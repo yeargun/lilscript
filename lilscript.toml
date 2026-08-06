@@ -5,12 +5,15 @@ preset = "maximum"
 priority = "realistic-performance-first"
 cost_model = "brotli"
 candidate_search = "production"
-candidate_limit = 32
+candidate_limit = 64
 compression = [
   "identifier-mangling",
+  "entropy-aware-mangling",
+  "quote-style-selection",
   "string-pooling",
   "size-aware-inlining",
   "safe-integer-coercion-elision",
+  "double-exact-integer-multiplication",
 ]
 
 [bundle]

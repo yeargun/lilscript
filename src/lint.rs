@@ -25,6 +25,7 @@ pub const RULES: &[&str] = &[
     "effects/pure-extern-requires-allowlist",
     "performance/allocation-in-loop",
     "performance/closure-allocation-in-loop",
+    "performance/indirect-call-in-loop",
     "performance/aggregate-escape",
     "performance/materialized-array-chain",
     "size/eager-chunk-overhead",
@@ -463,19 +464,52 @@ fn lint_ir(module: &crate::ir::ControlFlowModule<'_>, pending: &mut Vec<PendingD
                     definitions.insert(out, &instruction.op);
                 }
                 let in_loop = loop_blocks.contains(&block.id);
-                match &instruction.op {
-                    ControlFlowOp::Array(_) if in_loop => pending.push(allocation_diagnostic(
-                        instruction.span,
-                        "array",
-                        "performance/allocation-in-loop",
-                    )),
-                    ControlFlowOp::Closure { .. } if in_loop => {
-                        pending.push(allocation_diagnostic(
+                if in_loop {
+                    match &instruction.op {
+                        ControlFlowOp::Array(_) => pending.push(allocation_diagnostic(
+                            instruction.span,
+                            "array",
+                            "performance/allocation-in-loop",
+                        )),
+                        ControlFlowOp::Struct { .. } | ControlFlowOp::NewClass { .. } => {
+                            pending.push(allocation_diagnostic(
+                                instruction.span,
+                                "aggregate",
+                                "performance/allocation-in-loop",
+                            ));
+                        }
+                        ControlFlowOp::Intrinsic { intrinsic, .. } => {
+                            if let Some(kind) = intrinsic_allocation_kind(*intrinsic) {
+                                pending.push(allocation_diagnostic(
+                                    instruction.span,
+                                    kind,
+                                    "performance/allocation-in-loop",
+                                ));
+                            }
+                        }
+                        ControlFlowOp::Closure { .. } => pending.push(allocation_diagnostic(
                             instruction.span,
                             "closure",
                             "performance/closure-allocation-in-loop",
-                        ))
+                        )),
+                        ControlFlowOp::CallValue { .. } => pending.push(PendingDiagnostic {
+                            span: instruction.span,
+                            rule: "performance/indirect-call-in-loop",
+                            message: "indirect function call remains inside a loop".to_string(),
+                            evidence: Some(
+                                "the optimized IR could not resolve this call to a direct target"
+                                    .to_string(),
+                            ),
+                            help: Some(
+                                "keep the call site monomorphic or pass a statically known function when this loop is hot"
+                                    .to_string(),
+                            ),
+                            fix: None,
+                        }),
+                        _ => {}
                     }
+                }
+                match &instruction.op {
                     ControlFlowOp::Struct { .. } | ControlFlowOp::NewClass { .. } => {
                         if let Some(out) = instruction.out {
                             if function.value_escapes.get(out.0 as usize).copied()
@@ -529,6 +563,21 @@ fn lint_ir(module: &crate::ir::ControlFlowModule<'_>, pending: &mut Vec<PendingD
                 }
             }
         }
+    }
+}
+
+fn intrinsic_allocation_kind(intrinsic: Intrinsic) -> Option<&'static str> {
+    match intrinsic {
+        Intrinsic::ArrayMap | Intrinsic::ArrayFilter => Some("array result"),
+        Intrinsic::MapNew => Some("map"),
+        Intrinsic::SetNew => Some("set"),
+        Intrinsic::ArrayBufferNew | Intrinsic::SharedArrayBufferNew | Intrinsic::BufferSlice => {
+            Some("buffer")
+        }
+        Intrinsic::Uint8ArrayNew | Intrinsic::Uint8ArraySlice | Intrinsic::Uint8ArraySubarray => {
+            Some("typed array view")
+        }
+        _ => None,
     }
 }
 
@@ -1007,6 +1056,31 @@ mod tests {
         assert!(diagnostics
             .iter()
             .any(|diagnostic| diagnostic.rule == "size/eager-chunk-overhead"));
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn reports_surviving_collection_allocations_and_indirect_calls_in_loops() {
+        let directory = std::env::temp_dir().join(format!(
+            "lilscript-lint-loop-cost-test-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&directory).unwrap();
+        let path = directory.join("main.lil");
+        std::fs::write(
+            &path,
+            "extern void consume(Map<string,int> values);extern func(int)->int choose();func(int)->int operation=choose();for(int index=0;index<3;index++){Map<string,int> values=new Map();consume(values);print(operation(index));}",
+        )
+        .unwrap();
+
+        let diagnostics = lint_path(&path, &ProjectConfig::default()).unwrap();
+        assert!(diagnostics.iter().any(|diagnostic| {
+            diagnostic.rule == "performance/allocation-in-loop"
+                && diagnostic.message.contains("map")
+        }));
+        assert!(diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.rule == "performance/indirect-call-in-loop"));
         std::fs::remove_dir_all(directory).unwrap();
     }
 }

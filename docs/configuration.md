@@ -20,12 +20,15 @@ dead_code_elimination = true
 priority = "realistic-performance-first"
 cost_model = "brotli" # raw | gzip | brotli
 candidate_search = "production" # off | production | always
-candidate_limit = 32
+candidate_limit = 64
 compression = [
   "identifier-mangling",
+  "entropy-aware-mangling",
+  "quote-style-selection",
   "string-pooling",
   "size-aware-inlining",
   "safe-integer-coercion-elision",
+  "double-exact-integer-multiplication",
 ]
 # inline_instruction_limit = 18
 # inline_control_flow_limit = 45
@@ -85,6 +88,11 @@ size tactics. If omitted, the selected profile supplies the list. If present,
 only listed tactics are enabled; `compression = []` disables all of them:
 
 - `identifier-mangling` assigns short names by whole-program use frequency.
+- `entropy-aware-mangling` compares the canonical identifier alphabet with an
+  alphabet ranked by emitted-character frequency, then lets the configured
+  exact compressor choose the result.
+- `quote-style-selection` compares semantically equivalent single- and
+  double-quoted string literals.
 - `property-mangling` renames LilScript-owned boundary-visible properties.
 - `export-mangling` permits public ESM export names to be shortened.
 - `string-pooling` aliases repeated strings only when the emitter's raw-size
@@ -94,6 +102,10 @@ only listed tactics are enabled; `compression = []` disables all of them:
 - `safe-integer-coercion-elision` replaces `|0` or `Math.imul` with smaller
   ordinary arithmetic only when inferred operand ranges prove identical signed
   32-bit behavior. Unknown or overflow-capable operations remain normalized.
+- `double-exact-integer-multiplication` emits `left*right|0` instead of
+  `Math.imul(left,right)` when range analysis proves the integer product is
+  exactly representable by a JavaScript double before coercion. It preserves
+  wrapping behavior while avoiding `Math.imul` call overhead and bytes.
 
 The numeric `inline_instruction_limit`, `inline_control_flow_limit`, and
 `max_inline_growth` keys override the selected profile. Setting
@@ -110,8 +122,9 @@ exact `compression` allowlist. `candidate_search = "production"` is the
 default and is skipped by CLI `--mode development`; `always` remains active in
 that mode, while `off` disables compressor-in-the-loop emission. The current
 search space compares profitable string pooling, proven-safe integer coercion
-elision, and equivalent top-level declaration spellings, bounded by
-`candidate_limit`.
+elision, exact-double multiplication, identifier alphabets, quote styles, and
+equivalent top-level declaration spellings, bounded by `candidate_limit`. The
+default limit of `64` covers the complete current default search space.
 
 The priority is applied after `[optimization]`: setting `inlining = false`
 disables inlining in every profile. Explicit `[mangle]` values have the highest

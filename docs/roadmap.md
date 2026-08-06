@@ -50,8 +50,9 @@ checked-in benchmark workload. Passing a synthetic example alone is not enough.
   models that account for repeated token context.
 - [x] Add deterministic bounded compressor-in-the-loop selection for contested
   final emission tactics.
-- [ ] Expand candidate search beyond top-level declaration spelling to quote
-  styles, deeper declaration layouts, and alternative identifier assignments.
+- [x] Compare quote styles and emitted-character-ranked identifier alphabets
+  with exact compressor scoring.
+- [ ] Expand candidate search to deeper declaration and expression layouts.
 - [ ] Add entropy-aware cross-scope name reuse and property-name assignment.
 - [ ] Add post-codegen superoptimization with semantic differential tests.
 - [ ] Track parse/compile cost and memory alongside transfer size so extreme

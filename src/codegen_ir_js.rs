@@ -27,6 +27,9 @@ pub struct IrJsOptions {
     pub mangle_exports: bool,
     pub pool_strings: bool,
     pub elide_safe_integer_coercions: bool,
+    pub lower_exact_integer_multiplication: bool,
+    pub identifier_alphabet: IdentifierAlphabet,
+    pub string_quote: StringQuote,
 }
 
 impl Default for IrJsOptions {
@@ -37,8 +40,72 @@ impl Default for IrJsOptions {
             mangle_exports: false,
             pool_strings: true,
             elide_safe_integer_coercions: true,
+            lower_exact_integer_multiplication: true,
+            identifier_alphabet: IdentifierAlphabet::canonical(),
+            string_quote: StringQuote::Double,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum StringQuote {
+    #[default]
+    Double,
+    Single,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct IdentifierAlphabet {
+    first: [u8; 54],
+    rest: [u8; 64],
+}
+
+impl IdentifierAlphabet {
+    pub const fn canonical() -> Self {
+        Self {
+            first: *b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_$",
+            rest: *b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_$0123456789",
+        }
+    }
+
+    pub fn for_code(code: &str) -> Self {
+        let canonical = Self::canonical();
+        let mut counts = [0usize; 128];
+        for byte in code.bytes().filter(|byte| byte.is_ascii()) {
+            counts[byte as usize] += 1;
+        }
+        let mut alphabet = canonical;
+        alphabet.first.sort_unstable_by(|left, right| {
+            counts[*right as usize]
+                .cmp(&counts[*left as usize])
+                .then_with(|| {
+                    canonical_rank(*left, &canonical.first)
+                        .cmp(&canonical_rank(*right, &canonical.first))
+                })
+        });
+        alphabet.rest.sort_unstable_by(|left, right| {
+            counts[*right as usize]
+                .cmp(&counts[*left as usize])
+                .then_with(|| {
+                    canonical_rank(*left, &canonical.rest)
+                        .cmp(&canonical_rank(*right, &canonical.rest))
+                })
+        });
+        alphabet
+    }
+}
+
+impl Default for IdentifierAlphabet {
+    fn default() -> Self {
+        Self::canonical()
+    }
+}
+
+fn canonical_rank(byte: u8, alphabet: &[u8]) -> usize {
+    alphabet
+        .iter()
+        .position(|candidate| *candidate == byte)
+        .unwrap_or(usize::MAX)
 }
 
 pub fn emit_optimized_ir_js_with_options(
@@ -114,7 +181,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             global_names: AHashMap::new(),
             external_export_aliases: AHashMap::new(),
             function_names: AHashMap::new(),
-            top_level_mangler: Mangler::default(),
+            top_level_mangler: Mangler::new(options.identifier_alphabet),
             declared_globals: AHashSet::new(),
             string_aliases: AHashMap::new(),
             pooled_strings: Vec::new(),
@@ -139,7 +206,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 }
                 out.push_str(name);
                 out.push('=');
-                out.push_str(&render_string_literal(value));
+                out.push_str(&render_string_literal(value, self.options.string_quote));
             }
             out.push(';');
         }
@@ -335,7 +402,13 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         let mut output = Vec::with_capacity(unit_files.len());
         for unit in 0..unit_files.len() {
             let mut code = String::new();
-            emit_chunk_imports(&mut code, unit, &unit_files, &imports[unit]);
+            emit_chunk_imports(
+                &mut code,
+                unit,
+                &unit_files,
+                &imports[unit],
+                self.options.string_quote,
+            );
             if unit == 0 {
                 self.emit_module_preamble(&mut code)?;
             }
@@ -367,7 +440,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 }
                 out.push_str(name);
                 out.push('=');
-                out.push_str(&render_string_literal(value));
+                out.push_str(&render_string_literal(value, self.options.string_quote));
             }
             out.push(';');
         }
@@ -1769,6 +1842,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     let rhs = take_value(*rhs, context, cache)?;
                     return Ok(match op {
                         IrBinaryOp::Mul if coercion_is_elidable => format!("({lhs}*{rhs})"),
+                        IrBinaryOp::Mul
+                            if self.options.lower_exact_integer_multiplication
+                                && instruction.out.is_some_and(|out| {
+                                    context.can_lower_exact_i32_multiplication(out)
+                                }) =>
+                        {
+                            format!("({lhs}*{rhs}|0)")
+                        }
                         IrBinaryOp::Mul => format!("Math.imul({lhs},{rhs})"),
                         IrBinaryOp::Mod if is_nonzero_i32_literal(&rhs) => {
                             format!("({lhs}%{rhs})")
@@ -1827,7 +1908,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 .string_aliases
                 .get(value)
                 .cloned()
-                .unwrap_or_else(|| render_string_literal(value)),
+                .unwrap_or_else(|| render_string_literal(value, self.options.string_quote)),
             ControlFlowOp::Const(value) => render_const(value),
             ControlFlowOp::Unary { op, value: operand } => format!(
                 "{}{}",
@@ -1846,7 +1927,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             ControlFlowOp::TypeCheck {
                 value: input,
                 target,
-            } => render_js_type_check(&value(*input, cache)?, target)?,
+            } => render_js_type_check(&value(*input, cache)?, target, self.options.string_quote)?,
             ControlFlowOp::Array(values) | ControlFlowOp::Struct { fields: values, .. } => {
                 let mut rendered = String::from("[");
                 for (index, item) in values.iter().enumerate() {
@@ -2422,6 +2503,7 @@ fn emit_chunk_imports(
     current: usize,
     files: &[String],
     imports: &AHashMap<usize, AHashSet<String>>,
+    quote: StringQuote,
 ) {
     let mut sources = imports.iter().collect::<Vec<_>>();
     sources.sort_unstable_by(|(left, _), (right, _)| files[**left].cmp(&files[**right]));
@@ -2439,7 +2521,10 @@ fn emit_chunk_imports(
             out.push_str(name);
         }
         out.push_str("}from");
-        out.push_str(&render_string_literal(&format!("./{}", files[*source])));
+        out.push_str(&render_string_literal(
+            &format!("./{}", files[*source]),
+            quote,
+        ));
         out.push(';');
     }
 }
@@ -2602,6 +2687,7 @@ struct LocalNames {
     untyped_values: AHashSet<ValueId>,
     inlined_values: AHashMap<ValueId, String>,
     elidable_i32_coercions: AHashSet<ValueId>,
+    exact_i32_multiplications: AHashSet<ValueId>,
     declared_names: RefCell<AHashSet<String>>,
     inline_declarations: bool,
     state: String,
@@ -2732,7 +2818,12 @@ impl I32Range {
     }
 }
 
-fn analyze_i32_ranges(function: &ControlFlowFunction<'_>) -> AHashSet<ValueId> {
+struct I32Analysis {
+    elidable_coercions: AHashSet<ValueId>,
+    exact_multiplications: AHashSet<ValueId>,
+}
+
+fn analyze_i32_ranges(function: &ControlFlowFunction<'_>) -> I32Analysis {
     let mut ranges = AHashMap::<ValueId, I32Range>::new();
     for parameter in &function.params {
         if parameter.ty == Type::Int {
@@ -2824,7 +2915,39 @@ fn analyze_i32_ranges(function: &ControlFlowFunction<'_>) -> AHashSet<ValueId> {
             break;
         }
     }
-    elidable
+    let exact_multiplications = function
+        .blocks
+        .iter()
+        .flat_map(|block| &block.instructions)
+        .filter_map(|instruction| match (instruction.out, &instruction.op) {
+            (
+                Some(out),
+                ControlFlowOp::Binary {
+                    op: IrBinaryOp::Mul,
+                    lhs,
+                    rhs,
+                },
+            ) if integer_product_is_double_exact(
+                ranges.get(lhs).copied().unwrap_or(I32Range::FULL),
+                ranges.get(rhs).copied().unwrap_or(I32Range::FULL),
+            ) =>
+            {
+                Some(out)
+            }
+            _ => None,
+        })
+        .collect();
+    I32Analysis {
+        elidable_coercions: elidable,
+        exact_multiplications,
+    }
+}
+
+fn integer_product_is_double_exact(lhs: I32Range, rhs: I32Range) -> bool {
+    const MAX_EXACT_INTEGER: i128 = 1_i128 << 53;
+    let lhs = i128::from(lhs.min.abs().max(lhs.max.abs()));
+    let rhs = i128::from(rhs.min.abs().max(rhs.max.abs()));
+    lhs * rhs <= MAX_EXACT_INTEGER
 }
 
 fn seed_induction_ranges(
@@ -2972,7 +3095,7 @@ impl LocalNames {
         } else {
             AHashSet::new()
         };
-        let elidable_i32_coercions = analyze_i32_ranges(function);
+        let i32_analysis = analyze_i32_ranges(function);
         let mut values = function
             .params
             .iter()
@@ -3102,7 +3225,8 @@ impl LocalNames {
             stored_values,
             untyped_values,
             inlined_values,
-            elidable_i32_coercions,
+            elidable_i32_coercions: i32_analysis.elidable_coercions,
+            exact_i32_multiplications: i32_analysis.exact_multiplications,
             declared_names: RefCell::new(declared_names),
             inline_declarations: false,
             state,
@@ -3147,6 +3271,10 @@ impl LocalNames {
 
     fn can_elide_i32_coercion(&self, value: ValueId) -> bool {
         self.elidable_i32_coercions.contains(&value)
+    }
+
+    fn can_lower_exact_i32_multiplication(&self, value: ValueId) -> bool {
+        self.exact_i32_multiplications.contains(&value)
     }
 
     fn claim_declaration(&self, value: ValueId) -> Result<bool, CodegenError> {
@@ -3791,7 +3919,7 @@ fn render_const(value: &ConstValue) -> String {
         ConstValue::Int(value) => shortest_integer(*value),
         ConstValue::Float(value) => shortest_float(*value),
         ConstValue::Bool(value) => value.to_string(),
-        ConstValue::String(value) => render_string_literal(value),
+        ConstValue::String(value) => render_string_literal(value, StringQuote::Double),
         ConstValue::Null => "null".to_string(),
     }
 }
@@ -3877,14 +4005,36 @@ fn normalize_exponent(value: String) -> String {
     format!("{mantissa}e{exponent}")
 }
 
-fn render_js_type_check(value: &str, target: &Type<'_>) -> Result<String, CodegenError> {
+fn render_js_type_check(
+    value: &str,
+    target: &Type<'_>,
+    quote: StringQuote,
+) -> Result<String, CodegenError> {
     Ok(match target {
-        Type::Int | Type::Float => format!("typeof({value})==\"number\""),
-        Type::String => format!("typeof({value})==\"string\""),
-        Type::Bool => format!("typeof({value})==\"boolean\""),
+        Type::Int | Type::Float => {
+            format!(
+                "typeof({value})=={}",
+                render_string_literal("number", quote)
+            )
+        }
+        Type::String => {
+            format!(
+                "typeof({value})=={}",
+                render_string_literal("string", quote)
+            )
+        }
+        Type::Bool => {
+            format!(
+                "typeof({value})=={}",
+                render_string_literal("boolean", quote)
+            )
+        }
         Type::Array(_) => format!("Array.isArray({value})"),
         Type::Function(_) | Type::GenericFunction(_) => {
-            format!("typeof({value})==\"function\"")
+            format!(
+                "typeof({value})=={}",
+                render_string_literal("function", quote)
+            )
         }
         _ => {
             return Err(CodegenError::new(
@@ -3895,8 +4045,34 @@ fn render_js_type_check(value: &str, target: &Type<'_>) -> Result<String, Codege
     })
 }
 
-fn render_string_literal(value: &str) -> String {
-    format!("\"{value}\"")
+fn render_string_literal(value: &str, quote: StringQuote) -> String {
+    if quote == StringQuote::Double {
+        return format!("\"{value}\"");
+    }
+    let encoded = format!("\"{value}\"");
+    let decoded = serde_json::from_str::<String>(&encoded).unwrap_or_else(|_| value.to_string());
+    let mut rendered = String::with_capacity(decoded.len() + 2);
+    rendered.push('\'');
+    for character in decoded.chars() {
+        match character {
+            '\'' => rendered.push_str("\\'"),
+            '\\' => rendered.push_str("\\\\"),
+            '\u{0008}' => rendered.push_str("\\b"),
+            '\u{000c}' => rendered.push_str("\\f"),
+            '\n' => rendered.push_str("\\n"),
+            '\r' => rendered.push_str("\\r"),
+            '\t' => rendered.push_str("\\t"),
+            '\u{2028}' => rendered.push_str("\\u2028"),
+            '\u{2029}' => rendered.push_str("\\u2029"),
+            control if control <= '\u{001f}' => {
+                write!(rendered, "\\u{:04x}", control as u32)
+                    .expect("writing to a string cannot fail");
+            }
+            _ => rendered.push(character),
+        }
+    }
+    rendered.push('\'');
+    rendered
 }
 
 fn binary_operator(op: IrBinaryOp) -> &'static str {
@@ -4006,20 +4182,35 @@ fn negate_condition(value: String) -> String {
     format!("!{value}")
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone)]
 struct Mangler {
     next: usize,
     reserved: AHashSet<String>,
+    alphabet: IdentifierAlphabet,
+}
+
+impl Default for Mangler {
+    fn default() -> Self {
+        Self::new(IdentifierAlphabet::canonical())
+    }
 }
 
 impl Mangler {
+    fn new(alphabet: IdentifierAlphabet) -> Self {
+        Self {
+            next: 0,
+            reserved: AHashSet::new(),
+            alphabet,
+        }
+    }
+
     fn reserve(&mut self, name: &str) {
         self.reserved.insert(name.to_string());
     }
 
     fn next_name(&mut self) -> String {
         loop {
-            let name = encode_identifier(self.next);
+            let name = encode_identifier(self.next, &self.alphabet);
             self.next += 1;
             if !self.reserved.contains(&name) && !is_js_reserved(&name) {
                 self.reserved.insert(name.clone());
@@ -4100,16 +4291,14 @@ fn is_js_reserved(name: &str) -> bool {
     )
 }
 
-fn encode_identifier(mut index: usize) -> String {
-    const FIRST: &[u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_$";
-    const REST: &[u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_$0123456789";
+fn encode_identifier(mut index: usize, alphabet: &IdentifierAlphabet) -> String {
     let mut output = String::new();
-    output.push(FIRST[index % FIRST.len()] as char);
-    index /= FIRST.len();
+    output.push(alphabet.first[index % alphabet.first.len()] as char);
+    index /= alphabet.first.len();
     while index > 0 {
         index -= 1;
-        output.push(REST[index % REST.len()] as char);
-        index /= REST.len();
+        output.push(alphabet.rest[index % alphabet.rest.len()] as char);
+        index /= alphabet.rest.len();
     }
     output
 }
@@ -4506,6 +4695,26 @@ mod tests {
     }
 
     #[test]
+    fn derives_identifier_alphabets_from_emitted_character_frequency() {
+        let alphabet = IdentifierAlphabet::for_code("nnnnnnneeeeett");
+        assert_eq!(encode_identifier(0, &alphabet), "n");
+        assert_eq!(encode_identifier(1, &alphabet), "e");
+        assert_eq!(encode_identifier(2, &alphabet), "t");
+        assert_eq!(
+            IdentifierAlphabet::for_code(""),
+            IdentifierAlphabet::canonical()
+        );
+    }
+
+    #[test]
+    fn renders_semantically_equivalent_single_quoted_strings() {
+        assert_eq!(
+            render_string_literal(r#"say \"hi\" and it's\nready"#, StringQuote::Single),
+            r#"'say "hi" and it\'s\nready'"#
+        );
+    }
+
+    #[test]
     fn hoists_loop_locals_into_the_first_var_group() {
         let output = compile(
             "int total=0;for(int outer=0;outer<12;outer++){if(outer%3==0){continue;}int inner=0;while(inner<4){total+=inner;inner++;}}print(total);",
@@ -4562,6 +4771,26 @@ mod tests {
     }
 
     #[test]
+    fn lowers_only_double_exact_overflowing_integer_multiplications() {
+        let exact = compile("extern int read();print(read()*3);");
+        assert!(exact.contains("*3|0"), "{exact}");
+        assert!(!exact.contains("Math.imul"), "{exact}");
+
+        let potentially_inexact = compile("extern int read();print(read()*8388608);");
+        assert!(
+            potentially_inexact.contains("Math.imul"),
+            "{potentially_inexact}"
+        );
+
+        let eager = IrJsOptions {
+            lower_exact_integer_multiplication: false,
+            ..IrJsOptions::default()
+        };
+        let eager = compile_with_options("extern int read();print(read()*3);", eager);
+        assert!(eager.contains("Math.imul"), "{eager}");
+    }
+
+    #[test]
     fn emits_simple_branch_bodies_without_braces() {
         let output = compile("extern int read();int value=read();if(value==0){print(1);}print(2);");
         assert!(!output.contains("{console.log"), "{output}");
@@ -4611,6 +4840,7 @@ mod tests {
             "int factor=2;int[] values=[1,2];auto mapped=values.map((int value)=>value*factor);print(mapped.length);",
         );
         assert!(output.contains(".map("));
-        assert!(output.contains("Math.imul"));
+        assert!(output.contains("*2|0"), "{output}");
+        assert!(!output.contains("Math.imul"), "{output}");
     }
 }

@@ -24,6 +24,7 @@ pub struct OptimizationOptions {
     pub scalar_replacement: bool,
     pub dead_store_elimination: bool,
     pub dead_code_elimination: bool,
+    pub specialize_tagged_constants: bool,
     pub inline_instruction_limit: usize,
     pub inline_control_flow_limit: usize,
     pub inline_growth_limit: Option<usize>,
@@ -40,6 +41,7 @@ impl Default for OptimizationOptions {
             scalar_replacement: true,
             dead_store_elimination: true,
             dead_code_elimination: true,
+            specialize_tagged_constants: false,
             inline_instruction_limit: 12,
             inline_control_flow_limit: 30,
             inline_growth_limit: None,
@@ -58,6 +60,7 @@ impl OptimizationOptions {
             scalar_replacement: false,
             dead_store_elimination: false,
             dead_code_elimination: false,
+            specialize_tagged_constants: false,
             inline_instruction_limit: 0,
             inline_control_flow_limit: 0,
             inline_growth_limit: Some(0),
@@ -148,7 +151,10 @@ fn optimize_control_flow_inner(
         reports.push(propagate_single_assignment_globals(module));
     }
     reports.push(devirtualize_methods(module));
-    reports.push(specialize_constant_parameters(module));
+    reports.push(specialize_constant_parameters(
+        module,
+        options.specialize_tagged_constants,
+    ));
     reports.push(optimize_unused_parameters(module));
     reports.push(optimize_unused_returns(module));
     reports.push(validate_declared_purity(module)?);
@@ -164,7 +170,10 @@ fn optimize_control_flow_inner(
                 break;
             }
         }
-        reports.push(specialize_constant_parameters(module));
+        reports.push(specialize_constant_parameters(
+            module,
+            options.specialize_tagged_constants,
+        ));
         reports.push(optimize_unused_parameters(module));
         reports.push(optimize_unused_returns(module));
     }
@@ -921,7 +930,10 @@ fn optimize_unused_parameters(module: &mut ControlFlowModule<'_>) -> Optimizatio
     }
 }
 
-fn specialize_constant_parameters(module: &mut ControlFlowModule<'_>) -> OptimizationReport {
+fn specialize_constant_parameters(
+    module: &mut ControlFlowModule<'_>,
+    specialize_tagged_constants: bool,
+) -> OptimizationReport {
     let exported = module
         .exports
         .iter()
@@ -972,7 +984,8 @@ fn specialize_constant_parameters(module: &mut ControlFlowModule<'_>) -> Optimiz
                 .enumerate()
                 .filter_map(|(index, parameter)| {
                     let first = sites.first()?.get(index)?.clone()?;
-                    (constant_has_direct_native_representation(&first, &parameter.ty)
+                    ((specialize_tagged_constants
+                        || constant_has_direct_native_representation(&first, &parameter.ty))
                         && sites
                             .iter()
                             .all(|args| args.get(index) == Some(&Some(first.clone()))))
@@ -4015,6 +4028,45 @@ mod tests {
             .params
             .iter()
             .any(|parameter| matches!(parameter.ty, Type::TypeParameter(_))));
+    }
+
+    #[test]
+    fn specializes_tagged_generic_constants_for_javascript_only() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "T apply<T>(T value,func(T)->T transform){return transform(value);}int triple(int value){return value*3;}print(apply(3,triple));",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut control_flow = lower_to_control_flow(&program, &semantics).unwrap();
+        let generic = control_flow
+            .functions
+            .iter()
+            .find(|function| {
+                function
+                    .params
+                    .iter()
+                    .any(|parameter| matches!(parameter.ty, Type::TypeParameter(_)))
+            })
+            .map(|function| function.id)
+            .unwrap();
+        let options = OptimizationOptions {
+            inlining: false,
+            specialize_tagged_constants: true,
+            ..OptimizationOptions::default()
+        };
+
+        let reports =
+            optimize_control_flow_with_options(&mut control_flow, &options, false).unwrap();
+
+        assert!(reports.iter().any(|report| {
+            report.pass_name == "constant-parameter-specialization" && report.changed
+        }));
+        assert!(control_flow.functions[generic.0 as usize]
+            .params
+            .iter()
+            .all(|parameter| !matches!(parameter.ty, Type::TypeParameter(_))));
     }
 
     #[test]
