@@ -1109,7 +1109,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             } => {
                 out.push_str(&take_value(*object, context, cache)?);
                 out.push('[');
-                out.push_str(&take_value(*index, context, cache)?);
+                out.push_str(&strip_outer_parens(take_value(*index, context, cache)?));
                 out.push_str("]=");
                 out.push_str(&strip_outer_parens(take_value(*value, context, cache)?));
                 out.push(';');
@@ -1134,7 +1134,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 out.push_str(name);
                 for arg in args {
                     out.push(',');
-                    out.push_str(&take_value(*arg, context, cache)?);
+                    out.push_str(&strip_outer_parens(take_value(*arg, context, cache)?));
                 }
                 out.push_str(");");
                 return Ok(());
@@ -2139,7 +2139,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     if index != 0 {
                         rendered.push(',');
                     }
-                    rendered.push_str(&value(*item, cache)?);
+                    rendered.push_str(&strip_outer_parens(value(*item, cache)?));
                 }
                 rendered.push(']');
                 if self.options.pack_string_arrays {
@@ -2156,7 +2156,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     if index != 0 {
                         rendered.push(',');
                     }
-                    rendered.push_str(&value(*item, cache)?);
+                    rendered.push_str(&strip_outer_parens(value(*item, cache)?));
                 }
                 rendered.push(']');
                 rendered
@@ -2201,7 +2201,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 value(*assigned, cache)?
             ),
             ControlFlowOp::IndexGet { object, index } => {
-                format!("{}[{}]", value(*object, cache)?, value(*index, cache)?)
+                format!(
+                    "{}[{}]",
+                    value(*object, cache)?,
+                    strip_outer_parens(value(*index, cache)?)
+                )
             }
             ControlFlowOp::CallDirect { function, args } => {
                 self.render_call(self.function_name(*function)?, None, args, context, cache)?
@@ -2234,7 +2238,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         TemplateOperand::String(string) => rendered.push_str(string),
                         TemplateOperand::Value(item) => {
                             rendered.push_str("${");
-                            rendered.push_str(&value(*item, cache)?);
+                            rendered.push_str(&strip_outer_parens(value(*item, cache)?));
                             rendered.push('}');
                         }
                     }
@@ -2376,10 +2380,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     Intrinsic::FloatMax => "max",
                     _ => unreachable!(),
                 };
-                let mut rendered = format!("Math.{method}({receiver}");
+                let mut rendered = format!("Math.{method}({}", strip_outer_parens(receiver));
                 for arg in args {
                     rendered.push(',');
-                    rendered.push_str(&take_value(*arg, context, cache)?);
+                    rendered.push_str(&strip_outer_parens(take_value(*arg, context, cache)?));
                 }
                 rendered.push(')');
                 return Ok(rendered);
@@ -4977,6 +4981,16 @@ mod tests {
             ),
             "b&&c"
         );
+    }
+
+    #[test]
+    fn removes_outer_parentheses_inside_expression_delimiters() {
+        let code = compile(
+            "float sample(float[] values,int index,float input){values[index%3]=input-1.0;return values[index%3]+(input-1.0).abs();}print(sample([1.0,2.0,3.0],2,4.0));",
+        );
+
+        assert!(!code.contains("[(("), "{code}");
+        assert!(!code.contains("Math.abs(("), "{code}");
     }
 
     #[test]
