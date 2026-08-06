@@ -228,10 +228,10 @@ fn compile_native(c: &str, output: &Path) -> Result<(), String> {
     command.args(["-x", "c", "-std=c11", "-O3"]);
     #[cfg(target_os = "macos")]
     command.arg("-Wl,-no_uuid");
+    command.arg("-o").arg(output).arg("-");
+    #[cfg(not(target_os = "windows"))]
+    command.arg("-lm");
     let mut child = command
-        .arg("-o")
-        .arg(output)
-        .arg("-")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())

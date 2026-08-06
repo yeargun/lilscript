@@ -32,13 +32,16 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
     fn emit(&self) -> Result<String, CodegenError> {
         self.validate_host_boundaries()?;
         let mut out = String::from(
-            "#include <stdbool.h>\n#include <ctype.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n",
+            "#include <stdbool.h>\n#include <ctype.h>\n#include <math.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n",
         );
         out.push_str(
             "static inline int32_t lilscript_idiv(int32_t a,int32_t b){if(!b)return 0;return a==INT32_MIN&&b==-1?INT32_MIN:a/b;}\n",
         );
         out.push_str(
             "static inline int32_t lilscript_irem(int32_t a,int32_t b){if(!b)return 0;return a==INT32_MIN&&b==-1?0:a%b;}\n",
+        );
+        out.push_str(
+            "static inline double lilscript_fmin(double a,double b){if(isnan(a)||isnan(b))return NAN;if(a==0&&b==0)return signbit(a)||signbit(b)?-0.0:0.0;return a<b?a:b;}static inline double lilscript_fmax(double a,double b){if(isnan(a)||isnan(b))return NAN;if(a==0&&b==0)return signbit(a)&&signbit(b)?-0.0:0.0;return a>b?a:b;}\n",
         );
         out.push_str(
             "typedef struct LilScriptArrayHeader{void*data;int32_t len,cap;}*LilScriptArray;typedef struct{void*fn;void*env;}LilScriptClosure;typedef char* LilScriptString;typedef struct{uint8_t tag;union{int32_t i;double f;bool b;const char*s;void*p;LilScriptClosure c;};}LilScriptValue;typedef struct{bool has;LilScriptValue value;}LilScriptOptional;typedef struct LilScriptMapHeader{LilScriptValue*keys,*values;int32_t len,cap;}*LilScriptMap;typedef struct LilScriptSetHeader{LilScriptValue*values;int32_t len,cap;}*LilScriptSet;typedef struct LilScriptBufferHeader{uint8_t*data;int32_t len;bool shared;}*LilScriptBuffer;typedef struct LilScriptUint8ArrayHeader{LilScriptBuffer buffer;int32_t offset,len;}*LilScriptUint8Array;\n",
@@ -93,6 +96,12 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
         );
         out.push_str(
             "static inline LilScriptString lilscript_case(const char*s,bool upper){LilScriptString r=lilscript_dup(s);for(char*p=r;*p;p++)*p=(char)(upper?toupper((unsigned char)*p):tolower((unsigned char)*p));return r;}\n",
+        );
+        out.push_str(
+            "static inline uint32_t lilscript_utf8_next(const unsigned char**p){uint32_t c=*(*p)++;if(c<128)return c;if((c&224)==192){uint32_t r=(c&31)<<6;return r|(*(*p)++&63);}if((c&240)==224){uint32_t r=(c&15)<<12;r|=(uint32_t)(*(*p)++&63)<<6;return r|(*(*p)++&63);}uint32_t r=(c&7)<<18;r|=(uint32_t)(*(*p)++&63)<<12;r|=(uint32_t)(*(*p)++&63)<<6;return r|(*(*p)++&63);}\n",
+        );
+        out.push_str(
+            "static inline int32_t lilscript_utf16_len(const char*s){const unsigned char*p=(const unsigned char*)s;int32_t n=0;while(*p){uint32_t c=lilscript_utf8_next(&p);n+=c>65535?2:1;}return n;}static inline int32_t lilscript_char_code_at(const char*s,int32_t i){if(i<0)return 0;const unsigned char*p=(const unsigned char*)s;int32_t n=0;while(*p){uint32_t c=lilscript_utf8_next(&p);if(c<=65535){if(n++==i)return(int32_t)c;}else{c-=65536;uint32_t h=55296+(c>>10),l=56320+(c&1023);if(n++==i)return(int32_t)h;if(n++==i)return(int32_t)l;}}return 0;}\n",
         );
         out.push_str(
             "static inline void*lilscript_copy(const void*value,size_t size){void*copy=malloc(size);if(!copy)abort();memcpy(copy,value,size);return copy;}\n",
@@ -1444,7 +1453,56 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                 intrinsic: Intrinsic::StringLength,
                 receiver: Some(receiver),
                 ..
-            } => format!("(int32_t)strlen(v{})", receiver.0),
+            } => format!("lilscript_utf16_len(v{})", receiver.0),
+            ControlFlowOp::Intrinsic {
+                intrinsic:
+                    Intrinsic::FloatAbs
+                    | Intrinsic::FloatFloor
+                    | Intrinsic::FloatCeil
+                    | Intrinsic::FloatMin
+                    | Intrinsic::FloatMax,
+                receiver: Some(receiver),
+                args,
+            } => {
+                let function = match &instruction.op {
+                    ControlFlowOp::Intrinsic {
+                        intrinsic: Intrinsic::FloatAbs,
+                        ..
+                    } => "fabs",
+                    ControlFlowOp::Intrinsic {
+                        intrinsic: Intrinsic::FloatFloor,
+                        ..
+                    } => "floor",
+                    ControlFlowOp::Intrinsic {
+                        intrinsic: Intrinsic::FloatCeil,
+                        ..
+                    } => "ceil",
+                    ControlFlowOp::Intrinsic {
+                        intrinsic: Intrinsic::FloatMin,
+                        ..
+                    } => "lilscript_fmin",
+                    ControlFlowOp::Intrinsic {
+                        intrinsic: Intrinsic::FloatMax,
+                        ..
+                    } => "lilscript_fmax",
+                    _ => unreachable!(),
+                };
+                if let Some(argument) = args.first() {
+                    format!("{function}(v{},v{})", receiver.0, argument.0)
+                } else {
+                    format!("{function}(v{})", receiver.0)
+                }
+            }
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::StringCharCodeAt,
+                receiver: Some(receiver),
+                args,
+            } => {
+                let index = args.first().ok_or_else(|| {
+                    CodegenError::new(instruction.span, "charCodeAt requires an index")
+                })?;
+                format!("lilscript_char_code_at(v{},v{})", receiver.0, index.0)
+            }
             ControlFlowOp::Intrinsic {
                 intrinsic:
                     intrinsic @ (Intrinsic::StringIncludes
@@ -1804,6 +1862,9 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                 }
                 IrBinaryOp::Div => format!("lilscript_idiv({lhs_name},{rhs_name})"),
                 IrBinaryOp::Mod => format!("lilscript_irem({lhs_name},{rhs_name})"),
+                IrBinaryOp::Xor => {
+                    format!("(int32_t)((uint32_t){lhs_name}^(uint32_t){rhs_name})")
+                }
                 _ => {
                     return Err(CodegenError::new(span, "invalid integer binary operation"));
                 }
@@ -2240,6 +2301,7 @@ fn c_binary_operator(op: IrBinaryOp) -> &'static str {
         IrBinaryOp::Mul => "*",
         IrBinaryOp::Div => "/",
         IrBinaryOp::Mod => "%",
+        IrBinaryOp::Xor => "^",
         IrBinaryOp::Eq => "==",
         IrBinaryOp::NotEq => "!=",
         IrBinaryOp::Less => "<",

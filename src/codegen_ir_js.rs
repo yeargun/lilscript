@@ -1739,6 +1739,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             | IrBinaryOp::Mul
                             | IrBinaryOp::Div
                             | IrBinaryOp::Mod
+                            | IrBinaryOp::Xor
                     ) =>
                 {
                     let lhs = take_value(*lhs, context, cache)?;
@@ -1749,6 +1750,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         IrBinaryOp::Mod if is_nonzero_i32_literal(&rhs) => {
                             format!("({lhs}%{rhs})")
                         }
+                        IrBinaryOp::Xor => format!("({lhs}^{rhs})"),
                         _ if coercion_is_elidable => {
                             format!("({lhs}{}{rhs})", binary_operator(*op))
                         }
@@ -2009,6 +2011,37 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 let call =
                     self.render_call(&format!("{receiver}.get"), None, args, context, cache)?;
                 return Ok(format!("({call}??null)"));
+            }
+            Intrinsic::StringCharCodeAt => {
+                let call = self.render_call(
+                    &format!("{receiver}.charCodeAt"),
+                    None,
+                    args,
+                    context,
+                    cache,
+                )?;
+                return Ok(format!("({call}|0)"));
+            }
+            Intrinsic::FloatAbs
+            | Intrinsic::FloatFloor
+            | Intrinsic::FloatCeil
+            | Intrinsic::FloatMin
+            | Intrinsic::FloatMax => {
+                let method = match intrinsic {
+                    Intrinsic::FloatAbs => "abs",
+                    Intrinsic::FloatFloor => "floor",
+                    Intrinsic::FloatCeil => "ceil",
+                    Intrinsic::FloatMin => "min",
+                    Intrinsic::FloatMax => "max",
+                    _ => unreachable!(),
+                };
+                let mut rendered = format!("Math.{method}({receiver}");
+                for arg in args {
+                    rendered.push(',');
+                    rendered.push_str(&take_value(*arg, context, cache)?);
+                }
+                rendered.push(')');
+                return Ok(rendered);
             }
             Intrinsic::ArrayMap => "map",
             Intrinsic::ArrayFilter => "filter",
@@ -3241,6 +3274,30 @@ fn coalesce_value_names(
         }
     }
 
+    let mut deferred_operands = AHashSet::new();
+    for block in &function.blocks {
+        for (index, instruction) in block.instructions.iter().enumerate() {
+            let Some(out) = instruction.out else {
+                continue;
+            };
+            if uses.get(&out).copied().unwrap_or(0) == 1
+                && !named.contains(&out)
+                && (op_can_defer(&instruction.op) || can_fuse_value(block, index, out))
+            {
+                deferred_operands.extend(
+                    op_values(&instruction.op)
+                        .into_iter()
+                        .filter(|value| named.contains(value)),
+                );
+            }
+        }
+    }
+    for operand in deferred_operands {
+        for value in &named {
+            connect(operand, *value);
+        }
+    }
+
     let mut values = named.into_iter().collect::<Vec<_>>();
     let parameter_order = function
         .params
@@ -3608,6 +3665,7 @@ fn binary_operator(op: IrBinaryOp) -> &'static str {
         IrBinaryOp::Mul => "*",
         IrBinaryOp::Div => "/",
         IrBinaryOp::Mod => "%",
+        IrBinaryOp::Xor => "^",
         IrBinaryOp::Eq => "==",
         IrBinaryOp::NotEq => "!=",
         IrBinaryOp::Less => "<",

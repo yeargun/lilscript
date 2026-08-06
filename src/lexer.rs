@@ -105,6 +105,8 @@ pub enum TokenKind<'src> {
     SlashEq,
     #[token("%=")]
     PercentEq,
+    #[token("^=")]
+    CaretEq,
 
     #[token("=")]
     Eq,
@@ -118,6 +120,8 @@ pub enum TokenKind<'src> {
     Slash,
     #[token("%")]
     Percent,
+    #[token("^")]
+    Caret,
     #[token("!")]
     Bang,
     #[token("<")]

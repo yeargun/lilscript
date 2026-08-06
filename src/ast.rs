@@ -375,6 +375,7 @@ pub enum AssignmentOp {
     Mul,
     Div,
     Mod,
+    Xor,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -396,6 +397,7 @@ pub enum BinaryOp {
     Mul,
     Div,
     Mod,
+    Xor,
     Eq,
     NotEq,
     Less,

@@ -1619,6 +1619,22 @@ impl<'src> Analyzer<'src> {
                 Type::ArrayBuffer,
                 Type::SharedArrayBuffer,
             ])),
+            Type::Float => match property.name {
+                "abs" | "floor" | "ceil" => Ok(Type::Function(FunctionType {
+                    params: Vec::new(),
+                    defaults: Vec::new(),
+                    return_type: Box::new(Type::Float),
+                })),
+                "min" | "max" => Ok(Type::Function(FunctionType {
+                    params: vec![Type::Float],
+                    defaults: vec![None],
+                    return_type: Box::new(Type::Float),
+                })),
+                _ => Err(SemanticError::new(
+                    span,
+                    format!("float has no member `{}`", property.name),
+                )),
+            },
             Type::Array(element) => match property.name {
                 "map" | "filter" | "forEach" | "reduce" => Err(SemanticError::new(
                     span,
@@ -1700,6 +1716,11 @@ impl<'src> Analyzer<'src> {
                 )),
             },
             Type::String => match property.name {
+                "charCodeAt" => Ok(Type::Function(FunctionType {
+                    params: vec![Type::Int],
+                    defaults: vec![None],
+                    return_type: Box::new(Type::Int),
+                })),
                 "includes" | "startsWith" | "endsWith" => Ok(Type::Function(FunctionType {
                     params: vec![Type::String],
                     defaults: vec![None],
@@ -2111,6 +2132,7 @@ impl<'src> Analyzer<'src> {
                 Ok(common_numeric_type(lhs, rhs))
             }
             BinaryOp::Mod if lhs == &Type::Int && rhs == &Type::Int => Ok(Type::Int),
+            BinaryOp::Xor if lhs == &Type::Int && rhs == &Type::Int => Ok(Type::Int),
             BinaryOp::Eq | BinaryOp::NotEq if equality_comparable(lhs, rhs) => Ok(Type::Bool),
             BinaryOp::Less | BinaryOp::LessEq | BinaryOp::Greater | BinaryOp::GreaterEq
                 if (lhs.is_numeric() && rhs.is_numeric())
@@ -3090,6 +3112,7 @@ fn assignment_binary_op(op: AssignmentOp) -> BinaryOp {
         AssignmentOp::Mul => BinaryOp::Mul,
         AssignmentOp::Div => BinaryOp::Div,
         AssignmentOp::Mod => BinaryOp::Mod,
+        AssignmentOp::Xor => BinaryOp::Xor,
     }
 }
 
@@ -3408,6 +3431,7 @@ fn binary_op_name(op: BinaryOp) -> &'static str {
         BinaryOp::Mul => "*",
         BinaryOp::Div => "/",
         BinaryOp::Mod => "%",
+        BinaryOp::Xor => "^",
         BinaryOp::Eq => "==",
         BinaryOp::NotEq => "!=",
         BinaryOp::Less => "<",

@@ -370,17 +370,25 @@ The v0.1 statement set is:
 - `break` and `continue`;
 - `return`.
 
-Assignments support `=`, `+=`, `-=`, `*=`, `/=`, and `%=`. Prefix `!` and `-`,
+Assignments support `=`, `+=`, `-=`, `*=`, `/=`, `%=`, and `^=`. Prefix `!` and `-`,
 postfix calls/member/index access, and the standard arithmetic, comparison,
-equality, and short-circuit logical operators are supported. Assignment is an
-expression and evaluates to the assigned value.
+equality, and short-circuit logical operators are supported. Binary `^`
+performs signed 32-bit integer XOR. Assignment is an expression and evaluates
+to the assigned value.
 
 ## Standard library surface
 
 Arrays provide typed `length`, `map`, `filter`, `reduce`, `forEach`, `push`, and
-`pop`. Strings provide `length`, `includes`, `startsWith`, `endsWith`,
-`toUpperCase`, and `toLowerCase`. Calls are statically checked and are intrinsic
-optimization candidates; they are not untyped JavaScript dispatch.
+`pop`. Strings provide UTF-16 code-unit `length` and `charCodeAt`, plus
+`includes`, `startsWith`, `endsWith`, `toUpperCase`, and `toLowerCase`. This
+matches JavaScript string indexing while native storage remains UTF-8.
+`charCodeAt` returns `0` for an out-of-range index. Calls are statically checked
+and are intrinsic optimization candidates; they are not untyped JavaScript
+dispatch.
+
+Floats provide optimizer-known `abs()`, `floor()`, `ceil()`, `min(other)`, and
+`max(other)` methods. They lower to the corresponding `Math` operations in
+JavaScript and equivalent C math operations in native output.
 
 Maps provide `size`, `get`, `set`, `has`, `delete`, and `clear`. Sets provide
 `size`, `add`, `has`, `delete`, and `clear`. `set` and `add` return their

@@ -2003,6 +2003,7 @@ fn lower_binary_op(op: BinaryOp) -> IrBinaryOp {
         BinaryOp::Mul => IrBinaryOp::Mul,
         BinaryOp::Div => IrBinaryOp::Div,
         BinaryOp::Mod => IrBinaryOp::Mod,
+        BinaryOp::Xor => IrBinaryOp::Xor,
         BinaryOp::Eq => IrBinaryOp::Eq,
         BinaryOp::NotEq => IrBinaryOp::NotEq,
         BinaryOp::Less => IrBinaryOp::Less,
@@ -2022,6 +2023,7 @@ fn lower_assignment_op(op: AssignmentOp) -> IrBinaryOp {
         AssignmentOp::Mul => IrBinaryOp::Mul,
         AssignmentOp::Div => IrBinaryOp::Div,
         AssignmentOp::Mod => IrBinaryOp::Mod,
+        AssignmentOp::Xor => IrBinaryOp::Xor,
     }
 }
 
@@ -2045,7 +2047,13 @@ fn member_intrinsic(receiver: &Type<'_>, property: &str) -> Option<Intrinsic> {
         (Type::ArrayBuffer | Type::SharedArrayBuffer, "slice") => Some(Intrinsic::BufferSlice),
         (Type::Uint8Array, "slice") => Some(Intrinsic::Uint8ArraySlice),
         (Type::Uint8Array, "subarray") => Some(Intrinsic::Uint8ArraySubarray),
+        (Type::Float, "abs") => Some(Intrinsic::FloatAbs),
+        (Type::Float, "floor") => Some(Intrinsic::FloatFloor),
+        (Type::Float, "ceil") => Some(Intrinsic::FloatCeil),
+        (Type::Float, "min") => Some(Intrinsic::FloatMin),
+        (Type::Float, "max") => Some(Intrinsic::FloatMax),
         (Type::String, "includes") => Some(Intrinsic::StringIncludes),
+        (Type::String, "charCodeAt") => Some(Intrinsic::StringCharCodeAt),
         (Type::String, "startsWith") => Some(Intrinsic::StringStartsWith),
         (Type::String, "endsWith") => Some(Intrinsic::StringEndsWith),
         (Type::String, "toUpperCase") => Some(Intrinsic::StringToUpperCase),

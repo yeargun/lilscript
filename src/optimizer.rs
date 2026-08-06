@@ -498,6 +498,8 @@ fn simplify_algebraic_expressions(module: &mut ControlFlowModule<'_>) -> Optimiz
                                 IrBinaryOp::Mul if is_int(rhs_const, 0) => Some(rhs),
                                 IrBinaryOp::Mul if is_int(lhs_const, 0) => Some(lhs),
                                 IrBinaryOp::Div if is_int(rhs_const, 1) => Some(lhs),
+                                IrBinaryOp::Xor if is_int(rhs_const, 0) => Some(lhs),
+                                IrBinaryOp::Xor if is_int(lhs_const, 0) => Some(rhs),
                                 _ => None,
                             };
                             if replacement.is_none()
@@ -678,6 +680,7 @@ fn is_commutative(op: IrBinaryOp) -> bool {
             | IrBinaryOp::Mul
             | IrBinaryOp::Eq
             | IrBinaryOp::NotEq
+            | IrBinaryOp::Xor
             | IrBinaryOp::And
             | IrBinaryOp::Or
     )
@@ -916,12 +919,51 @@ fn fold_and_propagate_control_flow(module: &mut ControlFlowModule<'_>) -> Optimi
                             }
                         }
                         ControlFlowOp::Intrinsic {
+                            intrinsic:
+                                intrinsic @ (Intrinsic::FloatAbs
+                                | Intrinsic::FloatFloor
+                                | Intrinsic::FloatCeil
+                                | Intrinsic::FloatMin
+                                | Intrinsic::FloatMax),
+                            receiver: Some(receiver),
+                            args,
+                        } => {
+                            let folded = constants.get(receiver).and_then(|receiver| {
+                                let ConstValue::Float(value) = receiver else {
+                                    return None;
+                                };
+                                let argument = || {
+                                    args.first()
+                                        .and_then(|argument| constants.get(argument))
+                                        .and_then(|argument| match argument {
+                                            ConstValue::Float(value) => Some(*value),
+                                            _ => None,
+                                        })
+                                };
+                                Some(ConstValue::Float(match intrinsic {
+                                    Intrinsic::FloatAbs => value.abs(),
+                                    Intrinsic::FloatFloor => value.floor(),
+                                    Intrinsic::FloatCeil => value.ceil(),
+                                    Intrinsic::FloatMin => js_min(*value, argument()?),
+                                    Intrinsic::FloatMax => js_max(*value, argument()?),
+                                    _ => unreachable!(),
+                                }))
+                            });
+                            if let Some(folded) = folded {
+                                instruction.op = ControlFlowOp::Const(folded.clone());
+                                constants.insert(out, folded);
+                                changed = true;
+                                local_change = true;
+                            }
+                        }
+                        ControlFlowOp::Intrinsic {
                             intrinsic,
                             receiver: Some(receiver),
                             args,
                         } if matches!(
                             intrinsic,
                             Intrinsic::StringLength
+                                | Intrinsic::StringCharCodeAt
                                 | Intrinsic::StringIncludes
                                 | Intrinsic::StringStartsWith
                                 | Intrinsic::StringEndsWith
@@ -1024,7 +1066,13 @@ fn literal_array_lengths_are_stable(function: &ControlFlowFunction<'_>) -> bool 
                 intrinsic,
                 Intrinsic::Print
                     | Intrinsic::ArrayLength
+                    | Intrinsic::FloatAbs
+                    | Intrinsic::FloatFloor
+                    | Intrinsic::FloatCeil
+                    | Intrinsic::FloatMin
+                    | Intrinsic::FloatMax
                     | Intrinsic::StringLength
+                    | Intrinsic::StringCharCodeAt
                     | Intrinsic::StringIncludes
                     | Intrinsic::StringStartsWith
                     | Intrinsic::StringEndsWith
@@ -2836,7 +2884,7 @@ fn fold_string_intrinsic(
     let ConstValue::String(receiver) = receiver else {
         return None;
     };
-    let argument = || {
+    let string_argument = || {
         args.first()
             .and_then(|value| constants.get(value))
             .and_then(|value| match value {
@@ -2845,10 +2893,24 @@ fn fold_string_intrinsic(
             })
     };
     match intrinsic {
-        Intrinsic::StringLength => Some(ConstValue::Int(receiver.chars().count() as i64)),
-        Intrinsic::StringIncludes => Some(ConstValue::Bool(receiver.contains(argument()?))),
-        Intrinsic::StringStartsWith => Some(ConstValue::Bool(receiver.starts_with(argument()?))),
-        Intrinsic::StringEndsWith => Some(ConstValue::Bool(receiver.ends_with(argument()?))),
+        Intrinsic::StringLength => Some(ConstValue::Int(receiver.encode_utf16().count() as i64)),
+        Intrinsic::StringCharCodeAt => {
+            let index = args
+                .first()
+                .and_then(|value| constants.get(value))
+                .and_then(|value| match value {
+                    ConstValue::Int(value) => usize::try_from(*value).ok(),
+                    _ => None,
+                })?;
+            Some(ConstValue::Int(i64::from(
+                receiver.encode_utf16().nth(index).unwrap_or(0),
+            )))
+        }
+        Intrinsic::StringIncludes => Some(ConstValue::Bool(receiver.contains(string_argument()?))),
+        Intrinsic::StringStartsWith => {
+            Some(ConstValue::Bool(receiver.starts_with(string_argument()?)))
+        }
+        Intrinsic::StringEndsWith => Some(ConstValue::Bool(receiver.ends_with(string_argument()?))),
         Intrinsic::StringToUpperCase if receiver.is_ascii() => {
             Some(ConstValue::String(receiver.to_ascii_uppercase()))
         }
@@ -2856,6 +2918,42 @@ fn fold_string_intrinsic(
             Some(ConstValue::String(receiver.to_ascii_lowercase()))
         }
         _ => None,
+    }
+}
+
+fn js_min(lhs: f64, rhs: f64) -> f64 {
+    if lhs.is_nan() || rhs.is_nan() {
+        return f64::NAN;
+    }
+    if lhs == 0.0 && rhs == 0.0 {
+        return if lhs.is_sign_negative() || rhs.is_sign_negative() {
+            -0.0
+        } else {
+            0.0
+        };
+    }
+    if lhs < rhs {
+        lhs
+    } else {
+        rhs
+    }
+}
+
+fn js_max(lhs: f64, rhs: f64) -> f64 {
+    if lhs.is_nan() || rhs.is_nan() {
+        return f64::NAN;
+    }
+    if lhs == 0.0 && rhs == 0.0 {
+        return if lhs.is_sign_positive() || rhs.is_sign_positive() {
+            0.0
+        } else {
+            -0.0
+        };
+    }
+    if lhs > rhs {
+        lhs
+    } else {
+        rhs
     }
 }
 
@@ -2879,7 +2977,7 @@ fn push_template_string(parts: &mut Vec<TemplateOperand>, value: &str) {
 
 fn fold_binary(op: IrBinaryOp, lhs: &ConstValue, rhs: &ConstValue) -> Option<ConstValue> {
     use ConstValue::{Bool, Float, Int, String};
-    use IrBinaryOp::{Add, Div, Eq, Greater, GreaterEq, Less, LessEq, Mod, Mul, NotEq, Sub};
+    use IrBinaryOp::{Add, Div, Eq, Greater, GreaterEq, Less, LessEq, Mod, Mul, NotEq, Sub, Xor};
 
     if let Some((lhs, rhs)) = mixed_numeric_constants(lhs, rhs) {
         return match op {
@@ -2904,6 +3002,7 @@ fn fold_binary(op: IrBinaryOp, lhs: &ConstValue, rhs: &ConstValue) -> Option<Con
         (Div, Int(_), Int(0)) | (Mod, Int(_), Int(0)) => None,
         (Div, Int(lhs), Int(rhs)) => Some(Int(i64::from((*lhs as i32).wrapping_div(*rhs as i32)))),
         (Mod, Int(lhs), Int(rhs)) => Some(Int(i64::from((*lhs as i32).wrapping_rem(*rhs as i32)))),
+        (Xor, Int(lhs), Int(rhs)) => Some(Int(i64::from((*lhs as i32) ^ (*rhs as i32)))),
         (Add, Float(lhs), Float(rhs)) => Some(Float(lhs + rhs)),
         (Sub, Float(lhs), Float(rhs)) => Some(Float(lhs - rhs)),
         (Mul, Float(lhs), Float(rhs)) => Some(Float(lhs * rhs)),

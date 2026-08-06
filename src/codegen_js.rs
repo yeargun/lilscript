@@ -1091,6 +1091,7 @@ fn binary_op_js(op: BinaryOp) -> &'static str {
         BinaryOp::Mul => "*",
         BinaryOp::Div => "/",
         BinaryOp::Mod => "%",
+        BinaryOp::Xor => "^",
         BinaryOp::Eq => "==",
         BinaryOp::NotEq => "!=",
         BinaryOp::Less => "<",
@@ -1110,6 +1111,7 @@ fn assignment_op_js(op: AssignmentOp) -> &'static str {
         AssignmentOp::Mul => "*=",
         AssignmentOp::Div => "/=",
         AssignmentOp::Mod => "%=",
+        AssignmentOp::Xor => "^=",
     }
 }
 
@@ -1117,10 +1119,11 @@ fn binary_precedence(op: BinaryOp) -> u8 {
     match op {
         BinaryOp::Or => 1,
         BinaryOp::And => 2,
-        BinaryOp::Eq | BinaryOp::NotEq => 3,
-        BinaryOp::Less | BinaryOp::LessEq | BinaryOp::Greater | BinaryOp::GreaterEq => 4,
-        BinaryOp::Add | BinaryOp::Sub => 5,
-        BinaryOp::Mul | BinaryOp::Div | BinaryOp::Mod => 6,
+        BinaryOp::Xor => 3,
+        BinaryOp::Eq | BinaryOp::NotEq => 4,
+        BinaryOp::Less | BinaryOp::LessEq | BinaryOp::Greater | BinaryOp::GreaterEq => 5,
+        BinaryOp::Add | BinaryOp::Sub => 6,
+        BinaryOp::Mul | BinaryOp::Div | BinaryOp::Mod => 7,
     }
 }
 

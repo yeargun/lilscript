@@ -1,0 +1,30 @@
+string value = "A😀Z";
+print(value.length);
+print(value.charCodeAt(0));
+print(value.charCodeAt(1));
+print(value.charCodeAt(2));
+print(value.charCodeAt(3));
+print(value.charCodeAt(-1));
+print(value.charCodeAt(9));
+
+int bits = 5 ^ 3;
+print(bits);
+bits ^= 12;
+print(bits);
+
+int stringHash(string input) {
+  int hash = 5381;
+  int index = input.length;
+  while (index > 0) {
+    index -= 1;
+    hash = (hash * 33) ^ input.charCodeAt(index);
+  }
+  return hash;
+}
+
+int signed = stringHash("LilScript");
+float unsigned = signed;
+if (signed < 0) {
+  unsigned += 4294967296.0;
+}
+print(unsigned);

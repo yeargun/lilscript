@@ -1,0 +1,15 @@
+float[] first = [0.0, 0.25, 1.0];
+int total = 0;
+for (int index = 0; index < first.length; index++) {
+  if (first[index] >= 0.25) {
+    total += 1;
+  }
+}
+
+float[] second = [0.25, 0.25, 0.25, 0.25, 0.5];
+for (int index = 0; index < second.length; index++) {
+  if (second[index] == 0.25) {
+    total += 1;
+  }
+}
+print(total);

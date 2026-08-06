@@ -908,6 +908,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
             Some(TokenKind::StarEq) => AssignmentOp::Mul,
             Some(TokenKind::SlashEq) => AssignmentOp::Div,
             Some(TokenKind::PercentEq) => AssignmentOp::Mod,
+            Some(TokenKind::CaretEq) => AssignmentOp::Xor,
             _ => return Ok(target),
         };
         self.advance();
@@ -930,7 +931,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
 
         loop {
             if self.check(|kind| matches!(kind, TokenKind::Is)) {
-                let precedence = 3;
+                let precedence = 4;
                 if precedence < min_precedence {
                     break;
                 }
@@ -1451,17 +1452,18 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         let op = match self.peek_kind()? {
             TokenKind::OrOr => (BinaryOp::Or, 1),
             TokenKind::AndAnd => (BinaryOp::And, 2),
-            TokenKind::EqEq => (BinaryOp::Eq, 3),
-            TokenKind::BangEq => (BinaryOp::NotEq, 3),
-            TokenKind::Less => (BinaryOp::Less, 4),
-            TokenKind::LessEq => (BinaryOp::LessEq, 4),
-            TokenKind::Greater => (BinaryOp::Greater, 4),
-            TokenKind::GreaterEq => (BinaryOp::GreaterEq, 4),
-            TokenKind::Plus => (BinaryOp::Add, 5),
-            TokenKind::Minus => (BinaryOp::Sub, 5),
-            TokenKind::Star => (BinaryOp::Mul, 6),
-            TokenKind::Slash => (BinaryOp::Div, 6),
-            TokenKind::Percent => (BinaryOp::Mod, 6),
+            TokenKind::Caret => (BinaryOp::Xor, 3),
+            TokenKind::EqEq => (BinaryOp::Eq, 4),
+            TokenKind::BangEq => (BinaryOp::NotEq, 4),
+            TokenKind::Less => (BinaryOp::Less, 5),
+            TokenKind::LessEq => (BinaryOp::LessEq, 5),
+            TokenKind::Greater => (BinaryOp::Greater, 5),
+            TokenKind::GreaterEq => (BinaryOp::GreaterEq, 5),
+            TokenKind::Plus => (BinaryOp::Add, 6),
+            TokenKind::Minus => (BinaryOp::Sub, 6),
+            TokenKind::Star => (BinaryOp::Mul, 7),
+            TokenKind::Slash => (BinaryOp::Div, 7),
+            TokenKind::Percent => (BinaryOp::Mod, 7),
             _ => return None,
         };
         Some(op)
