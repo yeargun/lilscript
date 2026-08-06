@@ -228,7 +228,13 @@ checked-in benchmark workload. Passing a synthetic example alone is not enough.
   confidence intervals rather than single-run timing winners.
 - [x] Add a mechanically generated paired-source transfer-size gate and a
   Chromium steady-state runtime regression gate with confidence bounds.
-- [ ] Add differential fuzzing against a reference interpreter and native C.
+- [x] Add deterministic differential fuzzing against an independent checked-AST
+  Rust evaluator, optimized and optimizer-disabled JavaScript, direct native
+  execution, and independently compiled emitted C. The release seed generates
+  64 typed scalar/control-flow functions; two additional 96-case seeds are
+  recorded in `docs/differential-testing.md`. Unsupported aggregate, class,
+  closure, and host operations fail explicitly and remain covered by the
+  hand-authored matrix until their evaluator models are implemented.
 - [x] Publish every checked-in project, source scope, behavior contract, raw,
   gzip, Brotli, and runtime result in the Vite documentation site.
 

@@ -22,7 +22,7 @@ JavaScript and native C backends.
 
 | Closure responsibility | LilScript implementation |
 | --- | --- |
-| Early/late peephole optimization | Constant folding, algebraic identities, boolean simplification, branch inversion, nested literal-capture branch folding, SSA-root binary precedence rendering, precedence-safe parenthesis removal at statements and expression delimiters, compact boolean literals, compact loops, conditional returns, declaration collapse, trailing-semicolon removal |
+| Early/late peephole optimization | Constant folding, algebraic identities, boolean simplification, branch inversion, nested literal-capture branch folding, SSA-root binary precedence rendering, token-safe negative operands, atomic integer-coercion groups, precedence-safe parenthesis removal at statements and expression delimiters, compact boolean literals, compact loops, conditional returns, declaration collapse, trailing-semicolon removal |
 | Numeric representation lowering | Signed-i32 range analysis propagates bounded loop induction values, direct-call arguments and returns, and owned nominal fields; it removes coercions only for proven-safe operations. Ordinary multiplication emits `x*y|0` when normalization is required, while source-written `Math.imul` remains an explicit exact operation |
 | Inline variables and constants | mem2reg SSA, constant propagation, single-assignment global propagation, constant rematerialization, one-use expression fusion, exact array-parameter lengths, and bounded boolean/string/null argument and return sets across closed stable direct-call sets |
 | Inline functions and simple methods | Fixed-point expression inlining plus single-use multi-block CFG inlining; size-first single-file/ESM builds compare that IR with a fully outlined IR under the exact selected codec |
@@ -106,6 +106,16 @@ coalescing regression extracted from the Solid client-runtime gate.
 `scripts/verify-bundles.mjs` additionally executes preserve-module and shared
 split bundles, checks their manifests, and exercises live bindings across a
 circular ESM dependency between the entry and a reader chunk.
+
+`lilscript-differential` independently evaluates generated typed AST programs
+without lowering them to CFG/SSA. The fixed 64-case release batch exercises all
+integer operators, overflow, zero divisors, shifts, direct calls, mutation,
+short-circuit effects, branches, bounded loops, loop control, and shadowing.
+It requires exact agreement from optimized JavaScript, optimizer-disabled
+JavaScript, the direct native executable, and emitted C compiled in a separate
+compiler invocation. The generated source and expected output are retained for
+seed reproduction; the exact scope and commands are documented in
+`docs/differential-testing.md`.
 
 `benchmarks/finite-values/run.mjs` holds inlining, scalar replacement, source,
 and every other optimizer setting constant while toggling only
