@@ -1,0 +1,13 @@
+int countUntil(int stop) {
+  int count = 0;
+  while (count < 12) {
+    count += 1;
+    if (count == stop) {
+      return count;
+    }
+  }
+  return count;
+}
+
+print(countUntil(3));
+print(countUntil(99));

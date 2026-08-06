@@ -74,6 +74,12 @@ impl ProjectConfig {
             compact_boolean_literals: self
                 .javascript
                 .compression_enabled(CompressionDecision::CompactBooleanLiterals),
+            inline_structured_closures: self
+                .javascript
+                .compression_enabled(CompressionDecision::StructuredClosureInlining),
+            pack_string_arrays: self
+                .javascript
+                .compression_enabled(CompressionDecision::StringArrayPacking),
             identifier_alphabet: IdentifierAlphabet::canonical(),
             string_quote: StringQuote::Double,
         }
@@ -130,10 +136,10 @@ impl ProjectConfig {
 #[serde(rename_all = "kebab-case")]
 pub enum JavaScriptPriority {
     PerformanceFirst,
-    #[default]
     #[serde(alias = "realisticperf-first", alias = "realistic-perf-first")]
     RealisticPerformanceFirst,
     Balanced,
+    #[default]
     SizeFirst,
 }
 
@@ -143,7 +149,7 @@ impl JavaScriptPriority {
             Self::PerformanceFirst => JavaScriptPolicy::new(24, 60, 32),
             Self::RealisticPerformanceFirst => JavaScriptPolicy::new(18, 45, 16),
             Self::Balanced => JavaScriptPolicy::new(12, 30, 4),
-            Self::SizeFirst => JavaScriptPolicy::new(12, 30, 0),
+            Self::SizeFirst => JavaScriptPolicy::new(12, 30, 16),
         }
     }
 
@@ -158,6 +164,10 @@ impl JavaScriptPriority {
                 !matches!(self, Self::PerformanceFirst)
             }
             CompressionDecision::CompactBooleanLiterals => !matches!(self, Self::PerformanceFirst),
+            CompressionDecision::StructuredClosureInlining => {
+                !matches!(self, Self::PerformanceFirst)
+            }
+            CompressionDecision::StringArrayPacking => matches!(self, Self::SizeFirst),
             CompressionDecision::PropertyMangling | CompressionDecision::ExportMangling => false,
         }
     }
@@ -196,6 +206,8 @@ pub enum CompressionDecision {
     SizeAwareInlining,
     SafeIntegerCoercionElision,
     CompactBooleanLiterals,
+    StructuredClosureInlining,
+    StringArrayPacking,
 }
 
 impl CompressionDecision {
@@ -210,6 +222,8 @@ impl CompressionDecision {
             Self::SizeAwareInlining => "size-aware-inlining",
             Self::SafeIntegerCoercionElision => "safe-integer-coercion-elision",
             Self::CompactBooleanLiterals => "compact-boolean-literals",
+            Self::StructuredClosureInlining => "structured-closure-inlining",
+            Self::StringArrayPacking => "string-array-packing",
         }
     }
 }
@@ -230,14 +244,14 @@ pub struct JavaScriptConfig {
 impl Default for JavaScriptConfig {
     fn default() -> Self {
         Self {
-            priority: JavaScriptPriority::RealisticPerformanceFirst,
+            priority: JavaScriptPriority::SizeFirst,
             compression: None,
             inline_instruction_limit: None,
             inline_control_flow_limit: None,
             max_inline_growth: None,
             cost_model: CompressionCostModel::Brotli,
             candidate_search: CandidateSearch::Production,
-            candidate_limit: 64,
+            candidate_limit: 256,
         }
     }
 }
@@ -568,7 +582,8 @@ shared_min_imports = 3
         assert!(!performance.js_options().pool_strings);
         assert!(!performance.js_options().elide_safe_integer_coercions);
 
-        let realistic = ProjectConfig::default();
+        let realistic: ProjectConfig =
+            toml::from_str("[javascript]\npriority='realistic-performance-first'\n").unwrap();
         let realistic_optimizer = realistic.js_optimizer_options();
         assert_eq!(
             realistic.javascript.priority,
@@ -582,7 +597,8 @@ shared_min_imports = 3
         assert!(realistic.js_options().pool_strings);
         assert!(realistic.js_options().elide_safe_integer_coercions);
         assert!(realistic.js_options().compact_boolean_literals);
-        assert_eq!(realistic.javascript.candidate_limit, 64);
+        assert!(!realistic.js_options().pack_string_arrays);
+        assert_eq!(realistic.javascript.candidate_limit, 256);
 
         let alias: ProjectConfig =
             toml::from_str("[javascript]\npriority='realisticperf-first'\n").unwrap();
@@ -598,11 +614,18 @@ shared_min_imports = 3
         assert_eq!(balanced_optimizer.inline_control_flow_limit, 30);
         assert_eq!(balanced_optimizer.inline_growth_limit, Some(4));
         assert!(balanced.js_options().pool_strings);
+        assert!(!balanced.js_options().pack_string_arrays);
 
         let size: ProjectConfig = toml::from_str("[javascript]\npriority='size-first'\n").unwrap();
-        assert_eq!(size.js_optimizer_options().inline_growth_limit, Some(0));
+        assert_eq!(size.js_optimizer_options().inline_growth_limit, Some(16));
         assert!(size.js_options().pool_strings);
         assert!(size.js_options().elide_safe_integer_coercions);
+        assert!(size.js_options().inline_structured_closures);
+        assert!(size.js_options().pack_string_arrays);
+        assert_eq!(
+            ProjectConfig::default().javascript.priority,
+            JavaScriptPriority::SizeFirst
+        );
 
         assert!(!performance.entropy_aware_mangling_enabled());
         assert!(!performance.js_options().compact_boolean_literals);
@@ -653,6 +676,7 @@ max_inline_growth = 3
         assert!(!none_codegen.pool_strings);
         assert!(!none_codegen.elide_safe_integer_coercions);
         assert!(!none_codegen.compact_boolean_literals);
+        assert!(!none_codegen.pack_string_arrays);
         assert!(!none.entropy_aware_mangling_enabled());
 
         let explicit_mangle: ProjectConfig = toml::from_str(

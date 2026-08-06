@@ -17,10 +17,10 @@ dead_store_elimination = true
 dead_code_elimination = true
 
 [javascript]
-priority = "realistic-performance-first"
+priority = "size-first"
 cost_model = "brotli" # raw | gzip | brotli
 candidate_search = "production" # off | production | always
-candidate_limit = 64
+candidate_limit = 256
 compression = [
   "identifier-mangling",
   "entropy-aware-mangling",
@@ -29,6 +29,8 @@ compression = [
   "size-aware-inlining",
   "safe-integer-coercion-elision",
   "compact-boolean-literals",
+  "structured-closure-inlining",
+  "string-array-packing",
 ]
 # inline_instruction_limit = 18
 # inline_control_flow_limit = 45
@@ -74,14 +76,17 @@ checks, mandatory IR normalization, DCE correctness, or host-boundary rules:
 - `performance-first` uses straight-line/control-flow limits of `24`/`60`, has
   no inline-growth cap, disables automatic string pooling, and retains eager
   signed-i32 normalization for numeric hot paths.
-- `realistic-performance-first` is the default. It uses limits of `18`/`45`,
+- `realistic-performance-first` uses limits of `18`/`45`,
   allows up to `16` estimated additional IR instructions from repeated-call
   inlining, enables profitable string pooling, and removes coercions only when
   range analysis proves the result remains a signed i32.
 - `balanced` uses limits of `12`/`30`, permits up to `4` estimated additional
   instructions, and enables profitable string pooling.
-- `size-first` uses limits of `12`/`30`, permits no positive estimated inline
-  growth, and enables profitable string pooling.
+- `size-first` is the default. It uses limits of `12`/`30`, permits up to `16`
+  temporary IR instructions of inline growth so the following fold/DCE fixed
+  point can expose a net byte win, enables profitable string pooling, and
+  considers delimiter-packed string literal tables. Packing adds startup work,
+  so the performance-oriented profiles leave it disabled.
 
 `javascript.compression` is an optional exact allowlist of contested JavaScript
 size tactics. If omitted, the selected profile supplies the list. If present,
@@ -104,6 +109,12 @@ only listed tactics are enabled; `compression = []` disables all of them:
   range. Unknown or overflow-capable operations remain normalized.
 - `compact-boolean-literals` compares `!0`/`!1` with `true`/`false` for
   surviving boolean constants and typed default fields.
+- `structured-closure-inlining` compares compact nested structured closures
+  with reusable outlined helpers under the selected compressor.
+- `string-array-packing` considers immutable literal tables such as
+  `["a","b"]` as a delimiter-joined string plus `.split()`. It is a size/startup
+  tradeoff and remains a compressor-scored candidate rather than a mandatory
+  lowering.
 
 The numeric `inline_instruction_limit`, `inline_control_flow_limit`, and
 `max_inline_growth` keys override the selected profile. Setting
@@ -119,10 +130,11 @@ contested tactics for comparison; it never turns on a tactic omitted from the
 exact `compression` allowlist. `candidate_search = "production"` is the
 default and is skipped by CLI `--mode development`; `always` remains active in
 that mode, while `off` disables compressor-in-the-loop emission. The current
-search space compares profitable string pooling, proven-safe integer coercion
-elision, boolean literals, identifier alphabets, quote styles, and equivalent
-top-level declaration spellings, bounded by `candidate_limit`. The default
-limit of `64` covers the complete current default search space.
+search space compares profitable string pooling, literal-table packing,
+proven-safe integer coercion elision, boolean literals, structured closures,
+identifier alphabets, quote styles, and equivalent top-level declaration
+spellings, bounded by `candidate_limit`. The default limit of `256` covers the complete current
+default search space.
 
 The priority is applied after `[optimization]`: setting `inlining = false`
 disables inlining in every profile. Explicit `[mangle]` values have the highest

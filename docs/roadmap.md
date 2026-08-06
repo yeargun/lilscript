@@ -17,7 +17,8 @@ checked-in benchmark workload. Passing a synthetic example alone is not enough.
 - Constant propagation, algebraic simplification, GVN, inlining,
   devirtualization, escape analysis, scalar replacement, DSE, and DCE.
 - Frequency-ranked identifier mangling, typed property dissolution, profitable
-  string pooling, and configurable JavaScript size/performance policy.
+  string pooling, literal string-table packing, and configurable JavaScript
+  size/performance policy.
 - JavaScript, portable C, and native executable output with cross-backend tests.
 - Typed web host boundaries, arrays, maps, sets, buffers, shared buffers, and
   byte views.
@@ -30,11 +31,15 @@ checked-in benchmark workload. Passing a synthetic example alone is not enough.
 - [x] Separate JavaScript optimizer policy from native policy.
 - [x] Add performance-first, realistic-performance-first, balanced, and
   size-first profiles with explicit inlining budgets.
+- [x] Let size-first tolerate bounded temporary inline growth before rerunning
+  constant folding and DCE; zero IR growth is not a final-byte cost model.
 - [x] Add an exact allowlist for contested compression decisions.
 - [x] Elide integer normalization only when range analysis proves signed i32
   behavior is unchanged; keep eager normalization available for numeric code.
 - [x] Add loop induction-variable range analysis so bounded UI/application
   loops do not pay unnecessary `|0` costs.
+- [x] Preserve source-written `Math.imul` while never introducing it for
+  ordinary multiplication in the application-oriented profiles.
 - [ ] Add interprocedural argument/return ranges and field ranges.
 - [ ] Model deoptimization-sensitive JavaScript shapes, allocation pressure,
   and monomorphic call sites in performance decisions.
@@ -53,9 +58,21 @@ checked-in benchmark workload. Passing a synthetic example alone is not enough.
 - [x] Compare quote styles and emitted-character-ranked identifier alphabets
   with exact compressor scoring.
 - [x] Compare compact and keyword boolean literals under the selected codec.
-- [ ] Expand candidate search to deeper declaration and expression layouts.
+- [x] Compare nested structured closures, string-literal table packing, and
+  ordinary array literals under the selected codec.
+- [x] Remove redundant expression parentheses at precedence-safe statement,
+  assignment, argument, and return boundaries.
+- [ ] Score optimizer-level IR variants, not only final emission variants, so
+  inlining, specialization, loop shape, and SSA destruction can compete under
+  the selected codec.
+- [ ] Add a precedence-carrying JavaScript expression IR to remove redundant
+  interior parentheses without parsing generated strings.
+- [ ] Expand candidate search to declaration grouping, conditional/comma
+  expressions, `while`/`do`/`for` loop layouts, switch lowering, and local
+  mutation forms.
 - [ ] Add entropy-aware cross-scope name reuse and property-name assignment.
-- [ ] Add post-codegen superoptimization with semantic differential tests.
+- [ ] Add a parsed post-codegen peephole/superoptimizer whose every rewrite is
+  differential-tested against optimized and disabled-optimizer executions.
 - [ ] Track parse/compile cost and memory alongside transfer size so extreme
   compression choices do not silently damage startup behavior.
 
@@ -65,11 +82,23 @@ checked-in benchmark workload. Passing a synthetic example alone is not enough.
 - [x] Purity/effect inference, checked `pure`, and trusted host purity contracts.
 - [x] Constant-parameter specialization plus unused direct-call parameter and
   return-value elimination.
+- [x] Fold control flow exposed by literal closure captures during final
+  JavaScript emission.
 - [x] Struct/class scalar replacement and typed positional aggregate lowering.
 - [ ] Add richer alias analysis for mutable arrays, maps, sets, and host calls.
 - [ ] Add partial escape analysis and stack/region allocation for native output.
 - [ ] Add specialization for generic and higher-order calls using call-site
   frequency and emitted-byte cost.
+- [ ] Clone higher-order factories by constant capture signature so each
+  returned closure reaches the normal constant-fold/DCE fixed point.
+- [ ] Add interprocedural value sets, array lengths, return ranges, and nominal
+  field constants.
+- [x] Coalesce loop-header and conditional loop-carried phis with their dead
+  incoming values so common mutations no longer require temporary copy chains.
+- [ ] Complete SSA destruction across multi-exit loops, nested merges, parallel
+  copy cycles, and deferred expressions using a byte-scored register allocator.
+- [ ] Add context-sensitive effect and alias summaries for arrays, maps, sets,
+  closures, and host calls so more stores and allocations can be removed.
 - [ ] Add loop-invariant code motion, strength reduction, unrolling policy, and
   vectorization candidates for native backends.
 - [ ] Add profile-controlled allocation sinking and closure environment
@@ -84,6 +113,8 @@ checked-in benchmark workload. Passing a synthetic example alone is not enough.
   failure handling.
 - [ ] Add chunk graph optimization using request count, minimum bytes, shared
   reachability, cache stability, and gzip/Brotli costs.
+- [ ] Score chunk candidates by full deploy cost: compressed bytes, request
+  overhead, dependency depth, preload behavior, and long-term cache reuse.
 - [ ] Add package resolution, lockfiles, reproducible dependency builds, and
   stable library ABI/versioning policy.
 
@@ -93,6 +124,8 @@ checked-in benchmark workload. Passing a synthetic example alone is not enough.
 - [x] Portable C lowering for core language values and binary memory.
 - [ ] Generate a versioned browser declaration package for DOM, events, fetch,
   timers, workers, storage, streams, canvas, and Web APIs.
+- [ ] Generate those declarations from pinned Web IDL, preserving overloads,
+  inheritance, nullable contracts, and stable external property names.
 - [ ] Add `DataView`, typed numeric arrays, `Atomics`, worker declarations, and
   explicit shared-memory concurrency semantics.
 - [ ] Define exceptions, promises, async functions, and cancellation semantics.
@@ -111,6 +144,8 @@ checked-in benchmark workload. Passing a synthetic example alone is not enough.
 - [x] Emit structured per-pass optimization explanations for single JavaScript
   builds.
 - [ ] Emit source maps from source through SSA to JavaScript chunks.
+- [ ] Add machine-readable optimization remarks and SARIF links from lint
+  findings to the exact surviving IR allocation, call, or boundary operation.
 
 ## Evidence expansion
 
@@ -119,13 +154,26 @@ checked-in benchmark workload. Passing a synthetic example alone is not enough.
 - [x] Build a real Motion package integration with Vite as context-only
   ecosystem evidence, isolated from comparable compiler totals.
 - [x] Add a complete-root-entrypoint library lab for `@motionone/easing`,
-  `clamp`, `lerp`, and `string-hash` with upstream and differential gates.
+  `clamp`, `lerp`, `string-hash`, `js-levenshtein`, `@emotion/hash`, and
+  `murmurhash-js` with upstream and differential gates.
+- [x] Add a separate SolidJS client-runtime lab: 2,355 lines of LilScript,
+  109 adapted runtime behavior ports executed through optimized/unoptimized
+  JavaScript, emitted C, and native output, plus the unchanged 469-test
+  upstream reference suite.
+- [ ] Port the remaining SolidJS client runtime behaviors before using the word
+  compatible: stores, transitions, errors, promises/resources, complete DOM
+  insertion/reconciliation, Suspense, hydration, and scheduling.
+- [ ] Add real-browser interaction, scheduling, memory, and frame-time gates to
+  the Solid client lab. TypeScript source compatibility and SSR are not goals;
+  equivalent LilScript client behavior is the gate.
 - [ ] Implement the audited Motion v13 package surface and pass applicable
   upstream unit/browser tests before publishing any compatibility comparison.
 - [ ] Add router, validation, parser, state-machine, worker/buffer, and DOM
   application lanes without claiming complete library rewrites.
 - [ ] Run browser benchmarks for parse, startup, animation-frame stability,
   steady-state throughput, memory, and transfer compression.
+- [ ] Record JavaScript parse/compile time separately from execution and report
+  confidence intervals rather than single-run timing winners.
 - [x] Add a mechanically generated paired-source transfer-size gate and a
   Chromium steady-state runtime regression gate with confidence bounds.
 - [ ] Add differential fuzzing against a reference interpreter and native C.

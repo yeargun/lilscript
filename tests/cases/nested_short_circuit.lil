@@ -1,0 +1,9 @@
+bool gated(bool user, int depth, bool flushing) {
+  return user && (depth > 0 || flushing);
+}
+
+bool[] users = [false, true, false, true];
+bool[] flushing = [true, false, false, true];
+for (int index = 0; index < users.length; index++) {
+  print(gated(users[index], index - 1, flushing[index]));
+}

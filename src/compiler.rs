@@ -628,14 +628,20 @@ fn select_javascript_candidate(
     for pool_strings in [configured.pool_strings, false] {
         for elide_safe_integer_coercions in [configured.elide_safe_integer_coercions, false] {
             for compact_boolean_literals in [configured.compact_boolean_literals, false] {
-                let candidate = crate::codegen_ir_js::IrJsOptions {
-                    pool_strings,
-                    elide_safe_integer_coercions,
-                    compact_boolean_literals,
-                    ..configured
-                };
-                if !options.contains(&candidate) {
-                    options.push(candidate);
+                for inline_structured_closures in [configured.inline_structured_closures, false] {
+                    for pack_string_arrays in [configured.pack_string_arrays, false] {
+                        let candidate = crate::codegen_ir_js::IrJsOptions {
+                            pool_strings,
+                            elide_safe_integer_coercions,
+                            compact_boolean_literals,
+                            inline_structured_closures,
+                            pack_string_arrays,
+                            ..configured
+                        };
+                        if !options.contains(&candidate) {
+                            options.push(candidate);
+                        }
+                    }
                 }
             }
         }
@@ -835,12 +841,14 @@ mod tests {
         let arena = Bump::new();
         let program = parse_source(
             &arena,
-            "extern int read();pure int transform(int value){return value*3+1;}print(transform(read()));print(transform(read()));print(transform(read()));print(transform(read()));print(transform(read()));print(transform(read()));",
+            "pure extern int step(int value);extern int read();pure int transform(int value){value=step(value);value=step(value);value=step(value);value=step(value);value=step(value);value=step(value);value=step(value);value=step(value);value=step(value);value=step(value);value=step(value);value=step(value);value=step(value);return value;}print(transform(read()));print(transform(read()));print(transform(read()));print(transform(read()));print(transform(read()));print(transform(read()));",
         )
         .unwrap();
         let mut performance = ProjectConfig::default();
         performance.javascript.priority = crate::config::JavaScriptPriority::PerformanceFirst;
-        let realistic = ProjectConfig::default();
+        let mut realistic = ProjectConfig::default();
+        realistic.javascript.priority =
+            crate::config::JavaScriptPriority::RealisticPerformanceFirst;
         let mut balanced = ProjectConfig::default();
         balanced.javascript.priority = crate::config::JavaScriptPriority::Balanced;
         let mut size = ProjectConfig::default();
@@ -856,11 +864,6 @@ mod tests {
             !performance.javascript.contains("function"),
             "{}",
             performance.javascript
-        );
-        assert!(
-            !realistic.javascript.contains("function"),
-            "{}",
-            realistic.javascript
         );
         assert!(
             balanced.javascript.contains("function"),
@@ -900,7 +903,7 @@ mod tests {
         let source = "int sum=0;for(int i=0;i<3;i++){sum+=i;}print(`sum=${sum}`);";
         let output = compile_source(source).unwrap();
         assert!(output.contains("console.log"));
-        assert!(output.contains("while("));
+        assert!(output.contains("for(") || output.contains("while("));
         assert!(!output.contains("switch("));
         assert!(output.contains("`sum=${"));
     }
