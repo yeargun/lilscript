@@ -1372,7 +1372,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             }
                             out.push_str(target);
                             out.push('=');
-                            if is_true_literal(then_value) {
+                            if is_true_literal(then_value) && is_false_literal(else_value) {
+                                out.push_str(&condition);
+                            } else if is_false_literal(then_value) && is_true_literal(else_value) {
+                                out.push_str(&negate_condition(condition.clone()));
+                            } else if is_true_literal(then_value) {
                                 out.push_str(&condition);
                                 out.push_str("||");
                                 out.push_str(else_value);
@@ -4763,6 +4767,22 @@ mod tests {
         );
         assert!(keyword.contains("consume(true)"), "{keyword}");
         assert!(keyword.contains("consume(false)"), "{keyword}");
+    }
+
+    #[test]
+    fn collapses_boolean_phi_identities_without_dropping_effects() {
+        let identities = compile(
+            "extern int read();int left=read();int right=read();bool first=left == 1 && true;bool second=right == 2 || false;print(first);print(second);",
+        );
+        assert_eq!(identities.matches("read()").count(), 2, "{identities}");
+        assert!(!identities.contains("||"), "{identities}");
+        assert!(!identities.contains("&&"), "{identities}");
+
+        let inversion = compile(
+            "extern int read();bool value=false;if(read() == 1){value=false;}else{value=true;}print(value);",
+        );
+        assert!(inversion.contains("read()!=1"), "{inversion}");
+        assert!(!inversion.contains('?'), "{inversion}");
     }
 
     #[test]
