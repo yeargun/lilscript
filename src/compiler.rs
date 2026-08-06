@@ -169,16 +169,13 @@ pub fn compile_path_explained_configured(
     let linked = link_modules(&arena, &modules, &programs)?;
     let semantics = analyze(&linked)
         .map_err(|error| module_compile_error(&modules, CompileError::Semantic(error)))?;
-    let mut ir = lower_to_control_flow(&linked, &semantics)
+    let ir = lower_to_control_flow(&linked, &semantics)
         .map_err(|error| module_compile_error(&modules, CompileError::Lower(error)))?;
-    let optimization_reports =
-        optimize_control_flow_with_options(&mut ir, &config.js_optimizer_options(), false)
-            .map_err(|error| module_compile_error(&modules, CompileError::Optimize(error)))?;
-    let javascript = select_javascript_candidate(&ir, config, false)
+    let selected = optimize_and_select_javascript(ir, config, false)
         .map_err(|error| module_compile_error(&modules, error))?;
     Ok(JavaScriptCompilation {
-        javascript,
-        optimization_reports,
+        javascript: selected.javascript,
+        optimization_reports: selected.optimization_reports,
     })
 }
 
@@ -563,20 +560,15 @@ fn compile_program_all_configured<'ast, 'src>(
     config: &ProjectConfig,
 ) -> Result<CompilationArtifacts, CompileError> {
     let semantics = analyze(program)?;
-    let mut javascript_ir = lower_to_control_flow(program, &semantics)?;
+    let javascript_ir = lower_to_control_flow(program, &semantics)?;
     let mut native_ir = javascript_ir.clone();
-    let optimization_reports = optimize_control_flow_with_options(
-        &mut javascript_ir,
-        &config.js_optimizer_options(),
-        false,
-    )?;
+    let selected = optimize_and_select_javascript(javascript_ir, config, false)?;
     optimize_control_flow_with_options(&mut native_ir, &config.optimizer_options(), false)?;
-    let javascript = select_javascript_candidate(&javascript_ir, config, false)?;
     let c = emit_native_c(&native_ir)?;
     Ok(CompilationArtifacts {
-        javascript,
+        javascript: selected.javascript,
         c,
-        optimization_reports,
+        optimization_reports: selected.optimization_reports,
     })
 }
 
@@ -594,9 +586,8 @@ fn compile_program_to_js_configured<'ast, 'src>(
     config: &ProjectConfig,
 ) -> Result<String, CompileError> {
     let semantics = analyze(program)?;
-    let mut ir = lower_to_control_flow(program, &semantics)?;
-    optimize_control_flow_with_options(&mut ir, &config.js_optimizer_options(), false)?;
-    select_javascript_candidate(&ir, config, false)
+    let ir = lower_to_control_flow(program, &semantics)?;
+    optimize_and_select_javascript(ir, config, false).map(|selected| selected.javascript)
 }
 
 fn compile_program_to_js_module<'ast, 'src>(
@@ -613,9 +604,70 @@ fn compile_program_to_js_module_configured<'ast, 'src>(
     config: &ProjectConfig,
 ) -> Result<String, CompileError> {
     let semantics = analyze(program)?;
-    let mut ir = lower_to_control_flow(program, &semantics)?;
-    optimize_control_flow_with_options(&mut ir, &config.js_optimizer_options(), true)?;
-    select_javascript_candidate(&ir, config, true)
+    let ir = lower_to_control_flow(program, &semantics)?;
+    optimize_and_select_javascript(ir, config, true).map(|selected| selected.javascript)
+}
+
+struct OptimizedJavascriptCandidate {
+    javascript: String,
+    optimization_reports: Vec<OptimizationReport>,
+}
+
+fn optimize_and_select_javascript<'src>(
+    ir: ControlFlowModule<'src>,
+    config: &ProjectConfig,
+    preserve_exports: bool,
+) -> Result<OptimizedJavascriptCandidate, CompileError> {
+    let configured = config.js_optimizer_options();
+    let mut optimizer_options = vec![configured];
+    if configured.inlining && config.ir_inlining_variants_enabled() {
+        let mut no_inlining = configured;
+        no_inlining.inlining = false;
+        no_inlining.inline_instruction_limit = 0;
+        no_inlining.inline_control_flow_limit = 0;
+        no_inlining.inline_growth_limit = Some(0);
+        optimizer_options.push(no_inlining);
+    }
+
+    let mut candidates = Vec::with_capacity(optimizer_options.len());
+    for options in optimizer_options {
+        let mut candidate_ir = ir.clone();
+        let optimization_reports =
+            optimize_control_flow_with_options(&mut candidate_ir, &options, preserve_exports)?;
+        let javascript = select_javascript_candidate(&candidate_ir, config, preserve_exports)?;
+        let cost = compressed_size(javascript.as_bytes(), config.javascript.cost_model)
+            .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
+        if candidates
+            .iter()
+            .any(|candidate: &(usize, usize, OptimizedJavascriptCandidate)| {
+                candidate.2.javascript == javascript
+            })
+        {
+            continue;
+        }
+        candidates.push((
+            cost,
+            javascript.len(),
+            OptimizedJavascriptCandidate {
+                javascript,
+                optimization_reports,
+            },
+        ));
+    }
+    candidates.sort_by(|left, right| {
+        (left.0, left.1, &left.2.javascript).cmp(&(right.0, right.1, &right.2.javascript))
+    });
+    candidates
+        .into_iter()
+        .next()
+        .map(|(_, _, candidate)| candidate)
+        .ok_or_else(|| {
+            crate::codegen_js::CodegenError::new(
+                Span::empty(0),
+                "optimizer-level candidate search produced no JavaScript output",
+            )
+            .into()
+        })
 }
 
 fn select_javascript_candidate(
@@ -870,10 +922,45 @@ fn render_message_diagnostic(path: &Path, source: &str, span: Span, message: &st
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::CompressionDecision;
 
     #[test]
     fn compiles_source_end_to_end() {
         assert_eq!(compile_source("print(40+2);").unwrap(), "console.log(42)");
+    }
+
+    #[test]
+    fn compressor_selects_a_shared_helper_over_duplicated_inlining() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "int mix(int value){return value^(value<<value);}int[] values=[1,2,3,4,5,6,7,8];print(mix(values[0]));print(mix(values[1]));print(mix(values[2]));print(mix(values[3]));print(mix(values[4]));print(mix(values[5]));print(mix(values[6]));print(mix(values[7]));",
+        )
+        .unwrap();
+        let selected =
+            compile_program_to_js_configured(&program, &ProjectConfig::default()).unwrap();
+        let mut inline_only = ProjectConfig::default();
+        inline_only.javascript.compression = Some(vec![
+            CompressionDecision::IdentifierMangling,
+            CompressionDecision::EntropyAwareMangling,
+            CompressionDecision::QuoteStyleSelection,
+            CompressionDecision::StringPooling,
+            CompressionDecision::SizeAwareInlining,
+            CompressionDecision::SafeIntegerCoercionElision,
+            CompressionDecision::CompactBooleanLiterals,
+            CompressionDecision::StructuredClosureInlining,
+            CompressionDecision::StringArrayPacking,
+            CompressionDecision::ScalarPhiCopies,
+            CompressionDecision::PhiAffinityCoalescing,
+        ]);
+        let inlined = compile_program_to_js_configured(&program, &inline_only).unwrap();
+        let mut no_inlining = ProjectConfig::default();
+        no_inlining.optimization.inlining = Some(false);
+        let outlined = compile_program_to_js_configured(&program, &no_inlining).unwrap();
+
+        assert_eq!(selected, outlined);
+        assert!(selected.len() < inlined.len(), "{selected}\n{inlined}");
+        assert!(selected.contains("function"), "{selected}");
     }
 
     #[test]

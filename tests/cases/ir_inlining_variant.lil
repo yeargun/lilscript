@@ -1,0 +1,13 @@
+int mix(int value) {
+    return value ^ (value << value);
+}
+
+int[] values = [1, 2, 3, 4, 5, 6, 7, 8];
+print(mix(values[0]));
+print(mix(values[1]));
+print(mix(values[2]));
+print(mix(values[3]));
+print(mix(values[4]));
+print(mix(values[5]));
+print(mix(values[6]));
+print(mix(values[7]));

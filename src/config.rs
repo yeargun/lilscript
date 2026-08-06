@@ -106,6 +106,13 @@ impl ProjectConfig {
             .compression_enabled(CompressionDecision::QuoteStyleSelection)
     }
 
+    pub fn ir_inlining_variants_enabled(&self) -> bool {
+        self.javascript.candidate_search_enabled()
+            && self
+                .javascript
+                .compression_enabled(CompressionDecision::IrInliningVariants)
+    }
+
     pub fn validate(&self) -> Result<(), String> {
         if self.bundle.min_chunk_bytes == 0 {
             return Err("`bundle.min_chunk_bytes` must be greater than zero".to_string());
@@ -181,6 +188,7 @@ impl JavaScriptPriority {
             CompressionDecision::StringArrayPacking => matches!(self, Self::SizeFirst),
             CompressionDecision::ScalarPhiCopies => matches!(self, Self::SizeFirst),
             CompressionDecision::PhiAffinityCoalescing => true,
+            CompressionDecision::IrInliningVariants => matches!(self, Self::SizeFirst),
             CompressionDecision::PropertyMangling | CompressionDecision::ExportMangling => false,
         }
     }
@@ -223,6 +231,7 @@ pub enum CompressionDecision {
     StringArrayPacking,
     ScalarPhiCopies,
     PhiAffinityCoalescing,
+    IrInliningVariants,
 }
 
 impl CompressionDecision {
@@ -241,6 +250,7 @@ impl CompressionDecision {
             Self::StringArrayPacking => "string-array-packing",
             Self::ScalarPhiCopies => "scalar-phi-copies",
             Self::PhiAffinityCoalescing => "phi-affinity-coalescing",
+            Self::IrInliningVariants => "ir-inlining-variants",
         }
     }
 }
@@ -651,6 +661,7 @@ shared_min_imports = 3
         assert!(size.js_options().inline_structured_closures);
         assert!(size.js_options().pack_string_arrays);
         assert!(size.js_options().scalar_phi_copies);
+        assert!(size.ir_inlining_variants_enabled());
         assert_eq!(
             size.js_options().phi_affinity_mode,
             PhiAffinityMode::Grouped
@@ -662,6 +673,7 @@ shared_min_imports = 3
 
         assert!(!performance.entropy_aware_mangling_enabled());
         assert!(!performance.js_options().compact_boolean_literals);
+        assert!(!performance.ir_inlining_variants_enabled());
 
         let explicit_pooling: ProjectConfig = toml::from_str(
             "[javascript]\npriority='performance-first'\n[mangle]\npool_strings=true\n",
@@ -699,6 +711,7 @@ max_inline_growth = 3
         assert!(!codegen.mangle_exports);
         assert!(codegen.pool_strings);
         assert!(!codegen.elide_safe_integer_coercions);
+        assert!(!custom.ir_inlining_variants_enabled());
 
         let none: ProjectConfig = toml::from_str("[javascript]\ncompression=[]\n").unwrap();
         let none_codegen = none.js_options();
