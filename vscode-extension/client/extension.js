@@ -38,7 +38,10 @@ async function activate(context) {
       { scheme: "untitled", language: "lilscript" },
     ],
     synchronize: {
-      fileEvents: vscode.workspace.createFileSystemWatcher("**/*.lil"),
+      fileEvents: [
+        vscode.workspace.createFileSystemWatcher("**/*.lil"),
+        vscode.workspace.createFileSystemWatcher("**/lilscript.toml"),
+      ],
     },
     outputChannelName: "LilScript Language Server",
   };

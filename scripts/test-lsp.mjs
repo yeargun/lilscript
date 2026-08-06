@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 const server = path.resolve(process.argv[2] ?? "target/release/lilscript-lsp");
@@ -71,6 +72,8 @@ function assert(condition, message) {
 }
 
 const uri = "file:///tmp/lilscript-lsp-smoke.lil";
+const file = "/tmp/lilscript-lsp-smoke.lil";
+writeFileSync(file, 'int broken="wrong";');
 send({
   jsonrpc: "2.0",
   id: 1,
@@ -79,6 +82,9 @@ send({
 });
 const initialized = await receive((message) => message.id === 1, "initialize response");
 assert(initialized.result.capabilities.hoverProvider === true, "hover capability is missing");
+assert(initialized.result.capabilities.renameProvider === true, "rename capability is missing");
+assert(initialized.result.capabilities.referencesProvider === true, "references capability is missing");
+assert(initialized.result.capabilities.semanticTokensProvider.full === true, "semantic tokens are missing");
 send({ jsonrpc: "2.0", method: "initialized", params: {} });
 
 send({
@@ -101,9 +107,10 @@ assert(invalidDiagnostics.params.diagnostics.length === 1, "invalid source produ
 
 const validSource = [
   "struct Point { int x; int y; }",
+  "Point point = Point{1, 2};",
   "int[] values = [1, 2, 3];",
   "auto mapped = values.map((int value) => value * 2);",
-  "print(mapped.length);",
+  "print(point.x + mapped.length);",
 ].join("\n");
 send({
   jsonrpc: "2.0",
@@ -128,12 +135,12 @@ send({
 const completion = await receive((message) => message.id === 2, "completion response");
 assert(completion.result.items.some((item) => item.label === "mapped"), "document completion is missing");
 
-const mapCharacter = validSource.split("\n")[2].lastIndexOf("map") + 1;
+const mapCharacter = validSource.split("\n")[3].lastIndexOf("map") + 1;
 send({
   jsonrpc: "2.0",
   id: 3,
   method: "textDocument/hover",
-  params: { textDocument: { uri }, position: { line: 2, character: mapCharacter } },
+  params: { textDocument: { uri }, position: { line: 3, character: mapCharacter } },
 });
 const hover = await receive((message) => message.id === 3, "hover response");
 assert(hover.result.contents.value.includes("Transforms every array element"), "map hover is missing");
@@ -148,13 +155,106 @@ const symbols = await receive((message) => message.id === 4, "document symbols")
 assert(symbols.result.some((symbol) => symbol.name === "Point"), "struct symbol is missing");
 assert(symbols.result.some((symbol) => symbol.name === "mapped"), "binding symbol is missing");
 
-send({ jsonrpc: "2.0", id: 5, method: "shutdown", params: null });
-await receive((message) => message.id === 5, "shutdown response");
+const valueCharacter = validSource.split("\n")[3].indexOf("value") + 1;
+send({
+  jsonrpc: "2.0",
+  id: 5,
+  method: "textDocument/references",
+  params: {
+    textDocument: { uri },
+    position: { line: 3, character: valueCharacter },
+    context: { includeDeclaration: true },
+  },
+});
+const references = await receive((message) => message.id === 5, "references response");
+assert(references.result.length === 2, "references did not resolve the parameter and use");
+
+send({
+  jsonrpc: "2.0",
+  id: 6,
+  method: "textDocument/rename",
+  params: {
+    textDocument: { uri },
+    position: { line: 3, character: valueCharacter },
+    newName: "item",
+  },
+});
+const rename = await receive((message) => message.id === 6, "rename response");
+assert(rename.result.changes[uri].length === 2, "rename did not return both semantic edits");
+
+send({
+  jsonrpc: "2.0",
+  id: 7,
+  method: "textDocument/semanticTokens/full",
+  params: { textDocument: { uri } },
+});
+const semanticTokens = await receive((message) => message.id === 7, "semantic tokens response");
+assert(semanticTokens.result.data.length > 0, "semantic token stream is empty");
+assert(semanticTokens.result.data.length % 5 === 0, "semantic token stream is malformed");
+
+send({
+  jsonrpc: "2.0",
+  id: 8,
+  method: "textDocument/formatting",
+  params: { textDocument: { uri }, options: { tabSize: 2, insertSpaces: true } },
+});
+const formatting = await receive((message) => message.id === 8, "formatting response");
+assert(formatting.result.length > 0, "formatter produced no edit for non-canonical source");
+
+send({
+  jsonrpc: "2.0",
+  id: 9,
+  method: "textDocument/codeAction",
+  params: {
+    textDocument: { uri },
+    range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
+    context: { diagnostics: [], only: ["source.organizeImports"] },
+  },
+});
+const actions = await receive((message) => message.id === 9, "code action response");
+assert(actions.result[0].edit.changes[uri].length > 0, "organize-import edit has the wrong URI");
+
+send({
+  jsonrpc: "2.0",
+  method: "textDocument/didChange",
+  params: {
+    textDocument: { uri, version: 3 },
+    contentChanges: [{ text: "int example(){return 1;print(2);}print(example());" }],
+  },
+});
+const lintDiagnostics = await receive(
+  (message) => message.method === "textDocument/publishDiagnostics",
+  "lint diagnostics",
+);
+assert(
+  lintDiagnostics.params.diagnostics.some((diagnostic) => diagnostic.source === "lilscript-lint"),
+  "linter findings were not published by the language server",
+);
+
+send({
+  jsonrpc: "2.0",
+  id: 10,
+  method: "textDocument/codeAction",
+  params: {
+    textDocument: { uri },
+    range: { start: { line: 0, character: 0 }, end: { line: 0, character: 40 } },
+    context: { diagnostics: lintDiagnostics.params.diagnostics, only: ["quickfix"] },
+  },
+});
+const fixes = await receive((message) => message.id === 10, "quick-fix response");
+assert(
+  fixes.result.some((action) => action.kind === "quickfix"),
+  "machine-applicable lint fix was not exposed as a code action",
+);
+
+send({ jsonrpc: "2.0", id: 11, method: "shutdown", params: null });
+await receive((message) => message.id === 11, "shutdown response");
 send({ jsonrpc: "2.0", method: "exit", params: null });
 child.stdin.end();
 
 await childExit.catch((error) => {
   throw new Error(`${error.message} Server stderr:\n${stderr}`);
 });
+rmSync(file, { force: true });
 
 console.log("LilScript language-server protocol passed.");

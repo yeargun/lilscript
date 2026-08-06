@@ -3,6 +3,9 @@ preset = "maximum"
 
 [javascript]
 priority = "realistic-performance-first"
+cost_model = "brotli"
+candidate_search = "production"
+candidate_limit = 32
 compression = [
   "identifier-mangling",
   "string-pooling",
@@ -15,3 +18,16 @@ mode = "single"
 min_chunk_bytes = 16384
 max_chunks = 32
 shared_min_imports = 2
+
+[lint]
+enabled = true
+preset = "recommended"
+deny_warnings = false
+exclude = ["**/generated/**"]
+pure_extern_allowlist = []
+
+[format]
+enabled = true
+line_width = 100
+newline = "lf"
+organize_imports = true

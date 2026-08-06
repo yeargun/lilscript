@@ -5,11 +5,11 @@ use std::process::{Command, Stdio};
 
 use clap::{Parser, ValueEnum};
 
-use lilscript::config::{load_project_config, BundleMode};
+use lilscript::config::{load_project_config, BundleMode, CandidateSearch};
 use lilscript::{
-    compile_path_all_configured, compile_path_configured, compile_path_to_c_configured,
-    compile_path_to_js_bundle_configured, compile_path_to_js_module_configured,
-    render_module_diagnostic, JavaScriptBundle,
+    compile_path_all_configured, compile_path_configured, compile_path_explained_configured,
+    compile_path_to_c_configured, compile_path_to_js_bundle_configured,
+    compile_path_to_js_module_configured, render_module_diagnostic, JavaScriptBundle,
 };
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -19,6 +19,18 @@ enum Target {
     C,
     Native,
     All,
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+enum BuildMode {
+    Development,
+    Production,
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+enum ExplainFormat {
+    Human,
+    Json,
 }
 
 #[derive(Debug, Parser)]
@@ -39,6 +51,14 @@ struct Args {
     /// Explicit config path. Otherwise `lilscript.toml` is discovered from the input directory.
     #[arg(long)]
     config: Option<PathBuf>,
+
+    /// Development skips compressor-in-loop candidate search; production uses project policy.
+    #[arg(long, value_enum, default_value_t = BuildMode::Production)]
+    mode: BuildMode,
+
+    /// Print optimizer pass decisions to stderr without contaminating JavaScript stdout.
+    #[arg(long, value_enum)]
+    explain: Option<ExplainFormat>,
 }
 
 fn main() {
@@ -50,14 +70,25 @@ fn main() {
 
 fn run() -> Result<(), String> {
     let args = Args::parse();
-    let loaded = load_project_config(&args.input, args.config.as_deref())
+    let mut loaded = load_project_config(&args.input, args.config.as_deref())
         .map_err(|error| error.to_string())?;
+    if matches!(args.mode, BuildMode::Development) {
+        loaded.config.javascript.candidate_search = CandidateSearch::Off;
+    }
     match args.target {
         Target::Js => {
             if loaded.config.bundle.mode == BundleMode::Single {
-                let js = compile_path_configured(&args.input, &loaded.config)
-                    .map_err(|error| render_module_diagnostic(&error))?;
-                write_or_print(args.output.as_deref(), &js)?;
+                if let Some(format) = args.explain {
+                    let compilation =
+                        compile_path_explained_configured(&args.input, &loaded.config)
+                            .map_err(|error| render_module_diagnostic(&error))?;
+                    print_explanation(format, &compilation.optimization_reports)?;
+                    write_or_print(args.output.as_deref(), &compilation.javascript)?;
+                } else {
+                    let js = compile_path_configured(&args.input, &loaded.config)
+                        .map_err(|error| render_module_diagnostic(&error))?;
+                    write_or_print(args.output.as_deref(), &js)?;
+                }
             } else {
                 write_configured_bundle(&args.input, args.output.as_deref(), &loaded.config)?;
             }
@@ -110,6 +141,33 @@ fn run() -> Result<(), String> {
         }
     }
 
+    Ok(())
+}
+
+fn print_explanation(
+    format: ExplainFormat,
+    reports: &[lilscript::optimizer::OptimizationReport],
+) -> Result<(), String> {
+    match format {
+        ExplainFormat::Human => {
+            for report in reports {
+                eprintln!(
+                    "{:<34} {}",
+                    report.pass_name,
+                    if report.changed {
+                        "changed"
+                    } else {
+                        "unchanged"
+                    }
+                );
+            }
+        }
+        ExplainFormat::Json => eprintln!(
+            "{}",
+            serde_json::to_string_pretty(reports)
+                .map_err(|error| format!("failed to serialize optimization report: {error}"))?
+        ),
+    }
     Ok(())
 }
 

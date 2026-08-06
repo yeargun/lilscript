@@ -5,6 +5,11 @@ use std::path::PathBuf;
 use bumpalo::Bump;
 use clap::Parser;
 use lilscript::ast::{ClassMember, ExternClassMember, Item, Stmt};
+use lilscript::config::load_project_config;
+use lilscript::formatter::format_source;
+use lilscript::lexer::{lex, lex_lossless, SyntaxElement, TokenKind, TriviaKind};
+use lilscript::lint::{lint_path_with_source, DiagnosticSeverity};
+use lilscript::semantic::analyze;
 use lilscript::span::Span;
 use lilscript::{compile_path_with_source, compile_source, parse_source};
 use lsp_server::{Connection, ErrorCode, Message, Notification, Request, Response};
@@ -42,7 +47,23 @@ fn run() -> Result<(), Box<dyn Error + Send + Sync>> {
                     "triggerCharacters": ["."]
                 },
                 "hoverProvider": true,
-                "documentSymbolProvider": true
+                "documentSymbolProvider": true,
+                "documentFormattingProvider": true,
+                "referencesProvider": true,
+                "renameProvider": true,
+                "semanticTokensProvider": {
+                    "full": true,
+                    "legend": {
+                        "tokenTypes": [
+                            "keyword", "type", "class", "function", "variable",
+                            "parameter", "property", "number", "string", "comment"
+                        ],
+                        "tokenModifiers": []
+                    }
+                },
+                "codeActionProvider": {
+                    "codeActionKinds": ["quickfix", "source.organizeImports"]
+                }
             },
             "serverInfo": { "name": "lilscript-lsp", "version": env!("CARGO_PKG_VERSION") }
         }),
@@ -141,6 +162,13 @@ fn handle_request(request: Request, documents: &HashMap<String, Document>) -> Re
         }
         "textDocument/hover" => Ok(hover_result(&request.params, documents)),
         "textDocument/documentSymbol" => Ok(document_symbol_result(&request.params, documents)),
+        "textDocument/formatting" => Ok(formatting_result(&request.params, documents)),
+        "textDocument/codeAction" => Ok(code_action_result(&request.params, documents)),
+        "textDocument/references" => Ok(references_result(&request.params, documents)),
+        "textDocument/rename" => rename_result(&request.params, documents),
+        "textDocument/semanticTokens/full" => {
+            Ok(semantic_tokens_result(&request.params, documents))
+        }
         _ => Err((
             ErrorCode::MethodNotFound as i32,
             format!("unsupported request `{}`", request.method),
@@ -188,7 +216,7 @@ fn diagnostics(uri: Option<&str>, source: &str) -> Vec<Value> {
     if let Some(path) = uri.and_then(file_uri_path) {
         if path.is_file() {
             return match compile_path_with_source(&path, source) {
-                Ok(_) => Vec::new(),
+                Ok(_) => lint_diagnostics(&path, source),
                 Err(error) => {
                     let current = path.canonicalize().ok();
                     let is_current = current.as_ref().is_some_and(|path| *path == error.path);
@@ -222,6 +250,396 @@ fn diagnostics(uri: Option<&str>, source: &str) -> Vec<Value> {
             "message": error.to_string()
         })],
     }
+}
+
+fn lint_diagnostics(path: &std::path::Path, source: &str) -> Vec<Value> {
+    let Ok(loaded) = load_project_config(path, None) else {
+        return Vec::new();
+    };
+    let Ok(diagnostics) = lint_path_with_source(path, source, &loaded.config) else {
+        return Vec::new();
+    };
+    diagnostics
+        .into_iter()
+        .filter(|diagnostic| {
+            diagnostic.path == path
+                || diagnostic.path.canonicalize().ok().as_deref()
+                    == path.canonicalize().ok().as_deref()
+        })
+        .map(|diagnostic| {
+            let severity = match diagnostic.severity {
+                DiagnosticSeverity::Error => 1,
+                DiagnosticSeverity::Warning => 2,
+                DiagnosticSeverity::Hint => 4,
+            };
+            json!({
+                "range": span_range(source, diagnostic.span),
+                "severity": severity,
+                "source": "lilscript-lint",
+                "code": diagnostic.rule,
+                "message": diagnostic.message,
+                "data": {
+                    "evidence": diagnostic.evidence,
+                    "help": diagnostic.help,
+                    "fix": diagnostic.fix
+                }
+            })
+        })
+        .collect()
+}
+
+fn formatting_result(params: &Value, documents: &HashMap<String, Document>) -> Value {
+    let Some(uri) = request_uri(params) else {
+        return Value::Array(Vec::new());
+    };
+    let Some(document) = documents.get(uri) else {
+        return Value::Array(Vec::new());
+    };
+    let config = file_uri_path(uri)
+        .and_then(|path| load_project_config(&path, None).ok())
+        .map(|loaded| loaded.config.format)
+        .unwrap_or_default();
+    if !config.enabled {
+        return Value::Array(Vec::new());
+    }
+    let Ok(formatted) = format_source(&document.text, &config) else {
+        return Value::Array(Vec::new());
+    };
+    if formatted == document.text {
+        return Value::Array(Vec::new());
+    }
+    json!([{
+        "range": span_range(&document.text, Span::new(0, document.text.len())),
+        "newText": formatted
+    }])
+}
+
+fn code_action_result(params: &Value, documents: &HashMap<String, Document>) -> Value {
+    let Some(uri) = request_uri(params) else {
+        return Value::Array(Vec::new());
+    };
+    let Some(document) = documents.get(uri) else {
+        return Value::Array(Vec::new());
+    };
+    let mut actions = Vec::new();
+    if let Some(diagnostics) = params
+        .pointer("/context/diagnostics")
+        .and_then(Value::as_array)
+    {
+        for diagnostic in diagnostics {
+            let Some(edits) = diagnostic
+                .pointer("/data/fix/edits")
+                .and_then(Value::as_array)
+            else {
+                continue;
+            };
+            let text_edits = edits
+                .iter()
+                .filter_map(|edit| {
+                    let start = edit.pointer("/span/start")?.as_u64()? as usize;
+                    let end = edit.pointer("/span/end")?.as_u64()? as usize;
+                    let replacement = edit.get("replacement")?.as_str()?;
+                    Some(json!({
+                        "range": span_range(&document.text, Span::new(start, end)),
+                        "newText": replacement
+                    }))
+                })
+                .collect::<Vec<_>>();
+            if text_edits.is_empty() {
+                continue;
+            }
+            let mut changes = serde_json::Map::new();
+            changes.insert(uri.to_string(), Value::Array(text_edits));
+            let rule = diagnostic
+                .get("code")
+                .and_then(Value::as_str)
+                .unwrap_or("lint");
+            actions.push(json!({
+                "title": format!("Apply {rule} fix"),
+                "kind": "quickfix",
+                "diagnostics": [diagnostic],
+                "isPreferred": true,
+                "edit": { "changes": changes }
+            }));
+        }
+    }
+    let edits = formatting_result(params, documents);
+    if edits.as_array().is_some_and(|edits| !edits.is_empty()) {
+        let mut changes = serde_json::Map::new();
+        changes.insert(uri.to_string(), edits);
+        actions.push(json!({
+            "title": "Organize imports and format document",
+            "kind": "source.organizeImports",
+            "isPreferred": true,
+            "edit": { "changes": changes }
+        }));
+    }
+    Value::Array(actions)
+}
+
+fn references_result(params: &Value, documents: &HashMap<String, Document>) -> Value {
+    let Some(uri) = request_uri(params) else {
+        return Value::Array(Vec::new());
+    };
+    let Some((document, line, character)) = document_position(params, documents) else {
+        return Value::Array(Vec::new());
+    };
+    let Some(offset) = byte_offset(&document.text, line, character) else {
+        return Value::Array(Vec::new());
+    };
+    let spans = semantic_identifier_spans(&document.text, offset);
+    Value::Array(
+        spans
+            .into_iter()
+            .map(|span| json!({ "uri": uri, "range": span_range(&document.text, span) }))
+            .collect(),
+    )
+}
+
+fn rename_result(
+    params: &Value,
+    documents: &HashMap<String, Document>,
+) -> Result<Value, (i32, String)> {
+    let new_name = string_at(params, "/newName").ok_or_else(|| {
+        (
+            ErrorCode::InvalidParams as i32,
+            "rename requires `newName`".to_string(),
+        )
+    })?;
+    if !valid_identifier(new_name) || keyword_name(new_name) {
+        return Err((
+            ErrorCode::InvalidParams as i32,
+            format!("`{new_name}` is not a valid LilScript identifier"),
+        ));
+    }
+    let uri = request_uri(params).ok_or_else(|| {
+        (
+            ErrorCode::InvalidParams as i32,
+            "rename requires a document URI".to_string(),
+        )
+    })?;
+    let (document, line, character) = document_position(params, documents).ok_or_else(|| {
+        (
+            ErrorCode::InvalidParams as i32,
+            "rename position is outside the open document".to_string(),
+        )
+    })?;
+    let offset = byte_offset(&document.text, line, character).ok_or_else(|| {
+        (
+            ErrorCode::InvalidParams as i32,
+            "rename position is outside the open document".to_string(),
+        )
+    })?;
+    let spans = semantic_identifier_spans(&document.text, offset);
+    if spans.is_empty() {
+        return Err((
+            ErrorCode::InvalidParams as i32,
+            "the selected token does not resolve to a renameable symbol".to_string(),
+        ));
+    }
+    let edits = spans
+        .into_iter()
+        .map(|span| json!({ "range": span_range(&document.text, span), "newText": new_name }))
+        .collect::<Vec<_>>();
+    let mut changes = serde_json::Map::new();
+    changes.insert(uri.to_string(), Value::Array(edits));
+    Ok(json!({ "changes": changes }))
+}
+
+fn semantic_identifier_spans(source: &str, offset: usize) -> Vec<Span> {
+    let Some((_, selected_span)) = word_at(source, offset) else {
+        return Vec::new();
+    };
+    let arena = Bump::new();
+    let Ok(program) = parse_source(&arena, source) else {
+        return Vec::new();
+    };
+    let Ok(semantics) = analyze(&program) else {
+        return Vec::new();
+    };
+    let Some(selected_symbol) = semantics.identifier_symbol(selected_span) else {
+        return Vec::new();
+    };
+    let Ok(tokens) = lex(source) else {
+        return Vec::new();
+    };
+    tokens
+        .into_iter()
+        .filter_map(|token| match token.kind {
+            TokenKind::Ident(_)
+                if semantics.identifier_symbol(token.span) == Some(selected_symbol) =>
+            {
+                Some(token.span)
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+fn valid_identifier(name: &str) -> bool {
+    let mut bytes = name.bytes();
+    let Some(first) = bytes.next() else {
+        return false;
+    };
+    (first.is_ascii_alphabetic() || matches!(first, b'_' | b'$'))
+        && bytes.all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'$'))
+}
+
+fn keyword_name(name: &str) -> bool {
+    matches!(
+        name,
+        "int"
+            | "float"
+            | "string"
+            | "bool"
+            | "void"
+            | "auto"
+            | "func"
+            | "struct"
+            | "class"
+            | "return"
+            | "init"
+            | "if"
+            | "else"
+            | "while"
+            | "for"
+            | "break"
+            | "continue"
+            | "extern"
+            | "import"
+            | "export"
+            | "from"
+            | "as"
+            | "pure"
+            | "true"
+            | "false"
+            | "null"
+            | "new"
+            | "is"
+    )
+}
+
+fn semantic_tokens_result(params: &Value, documents: &HashMap<String, Document>) -> Value {
+    let Some(uri) = request_uri(params) else {
+        return json!({ "data": [] });
+    };
+    let Some(document) = documents.get(uri) else {
+        return json!({ "data": [] });
+    };
+    let Ok(elements) = lex_lossless(&document.text) else {
+        return json!({ "data": [] });
+    };
+    let mut absolute = Vec::<(u32, u32, u32, u32)>::new();
+    for element in elements {
+        match element {
+            SyntaxElement::Token(token) => {
+                let Some(token_type) = semantic_token_type(&token.kind) else {
+                    continue;
+                };
+                append_semantic_span(&document.text, token.span, token_type, &mut absolute);
+            }
+            SyntaxElement::Trivia(trivia)
+                if matches!(
+                    trivia.kind,
+                    TriviaKind::LineComment | TriviaKind::BlockComment
+                ) =>
+            {
+                append_semantic_span(&document.text, trivia.span, 9, &mut absolute);
+            }
+            SyntaxElement::Trivia(_) => {}
+        }
+    }
+    absolute.sort_unstable_by_key(|entry| (entry.0, entry.1));
+    let mut data = Vec::with_capacity(absolute.len() * 5);
+    let mut previous_line = 0;
+    let mut previous_start = 0;
+    for (line, start, length, token_type) in absolute {
+        let delta_line = line - previous_line;
+        let delta_start = if delta_line == 0 {
+            start - previous_start
+        } else {
+            start
+        };
+        data.extend([delta_line, delta_start, length, token_type, 0]);
+        previous_line = line;
+        previous_start = start;
+    }
+    json!({ "data": data })
+}
+
+fn semantic_token_type(kind: &TokenKind<'_>) -> Option<u32> {
+    Some(match kind {
+        TokenKind::Int
+        | TokenKind::Float
+        | TokenKind::String
+        | TokenKind::Bool
+        | TokenKind::Void
+        | TokenKind::Auto => 1,
+        TokenKind::IntLiteral(_) | TokenKind::FloatLiteral(_) => 7,
+        TokenKind::StringLiteral(_) | TokenKind::TemplateLiteral(_) => 8,
+        TokenKind::Ident(_) => 4,
+        TokenKind::Func
+        | TokenKind::Struct
+        | TokenKind::Class
+        | TokenKind::Return
+        | TokenKind::Init
+        | TokenKind::If
+        | TokenKind::Else
+        | TokenKind::While
+        | TokenKind::For
+        | TokenKind::Break
+        | TokenKind::Continue
+        | TokenKind::Extern
+        | TokenKind::Import
+        | TokenKind::Export
+        | TokenKind::From
+        | TokenKind::As
+        | TokenKind::Pure
+        | TokenKind::True
+        | TokenKind::False
+        | TokenKind::Null
+        | TokenKind::New
+        | TokenKind::Is => 0,
+        _ => return None,
+    })
+}
+
+fn append_semantic_span(
+    source: &str,
+    span: Span,
+    token_type: u32,
+    tokens: &mut Vec<(u32, u32, u32, u32)>,
+) {
+    let mut segment_start = span.start;
+    for (relative, ch) in source[span.start..span.end].char_indices() {
+        if ch != '\n' {
+            continue;
+        }
+        append_semantic_segment(
+            source,
+            segment_start,
+            span.start + relative,
+            token_type,
+            tokens,
+        );
+        segment_start = span.start + relative + 1;
+    }
+    append_semantic_segment(source, segment_start, span.end, token_type, tokens);
+}
+
+fn append_semantic_segment(
+    source: &str,
+    start: usize,
+    end: usize,
+    token_type: u32,
+    tokens: &mut Vec<(u32, u32, u32, u32)>,
+) {
+    if start >= end {
+        return;
+    }
+    let (line, character) = position_pair(source, start);
+    let length = source[start..end].encode_utf16().count() as u32;
+    tokens.push((line, character, length, token_type));
 }
 
 fn file_uri_path(uri: &str) -> Option<PathBuf> {
@@ -620,6 +1038,11 @@ fn span_range(source: &str, span: Span) -> Value {
 }
 
 fn position_at(source: &str, requested_offset: usize) -> Value {
+    let (line, character) = position_pair(source, requested_offset);
+    json!({ "line": line, "character": character })
+}
+
+fn position_pair(source: &str, requested_offset: usize) -> (u32, u32) {
     let mut offset = requested_offset.min(source.len());
     while !source.is_char_boundary(offset) {
         offset -= 1;
@@ -634,7 +1057,7 @@ fn position_at(source: &str, requested_offset: usize) -> Value {
             character += ch.len_utf16() as u32;
         }
     }
-    json!({ "line": line, "character": character })
+    (line, character)
 }
 
 fn byte_offset(source: &str, requested_line: u32, requested_character: u32) -> Option<usize> {
@@ -703,6 +1126,40 @@ mod tests {
         let offset = source.find("map").unwrap() + 1;
         assert_eq!(word_at(source, offset).unwrap().0, "map");
         assert!(language_help("map").unwrap().contains("array element"));
+    }
+
+    #[test]
+    fn semantic_navigation_respects_shadowed_bindings() {
+        let source = "int value=1;int read(){int value=2;return value;}print(value);";
+        let global = source.find("value").unwrap() + 1;
+        let local = source[source.find("read").unwrap()..]
+            .find("value")
+            .unwrap()
+            + source.find("read").unwrap()
+            + 1;
+
+        assert_eq!(semantic_identifier_spans(source, global).len(), 2);
+        assert_eq!(semantic_identifier_spans(source, local).len(), 2);
+        assert_ne!(
+            semantic_identifier_spans(source, global),
+            semantic_identifier_spans(source, local)
+        );
+    }
+
+    #[test]
+    fn emits_delta_encoded_semantic_tokens() {
+        let uri = "file:///tmp/semantic.lil";
+        let mut documents = HashMap::new();
+        documents.insert(
+            uri.to_string(),
+            Document {
+                text: "// note\nint value=1;".to_string(),
+            },
+        );
+        let tokens = semantic_tokens_result(&json!({ "textDocument": { "uri": uri } }), &documents);
+        let data = tokens["data"].as_array().unwrap();
+        assert_eq!(data.len() % 5, 0);
+        assert!(data.len() >= 20);
     }
 
     #[test]

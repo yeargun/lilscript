@@ -8,7 +8,7 @@ use crate::ir::{
 use crate::semantic::{EscapeState, SymbolId, Type};
 use crate::span::Span;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct OptimizationReport {
     pub pass_name: &'static str,
     pub changed: bool,
@@ -148,6 +148,9 @@ fn optimize_control_flow_inner(
         reports.push(propagate_single_assignment_globals(module));
     }
     reports.push(devirtualize_methods(module));
+    reports.push(specialize_constant_parameters(module));
+    reports.push(optimize_unused_parameters(module));
+    reports.push(optimize_unused_returns(module));
     reports.push(validate_declared_purity(module)?);
     if options.inlining {
         loop {
@@ -161,6 +164,9 @@ fn optimize_control_flow_inner(
                 break;
             }
         }
+        reports.push(specialize_constant_parameters(module));
+        reports.push(optimize_unused_parameters(module));
+        reports.push(optimize_unused_returns(module));
     }
 
     optimize_scalar_fixed_point(module, options, &mut reports);
@@ -837,6 +843,314 @@ fn devirtualize_methods(module: &mut ControlFlowModule<'_>) -> OptimizationRepor
         pass_name: "devirtualization",
         changed,
     }
+}
+
+fn optimize_unused_parameters(module: &mut ControlFlowModule<'_>) -> OptimizationReport {
+    let exported = module
+        .exports
+        .iter()
+        .filter_map(|export| match export.binding {
+            ExportBinding::Function(function) => Some(function),
+            _ => None,
+        })
+        .collect::<AHashSet<_>>();
+    let indirect = indirectly_referenced_functions(module);
+    let removals = module
+        .functions
+        .iter()
+        .filter(|function| {
+            function.live
+                && matches!(
+                    function.kind,
+                    FunctionKind::Function | FunctionKind::Method { .. }
+                )
+                && !exported.contains(&function.id)
+                && !indirect.contains(&function.id)
+        })
+        .filter_map(|function| {
+            let uses = control_flow_use_counts(function);
+            let unused = function
+                .params
+                .iter()
+                .enumerate()
+                .filter_map(|(index, parameter)| {
+                    (uses.get(&parameter.value).copied().unwrap_or(0) == 0).then_some(index)
+                })
+                .collect::<Vec<_>>();
+            (!unused.is_empty()).then_some((function.id, unused))
+        })
+        .collect::<AHashMap<_, _>>();
+    if removals.is_empty() {
+        return OptimizationReport {
+            pass_name: "unused-parameter-optimization",
+            changed: false,
+        };
+    }
+    for function in &mut module.functions {
+        if let Some(indices) = removals.get(&function.id) {
+            function.params = function
+                .params
+                .drain(..)
+                .enumerate()
+                .filter_map(|(index, parameter)| (!indices.contains(&index)).then_some(parameter))
+                .collect();
+        }
+        for block in &mut function.blocks {
+            for instruction in &mut block.instructions {
+                if let ControlFlowOp::CallDirect {
+                    function: callee,
+                    args,
+                } = &mut instruction.op
+                {
+                    if let Some(indices) = removals.get(callee) {
+                        *args = args
+                            .drain(..)
+                            .enumerate()
+                            .filter_map(|(index, argument)| {
+                                (!indices.contains(&index)).then_some(argument)
+                            })
+                            .collect();
+                    }
+                }
+            }
+        }
+    }
+    OptimizationReport {
+        pass_name: "unused-parameter-optimization",
+        changed: true,
+    }
+}
+
+fn specialize_constant_parameters(module: &mut ControlFlowModule<'_>) -> OptimizationReport {
+    let exported = module
+        .exports
+        .iter()
+        .filter_map(|export| match export.binding {
+            ExportBinding::Function(function) => Some(function),
+            _ => None,
+        })
+        .collect::<AHashSet<_>>();
+    let indirect = indirectly_referenced_functions(module);
+    let mut calls = AHashMap::<FunctionId, Vec<Vec<Option<ConstValue>>>>::new();
+    for caller in &module.functions {
+        let constants = caller
+            .blocks
+            .iter()
+            .flat_map(|block| &block.instructions)
+            .filter_map(|instruction| match (instruction.out, &instruction.op) {
+                (Some(out), ControlFlowOp::Const(value)) => Some((out, value.clone())),
+                _ => None,
+            })
+            .collect::<AHashMap<_, _>>();
+        for instruction in caller.blocks.iter().flat_map(|block| &block.instructions) {
+            if let ControlFlowOp::CallDirect { function, args } = &instruction.op {
+                calls.entry(*function).or_default().push(
+                    args.iter()
+                        .map(|argument| constants.get(argument).cloned())
+                        .collect(),
+                );
+            }
+        }
+    }
+    let specializations = module
+        .functions
+        .iter()
+        .filter(|function| {
+            function.live
+                && matches!(
+                    function.kind,
+                    FunctionKind::Function | FunctionKind::Method { .. }
+                )
+                && !exported.contains(&function.id)
+                && !indirect.contains(&function.id)
+        })
+        .filter_map(|function| {
+            let sites = calls.get(&function.id)?;
+            let constants = function
+                .params
+                .iter()
+                .enumerate()
+                .filter_map(|(index, parameter)| {
+                    let first = sites.first()?.get(index)?.clone()?;
+                    (constant_has_direct_native_representation(&first, &parameter.ty)
+                        && sites
+                            .iter()
+                            .all(|args| args.get(index) == Some(&Some(first.clone()))))
+                    .then_some((index, first))
+                })
+                .collect::<Vec<_>>();
+            (!constants.is_empty()).then_some((function.id, constants))
+        })
+        .collect::<AHashMap<_, _>>();
+    if specializations.is_empty() {
+        return OptimizationReport {
+            pass_name: "constant-parameter-specialization",
+            changed: false,
+        };
+    }
+    for function in &mut module.functions {
+        if let Some(parameters) = specializations.get(&function.id) {
+            let mut replacements = AHashMap::new();
+            let mut constants = Vec::new();
+            for (index, value) in parameters {
+                let parameter = &function.params[*index];
+                let out = ValueId(function.value_count);
+                function.value_count += 1;
+                function.value_escapes.push(EscapeState::LocalOnly);
+                replacements.insert(parameter.value, out);
+                constants.push(ControlFlowInstruction {
+                    out: Some(out),
+                    ty: Some(parameter.ty.clone()),
+                    op: ControlFlowOp::Const(value.clone()),
+                    span: parameter.span,
+                });
+            }
+            rewrite_control_flow_function(function, &replacements);
+            function.blocks[function.entry.0 as usize]
+                .instructions
+                .splice(0..0, constants);
+            function.params = function
+                .params
+                .drain(..)
+                .enumerate()
+                .filter_map(|(index, parameter)| {
+                    (!parameters.iter().any(|(removed, _)| *removed == index)).then_some(parameter)
+                })
+                .collect();
+        }
+        for block in &mut function.blocks {
+            for instruction in &mut block.instructions {
+                if let ControlFlowOp::CallDirect {
+                    function: callee,
+                    args,
+                } = &mut instruction.op
+                {
+                    if let Some(parameters) = specializations.get(callee) {
+                        *args = args
+                            .drain(..)
+                            .enumerate()
+                            .filter_map(|(index, argument)| {
+                                (!parameters.iter().any(|(removed, _)| *removed == index))
+                                    .then_some(argument)
+                            })
+                            .collect();
+                    }
+                }
+            }
+        }
+    }
+    OptimizationReport {
+        pass_name: "constant-parameter-specialization",
+        changed: true,
+    }
+}
+
+fn constant_has_direct_native_representation(value: &ConstValue, ty: &Type<'_>) -> bool {
+    matches!(
+        (value, ty),
+        (ConstValue::Int(_), Type::Int)
+            | (ConstValue::Float(_), Type::Float)
+            | (ConstValue::Bool(_), Type::Bool)
+            | (ConstValue::String(_), Type::String)
+    )
+}
+
+fn optimize_unused_returns(module: &mut ControlFlowModule<'_>) -> OptimizationReport {
+    let exported = module
+        .exports
+        .iter()
+        .filter_map(|export| match export.binding {
+            ExportBinding::Function(function) => Some(function),
+            _ => None,
+        })
+        .collect::<AHashSet<_>>();
+    let indirect = indirectly_referenced_functions(module);
+    let mut observed = AHashSet::<FunctionId>::new();
+    for function in &module.functions {
+        let uses = control_flow_use_counts(function);
+        for block in &function.blocks {
+            for instruction in &block.instructions {
+                let ControlFlowOp::CallDirect {
+                    function: callee, ..
+                } = instruction.op
+                else {
+                    continue;
+                };
+                if instruction
+                    .out
+                    .is_some_and(|out| uses.get(&out).copied().unwrap_or(0) != 0)
+                {
+                    observed.insert(callee);
+                }
+            }
+        }
+    }
+    let candidates = module
+        .functions
+        .iter()
+        .filter(|function| {
+            function.live
+                && !function.return_type.is_void()
+                && matches!(
+                    function.kind,
+                    FunctionKind::Function | FunctionKind::Method { .. }
+                )
+                && !exported.contains(&function.id)
+                && !indirect.contains(&function.id)
+                && !observed.contains(&function.id)
+        })
+        .map(|function| function.id)
+        .collect::<AHashSet<_>>();
+    if candidates.is_empty() {
+        return OptimizationReport {
+            pass_name: "unused-return-optimization",
+            changed: false,
+        };
+    }
+    for function in &mut module.functions {
+        if candidates.contains(&function.id) {
+            function.return_type = Type::Void;
+            for block in &mut function.blocks {
+                if matches!(block.terminator, Some(Terminator::Return(Some(_)))) {
+                    block.terminator = Some(Terminator::Return(None));
+                }
+            }
+        }
+        for block in &mut function.blocks {
+            for instruction in &mut block.instructions {
+                if matches!(
+                    instruction.op,
+                    ControlFlowOp::CallDirect { function, .. } if candidates.contains(&function)
+                ) {
+                    instruction.out = None;
+                    instruction.ty = None;
+                }
+            }
+        }
+    }
+    OptimizationReport {
+        pass_name: "unused-return-optimization",
+        changed: true,
+    }
+}
+
+fn indirectly_referenced_functions(module: &ControlFlowModule<'_>) -> AHashSet<FunctionId> {
+    let mut indirect = AHashSet::new();
+    for function in &module.functions {
+        for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
+            match &instruction.op {
+                ControlFlowOp::Closure { function, .. }
+                | ControlFlowOp::NewClass {
+                    constructor: Some(function),
+                    ..
+                } => {
+                    indirect.insert(*function);
+                }
+                _ => {}
+            }
+        }
+    }
+    indirect
 }
 
 fn fold_and_propagate_control_flow(module: &mut ControlFlowModule<'_>) -> OptimizationReport {
@@ -3638,6 +3952,69 @@ mod tests {
                 }],
             }],
         }
+    }
+
+    #[test]
+    fn specializes_constant_arguments_and_removes_unused_call_results() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "int work(int mode,int value){if(mode==3){print(value);return 1;}return 2;}work(3,4);work(3,8);",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut control_flow = lower_to_control_flow(&program, &semantics).unwrap();
+        let options = OptimizationOptions {
+            inlining: false,
+            ..OptimizationOptions::default()
+        };
+        let reports =
+            optimize_control_flow_with_options(&mut control_flow, &options, false).unwrap();
+        let output = crate::codegen_ir_js::emit_optimized_ir_js(&control_flow).unwrap();
+
+        assert!(reports.iter().any(|report| {
+            report.pass_name == "constant-parameter-specialization" && report.changed
+        }));
+        assert!(reports
+            .iter()
+            .any(|report| { report.pass_name == "unused-return-optimization" && report.changed }));
+        assert!(output.contains("function a(b)"), "{output}");
+        assert!(!output.contains("return"), "{output}");
+        assert!(!output.contains("a(3,"), "{output}");
+    }
+
+    #[test]
+    fn does_not_specialize_tagged_generic_parameters_as_raw_constants() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "T apply<T>(T value,func(T)->T transform){return transform(value);}int triple(int value){return value*3;}print(apply(3,triple));",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut control_flow = lower_to_control_flow(&program, &semantics).unwrap();
+        let generic = control_flow
+            .functions
+            .iter()
+            .find(|function| {
+                function
+                    .params
+                    .iter()
+                    .any(|parameter| matches!(parameter.ty, Type::TypeParameter(_)))
+            })
+            .map(|function| function.id)
+            .unwrap();
+        let options = OptimizationOptions {
+            inlining: false,
+            ..OptimizationOptions::default()
+        };
+
+        optimize_control_flow_with_options(&mut control_flow, &options, false).unwrap();
+
+        assert!(control_flow.functions[generic.0 as usize]
+            .params
+            .iter()
+            .any(|parameter| matches!(parameter.ty, Type::TypeParameter(_))));
     }
 
     #[test]

@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -14,6 +14,8 @@ pub struct ProjectConfig {
     pub javascript: JavaScriptConfig,
     pub mangle: MangleConfig,
     pub bundle: BundleConfig,
+    pub lint: LintConfig,
+    pub format: FormatConfig,
 }
 
 impl ProjectConfig {
@@ -91,6 +93,18 @@ impl ProjectConfig {
                     ));
                 }
             }
+        }
+        if self.javascript.candidate_limit == 0 {
+            return Err("`javascript.candidate_limit` must be greater than zero".to_string());
+        }
+        if self.format.line_width < 40 {
+            return Err("`format.line_width` must be at least 40".to_string());
+        }
+        for (rule, severity) in &self.lint.rules {
+            if rule.trim().is_empty() {
+                return Err("`lint.rules` contains an empty rule name".to_string());
+            }
+            let _ = severity;
         }
         Ok(())
     }
@@ -183,6 +197,9 @@ pub struct JavaScriptConfig {
     pub inline_instruction_limit: Option<usize>,
     pub inline_control_flow_limit: Option<usize>,
     pub max_inline_growth: Option<usize>,
+    pub cost_model: CompressionCostModel,
+    pub candidate_search: CandidateSearch,
+    pub candidate_limit: usize,
 }
 
 impl Default for JavaScriptConfig {
@@ -193,6 +210,98 @@ impl Default for JavaScriptConfig {
             inline_instruction_limit: None,
             inline_control_flow_limit: None,
             max_inline_growth: None,
+            cost_model: CompressionCostModel::Brotli,
+            candidate_search: CandidateSearch::Production,
+            candidate_limit: 32,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum CompressionCostModel {
+    Raw,
+    Gzip,
+    #[default]
+    Brotli,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum CandidateSearch {
+    Off,
+    #[default]
+    Production,
+    Always,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum LintSeverity {
+    Off,
+    Hint,
+    #[default]
+    Warn,
+    Error,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum LintPreset {
+    Minimal,
+    #[default]
+    Recommended,
+    Strict,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct LintConfig {
+    pub enabled: bool,
+    pub preset: LintPreset,
+    pub deny_warnings: bool,
+    pub exclude: Vec<String>,
+    pub pure_extern_allowlist: Vec<String>,
+    pub rules: BTreeMap<String, LintSeverity>,
+}
+
+impl Default for LintConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            preset: LintPreset::Recommended,
+            deny_warnings: false,
+            exclude: Vec::new(),
+            pure_extern_allowlist: Vec::new(),
+            rules: BTreeMap::new(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum NewlineStyle {
+    #[default]
+    Lf,
+    Crlf,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct FormatConfig {
+    pub enabled: bool,
+    pub line_width: usize,
+    pub newline: NewlineStyle,
+    pub organize_imports: bool,
+}
+
+impl Default for FormatConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            line_width: 100,
+            newline: NewlineStyle::Lf,
+            organize_imports: true,
         }
     }
 }
@@ -203,6 +312,10 @@ impl JavaScriptConfig {
             || self.priority.enables_compression(decision),
             |enabled| enabled.contains(&decision),
         )
+    }
+
+    pub const fn candidate_search_enabled(&self) -> bool {
+        !matches!(self.candidate_search, CandidateSearch::Off)
     }
 }
 

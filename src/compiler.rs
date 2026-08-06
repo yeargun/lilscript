@@ -1,6 +1,7 @@
 use ahash::AHashMap;
 use bumpalo::Bump;
 use serde::Serialize;
+use std::io::Write as _;
 use std::path::Path;
 
 use crate::codegen_ir_js::{
@@ -10,7 +11,7 @@ use crate::codegen_ir_js::{
 };
 use crate::codegen_js::{compile_to_js, CompileError};
 use crate::codegen_native::{compile_to_c, emit_native_c};
-use crate::config::{BundleMode, ProjectConfig};
+use crate::config::{BundleMode, CompressionCostModel, ProjectConfig};
 use crate::ir::{ControlFlowModule, FunctionId};
 use crate::lower::lower_to_control_flow;
 use crate::module::{
@@ -29,6 +30,12 @@ use crate::span::Span;
 pub struct CompilationArtifacts {
     pub javascript: String,
     pub c: String,
+    pub optimization_reports: Vec<OptimizationReport>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct JavaScriptCompilation {
+    pub javascript: String,
     pub optimization_reports: Vec<OptimizationReport>,
 }
 
@@ -147,6 +154,29 @@ pub fn compile_path(path: &Path) -> Result<String, ModuleError> {
 
 pub fn compile_path_configured(path: &Path, config: &ProjectConfig) -> Result<String, ModuleError> {
     compile_path_js_configured_inner(path, None, config)
+}
+
+pub fn compile_path_explained_configured(
+    path: &Path,
+    config: &ProjectConfig,
+) -> Result<JavaScriptCompilation, ModuleError> {
+    let arena = Bump::new();
+    let modules = discover_modules(path)?;
+    let programs = parse_modules(&arena, &modules)?;
+    let linked = link_modules(&arena, &modules, &programs)?;
+    let semantics = analyze(&linked)
+        .map_err(|error| module_compile_error(&modules, CompileError::Semantic(error)))?;
+    let mut ir = lower_to_control_flow(&linked, &semantics)
+        .map_err(|error| module_compile_error(&modules, CompileError::Lower(error)))?;
+    let optimization_reports =
+        optimize_control_flow_with_options(&mut ir, &config.js_optimizer_options(), false)
+            .map_err(|error| module_compile_error(&modules, CompileError::Optimize(error)))?;
+    let javascript = select_javascript_candidate(&ir, config, false)
+        .map_err(|error| module_compile_error(&modules, error))?;
+    Ok(JavaScriptCompilation {
+        javascript,
+        optimization_reports,
+    })
 }
 
 pub fn compile_path_to_c(path: &Path) -> Result<String, ModuleError> {
@@ -538,7 +568,7 @@ fn compile_program_all_configured<'ast, 'src>(
         false,
     )?;
     optimize_control_flow_with_options(&mut native_ir, &config.optimizer_options(), false)?;
-    let javascript = emit_optimized_ir_js_with_options(&javascript_ir, &config.js_options())?;
+    let javascript = select_javascript_candidate(&javascript_ir, config, false)?;
     let c = emit_native_c(&native_ir)?;
     Ok(CompilationArtifacts {
         javascript,
@@ -563,7 +593,7 @@ fn compile_program_to_js_configured<'ast, 'src>(
     let semantics = analyze(program)?;
     let mut ir = lower_to_control_flow(program, &semantics)?;
     optimize_control_flow_with_options(&mut ir, &config.js_optimizer_options(), false)?;
-    emit_optimized_ir_js_with_options(&ir, &config.js_options()).map_err(Into::into)
+    select_javascript_candidate(&ir, config, false)
 }
 
 fn compile_program_to_js_module<'ast, 'src>(
@@ -582,7 +612,108 @@ fn compile_program_to_js_module_configured<'ast, 'src>(
     let semantics = analyze(program)?;
     let mut ir = lower_to_control_flow(program, &semantics)?;
     optimize_control_flow_with_options(&mut ir, &config.js_optimizer_options(), true)?;
-    emit_optimized_ir_js_module_with_options(&ir, &config.js_options()).map_err(Into::into)
+    select_javascript_candidate(&ir, config, true)
+}
+
+fn select_javascript_candidate(
+    ir: &ControlFlowModule<'_>,
+    config: &ProjectConfig,
+    module_output: bool,
+) -> Result<String, CompileError> {
+    let configured = config.js_options();
+    if !config.javascript.candidate_search_enabled() {
+        return emit_javascript_candidate(ir, module_output, configured).map_err(Into::into);
+    }
+    let mut options = Vec::new();
+    for pool_strings in [configured.pool_strings, false] {
+        for elide_safe_integer_coercions in [configured.elide_safe_integer_coercions, false] {
+            let candidate = crate::codegen_ir_js::IrJsOptions {
+                pool_strings,
+                elide_safe_integer_coercions,
+                ..configured
+            };
+            if !options.contains(&candidate) {
+                options.push(candidate);
+            }
+        }
+    }
+    let mut candidates = Vec::with_capacity(options.len() * 2);
+    for options in options {
+        let code = emit_javascript_candidate(ir, module_output, options)?;
+        for code in top_level_declaration_variants(code) {
+            if candidates.iter().any(|(_, _, existing)| existing == &code) {
+                continue;
+            }
+            let cost = compressed_size(code.as_bytes(), config.javascript.cost_model)
+                .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
+            candidates.push((cost, code.len(), code));
+            if candidates.len() == config.javascript.candidate_limit {
+                break;
+            }
+        }
+        if candidates.len() == config.javascript.candidate_limit {
+            break;
+        }
+    }
+    candidates.sort_by(|left, right| (left.0, left.1, &left.2).cmp(&(right.0, right.1, &right.2)));
+    candidates
+        .into_iter()
+        .next()
+        .map(|(_, _, code)| code)
+        .ok_or_else(|| {
+            crate::codegen_js::CodegenError::new(
+                Span::empty(0),
+                "candidate search produced no JavaScript output",
+            )
+            .into()
+        })
+}
+
+fn top_level_declaration_variants(code: String) -> Vec<String> {
+    let mut variants = vec![code.clone()];
+    if let Some(rest) = code.strip_prefix("var ") {
+        variants.push(format!("let {rest}"));
+    }
+    variants
+}
+
+fn emit_javascript_candidate(
+    ir: &ControlFlowModule<'_>,
+    module_output: bool,
+    options: crate::codegen_ir_js::IrJsOptions,
+) -> Result<String, crate::codegen_js::CodegenError> {
+    if module_output {
+        emit_optimized_ir_js_module_with_options(ir, &options)
+    } else {
+        emit_optimized_ir_js_with_options(ir, &options)
+    }
+}
+
+fn compressed_size(bytes: &[u8], model: CompressionCostModel) -> Result<usize, String> {
+    match model {
+        CompressionCostModel::Raw => Ok(bytes.len()),
+        CompressionCostModel::Gzip => {
+            let mut encoder =
+                flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::best());
+            encoder
+                .write_all(bytes)
+                .map_err(|error| format!("gzip candidate measurement failed: {error}"))?;
+            encoder
+                .finish()
+                .map(|output| output.len())
+                .map_err(|error| format!("gzip candidate measurement failed: {error}"))
+        }
+        CompressionCostModel::Brotli => {
+            let mut output = Vec::new();
+            {
+                let mut writer = brotli::CompressorWriter::new(&mut output, 4096, 11, 22);
+                writer
+                    .write_all(bytes)
+                    .map_err(|error| format!("Brotli candidate measurement failed: {error}"))?;
+            }
+            Ok(output.len())
+        }
+    }
 }
 
 fn compile_program_to_c<'ast, 'src>(

@@ -798,6 +798,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         mut cache: AHashMap<ValueId, String>,
     ) -> Result<Option<String>, CodegenError> {
         let mut visited = AHashSet::new();
+        let mut deferred_effects = 0usize;
         loop {
             if !visited.insert(block) {
                 return Ok(None);
@@ -810,10 +811,18 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 let Some(out) = instruction.out else {
                     return Ok(None);
                 };
-                if !expression_only_op(&instruction.op)
+                let deferred_effect = matches!(instruction.op, ControlFlowOp::CallDirect { .. });
+                if (!expression_only_op(&instruction.op) && !deferred_effect)
                     || (uses.get(&out).copied().unwrap_or(0) > 1 && !op_can_defer(&instruction.op))
+                    || (deferred_effect && uses.get(&out).copied().unwrap_or(0) != 1)
                 {
                     return Ok(None);
+                }
+                if deferred_effect {
+                    deferred_effects += 1;
+                    if deferred_effects > 1 {
+                        return Ok(None);
+                    }
                 }
                 let expression = self.render_instruction_op(instruction, context, &mut cache)?;
                 cache.insert(out, expression);
@@ -1276,16 +1285,30 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             &mut else_visited,
                             &mut else_output,
                         )?;
-                        if let Some((target, then_value, else_value)) =
+                        if let Some((declare, target, then_value, else_value, trailing)) =
                             merge_conditional_assignments(&then_output, &else_output)
                         {
+                            if declare {
+                                out.push_str("var ");
+                            }
                             out.push_str(target);
                             out.push('=');
-                            out.push_str(&condition);
-                            out.push('?');
-                            out.push_str(then_value);
-                            out.push(':');
-                            out.push_str(else_value);
+                            if then_value == "true" {
+                                out.push_str(&condition);
+                                out.push_str("||");
+                                out.push_str(else_value);
+                            } else if else_value == "false" {
+                                out.push_str(&condition);
+                                out.push_str("&&");
+                                out.push_str(then_value);
+                            } else {
+                                out.push_str(&condition);
+                                out.push('?');
+                                out.push_str(then_value);
+                                out.push(':');
+                                out.push_str(else_value);
+                            }
+                            out.push_str(trailing);
                             out.push(';');
                         } else if else_output.is_empty() {
                             out.push_str("if(");
@@ -2439,27 +2462,81 @@ fn order_scalar_assignments(assignments: &[(String, String)]) -> Option<Vec<(&st
 fn merge_conditional_assignments<'a>(
     then_output: &'a str,
     else_output: &'a str,
-) -> Option<(&'a str, &'a str, &'a str)> {
-    let (then_target, then_value) = parse_single_assignment(then_output)?;
-    let (else_target, else_value) = parse_single_assignment(else_output)?;
-    (then_target == else_target).then_some((then_target, then_value, else_value))
+) -> Option<(bool, &'a str, &'a str, &'a str, &'a str)> {
+    let (then_declare, then_target, then_value, then_trailing) =
+        parse_single_assignment(then_output)?;
+    let (else_declare, else_target, else_value, else_trailing) =
+        parse_single_assignment(else_output)?;
+    if !then_trailing.is_empty() && !else_trailing.is_empty() && then_trailing != else_trailing {
+        return None;
+    }
+    (then_target == else_target).then_some((
+        then_declare || else_declare,
+        then_target,
+        then_value,
+        else_value,
+        if then_trailing.is_empty() {
+            else_trailing
+        } else {
+            then_trailing
+        },
+    ))
 }
 
 fn for_update_clause(output: &str) -> Option<String> {
     let clause = output.strip_suffix(';')?;
-    (!clause.contains(';') && parse_single_assignment(output).is_some()).then(|| clause.to_string())
+    (!clause.contains(';')
+        && parse_single_assignment(output)
+            .is_some_and(|(declare, _, _, trailing)| !declare && trailing.is_empty()))
+    .then(|| clause.to_string())
 }
 
-fn parse_single_assignment(output: &str) -> Option<(&str, &str)> {
+fn parse_single_assignment(output: &str) -> Option<(bool, &str, &str, &str)> {
     let statement = output.strip_suffix(';')?;
-    let assignment = statement.find('=')?;
-    let target = &statement[..assignment];
-    let value = &statement[assignment + 1..];
+    let (declare, statement) = statement
+        .strip_prefix("var ")
+        .map_or((false, statement), |statement| (true, statement));
+    let (assignment_statement, trailing) = if declare {
+        split_top_level_comma(statement).map_or((statement, ""), |index| {
+            (&statement[..index], &statement[index..])
+        })
+    } else {
+        (statement, "")
+    };
+    let assignment = assignment_statement.find('=')?;
+    let target = &assignment_statement[..assignment];
+    let value = &assignment_statement[assignment + 1..];
     (!target.is_empty()
         && target.bytes().all(is_js_identifier_byte)
         && !value.is_empty()
         && !value.contains(';'))
-    .then_some((target, value))
+    .then_some((declare, target, value, trailing))
+}
+
+fn split_top_level_comma(value: &str) -> Option<usize> {
+    let mut depth = 0usize;
+    let mut quote = None;
+    let mut escaped = false;
+    for (index, character) in value.char_indices() {
+        if let Some(active) = quote {
+            if escaped {
+                escaped = false;
+            } else if character == '\\' {
+                escaped = true;
+            } else if character == active {
+                quote = None;
+            }
+            continue;
+        }
+        match character {
+            '\'' | '"' | '`' => quote = Some(character),
+            '(' | '[' | '{' => depth += 1,
+            ')' | ']' | '}' => depth = depth.saturating_sub(1),
+            ',' if depth == 0 => return Some(index),
+            _ => {}
+        }
+    }
+    None
 }
 
 fn is_nonzero_i32_literal(expression: &str) -> bool {
@@ -2646,6 +2723,13 @@ impl I32Range {
         let max = if self.max > 0 { self.max.min(bound) } else { 0 };
         Some(Self { min, max })
     }
+
+    fn join(self, rhs: Self) -> Self {
+        Self {
+            min: self.min.min(rhs.min),
+            max: self.max.max(rhs.max),
+        }
+    }
 }
 
 fn analyze_i32_ranges(function: &ControlFlowFunction<'_>) -> AHashSet<ValueId> {
@@ -2655,22 +2739,29 @@ fn analyze_i32_ranges(function: &ControlFlowFunction<'_>) -> AHashSet<ValueId> {
             ranges.insert(parameter.value, I32Range::FULL);
         }
     }
-    for phi in function.blocks.iter().flat_map(|block| &block.phis) {
-        if phi.ty == Type::Int {
-            ranges.insert(phi.out, I32Range::FULL);
-        }
-    }
-    for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
-        if instruction.ty.as_ref() == Some(&Type::Int) {
-            if let Some(out) = instruction.out {
-                ranges.insert(out, I32Range::FULL);
-            }
-        }
-    }
+    seed_induction_ranges(function, &mut ranges);
 
     let mut elidable = AHashSet::new();
     loop {
         let mut changed = false;
+        for phi in function.blocks.iter().flat_map(|block| &block.phis) {
+            if phi.ty != Type::Int || ranges.contains_key(&phi.out) {
+                continue;
+            }
+            let incoming = phi
+                .incoming
+                .iter()
+                .filter_map(|(_, value)| ranges.get(value).copied())
+                .collect::<Vec<_>>();
+            if incoming.len() == phi.incoming.len() && !incoming.is_empty() {
+                let joined = incoming
+                    .into_iter()
+                    .reduce(I32Range::join)
+                    .expect("non-empty incoming ranges");
+                ranges.insert(phi.out, joined);
+                changed = true;
+            }
+        }
         for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
             if instruction.ty.as_ref() != Some(&Type::Int) {
                 continue;
@@ -2734,6 +2825,76 @@ fn analyze_i32_ranges(function: &ControlFlowFunction<'_>) -> AHashSet<ValueId> {
         }
     }
     elidable
+}
+
+fn seed_induction_ranges(
+    function: &ControlFlowFunction<'_>,
+    ranges: &mut AHashMap<ValueId, I32Range>,
+) {
+    let definitions = function
+        .blocks
+        .iter()
+        .flat_map(|block| &block.instructions)
+        .filter_map(|instruction| instruction.out.map(|out| (out, &instruction.op)))
+        .collect::<AHashMap<_, _>>();
+    let constant = |value: ValueId| match definitions.get(&value) {
+        Some(ControlFlowOp::Const(ConstValue::Int(value))) => Some(*value),
+        _ => None,
+    };
+    for shape in &function.shapes {
+        let ControlShape::Loop { header, .. } = shape else {
+            continue;
+        };
+        let block = &function.blocks[header.0 as usize];
+        let Some(Terminator::Branch { condition, .. }) = block.terminator else {
+            continue;
+        };
+        let Some(ControlFlowOp::Binary { op, lhs, rhs }) = definitions.get(&condition) else {
+            continue;
+        };
+        let (phi_value, bound, ascending, inclusive) =
+            if block.phis.iter().any(|phi| phi.out == *lhs) {
+                let Some(bound) = constant(*rhs) else {
+                    continue;
+                };
+                match op {
+                    IrBinaryOp::Less => (*lhs, bound, true, false),
+                    IrBinaryOp::LessEq => (*lhs, bound, true, true),
+                    IrBinaryOp::Greater => (*lhs, bound, false, false),
+                    IrBinaryOp::GreaterEq => (*lhs, bound, false, true),
+                    _ => continue,
+                }
+            } else if block.phis.iter().any(|phi| phi.out == *rhs) {
+                let Some(bound) = constant(*lhs) else {
+                    continue;
+                };
+                match op {
+                    IrBinaryOp::Greater => (*rhs, bound, true, false),
+                    IrBinaryOp::GreaterEq => (*rhs, bound, true, true),
+                    IrBinaryOp::Less => (*rhs, bound, false, false),
+                    IrBinaryOp::LessEq => (*rhs, bound, false, true),
+                    _ => continue,
+                }
+            } else {
+                continue;
+            };
+        let Some(phi) = block.phis.iter().find(|phi| phi.out == phi_value) else {
+            continue;
+        };
+        let Some(initial) = phi.incoming.iter().find_map(|(_, value)| constant(*value)) else {
+            continue;
+        };
+        let candidate = if ascending && initial <= bound {
+            I32Range::checked_bounds(initial, bound - i64::from(!inclusive))
+        } else if !ascending && initial >= bound {
+            I32Range::checked_bounds(bound + i64::from(!inclusive), initial)
+        } else {
+            None
+        };
+        if let Some(candidate) = candidate {
+            ranges.insert(phi_value, candidate);
+        }
+    }
 }
 
 fn shape_at(function: &ControlFlowFunction<'_>, block: BlockId) -> Option<ControlShape> {
@@ -3627,13 +3788,93 @@ fn op_has_side_effects(op: &ControlFlowOp<'_>) -> bool {
 
 fn render_const(value: &ConstValue) -> String {
     match value {
-        ConstValue::Int(value) => value.to_string(),
-        ConstValue::Float(value) if value.fract() == 0.0 => (*value as i64).to_string(),
-        ConstValue::Float(value) => value.to_string(),
+        ConstValue::Int(value) => shortest_integer(*value),
+        ConstValue::Float(value) => shortest_float(*value),
         ConstValue::Bool(value) => value.to_string(),
         ConstValue::String(value) => render_string_literal(value),
         ConstValue::Null => "null".to_string(),
     }
+}
+
+fn shortest_integer(value: i64) -> String {
+    let decimal = value.to_string();
+    if value == 0 {
+        return decimal;
+    }
+    let negative = value < 0;
+    let digits = decimal.trim_start_matches('-');
+    let zeros = digits
+        .bytes()
+        .rev()
+        .take_while(|byte| *byte == b'0')
+        .count();
+    if zeros == 0 {
+        return decimal;
+    }
+    let exponent = format!(
+        "{}{}e{zeros}",
+        if negative { "-" } else { "" },
+        &digits[..digits.len() - zeros]
+    );
+    if exponent.len() < decimal.len() {
+        exponent
+    } else {
+        decimal
+    }
+}
+
+fn shortest_float(value: f64) -> String {
+    if !value.is_finite() {
+        return value.to_string();
+    }
+    if value == 0.0 {
+        return if value.is_sign_negative() { "-0" } else { "0" }.to_string();
+    }
+    let mut candidates = Vec::with_capacity(3);
+    if value.fract() == 0.0 && value >= i64::MIN as f64 && value <= i64::MAX as f64 {
+        candidates.push(shortest_integer(value as i64));
+    }
+    let decimal = value.to_string();
+    candidates.push(trim_leading_zero(decimal));
+    let scientific = normalize_exponent(format!("{value:e}"));
+    candidates.push(trim_leading_zero(scientific));
+    candidates
+        .into_iter()
+        .filter(|candidate| candidate.parse::<f64>().ok() == Some(value))
+        .min_by_key(String::len)
+        .unwrap_or_else(|| value.to_string())
+}
+
+fn trim_leading_zero(value: String) -> String {
+    if let Some(rest) = value.strip_prefix("0.") {
+        format!(".{rest}")
+    } else if let Some(rest) = value.strip_prefix("-0.") {
+        format!("-.{rest}")
+    } else {
+        value
+    }
+}
+
+fn normalize_exponent(value: String) -> String {
+    let Some((mantissa, exponent)) = value.split_once('e') else {
+        return value;
+    };
+    let exponent = exponent
+        .strip_prefix('+')
+        .unwrap_or(exponent)
+        .trim_start_matches('0');
+    let exponent = if exponent.is_empty() || exponent == "-" {
+        "0"
+    } else if let Some(rest) = exponent.strip_prefix("-0") {
+        if rest.is_empty() {
+            "0"
+        } else {
+            return format!("{mantissa}e-{rest}");
+        }
+    } else {
+        exponent
+    };
+    format!("{mantissa}e{exponent}")
 }
 
 fn render_js_type_check(value: &str, target: &Type<'_>) -> Result<String, CodegenError> {
@@ -4243,9 +4484,25 @@ mod tests {
     fn merges_matching_branch_assignments() {
         assert_eq!(
             merge_conditional_assignments("a=(a+1|0);", "a=(a-1|0);"),
-            Some(("a", "(a+1|0)", "(a-1|0)"))
+            Some((false, "a", "(a+1|0)", "(a-1|0)", ""))
+        );
+        assert_eq!(
+            merge_conditional_assignments("var a=1;", "a=0;"),
+            Some((true, "a", "1", "0", ""))
+        );
+        assert_eq!(
+            merge_conditional_assignments("var a=1,b,c;", "a=0;"),
+            Some((true, "a", "1", "0", ",b,c"))
         );
         assert!(merge_conditional_assignments("a=1;", "b=2;").is_none());
+    }
+
+    #[test]
+    fn renders_shortest_exact_numeric_literals() {
+        assert_eq!(shortest_integer(120_000), "12e4");
+        assert_eq!(shortest_float(0.5), ".5");
+        assert_eq!(shortest_float(0.0000001), "1e-7");
+        assert_eq!(shortest_float(-0.25), "-.25");
     }
 
     #[test]
@@ -4308,6 +4565,16 @@ mod tests {
     fn emits_simple_branch_bodies_without_braces() {
         let output = compile("extern int read();int value=read();if(value==0){print(1);}print(2);");
         assert!(!output.contains("{console.log"), "{output}");
+    }
+
+    #[test]
+    fn folds_recursive_guard_returns_into_a_conditional_expression() {
+        assert_eq!(
+            compile(
+                "int factorial(int value){if(value<=1){return 1;}return value*factorial(value-1);}print(factorial(7));"
+            ),
+            "function a(b){return b<=1?1:Math.imul(b,a(b-1|0))}console.log(a(7))"
+        );
     }
 
     #[test]

@@ -41,5 +41,7 @@ fi
 
 node "$ROOT/scripts/test-lsp.mjs" "$ROOT/target/release/lilscript-lsp"
 node "$ROOT/scripts/verify-bundles.mjs" "$ROOT/target/release/lilscript"
+"$ROOT/target/release/lilscript-fmt" "$ROOT/tests/tooling/canonical.lil" --check
+"$ROOT/target/release/lilscript-lint" "$ROOT/tests/tooling/canonical.lil" --deny-warnings
 
 printf 'JavaScript/native/tooling conformance passed.\n'

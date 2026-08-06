@@ -160,6 +160,26 @@ pub struct Token<'src> {
     pub span: Span,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TriviaKind {
+    Whitespace,
+    LineComment,
+    BlockComment,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Trivia<'src> {
+    pub kind: TriviaKind,
+    pub text: &'src str,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum SyntaxElement<'src> {
+    Token(Token<'src>),
+    Trivia(Trivia<'src>),
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LexError {
     pub span: Span,
@@ -198,6 +218,71 @@ pub fn lex(source: &str) -> Result<Vec<Token<'_>>, LexError> {
     Ok(tokens)
 }
 
+/// Returns the same tokens as [`lex`] while retaining every skipped byte as
+/// classified trivia. Token and trivia spans partition the complete source.
+pub fn lex_lossless(source: &str) -> Result<Vec<SyntaxElement<'_>>, LexError> {
+    let tokens = lex(source)?;
+    let mut elements = Vec::with_capacity(tokens.len() * 2 + 1);
+    let mut cursor = 0;
+    for token in tokens {
+        append_trivia(source, cursor, token.span.start, &mut elements)?;
+        cursor = token.span.end;
+        elements.push(SyntaxElement::Token(token));
+    }
+    append_trivia(source, cursor, source.len(), &mut elements)?;
+    Ok(elements)
+}
+
+fn append_trivia<'src>(
+    source: &'src str,
+    start: usize,
+    end: usize,
+    elements: &mut Vec<SyntaxElement<'src>>,
+) -> Result<(), LexError> {
+    let bytes = source.as_bytes();
+    let mut cursor = start;
+    while cursor < end {
+        let item_start = cursor;
+        let kind = if bytes[cursor].is_ascii_whitespace() {
+            cursor += 1;
+            while cursor < end && bytes[cursor].is_ascii_whitespace() {
+                cursor += 1;
+            }
+            TriviaKind::Whitespace
+        } else if bytes[cursor..end].starts_with(b"//") {
+            cursor += 2;
+            while cursor < end && bytes[cursor] != b'\n' {
+                cursor += 1;
+            }
+            TriviaKind::LineComment
+        } else if bytes[cursor..end].starts_with(b"/*") {
+            cursor += 2;
+            while cursor + 1 < end && !bytes[cursor..end].starts_with(b"*/") {
+                cursor += 1;
+            }
+            if cursor + 1 >= end {
+                return Err(LexError {
+                    span: Span::new(item_start, end),
+                    message: "unterminated block comment".to_string(),
+                });
+            }
+            cursor += 2;
+            TriviaKind::BlockComment
+        } else {
+            return Err(LexError {
+                span: Span::new(cursor, (cursor + 1).min(end)),
+                message: "unclassified trivia".to_string(),
+            });
+        };
+        elements.push(SyntaxElement::Trivia(Trivia {
+            kind,
+            text: &source[item_start..cursor],
+            span: Span::new(item_start, cursor),
+        }));
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -216,5 +301,26 @@ mod tests {
     fn reports_unknown_input() {
         let err = lex("@").unwrap_err();
         assert_eq!(err.span, Span::new(0, 1));
+    }
+
+    #[test]
+    fn lossless_lexing_partitions_comments_and_whitespace() {
+        let source = "int x = 1; // value\n/* tail */";
+        let elements = lex_lossless(source).unwrap();
+        let rebuilt = elements
+            .iter()
+            .map(|element| match element {
+                SyntaxElement::Token(token) => &source[token.span.start..token.span.end],
+                SyntaxElement::Trivia(trivia) => trivia.text,
+            })
+            .collect::<String>();
+        assert_eq!(rebuilt, source);
+        assert!(elements.iter().any(|element| matches!(
+            element,
+            SyntaxElement::Trivia(Trivia {
+                kind: TriviaKind::LineComment,
+                ..
+            })
+        )));
     }
 }
