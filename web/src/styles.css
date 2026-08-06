@@ -452,6 +452,24 @@ pre,
   border-block: 1px solid var(--line);
 }
 
+.ecosystem-context {
+  margin-top: 32px;
+  padding-left: 16px;
+  border-left: 3px solid var(--blue);
+}
+
+.ecosystem-context > p {
+  max-width: 780px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.ecosystem-context .benchmark-table-wrap {
+  margin-top: 18px;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;

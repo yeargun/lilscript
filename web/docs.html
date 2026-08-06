@@ -54,6 +54,7 @@
           <p>Compiler</p>
           <a href="#configuration">Configuration</a>
           <a href="#optimization">Optimization model</a>
+          <a href="#compatibility">Library compatibility</a>
           <a href="#verification">Verification</a>
         </nav>
       </aside>
@@ -351,6 +352,13 @@ compression = [
           <p>The optimizer is whole-program by design. It covers the optimization responsibilities applicable to a closed, statically typed language; JavaScript-input passes for JSDoc, <code>goog.*</code>, polyfills, and prototype rewriting are intentionally not language features.</p>
         </section>
 
+        <section id="compatibility" data-title="Library compatibility Motion upstream tests Vite packages">
+          <h2>Library compatibility claims</h2>
+          <p>An app-level output match does not establish that LilScript implements a JavaScript library. A compatibility claim requires the public exports, documented signatures and defaults, error and timing behavior, side effects, applicable upstream unit tests, and browser integration suites.</p>
+          <div class="callout"><i data-lucide="triangle-alert" aria-hidden="true"></i><p>LilScript does not currently implement Motion. The benchmark's three-helper animation kernel is a compiler workload. The real Motion package is built separately with Vite and excluded from compiler totals.</p></div>
+          <p>The audited Motion v13 scope covers 312 root runtime exports and approximately 64,000 source lines across Motion, Motion Utils, Motion DOM, and Framer Motion. The repository document <code>docs/motion-compatibility.md</code> defines the required language features, staged port, and upstream-test gates.</p>
+        </section>
+
         <section id="verification" data-title="Verification tests benchmark Closure compiler conformance">
           <h2>Verification</h2>
           <pre><code>cargo fmt --all -- --check
@@ -358,7 +366,7 @@ cargo clippy --all-targets -- -D warnings
 cargo test --all-targets
 scripts/verify.sh
 benchmarks/run.sh</code></pre>
-          <p>The matrix compiles 51 programs with maximum and disabled optional optimization, then requires Node, the direct native output, independently compiled emitted C, and checked-in expected output to agree across 102 executions. Nine equivalent workloads are also executed before comparing raw, gzip-9, and Brotli-11 output against Closure ADVANCED v20260803. Current compiler-corpus totals are 1,527 / 1,308 / 1,094 bytes for LilScript and 2,357 / 1,687 / 1,382 bytes for Closure. The five-project application lab separately verifies 25 JavaScript artifacts and five native executables; its complete per-project measurements are on the <a href="/benchmarks.html">benchmark page</a>.</p>
+          <p>The matrix compiles 51 programs with maximum and disabled optional optimization, then requires Node, the direct native output, independently compiled emitted C, and checked-in expected output to agree across 102 executions. Nine equivalent workloads are also executed before comparing raw, gzip-9, and Brotli-11 output against Closure ADVANCED v20260803. Current compiler-corpus totals are 1,527 / 1,308 / 1,094 bytes for LilScript and 2,357 / 1,687 / 1,382 bytes for Closure. The application lab separately verifies five matching-scope compiler workloads, three context-only Vite package builds, 26 JavaScript artifacts, and six native executables. Closure receives the exact readable JavaScript reference, while real Alien Signals, mitt, and Motion builds are excluded from compiler totals. Complete measurements and limits are on the <a href="/benchmarks.html">benchmark page</a>.</p>
         </section>
       </main>
     </div>

@@ -110,8 +110,10 @@ checked-in benchmark workload. Passing a synthetic example alone is not enough.
 
 - [x] Compiler corpus against Closure ADVANCED with executable output checks.
 - [x] Application lanes for reactive state, events, binary memory, and modules.
-- [x] Motion value-pipeline lane using the official Motion package as an
-  ecosystem baseline and a behavior-equivalent LilScript implementation.
+- [x] Build a real Motion package integration with Vite as context-only
+  ecosystem evidence, isolated from comparable compiler totals.
+- [ ] Implement the audited Motion v13 package surface and pass applicable
+  upstream unit/browser tests before publishing any compatibility comparison.
 - [ ] Add router, validation, parser, state-machine, worker/buffer, and DOM
   application lanes without claiming complete library rewrites.
 - [ ] Run browser benchmarks for parse, startup, animation-frame stability,

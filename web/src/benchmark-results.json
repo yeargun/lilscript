@@ -1,0 +1,322 @@
+{
+  "metadata": {
+    "generatedAt": "2026-08-06T10:26:58.551Z",
+    "compilerRevision": "f9d5695",
+    "node": "v24.11.1",
+    "vite": "8.2.0",
+    "esbuild": "0.28.1",
+    "closure": "20260803.0.0",
+    "alienSignals": "3.2.1",
+    "mitt": "3.0.1",
+    "motion": "13.0.0",
+    "system": "darwin 24.6.0 arm64",
+    "warmups": 5,
+    "samples": 25
+  },
+  "results": [
+    {
+      "name": "reactive-store",
+      "title": "Reactive store",
+      "expected": "reactive:1890621774:408",
+      "source": {
+        "reference": 1122,
+        "lilscript": 1258,
+        "hand": 246
+      },
+      "artifacts": [
+        {
+          "id": "reference",
+          "label": "Reference JS bundle",
+          "raw": 1163,
+          "gzip": 464,
+          "brotli": 379,
+          "medianMs": 3.4297500000000127
+        },
+        {
+          "id": "esbuild",
+          "label": "Reference JS esbuild",
+          "raw": 544,
+          "gzip": 310,
+          "brotli": 265,
+          "medianMs": 3.1300830000000133
+        },
+        {
+          "id": "closure",
+          "label": "JS Closure ADVANCED",
+          "raw": 489,
+          "gzip": 302,
+          "brotli": 250,
+          "medianMs": 3.196458000000007
+        },
+        {
+          "id": "hand",
+          "label": "JS hand-specialized",
+          "raw": 245,
+          "gzip": 194,
+          "brotli": 170,
+          "medianMs": 2.9537500000001273
+        },
+        {
+          "id": "lilscript",
+          "label": "LilScript",
+          "raw": 513,
+          "gzip": 295,
+          "brotli": 262,
+          "medianMs": 3.3481669999999895
+        }
+      ],
+      "ecosystem": {
+        "label": "Alien Signals via Vite",
+        "expected": "reactive:1890621774:408",
+        "files": [
+          "assets/index-BAb3oBAp.js",
+          "index.html"
+        ],
+        "raw": 4900,
+        "gzip": 1932,
+        "brotli": 1752,
+        "medianMs": 22.627250000000004
+      }
+    },
+    {
+      "name": "event-pipeline",
+      "title": "Event pipeline",
+      "expected": "events:975625712:9718960",
+      "source": {
+        "reference": 914,
+        "lilscript": 1010,
+        "hand": 113
+      },
+      "artifacts": [
+        {
+          "id": "reference",
+          "label": "Reference JS bundle",
+          "raw": 1033,
+          "gzip": 393,
+          "brotli": 320,
+          "medianMs": 1.634666999999979
+        },
+        {
+          "id": "esbuild",
+          "label": "Reference JS esbuild",
+          "raw": 506,
+          "gzip": 280,
+          "brotli": 244,
+          "medianMs": 1.551333999999997
+        },
+        {
+          "id": "closure",
+          "label": "JS Closure ADVANCED",
+          "raw": 351,
+          "gzip": 244,
+          "brotli": 198,
+          "medianMs": 1.538583000000017
+        },
+        {
+          "id": "hand",
+          "label": "JS hand-specialized",
+          "raw": 112,
+          "gzip": 125,
+          "brotli": 102,
+          "medianMs": 0.6410829999999947
+        },
+        {
+          "id": "lilscript",
+          "label": "LilScript",
+          "raw": 322,
+          "gzip": 224,
+          "brotli": 188,
+          "medianMs": 1.7005419999999845
+        }
+      ],
+      "ecosystem": {
+        "label": "mitt via Vite",
+        "expected": "events:975625712:9718960",
+        "files": [
+          "assets/index-9bl6fb9B.js",
+          "index.html"
+        ],
+        "raw": 697,
+        "gzip": 477,
+        "brotli": 388,
+        "medianMs": 6.422833999999995
+      }
+    },
+    {
+      "name": "binary-telemetry",
+      "title": "Binary telemetry",
+      "expected": "binary:446359193:32",
+      "source": {
+        "reference": 1157,
+        "lilscript": 1070,
+        "hand": 410
+      },
+      "artifacts": [
+        {
+          "id": "reference",
+          "label": "Reference JS bundle",
+          "raw": 1208,
+          "gzip": 489,
+          "brotli": 441,
+          "medianMs": 10.630457999999976
+        },
+        {
+          "id": "esbuild",
+          "label": "Reference JS esbuild",
+          "raw": 545,
+          "gzip": 327,
+          "brotli": 299,
+          "medianMs": 10.657249999999976
+        },
+        {
+          "id": "closure",
+          "label": "JS Closure ADVANCED",
+          "raw": 521,
+          "gzip": 319,
+          "brotli": 298,
+          "medianMs": 10.692082999999911
+        },
+        {
+          "id": "hand",
+          "label": "JS hand-specialized",
+          "raw": 409,
+          "gzip": 273,
+          "brotli": 257,
+          "medianMs": 9.813583000000108
+        },
+        {
+          "id": "lilscript",
+          "label": "LilScript",
+          "raw": 568,
+          "gzip": 331,
+          "brotli": 312,
+          "medianMs": 10.649457999999981
+        }
+      ]
+    },
+    {
+      "name": "module-pricing",
+      "title": "Module pricing",
+      "expected": "module:init\nmodules:593759979:4940",
+      "source": {
+        "reference": 1033,
+        "lilscript": 916,
+        "hand": 124
+      },
+      "artifacts": [
+        {
+          "id": "reference",
+          "label": "Reference JS bundle",
+          "raw": 884,
+          "gzip": 395,
+          "brotli": 332,
+          "medianMs": 1.154167000000001
+        },
+        {
+          "id": "esbuild",
+          "label": "Reference JS esbuild",
+          "raw": 361,
+          "gzip": 258,
+          "brotli": 214,
+          "medianMs": 1.1412909999999954
+        },
+        {
+          "id": "closure",
+          "label": "JS Closure ADVANCED",
+          "raw": 335,
+          "gzip": 257,
+          "brotli": 211,
+          "medianMs": 1.091667000000001
+        },
+        {
+          "id": "hand",
+          "label": "JS hand-specialized",
+          "raw": 123,
+          "gzip": 122,
+          "brotli": 112,
+          "medianMs": 0.5517079999999908
+        },
+        {
+          "id": "lilscript",
+          "label": "LilScript",
+          "raw": 272,
+          "gzip": 224,
+          "brotli": 189,
+          "medianMs": 1.1248339999999928
+        }
+      ]
+    },
+    {
+      "name": "motion-values",
+      "title": "Animation value kernel",
+      "expected": "motion:14400000:28719240:880000",
+      "source": {
+        "reference": 613,
+        "lilscript": 661,
+        "hand": 120
+      },
+      "artifacts": [
+        {
+          "id": "reference",
+          "label": "Reference JS bundle",
+          "raw": 698,
+          "gzip": 360,
+          "brotli": 305,
+          "medianMs": 0.8733749999999958
+        },
+        {
+          "id": "esbuild",
+          "label": "Reference JS esbuild",
+          "raw": 270,
+          "gzip": 205,
+          "brotli": 174,
+          "medianMs": 0.8587079999999929
+        },
+        {
+          "id": "closure",
+          "label": "JS Closure ADVANCED",
+          "raw": 144,
+          "gzip": 146,
+          "brotli": 143,
+          "medianMs": 0.7128749999999968
+        },
+        {
+          "id": "hand",
+          "label": "JS hand-specialized",
+          "raw": 119,
+          "gzip": 126,
+          "brotli": 104,
+          "medianMs": 0.5970419999999876
+        },
+        {
+          "id": "lilscript",
+          "label": "LilScript",
+          "raw": 179,
+          "gzip": 167,
+          "brotli": 141,
+          "medianMs": 0.7485829999999964
+        },
+        {
+          "id": "lilscript-specialized",
+          "label": "LilScript specialized source (diagnostic)",
+          "raw": 146,
+          "gzip": 148,
+          "brotli": 128,
+          "medianMs": 0.6274579999999901
+        }
+      ],
+      "ecosystem": {
+        "label": "Motion value and spring APIs via Vite",
+        "expected": "motion-vite:14400000:28719240:880000:5494928",
+        "files": [
+          "assets/index-CZj057qH.js",
+          "index.html"
+        ],
+        "raw": 10571,
+        "gzip": 4546,
+        "brotli": 4152,
+        "medianMs": 2.2500420000000076
+      }
+    }
+  ]
+}

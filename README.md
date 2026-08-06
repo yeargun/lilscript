@@ -66,7 +66,8 @@ print(apply(box.get(), (int value) => value + 1));
 ## Toolchain
 
 Rust 1.85 or newer is recommended. Native output additionally requires a C11
-compiler such as Clang. The benchmark suite requires Java, Node.js, and curl.
+compiler such as Clang. The Vite 8 projects require Node.js 20.19+, 22.12+, or
+newer; the benchmark suite additionally requires Java and curl.
 
 ```sh
 cargo build --release
@@ -153,8 +154,9 @@ cargo run --release --bin lilscript-playground
 
 Open `http://127.0.0.1:4173`. The playground compiles LilScript on the Rust server,
 shows generated JavaScript and source diagnostics, and executes output in a
-sandboxed iframe. The same vanilla Vite project includes `/docs.html` and
-`/about.html`; it contains plain HTML, CSS, and JavaScript with no Astro files.
+sandboxed iframe. The same vanilla Vite project includes `/docs.html`,
+`/benchmarks.html`, and `/about.html`; it contains plain HTML, CSS, and
+JavaScript with no Astro files.
 
 For Vite development with hot reload, run the compiler API and Vite in separate
 terminals:
@@ -255,19 +257,25 @@ Brotli-11 bytes.
 On the repository's nine compiler workloads LilScript totals 1,527 raw / 1,308
 gzip / 1,094 Brotli bytes versus Closure at 2,357 / 1,687 / 1,382. LilScript is
 smaller in 26 measured cells and ties the 27th. The separate application lab
-builds five behavior-equivalent apps as a readable JavaScript bundle, an
-esbuild-minified bundle, Closure-friendly `ADVANCED` input, hand-specialized
-JavaScript, and LilScript. Its checked-in run totals 1,854 raw / 1,241 gzip /
-1,092 Brotli bytes for LilScript versus 1,836 / 1,264 / 1,095 for Closure; the
-hand baseline remains smaller at 1,008 / 840 / 745. All 25 JavaScript artifacts
-and five native LilScript executables pass checked-in output contracts. These are
-workload-specific results, not a claim that one compiler wins for every
-possible program. Compiler methodology and tables are in
+compares five readable JavaScript references with matching-scope LilScript,
+feeds those exact references to Closure `ADVANCED`, and keeps hand-specialized
+JavaScript as an oracle. Its checked-in run totals 1,854 raw / 1,241 gzip /
+1,092 Brotli bytes for LilScript versus 1,840 / 1,268 / 1,100 for Closure; the
+hand oracle remains smaller at 1,008 / 840 / 745. Real Alien Signals, mitt, and
+Motion applications are built separately by Vite and excluded from compiler
+totals. All 26 comparable/diagnostic JavaScript artifacts, three Vite package
+builds, and six native executables pass checked-in output contracts. Matching
+those contracts is regression evidence, not proof of complete library
+compatibility. In the checked-in 25-sample module-evaluation run, LilScript is
+1.045x Closure's runtime and hand-specialized JavaScript is 0.684x, so runtime
+parity is not yet claimed. Compiler methodology and tables are in
 [docs/benchmark-results.md](docs/benchmark-results.md); the pass-by-pass
 responsibility mapping is in
 [docs/optimization-coverage.md](docs/optimization-coverage.md).
 The maintained implementation and research backlog is in
 [docs/roadmap.md](docs/roadmap.md).
+Motion's audited compatibility gate is in
+[docs/motion-compatibility.md](docs/motion-compatibility.md).
 
 ## v0.1 Scope
 

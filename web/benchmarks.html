@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Measured LilScript application bundle, compression, and runtime comparisons.">
+    <meta name="description" content="Scoped LilScript compiler and Vite ecosystem bundle comparisons.">
     <title>Benchmarks | LilScript</title>
     <link rel="stylesheet" href="/src/styles.css">
   </head>
@@ -26,75 +26,63 @@
 
     <main class="comparison-main content-width">
       <section class="comparison-intro">
-        <p class="eyebrow">Application evidence</p>
-        <h1>Measured project comparisons</h1>
-        <p class="lead">Five behavior-equivalent applications are built as readable ecosystem JavaScript, esbuild output, Closure ADVANCED input, hand-specialized JavaScript, and LilScript. Every JavaScript artifact and native LilScript executable must pass the same output contract before measurement.</p>
-        <p class="comparison-note">Application specialization is not library compatibility. The reactive, event, and Motion projects exercise real npm packages in the ecosystem lane; their LilScript versions implement the measured app contract, not each library's complete API.</p>
+        <p class="eyebrow">Scoped evidence</p>
+        <h1>Comparable compilers, separate ecosystems</h1>
+        <p class="lead">Compiler tables use readable JavaScript and LilScript programs with the same app algorithm and abstraction scope. Closure receives the exact JavaScript reference. Real npm packages are built independently with Vite 8 and never enter compiler totals.</p>
+        <p class="comparison-note">Matching one stdout contract catches regressions for measured inputs; it does not prove complete semantic or library compatibility. Hand-specialized JavaScript is an optimization oracle, not source given to either compiler.</p>
       </section>
 
       <section class="benchmark-project" aria-labelledby="corpus-title">
         <header>
-          <p class="eyebrow">Five-project total</p>
-          <h2 id="corpus-title">Corpus summary</h2>
-          <p>LilScript is 23 bytes smaller than Closure under gzip and 3 bytes smaller under Brotli, while Closure is 18 bytes smaller raw. Fresh-process runtime is equal at the displayed precision.</p>
+          <p class="eyebrow">Five-workload compiler corpus</p>
+          <h2 id="corpus-title">Comparable totals</h2>
+          <p data-corpus-summary>Loading generated benchmark summary.</p>
         </header>
-        <div class="benchmark-table-wrap corpus-table">
-          <table>
-            <thead><tr><th>Artifact</th><th>Raw</th><th>Gzip-9</th><th>Brotli-11</th><th>Runtime ratio</th></tr></thead>
-            <tbody>
-              <tr><th>JS raw bundle</th><td>35,456</td><td>9,506</td><td>8,499</td><td>1.160x</td></tr>
-              <tr><th>JS esbuild</th><td>13,432</td><td>5,966</td><td>5,459</td><td>1.156x</td></tr>
-              <tr><th>Closure ADVANCED</th><td>1,836</td><td>1,264</td><td>1,095</td><td>1.000x</td></tr>
-              <tr><th>Hand-specialized JS</th><td>1,008</td><td>840</td><td>745</td><td>0.961x</td></tr>
-              <tr class="lilscript-row"><th>LilScript</th><td>1,854</td><td>1,241</td><td>1,092</td><td>1.000x</td></tr>
-            </tbody>
-          </table>
-        </div>
+        <div class="benchmark-table-wrap corpus-table" data-corpus-table></div>
       </section>
 
       <section class="benchmark-project" id="reactive-store">
-        <header><p class="eyebrow">Alien Signals 3.2.1</p><h2>Reactive store</h2><p>A changing quantity, price, and discount feed a derived total and rolling signed-i32 digest.</p><code class="benchmark-contract">reactive:1890621774:408</code></header>
-        <div class="benchmark-table-wrap"><table><thead><tr><th>Artifact</th><th>Raw</th><th>Gzip-9</th><th>Brotli-11</th><th>Median ms</th></tr></thead><tbody>
-          <tr><th>JS raw bundle</th><td>12,805</td><td>2,761</td><td>2,485</td><td>55.82</td></tr><tr><th>JS esbuild</th><td>4,708</td><td>1,832</td><td>1,710</td><td>54.99</td></tr><tr><th>Closure ADVANCED</th><td>489</td><td>302</td><td>250</td><td>33.67</td></tr><tr><th>Hand-specialized JS</th><td>245</td><td>194</td><td>170</td><td>32.24</td></tr><tr class="lilscript-row"><th>LilScript</th><td>513</td><td>295</td><td>262</td><td>33.90</td></tr>
-        </tbody></table></div>
+        <header><p class="eyebrow">Typed signal graph</p><h2>Reactive store</h2><p>The compiler comparison uses equivalent signal classes. A real Alien Signals application appears only in the separate Vite context.</p><code class="benchmark-contract">reactive:1890621774:408</code></header>
+        <div class="benchmark-table-wrap" data-compiler-table="reactive-store"></div>
+        <div data-ecosystem="reactive-store"></div>
       </section>
 
       <section class="benchmark-project" id="event-pipeline">
-        <header><p class="eyebrow">mitt 3.0.1</p><h2>Event pipeline</h2><p>Typed metric and wildcard listeners process 180,000 events and maintain separate rolling results.</p><code class="benchmark-contract">events:975625712:9718960</code></header>
-        <div class="benchmark-table-wrap"><table><thead><tr><th>Artifact</th><th>Raw</th><th>Gzip-9</th><th>Brotli-11</th><th>Median ms</th></tr></thead><tbody>
-          <tr><th>JS raw bundle</th><td>989</td><td>471</td><td>417</td><td>38.12</td></tr><tr><th>JS esbuild</th><td>497</td><td>306</td><td>278</td><td>38.46</td></tr><tr><th>Closure ADVANCED</th><td>351</td><td>244</td><td>198</td><td>31.99</td></tr><tr><th>Hand-specialized JS</th><td>112</td><td>125</td><td>102</td><td>29.86</td></tr><tr class="lilscript-row"><th>LilScript</th><td>322</td><td>224</td><td>188</td><td>31.71</td></tr>
-        </tbody></table></div>
+        <header><p class="eyebrow">Typed event dispatcher</p><h2>Event pipeline</h2><p>The compiler comparison uses equivalent dispatchers. A real mitt application appears only in the separate Vite context.</p><code class="benchmark-contract">events:975625712:9718960</code></header>
+        <div class="benchmark-table-wrap" data-compiler-table="event-pipeline"></div>
+        <div data-ecosystem="event-pipeline"></div>
       </section>
 
       <section class="benchmark-project" id="binary-telemetry">
-        <header><p class="eyebrow">Binary memory</p><h2>Binary telemetry</h2><p>ArrayBuffer, SharedArrayBuffer, Uint8Array views, checksums, and signed integer behavior run without an npm dependency.</p><code class="benchmark-contract">binary:446359193:32</code></header>
-        <div class="benchmark-table-wrap"><table><thead><tr><th>Artifact</th><th>Raw</th><th>Gzip-9</th><th>Brotli-11</th><th>Median ms</th></tr></thead><tbody>
-          <tr><th>JS raw bundle</th><td>1,208</td><td>489</td><td>441</td><td>41.83</td></tr><tr><th>JS esbuild</th><td>545</td><td>327</td><td>299</td><td>41.72</td></tr><tr><th>Closure ADVANCED</th><td>517</td><td>316</td><td>294</td><td>41.95</td></tr><tr><th>Hand-specialized JS</th><td>409</td><td>273</td><td>257</td><td>40.37</td></tr><tr class="lilscript-row"><th>LilScript</th><td>568</td><td>331</td><td>312</td><td>41.80</td></tr>
-        </tbody></table></div>
+        <header><p class="eyebrow">Binary memory</p><h2>Binary telemetry</h2><p>Equivalent ArrayBuffer, SharedArrayBuffer, Uint8Array, checksum, and signed-integer behavior without a dependency.</p><code class="benchmark-contract">binary:446359193:32</code></header>
+        <div class="benchmark-table-wrap" data-compiler-table="binary-telemetry"></div>
       </section>
 
       <section class="benchmark-project" id="module-pricing">
-        <header><p class="eyebrow">Static modules</p><h2>Module pricing</h2><p>Four source modules exercise required side effects, imports, structs, unused exports, cross-file inlining, and DCE.</p><code class="benchmark-contract">module:init / modules:593759979:4940</code></header>
-        <div class="benchmark-table-wrap"><table><thead><tr><th>Artifact</th><th>Raw</th><th>Gzip-9</th><th>Brotli-11</th><th>Median ms</th></tr></thead><tbody>
-          <tr><th>JS raw bundle</th><td>884</td><td>395</td><td>332</td><td>31.07</td></tr><tr><th>JS esbuild</th><td>361</td><td>258</td><td>214</td><td>31.08</td></tr><tr><th>Closure ADVANCED</th><td>335</td><td>256</td><td>210</td><td>31.02</td></tr><tr><th>Hand-specialized JS</th><td>123</td><td>122</td><td>112</td><td>30.19</td></tr><tr class="lilscript-row"><th>LilScript</th><td>272</td><td>224</td><td>189</td><td>31.22</td></tr>
-        </tbody></table></div>
+        <header><p class="eyebrow">Static modules</p><h2>Module pricing</h2><p>Equivalent side effects, imports, aggregates, unused exports, cross-file inlining, and dead-code elimination.</p><code class="benchmark-contract">module:init / modules:593759979:4940</code></header>
+        <div class="benchmark-table-wrap" data-compiler-table="module-pricing"></div>
       </section>
 
       <section class="benchmark-project" id="motion-values">
-        <header><p class="eyebrow">Motion 13.0.0</p><h2>Motion value pipeline</h2><p>The ecosystem lane imports Motion's real mix, wrap, and stagger functions for 160,000 deterministic animation-value updates. This does not represent Motion's DOM engine or full API.</p><code class="benchmark-contract">motion:14400000:28719240:880000</code></header>
-        <div class="benchmark-table-wrap"><table><thead><tr><th>Artifact</th><th>Raw</th><th>Gzip-9</th><th>Brotli-11</th><th>Median ms</th></tr></thead><tbody>
-          <tr><th>JS raw bundle</th><td>19,570</td><td>5,390</td><td>4,824</td><td>33.13</td></tr><tr><th>JS esbuild</th><td>7,321</td><td>3,243</td><td>2,958</td><td>32.82</td></tr><tr><th>Closure ADVANCED</th><td>144</td><td>146</td><td>143</td><td>31.17</td></tr><tr><th>Hand-specialized JS</th><td>119</td><td>126</td><td>104</td><td>30.44</td></tr><tr class="lilscript-row"><th>LilScript</th><td>179</td><td>167</td><td>141</td><td>31.21</td></tr>
-        </tbody></table></div>
+        <header><p class="eyebrow">Animation compiler kernel</p><h2>Value mixing, wrapping, and staggering</h2><p>The comparable rows implement the same three-helper value algorithm. The specialized LilScript row diagnoses optimizer headroom. A separate Motion 13 Vite app also exercises its deterministic spring generator as context only.</p><code class="benchmark-contract">motion:14400000:28719240:880000</code></header>
+        <div class="benchmark-table-wrap" data-compiler-table="motion-values"></div>
+        <div data-ecosystem="motion-values"></div>
       </section>
 
       <section class="comparison-method">
-        <p class="eyebrow">Method</p><h2>Reproducible, scoped evidence</h2>
-        <p>Measured on 2026-08-06 from compiler revision <code>f3bed41</code> with Node 20.12.0, esbuild 0.28.1, Closure Compiler 20260803.0.0, deterministic gzip level 9, and Brotli quality 11. Runtime is the median of nine fresh Node processes after two warmups, so it includes process startup and should detect broad regressions rather than prove engine-level causality.</p>
-        <p>Complete source sizes, per-lane deltas, expected output, and interpretation limits are checked in under <code>benchmarks/apps/RESULTS.md</code>.</p>
+        <p class="eyebrow">Compatibility status</p><h2>Motion is not implemented yet</h2>
+        <p>The current npm package exposes 312 root exports and spans approximately 64,000 source lines across Motion, Motion Utils, Motion DOM, and Framer Motion. A complete LilScript port must pass the applicable upstream unit and browser suites before it can enter a library comparison.</p>
+        <p>The versioned scope, missing language/platform facilities, port sequence, and no-false-claim gates are documented in <code>docs/motion-compatibility.md</code>.</p>
+      </section>
+
+      <section class="comparison-method">
+        <p class="eyebrow">Method</p><h2>Generated from checked evidence</h2>
+        <p data-benchmark-method>Loading benchmark metadata.</p>
+        <p>All displayed measurements come from <code>benchmarks/apps/RESULTS.md</code> through checked-in generated data. The harness runs methodology tests after behavior verification.</p>
       </section>
     </main>
 
-    <footer class="site-footer content-width"><span>LilScript application lab</span><a href="/docs.html#verification">Verification method</a></footer>
-    <script type="module" src="/src/site.js"></script>
+    <footer class="site-footer content-width"><span>LilScript benchmark lab</span><a href="/docs.html#verification">Verification method</a></footer>
+    <script type="module" src="/src/benchmarks.js"></script>
   </body>
 </html>
