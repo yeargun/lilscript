@@ -24,6 +24,9 @@ pub struct OptimizationOptions {
     pub scalar_replacement: bool,
     pub dead_store_elimination: bool,
     pub dead_code_elimination: bool,
+    pub inline_instruction_limit: usize,
+    pub inline_control_flow_limit: usize,
+    pub inline_growth_limit: Option<usize>,
 }
 
 impl Default for OptimizationOptions {
@@ -37,6 +40,9 @@ impl Default for OptimizationOptions {
             scalar_replacement: true,
             dead_store_elimination: true,
             dead_code_elimination: true,
+            inline_instruction_limit: 12,
+            inline_control_flow_limit: 30,
+            inline_growth_limit: None,
         }
     }
 }
@@ -52,6 +58,9 @@ impl OptimizationOptions {
             scalar_replacement: false,
             dead_store_elimination: false,
             dead_code_elimination: false,
+            inline_instruction_limit: 0,
+            inline_control_flow_limit: 0,
+            inline_growth_limit: Some(0),
         }
     }
 }
@@ -142,8 +151,9 @@ fn optimize_control_flow_inner(
     reports.push(validate_declared_purity(module)?);
     if options.inlining {
         loop {
-            let inlining = inline_small_functions(module);
-            let cfg_inlining = inline_single_use_control_flow_function(module);
+            let inlining = inline_small_functions(module, options);
+            let cfg_inlining =
+                inline_single_use_control_flow_function(module, options.inline_control_flow_limit);
             let changed = inlining.changed || cfg_inlining.changed;
             reports.push(inlining);
             reports.push(cfg_inlining);
@@ -1140,10 +1150,36 @@ fn remap_terminator_blocks(terminator: &mut Terminator, mapping: &[Option<BlockI
     }
 }
 
-fn inline_small_functions(module: &mut ControlFlowModule<'_>) -> OptimizationReport {
-    const INLINE_LIMIT: usize = 12;
+fn inline_small_functions(
+    module: &mut ControlFlowModule<'_>,
+    options: &OptimizationOptions,
+) -> OptimizationReport {
     let recursive = recursive_functions(module);
     let exported = exported_functions(module);
+    let mut call_counts = AHashMap::<FunctionId, usize>::new();
+    let mut address_taken = AHashSet::<FunctionId>::new();
+    for instruction in module
+        .functions
+        .iter()
+        .flat_map(|function| &function.blocks)
+        .flat_map(|block| &block.instructions)
+    {
+        match instruction.op {
+            ControlFlowOp::CallDirect { function, .. } => {
+                *call_counts.entry(function).or_insert(0) += 1;
+            }
+            ControlFlowOp::NewClass {
+                constructor: Some(function),
+                ..
+            } => {
+                *call_counts.entry(function).or_insert(0) += 1;
+            }
+            ControlFlowOp::Closure { function, .. } => {
+                address_taken.insert(function);
+            }
+            _ => {}
+        }
+    }
     let candidates = module
         .functions
         .iter()
@@ -1154,7 +1190,18 @@ fn inline_small_functions(module: &mut ControlFlowModule<'_>) -> OptimizationRep
                 && !function_has_type_parameters(function)
                 && function.blocks.len() == 1
                 && function.blocks[0].phis.is_empty()
-                && function.blocks[0].instructions.len() <= INLINE_LIMIT
+                && function.blocks[0].instructions.len() <= options.inline_instruction_limit
+                && options.inline_growth_limit.is_none_or(|limit| {
+                    let instructions = function.blocks[0].instructions.len();
+                    let calls = call_counts.get(&function.id).copied().unwrap_or(0);
+                    let retained_instructions = address_taken
+                        .contains(&function.id)
+                        .then_some(instructions)
+                        .unwrap_or(0);
+                    let before = instructions + calls;
+                    let after = retained_instructions + instructions.saturating_mul(calls);
+                    after.saturating_sub(before) <= limit
+                })
                 && matches!(function.blocks[0].terminator, Some(Terminator::Return(_)))
         })
         .map(|function| (function.id, function.clone()))
@@ -1295,8 +1342,8 @@ fn inline_small_functions(module: &mut ControlFlowModule<'_>) -> OptimizationRep
 
 fn inline_single_use_control_flow_function(
     module: &mut ControlFlowModule<'_>,
+    inline_limit: usize,
 ) -> OptimizationReport {
-    const INLINE_LIMIT: usize = 30;
     let recursive = recursive_functions(module);
     let exported = exported_functions(module);
     let mut call_counts = AHashMap::<FunctionId, usize>::new();
@@ -1335,7 +1382,7 @@ fn inline_single_use_control_flow_function(
                     .iter()
                     .map(|block| block.instructions.len())
                     .sum::<usize>()
-                    <= INLINE_LIMIT
+                    <= inline_limit
         })
         .map(|function| (function.id, function.clone()))
         .collect::<AHashMap<_, _>>();

@@ -208,7 +208,7 @@ pub fn compile_path_to_js_bundle_configured(
     let mut ir = lower_to_control_flow(&linked, &semantics)
         .map_err(CompileError::from)
         .map_err(|error| module_compile_error(&modules, error))?;
-    optimize_control_flow_with_options(&mut ir, &config.optimizer_options(), true)
+    optimize_control_flow_with_options(&mut ir, &config.js_optimizer_options(), true)
         .map_err(CompileError::from)
         .map_err(|error| module_compile_error(&modules, error))?;
 
@@ -530,11 +530,16 @@ fn compile_program_all_configured<'ast, 'src>(
     config: &ProjectConfig,
 ) -> Result<CompilationArtifacts, CompileError> {
     let semantics = analyze(program)?;
-    let mut ir = lower_to_control_flow(program, &semantics)?;
-    let optimization_reports =
-        optimize_control_flow_with_options(&mut ir, &config.optimizer_options(), false)?;
-    let javascript = emit_optimized_ir_js_with_options(&ir, &config.js_options())?;
-    let c = emit_native_c(&ir)?;
+    let mut javascript_ir = lower_to_control_flow(program, &semantics)?;
+    let mut native_ir = javascript_ir.clone();
+    let optimization_reports = optimize_control_flow_with_options(
+        &mut javascript_ir,
+        &config.js_optimizer_options(),
+        false,
+    )?;
+    optimize_control_flow_with_options(&mut native_ir, &config.optimizer_options(), false)?;
+    let javascript = emit_optimized_ir_js_with_options(&javascript_ir, &config.js_options())?;
+    let c = emit_native_c(&native_ir)?;
     Ok(CompilationArtifacts {
         javascript,
         c,
@@ -557,7 +562,7 @@ fn compile_program_to_js_configured<'ast, 'src>(
 ) -> Result<String, CompileError> {
     let semantics = analyze(program)?;
     let mut ir = lower_to_control_flow(program, &semantics)?;
-    optimize_control_flow_with_options(&mut ir, &config.optimizer_options(), false)?;
+    optimize_control_flow_with_options(&mut ir, &config.js_optimizer_options(), false)?;
     emit_optimized_ir_js_with_options(&ir, &config.js_options()).map_err(Into::into)
 }
 
@@ -576,7 +581,7 @@ fn compile_program_to_js_module_configured<'ast, 'src>(
 ) -> Result<String, CompileError> {
     let semantics = analyze(program)?;
     let mut ir = lower_to_control_flow(program, &semantics)?;
-    optimize_control_flow_with_options(&mut ir, &config.optimizer_options(), true)?;
+    optimize_control_flow_with_options(&mut ir, &config.js_optimizer_options(), true)?;
     emit_optimized_ir_js_module_with_options(&ir, &config.js_options()).map_err(Into::into)
 }
 
@@ -654,6 +659,38 @@ mod tests {
     #[test]
     fn compiles_source_end_to_end() {
         assert_eq!(compile_source("print(40+2);").unwrap(), "console.log(42)");
+    }
+
+    #[test]
+    fn applies_javascript_priority_without_changing_native_policy() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "extern int read();pure int transform(int value){return value*3+1;}print(transform(read()));print(transform(read()));print(transform(read()));print(transform(read()));print(transform(read()));print(transform(read()));",
+        )
+        .unwrap();
+        let mut performance = ProjectConfig::default();
+        performance.javascript.priority = crate::config::JavaScriptPriority::PerformanceFirst;
+        let mut size = ProjectConfig::default();
+        size.javascript.priority = crate::config::JavaScriptPriority::SizeFirst;
+
+        let performance = compile_program_all_configured(&program, &performance).unwrap();
+        let size = compile_program_all_configured(&program, &size).unwrap();
+
+        assert_ne!(performance.javascript, size.javascript);
+        assert!(
+            !performance.javascript.contains("function"),
+            "{}",
+            performance.javascript
+        );
+        assert!(size.javascript.contains("function"), "{}", size.javascript);
+        assert!(
+            size.javascript.len() < performance.javascript.len(),
+            "size-first={} performance-first={}",
+            size.javascript,
+            performance.javascript
+        );
+        assert_eq!(performance.c, size.c);
     }
 
     #[test]

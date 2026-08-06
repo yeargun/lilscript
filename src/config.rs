@@ -10,6 +10,7 @@ use crate::optimizer::OptimizationOptions;
 #[serde(default, deny_unknown_fields)]
 pub struct ProjectConfig {
     pub optimization: OptimizationConfig,
+    pub javascript: JavaScriptConfig,
     pub mangle: MangleConfig,
     pub bundle: BundleConfig,
 }
@@ -19,12 +20,34 @@ impl ProjectConfig {
         self.optimization.resolve()
     }
 
-    pub const fn js_options(&self) -> IrJsOptions {
+    pub fn js_optimizer_options(&self) -> OptimizationOptions {
+        let mut options = self.optimization.resolve();
+        if !options.inlining {
+            return options;
+        }
+        match self.javascript.priority {
+            JavaScriptPriority::PerformanceFirst => {
+                options.inline_instruction_limit = 24;
+                options.inline_control_flow_limit = 60;
+                options.inline_growth_limit = None;
+            }
+            JavaScriptPriority::Balanced => {}
+            JavaScriptPriority::SizeFirst => {
+                options.inline_growth_limit = Some(0);
+            }
+        }
+        options
+    }
+
+    pub fn js_options(&self) -> IrJsOptions {
         IrJsOptions {
             mangle_identifiers: self.mangle.identifiers,
             mangle_properties: self.mangle.properties,
             mangle_exports: self.mangle.exports,
-            pool_strings: self.mangle.pool_strings,
+            pool_strings: self.mangle.pool_strings.unwrap_or(!matches!(
+                self.javascript.priority,
+                JavaScriptPriority::PerformanceFirst
+            )),
         }
     }
 
@@ -40,6 +63,21 @@ impl ProjectConfig {
         }
         Ok(())
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum JavaScriptPriority {
+    PerformanceFirst,
+    #[default]
+    Balanced,
+    SizeFirst,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct JavaScriptConfig {
+    pub priority: JavaScriptPriority,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
@@ -103,6 +141,9 @@ impl OptimizationConfig {
             dead_code_elimination: self
                 .dead_code_elimination
                 .unwrap_or(base.dead_code_elimination),
+            inline_instruction_limit: base.inline_instruction_limit,
+            inline_control_flow_limit: base.inline_control_flow_limit,
+            inline_growth_limit: base.inline_growth_limit,
         }
     }
 }
@@ -113,7 +154,7 @@ pub struct MangleConfig {
     pub identifiers: bool,
     pub properties: bool,
     pub exports: bool,
-    pub pool_strings: bool,
+    pub pool_strings: Option<bool>,
 }
 
 impl Default for MangleConfig {
@@ -122,7 +163,7 @@ impl Default for MangleConfig {
             identifiers: true,
             properties: false,
             exports: false,
-            pool_strings: true,
+            pool_strings: None,
         }
     }
 }
@@ -235,6 +276,9 @@ mod tests {
 preset = "none"
 constant_folding = true
 
+[javascript]
+priority = "size-first"
+
 [mangle]
 identifiers = false
 properties = true
@@ -251,11 +295,40 @@ shared_min_imports = 3
         let optimizer = config.optimizer_options();
         assert!(optimizer.constant_folding);
         assert!(!optimizer.inlining);
+        assert_eq!(config.javascript.priority, JavaScriptPriority::SizeFirst);
         assert!(!config.js_options().mangle_identifiers);
         assert!(config.js_options().mangle_properties);
         assert_eq!(config.bundle.mode, BundleMode::Split);
         assert_eq!(config.bundle.min_chunk_bytes, 4096);
         config.validate().unwrap();
+    }
+
+    #[test]
+    fn maps_javascript_priorities_to_concrete_policies() {
+        let performance: ProjectConfig =
+            toml::from_str("[javascript]\npriority='performance-first'\n").unwrap();
+        let performance_optimizer = performance.js_optimizer_options();
+        assert_eq!(performance_optimizer.inline_instruction_limit, 24);
+        assert_eq!(performance_optimizer.inline_control_flow_limit, 60);
+        assert_eq!(performance_optimizer.inline_growth_limit, None);
+        assert!(!performance.js_options().pool_strings);
+
+        let balanced = ProjectConfig::default();
+        let balanced_optimizer = balanced.js_optimizer_options();
+        assert_eq!(balanced_optimizer.inline_instruction_limit, 12);
+        assert_eq!(balanced_optimizer.inline_control_flow_limit, 30);
+        assert_eq!(balanced_optimizer.inline_growth_limit, None);
+        assert!(balanced.js_options().pool_strings);
+
+        let size: ProjectConfig = toml::from_str("[javascript]\npriority='size-first'\n").unwrap();
+        assert_eq!(size.js_optimizer_options().inline_growth_limit, Some(0));
+        assert!(size.js_options().pool_strings);
+
+        let explicit_pooling: ProjectConfig = toml::from_str(
+            "[javascript]\npriority='performance-first'\n[mangle]\npool_strings=true\n",
+        )
+        .unwrap();
+        assert!(explicit_pooling.js_options().pool_strings);
     }
 
     #[test]

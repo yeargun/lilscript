@@ -1,11 +1,13 @@
 [optimization]
 preset = "maximum"
 
+[javascript]
+priority = "balanced"
+
 [mangle]
 identifiers = true
 properties = false
 exports = false
-pool_strings = true
 
 [bundle]
 mode = "single"

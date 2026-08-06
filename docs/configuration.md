@@ -16,11 +16,14 @@ scalar_replacement = true
 dead_store_elimination = true
 dead_code_elimination = true
 
+[javascript]
+priority = "balanced" # performance-first | balanced | size-first
+
 [mangle]
 identifiers = true
 properties = false
 exports = false
-pool_strings = true
+# pool_strings = true # optional explicit override
 
 [bundle]
 mode = "single" # single | split | preserve-modules
@@ -33,6 +36,30 @@ Every optional optimization key overrides its preset independently. The
 `none` preset disables optional transforms but retains mandatory IR
 normalization and correctness analyses. This makes it useful for debugging and
 for isolating pass regressions without changing language semantics.
+
+`javascript.priority` is a JavaScript-target policy. It never weakens semantic
+checks, mandatory IR normalization, DCE correctness, or host-boundary rules:
+
+- `performance-first` raises straight-line and control-flow inlining budgets.
+  Automatic string pooling is disabled to avoid introducing shared lookup
+  loads, unless `mangle.pool_strings` explicitly overrides it.
+- `balanced` is the default. It uses the established inlining budgets and
+  enables automatic string pooling.
+- `size-first` retains the balanced candidate limits but rejects repeated-call
+  straight-line inlining when the IR growth estimate is positive. It enables
+  automatic string pooling.
+
+The priority is applied after `[optimization]`: setting `inlining = false`
+disables inlining in every profile. `mangle.pool_strings` is optional; when it
+is omitted, the selected priority supplies its default. Raw, gzip, and Brotli
+sizes can disagree, so `size-first` is a compiler cost-model preference rather
+than a universal guarantee for every compressor and workload. Measure release
+artifacts with the intended transport compression.
+
+The policy affects only JavaScript. A configured `--target all` build shares
+parsing and semantic analysis, then optimizes separate JavaScript and native IR
+copies. Changing `javascript.priority` therefore does not change generated C or
+the native executable's optimizer policy.
 
 `mangle.properties` renames LilScript-owned fields that cross an untyped
 JavaScript boundary. It is off by default because external JavaScript must

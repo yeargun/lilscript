@@ -51,6 +51,7 @@
           <a href="#extern">Host boundaries</a>
           <a href="#language-server">VS Code and LSP</a>
           <p>Compiler</p>
+          <a href="#configuration">Configuration</a>
           <a href="#optimization">Optimization model</a>
           <a href="#verification">Verification</a>
         </nav>
@@ -280,7 +281,7 @@ lilscript compute.lil --target all -o build/compute</code></pre>
 int32_t hostFunction(int32_t value) {
   return value + 1;
 }</code></pre>
-          <p>Both targets consume the same optimized SSA module used by JavaScript emission. Signed integer overflow, closures, arrays, strings, collections, binary buffers, and control flow have native runtime lowering. JavaScript host objects such as <code>document</code> and <code>window</code> are intentionally unavailable to these targets.</p>
+          <p>Native targets consume typed SSA optimized with backend-neutral policy. A configured <code>--target all</code> build shares parsing and semantic analysis, then optimizes separate JavaScript and native IR copies so JavaScript size/performance policy cannot alter native output. Signed integer overflow, closures, arrays, strings, collections, binary buffers, and control flow have native runtime lowering. JavaScript host objects such as <code>document</code> and <code>window</code> are intentionally unavailable to these targets.</p>
         </section>
 
         <section id="extern" data-title="Extern host boundary ABI integration JavaScript C">
@@ -310,6 +311,17 @@ code --install-extension lilscript-vscode-0.1.0.vsix</code></pre>
           <p>If the server is not on <code>PATH</code>, set <code>lilscript.server.path</code> to the absolute <code>target/release/lilscript-lsp</code> path in VS Code settings.</p>
         </section>
 
+        <section id="configuration" data-title="Configuration JavaScript priority performance size balanced compression">
+          <h2>JavaScript performance and size priority</h2>
+          <pre><code>[javascript]
+priority = "balanced" # performance-first | balanced | size-first
+
+[mangle]
+# pool_strings = true # optional explicit override</code></pre>
+          <p><code>performance-first</code> raises straight-line and control-flow inlining budgets and disables automatic string pooling unless explicitly overridden. <code>balanced</code> preserves the default policy. <code>size-first</code> rejects repeated-call inlining when the compiler's growth estimate is positive and enables automatic pooling.</p>
+          <p>The setting changes JavaScript optimization only. It composes with per-pass settings, so <code>optimization.inlining = false</code> still disables inlining. Because raw, gzip, and Brotli sizes can disagree, size priority is a cost-model preference rather than a guarantee for every workload.</p>
+        </section>
+
         <section id="optimization" data-title="Optimization SSA SRA DCE inlining devirtualization mangling">
           <h2>Optimization model</h2>
           <ol class="ordered-steps">
@@ -320,7 +332,7 @@ code --install-extension lilscript-vscode-0.1.0.vsix</code></pre>
             <li>Analyze escapes, dissolve non-escaping structs and classes, and remove overwritten field stores.</li>
             <li>Remove unused pure calls, allocations, instructions, functions, globals, and bindings.</li>
             <li>Coalesce non-interfering SSA values, rank short names by use frequency, fuse expressions, and apply backend peepholes.</li>
-            <li>Emit minified JavaScript, portable C, or both plus a native executable from the same optimized module.</li>
+            <li>Apply backend policy and emit minified JavaScript, portable C, or both plus a native executable.</li>
           </ol>
           <p>The optimizer is whole-program by design. It covers the optimization responsibilities applicable to a closed, statically typed language; JavaScript-input passes for JSDoc, <code>goog.*</code>, polyfills, and prototype rewriting are intentionally not language features.</p>
         </section>
@@ -332,7 +344,7 @@ cargo clippy --all-targets -- -D warnings
 cargo test --all-targets
 scripts/verify.sh
 benchmarks/run.sh</code></pre>
-          <p>The matrix compiles 50 programs with maximum and disabled optional optimization, then requires Node, the direct native output, independently compiled emitted C, and checked-in expected output to agree across 100 executions. Nine equivalent workloads are also executed before comparing raw, gzip-9, and Brotli-11 output against Closure ADVANCED v20260803. Current corpus totals are 1,508 / 1,300 / 1,080 bytes for LilScript and 2,357 / 1,687 / 1,382 bytes for Closure. The three-module workload is 116 / 130 / 104 versus Closure at 122 / 134 / 108.</p>
+          <p>The matrix compiles 50 programs with maximum and disabled optional optimization, then requires Node, the direct native output, independently compiled emitted C, and checked-in expected output to agree across 100 executions. Nine equivalent workloads are also executed before comparing raw, gzip-9, and Brotli-11 output against Closure ADVANCED v20260803. Current corpus totals are 1,527 / 1,308 / 1,094 bytes for LilScript and 2,357 / 1,687 / 1,382 bytes for Closure. The application lab separately verifies 20 JavaScript artifacts and four native executables across ecosystem, Closure-friendly, hand-specialized, and LilScript lanes.</p>
         </section>
       </main>
     </div>

@@ -85,7 +85,7 @@ target/release/lilscript src/main.lil --target js-module -o build/app.mjs
 target/release/lilscript examples/full_conformance.lil --target c -o app.c
 target/release/lilscript examples/full_conformance.lil --target native -o app
 
-# Parse and optimize once, then produce app.js, app.c, and app
+# Parse and check once, then produce optimized app.js, app.c, and app
 target/release/lilscript examples/full_conformance.lil --target all -o build/app
 ```
 
@@ -94,7 +94,10 @@ The native target invokes `${CC:-clang}` with C11 and `-O3`.
 Compiler policy is configured in an auto-discovered `lilscript.toml`, or with
 `--config path/to/lilscript.toml`. Presets and per-pass overrides control
 folding, CSE, global optimization, inlining, scalar replacement, DCE, identifier
-and boundary-property mangling, public-export mangling, and string pooling.
+and boundary-property mangling, public-export mangling, and string pooling. The
+JavaScript-specific `priority = "performance-first" | "balanced" |
+"size-first"` policy adjusts inlining growth and automatic pooling without
+changing C/native optimization.
 Bundle policy selects a single artifact, source-module-preserving static ESM
 chunks, or size/import-limited shared chunks. See
 [docs/configuration.md](docs/configuration.md) for the complete schema and exact
