@@ -9,7 +9,8 @@
   },
   "dependencies": {
     "alien-signals": "3.2.1",
-    "mitt": "3.0.1"
+    "mitt": "3.0.1",
+    "motion": "13.0.0"
   },
   "devDependencies": {
     "esbuild": "0.28.1",

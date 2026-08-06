@@ -54,6 +54,14 @@ const cases = [
     hand: "cases/module-pricing/hand.js",
     expected: "cases/module-pricing/expected.txt",
   },
+  {
+    name: "motion-values",
+    jsEntry: "cases/motion-values/js/main.js",
+    closureEntry: "cases/motion-values/closure/main.js",
+    lilEntry: "cases/motion-values/lil/main.lil",
+    hand: "cases/motion-values/hand.js",
+    expected: "cases/motion-values/expected.txt",
+  },
 ];
 
 function command(program, args, options = {}) {
@@ -195,7 +203,7 @@ function renderReport(results, metadata) {
     "",
     "Every JavaScript artifact and LilScript native executable passed the same checked-in stdout contract. Negative deltas are smaller or faster than Closure ADVANCED.",
     "",
-    `Ecosystem JavaScript lanes use Alien Signals \`${metadata.alienSignals}\` and mitt \`${metadata.mitt}\`.`,
+    `Ecosystem JavaScript lanes use Alien Signals \`${metadata.alienSignals}\`, mitt \`${metadata.mitt}\`, and Motion \`${metadata.motion}\`.`,
     "",
     "## Source size",
     "",
@@ -267,7 +275,8 @@ function renderReport(results, metadata) {
     "",
     "## Interpretation limits",
     "",
-    "- `reactive-store` and `event-pipeline` compare complete app behavior, not complete library APIs.",
+    "- `reactive-store`, `event-pipeline`, and `motion-values` compare complete app behavior, not complete library APIs.",
+    "- `motion-values` exercises Motion's real `mix`, `wrap`, and `stagger` exports; it does not claim LilScript implements Motion's DOM animation engine.",
     "- Generated C and native executables are behavior gates; only JavaScript artifacts are included in transfer-size and Node runtime tables.",
     "- Closure receives a readable app-specific implementation, bundled without minification before `ADVANCED` compilation.",
     "- Fresh-process runtime includes Node startup and is intended to catch large regressions, not establish engine-level causality.",
@@ -387,6 +396,7 @@ const metadata = {
   closure: packageVersion("google-closure-compiler"),
   alienSignals: packageVersion("alien-signals"),
   mitt: packageVersion("mitt"),
+  motion: packageVersion("motion"),
   system: `${platform()} ${release()} ${arch()}`,
   warmups,
   samples,

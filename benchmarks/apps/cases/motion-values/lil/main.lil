@@ -1,0 +1,23 @@
+pure float mixValue(float from, float to, float progress) {
+  return from + (to - from) * progress;
+}
+
+pure int wrapValue(int min, int max, int value) {
+  int range = max - min;
+  return ((value - min) % range + range) % range + min;
+}
+
+pure float staggerDelay(float step, float start, int index) {
+  return start + step * index;
+}
+
+float position = 0.0;
+int phase = 0;
+float schedule = 0.0;
+for (int index = 0; index < 160000; index++) {
+  int lane = index % 8;
+  position += mixValue(-120.0, 360.0, lane / 8.0);
+  phase += wrapValue(0, 360, index * 47);
+  schedule += staggerDelay(0.125, 0.25, lane) * 8.0;
+}
+print(`motion:${position}:${phase}:${schedule}`);

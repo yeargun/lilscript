@@ -17,11 +17,12 @@ snippets. It answers three separate questions:
 | `event-pipeline` | Uses `mitt` from JavaScript and a typed event surface in LilScript. |
 | `binary-telemetry` | Exercises `ArrayBuffer`, `SharedArrayBuffer`, `Uint8Array`, loops, and integer semantics without a dependency. |
 | `module-pricing` | Exercises relative imports, required module side effects, unused exports, structs/classes, and whole-program DCE. |
+| `motion-values` | Uses Motion's real `mix`, `wrap`, and `stagger` exports for a deterministic animation-value pipeline. |
 
-The first two cases are application comparisons against real npm packages.
-They are not claims that the LilScript sources implement every edge case or
-public API of those libraries. The observable application contract is the unit
-of equivalence.
+The reactive, event, and motion cases are application comparisons against real
+npm packages. They are not claims that the LilScript sources implement every
+edge case, public API, or Motion's DOM animation engine. The observable
+application contract is the unit of equivalence.
 
 ## Artifact matrix
 
