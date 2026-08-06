@@ -9,8 +9,12 @@ const directory = dirname(fileURLToPath(import.meta.url));
 const root = resolve(directory, "../..");
 const paired = join(root, "benchmarks/paired");
 const regressionLimit = 1.03;
+const checkOnly = process.argv.includes("--check");
 
-execFileSync(process.execPath, [join(paired, "run.mjs")], { cwd: root, stdio: "inherit" });
+execFileSync(process.execPath, [join(paired, "run.mjs"), ...(checkOnly ? ["--check"] : [])], {
+  cwd: root,
+  stdio: "inherit",
+});
 const pairedResults = JSON.parse(readFileSync(join(paired, "results.json"), "utf8"));
 
 const server = createServer((request, response) => {
@@ -131,6 +135,8 @@ const report = {
   results,
 };
 const serialized = `${JSON.stringify(report, null, 2)}\n`;
-writeFileSync(join(directory, "results.json"), serialized);
-writeFileSync(join(root, "web/src/browser-results.json"), serialized);
+if (!checkOnly) {
+  writeFileSync(join(directory, "results.json"), serialized);
+  writeFileSync(join(root, "web/src/browser-results.json"), serialized);
+}
 console.log(`Chromium runtime gate passed for ${results.length} paired workloads.`);

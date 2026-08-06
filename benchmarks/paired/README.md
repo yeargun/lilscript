@@ -14,4 +14,8 @@ programs.
 
 ```sh
 node benchmarks/paired/run.mjs
+node benchmarks/paired/run.mjs --check
 ```
+
+The first command refreshes the checked-in reports. `--check` runs the same
+behavior and size gates without rewriting published metadata.

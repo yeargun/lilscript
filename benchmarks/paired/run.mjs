@@ -14,6 +14,7 @@ const closureSha256 = "acffbafea43d48064ea1ad64cb4ec95828eac696be0c51a05874178ac
 const compiler = join(root, "target/release/lilscript");
 const cargo = process.env.CARGO ?? join(process.env.HOME ?? "", ".cargo/bin/cargo");
 const cc = process.env.CC ?? "clang";
+const checkOnly = process.argv.includes("--check");
 
 function command(executable, args, options = {}) {
   return execFileSync(executable, args, {
@@ -167,6 +168,8 @@ const report = {
   source: "benchmarks/paired/specs.json",
   results,
 };
-writeFileSync(resultsPath, `${JSON.stringify(report, null, 2)}\n`);
-writeFileSync(webResultsPath, `${JSON.stringify(report, null, 2)}\n`);
+if (!checkOnly) {
+  writeFileSync(resultsPath, `${JSON.stringify(report, null, 2)}\n`);
+  writeFileSync(webResultsPath, `${JSON.stringify(report, null, 2)}\n`);
+}
 console.log(`Paired benchmark gate passed for ${results.length} generated workloads.`);

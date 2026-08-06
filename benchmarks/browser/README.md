@@ -14,4 +14,8 @@ sizes are gated separately by `benchmarks/paired/run.mjs`.
 npm --prefix benchmarks/browser install
 npm --prefix benchmarks/browser run install-browser
 npm --prefix benchmarks/browser run benchmark
+npm --prefix benchmarks/browser run verify
 ```
+
+`benchmark` publishes fresh timing evidence. `verify` runs the same regression
+gate without rewriting the checked-in result files.

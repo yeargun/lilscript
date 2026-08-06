@@ -8,7 +8,8 @@
   },
   "scripts": {
     "install-browser": "playwright install chromium",
-    "benchmark": "node run.mjs"
+    "benchmark": "node run.mjs",
+    "verify": "node run.mjs --check"
   },
   "devDependencies": {
     "playwright": "1.62.1"

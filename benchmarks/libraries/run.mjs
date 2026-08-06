@@ -404,6 +404,8 @@ const report = {
 };
 
 await writeFile(join(buildRoot, "results.json"), `${JSON.stringify(report, null, 2)}\n`);
-await writeFile(join(labRoot, "RESULTS.md"), `${renderReport(report)}\n`);
-await writeFile(webResults, `${JSON.stringify(report, null, 2)}\n`);
+if (!verifyOnly) {
+  await writeFile(join(labRoot, "RESULTS.md"), `${renderReport(report)}\n`);
+  await writeFile(webResults, `${JSON.stringify(report, null, 2)}\n`);
+}
 console.log(`Verified ${results.length} complete library apps across npm/Vite, npm/Closure, LilScript JS, C, and native.`);

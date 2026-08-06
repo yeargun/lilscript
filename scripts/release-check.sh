@@ -10,11 +10,11 @@ cd "$ROOT"
 "$CARGO" test --all-targets
 "$ROOT/scripts/verify.sh"
 "$ROOT/benchmarks/run.sh"
-node "$ROOT/benchmarks/paired/run.mjs"
+node "$ROOT/benchmarks/paired/run.mjs" --check
 "$ROOT/comparison/run-all.sh"
 npm --prefix "$ROOT/benchmarks/apps" run verify
 npm --prefix "$ROOT/benchmarks/libraries" run verify
-npm --prefix "$ROOT/benchmarks/browser" run benchmark
+npm --prefix "$ROOT/benchmarks/browser" run verify
 npm --prefix "$ROOT/web" test
 npm --prefix "$ROOT/web" run build
 npm --prefix "$ROOT/vscode-extension" run package
