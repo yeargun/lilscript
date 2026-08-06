@@ -315,12 +315,12 @@ responsibility mapping is in
 The complete-library lab measures installed npm packages against LilScript
 ports after translated upstream assertions, dense differential API checks, and
 JavaScript/C/native app contracts. LilScript produces the smaller Brotli
-artifact in five of six complete ports: 0.3% smaller than npm/Vite for
-`@motionone/easing`, 47.3% smaller for
-`clamp` + `lerp`, 43.8% smaller for `string-hash`, 17.8% smaller for
-`js-levenshtein`, and 24.9% smaller for `murmurhash-js`. It remains 9.8% larger
-for `@emotion/hash`. Those mixed
-results are published without a universal superiority claim in
+artifact in five of six complete ports: 2.8% smaller than npm/Vite for
+`@motionone/easing`, 49.3% smaller for
+`clamp` + `lerp`, 44.2% smaller for `string-hash`, 19.3% smaller for
+`js-levenshtein`, and 24.9% smaller for `murmurhash-js`. It remains 7.7% larger
+for `@emotion/hash`. Those mixed results are published without a universal
+superiority claim in
 [benchmarks/libraries/RESULTS.md](benchmarks/libraries/RESULTS.md) and at
 `/libraries.html` in the Vite site.
 
