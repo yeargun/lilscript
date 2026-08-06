@@ -1,0 +1,22 @@
+{
+  "package": "motion",
+  "version": "13.0.0",
+  "upstreamTag": "v13.0.0",
+  "upstreamCommit": "e4029ce071bddaed2a539b861f5d9c509bea40da",
+  "status": "not-implemented",
+  "benchmarkEligibility": "context-only",
+  "rootRuntimeExports": 312,
+  "implementedRootRuntimeExports": 0,
+  "sourceInventory": {
+    "typescriptFiles": 683,
+    "typescriptLines": 63961,
+    "packageTestFiles": 185,
+    "repositoryTestFiles": 196
+  },
+  "testStatus": {
+    "upstreamUnit": "not-run",
+    "upstreamBrowser": "not-run",
+    "upstreamReact": "not-run"
+  },
+  "delegatesToNpmRuntime": false
+}

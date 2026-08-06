@@ -1,0 +1,12 @@
+float position = 0.0;
+int phase = 0;
+float schedule = 0.0;
+
+for (int index = 0; index < 160000; index++) {
+  int lane = index % 8;
+  position += lane * 60.0 - 120.0;
+  phase += index * 47 % 360;
+  schedule += lane + 2;
+}
+
+print(`motion:${position}:${phase}:${schedule}`);

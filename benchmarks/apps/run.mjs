@@ -6,11 +6,14 @@ import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { brotliCompressSync, constants, gzipSync } from "node:zlib";
 import { build } from "esbuild";
+import { build as viteBuild } from "vite";
 
 const labRoot = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(labRoot, "../..");
 const buildRoot = join(labRoot, "build");
+const webResults = join(repoRoot, "web/src/benchmark-results.json");
 const compiler = join(repoRoot, "target/release/lilscript");
+const timingRunner = join(labRoot, "timing-runner.mjs");
 const cargo = process.env.CARGO ?? "cargo";
 const closure = join(
   labRoot,
@@ -18,47 +21,56 @@ const closure = join(
   platform() === "win32" ? "google-closure-compiler.cmd" : "google-closure-compiler",
 );
 const verifyOnly = process.argv.includes("--verify-only");
-const warmups = verifyOnly ? 0 : Number(process.env.BENCH_WARMUPS ?? 2);
-const samples = verifyOnly ? 1 : Number(process.env.BENCH_SAMPLES ?? 9);
+const warmups = verifyOnly ? 0 : Number(process.env.BENCH_WARMUPS ?? 5);
+const samples = verifyOnly ? 1 : Number(process.env.BENCH_SAMPLES ?? 25);
+const comparableArtifactIds = ["reference", "esbuild", "closure", "hand", "lilscript"];
 
 const cases = [
   {
     name: "reactive-store",
-    jsEntry: "cases/reactive-store/js/main.js",
-    closureEntry: "cases/reactive-store/closure/main.js",
+    title: "Reactive store",
+    referenceEntry: "cases/reactive-store/closure/main.js",
+    ecosystemRoot: "cases/reactive-store/js",
+    ecosystemLabel: "Alien Signals via Vite",
     lilEntry: "cases/reactive-store/lil/main.lil",
     hand: "cases/reactive-store/hand.js",
     expected: "cases/reactive-store/expected.txt",
   },
   {
     name: "event-pipeline",
-    jsEntry: "cases/event-pipeline/js/main.js",
-    closureEntry: "cases/event-pipeline/closure/main.js",
+    title: "Event pipeline",
+    referenceEntry: "cases/event-pipeline/closure/main.js",
+    ecosystemRoot: "cases/event-pipeline/js",
+    ecosystemLabel: "mitt via Vite",
     lilEntry: "cases/event-pipeline/lil/main.lil",
     hand: "cases/event-pipeline/hand.js",
     expected: "cases/event-pipeline/expected.txt",
   },
   {
     name: "binary-telemetry",
-    jsEntry: "cases/binary-telemetry/js/main.js",
-    closureEntry: "cases/binary-telemetry/closure/main.js",
+    title: "Binary telemetry",
+    referenceEntry: "cases/binary-telemetry/js/main.js",
     lilEntry: "cases/binary-telemetry/lil/main.lil",
     hand: "cases/binary-telemetry/hand.js",
     expected: "cases/binary-telemetry/expected.txt",
   },
   {
     name: "module-pricing",
-    jsEntry: "cases/module-pricing/js/main.js",
-    closureEntry: "cases/module-pricing/closure/main.js",
+    title: "Module pricing",
+    referenceEntry: "cases/module-pricing/js/main.js",
     lilEntry: "cases/module-pricing/lil/main.lil",
     hand: "cases/module-pricing/hand.js",
     expected: "cases/module-pricing/expected.txt",
   },
   {
     name: "motion-values",
-    jsEntry: "cases/motion-values/js/main.js",
-    closureEntry: "cases/motion-values/closure/main.js",
+    title: "Animation value kernel",
+    referenceEntry: "cases/motion-values/closure/main.js",
+    ecosystemRoot: "cases/motion-values/js",
+    ecosystemLabel: "Motion value and spring APIs via Vite",
+    ecosystemExpected: "cases/motion-values/ecosystem-expected.txt",
     lilEntry: "cases/motion-values/lil/main.lil",
+    specializedLilEntry: "cases/motion-values/lil-specialized/main.lil",
     hand: "cases/motion-values/hand.js",
     expected: "cases/motion-values/expected.txt",
   },
@@ -109,6 +121,42 @@ async function bundle(entry, minify) {
   return result.outputFiles[0].text;
 }
 
+async function viteProductionBundle(root, outDir) {
+  await viteBuild({
+    root,
+    base: "./",
+    configFile: false,
+    logLevel: "silent",
+    build: {
+      outDir,
+      emptyOutDir: true,
+      manifest: true,
+      minify: true,
+      modulePreload: { polyfill: false },
+      target: "baseline-widely-available",
+    },
+  });
+
+  const manifest = JSON.parse(await readFile(join(outDir, ".vite/manifest.json"), "utf8"));
+  const entry = Object.values(manifest).find((item) => item.isEntry);
+  if (!entry) throw new Error(`Vite emitted no entry for ${relative(labRoot, root)}`);
+
+  const files = (await sourceFiles(outDir)).filter((path) => /\.(?:css|html|js)$/.test(path));
+  const totals = { raw: 0, gzip: 0, brotli: 0 };
+  for (const path of files) {
+    const fileMetrics = metrics(await readFile(path, "utf8"));
+    totals.raw += fileMetrics.raw;
+    totals.gzip += fileMetrics.gzip;
+    totals.brotli += fileMetrics.brotli;
+  }
+
+  return {
+    entry: join(outDir, entry.file),
+    files: files.map((path) => relative(outDir, path)),
+    ...totals,
+  };
+}
+
 function execute(path) {
   const result = spawnSync(process.execPath, [path], {
     cwd: labRoot,
@@ -143,10 +191,12 @@ function executeNative(path) {
   return normalize(result.stdout);
 }
 
-function timedExecution(path) {
-  const start = process.hrtime.bigint();
-  execute(path);
-  return Number(process.hrtime.bigint() - start) / 1_000_000;
+function measureExecutions(paths) {
+  return JSON.parse(
+    command(process.execPath, [timingRunner, String(warmups), String(samples), ...paths], {
+      cwd: labRoot,
+    }),
+  );
 }
 
 function median(values) {
@@ -173,7 +223,7 @@ async function sourceFiles(directory, extension) {
   for (const entry of await readdir(directory, { withFileTypes: true })) {
     const path = join(directory, entry.name);
     if (entry.isDirectory()) found.push(...(await sourceFiles(path, extension)));
-    else if (entry.name.endsWith(extension)) found.push(path);
+    else if (extension === undefined || entry.name.endsWith(extension)) found.push(path);
   }
   return found.sort();
 }
@@ -198,24 +248,26 @@ function renderReport(results, metadata) {
     "# Application benchmark results",
     "",
     `Generated on ${metadata.generatedAt} with LilScript \`${metadata.compilerRevision}\`, Node ` +
-      `\`${metadata.node}\`, esbuild \`${metadata.esbuild}\`, and Google Closure Compiler ` +
-      `\`${metadata.closure}\` on \`${metadata.system}\`.`,
+      `\`${metadata.node}\`, Vite \`${metadata.vite}\`, esbuild \`${metadata.esbuild}\`, and ` +
+      `Google Closure Compiler \`${metadata.closure}\` on \`${metadata.system}\`.`,
     "",
-    "Every JavaScript artifact and LilScript native executable passed the same checked-in stdout contract. Negative deltas are smaller or faster than Closure ADVANCED.",
+    "This report contains two deliberately separate datasets. Compiler rows use a readable JavaScript reference and a LilScript implementation with the same app algorithm and abstraction scope. Ecosystem rows build real npm packages with Vite and are never included in compiler totals.",
     "",
-    `Ecosystem JavaScript lanes use Alien Signals \`${metadata.alienSignals}\`, mitt \`${metadata.mitt}\`, and Motion \`${metadata.motion}\`.`,
+    "Every emitted artifact passed its checked-in stdout contract. That rejects observed behavior mismatches for these inputs; it does not prove complete semantic or library API equivalence.",
+    "",
+    `Context-only ecosystem builds use Alien Signals \`${metadata.alienSignals}\`, mitt \`${metadata.mitt}\`, and Motion \`${metadata.motion}\`.`,
     "",
     "## Source size",
     "",
     "Source bytes describe only checked-in app code and exclude npm dependencies. They measure authoring surface, not shipping size.",
     "",
-    "| Workload | JS app source | Closure-friendly source | LilScript app source | Hand-specialized JS |",
-    "| --- | ---: | ---: | ---: | ---: |",
+    "| Workload | Reference JS | LilScript | Hand-specialized JS |",
+    "| --- | ---: | ---: | ---: |",
   ];
 
   for (const result of results) {
     lines.push(
-      `| ${result.name} | ${result.source.js} | ${result.source.closure} | ${result.source.lilscript} | ${result.source.hand} |`,
+      `| ${result.title} | ${result.source.reference} | ${result.source.lilscript} | ${result.source.hand} |`,
     );
   }
 
@@ -223,9 +275,11 @@ function renderReport(results, metadata) {
     const closureRow = result.artifacts.find((artifact) => artifact.id === "closure");
     lines.push(
       "",
-      `## ${result.name}`,
+      `## ${result.title}`,
       "",
       `Expected output: \`${result.expected.replaceAll("\n", " ")}\``,
+      "",
+      "Comparable compiler artifacts:",
       "",
       "| Artifact | Raw | Gzip-9 | Brotli-11 | vs Closure Brotli | Median ms | vs Closure time |",
       "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
@@ -237,9 +291,20 @@ function renderReport(results, metadata) {
           `${percent(artifact.medianMs, closureRow.medianMs)} |`,
       );
     }
+    if (result.ecosystem) {
+      lines.push(
+        "",
+        `Context-only production build: **${result.ecosystem.label}**. This uses a different library implementation and is excluded from every compiler delta and total.`,
+        "",
+        `Vite output contract: \`${result.ecosystem.expected.replaceAll("\n", " ")}\``,
+        "",
+        "| Vite production assets | Raw | Gzip-9 | Brotli-11 | Median ms |",
+        "| --- | ---: | ---: | ---: | ---: |",
+        `| ${result.ecosystem.files.join("<br>")} | ${result.ecosystem.raw} | ${result.ecosystem.gzip} | ${result.ecosystem.brotli} | ${result.ecosystem.medianMs.toFixed(2)} |`,
+      );
+    }
   }
 
-  const ids = results[0].artifacts.map((artifact) => artifact.id);
   lines.push(
     "",
     "## Corpus totals",
@@ -253,7 +318,7 @@ function renderReport(results, metadata) {
     (total, result) => total + result.artifacts.find((artifact) => artifact.id === "closure").brotli,
     0,
   );
-  for (const id of ids) {
+  for (const id of comparableArtifactIds) {
     const rows = results.map((result) => result.artifacts.find((artifact) => artifact.id === id));
     const raw = rows.reduce((total, row) => total + row.raw, 0);
     const gzip = rows.reduce((total, row) => total + row.gzip, 0);
@@ -275,11 +340,13 @@ function renderReport(results, metadata) {
     "",
     "## Interpretation limits",
     "",
-    "- `reactive-store`, `event-pipeline`, and `motion-values` compare complete app behavior, not complete library APIs.",
-    "- `motion-values` exercises Motion's real `mix`, `wrap`, and `stagger` exports; it does not claim LilScript implements Motion's DOM animation engine.",
+    "- Hand-specialized JavaScript is an oracle for expert whole-program rewriting, not source given to Closure or LilScript.",
+    "- Real package builds are Vite context measurements only. No package row is compared with a specialized rewrite or included in corpus totals.",
+    "- LilScript does not currently implement Motion. A complete claim requires the public package surface and upstream behavioral tests, including DOM, timing, cancellation, gestures, scrolling, SVG, and React entry points.",
     "- Generated C and native executables are behavior gates; only JavaScript artifacts are included in transfer-size and Node runtime tables.",
-    "- Closure receives a readable app-specific implementation, bundled without minification before `ADVANCED` compilation.",
-    "- Fresh-process runtime includes Node startup and is intended to catch large regressions, not establish engine-level causality.",
+    "- Closure receives the exact readable JavaScript reference used by the unminified and esbuild rows.",
+    "- Matching one deterministic stdout contract can have false negatives; it is regression evidence, not a proof of general equivalence.",
+    "- Runtime is repeated cache-busted module parsing plus execution inside one dedicated Node process per artifact. It excludes process startup but is not a browser-frame benchmark.",
     "- These results apply to this corpus and compiler revision; they do not prove universal superiority over Closure.",
     "",
   );
@@ -301,7 +368,7 @@ for (const benchmark of cases) {
   const directory = join(buildRoot, benchmark.name);
   await mkdir(directory, { recursive: true });
   const paths = {
-    raw: join(directory, "js-raw.js"),
+    reference: join(directory, "js-reference.js"),
     esbuild: join(directory, "js-esbuild.js"),
     closure: join(directory, "js-closure.js"),
     hand: join(directory, "js-hand.js"),
@@ -309,9 +376,9 @@ for (const benchmark of cases) {
   };
   const lilscriptBase = join(directory, "lilscript");
 
-  const rawCode = await bundle(benchmark.jsEntry, false);
-  await writeNormalized(paths.raw, rawCode);
-  await writeNormalized(paths.esbuild, await bundle(benchmark.jsEntry, true));
+  const referenceCode = await bundle(benchmark.referenceEntry, false);
+  await writeNormalized(paths.reference, referenceCode);
+  await writeNormalized(paths.esbuild, await bundle(benchmark.referenceEntry, true));
   await writeNormalized(paths.hand, await readFile(join(labRoot, benchmark.hand), "utf8"));
   command(compiler, [
     join(labRoot, benchmark.lilEntry),
@@ -321,7 +388,7 @@ for (const benchmark of cases) {
     lilscriptBase,
   ]);
   const closureInput = join(directory, "closure-input.js");
-  await writeNormalized(closureInput, await bundle(benchmark.closureEntry, false));
+  await writeNormalized(closureInput, referenceCode);
   command(closure, [
     "--js",
     closureInput,
@@ -347,12 +414,30 @@ for (const benchmark of cases) {
     );
   }
   const artifacts = [
-    { id: "raw", label: "JS raw bundle", path: paths.raw },
-    { id: "esbuild", label: "JS esbuild", path: paths.esbuild },
+    { id: "reference", label: "Reference JS bundle", path: paths.reference },
+    { id: "esbuild", label: "Reference JS esbuild", path: paths.esbuild },
     { id: "closure", label: "JS Closure ADVANCED", path: paths.closure },
     { id: "hand", label: "JS hand-specialized", path: paths.hand },
     { id: "lilscript", label: "LilScript", path: paths.lilscript },
   ];
+
+  let specializedNative;
+  if (benchmark.specializedLilEntry) {
+    const specializedBase = join(directory, "lilscript-specialized");
+    command(compiler, [
+      join(labRoot, benchmark.specializedLilEntry),
+      "--target",
+      "all",
+      "-o",
+      specializedBase,
+    ]);
+    specializedNative = specializedBase;
+    artifacts.push({
+      id: "lilscript-specialized",
+      label: "LilScript specialized source (diagnostic)",
+      path: `${specializedBase}.js`,
+    });
+  }
 
   for (const artifact of artifacts) {
     const actual = execute(artifact.path);
@@ -361,29 +446,73 @@ for (const benchmark of cases) {
         `${benchmark.name}/${artifact.id} output mismatch\nexpected: ${JSON.stringify(expected)}\nactual:   ${JSON.stringify(actual)}`,
       );
     }
-    for (let index = 0; index < warmups; index += 1) timedExecution(artifact.path);
-    const timings = [];
-    for (let index = 0; index < samples; index += 1) timings.push(timedExecution(artifact.path));
-    Object.assign(artifact, metrics(await readFile(artifact.path, "utf8")), {
-      medianMs: median(timings),
-      samplesMs: timings,
-    });
+    Object.assign(artifact, metrics(await readFile(artifact.path, "utf8")));
+  }
+
+  if (artifacts.slice(0, comparableArtifactIds.length).some(
+    (artifact, index) => artifact.id !== comparableArtifactIds[index]
+  )) {
+    throw new Error(`${benchmark.name}: comparable artifact scope changed`);
+  }
+
+  if (specializedNative && executeNative(specializedNative) !== expected) {
+    throw new Error(`${benchmark.name}/specialized native output mismatch`);
+  }
+
+  let ecosystem;
+  if (benchmark.ecosystemRoot) {
+    const production = await viteProductionBundle(
+      join(labRoot, benchmark.ecosystemRoot),
+      join(directory, "vite-production"),
+    );
+    const ecosystemExpected = benchmark.ecosystemExpected
+      ? normalize(await readFile(join(labRoot, benchmark.ecosystemExpected), "utf8"))
+      : expected;
+    const actual = execute(production.entry);
+    if (actual !== ecosystemExpected) {
+      throw new Error(
+        `${benchmark.name}/vite ecosystem output mismatch\nexpected: ${JSON.stringify(ecosystemExpected)}\nactual:   ${JSON.stringify(actual)}`,
+      );
+    }
+    ecosystem = {
+      label: benchmark.ecosystemLabel,
+      expected: ecosystemExpected,
+      files: production.files,
+      raw: production.raw,
+      gzip: production.gzip,
+      brotli: production.brotli,
+      path: production.entry,
+    };
+  }
+
+  const timedPaths = artifacts.map((artifact) => artifact.path);
+  if (ecosystem) timedPaths.push(ecosystem.path);
+  const timingGroups = measureExecutions(timedPaths);
+  for (const [index, artifact] of artifacts.entries()) {
+    artifact.samplesMs = timingGroups[index];
+    artifact.medianMs = median(artifact.samplesMs);
     delete artifact.path;
+  }
+  if (ecosystem) {
+    ecosystem.samplesMs = timingGroups.at(-1);
+    ecosystem.medianMs = median(ecosystem.samplesMs);
+    delete ecosystem.path;
   }
 
   results.push({
     name: benchmark.name,
+    title: benchmark.title,
     expected,
     source: {
-      js: await sourceBytes(join(labRoot, benchmark.jsEntry), ".js"),
-      closure: await sourceBytes(join(labRoot, benchmark.closureEntry), ".js"),
+      reference: await sourceBytes(join(labRoot, benchmark.referenceEntry), ".js"),
       lilscript: await sourceBytes(join(labRoot, benchmark.lilEntry), ".lil"),
       hand: Buffer.byteLength(await readFile(join(labRoot, benchmark.hand), "utf8")),
     },
     artifacts,
+    ecosystem,
   });
   console.log(
-    `${benchmark.name}: behavior verified across ${artifacts.length} JavaScript artifacts and native`,
+    `${benchmark.name}: ${artifacts.length} comparable/diagnostic JavaScript artifacts, native, and ${ecosystem ? "Vite ecosystem" : "no ecosystem"} verified`,
   );
 }
 
@@ -392,6 +521,7 @@ const metadata = {
   generatedAt: new Date().toISOString(),
   compilerRevision: command("git", ["rev-parse", "--short", "HEAD"]),
   node: process.version,
+  vite: packageJson.devDependencies.vite,
   esbuild: packageJson.devDependencies.esbuild,
   closure: packageVersion("google-closure-compiler"),
   alienSignals: packageVersion("alien-signals"),
@@ -404,5 +534,16 @@ const metadata = {
 await writeFile(join(buildRoot, "results.json"), `${JSON.stringify({ metadata, results }, null, 2)}\n`);
 if (!verifyOnly) {
   await writeFile(join(labRoot, "RESULTS.md"), renderReport(results, metadata));
+  const publishedResults = results.map((result) => ({
+    ...result,
+    artifacts: result.artifacts.map(({ samplesMs, ...artifact }) => artifact),
+    ecosystem: result.ecosystem
+      ? (({ samplesMs, ...ecosystem }) => ecosystem)(result.ecosystem)
+      : undefined,
+  }));
+  await writeFile(
+    webResults,
+    `${JSON.stringify({ metadata, results: publishedResults }, null, 2)}\n`,
+  );
 }
 console.log(`verified ${results.length} workloads; ${samples} measured execution(s) per artifact`);
