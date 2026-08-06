@@ -104,7 +104,8 @@ Production builds use an exact configurable raw, gzip-9, or Brotli-11 cost
 model to select among bounded pooling, literal-table packing, coercion-elision,
 boolean-literal, identifier-alphabet, quote-style, structured-closure, and
 declaration-spelling, condition-only loop-spelling, and SSA-copy-layout
-candidates;
+candidates, plus configured, closure-factory-preserving, and fully outlined
+optimizer IRs;
 `--mode development` skips that compressor loop. `--explain human|json`
 reports optimizer passes. The
 size default omits signed-32-bit coercions only where range analysis proves
@@ -278,9 +279,9 @@ npm --prefix vscode-extension run package
 ```
 
 `scripts/verify.sh` compares Node and native output for two conformance suites
-and links a generated aggregate ABI against a C host. It also runs 62 programs
+and links a generated aggregate ABI against a C host. It also runs 63 programs
 through JavaScript, emitted C, and native executables with maximum and disabled
-optional optimization, for 124 matrix executions, plus a framed LSP session
+optional optimization, for 126 matrix executions, plus a framed LSP session
 through diagnostics, completion, hover, symbols, semantic tokens, references,
 rename, formatting, quick fixes, and shutdown.
 `benchmarks/run.sh`

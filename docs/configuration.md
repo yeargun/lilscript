@@ -13,6 +13,7 @@ common_subexpression_elimination = true
 finite_value_propagation = true
 global_optimization = true
 inlining = true
+inline_closure_factories = true
 scalar_replacement = true
 dead_store_elimination = true
 dead_code_elimination = true
@@ -35,6 +36,7 @@ compression = [
   "scalar-phi-copies",
   "phi-affinity-coalescing",
   "ir-inlining-variants",
+  "ir-closure-factory-variants",
   "loop-spelling-selection",
 ]
 # inline_instruction_limit = 18
@@ -138,6 +140,12 @@ only listed tactics are enabled; `compression = []` disables all of them:
   fully outlined IR under the exact selected codec. It is enabled by
   size-first, applies to single-file and reusable ESM output, and is omitted by
   performance-oriented profiles because it runs a second optimizer pipeline.
+- `ir-closure-factory-variants` adds a partial-inlining IR that preserves
+  straight-line factories returning closures while retaining ordinary and CFG
+  inlining everywhere else. Exact codec scoring chooses between reusable
+  factory environments and capture-specialized closure sites. The independent
+  `[optimization] inline_closure_factories` switch disables factory inlining
+  for every backend when an explicit policy is required.
 - `loop-spelling-selection` lets equivalent condition-only loops compete as
   `while(condition)` and `for(;condition;)`. They have equal raw spelling
   length, but different token context under gzip and Brotli. Size-first scores

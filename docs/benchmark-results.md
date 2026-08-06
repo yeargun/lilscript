@@ -153,6 +153,21 @@ Run it with `node benchmarks/ir-variants/run.mjs`. The complete-library lab also
 shows an independent production-sized win: Emotion hash improves from
 `866/542/463` to `816/538/456` raw/gzip-9/Brotli-11.
 
+## Closure factory IR ablation
+
+`tests/cases/closure_factory_variant.lil` creates twelve closures from one
+factory with distinct capture signatures. Both builds retain ordinary inlining,
+the fully outlined IR candidate, and identical final-emission search; the
+disabled build omits only `ir-closure-factory-variants`. Every JavaScript, C,
+and native result must match before size measurement.
+
+| Variant | Raw | Gzip-9 | Brotli-11 |
+| --- | ---: | ---: | ---: |
+| Factory IR variants enabled | 627 | 243 | 172 |
+| Factory IR variants disabled | 677 | 244 | 173 |
+
+Run it with `node benchmarks/closure-factory-variants/run.mjs`.
+
 ## Loop spelling ablation
 
 The complete `murmurhash-js` LilScript port holds optimizer and emitter policy

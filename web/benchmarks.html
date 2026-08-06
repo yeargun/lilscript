@@ -84,6 +84,17 @@
         </div>
       </section>
 
+      <section class="benchmark-project" aria-labelledby="closure-factory-title">
+        <header>
+          <p class="eyebrow">Partial-inlining ablation</p>
+          <h2 id="closure-factory-title">Reusable closure factories</h2>
+          <p>Twelve capture signatures execute through JavaScript, C, and native outputs. The enabled build adds a factory-preserving IR while retaining both configured and fully outlined optimizer baselines.</p>
+        </header>
+        <div class="benchmark-table-wrap">
+          <table><thead><tr><th>Variant</th><th>Raw</th><th>Gzip-9</th><th>Brotli-11</th></tr></thead><tbody><tr class="lilscript-row"><th>Factory IR variants enabled</th><td>627</td><td>243</td><td>172</td></tr><tr><th>Factory IR variants disabled</th><td>677</td><td>244</td><td>173</td></tr></tbody></table>
+        </div>
+      </section>
+
       <section class="benchmark-project library-lab-callout" aria-labelledby="library-lab-title">
         <header>
           <p class="eyebrow">Complete npm ports</p>

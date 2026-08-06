@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "generatedAt": "2026-08-06T22:29:09.599Z",
-    "compilerRevision": "5a26a1e",
+    "generatedAt": "2026-08-06T22:39:52.803Z",
+    "compilerRevision": "1e4e6cd",
     "node": "v24.11.1",
     "vite": "8.2.0",
     "esbuild": "0.28.1",
@@ -47,7 +47,7 @@
             "assets/index-BdTNmHk3.js",
             "index.html"
           ],
-          "medianMs": 5.439791000000014
+          "medianMs": 5.031374999999969
         },
         {
           "id": "closure",
@@ -64,7 +64,7 @@
             "app.js",
             "index.html"
           ],
-          "medianMs": 4.32891699999999
+          "medianMs": 3.967917
         },
         {
           "id": "lilscript",
@@ -81,7 +81,7 @@
             "app.js",
             "index.html"
           ],
-          "medianMs": 4.7512920000000065,
+          "medianMs": 4.3910000000000196,
           "nativeVerified": true,
           "cEmitted": true
         }
@@ -125,7 +125,7 @@
             "assets/index-B6IEu8zq.js",
             "index.html"
           ],
-          "medianMs": 2.5641250000000184
+          "medianMs": 2.544125000000008
         },
         {
           "id": "closure",
@@ -142,7 +142,7 @@
             "app.js",
             "index.html"
           ],
-          "medianMs": 2.507000000000005
+          "medianMs": 2.5913329999999917
         },
         {
           "id": "lilscript",
@@ -159,7 +159,7 @@
             "app.js",
             "index.html"
           ],
-          "medianMs": 1.1019170000000003,
+          "medianMs": 0.9717500000000001,
           "nativeVerified": true,
           "cEmitted": true
         }
@@ -199,7 +199,7 @@
             "assets/index-Bf76Xsi8.js",
             "index.html"
           ],
-          "medianMs": 3.374333000000007
+          "medianMs": 3.4524579999999787
         },
         {
           "id": "closure",
@@ -216,7 +216,7 @@
             "app.js",
             "index.html"
           ],
-          "medianMs": 3.3414999999999964
+          "medianMs": 3.4087080000000185
         },
         {
           "id": "lilscript",
@@ -233,7 +233,7 @@
             "app.js",
             "index.html"
           ],
-          "medianMs": 2.8591670000000136,
+          "medianMs": 2.8668329999999855,
           "nativeVerified": true,
           "cEmitted": true
         }
@@ -273,7 +273,7 @@
             "assets/index-B4X7I0S2.js",
             "index.html"
           ],
-          "medianMs": 6.118875000000003
+          "medianMs": 6.12362499999999
         },
         {
           "id": "closure",
@@ -290,7 +290,7 @@
             "app.js",
             "index.html"
           ],
-          "medianMs": 6.053874999999977
+          "medianMs": 6.1310419999999795
         },
         {
           "id": "lilscript",
@@ -307,7 +307,7 @@
             "app.js",
             "index.html"
           ],
-          "medianMs": 6.195582999999999,
+          "medianMs": 6.292749999999984,
           "nativeVerified": true,
           "cEmitted": true
         }
@@ -347,7 +347,7 @@
             "assets/index-DHXm0Jix.js",
             "index.html"
           ],
-          "medianMs": 11.817583000000013
+          "medianMs": 11.774584000000004
         },
         {
           "id": "closure",
@@ -364,7 +364,7 @@
             "app.js",
             "index.html"
           ],
-          "medianMs": 11.799125000000004
+          "medianMs": 11.732541999999995
         },
         {
           "id": "lilscript",
@@ -381,7 +381,7 @@
             "app.js",
             "index.html"
           ],
-          "medianMs": 11.418583000000012,
+          "medianMs": 11.379792000000009,
           "nativeVerified": true,
           "cEmitted": true
         }
@@ -421,7 +421,7 @@
             "assets/index-B9SN9_CL.js",
             "index.html"
           ],
-          "medianMs": 5.078333999999984
+          "medianMs": 5.19954199999998
         },
         {
           "id": "closure",
@@ -438,7 +438,7 @@
             "app.js",
             "index.html"
           ],
-          "medianMs": 5.0824159999999665
+          "medianMs": 5.250084000000015
         },
         {
           "id": "lilscript",
@@ -455,7 +455,7 @@
             "app.js",
             "index.html"
           ],
-          "medianMs": 4.323417000000006,
+          "medianMs": 4.423000000000002,
           "nativeVerified": true,
           "cEmitted": true
         }

@@ -81,6 +81,10 @@ checked-in benchmark workload. Passing a synthetic example alone is not enough.
   selected codec for size-first single-file and ESM builds. The isolated
   workload improves from `283/152/108` to `221/114/89` raw/gzip/Brotli, and the
   complete Emotion hash port improves from `866/542/463` to `816/538/456`.
+- [x] Score capture-specialized closure-factory inlining against a partial IR
+  that preserves reusable factories while retaining every other inliner. With
+  the fully outlined baseline still available, twelve capture signatures
+  improve from `677/244/173` to `627/243/172` raw/gzip/Brotli.
 - [x] Replace condition-only loop keyword frequency guesses with a bounded
   codec-scored beam over equivalent `while(c)` and `for(;c;)` layouts. The
   complete MurmurHash port keeps raw/gzip at `1741/840` and reduces Brotli from
@@ -109,6 +113,8 @@ checked-in benchmark workload. Passing a synthetic example alone is not enough.
   return-value elimination.
 - [x] Fold control flow exposed by literal closure captures during final
   JavaScript emission.
+- [x] Preserve straight-line closure factories as a codec-selected alternative
+  to capture-specialized call sites, with an independent optimizer off switch.
 - [x] Struct/class scalar replacement and typed positional aggregate lowering.
 - [x] Add allocation-root alias analysis for mutable arrays, maps, sets, and
   host calls so an unobserved local mutation graph is removed as a unit while

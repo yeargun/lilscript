@@ -73,7 +73,8 @@ The current schedule is:
    dead field stores;
 8. another scalar fixed point;
 9. effect-aware SSA DCE and whole-program function DCE;
-10. codec selection between configured-inlining and outlined optimizer IRs,
+10. codec selection among configured inlining, closure-factory-preserving
+    partial inlining, and fully outlined optimizer IRs,
     followed by module-level integer argument/return/field range analysis,
     liveness-based name coalescing, structured boolean-phi deferral,
     dependency-ordered phi copies,
@@ -87,7 +88,7 @@ The current schedule is:
 
 ## Executable evidence
 
-`scripts/verify-matrix.sh` compiles 62 independent `.lil` programs, including a
+`scripts/verify-matrix.sh` compiles 63 independent `.lil` programs, including a
 multi-file module graph, with one
 `--target all` invocation per program. Each invocation emits JavaScript, emits
 C, and invokes Clang for a native executable. The script then compiles the
@@ -95,10 +96,10 @@ emitted C independently and requires the JavaScript, direct native executable,
 independently compiled C executable, and checked-in expected output to match.
 The corpus includes collection mutation/identity/nullable lookup and binary
 memory copy/view/coercion behavior under both maximum and disabled optional
-optimization, for 124 backend-mode executions. This includes regressions for
+optimization, for 126 backend-mode executions. This includes regressions for
 interprocedural integer ranges, finite values/fields, exact array lengths,
 unobserved collection
-mutation removal, and
+mutation removal, multi-use conditional-return values, and
 loop-carried values crossing an early return and a nested short-circuit
 coalescing regression extracted from the Solid client-runtime gate.
 `scripts/verify-bundles.mjs` additionally executes preserve-module and shared
@@ -116,6 +117,12 @@ all optimizer settings constant while omitting only `ir-inlining-variants`.
 Both artifacts execute first. Exact Brotli selection retains a shared helper
 and improves `283/152/108` bytes to `221/114/89`; the complete Emotion hash
 port independently improves from `866/542/463` to `816/538/456`.
+
+`benchmarks/closure-factory-variants/run.mjs` keeps ordinary inlining and the
+fully outlined IR candidate available in both builds while omitting only
+`ir-closure-factory-variants`. Twelve distinct capture signatures execute
+through JavaScript, C, and native gates. Partial factory preservation wins the
+selected objective and improves `677/244/173` to `627/243/172` raw/gzip/Brotli.
 
 `benchmarks/loop-spelling/run.mjs` executes the complete `murmurhash-js` port
 with identical optimizer and final-emission settings while omitting only
