@@ -316,9 +316,9 @@ The complete-library lab measures installed npm packages against LilScript
 ports after translated upstream assertions, dense differential API checks, and
 JavaScript/C/native app contracts. LilScript produces the smaller Brotli
 artifact in four of six complete ports: 46.9% smaller than npm/Vite for
-`clamp` + `lerp`, 43.0% smaller for `string-hash`, 15.7% smaller for
-`js-levenshtein`, and 24.1% smaller for `murmurhash-js`. It remains 2.4% larger
-for `@motionone/easing` and 10.9% larger for `@emotion/hash`. Those mixed
+`clamp` + `lerp`, 43.8% smaller for `string-hash`, 16.5% smaller for
+`js-levenshtein`, and 24.8% smaller for `murmurhash-js`. It remains 1.9% larger
+for `@motionone/easing` and 10.0% larger for `@emotion/hash`. Those mixed
 results are published without a universal superiority claim in
 [benchmarks/libraries/RESULTS.md](benchmarks/libraries/RESULTS.md) and at
 `/libraries.html` in the Vite site.
