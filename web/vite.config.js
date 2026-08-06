@@ -14,6 +14,7 @@ export default defineConfig({
       input: {
         playground: resolve(import.meta.dirname, "index.html"),
         about: resolve(import.meta.dirname, "about.html"),
+        benchmarks: resolve(import.meta.dirname, "benchmarks.html"),
         docs: resolve(import.meta.dirname, "docs.html"),
       },
     },

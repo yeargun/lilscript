@@ -7,9 +7,9 @@ responsibilities to LilScript. The reference is Closure Compiler
 
 LilScript does not run Closure and does not translate LilScript to annotated
 JavaScript before optimizing it. The frontend resolves and links the complete
-static `.lil` module graph, produces typed CFG IR, promotes
-locals to pruned SSA, optimizes that closed-world representation, and feeds the
-same module to the JavaScript and native C backends.
+static `.lil` module graph, produces typed CFG IR, promotes locals to pruned
+SSA, and optimizes separate copies of that closed-world representation for the
+JavaScript and native C backends.
 
 ## Applicable optimization mapping
 
@@ -68,7 +68,7 @@ The current schedule is:
 
 ## Executable evidence
 
-`scripts/verify-matrix.sh` compiles 50 independent `.lil` programs, including a
+`scripts/verify-matrix.sh` compiles 51 independent `.lil` programs, including a
 multi-file module graph, with one
 `--target all` invocation per program. Each invocation emits JavaScript, emits
 C, and invokes Clang for a native executable. The script then compiles the
@@ -76,7 +76,7 @@ emitted C independently and requires the JavaScript, direct native executable,
 independently compiled C executable, and checked-in expected output to match.
 The corpus includes collection mutation/identity/nullable lookup and binary
 memory copy/view/coercion behavior under both maximum and disabled optional
-optimization, for 100 backend-mode executions.
+optimization, for 102 backend-mode executions.
 `scripts/verify-bundles.mjs` additionally executes preserve-module and shared
 split bundles, checks their manifests, and exercises live bindings across a
 circular ESM dependency between the entry and a reader chunk.

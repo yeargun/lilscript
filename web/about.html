@@ -19,6 +19,7 @@
       <nav class="site-nav" aria-label="Primary navigation">
         <a href="/">Playground</a>
         <a href="/docs.html">Docs</a>
+        <a href="/benchmarks.html">Benchmarks</a>
         <a class="active" href="/about.html">About</a>
       </nav>
     </header>
@@ -30,7 +31,7 @@
         <p class="hero-summary">A statically typed language with C-style declarations, familiar JavaScript ergonomics, whole-program SSA optimization, and JavaScript plus native targets.</p>
         <div class="hero-actions">
           <a class="primary-link" href="/docs.html">Read the docs <i data-lucide="arrow-right" aria-hidden="true"></i></a>
-          <a class="secondary-link" href="/">Open playground</a>
+          <a class="secondary-link" href="/benchmarks.html">See measured comparisons</a>
         </div>
       </section>
 
@@ -66,7 +67,7 @@ if (vector.lengthSquared() == 25.0) {
 }</code></pre>
           </div>
           <div class="code-column output-column">
-            <div class="code-label"><span>Optimized JavaScript</span><span>112 bytes</span></div>
+            <div class="code-label"><span>Optimized JavaScript</span><span>111 bytes</span></div>
             <pre><code>var b=[1,2,3,4].map(a=&gt;Math.imul(a,2));
 var a=0,c=0;
 while(a&lt;b.length){

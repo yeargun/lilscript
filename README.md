@@ -36,7 +36,7 @@ if (vector.lengthSquared() == 25.0) {
 }
 ```
 
-The optimized JavaScript for this program is 112 bytes. The class is
+The optimized JavaScript for this program is 111 bytes. The class is
 devirtualized and scalar-replaced, the method and constructor disappear, and
 the output preserves signed 32-bit `int` behavior.
 
@@ -243,9 +243,9 @@ npm --prefix vscode-extension run package
 ```
 
 `scripts/verify.sh` compares Node and native output for two conformance suites
-and links a generated aggregate ABI against a C host. It also runs 50 programs
+and links a generated aggregate ABI against a C host. It also runs 51 programs
 through JavaScript, emitted C, and native executables with maximum and disabled
-optional optimization, for 100 matrix executions, plus a framed LSP session
+optional optimization, for 102 matrix executions, plus a framed LSP session
 through diagnostics, completion, hover, symbols, and shutdown.
 `benchmarks/run.sh`
 downloads the pinned Closure Compiler `v20260803`, runs `ADVANCED` compilation,
@@ -255,12 +255,12 @@ Brotli-11 bytes.
 On the repository's nine compiler workloads LilScript totals 1,527 raw / 1,308
 gzip / 1,094 Brotli bytes versus Closure at 2,357 / 1,687 / 1,382. LilScript is
 smaller in 26 measured cells and ties the 27th. The separate application lab
-builds four behavior-equivalent apps as a readable JavaScript bundle, an
+builds five behavior-equivalent apps as a readable JavaScript bundle, an
 esbuild-minified bundle, Closure-friendly `ADVANCED` input, hand-specialized
-JavaScript, and LilScript. Its checked-in run totals 1,620 raw / 1,071 gzip /
-948 Brotli bytes for LilScript versus 1,692 / 1,118 / 952 for Closure; the hand
-baseline remains smaller at 889 / 714 / 641. All 20 JavaScript artifacts and
-four native LilScript executables pass checked-in output contracts. These are
+JavaScript, and LilScript. Its checked-in run totals 1,854 raw / 1,241 gzip /
+1,092 Brotli bytes for LilScript versus 1,836 / 1,264 / 1,095 for Closure; the
+hand baseline remains smaller at 1,008 / 840 / 745. All 25 JavaScript artifacts
+and five native LilScript executables pass checked-in output contracts. These are
 workload-specific results, not a claim that one compiler wins for every
 possible program. Compiler methodology and tables are in
 [docs/benchmark-results.md](docs/benchmark-results.md); the pass-by-pass

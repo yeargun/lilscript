@@ -110,14 +110,14 @@ checked-in benchmark workload. Passing a synthetic example alone is not enough.
 
 - [x] Compiler corpus against Closure ADVANCED with executable output checks.
 - [x] Application lanes for reactive state, events, binary memory, and modules.
-- [ ] Motion/spring sampling lane using the official Motion package as an
+- [x] Motion value-pipeline lane using the official Motion package as an
   ecosystem baseline and a behavior-equivalent LilScript implementation.
 - [ ] Add router, validation, parser, state-machine, worker/buffer, and DOM
   application lanes without claiming complete library rewrites.
 - [ ] Run browser benchmarks for parse, startup, animation-frame stability,
   steady-state throughput, memory, and transfer compression.
 - [ ] Add differential fuzzing against a reference interpreter and native C.
-- [ ] Publish every checked-in project, source scope, behavior contract, raw,
+- [x] Publish every checked-in project, source scope, behavior contract, raw,
   gzip, Brotli, and runtime result in the Vite documentation site.
 
 ## Release gates

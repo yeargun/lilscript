@@ -19,6 +19,7 @@
       <nav class="site-nav" aria-label="Primary navigation">
         <a href="/">Playground</a>
         <a class="active" href="/docs.html">Docs</a>
+        <a href="/benchmarks.html">Benchmarks</a>
         <a href="/about.html">About</a>
       </nav>
     </header>
@@ -357,7 +358,7 @@ cargo clippy --all-targets -- -D warnings
 cargo test --all-targets
 scripts/verify.sh
 benchmarks/run.sh</code></pre>
-          <p>The matrix compiles 50 programs with maximum and disabled optional optimization, then requires Node, the direct native output, independently compiled emitted C, and checked-in expected output to agree across 100 executions. Nine equivalent workloads are also executed before comparing raw, gzip-9, and Brotli-11 output against Closure ADVANCED v20260803. Current corpus totals are 1,527 / 1,308 / 1,094 bytes for LilScript and 2,357 / 1,687 / 1,382 bytes for Closure. The application lab separately verifies 20 JavaScript artifacts and four native executables across ecosystem, Closure-friendly, hand-specialized, and LilScript lanes.</p>
+          <p>The matrix compiles 51 programs with maximum and disabled optional optimization, then requires Node, the direct native output, independently compiled emitted C, and checked-in expected output to agree across 102 executions. Nine equivalent workloads are also executed before comparing raw, gzip-9, and Brotli-11 output against Closure ADVANCED v20260803. Current compiler-corpus totals are 1,527 / 1,308 / 1,094 bytes for LilScript and 2,357 / 1,687 / 1,382 bytes for Closure. The five-project application lab separately verifies 25 JavaScript artifacts and five native executables; its complete per-project measurements are on the <a href="/benchmarks.html">benchmark page</a>.</p>
         </section>
       </main>
     </div>

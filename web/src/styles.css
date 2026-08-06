@@ -375,6 +375,77 @@ pre,
   padding-bottom: 110px;
 }
 
+.comparison-main {
+  padding-block: 70px 110px;
+}
+
+.comparison-intro {
+  max-width: 820px;
+  padding-bottom: 58px;
+}
+
+.comparison-intro h1 {
+  margin: 0;
+  font-size: clamp(38px, 6vw, 64px);
+  line-height: 1.03;
+  letter-spacing: 0;
+}
+
+.comparison-intro .lead {
+  margin: 24px 0 0;
+  color: #45534c;
+  font-size: 19px;
+  line-height: 1.65;
+}
+
+.comparison-note {
+  margin: 22px 0 0;
+  padding-left: 15px;
+  border-left: 3px solid var(--yellow);
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.benchmark-project,
+.comparison-method {
+  padding-block: 52px;
+  border-top: 1px solid var(--line);
+}
+
+.benchmark-project h2,
+.comparison-method h2 {
+  margin: 0;
+  font-size: 28px;
+  letter-spacing: 0;
+}
+
+.benchmark-project header > p:not(.eyebrow),
+.comparison-method p {
+  max-width: 780px;
+  margin: 13px 0 0;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.benchmark-contract {
+  display: inline-block;
+  margin-top: 15px;
+  color: var(--green-dark);
+  font-size: 12px;
+}
+
+.lilscript-row th,
+.lilscript-row td {
+  background: #edf5f1;
+  font-weight: 700;
+}
+
+.corpus-table tbody tr:last-child th,
+.corpus-table tbody tr:last-child td {
+  border-top: 2px solid #9eaca5;
+}
+
 .benchmark-table-wrap {
   margin-top: 44px;
   overflow-x: auto;
