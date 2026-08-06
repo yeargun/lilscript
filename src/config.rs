@@ -390,6 +390,7 @@ pub struct OptimizationConfig {
     pub constant_folding: Option<bool>,
     pub algebraic_simplification: Option<bool>,
     pub common_subexpression_elimination: Option<bool>,
+    pub finite_value_propagation: Option<bool>,
     pub global_optimization: Option<bool>,
     pub inlining: Option<bool>,
     pub scalar_replacement: Option<bool>,
@@ -404,6 +405,7 @@ impl Default for OptimizationConfig {
             constant_folding: None,
             algebraic_simplification: None,
             common_subexpression_elimination: None,
+            finite_value_propagation: None,
             global_optimization: None,
             inlining: None,
             scalar_replacement: None,
@@ -427,6 +429,9 @@ impl OptimizationConfig {
             common_subexpression_elimination: self
                 .common_subexpression_elimination
                 .unwrap_or(base.common_subexpression_elimination),
+            finite_value_propagation: self
+                .finite_value_propagation
+                .unwrap_or(base.finite_value_propagation),
             global_optimization: self.global_optimization.unwrap_or(base.global_optimization),
             inlining: self.inlining.unwrap_or(base.inlining),
             scalar_replacement: self.scalar_replacement.unwrap_or(base.scalar_replacement),
@@ -560,6 +565,7 @@ mod tests {
 [optimization]
 preset = "none"
 constant_folding = true
+finite_value_propagation = true
 
 [javascript]
 priority = "size-first"
@@ -579,6 +585,7 @@ shared_min_imports = 3
         .unwrap();
         let optimizer = config.optimizer_options();
         assert!(optimizer.constant_folding);
+        assert!(optimizer.finite_value_propagation);
         assert!(!optimizer.inlining);
         assert_eq!(config.javascript.priority, JavaScriptPriority::SizeFirst);
         assert!(!config.js_options().mangle_identifiers);

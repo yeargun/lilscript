@@ -10,6 +10,7 @@ cd "$ROOT"
 "$CARGO" test --all-targets
 "$ROOT/scripts/verify.sh"
 "$ROOT/benchmarks/run.sh"
+node "$ROOT/benchmarks/finite-values/run.mjs"
 node "$ROOT/benchmarks/paired/run.mjs" --check
 "$ROOT/comparison/run-all.sh"
 npm --prefix "$ROOT/benchmarks/apps" run verify

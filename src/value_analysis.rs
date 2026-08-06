@@ -119,6 +119,126 @@ pub struct IntegerValueAnalysis {
     field_ranges: AHashMap<String, AHashMap<usize, I32Range>>,
 }
 
+const FINITE_VALUE_LIMIT: usize = 4;
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct FiniteValueSet {
+    values: Vec<ConstValue>,
+}
+
+impl FiniteValueSet {
+    fn singleton(value: ConstValue) -> Option<Self> {
+        is_finite_constant(&value).then_some(Self {
+            values: vec![value],
+        })
+    }
+
+    fn union(&self, other: &Self) -> Option<Self> {
+        let mut values = self.values.clone();
+        for value in &other.values {
+            if !values.contains(value) {
+                values.push(value.clone());
+                if values.len() > FINITE_VALUE_LIMIT {
+                    return None;
+                }
+            }
+        }
+        Some(Self { values })
+    }
+
+    pub fn values(&self) -> &[ConstValue] {
+        &self.values
+    }
+
+    pub fn constant(&self) -> Option<&ConstValue> {
+        (self.values.len() == 1).then(|| &self.values[0])
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
+enum FiniteSummary {
+    #[default]
+    Bottom,
+    Values(FiniteValueSet),
+    Unknown,
+}
+
+impl FiniteSummary {
+    fn from_constant(value: ConstValue) -> Self {
+        FiniteValueSet::singleton(value).map_or(Self::Unknown, Self::Values)
+    }
+
+    fn join(&self, other: &Self) -> Self {
+        match (self, other) {
+            (Self::Unknown, _) | (_, Self::Unknown) => Self::Unknown,
+            (Self::Bottom, value) | (value, Self::Bottom) => value.clone(),
+            (Self::Values(lhs), Self::Values(rhs)) => {
+                lhs.union(rhs).map_or(Self::Unknown, Self::Values)
+            }
+        }
+    }
+
+    fn values(&self) -> Option<&FiniteValueSet> {
+        match self {
+            Self::Values(values) => Some(values),
+            Self::Bottom | Self::Unknown => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct FunctionFiniteFacts {
+    values: AHashMap<ValueId, FiniteValueSet>,
+    return_values: Option<FiniteValueSet>,
+}
+
+impl FunctionFiniteFacts {
+    pub fn values(&self, value: ValueId) -> Option<&FiniteValueSet> {
+        self.values.get(&value)
+    }
+
+    pub fn constant(&self, value: ValueId) -> Option<&ConstValue> {
+        self.values(value).and_then(FiniteValueSet::constant)
+    }
+
+    pub fn constants(&self) -> impl Iterator<Item = (ValueId, &ConstValue)> {
+        self.values
+            .iter()
+            .filter_map(|(value, values)| values.constant().map(|constant| (*value, constant)))
+    }
+
+    pub fn return_values(&self) -> Option<&FiniteValueSet> {
+        self.return_values.as_ref()
+    }
+
+    pub fn return_constant(&self) -> Option<&ConstValue> {
+        self.return_values().and_then(FiniteValueSet::constant)
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct FiniteValueAnalysis {
+    functions: Vec<FunctionFiniteFacts>,
+    field_values: AHashMap<String, AHashMap<usize, FiniteValueSet>>,
+}
+
+impl FiniteValueAnalysis {
+    pub fn function(&self, function: FunctionId) -> &FunctionFiniteFacts {
+        &self.functions[function.0 as usize]
+    }
+
+    pub fn field_values(&self, owner: &str, index: usize) -> Option<&FiniteValueSet> {
+        self.field_values
+            .get(owner)
+            .and_then(|fields| fields.get(&index))
+    }
+
+    pub fn field_constant(&self, owner: &str, index: usize) -> Option<&ConstValue> {
+        self.field_values(owner, index)
+            .and_then(FiniteValueSet::constant)
+    }
+}
+
 impl IntegerValueAnalysis {
     pub fn function(&self, function: FunctionId) -> &FunctionIntegerFacts {
         &self.functions[function.0 as usize]
@@ -246,6 +366,570 @@ pub fn analyze_integer_values(module: &ControlFlowModule<'_>) -> IntegerValueAna
         functions: facts,
         field_ranges,
     }
+}
+
+pub fn analyze_finite_values(module: &ControlFlowModule<'_>) -> FiniteValueAnalysis {
+    let exported = module
+        .exports
+        .iter()
+        .filter_map(|export| match export.binding {
+            ExportBinding::Function(function) => Some(function),
+            _ => None,
+        })
+        .collect::<AHashSet<_>>();
+    let indirect = indirectly_called_functions(module);
+    let unsafe_fields = aggregate_owners_exposed_to_untyped_code(module);
+    let boundary_parameter = |function: &ControlFlowFunction<'_>| {
+        function.kind == FunctionKind::Extern
+            || exported.contains(&function.id)
+            || indirect.contains(&function.id)
+    };
+    let mut parameter_values = module
+        .functions
+        .iter()
+        .map(|function| {
+            function
+                .params
+                .iter()
+                .map(|parameter| {
+                    if !finite_type(&parameter.ty) || boundary_parameter(function) {
+                        FiniteSummary::Unknown
+                    } else {
+                        FiniteSummary::Bottom
+                    }
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>();
+    let mut return_values = module
+        .functions
+        .iter()
+        .map(|function| {
+            if function.kind == FunctionKind::Extern && finite_type(&function.return_type) {
+                FiniteSummary::Unknown
+            } else {
+                FiniteSummary::Bottom
+            }
+        })
+        .collect::<Vec<_>>();
+    let mut field_values = default_class_field_values(module, &unsafe_fields);
+
+    loop {
+        let next_facts = module
+            .functions
+            .iter()
+            .map(|function| {
+                analyze_finite_function(
+                    function,
+                    &parameter_values[function.id.0 as usize],
+                    &return_values,
+                    &field_values,
+                )
+            })
+            .collect::<Vec<_>>();
+        let mut proposed_parameters = module
+            .functions
+            .iter()
+            .map(|function| {
+                function
+                    .params
+                    .iter()
+                    .map(|parameter| {
+                        if !finite_type(&parameter.ty) || boundary_parameter(function) {
+                            FiniteSummary::Unknown
+                        } else {
+                            FiniteSummary::Bottom
+                        }
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+        let mut proposed_fields = default_class_field_values(module, &unsafe_fields);
+
+        for function in &module.functions {
+            let local = &next_facts[function.id.0 as usize];
+            collect_finite_call_arguments(module, function, local, &mut proposed_parameters);
+            collect_finite_field_writes(
+                module,
+                function,
+                local,
+                &unsafe_fields,
+                &mut proposed_fields,
+            );
+        }
+
+        let mut changed = false;
+        for (current, proposed) in parameter_values.iter_mut().zip(proposed_parameters) {
+            for (current, proposed) in current.iter_mut().zip(proposed) {
+                changed |= join_finite_summary(current, &proposed);
+            }
+        }
+        for function in &module.functions {
+            if finite_type(&function.return_type) {
+                changed |= join_finite_summary(
+                    &mut return_values[function.id.0 as usize],
+                    &next_facts[function.id.0 as usize].return_values,
+                );
+            }
+        }
+        changed |= join_finite_field_summaries(&mut field_values, proposed_fields);
+        if !changed {
+            break;
+        }
+    }
+
+    let functions = module
+        .functions
+        .iter()
+        .map(|function| {
+            let facts = analyze_finite_function(
+                function,
+                &parameter_values[function.id.0 as usize],
+                &return_values,
+                &field_values,
+            );
+            FunctionFiniteFacts {
+                values: facts
+                    .values
+                    .into_iter()
+                    .filter_map(|(value, summary)| match summary {
+                        FiniteSummary::Values(values) => Some((value, values)),
+                        FiniteSummary::Bottom | FiniteSummary::Unknown => None,
+                    })
+                    .collect(),
+                return_values: facts.return_values.values().cloned(),
+            }
+        })
+        .collect();
+    let field_values = field_values
+        .into_iter()
+        .filter_map(|(owner, fields)| {
+            let fields = fields
+                .into_iter()
+                .filter_map(|(index, summary)| match summary {
+                    FiniteSummary::Values(values) => Some((index, values)),
+                    FiniteSummary::Bottom | FiniteSummary::Unknown => None,
+                })
+                .collect::<AHashMap<_, _>>();
+            (!fields.is_empty()).then_some((owner, fields))
+        })
+        .collect();
+
+    FiniteValueAnalysis {
+        functions,
+        field_values,
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+struct LocalFiniteFacts {
+    values: AHashMap<ValueId, FiniteSummary>,
+    return_values: FiniteSummary,
+}
+
+fn analyze_finite_function(
+    function: &ControlFlowFunction<'_>,
+    parameter_values: &[FiniteSummary],
+    return_values: &[FiniteSummary],
+    field_values: &AHashMap<String, AHashMap<usize, FiniteSummary>>,
+) -> LocalFiniteFacts {
+    let mut values = AHashMap::new();
+    for (parameter, summary) in function.params.iter().zip(parameter_values) {
+        if !matches!(summary, FiniteSummary::Bottom) {
+            values.insert(parameter.value, summary.clone());
+        }
+    }
+
+    loop {
+        let mut changed = false;
+        for phi in function.blocks.iter().flat_map(|block| &block.phis) {
+            if !finite_type(&phi.ty) {
+                continue;
+            }
+            let candidate = join_complete_finite_values(
+                phi.incoming
+                    .iter()
+                    .map(|(_, value)| finite_value_summary(&values, *value)),
+            );
+            changed |= update_finite_value(&mut values, phi.out, candidate);
+        }
+        for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
+            let (Some(out), Some(ty)) = (instruction.out, instruction.ty.as_ref()) else {
+                continue;
+            };
+            if !finite_type(ty) {
+                continue;
+            }
+            let candidate =
+                evaluate_finite_instruction(&instruction.op, &values, return_values, field_values);
+            changed |= update_finite_value(&mut values, out, candidate);
+        }
+        if !changed {
+            break;
+        }
+    }
+
+    let return_values = if finite_type(&function.return_type) {
+        function
+            .blocks
+            .iter()
+            .filter_map(|block| match block.terminator {
+                Some(Terminator::Return(value)) => Some(value),
+                _ => None,
+            })
+            .fold(FiniteSummary::Bottom, |summary, value| {
+                summary.join(&value.map_or(FiniteSummary::Unknown, |value| {
+                    finite_value_summary(&values, value)
+                }))
+            })
+    } else {
+        FiniteSummary::Unknown
+    };
+    LocalFiniteFacts {
+        values,
+        return_values,
+    }
+}
+
+fn evaluate_finite_instruction(
+    op: &ControlFlowOp<'_>,
+    values: &AHashMap<ValueId, FiniteSummary>,
+    return_values: &[FiniteSummary],
+    field_values: &AHashMap<String, AHashMap<usize, FiniteSummary>>,
+) -> FiniteSummary {
+    match op {
+        ControlFlowOp::Const(value) => FiniteSummary::from_constant(value.clone()),
+        ControlFlowOp::Unary {
+            op: IrUnaryOp::Not,
+            value,
+        } => map_finite_values(finite_value_summary(values, *value), |value| match value {
+            ConstValue::Bool(value) => Some(ConstValue::Bool(!value)),
+            _ => None,
+        }),
+        ControlFlowOp::Binary { op, lhs, rhs } => combine_finite_values(
+            finite_value_summary(values, *lhs),
+            finite_value_summary(values, *rhs),
+            |lhs, rhs| fold_finite_binary(*op, lhs, rhs),
+        ),
+        ControlFlowOp::FieldGet { owner, index, .. } => field_values
+            .get(*owner)
+            .and_then(|fields| fields.get(index))
+            .cloned()
+            .unwrap_or(FiniteSummary::Bottom),
+        ControlFlowOp::CallDirect { function, .. } | ControlFlowOp::CallMethod { function, .. } => {
+            return_values[function.0 as usize].clone()
+        }
+        _ => FiniteSummary::Unknown,
+    }
+}
+
+fn finite_value_summary(
+    values: &AHashMap<ValueId, FiniteSummary>,
+    value: ValueId,
+) -> FiniteSummary {
+    values.get(&value).cloned().unwrap_or(FiniteSummary::Bottom)
+}
+
+fn observed_finite_summary(
+    values: &AHashMap<ValueId, FiniteSummary>,
+    value: ValueId,
+) -> FiniteSummary {
+    match finite_value_summary(values, value) {
+        FiniteSummary::Bottom => FiniteSummary::Unknown,
+        summary => summary,
+    }
+}
+
+fn update_finite_value(
+    values: &mut AHashMap<ValueId, FiniteSummary>,
+    value: ValueId,
+    candidate: FiniteSummary,
+) -> bool {
+    let current = values.get(&value).cloned().unwrap_or(FiniteSummary::Bottom);
+    let next = current.join(&candidate);
+    if current == next {
+        false
+    } else {
+        values.insert(value, next);
+        true
+    }
+}
+
+fn join_complete_finite_values(values: impl IntoIterator<Item = FiniteSummary>) -> FiniteSummary {
+    let mut result = FiniteSummary::Bottom;
+    for value in values {
+        if matches!(value, FiniteSummary::Bottom) {
+            return FiniteSummary::Bottom;
+        }
+        result = result.join(&value);
+    }
+    result
+}
+
+fn map_finite_values(
+    summary: FiniteSummary,
+    map: impl Fn(&ConstValue) -> Option<ConstValue>,
+) -> FiniteSummary {
+    let FiniteSummary::Values(values) = summary else {
+        return summary;
+    };
+    let mut result: Option<FiniteValueSet> = None;
+    for value in &values.values {
+        let Some(mapped) = map(value).and_then(FiniteValueSet::singleton) else {
+            return FiniteSummary::Unknown;
+        };
+        result = match result {
+            Some(current) => current.union(&mapped),
+            None => Some(mapped),
+        };
+        if result.is_none() {
+            return FiniteSummary::Unknown;
+        }
+    }
+    result.map_or(FiniteSummary::Bottom, FiniteSummary::Values)
+}
+
+fn combine_finite_values(
+    lhs: FiniteSummary,
+    rhs: FiniteSummary,
+    combine: impl Fn(&ConstValue, &ConstValue) -> Option<ConstValue>,
+) -> FiniteSummary {
+    match (lhs, rhs) {
+        (FiniteSummary::Unknown, _) | (_, FiniteSummary::Unknown) => FiniteSummary::Unknown,
+        (FiniteSummary::Bottom, _) | (_, FiniteSummary::Bottom) => FiniteSummary::Bottom,
+        (FiniteSummary::Values(lhs), FiniteSummary::Values(rhs)) => {
+            let mut result: Option<FiniteValueSet> = None;
+            for lhs in &lhs.values {
+                for rhs in &rhs.values {
+                    let Some(value) = combine(lhs, rhs).and_then(FiniteValueSet::singleton) else {
+                        return FiniteSummary::Unknown;
+                    };
+                    result = match result {
+                        Some(current) => current.union(&value),
+                        None => Some(value),
+                    };
+                    if result.is_none() {
+                        return FiniteSummary::Unknown;
+                    }
+                }
+            }
+            result.map_or(FiniteSummary::Bottom, FiniteSummary::Values)
+        }
+    }
+}
+
+fn fold_finite_binary(op: IrBinaryOp, lhs: &ConstValue, rhs: &ConstValue) -> Option<ConstValue> {
+    match (op, lhs, rhs) {
+        (IrBinaryOp::Add, ConstValue::String(lhs), ConstValue::String(rhs)) => {
+            Some(ConstValue::String(format!("{lhs}{rhs}")))
+        }
+        (IrBinaryOp::Eq, lhs, rhs) => Some(ConstValue::Bool(lhs == rhs)),
+        (IrBinaryOp::NotEq, lhs, rhs) => Some(ConstValue::Bool(lhs != rhs)),
+        (IrBinaryOp::And, ConstValue::Bool(lhs), ConstValue::Bool(rhs)) => {
+            Some(ConstValue::Bool(*lhs && *rhs))
+        }
+        (IrBinaryOp::Or, ConstValue::Bool(lhs), ConstValue::Bool(rhs)) => {
+            Some(ConstValue::Bool(*lhs || *rhs))
+        }
+        _ => None,
+    }
+}
+
+fn collect_finite_call_arguments(
+    module: &ControlFlowModule<'_>,
+    caller: &ControlFlowFunction<'_>,
+    facts: &LocalFiniteFacts,
+    proposed: &mut [Vec<FiniteSummary>],
+) {
+    for instruction in caller.blocks.iter().flat_map(|block| &block.instructions) {
+        let (callee, arguments) = match &instruction.op {
+            ControlFlowOp::CallDirect { function, args } => (*function, args.clone()),
+            ControlFlowOp::CallMethod {
+                receiver,
+                function,
+                args,
+                ..
+            } => {
+                let mut values = vec![*receiver];
+                values.extend(args);
+                (*function, values)
+            }
+            ControlFlowOp::NewClass {
+                constructor: Some(function),
+                args,
+                ..
+            } => {
+                let mut values = instruction.out.into_iter().collect::<Vec<_>>();
+                values.extend(args);
+                (*function, values)
+            }
+            _ => continue,
+        };
+        let Some(callee_function) = module.functions.get(callee.0 as usize) else {
+            continue;
+        };
+        for (index, (argument, parameter)) in
+            arguments.iter().zip(&callee_function.params).enumerate()
+        {
+            if !finite_type(&parameter.ty) {
+                continue;
+            }
+            let argument = observed_finite_summary(&facts.values, *argument);
+            let slot = &mut proposed[callee.0 as usize][index];
+            *slot = slot.join(&argument);
+        }
+    }
+}
+
+fn collect_finite_field_writes(
+    module: &ControlFlowModule<'_>,
+    function: &ControlFlowFunction<'_>,
+    facts: &LocalFiniteFacts,
+    unsafe_fields: &AHashSet<String>,
+    proposed: &mut AHashMap<String, AHashMap<usize, FiniteSummary>>,
+) {
+    for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
+        match &instruction.op {
+            ControlFlowOp::Struct { name, fields } if !unsafe_fields.contains(*name) => {
+                let Some(layout) = module.structs.iter().find(|layout| layout.name == *name) else {
+                    continue;
+                };
+                for (field, value) in layout.fields.iter().zip(fields) {
+                    if finite_type(&field.ty) {
+                        join_finite_field(
+                            proposed,
+                            name,
+                            field.index,
+                            observed_finite_summary(&facts.values, *value),
+                        );
+                    }
+                }
+            }
+            ControlFlowOp::FieldSet {
+                owner,
+                index,
+                value,
+                ..
+            } if !unsafe_fields.contains(*owner)
+                && aggregate_field_has_finite_type(module, owner, *index) =>
+            {
+                join_finite_field(
+                    proposed,
+                    owner,
+                    *index,
+                    observed_finite_summary(&facts.values, *value),
+                );
+            }
+            _ => {}
+        }
+    }
+}
+
+fn default_class_field_values(
+    module: &ControlFlowModule<'_>,
+    unsafe_fields: &AHashSet<String>,
+) -> AHashMap<String, AHashMap<usize, FiniteSummary>> {
+    let instantiated = module
+        .functions
+        .iter()
+        .flat_map(|function| function.blocks.iter())
+        .flat_map(|block| &block.instructions)
+        .filter_map(|instruction| match instruction.op {
+            ControlFlowOp::NewClass { class, .. } => Some(class),
+            _ => None,
+        })
+        .collect::<AHashSet<_>>();
+    let mut fields = AHashMap::new();
+    for layout in module.structs.iter().chain(&module.classes) {
+        for field in &layout.fields {
+            if finite_type(&field.ty) && unsafe_fields.contains(layout.name) {
+                join_finite_field(
+                    &mut fields,
+                    layout.name,
+                    field.index,
+                    FiniteSummary::Unknown,
+                );
+            }
+        }
+    }
+    for layout in &module.classes {
+        if !instantiated.contains(layout.name) || unsafe_fields.contains(layout.name) {
+            continue;
+        }
+        for field in &layout.fields {
+            let value = match &field.ty {
+                Type::Bool => Some(ConstValue::Bool(false)),
+                Type::String => Some(ConstValue::String(String::new())),
+                Type::Null | Type::Nullable(_) => Some(ConstValue::Null),
+                _ => None,
+            };
+            if let Some(value) = value {
+                join_finite_field(
+                    &mut fields,
+                    layout.name,
+                    field.index,
+                    FiniteSummary::from_constant(value),
+                );
+            }
+        }
+    }
+    fields
+}
+
+fn join_finite_summary(current: &mut FiniteSummary, proposed: &FiniteSummary) -> bool {
+    let next = current.join(proposed);
+    if *current == next {
+        false
+    } else {
+        *current = next;
+        true
+    }
+}
+
+fn join_finite_field(
+    fields: &mut AHashMap<String, AHashMap<usize, FiniteSummary>>,
+    owner: &str,
+    index: usize,
+    summary: FiniteSummary,
+) {
+    let slot = fields
+        .entry(owner.to_string())
+        .or_default()
+        .entry(index)
+        .or_default();
+    *slot = slot.join(&summary);
+}
+
+fn join_finite_field_summaries(
+    current: &mut AHashMap<String, AHashMap<usize, FiniteSummary>>,
+    proposed: AHashMap<String, AHashMap<usize, FiniteSummary>>,
+) -> bool {
+    let mut changed = false;
+    for (owner, fields) in proposed {
+        for (index, summary) in fields {
+            let slot = current
+                .entry(owner.clone())
+                .or_default()
+                .entry(index)
+                .or_default();
+            changed |= join_finite_summary(slot, &summary);
+        }
+    }
+    changed
+}
+
+fn finite_type(ty: &Type<'_>) -> bool {
+    matches!(
+        ty,
+        Type::Bool | Type::String | Type::Null | Type::Nullable(_)
+    )
+}
+
+fn is_finite_constant(value: &ConstValue) -> bool {
+    matches!(
+        value,
+        ConstValue::Bool(_) | ConstValue::String(_) | ConstValue::Null
+    )
 }
 
 fn analyze_function(
@@ -621,6 +1305,20 @@ fn aggregate_field_is_int(module: &ControlFlowModule<'_>, owner: &str, index: us
         .is_some_and(|field| field.ty == Type::Int)
 }
 
+fn aggregate_field_has_finite_type(
+    module: &ControlFlowModule<'_>,
+    owner: &str,
+    index: usize,
+) -> bool {
+    module
+        .structs
+        .iter()
+        .chain(&module.classes)
+        .find(|layout| layout.name == owner)
+        .and_then(|layout| layout.fields.get(index))
+        .is_some_and(|field| finite_type(&field.ty))
+}
+
 fn value_types<'src>(function: &ControlFlowFunction<'src>) -> AHashMap<ValueId, Type<'src>> {
     let mut types = AHashMap::new();
     for parameter in &function.params {
@@ -924,5 +1622,126 @@ mod tests {
             analysis.function(climb.id).range(climb.params[0].value),
             Some(I32Range::FULL)
         );
+    }
+
+    #[test]
+    fn propagates_finite_arguments_and_returns_across_direct_calls() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "string label(bool enabled){if(enabled){return \"on\";}return \"off\";}print(label(true));print(label(false));",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+        crate::optimizer::promote_locals_to_ssa(&mut ir).unwrap();
+        let analysis = analyze_finite_values(&ir);
+        let label = ir
+            .functions
+            .iter()
+            .find(|function| function.name == Some("label"))
+            .unwrap();
+        let parameter_values = analysis
+            .function(label.id)
+            .values(label.params[0].value)
+            .unwrap()
+            .values();
+        let return_values = analysis
+            .function(label.id)
+            .return_values()
+            .unwrap()
+            .values();
+
+        assert_eq!(parameter_values.len(), 2);
+        assert!(parameter_values.contains(&ConstValue::Bool(true)));
+        assert!(parameter_values.contains(&ConstValue::Bool(false)));
+        assert_eq!(return_values.len(), 2);
+        assert!(return_values.contains(&ConstValue::String("on".to_string())));
+        assert!(return_values.contains(&ConstValue::String("off".to_string())));
+    }
+
+    #[test]
+    fn summarizes_exact_and_finite_nominal_fields() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "struct Badge{string label;bool active;}string text(Badge badge){return badge.label;}Badge first=Badge{\"new\",true};Badge second=Badge{\"new\",false};print(text(first));print(text(second));",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+        crate::optimizer::promote_locals_to_ssa(&mut ir).unwrap();
+        let analysis = analyze_finite_values(&ir);
+
+        assert_eq!(
+            analysis.field_constant("Badge", 0),
+            Some(&ConstValue::String("new".to_string()))
+        );
+        let active = analysis.field_values("Badge", 1).unwrap().values();
+        assert_eq!(active.len(), 2);
+        assert!(active.contains(&ConstValue::Bool(true)));
+        assert!(active.contains(&ConstValue::Bool(false)));
+    }
+
+    #[test]
+    fn invalidates_finite_fields_at_untyped_boundaries() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "struct Badge{string label;}extern void mutate(Badge badge);Badge badge=Badge{\"new\"};mutate(badge);print(badge.label);",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+        crate::optimizer::promote_locals_to_ssa(&mut ir).unwrap();
+        let analysis = analyze_finite_values(&ir);
+
+        assert_eq!(analysis.field_values("Badge", 0), None);
+    }
+
+    #[test]
+    fn does_not_treat_unmodeled_generic_values_as_absent_nullable_values() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "T? maybe<T>(bool present,T value){if(present){return value;}return null;}print(maybe(true,7)!=null);",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+        crate::optimizer::promote_locals_to_ssa(&mut ir).unwrap();
+        let analysis = analyze_finite_values(&ir);
+        let maybe = ir
+            .functions
+            .iter()
+            .find(|function| function.name == Some("maybe"))
+            .unwrap();
+
+        assert_eq!(analysis.function(maybe.id).return_values(), None);
+    }
+
+    #[test]
+    fn widens_large_value_sets_to_unknown() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "string echo(string value){return value;}print(echo(\"a\"));print(echo(\"b\"));print(echo(\"c\"));print(echo(\"d\"));print(echo(\"e\"));",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+        crate::optimizer::promote_locals_to_ssa(&mut ir).unwrap();
+        let analysis = analyze_finite_values(&ir);
+        let echo = ir
+            .functions
+            .iter()
+            .find(|function| function.name == Some("echo"))
+            .unwrap();
+
+        assert_eq!(
+            analysis.function(echo.id).values(echo.params[0].value),
+            None
+        );
+        assert_eq!(analysis.function(echo.id).return_values(), None);
     }
 }

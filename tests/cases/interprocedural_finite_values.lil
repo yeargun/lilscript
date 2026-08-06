@@ -1,0 +1,27 @@
+struct Theme {
+    string name;
+    bool compact;
+}
+
+string selectedTheme() {
+    print("theme-read");
+    return "dark";
+}
+
+string render(string name) {
+    if (name == "dark") {
+        return "dark-ui";
+    }
+    return "light-ui";
+}
+
+string density(Theme theme) {
+    if (theme.compact) {
+        return theme.name + ":compact";
+    }
+    return theme.name + ":comfortable";
+}
+
+Theme theme = Theme { "dark", true };
+print(render(selectedTheme()));
+print(density(theme));

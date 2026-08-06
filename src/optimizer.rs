@@ -7,6 +7,7 @@ use crate::ir::{
 };
 use crate::semantic::{EscapeState, SymbolId, Type};
 use crate::span::Span;
+use crate::value_analysis::analyze_finite_values;
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct OptimizationReport {
@@ -19,6 +20,7 @@ pub struct OptimizationOptions {
     pub constant_folding: bool,
     pub algebraic_simplification: bool,
     pub common_subexpression_elimination: bool,
+    pub finite_value_propagation: bool,
     pub global_optimization: bool,
     pub inlining: bool,
     pub scalar_replacement: bool,
@@ -36,6 +38,7 @@ impl Default for OptimizationOptions {
             constant_folding: true,
             algebraic_simplification: true,
             common_subexpression_elimination: true,
+            finite_value_propagation: true,
             global_optimization: true,
             inlining: true,
             scalar_replacement: true,
@@ -55,6 +58,7 @@ impl OptimizationOptions {
             constant_folding: false,
             algebraic_simplification: false,
             common_subexpression_elimination: false,
+            finite_value_propagation: false,
             global_optimization: false,
             inlining: false,
             scalar_replacement: false,
@@ -154,6 +158,7 @@ fn optimize_control_flow_inner(
     reports.push(specialize_constant_parameters(
         module,
         options.specialize_tagged_constants,
+        options.finite_value_propagation,
     ));
     reports.push(optimize_unused_parameters(module));
     reports.push(optimize_unused_returns(module));
@@ -173,6 +178,7 @@ fn optimize_control_flow_inner(
         reports.push(specialize_constant_parameters(
             module,
             options.specialize_tagged_constants,
+            options.finite_value_propagation,
         ));
         reports.push(optimize_unused_parameters(module));
         reports.push(optimize_unused_returns(module));
@@ -190,6 +196,12 @@ fn optimize_control_flow_inner(
     }
 
     optimize_scalar_fixed_point(module, options, &mut reports);
+    if options.dead_code_elimination {
+        reports.push(eliminate_dead_control_flow_instructions(module));
+    }
+    reports.push(optimize_unused_parameters(module));
+    reports.push(optimize_unused_returns(module));
+    optimize_scalar_fixed_point(module, options, &mut reports);
 
     if options.dead_code_elimination {
         reports.push(eliminate_dead_control_flow_instructions(module));
@@ -206,7 +218,7 @@ fn optimize_scalar_fixed_point(
     loop {
         let propagation = options
             .constant_folding
-            .then(|| fold_and_propagate_control_flow(module));
+            .then(|| fold_and_propagate_control_flow(module, options.finite_value_propagation));
         let phis = eliminate_redundant_phis(module);
         let algebraic = options
             .algebraic_simplification
@@ -935,6 +947,7 @@ fn optimize_unused_parameters(module: &mut ControlFlowModule<'_>) -> Optimizatio
 fn specialize_constant_parameters(
     module: &mut ControlFlowModule<'_>,
     specialize_tagged_constants: bool,
+    finite_value_propagation: bool,
 ) -> OptimizationReport {
     let exported = module
         .exports
@@ -945,6 +958,7 @@ fn specialize_constant_parameters(
         })
         .collect::<AHashSet<_>>();
     let indirect = indirectly_referenced_functions(module);
+    let finite_values = finite_value_propagation.then(|| analyze_finite_values(module));
     let mut calls = AHashMap::<FunctionId, Vec<Vec<Option<ConstValue>>>>::new();
     for caller in &module.functions {
         let constants = caller
@@ -960,7 +974,16 @@ fn specialize_constant_parameters(
             if let ControlFlowOp::CallDirect { function, args } = &instruction.op {
                 calls.entry(*function).or_default().push(
                     args.iter()
-                        .map(|argument| constants.get(argument).cloned())
+                        .map(|argument| {
+                            constants.get(argument).cloned().or_else(|| {
+                                finite_values
+                                    .as_ref()
+                                    .and_then(|analysis| {
+                                        analysis.function(caller.id).constant(*argument)
+                                    })
+                                    .cloned()
+                            })
+                        })
                         .collect(),
                 );
             }
@@ -1168,13 +1191,22 @@ fn indirectly_referenced_functions(module: &ControlFlowModule<'_>) -> AHashSet<F
     indirect
 }
 
-fn fold_and_propagate_control_flow(module: &mut ControlFlowModule<'_>) -> OptimizationReport {
+fn fold_and_propagate_control_flow(
+    module: &mut ControlFlowModule<'_>,
+    finite_value_propagation: bool,
+) -> OptimizationReport {
     let mut changed = false;
+    let finite_values = finite_value_propagation.then(|| analyze_finite_values(module));
     let effect_summaries = analyze_function_effects(module);
     let array_argument_retention_barriers = array_argument_retention_barriers(module);
     let parameter_array_lengths = analyze_array_parameter_lengths(module, &effect_summaries);
     for function in &mut module.functions {
-        let mut constants = AHashMap::<ValueId, ConstValue>::new();
+        let mut constants = finite_values
+            .as_ref()
+            .into_iter()
+            .flat_map(|analysis| analysis.function(function.id).constants())
+            .map(|(value, constant)| (value, constant.clone()))
+            .collect::<AHashMap<ValueId, ConstValue>>();
         let array_lengths = stable_array_lengths(
             function,
             &parameter_array_lengths[function.id.0 as usize],
@@ -5032,6 +5064,52 @@ mod tests {
             .params
             .iter()
             .all(|parameter| !matches!(parameter.ty, Type::TypeParameter(_))));
+    }
+
+    #[test]
+    fn folds_interprocedural_finite_values_without_dropping_effectful_calls() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "string mode(){print(\"effect\");return \"active\";}string render(string value){if(value==\"active\"){return \"A\";}return \"B\";}print(render(mode()));",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut control_flow = lower_to_control_flow(&program, &semantics).unwrap();
+        let options = OptimizationOptions {
+            inlining: false,
+            ..OptimizationOptions::default()
+        };
+
+        optimize_control_flow_with_options(&mut control_flow, &options, false).unwrap();
+        let output = crate::codegen_ir_js::emit_optimized_ir_js(&control_flow).unwrap();
+
+        assert!(output.contains("effect"), "{output}");
+        assert!(output.contains("\"A\""), "{output}");
+        assert!(!output.contains("===\"active\""), "{output}");
+    }
+
+    #[test]
+    fn folds_exact_nominal_field_values_across_typed_calls() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "struct Theme{string name;}string render(Theme theme){if(theme.name==\"dark\"){return \"D\";}return \"L\";}Theme theme=Theme{\"dark\"};print(render(theme));",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut control_flow = lower_to_control_flow(&program, &semantics).unwrap();
+        let options = OptimizationOptions {
+            inlining: false,
+            scalar_replacement: false,
+            ..OptimizationOptions::default()
+        };
+
+        optimize_control_flow_with_options(&mut control_flow, &options, false).unwrap();
+        let output = crate::codegen_ir_js::emit_optimized_ir_js(&control_flow).unwrap();
+
+        assert!(output.contains("\"D\""), "{output}");
+        assert!(!output.contains("===\"dark\""), "{output}");
     }
 
     #[test]
