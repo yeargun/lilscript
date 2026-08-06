@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  compiler:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            benchmarks/apps/package-lock.json
+            benchmarks/browser/package-lock.json
+            benchmarks/libraries/package-lock.json
+            vscode-extension/package-lock.json
+            web/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: rustup component add clippy rustfmt
+      - run: npm ci --prefix benchmarks/apps
+      - run: npm ci --prefix benchmarks/browser
+      - run: npm ci --prefix benchmarks/libraries
+      - run: npm ci --prefix vscode-extension
+      - run: npm ci --prefix web
+      - run: npm --prefix benchmarks/browser exec -- playwright install --with-deps chromium
+      - run: scripts/release-check.sh
+
+  build-matrix:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test --all-targets
+      - run: cargo build --release --bins

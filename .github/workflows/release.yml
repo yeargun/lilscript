@@ -1,0 +1,71 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  binaries:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            extension: ""
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            extension: ""
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            extension: .exe
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - run: cargo build --release --bins --target ${{ matrix.target }}
+      - name: Package binaries
+        shell: bash
+        run: |
+          mkdir -p dist/lilscript-${{ matrix.target }}
+          for binary in lilscript lilscript-fmt lilscript-lint lilscript-lsp lilscript-playground; do
+            cp "target/${{ matrix.target }}/release/${binary}${{ matrix.extension }}" "dist/lilscript-${{ matrix.target }}/"
+          done
+          cp README.md LICENSE-MIT LICENSE-APACHE dist/lilscript-${{ matrix.target }}/
+          tar -C dist -czf "dist/lilscript-${{ matrix.target }}.tar.gz" "lilscript-${{ matrix.target }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lilscript-${{ matrix.target }}
+          path: dist/*.tar.gz
+
+  extension:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: vscode-extension/package-lock.json
+      - run: npm ci --prefix vscode-extension
+      - run: npm --prefix vscode-extension run package
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lilscript-vscode
+          path: vscode-extension/*.vsix
+
+  publish:
+    needs: [binaries, extension]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
