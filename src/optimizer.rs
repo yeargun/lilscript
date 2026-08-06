@@ -1170,9 +1170,17 @@ fn indirectly_referenced_functions(module: &ControlFlowModule<'_>) -> AHashSet<F
 
 fn fold_and_propagate_control_flow(module: &mut ControlFlowModule<'_>) -> OptimizationReport {
     let mut changed = false;
+    let effect_summaries = analyze_function_effects(module);
+    let array_argument_retention_barriers = array_argument_retention_barriers(module);
+    let parameter_array_lengths = analyze_array_parameter_lengths(module, &effect_summaries);
     for function in &mut module.functions {
         let mut constants = AHashMap::<ValueId, ConstValue>::new();
-        let array_lengths = stable_array_lengths(function);
+        let array_lengths = stable_array_lengths(
+            function,
+            &parameter_array_lengths[function.id.0 as usize],
+            &effect_summaries,
+            &array_argument_retention_barriers,
+        );
         let mut local_change = true;
         while local_change {
             local_change = false;
@@ -1434,15 +1442,153 @@ fn fold_and_propagate_control_flow(module: &mut ControlFlowModule<'_>) -> Optimi
     }
 }
 
-fn stable_array_lengths(function: &ControlFlowFunction<'_>) -> AHashMap<ValueId, usize> {
-    let mut candidates = function
-        .blocks
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+enum ArrayLengthFact {
+    #[default]
+    Bottom,
+    Exact(usize),
+    Unknown,
+}
+
+impl ArrayLengthFact {
+    fn join(self, other: Self) -> Self {
+        match (self, other) {
+            (Self::Bottom, value) | (value, Self::Bottom) => value,
+            (Self::Exact(left), Self::Exact(right)) if left == right => Self::Exact(left),
+            _ => Self::Unknown,
+        }
+    }
+}
+
+fn analyze_array_parameter_lengths(
+    module: &ControlFlowModule<'_>,
+    effect_summaries: &[FunctionEffectSummary],
+) -> Vec<Vec<ArrayLengthFact>> {
+    let retention_barriers = array_argument_retention_barriers(module);
+    let exported = exported_functions(module);
+    let indirect = module
+        .functions
         .iter()
+        .flat_map(|function| function.blocks.iter())
         .flat_map(|block| &block.instructions)
-        .filter_map(|instruction| match (instruction.out, &instruction.op) {
-            (Some(out), ControlFlowOp::Array(values)) => Some((out, values.len())),
+        .filter_map(|instruction| match instruction.op {
+            ControlFlowOp::Closure { function, .. } => Some(function),
             _ => None,
         })
+        .collect::<AHashSet<_>>();
+    let boundary_facts = || {
+        module
+            .functions
+            .iter()
+            .map(|function| {
+                function
+                    .params
+                    .iter()
+                    .map(|parameter| {
+                        if matches!(parameter.ty, Type::Array(_))
+                            && (function.kind == FunctionKind::Extern
+                                || exported.contains(&function.id)
+                                || indirect.contains(&function.id))
+                        {
+                            ArrayLengthFact::Unknown
+                        } else {
+                            ArrayLengthFact::Bottom
+                        }
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>()
+    };
+    let mut parameter_facts = boundary_facts();
+    loop {
+        let function_lengths = module
+            .functions
+            .iter()
+            .map(|function| {
+                stable_array_lengths(
+                    function,
+                    &parameter_facts[function.id.0 as usize],
+                    effect_summaries,
+                    &retention_barriers,
+                )
+            })
+            .collect::<Vec<_>>();
+        let mut proposed = boundary_facts();
+        for caller in &module.functions {
+            let caller_lengths = &function_lengths[caller.id.0 as usize];
+            for instruction in caller.blocks.iter().flat_map(|block| &block.instructions) {
+                let (callee, arguments) = match &instruction.op {
+                    ControlFlowOp::CallDirect { function, args } => (*function, args.clone()),
+                    ControlFlowOp::CallMethod {
+                        receiver,
+                        function,
+                        args,
+                        ..
+                    } => {
+                        let mut values = vec![*receiver];
+                        values.extend(args);
+                        (*function, values)
+                    }
+                    ControlFlowOp::NewClass {
+                        constructor: Some(function),
+                        args,
+                        ..
+                    } => {
+                        let mut values = instruction.out.into_iter().collect::<Vec<_>>();
+                        values.extend(args);
+                        (*function, values)
+                    }
+                    _ => continue,
+                };
+                let Some(callee_function) = module.functions.get(callee.0 as usize) else {
+                    continue;
+                };
+                for (index, (argument, parameter)) in
+                    arguments.iter().zip(&callee_function.params).enumerate()
+                {
+                    if !matches!(parameter.ty, Type::Array(_)) {
+                        continue;
+                    }
+                    let incoming = caller_lengths
+                        .get(argument)
+                        .copied()
+                        .map_or(ArrayLengthFact::Unknown, ArrayLengthFact::Exact);
+                    proposed[callee.0 as usize][index] =
+                        proposed[callee.0 as usize][index].join(incoming);
+                }
+            }
+        }
+        if proposed == parameter_facts {
+            return parameter_facts;
+        }
+        parameter_facts = proposed;
+    }
+}
+
+fn stable_array_lengths(
+    function: &ControlFlowFunction<'_>,
+    parameter_lengths: &[ArrayLengthFact],
+    effect_summaries: &[FunctionEffectSummary],
+    retention_barriers: &[bool],
+) -> AHashMap<ValueId, usize> {
+    let mut candidates = function
+        .params
+        .iter()
+        .zip(parameter_lengths)
+        .filter_map(|(parameter, length)| match length {
+            ArrayLengthFact::Exact(length) => Some((parameter.value, *length)),
+            ArrayLengthFact::Bottom | ArrayLengthFact::Unknown => None,
+        })
+        .chain(
+            function
+                .blocks
+                .iter()
+                .flat_map(|block| &block.instructions)
+                .filter_map(|instruction| match (instruction.out, &instruction.op) {
+                    (Some(out), ControlFlowOp::Array(values)) => Some((out, values.len())),
+                    _ => None,
+                }),
+        )
         .collect::<AHashMap<_, _>>();
     if candidates.is_empty() {
         return candidates;
@@ -1493,10 +1639,20 @@ fn stable_array_lengths(function: &ControlFlowFunction<'_>) -> AHashMap<ValueId,
                         invalidate(*value, &mut invalid);
                     }
                 }
-                ControlFlowOp::NewClass { args, .. } | ControlFlowOp::CallDirect { args, .. } => {
+                ControlFlowOp::NewClass { args, .. } => {
                     for value in args {
                         invalidate(*value, &mut invalid);
                     }
+                }
+                ControlFlowOp::CallDirect { function, args } => {
+                    invalidate_direct_call_array_arguments(
+                        *function,
+                        args,
+                        effect_summaries,
+                        retention_barriers,
+                        &mut invalid,
+                        &invalidate,
+                    );
                 }
                 ControlFlowOp::Closure { captures, .. } => {
                     for value in captures {
@@ -1525,8 +1681,24 @@ fn stable_array_lengths(function: &ControlFlowFunction<'_>) -> AHashMap<ValueId,
                         invalidate(*value, &mut invalid);
                     }
                 }
-                ControlFlowOp::CallMethod { receiver, args, .. }
-                | ControlFlowOp::HostCall { receiver, args, .. } => {
+                ControlFlowOp::CallMethod {
+                    receiver,
+                    function,
+                    args,
+                    ..
+                } => {
+                    let mut arguments = vec![*receiver];
+                    arguments.extend(args);
+                    invalidate_direct_call_array_arguments(
+                        *function,
+                        &arguments,
+                        effect_summaries,
+                        retention_barriers,
+                        &mut invalid,
+                        &invalidate,
+                    );
+                }
+                ControlFlowOp::HostCall { receiver, args, .. } => {
                     invalidate(*receiver, &mut invalid);
                     for value in args {
                         invalidate(*value, &mut invalid);
@@ -1572,6 +1744,61 @@ fn stable_array_lengths(function: &ControlFlowFunction<'_>) -> AHashMap<ValueId,
         .into_iter()
         .filter(|(value, _)| !invalid.contains(value))
         .collect()
+}
+
+fn invalidate_direct_call_array_arguments(
+    function: FunctionId,
+    args: &[ValueId],
+    effect_summaries: &[FunctionEffectSummary],
+    retention_barriers: &[bool],
+    invalid: &mut AHashSet<ValueId>,
+    invalidate: &impl Fn(ValueId, &mut AHashSet<ValueId>),
+) {
+    let summary = effect_summaries.get(function.0 as usize);
+    let may_retain_arguments = retention_barriers
+        .get(function.0 as usize)
+        .copied()
+        .unwrap_or(true);
+    for (index, argument) in args.iter().enumerate() {
+        if may_retain_arguments
+            || summary.is_none_or(|summary| {
+                summary.inherent || summary.mutated_parameters.contains(&index)
+            })
+        {
+            invalidate(*argument, invalid);
+        }
+    }
+}
+
+fn array_argument_retention_barriers(module: &ControlFlowModule<'_>) -> Vec<bool> {
+    module
+        .functions
+        .iter()
+        .map(|function| {
+            function.kind == FunctionKind::Extern || type_can_carry_reference(&function.return_type)
+        })
+        .collect()
+}
+
+fn type_can_carry_reference(ty: &Type<'_>) -> bool {
+    match ty {
+        Type::Int | Type::Float | Type::String | Type::Bool | Type::Null | Type::Void => false,
+        Type::Nullable(inner) => type_can_carry_reference(inner),
+        Type::Union(members) => members.iter().any(type_can_carry_reference),
+        Type::Array(_)
+        | Type::Map(_, _)
+        | Type::Set(_)
+        | Type::ArrayBuffer
+        | Type::SharedArrayBuffer
+        | Type::Uint8Array
+        | Type::Struct(_)
+        | Type::Class(_)
+        | Type::StructInstance { .. }
+        | Type::ClassInstance { .. }
+        | Type::TypeParameter(_)
+        | Type::Function(_)
+        | Type::GenericFunction(_) => true,
+    }
 }
 
 fn remove_unreachable_control_flow(module: &mut ControlFlowModule<'_>) -> OptimizationReport {
@@ -5259,6 +5486,52 @@ mod tests {
                     ..
                 }
             )));
+    }
+
+    #[test]
+    fn folds_interprocedural_array_lengths_only_for_closed_stable_calls() {
+        let options = OptimizationOptions {
+            inlining: false,
+            ..OptimizationOptions::default()
+        };
+        let has_array_length = |source: &str, preserve_exports: bool| {
+            let arena = Bump::new();
+            let program = parse_source(&arena, source).unwrap();
+            let semantics = analyze(&program).unwrap();
+            let mut module = lower_to_control_flow(&program, &semantics).unwrap();
+            optimize_control_flow_with_options(&mut module, &options, preserve_exports).unwrap();
+            module
+                .functions
+                .iter()
+                .flat_map(|function| &function.blocks)
+                .flat_map(|block| &block.instructions)
+                .any(|instruction| {
+                    matches!(
+                        instruction.op,
+                        ControlFlowOp::Intrinsic {
+                            intrinsic: Intrinsic::ArrayLength,
+                            ..
+                        }
+                    )
+                })
+        };
+
+        assert!(!has_array_length(
+            "int count(int[] values){return values.length;}print(count([1,2,3]));print(count([4,5,6]));",
+            false,
+        ));
+        assert!(has_array_length(
+            "int count(int[] values){return values.length;}print(count([1]));print(count([1,2]));",
+            false,
+        ));
+        assert!(has_array_length(
+            "int count(int[] values){values.push(1);return values.length;}print(count([1,2,3]));",
+            false,
+        ));
+        assert!(has_array_length(
+            "export int count(int[] values){return values.length;}print(count([1,2,3]));",
+            true,
+        ));
     }
 
     #[test]

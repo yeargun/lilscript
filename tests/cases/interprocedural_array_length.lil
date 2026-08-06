@@ -1,0 +1,6 @@
+int countWithSentinel(int[] values) {
+  return values.length + 1;
+}
+
+print(countWithSentinel([1, 2, 3]));
+print(countWithSentinel([4, 5, 6]));
