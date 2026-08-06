@@ -914,7 +914,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             let Some(out) = instruction.out else {
                 return Ok(None);
             };
-            if !expression_only_op(&instruction.op) {
+            if !expression_only_op(&instruction.op) || uses.get(&out).copied() != Some(1) {
                 return Ok(None);
             }
             let expression = self.render_instruction_op(instruction, context, &mut cache)?;
@@ -5841,6 +5841,17 @@ mod tests {
             ),
             "function a(b){return b<=1?1:b*a(b-1|0)|0}console.log(a(7))"
         );
+    }
+
+    #[test]
+    fn materializes_values_shared_by_conditional_return_arms() {
+        let output = compile_without_inlining(
+            "extern int read();int classify(int value){int adjusted=value+1;if(adjusted>100){return adjusted-3;}return adjusted*7+11;}print(classify(read()));",
+            false,
+        );
+
+        assert!(output.contains("=b+1|0"), "{output}");
+        assert!(output.matches("b+1|0").count() == 1, "{output}");
     }
 
     #[test]
