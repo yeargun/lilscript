@@ -153,6 +153,21 @@ Run it with `node benchmarks/ir-variants/run.mjs`. The complete-library lab also
 shows an independent production-sized win: Emotion hash improves from
 `866/542/463` to `816/538/456` raw/gzip-9/Brotli-11.
 
+## Loop spelling ablation
+
+The complete `murmurhash-js` LilScript port holds optimizer and emitter policy
+constant while omitting only `loop-spelling-selection`. Both outputs execute
+the package contract before measurement. `while(condition)` and
+`for(;condition;)` have equal raw length, so the win comes from exact Brotli
+token context rather than a source-length heuristic.
+
+| Variant | Raw | Gzip-9 | Brotli-11 |
+| --- | ---: | ---: | ---: |
+| Codec-selected spelling | 1741 | 840 | 734 |
+| Frequency heuristic | 1741 | 840 | 740 |
+
+Run it with `node benchmarks/loop-spelling/run.mjs`.
+
 ## Method
 
 Each LilScript workload has a behaviorally equivalent JavaScript input under

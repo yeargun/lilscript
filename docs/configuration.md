@@ -35,6 +35,7 @@ compression = [
   "scalar-phi-copies",
   "phi-affinity-coalescing",
   "ir-inlining-variants",
+  "loop-spelling-selection",
 ]
 # inline_instruction_limit = 18
 # inline_control_flow_limit = 45
@@ -137,6 +138,11 @@ only listed tactics are enabled; `compression = []` disables all of them:
   fully outlined IR under the exact selected codec. It is enabled by
   size-first, applies to single-file and reusable ESM output, and is omitted by
   performance-oriented profiles because it runs a second optimizer pipeline.
+- `loop-spelling-selection` lets equivalent condition-only loops compete as
+  `while(condition)` and `for(;condition;)`. They have equal raw spelling
+  length, but different token context under gzip and Brotli. Size-first scores
+  both forms for the best eight final-emission candidates; other profiles keep
+  the frequency heuristic and avoid the extra emissions.
 
 The numeric `inline_instruction_limit`, `inline_control_flow_limit`, and
 `max_inline_growth` keys override the selected profile. Setting
@@ -155,9 +161,10 @@ that mode, while `off` disables compressor-in-the-loop emission. The current
 search space compares profitable string pooling, literal-table packing,
 proven-safe integer coercion elision, boolean literals, structured closures,
 identifier alphabets, quote styles, and equivalent top-level declaration,
-phi-affinity, and SSA parallel-copy layouts, bounded by `candidate_limit`. The
-default limit of `1536` covers the complete current final-emission search space
-per optimizer IR.
+phi-affinity, and SSA parallel-copy layouts, bounded by `candidate_limit`.
+Size-first then compares both condition-only loop spellings for a deterministic
+eight-candidate beam. The default limit of `1536` covers the base
+final-emission search space per optimizer IR.
 
 The priority is applied after `[optimization]`: setting `inlining = false`
 disables inlining in every profile. Explicit `[mangle]` values have the highest

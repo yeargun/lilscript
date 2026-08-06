@@ -117,6 +117,14 @@ Both artifacts execute first. Exact Brotli selection retains a shared helper
 and improves `283/152/108` bytes to `221/114/89`; the complete Emotion hash
 port independently improves from `866/542/463` to `816/538/456`.
 
+`benchmarks/loop-spelling/run.mjs` executes the complete `murmurhash-js` port
+with identical optimizer and final-emission settings while omitting only
+`loop-spelling-selection`. Exact Brotli selection keeps raw/gzip at
+`1741/840` and reduces Brotli-11 from `740` to `734`; both artifacts must match
+the package contract before measurement. The complete Motion easing port also
+improves from `614/562` to `610/557` gzip/Brotli while spending eight raw bytes
+under the explicitly selected Brotli objective.
+
 `benchmarks/run.sh` compiles ten behaviorally equivalent LilScript/JavaScript
 workloads, runs both outputs, invokes Closure `ADVANCED`, and measures normalized
 raw, gzip-9, and Brotli-11 bytes. The benchmark is a reproducible corpus result,

@@ -103,7 +103,8 @@ performance/size tradeoff without changing C/native optimization.
 Production builds use an exact configurable raw, gzip-9, or Brotli-11 cost
 model to select among bounded pooling, literal-table packing, coercion-elision,
 boolean-literal, identifier-alphabet, quote-style, structured-closure, and
-declaration-spelling and SSA-copy-layout candidates;
+declaration-spelling, condition-only loop-spelling, and SSA-copy-layout
+candidates;
 `--mode development` skips that compressor loop. `--explain human|json`
 reports optimizer passes. The
 size default omits signed-32-bit coercions only where range analysis proves

@@ -81,14 +81,20 @@ checked-in benchmark workload. Passing a synthetic example alone is not enough.
   selected codec for size-first single-file and ESM builds. The isolated
   workload improves from `283/152/108` to `221/114/89` raw/gzip/Brotli, and the
   complete Emotion hash port improves from `866/542/463` to `816/538/456`.
+- [x] Replace condition-only loop keyword frequency guesses with a bounded
+  codec-scored beam over equivalent `while(c)` and `for(;c;)` layouts. The
+  complete MurmurHash port keeps raw/gzip at `1741/840` and reduces Brotli from
+  `740` to `734`; Motion easing improves gzip/Brotli from `614/562` to
+  `610/557` under the configured Brotli objective.
 - [ ] Expand optimizer-level IR variants from the current inlining choice to
-  specialization, loop shape, and SSA destruction under the selected codec.
+  specialization, structural loop shape, and SSA destruction under the
+  selected codec.
 - [ ] Complete a precedence-carrying JavaScript expression IR for unary,
   conditional, call, member, and integer-normalization expressions without
   parsing generated strings.
-- [ ] Expand candidate search to declaration grouping, conditional/comma
-  expressions, `while`/`do`/`for` loop layouts, switch lowering, and local
-  mutation forms.
+- [ ] Expand candidate search from current declaration and condition-only loop
+  alternatives to conditional/comma expressions, `do` loops, update-bearing
+  loop layouts, switch lowering, and local mutation forms.
 - [ ] Add entropy-aware cross-scope name reuse and property-name assignment.
 - [ ] Add a parsed post-codegen peephole/superoptimizer whose every rewrite is
   differential-tested against optimized and disabled-optimizer executions.
