@@ -22,7 +22,7 @@ JavaScript and native C backends.
 
 | Closure responsibility | LilScript implementation |
 | --- | --- |
-| Early/late peephole optimization | Constant folding, algebraic identities, boolean simplification, branch inversion, nested literal-capture branch folding, precedence-safe parenthesis removal, compact boolean literals, compact loops, conditional returns, declaration collapse, trailing-semicolon removal |
+| Early/late peephole optimization | Constant folding, algebraic identities, boolean simplification, branch inversion, nested literal-capture branch folding, SSA-root binary precedence rendering, precedence-safe parenthesis removal, compact boolean literals, compact loops, conditional returns, declaration collapse, trailing-semicolon removal |
 | Numeric representation lowering | Signed-i32 range analysis propagates bounded loop induction values, direct-call arguments and returns, and owned nominal fields; it removes coercions only for proven-safe operations. Ordinary multiplication emits `x*y|0` when normalization is required, while source-written `Math.imul` remains an explicit exact operation |
 | Inline variables and constants | mem2reg SSA, constant propagation, single-assignment global propagation, constant rematerialization, one-use expression fusion, and exact array-parameter lengths across closed stable direct-call sets |
 | Inline functions and simple methods | Fixed-point expression inlining plus single-use multi-block CFG inlining |
@@ -35,7 +35,7 @@ JavaScript and native C backends.
 | Dead assignment elimination | SSA promotion removes local stores; DCE removes unused value chains, complete unobserved local array/map/set mutation graphs, and parameter-mutating helper calls when every affected allocation group is unobserved |
 | Dead property assignment elimination | Overwritten typed field stores are removed between observation barriers |
 | Remove unused code | Unread globals, unreachable blocks, unused pure calls, unused allocations and mutation graphs, instructions, and call-graph-unreachable functions are removed |
-| Flow-sensitive inline variables | SSA def-use counts and side-effect-aware deferred expression emission |
+| Flow-sensitive inline variables | SSA def-use counts, side-effect-aware deferred expression emission, and one-use boolean merge phis fused into immediately following structured branches |
 | Coalesce variable names | CFG liveness, interference graph coloring, phi move affinity, and reuse of dead locals as parallel-copy temporaries |
 | Collapse variable declarations | Adjacent bindings and first phi assignments are combined by the JS backend; cyclic phi copies compare tuple and scalar schedules under the configured codec |
 | Rewrite/collapse anonymous functions | Small typed closures become expression or structured block arrows; capturing closures pass explicit environments; literal captures expose dead branches during final emission |
@@ -73,11 +73,11 @@ The current schedule is:
 8. another scalar fixed point;
 9. effect-aware SSA DCE and whole-program function DCE;
 10. module-level argument/return/field range analysis, liveness-based name
-    coalescing, dependency-ordered phi copies, liveness-reused cycle
-    temporaries, codec-selected scalar/tuple copy layouts, induction ranges,
-    shortest numeric literals, structured closure selection, string-table
-    packing, minified backend peepholes, and deterministic compressor-aware
-    candidate selection;
+    coalescing, structured boolean-phi deferral, dependency-ordered phi copies,
+    liveness-reused cycle temporaries, codec-selected scalar/tuple copy layouts,
+    induction ranges, shortest numeric literals, SSA-root binary precedence,
+    structured closure selection, string-table packing, minified backend
+    peepholes, and deterministic compressor-aware candidate selection;
 11. optional source ownership or shared-module chunk planning over the surviving
     IR, followed by cross-chunk binding analysis and deterministic ESM emission.
 

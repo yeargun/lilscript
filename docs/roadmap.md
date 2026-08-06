@@ -68,11 +68,15 @@ checked-in benchmark workload. Passing a synthetic example alone is not enough.
   codec, reusing liveness-proven dead locals to break copy cycles.
 - [x] Remove redundant expression parentheses at precedence-safe statement,
   assignment, argument, and return boundaries.
+- [x] Carry non-integer binary root operators through SSA expression fusion and
+  remove only precedence- and associativity-safe interior parentheses. Integer
+  normalization expressions remain unchanged.
 - [ ] Score optimizer-level IR variants, not only final emission variants, so
   inlining, specialization, loop shape, and SSA destruction can compete under
   the selected codec.
-- [ ] Add a precedence-carrying JavaScript expression IR to remove redundant
-  interior parentheses without parsing generated strings.
+- [ ] Complete a precedence-carrying JavaScript expression IR for unary,
+  conditional, call, member, and integer-normalization expressions without
+  parsing generated strings.
 - [ ] Expand candidate search to declaration grouping, conditional/comma
   expressions, `while`/`do`/`for` loop layouts, switch lowering, and local
   mutation forms.
@@ -105,6 +109,9 @@ checked-in benchmark workload. Passing a synthetic example alone is not enough.
   numeric ranges.
 - [x] Coalesce loop-header and conditional loop-carried phis with their dead
   incoming values so common mutations no longer require temporary copy chains.
+- [x] Defer a one-use boolean merge phi into an immediately following structured
+  branch, including declaration groups whose remaining bindings are
+  uninitialized, without duplicating either branch's effects.
 - [ ] Complete SSA destruction across multi-exit loops, nested merges, parallel
   copy cycles, and deferred expressions using a byte-scored register allocator.
 - [x] Add context-sensitive effect and alias summaries for arrays, maps, sets,
