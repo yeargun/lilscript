@@ -119,20 +119,20 @@ console.log(`sum=${c}`)</code></pre>
         <div class="section-heading">
           <p class="eyebrow">Measured output</p>
           <h2>Bundle efficiency is tested, not assumed</h2>
-          <p>Nine equivalent programs, including a three-module graph, execute first; normalized output is then measured against Closure Compiler ADVANCED v20260803.</p>
+          <p>Ten equivalent programs, including a three-module graph, execute first; normalized output is then measured against Closure Compiler ADVANCED v20260803.</p>
         </div>
         <div class="benchmark-table-wrap">
           <table>
             <thead><tr><th>Workload</th><th>Compiler</th><th>Raw</th><th>Gzip-9</th><th>Brotli-11</th></tr></thead>
             <tbody>
-              <tr><th rowspan="2">v0.1</th><td>LilScript</td><td>100</td><td>117</td><td>90</td></tr>
+              <tr><th rowspan="2">v0.1</th><td>LilScript</td><td>91</td><td>107</td><td>84</td></tr>
               <tr><td>Closure</td><td>203</td><td>182</td><td>161</td></tr>
               <tr><th rowspan="2">Full conformance</th><td>LilScript</td><td>327</td><td>263</td><td>218</td></tr>
               <tr><td>Closure</td><td>520</td><td>355</td><td>296</td></tr>
               <tr><th rowspan="2">Three modules</th><td>LilScript</td><td>102</td><td>117</td><td>92</td></tr>
               <tr><td>Closure</td><td>117</td><td>127</td><td>104</td></tr>
-              <tr><th rowspan="2">Nine-workload total</th><td>LilScript</td><td>1,450</td><td>1,267</td><td>1,039</td></tr>
-              <tr><td>Closure</td><td>2,289</td><td>1,638</td><td>1,357</td></tr>
+              <tr><th rowspan="2">Ten-workload total</th><td>LilScript</td><td>1,466</td><td>1,287</td><td>1,061</td></tr>
+              <tr><td>Closure</td><td>2,450</td><td>1,771</td><td>1,471</td></tr>
             </tbody>
           </table>
         </div>

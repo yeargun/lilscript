@@ -20,7 +20,7 @@ dead_code_elimination = true
 priority = "size-first"
 cost_model = "brotli" # raw | gzip | brotli
 candidate_search = "production" # off | production | always
-candidate_limit = 256
+candidate_limit = 512
 compression = [
   "identifier-mangling",
   "entropy-aware-mangling",
@@ -31,6 +31,7 @@ compression = [
   "compact-boolean-literals",
   "structured-closure-inlining",
   "string-array-packing",
+  "scalar-phi-copies",
 ]
 # inline_instruction_limit = 18
 # inline_control_flow_limit = 45
@@ -115,6 +116,10 @@ only listed tactics are enabled; `compression = []` disables all of them:
   `["a","b"]` as a delimiter-joined string plus `.split()`. It is a size/startup
   tradeoff and remains a compressor-scored candidate rather than a mandatory
   lowering.
+- `scalar-phi-copies` lets cyclic SSA parallel copies compete as scalar
+  assignments against tuple destructuring. The scalar scheduler reuses a
+  liveness-proven dead local for cycle breaking when one exists. Size-first
+  enables the comparison; omitting this decision keeps tuple copies.
 
 The numeric `inline_instruction_limit`, `inline_control_flow_limit`, and
 `max_inline_growth` keys override the selected profile. Setting
@@ -133,8 +138,8 @@ that mode, while `off` disables compressor-in-the-loop emission. The current
 search space compares profitable string pooling, literal-table packing,
 proven-safe integer coercion elision, boolean literals, structured closures,
 identifier alphabets, quote styles, and equivalent top-level declaration
-spellings, bounded by `candidate_limit`. The default limit of `256` covers the complete current
-default search space.
+spellings and SSA parallel-copy layouts, bounded by `candidate_limit`. The
+default limit of `512` covers the complete current default search space.
 
 The priority is applied after `[optimization]`: setting `inlining = false`
 disables inlining in every profile. Explicit `[mangle]` values have the highest

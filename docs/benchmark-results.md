@@ -12,7 +12,7 @@ Measured on 2026-08-06 with LilScript release mode and Google Closure Compiler
 
 | Compiler | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
-| LilScript | 100 | 117 | 90 |
+| LilScript | 91 | 107 | 84 |
 | Closure ADVANCED v20260803 | 203 | 182 | 161 |
 
 This case exercises class constructor/method devirtualization, scalar
@@ -55,18 +55,19 @@ branch removal.
 
 | Compiler | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
-| LilScript | 189 | 165 | 136 |
+| LilScript | 191 | 159 | 134 |
 | Closure ADVANCED v20260803 | 196 | 161 | 135 |
 
 This case combines recursion with single-use multi-block CFG inlining, two
 iterative algorithms, loop-phi coalescing, conditional returns, and integer
-normalization.
+normalization. Scalar and tuple parallel-copy schedules are both emitted as
+bounded candidates; Brotli-11 selects the scalar schedule for this case.
 
 ### `data_model`
 
 | Compiler | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
-| LilScript | 91 | 86 | 70 |
+| LilScript | 85 | 82 | 67 |
 | Closure ADVANCED v20260803 | 239 | 164 | 149 |
 
 This case measures nested value structs, class construction, mutable methods,
@@ -92,6 +93,18 @@ inlining, callback effects, and captured immutable globals.
 This case measures compile-time string predicates and case conversion,
 short-circuit folding, templates, and repeated long-string reuse.
 
+### `alias_optimization`
+
+| Compiler | Raw | Gzip-9 | Brotli-11 |
+| --- | ---: | ---: | ---: |
+| LilScript | 29 | 40 | 33 |
+| Closure ADVANCED v20260803 | 161 | 133 | 114 |
+
+This case creates and mutates local arrays, maps, and sets whose states are
+never observed, alongside two observable results. Allocation-root alias
+analysis removes the complete unobserved mutation graph while preserving the
+observable collection behavior.
+
 ### `modules`
 
 | Compiler | Raw | Gzip-9 | Brotli-11 |
@@ -108,8 +121,8 @@ and complete removal of module syntax and unused exports.
 
 | Compiler | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
-| LilScript | 1,450 | 1,267 | 1,039 |
-| Closure ADVANCED v20260803 | 2,289 | 1,638 | 1,357 |
+| LilScript | 1,466 | 1,287 | 1,061 |
+| Closure ADVANCED v20260803 | 2,450 | 1,771 | 1,471 |
 
 ## Method
 
@@ -134,7 +147,7 @@ benchmarks/run.sh
 ```
 
 The measured conclusion is deliberately scoped: LilScript is smaller in all
-27 raw, gzip, and Brotli cells.
+30 raw, gzip, and Brotli cells.
 The suite is reproducible evidence for these features, not proof of universal
 superiority over arbitrary JavaScript or future language features. The broader
 application comparison, including ecosystem dependencies, hand-specialized

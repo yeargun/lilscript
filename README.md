@@ -103,7 +103,7 @@ performance/size tradeoff without changing C/native optimization.
 Production builds use an exact configurable raw, gzip-9, or Brotli-11 cost
 model to select among bounded pooling, literal-table packing, coercion-elision,
 boolean-literal, identifier-alphabet, quote-style, structured-closure, and
-declaration-spelling candidates;
+declaration-spelling and SSA-copy-layout candidates;
 `--mode development` skips that compressor loop. `--explain human|json`
 reports optimizer passes. The
 size default omits signed-32-bit coercions only where range analysis proves
@@ -275,9 +275,9 @@ npm --prefix vscode-extension run package
 ```
 
 `scripts/verify.sh` compares Node and native output for two conformance suites
-and links a generated aggregate ABI against a C host. It also runs 57 programs
+and links a generated aggregate ABI against a C host. It also runs 59 programs
 through JavaScript, emitted C, and native executables with maximum and disabled
-optional optimization, for 114 matrix executions, plus a framed LSP session
+optional optimization, for 118 matrix executions, plus a framed LSP session
 through diagnostics, completion, hover, symbols, semantic tokens, references,
 rename, formatting, quick fixes, and shutdown.
 `benchmarks/run.sh`
@@ -293,9 +293,9 @@ separate Chromium gate uses alternating warmed samples and requires the 95%
 bootstrap upper runtime ratio to remain at or below `1.03`. These are scoped
 regression gates, not universal compiler-superiority claims.
 
-On the repository's nine compiler workloads LilScript totals 1,450 raw / 1,267
-gzip / 1,039 Brotli bytes versus Closure at 2,289 / 1,638 / 1,357. LilScript is
-smaller in all 27 measured cells. The separate application lab
+On the repository's ten compiler workloads LilScript totals 1,466 raw / 1,287
+gzip / 1,061 Brotli bytes versus Closure at 2,450 / 1,771 / 1,471. LilScript is
+smaller in all 30 measured cells. The separate application lab
 compares five readable JavaScript references with matching-scope LilScript,
 feeds those exact references to Closure `ADVANCED`, and keeps hand-specialized
 JavaScript as an oracle. Its checked-in run totals 1,815 raw / 1,256 gzip /

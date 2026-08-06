@@ -16,6 +16,8 @@ checked-in benchmark workload. Passing a synthetic example alone is not enough.
 - Static module linking, cross-file optimization, tree shaking, static chunks.
 - Constant propagation, algebraic simplification, GVN, inlining,
   devirtualization, escape analysis, scalar replacement, DSE, and DCE.
+- Module-level integer argument, return, and owned-field range analysis, plus
+  allocation-root alias tracking for mutable built-in collections.
 - Frequency-ranked identifier mangling, typed property dissolution, profitable
   string pooling, literal string-table packing, and configurable JavaScript
   size/performance policy.
@@ -40,7 +42,7 @@ checked-in benchmark workload. Passing a synthetic example alone is not enough.
   loops do not pay unnecessary `|0` costs.
 - [x] Preserve source-written `Math.imul` while never introducing it for
   ordinary multiplication in the application-oriented profiles.
-- [ ] Add interprocedural argument/return ranges and field ranges.
+- [x] Add interprocedural argument/return ranges and field ranges.
 - [ ] Model deoptimization-sensitive JavaScript shapes, allocation pressure,
   and monomorphic call sites in performance decisions.
 - [ ] Add optional profile-guided hot-function and hot-loop data without making
@@ -60,6 +62,8 @@ checked-in benchmark workload. Passing a synthetic example alone is not enough.
 - [x] Compare compact and keyword boolean literals under the selected codec.
 - [x] Compare nested structured closures, string-literal table packing, and
   ordinary array literals under the selected codec.
+- [x] Compare tuple and scalar SSA parallel-copy layouts under the selected
+  codec, reusing liveness-proven dead locals to break copy cycles.
 - [x] Remove redundant expression parentheses at precedence-safe statement,
   assignment, argument, and return boundaries.
 - [ ] Score optimizer-level IR variants, not only final emission variants, so
@@ -85,7 +89,9 @@ checked-in benchmark workload. Passing a synthetic example alone is not enough.
 - [x] Fold control flow exposed by literal closure captures during final
   JavaScript emission.
 - [x] Struct/class scalar replacement and typed positional aggregate lowering.
-- [ ] Add richer alias analysis for mutable arrays, maps, sets, and host calls.
+- [x] Add allocation-root alias analysis for mutable arrays, maps, sets, and
+  host calls so an unobserved local mutation graph is removed as a unit while
+  an observed result, escape, capture, or boundary call preserves it.
 - [ ] Add partial escape analysis and stack/region allocation for native output.
 - [ ] Add specialization for generic and higher-order calls using call-site
   frequency and emitted-byte cost.
@@ -97,8 +103,10 @@ checked-in benchmark workload. Passing a synthetic example alone is not enough.
   incoming values so common mutations no longer require temporary copy chains.
 - [ ] Complete SSA destruction across multi-exit loops, nested merges, parallel
   copy cycles, and deferred expressions using a byte-scored register allocator.
-- [ ] Add context-sensitive effect and alias summaries for arrays, maps, sets,
-  closures, and host calls so more stores and allocations can be removed.
+- [x] Add context-sensitive effect and alias summaries for arrays, maps, sets,
+  known closures, and host calls. Parameter-mutation groups remove direct calls
+  only when every affected allocation root is unobserved; inherent effects and
+  unknown boundaries remain conservative.
 - [ ] Add loop-invariant code motion, strength reduction, unrolling policy, and
   vectorization candidates for native backends.
 - [ ] Add profile-controlled allocation sinking and closure environment

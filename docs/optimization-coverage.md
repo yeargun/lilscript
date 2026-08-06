@@ -23,21 +23,21 @@ JavaScript and native C backends.
 | Closure responsibility | LilScript implementation |
 | --- | --- |
 | Early/late peephole optimization | Constant folding, algebraic identities, boolean simplification, branch inversion, nested literal-capture branch folding, precedence-safe parenthesis removal, compact boolean literals, compact loops, conditional returns, declaration collapse, trailing-semicolon removal |
-| Numeric representation lowering | Signed-i32 range analysis removes coercions only for proven-safe operations; ordinary multiplication emits `x*y|0` when normalization is required, while source-written `Math.imul` remains an explicit exact operation |
+| Numeric representation lowering | Signed-i32 range analysis propagates bounded loop induction values, direct-call arguments and returns, and owned nominal fields; it removes coercions only for proven-safe operations. Ordinary multiplication emits `x*y|0` when normalization is required, while source-written `Math.imul` remains an explicit exact operation |
 | Inline variables and constants | mem2reg SSA, constant propagation, single-assignment global propagation, constant rematerialization, one-use expression fusion |
 | Inline functions and simple methods | Fixed-point expression inlining plus single-use multi-block CFG inlining |
-| Inline/collapse properties | Nominal field resolution, positional field indexes, struct/class scalar replacement |
+| Inline/collapse properties | Nominal field resolution, positional field indexes, struct/class scalar replacement, and owned-field range summaries invalidated at untyped boundaries |
 | Collapse object literals | Non-escaping structs dissolve into SSA scalars; remaining typed aggregates use positional arrays in JavaScript |
 | Disambiguate/ambiguate/rename properties | Nominal owner types and field indexes remove internal property names entirely; boundary names remain ABI-stable |
 | Devirtualize methods | Class calls become direct typed function calls before inlining |
 | Optimize calls and constructors | Direct-call lowering, recursive-call protection, constant-parameter specialization, unused parameter/return removal, constructor inlining, allocation removal, effect summaries |
-| Mark pure functions | Interprocedural fixed-point effect analysis over direct calls and known closure targets, local scratch-allocation mutation filtering, checked `pure` contracts, and trusted `pure extern` declarations |
-| Dead assignment elimination | SSA promotion removes local stores; DCE removes unused value chains |
+| Mark pure functions | Interprocedural fixed-point summaries separate inherent effects from mutations of specific parameters across direct calls and known closure captures; local scratch-allocation mutation filtering, checked `pure` contracts, and trusted `pure extern` declarations share that model |
+| Dead assignment elimination | SSA promotion removes local stores; DCE removes unused value chains, complete unobserved local array/map/set mutation graphs, and parameter-mutating helper calls when every affected allocation group is unobserved |
 | Dead property assignment elimination | Overwritten typed field stores are removed between observation barriers |
-| Remove unused code | Unread globals, unreachable blocks, unused pure calls, unused allocations, instructions, and call-graph-unreachable functions are removed |
+| Remove unused code | Unread globals, unreachable blocks, unused pure calls, unused allocations and mutation graphs, instructions, and call-graph-unreachable functions are removed |
 | Flow-sensitive inline variables | SSA def-use counts and side-effect-aware deferred expression emission |
-| Coalesce variable names | CFG liveness, interference graph coloring, and phi move affinity |
-| Collapse variable declarations | Adjacent bindings and first phi assignments are combined by the JS backend |
+| Coalesce variable names | CFG liveness, interference graph coloring, phi move affinity, and reuse of dead locals as parallel-copy temporaries |
+| Collapse variable declarations | Adjacent bindings and first phi assignments are combined by the JS backend; cyclic phi copies compare tuple and scalar schedules under the configured codec |
 | Rewrite/collapse anonymous functions | Small typed closures become expression or structured block arrows; capturing closures pass explicit environments; literal captures expose dead branches during final emission |
 | Alias strings | Repeated constants are value-numbered and profitable long strings receive shared short bindings; size-first also considers delimiter-packed immutable string tables; final pooling, packing, quote, and coercion variants are selected against exact raw/gzip/Brotli cost |
 | Rename variables and globals | Use-frequency-ranked base-54/base-64 identifiers with extern names reserved, plus exact-compressor selection of emitted-character-ranked alphabets |
@@ -66,19 +66,23 @@ The current schedule is:
    validation;
 6. constant-parameter specialization, unused parameter/return removal, and
    fixed-point expression and multi-block CFG inlining;
-7. escape analysis, class/struct scalar replacement, and dead field stores;
+7. escape analysis, class/struct scalar replacement, allocation-root alias and
+   parameter-effect summaries, unobserved collection-graph/call removal, and
+   dead field stores;
 8. another scalar fixed point;
 9. effect-aware SSA DCE and whole-program function DCE;
-10. liveness-based name coalescing, dependency-ordered phi copies, induction
-    range analysis, shortest numeric literals, structured closure selection,
-    string-table packing, minified backend peepholes, and deterministic
-    compressor-aware candidate selection;
+10. module-level argument/return/field range analysis, liveness-based name
+    coalescing, dependency-ordered phi copies, liveness-reused cycle
+    temporaries, codec-selected scalar/tuple copy layouts, induction ranges,
+    shortest numeric literals, structured closure selection, string-table
+    packing, minified backend peepholes, and deterministic compressor-aware
+    candidate selection;
 11. optional source ownership or shared-module chunk planning over the surviving
     IR, followed by cross-chunk binding analysis and deterministic ESM emission.
 
 ## Executable evidence
 
-`scripts/verify-matrix.sh` compiles 57 independent `.lil` programs, including a
+`scripts/verify-matrix.sh` compiles 59 independent `.lil` programs, including a
 multi-file module graph, with one
 `--target all` invocation per program. Each invocation emits JavaScript, emits
 C, and invokes Clang for a native executable. The script then compiles the
@@ -86,14 +90,15 @@ emitted C independently and requires the JavaScript, direct native executable,
 independently compiled C executable, and checked-in expected output to match.
 The corpus includes collection mutation/identity/nullable lookup and binary
 memory copy/view/coercion behavior under both maximum and disabled optional
-optimization, for 114 backend-mode executions. This includes a regression for
+optimization, for 118 backend-mode executions. This includes regressions for
+interprocedural integer facts, unobserved collection mutation removal, and
 loop-carried values crossing an early return and a nested short-circuit
 coalescing regression extracted from the Solid client-runtime gate.
 `scripts/verify-bundles.mjs` additionally executes preserve-module and shared
 split bundles, checks their manifests, and exercises live bindings across a
 circular ESM dependency between the entry and a reader chunk.
 
-`benchmarks/run.sh` compiles nine behaviorally equivalent LilScript/JavaScript
+`benchmarks/run.sh` compiles ten behaviorally equivalent LilScript/JavaScript
 workloads, runs both outputs, invokes Closure `ADVANCED`, and measures normalized
 raw, gzip-9, and Brotli-11 bytes. The benchmark is a reproducible corpus result,
 not a proof that any finite compiler beats another compiler on every possible
