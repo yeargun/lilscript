@@ -3,11 +3,13 @@ use bumpalo::Bump;
 use serde::Serialize;
 use std::io::Write as _;
 use std::path::Path;
+use std::sync::Arc;
 
 use crate::codegen_ir_js::{
     emit_optimized_ir_js, emit_optimized_ir_js_chunks_with_options, emit_optimized_ir_js_module,
-    emit_optimized_ir_js_module_with_options, emit_optimized_ir_js_with_options,
-    ir_function_can_move_to_chunk, IrJsChunkPlan, IrJsChunkSpec,
+    emit_optimized_ir_js_module_with_options_and_analysis,
+    emit_optimized_ir_js_with_options_and_analysis, ir_function_can_move_to_chunk, IrJsChunkPlan,
+    IrJsChunkSpec,
 };
 use crate::codegen_js::{compile_to_js, CompileError};
 use crate::codegen_native::{compile_to_c, emit_native_c};
@@ -25,6 +27,7 @@ use crate::optimizer::{
 use crate::parser::{parse_source, ParseError};
 use crate::semantic::analyze;
 use crate::span::Span;
+use crate::value_analysis::{analyze_integer_values, IntegerValueAnalysis};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct CompilationArtifacts {
@@ -621,8 +624,15 @@ fn select_javascript_candidate(
     module_output: bool,
 ) -> Result<String, CompileError> {
     let configured = config.js_options();
+    let integer_analysis = Arc::new(analyze_integer_values(ir));
     if !config.javascript.candidate_search_enabled() {
-        return emit_javascript_candidate(ir, module_output, configured).map_err(Into::into);
+        return emit_javascript_candidate(
+            ir,
+            module_output,
+            configured,
+            Arc::clone(&integer_analysis),
+        )
+        .map_err(Into::into);
     }
     let mut options = Vec::new();
     for pool_strings in [configured.pool_strings, false] {
@@ -630,16 +640,19 @@ fn select_javascript_candidate(
             for compact_boolean_literals in [configured.compact_boolean_literals, false] {
                 for inline_structured_closures in [configured.inline_structured_closures, false] {
                     for pack_string_arrays in [configured.pack_string_arrays, false] {
-                        let candidate = crate::codegen_ir_js::IrJsOptions {
-                            pool_strings,
-                            elide_safe_integer_coercions,
-                            compact_boolean_literals,
-                            inline_structured_closures,
-                            pack_string_arrays,
-                            ..configured
-                        };
-                        if !options.contains(&candidate) {
-                            options.push(candidate);
+                        for scalar_phi_copies in [configured.scalar_phi_copies, false] {
+                            let candidate = crate::codegen_ir_js::IrJsOptions {
+                                pool_strings,
+                                elide_safe_integer_coercions,
+                                compact_boolean_literals,
+                                inline_structured_closures,
+                                pack_string_arrays,
+                                scalar_phi_copies,
+                                ..configured
+                            };
+                            if !options.contains(&candidate) {
+                                options.push(candidate);
+                            }
                         }
                     }
                 }
@@ -648,7 +661,8 @@ fn select_javascript_candidate(
     }
     let mut candidates = Vec::with_capacity(options.len() * 2);
     for options in options {
-        let baseline = emit_javascript_candidate(ir, module_output, options)?;
+        let baseline =
+            emit_javascript_candidate(ir, module_output, options, Arc::clone(&integer_analysis))?;
         let mut alphabets = vec![options.identifier_alphabet];
         if options.mangle_identifiers && config.entropy_aware_mangling_enabled() {
             let frequency = crate::codegen_ir_js::IdentifierAlphabet::for_code(&baseline);
@@ -672,7 +686,12 @@ fn select_javascript_candidate(
                 let code = if candidate_options == options {
                     baseline.clone()
                 } else {
-                    emit_javascript_candidate(ir, module_output, candidate_options)?
+                    emit_javascript_candidate(
+                        ir,
+                        module_output,
+                        candidate_options,
+                        Arc::clone(&integer_analysis),
+                    )?
                 };
                 for code in top_level_declaration_variants(code) {
                     if candidates.iter().any(|(_, _, existing)| existing == &code) {
@@ -725,11 +744,12 @@ fn emit_javascript_candidate(
     ir: &ControlFlowModule<'_>,
     module_output: bool,
     options: crate::codegen_ir_js::IrJsOptions,
+    integer_analysis: Arc<IntegerValueAnalysis>,
 ) -> Result<String, crate::codegen_js::CodegenError> {
     if module_output {
-        emit_optimized_ir_js_module_with_options(ir, &options)
+        emit_optimized_ir_js_module_with_options_and_analysis(ir, &options, integer_analysis)
     } else {
-        emit_optimized_ir_js_with_options(ir, &options)
+        emit_optimized_ir_js_with_options_and_analysis(ir, &options, integer_analysis)
     }
 }
 
@@ -1020,6 +1040,12 @@ mod tests {
             "pure int localWork(int value){int[] work=[];work.push(value);work[0]+=1;return work[0];}print(localWork(4));"
         )
         .is_ok());
+
+        let error = compile_source(
+            "pure void mutate(int[] values){values.push(1);}int[] values=[];mutate(values);",
+        )
+        .expect_err("mutating a parameter from a pure function must fail");
+        assert!(error.to_string().contains("declared `pure`"));
     }
 
     #[test]

@@ -14,6 +14,7 @@ pub mod optimizer;
 pub mod parser;
 pub mod semantic;
 pub mod span;
+pub mod value_analysis;
 
 pub use codegen_js::{compile_to_js, CodegenError, CodegenOptions, CompileError, JsEmitter};
 pub use codegen_native::{compile_to_c, emit_native_c};

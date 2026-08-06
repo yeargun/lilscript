@@ -1,0 +1,20 @@
+void fillArray(int[] values) {
+  values.push(2);
+  values[0] = 3;
+}
+
+void fillMap(Map<string, int> map) {
+  map.set("first", 1).set("second", 2);
+}
+
+void fillSet(Set<int> set) {
+  set.add(1).add(2);
+}
+
+int[] values = [1];
+Map<string, int> map = new Map<string, int>();
+Set<int> set = new Set<int>();
+fillArray(values);
+fillMap(map);
+fillSet(set);
+print(7);

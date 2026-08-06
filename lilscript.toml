@@ -5,7 +5,7 @@ preset = "maximum"
 priority = "size-first"
 cost_model = "brotli"
 candidate_search = "production"
-candidate_limit = 256
+candidate_limit = 512
 compression = [
   "identifier-mangling",
   "entropy-aware-mangling",
@@ -16,6 +16,7 @@ compression = [
   "compact-boolean-literals",
   "structured-closure-inlining",
   "string-array-packing",
+  "scalar-phi-copies",
 ]
 
 [bundle]

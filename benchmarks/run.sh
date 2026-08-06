@@ -79,4 +79,5 @@ run_case algorithms "$ROOT/examples/algorithms.lil" "$ROOT/benchmarks/algorithms
 run_case data_model "$ROOT/examples/data_model.lil" "$ROOT/benchmarks/data_model.js"
 run_case higher_order "$ROOT/examples/higher_order.lil" "$ROOT/benchmarks/higher_order.js"
 run_case string_optimization "$ROOT/examples/string_optimization.lil" "$ROOT/benchmarks/string_optimization.js"
+run_case alias_optimization "$ROOT/examples/alias_optimization.lil" "$ROOT/benchmarks/alias_optimization.js"
 run_module_case modules "$ROOT/benchmarks/modules/lilscript/main.lil" "$ROOT/benchmarks/modules/closure"

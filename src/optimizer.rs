@@ -1172,8 +1172,7 @@ fn fold_and_propagate_control_flow(module: &mut ControlFlowModule<'_>) -> Optimi
     let mut changed = false;
     for function in &mut module.functions {
         let mut constants = AHashMap::<ValueId, ConstValue>::new();
-        let mut array_lengths = AHashMap::<ValueId, usize>::new();
-        let fold_array_lengths = literal_array_lengths_are_stable(function);
+        let array_lengths = stable_array_lengths(function);
         let mut local_change = true;
         while local_change {
             local_change = false;
@@ -1207,9 +1206,7 @@ fn fold_and_propagate_control_flow(module: &mut ControlFlowModule<'_>) -> Optimi
                             }
                         }
                         ControlFlowOp::Array(values) => {
-                            if fold_array_lengths {
-                                array_lengths.insert(out, values.len());
-                            }
+                            let _ = values;
                         }
                         ControlFlowOp::Unary { op, value } => {
                             if let Some(folded) = constants
@@ -1437,39 +1434,144 @@ fn fold_and_propagate_control_flow(module: &mut ControlFlowModule<'_>) -> Optimi
     }
 }
 
-fn literal_array_lengths_are_stable(function: &ControlFlowFunction<'_>) -> bool {
-    function
+fn stable_array_lengths(function: &ControlFlowFunction<'_>) -> AHashMap<ValueId, usize> {
+    let mut candidates = function
         .blocks
         .iter()
         .flat_map(|block| &block.instructions)
-        .all(|instruction| match instruction.op {
-            ControlFlowOp::IndexSet { .. }
-            | ControlFlowOp::CallDirect { .. }
-            | ControlFlowOp::CallValue { .. }
-            | ControlFlowOp::CallMethod { .. }
-            | ControlFlowOp::NewClass { .. } => false,
-            ControlFlowOp::Intrinsic { intrinsic, .. } => matches!(
-                intrinsic,
-                Intrinsic::Print
-                    | Intrinsic::IntImul
-                    | Intrinsic::IntToString
-                    | Intrinsic::IntToUnsignedString
-                    | Intrinsic::ArrayLength
-                    | Intrinsic::FloatAbs
-                    | Intrinsic::FloatFloor
-                    | Intrinsic::FloatCeil
-                    | Intrinsic::FloatMin
-                    | Intrinsic::FloatMax
-                    | Intrinsic::StringLength
-                    | Intrinsic::StringCharCodeAt
-                    | Intrinsic::StringIncludes
-                    | Intrinsic::StringStartsWith
-                    | Intrinsic::StringEndsWith
-                    | Intrinsic::StringToUpperCase
-                    | Intrinsic::StringToLowerCase
-            ),
-            _ => true,
+        .filter_map(|instruction| match (instruction.out, &instruction.op) {
+            (Some(out), ControlFlowOp::Array(values)) => Some((out, values.len())),
+            _ => None,
         })
+        .collect::<AHashMap<_, _>>();
+    if candidates.is_empty() {
+        return candidates;
+    }
+    let mut dependencies = AHashMap::<ValueId, ValueId>::new();
+    loop {
+        let mut changed = false;
+        for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
+            let (
+                Some(out),
+                ControlFlowOp::Intrinsic {
+                    intrinsic: Intrinsic::ArrayMap,
+                    receiver: Some(receiver),
+                    ..
+                },
+            ) = (instruction.out, &instruction.op)
+            else {
+                continue;
+            };
+            if let Some(length) = candidates.get(receiver).copied() {
+                if candidates.insert(out, length).is_none() {
+                    dependencies.insert(out, *receiver);
+                    changed = true;
+                }
+            }
+        }
+        if !changed {
+            break;
+        }
+    }
+
+    let mut invalid = AHashSet::new();
+    let invalidate = |value: ValueId, invalid: &mut AHashSet<ValueId>| {
+        if candidates.contains_key(&value) {
+            invalid.insert(value);
+        }
+    };
+    for block in &function.blocks {
+        for phi in &block.phis {
+            for (_, value) in &phi.incoming {
+                invalidate(*value, &mut invalid);
+            }
+        }
+        for instruction in &block.instructions {
+            match &instruction.op {
+                ControlFlowOp::Array(values) | ControlFlowOp::Struct { fields: values, .. } => {
+                    for value in values {
+                        invalidate(*value, &mut invalid);
+                    }
+                }
+                ControlFlowOp::NewClass { args, .. } | ControlFlowOp::CallDirect { args, .. } => {
+                    for value in args {
+                        invalidate(*value, &mut invalid);
+                    }
+                }
+                ControlFlowOp::Closure { captures, .. } => {
+                    for value in captures {
+                        invalidate(*value, &mut invalid);
+                    }
+                }
+                ControlFlowOp::StoreGlobal { value, .. } => invalidate(*value, &mut invalid),
+                ControlFlowOp::FieldSet { object, value, .. }
+                | ControlFlowOp::HostFieldSet { object, value, .. } => {
+                    invalidate(*object, &mut invalid);
+                    invalidate(*value, &mut invalid);
+                }
+                ControlFlowOp::HostFieldGet { object, .. } => invalidate(*object, &mut invalid),
+                ControlFlowOp::IndexSet {
+                    object,
+                    index,
+                    value,
+                } => {
+                    invalidate(*object, &mut invalid);
+                    invalidate(*index, &mut invalid);
+                    invalidate(*value, &mut invalid);
+                }
+                ControlFlowOp::CallValue { callee, args } => {
+                    invalidate(*callee, &mut invalid);
+                    for value in args {
+                        invalidate(*value, &mut invalid);
+                    }
+                }
+                ControlFlowOp::CallMethod { receiver, args, .. }
+                | ControlFlowOp::HostCall { receiver, args, .. } => {
+                    invalidate(*receiver, &mut invalid);
+                    for value in args {
+                        invalidate(*value, &mut invalid);
+                    }
+                }
+                ControlFlowOp::Intrinsic {
+                    intrinsic,
+                    receiver,
+                    args,
+                } => {
+                    if matches!(
+                        intrinsic,
+                        Intrinsic::Print | Intrinsic::ArrayPush | Intrinsic::ArrayPop
+                    ) {
+                        if let Some(receiver) = receiver {
+                            invalidate(*receiver, &mut invalid);
+                        }
+                    }
+                    for value in args {
+                        invalidate(*value, &mut invalid);
+                    }
+                }
+                _ => {}
+            }
+        }
+        if let Some(Terminator::Return(Some(value))) = block.terminator {
+            invalidate(value, &mut invalid);
+        }
+    }
+    loop {
+        let old_len = invalid.len();
+        invalid.extend(
+            dependencies
+                .iter()
+                .filter_map(|(value, source)| invalid.contains(source).then_some(*value))
+                .collect::<Vec<_>>(),
+        );
+        if invalid.len() == old_len {
+            break;
+        }
+    }
+    candidates
+        .into_iter()
+        .filter(|(value, _)| !invalid.contains(value))
+        .collect()
 }
 
 fn remove_unreachable_control_flow(module: &mut ControlFlowModule<'_>) -> OptimizationReport {
@@ -2753,23 +2855,37 @@ fn eliminate_dead_control_flow_instructions(
     module: &mut ControlFlowModule<'_>,
 ) -> OptimizationReport {
     let mut changed = false;
-    let effectful_functions = find_effectful_functions(module);
+    let effect_summaries = analyze_function_effects(module);
+    let effectful_functions = effectful_functions(&effect_summaries);
     for function in &mut module.functions {
         let closure_targets = closure_targets(function);
         loop {
             let uses = control_flow_use_counts(function);
+            let (mutable_roots, unobserved_mutables) =
+                unobserved_local_mutables(function, &uses, &effect_summaries);
             let mut local_change = false;
             for block in &mut function.blocks {
                 let old_len = block.instructions.len();
                 block.instructions.retain(|instruction| {
-                    instruction.out.is_none_or(|out| {
-                        uses.get(&out).copied().unwrap_or(0) != 0
-                            || control_flow_op_has_side_effects(
+                    let result_is_used = instruction
+                        .out
+                        .is_some_and(|out| uses.get(&out).copied().unwrap_or(0) != 0);
+                    let mutates_only_unobserved_state = mutation_receiver(&instruction.op)
+                        .and_then(|receiver| mutable_roots.get(&receiver))
+                        .is_some_and(|root| unobserved_mutables.contains(root))
+                        || direct_call_mutates_only_unobserved_state(
+                            &instruction.op,
+                            &effect_summaries,
+                            &mutable_roots,
+                            &unobserved_mutables,
+                        );
+                    result_is_used
+                        || (!mutates_only_unobserved_state
+                            && control_flow_op_has_side_effects(
                                 &instruction.op,
                                 &effectful_functions,
                                 &closure_targets,
-                            )
-                    })
+                            ))
                 });
                 local_change |= block.instructions.len() != old_len;
 
@@ -2789,6 +2905,274 @@ fn eliminate_dead_control_flow_instructions(
         pass_name: "ssa-dead-code-elimination",
         changed,
     }
+}
+
+fn unobserved_local_mutables(
+    function: &ControlFlowFunction<'_>,
+    uses: &AHashMap<ValueId, usize>,
+    effect_summaries: &[FunctionEffectSummary],
+) -> (AHashMap<ValueId, ValueId>, AHashSet<ValueId>) {
+    let mut roots = local_mutable_roots(function, is_local_mutable_allocation);
+    if roots.is_empty() {
+        return (roots, AHashSet::new());
+    }
+
+    extend_mutable_alias_roots(function, &mut roots);
+
+    let mut observed = AHashSet::new();
+    let mut mutation_groups = Vec::new();
+    let mut observe = |value: ValueId| {
+        if let Some(root) = roots.get(&value) {
+            observed.insert(*root);
+        }
+    };
+    for block in &function.blocks {
+        for phi in &block.phis {
+            if !roots.contains_key(&phi.out) {
+                for (_, value) in &phi.incoming {
+                    observe(*value);
+                }
+            }
+        }
+        for instruction in &block.instructions {
+            match &instruction.op {
+                ControlFlowOp::CallDirect { function, args }
+                    if instruction
+                        .out
+                        .is_none_or(|out| uses.get(&out).copied().unwrap_or(0) == 0) =>
+                {
+                    let summary = effect_summaries.get(function.0 as usize);
+                    let mutation_roots = summary
+                        .filter(|summary| !summary.inherent)
+                        .and_then(|summary| local_mutation_roots(summary, args, &roots));
+                    let call_is_locally_discardable = summary
+                        .is_some_and(|summary| !summary.inherent && mutation_roots.is_some());
+                    if let Some(group) = mutation_roots.filter(|group| !group.is_empty()) {
+                        mutation_groups.push(group);
+                    } else if !call_is_locally_discardable {
+                        for value in args {
+                            observe(*value);
+                        }
+                    }
+                }
+                ControlFlowOp::IndexSet {
+                    object,
+                    index,
+                    value,
+                } if roots.contains_key(object) => {
+                    observe(*index);
+                    observe(*value);
+                }
+                ControlFlowOp::Intrinsic {
+                    intrinsic:
+                        intrinsic @ (Intrinsic::ArrayPush
+                        | Intrinsic::ArrayPop
+                        | Intrinsic::MapSet
+                        | Intrinsic::MapDelete
+                        | Intrinsic::MapClear
+                        | Intrinsic::SetAdd
+                        | Intrinsic::SetDelete
+                        | Intrinsic::SetClear),
+                    receiver: Some(receiver),
+                    args,
+                } if roots.contains_key(receiver) => {
+                    for value in args {
+                        observe(*value);
+                    }
+                    let fluent_alias = matches!(intrinsic, Intrinsic::MapSet | Intrinsic::SetAdd);
+                    if !fluent_alias
+                        && instruction
+                            .out
+                            .is_some_and(|out| uses.get(&out).copied().unwrap_or(0) != 0)
+                    {
+                        observe(*receiver);
+                    }
+                }
+                ControlFlowOp::Intrinsic {
+                    intrinsic: Intrinsic::UnwrapNullable | Intrinsic::UnwrapUnion,
+                    receiver: Some(receiver),
+                    ..
+                } if roots.contains_key(receiver)
+                    && instruction.out.is_some_and(|out| roots.contains_key(&out)) => {}
+                op => {
+                    for value in control_flow_used_values(op) {
+                        observe(value);
+                    }
+                }
+            }
+        }
+        if let Some(terminator) = &block.terminator {
+            for value in terminator_used_values(terminator) {
+                observe(value);
+            }
+        }
+    }
+    loop {
+        let mut changed = false;
+        for group in &mutation_groups {
+            if group.iter().any(|root| observed.contains(root)) {
+                for root in group {
+                    changed |= observed.insert(*root);
+                }
+            }
+        }
+        if !changed {
+            break;
+        }
+    }
+    let all_roots = roots.values().copied().collect::<AHashSet<_>>();
+    let unobserved = all_roots.difference(&observed).copied().collect();
+    (roots, unobserved)
+}
+
+fn local_mutable_roots(
+    function: &ControlFlowFunction<'_>,
+    is_seed: fn(&ControlFlowOp<'_>) -> bool,
+) -> AHashMap<ValueId, ValueId> {
+    function
+        .blocks
+        .iter()
+        .flat_map(|block| &block.instructions)
+        .filter_map(|instruction| {
+            let out = instruction.out?;
+            is_seed(&instruction.op).then_some((out, out))
+        })
+        .collect()
+}
+
+fn extend_mutable_alias_roots<Root: Copy + Eq>(
+    function: &ControlFlowFunction<'_>,
+    roots: &mut AHashMap<ValueId, Root>,
+) {
+    loop {
+        let mut changed = false;
+        for block in &function.blocks {
+            for phi in &block.phis {
+                let mut incoming = phi
+                    .incoming
+                    .iter()
+                    .filter_map(|(_, value)| roots.get(value).copied());
+                let Some(root) = incoming.next() else {
+                    continue;
+                };
+                if incoming.all(|candidate| candidate == root)
+                    && phi
+                        .incoming
+                        .iter()
+                        .all(|(_, value)| roots.get(value) == Some(&root))
+                    && roots.insert(phi.out, root).is_none()
+                {
+                    changed = true;
+                }
+            }
+            for instruction in &block.instructions {
+                let Some(out) = instruction.out else {
+                    continue;
+                };
+                let receiver = match instruction.op {
+                    ControlFlowOp::Intrinsic {
+                        intrinsic: Intrinsic::MapSet | Intrinsic::SetAdd,
+                        receiver: Some(receiver),
+                        ..
+                    } => Some(receiver),
+                    ControlFlowOp::Intrinsic {
+                        intrinsic: Intrinsic::UnwrapNullable | Intrinsic::UnwrapUnion,
+                        receiver: Some(receiver),
+                        ..
+                    } => Some(receiver),
+                    _ => None,
+                };
+                if let Some(root) = receiver.and_then(|receiver| roots.get(&receiver).copied()) {
+                    if roots.insert(out, root).is_none() {
+                        changed = true;
+                    }
+                }
+            }
+        }
+        if !changed {
+            break;
+        }
+    }
+}
+
+fn is_local_mutable_allocation(op: &ControlFlowOp<'_>) -> bool {
+    matches!(
+        op,
+        ControlFlowOp::Array(_)
+            | ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::MapNew
+                    | Intrinsic::SetNew
+                    | Intrinsic::ArrayBufferNew
+                    | Intrinsic::SharedArrayBufferNew
+                    | Intrinsic::Uint8ArrayNew,
+                ..
+            }
+    )
+}
+
+fn is_owned_mutable_allocation(op: &ControlFlowOp<'_>) -> bool {
+    is_local_mutable_allocation(op)
+        || matches!(
+            op,
+            ControlFlowOp::Struct { .. } | ControlFlowOp::NewClass { .. }
+        )
+}
+
+fn mutation_receiver(op: &ControlFlowOp<'_>) -> Option<ValueId> {
+    match op {
+        ControlFlowOp::IndexSet { object, .. } | ControlFlowOp::FieldSet { object, .. } => {
+            Some(*object)
+        }
+        ControlFlowOp::Intrinsic {
+            intrinsic:
+                Intrinsic::ArrayPush
+                | Intrinsic::ArrayPop
+                | Intrinsic::MapSet
+                | Intrinsic::MapDelete
+                | Intrinsic::MapClear
+                | Intrinsic::SetAdd
+                | Intrinsic::SetDelete
+                | Intrinsic::SetClear,
+            receiver,
+            ..
+        } => *receiver,
+        _ => None,
+    }
+}
+
+fn local_mutation_roots(
+    summary: &FunctionEffectSummary,
+    args: &[ValueId],
+    roots: &AHashMap<ValueId, ValueId>,
+) -> Option<AHashSet<ValueId>> {
+    let mut mutation_roots = AHashSet::new();
+    for parameter in &summary.mutated_parameters {
+        let root = args
+            .get(*parameter)
+            .and_then(|value| roots.get(value))
+            .copied()?;
+        mutation_roots.insert(root);
+    }
+    Some(mutation_roots)
+}
+
+fn direct_call_mutates_only_unobserved_state(
+    op: &ControlFlowOp<'_>,
+    summaries: &[FunctionEffectSummary],
+    roots: &AHashMap<ValueId, ValueId>,
+    unobserved: &AHashSet<ValueId>,
+) -> bool {
+    let ControlFlowOp::CallDirect { function, args } = op else {
+        return false;
+    };
+    let Some(summary) = summaries.get(function.0 as usize) else {
+        return false;
+    };
+    !summary.inherent
+        && !summary.mutated_parameters.is_empty()
+        && local_mutation_roots(summary, args, roots).is_some_and(|mutation_roots| {
+            mutation_roots.iter().all(|root| unobserved.contains(root))
+        })
 }
 
 fn eliminate_dead_functions(module: &mut ControlFlowModule<'_>) -> OptimizationReport {
@@ -2931,79 +3315,284 @@ fn terminator_used_values(terminator: &Terminator) -> Vec<ValueId> {
     }
 }
 
-fn find_effectful_functions(module: &ControlFlowModule<'_>) -> AHashSet<crate::ir::FunctionId> {
-    let mut effectful = module
-        .functions
-        .iter()
-        .filter(|function| function.kind == FunctionKind::Extern && !function.declared_pure)
-        .map(|function| function.id)
-        .collect::<AHashSet<_>>();
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum EffectRoot {
+    Parameter(usize),
+    Local(ValueId),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+struct FunctionEffectSummary {
+    inherent: bool,
+    mutated_parameters: AHashSet<usize>,
+}
+
+fn analyze_function_effects(module: &ControlFlowModule<'_>) -> Vec<FunctionEffectSummary> {
+    let mut summaries = vec![FunctionEffectSummary::default(); module.functions.len()];
+    for function in &module.functions {
+        if function.kind == FunctionKind::Extern && !function.declared_pure {
+            if let Some(summary) = summaries.get_mut(function.id.0 as usize) {
+                summary.inherent = true;
+            }
+        }
+    }
+
     loop {
         let mut changed = false;
         for function in &module.functions {
-            if effectful.contains(&function.id) {
+            if function.kind == FunctionKind::Extern {
                 continue;
             }
-            let targets = closure_targets(function);
-            let local_mutables = function
-                .blocks
-                .iter()
-                .flat_map(|block| &block.instructions)
-                .filter_map(|instruction| match instruction.op {
-                    ControlFlowOp::Array(_)
-                    | ControlFlowOp::Struct { .. }
-                    | ControlFlowOp::NewClass { .. }
-                    | ControlFlowOp::Intrinsic {
-                        intrinsic:
-                            Intrinsic::MapNew
-                            | Intrinsic::SetNew
-                            | Intrinsic::ArrayBufferNew
-                            | Intrinsic::SharedArrayBufferNew
-                            | Intrinsic::Uint8ArrayNew,
-                        ..
-                    } => instruction.out,
-                    _ => None,
-                })
-                .collect::<AHashSet<_>>();
-            let has_effect = function
-                .blocks
-                .iter()
-                .flat_map(|block| &block.instructions)
-                .any(|instruction| {
-                    !is_local_mutation(&instruction.op, &local_mutables)
-                        && control_flow_op_has_side_effects(&instruction.op, &effectful, &targets)
-                });
-            if has_effect {
-                effectful.insert(function.id);
+            let candidate = summarize_function_effects(function, &summaries);
+            let summary = &mut summaries[function.id.0 as usize];
+            if candidate.inherent && !summary.inherent {
+                summary.inherent = true;
                 changed = true;
+            }
+            for parameter in candidate.mutated_parameters {
+                changed |= summary.mutated_parameters.insert(parameter);
             }
         }
         if !changed {
-            return effectful;
+            return summaries;
         }
     }
 }
 
-fn is_local_mutation(op: &ControlFlowOp<'_>, local_mutables: &AHashSet<ValueId>) -> bool {
-    match op {
-        ControlFlowOp::FieldSet { object, .. } | ControlFlowOp::IndexSet { object, .. } => {
-            local_mutables.contains(object)
+fn summarize_function_effects(
+    function: &ControlFlowFunction<'_>,
+    summaries: &[FunctionEffectSummary],
+) -> FunctionEffectSummary {
+    let mut roots = function
+        .params
+        .iter()
+        .enumerate()
+        .map(|(index, parameter)| (parameter.value, EffectRoot::Parameter(index)))
+        .collect::<AHashMap<_, _>>();
+    roots.extend(
+        local_mutable_roots(function, is_owned_mutable_allocation)
+            .into_keys()
+            .map(|value| (value, EffectRoot::Local(value))),
+    );
+    extend_mutable_alias_roots(function, &mut roots);
+
+    let closures = function
+        .blocks
+        .iter()
+        .flat_map(|block| &block.instructions)
+        .filter_map(|instruction| match (instruction.out, &instruction.op) {
+            (Some(out), ControlFlowOp::Closure { function, captures }) => {
+                Some((out, (*function, captures.clone())))
+            }
+            _ => None,
+        })
+        .collect::<AHashMap<_, _>>();
+
+    let mut result = FunctionEffectSummary::default();
+    for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
+        match &instruction.op {
+            ControlFlowOp::StoreGlobal { .. }
+            | ControlFlowOp::HostFieldGet { .. }
+            | ControlFlowOp::HostFieldSet { .. } => result.inherent = true,
+            ControlFlowOp::FieldSet { object, .. } | ControlFlowOp::IndexSet { object, .. } => {
+                record_mutation(*object, &roots, &mut result);
+            }
+            ControlFlowOp::CallDirect { function, args } => {
+                apply_callee_summary(
+                    summaries.get(function.0 as usize),
+                    args,
+                    &roots,
+                    &mut result,
+                );
+            }
+            ControlFlowOp::CallValue { callee, args } => {
+                let Some((function, captures)) = closures.get(callee) else {
+                    result.inherent = true;
+                    continue;
+                };
+                let actuals = captures.iter().chain(args).copied().collect::<Vec<_>>();
+                apply_callee_summary(
+                    summaries.get(function.0 as usize),
+                    &actuals,
+                    &roots,
+                    &mut result,
+                );
+            }
+            ControlFlowOp::CallMethod {
+                receiver,
+                function,
+                args,
+                ..
+            } => {
+                let actuals = std::iter::once(*receiver)
+                    .chain(args.iter().copied())
+                    .collect::<Vec<_>>();
+                apply_callee_summary(
+                    summaries.get(function.0 as usize),
+                    &actuals,
+                    &roots,
+                    &mut result,
+                );
+            }
+            ControlFlowOp::NewClass {
+                constructor: Some(function),
+                args,
+                ..
+            } => apply_constructor_summary(
+                summaries.get(function.0 as usize),
+                args,
+                &roots,
+                &mut result,
+            ),
+            ControlFlowOp::HostCall { pure, .. } => result.inherent |= !pure,
+            ControlFlowOp::Intrinsic {
+                intrinsic:
+                    Intrinsic::ArrayPush
+                    | Intrinsic::ArrayPop
+                    | Intrinsic::MapSet
+                    | Intrinsic::MapDelete
+                    | Intrinsic::MapClear
+                    | Intrinsic::SetAdd
+                    | Intrinsic::SetDelete
+                    | Intrinsic::SetClear,
+                receiver,
+                ..
+            } => {
+                if let Some(receiver) = receiver {
+                    record_mutation(*receiver, &roots, &mut result);
+                } else {
+                    result.inherent = true;
+                }
+            }
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::Print,
+                ..
+            } => result.inherent = true,
+            ControlFlowOp::Intrinsic {
+                intrinsic:
+                    Intrinsic::ArrayMap
+                    | Intrinsic::ArrayFilter
+                    | Intrinsic::ArrayReduce
+                    | Intrinsic::ArrayForEach,
+                args,
+                ..
+            } => summarize_callback_effects(args, &closures, summaries, &roots, &mut result),
+            ControlFlowOp::Const(_)
+            | ControlFlowOp::Unary { .. }
+            | ControlFlowOp::Binary { .. }
+            | ControlFlowOp::TypeCheck { .. }
+            | ControlFlowOp::Array(_)
+            | ControlFlowOp::Struct { .. }
+            | ControlFlowOp::NewClass {
+                constructor: None, ..
+            }
+            | ControlFlowOp::Closure { .. }
+            | ControlFlowOp::LoadLocal(_)
+            | ControlFlowOp::StoreLocal { .. }
+            | ControlFlowOp::LoadGlobal(_)
+            | ControlFlowOp::FieldGet { .. }
+            | ControlFlowOp::IndexGet { .. }
+            | ControlFlowOp::Intrinsic { .. }
+            | ControlFlowOp::Template(_) => {}
         }
-        ControlFlowOp::Intrinsic {
-            intrinsic:
-                Intrinsic::ArrayPush
-                | Intrinsic::ArrayPop
-                | Intrinsic::MapSet
-                | Intrinsic::MapDelete
-                | Intrinsic::MapClear
-                | Intrinsic::SetAdd
-                | Intrinsic::SetDelete
-                | Intrinsic::SetClear,
-            receiver: Some(receiver),
-            ..
-        } => local_mutables.contains(receiver),
-        _ => false,
     }
+    result
+}
+
+fn record_mutation(
+    value: ValueId,
+    roots: &AHashMap<ValueId, EffectRoot>,
+    result: &mut FunctionEffectSummary,
+) {
+    match roots.get(&value) {
+        Some(EffectRoot::Parameter(parameter)) => {
+            result.mutated_parameters.insert(*parameter);
+        }
+        Some(EffectRoot::Local(_)) => {}
+        None => result.inherent = true,
+    }
+}
+
+fn apply_callee_summary(
+    callee: Option<&FunctionEffectSummary>,
+    args: &[ValueId],
+    roots: &AHashMap<ValueId, EffectRoot>,
+    result: &mut FunctionEffectSummary,
+) {
+    let Some(callee) = callee else {
+        result.inherent = true;
+        return;
+    };
+    result.inherent |= callee.inherent;
+    for parameter in &callee.mutated_parameters {
+        if let Some(argument) = args.get(*parameter) {
+            record_mutation(*argument, roots, result);
+        } else {
+            result.inherent = true;
+        }
+    }
+}
+
+fn apply_constructor_summary(
+    constructor: Option<&FunctionEffectSummary>,
+    args: &[ValueId],
+    roots: &AHashMap<ValueId, EffectRoot>,
+    result: &mut FunctionEffectSummary,
+) {
+    let Some(constructor) = constructor else {
+        result.inherent = true;
+        return;
+    };
+    result.inherent |= constructor.inherent;
+    for parameter in &constructor.mutated_parameters {
+        if *parameter == 0 {
+            continue;
+        }
+        if let Some(argument) = args.get(parameter - 1) {
+            record_mutation(*argument, roots, result);
+        } else {
+            result.inherent = true;
+        }
+    }
+}
+
+fn summarize_callback_effects(
+    args: &[ValueId],
+    closures: &AHashMap<ValueId, (FunctionId, Vec<ValueId>)>,
+    summaries: &[FunctionEffectSummary],
+    roots: &AHashMap<ValueId, EffectRoot>,
+    result: &mut FunctionEffectSummary,
+) {
+    let Some((function, captures)) = args.first().and_then(|callback| closures.get(callback))
+    else {
+        result.inherent = true;
+        return;
+    };
+    let Some(summary) = summaries.get(function.0 as usize) else {
+        result.inherent = true;
+        return;
+    };
+    result.inherent |= summary.inherent;
+    for parameter in &summary.mutated_parameters {
+        if let Some(capture) = captures.get(*parameter) {
+            record_mutation(*capture, roots, result);
+        } else {
+            result.inherent = true;
+        }
+    }
+}
+
+fn effectful_functions(summaries: &[FunctionEffectSummary]) -> AHashSet<FunctionId> {
+    summaries
+        .iter()
+        .enumerate()
+        .filter(|(_, summary)| summary.inherent || !summary.mutated_parameters.is_empty())
+        .map(|(index, _)| FunctionId(index as u32))
+        .collect()
+}
+
+fn find_effectful_functions(module: &ControlFlowModule<'_>) -> AHashSet<FunctionId> {
+    effectful_functions(&analyze_function_effects(module))
 }
 
 fn validate_declared_purity(
@@ -4597,5 +5186,237 @@ mod tests {
         assert!(reports.iter().any(|report| {
             report.pass_name == "dead-field-store-elimination" && report.changed
         }));
+    }
+
+    #[test]
+    fn folds_literal_array_lengths_across_unrelated_effects_only() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "extern void tick();int[] values=[1,2,3];tick();print(values.length);",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut module = lower_to_control_flow(&program, &semantics).unwrap();
+        optimize_control_flow(&mut module).unwrap();
+        let entry = &module.functions[module.entry.0 as usize];
+
+        assert!(entry
+            .blocks
+            .iter()
+            .flat_map(|block| &block.instructions)
+            .all(|instruction| !matches!(
+                instruction.op,
+                ControlFlowOp::Array(_)
+                    | ControlFlowOp::Intrinsic {
+                        intrinsic: Intrinsic::ArrayLength,
+                        ..
+                    }
+            )));
+
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "extern void mutate(int[] values);int[] values=[1,2,3];mutate(values);print(values.length);",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut module = lower_to_control_flow(&program, &semantics).unwrap();
+        optimize_control_flow(&mut module).unwrap();
+        let entry = &module.functions[module.entry.0 as usize];
+
+        assert!(entry
+            .blocks
+            .iter()
+            .flat_map(|block| &block.instructions)
+            .any(|instruction| matches!(
+                instruction.op,
+                ControlFlowOp::Intrinsic {
+                    intrinsic: Intrinsic::ArrayLength,
+                    ..
+                }
+            )));
+
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "int[] values=[1,2,3];int[] mapped=values.map((int value)=>value*2);mapped.push(8);print(mapped.length);",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut module = lower_to_control_flow(&program, &semantics).unwrap();
+        optimize_control_flow(&mut module).unwrap();
+        let entry = &module.functions[module.entry.0 as usize];
+
+        assert!(entry
+            .blocks
+            .iter()
+            .flat_map(|block| &block.instructions)
+            .any(|instruction| matches!(
+                instruction.op,
+                ControlFlowOp::Intrinsic {
+                    intrinsic: Intrinsic::ArrayLength,
+                    ..
+                }
+            )));
+    }
+
+    #[test]
+    fn removes_unobserved_local_collection_mutation_graphs() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "int[] values=[1];values.push(2);values[0]=3;Map<string,int> map=new Map<string,int>();map.set(\"a\",1).set(\"b\",2);Set<int> set=new Set<int>();set.add(1).add(2);print(7);",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut module = lower_to_control_flow(&program, &semantics).unwrap();
+        optimize_control_flow(&mut module).unwrap();
+        let entry = &module.functions[module.entry.0 as usize];
+
+        assert!(entry
+            .blocks
+            .iter()
+            .flat_map(|block| &block.instructions)
+            .all(|instruction| !matches!(
+                instruction.op,
+                ControlFlowOp::Array(_)
+                    | ControlFlowOp::IndexSet { .. }
+                    | ControlFlowOp::Intrinsic {
+                        intrinsic: Intrinsic::ArrayPush
+                            | Intrinsic::MapNew
+                            | Intrinsic::MapSet
+                            | Intrinsic::SetNew
+                            | Intrinsic::SetAdd,
+                        ..
+                    }
+            )));
+    }
+
+    #[test]
+    fn infers_fluent_local_collection_helpers_are_effect_free() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "void scratch(){Map<string,int> map=new Map<string,int>();map.set(\"a\",1).set(\"b\",2);Set<int> set=new Set<int>();set.add(1).add(2);}scratch();print(7);",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut module = lower_to_control_flow(&program, &semantics).unwrap();
+        let options = OptimizationOptions {
+            inlining: false,
+            ..OptimizationOptions::default()
+        };
+        optimize_control_flow_with_options(&mut module, &options, false).unwrap();
+        let entry = &module.functions[module.entry.0 as usize];
+
+        assert!(entry
+            .blocks
+            .iter()
+            .flat_map(|block| &block.instructions)
+            .all(|instruction| !matches!(instruction.op, ControlFlowOp::CallDirect { .. })));
+        assert!(module
+            .functions
+            .iter()
+            .any(|function| { function.name == Some("scratch") && !function.live }));
+    }
+
+    #[test]
+    fn removes_parameter_mutation_calls_only_for_unobserved_roots() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "void fill(int[] left,int[] right){left.push(1);right.push(2);}void forward(int[] left,int[] right){fill(left,right);}int[] deadLeft=[];int[] deadRight=[];forward(deadLeft,deadRight);int[] live=[2];int[] linked=[];forward(live,linked);print(live.length);",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut module = lower_to_control_flow(&program, &semantics).unwrap();
+        let options = OptimizationOptions {
+            inlining: false,
+            ..OptimizationOptions::default()
+        };
+        optimize_control_flow_with_options(&mut module, &options, false).unwrap();
+        let entry = &module.functions[module.entry.0 as usize];
+        let calls = entry
+            .blocks
+            .iter()
+            .flat_map(|block| &block.instructions)
+            .filter(|instruction| matches!(instruction.op, ControlFlowOp::CallDirect { .. }))
+            .count();
+        let arrays = entry
+            .blocks
+            .iter()
+            .flat_map(|block| &block.instructions)
+            .filter(|instruction| matches!(instruction.op, ControlFlowOp::Array(_)))
+            .count();
+
+        assert_eq!(calls, 1);
+        assert_eq!(arrays, 2);
+    }
+
+    #[test]
+    fn preserves_parameter_mutation_calls_with_inherent_effects() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "void noisy(int[] values){values.push(1);print(9);}int[] values=[];noisy(values);print(7);",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut module = lower_to_control_flow(&program, &semantics).unwrap();
+        let options = OptimizationOptions {
+            inlining: false,
+            ..OptimizationOptions::default()
+        };
+        optimize_control_flow_with_options(&mut module, &options, false).unwrap();
+        let entry = &module.functions[module.entry.0 as usize];
+
+        assert!(entry
+            .blocks
+            .iter()
+            .flat_map(|block| &block.instructions)
+            .any(|instruction| matches!(instruction.op, ControlFlowOp::CallDirect { .. })));
+        assert!(entry
+            .blocks
+            .iter()
+            .flat_map(|block| &block.instructions)
+            .any(|instruction| matches!(instruction.op, ControlFlowOp::Array(_))));
+    }
+
+    #[test]
+    fn preserves_collection_mutations_with_observed_state_or_results() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "int[] values=[1];int length=values.push(2);print(length);Map<string,int> map=new Map<string,int>();map.set(\"a\",1);print(map.get(\"a\"));",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut module = lower_to_control_flow(&program, &semantics).unwrap();
+        optimize_control_flow(&mut module).unwrap();
+        let entry = &module.functions[module.entry.0 as usize];
+
+        assert!(entry
+            .blocks
+            .iter()
+            .flat_map(|block| &block.instructions)
+            .any(|instruction| matches!(
+                instruction.op,
+                ControlFlowOp::Intrinsic {
+                    intrinsic: Intrinsic::ArrayPush,
+                    ..
+                }
+            )));
+        assert!(entry
+            .blocks
+            .iter()
+            .flat_map(|block| &block.instructions)
+            .any(|instruction| matches!(
+                instruction.op,
+                ControlFlowOp::Intrinsic {
+                    intrinsic: Intrinsic::MapSet,
+                    ..
+                }
+            )));
     }
 }

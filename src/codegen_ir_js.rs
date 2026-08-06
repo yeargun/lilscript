@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::fmt::Write;
 use std::path::Path;
+use std::sync::Arc;
 
 use ahash::{AHashMap, AHashSet};
 
@@ -11,6 +12,7 @@ use crate::ir::{
     IrUnaryOp, TemplateOperand, Terminator, ValueId,
 };
 use crate::semantic::{EscapeState, SymbolId, Type};
+use crate::value_analysis::{analyze_integer_values, FunctionIntegerFacts, IntegerValueAnalysis};
 
 pub fn emit_optimized_ir_js(module: &ControlFlowModule<'_>) -> Result<String, CodegenError> {
     emit_optimized_ir_js_with_options(module, &IrJsOptions::default())
@@ -30,6 +32,7 @@ pub struct IrJsOptions {
     pub compact_boolean_literals: bool,
     pub inline_structured_closures: bool,
     pub pack_string_arrays: bool,
+    pub scalar_phi_copies: bool,
     pub identifier_alphabet: IdentifierAlphabet,
     pub string_quote: StringQuote,
 }
@@ -45,6 +48,7 @@ impl Default for IrJsOptions {
             compact_boolean_literals: true,
             inline_structured_closures: true,
             pack_string_arrays: true,
+            scalar_phi_copies: false,
             identifier_alphabet: IdentifierAlphabet::canonical(),
             string_quote: StringQuote::Double,
         }
@@ -119,11 +123,27 @@ pub fn emit_optimized_ir_js_with_options(
     IrJsEmitter::new(module, false, *options).emit()
 }
 
+pub(crate) fn emit_optimized_ir_js_with_options_and_analysis(
+    module: &ControlFlowModule<'_>,
+    options: &IrJsOptions,
+    integer_analysis: Arc<IntegerValueAnalysis>,
+) -> Result<String, CodegenError> {
+    IrJsEmitter::with_integer_analysis(module, false, *options, integer_analysis).emit()
+}
+
 pub fn emit_optimized_ir_js_module_with_options(
     module: &ControlFlowModule<'_>,
     options: &IrJsOptions,
 ) -> Result<String, CodegenError> {
     IrJsEmitter::new(module, true, *options).emit()
+}
+
+pub(crate) fn emit_optimized_ir_js_module_with_options_and_analysis(
+    module: &ControlFlowModule<'_>,
+    options: &IrJsOptions,
+    integer_analysis: Arc<IntegerValueAnalysis>,
+) -> Result<String, CodegenError> {
+    IrJsEmitter::with_integer_analysis(module, true, *options, integer_analysis).emit()
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -162,6 +182,7 @@ pub fn ir_function_can_move_to_chunk(module: &ControlFlowModule<'_>, function: F
 
 struct IrJsEmitter<'module, 'src> {
     module: &'module ControlFlowModule<'src>,
+    integer_analysis: Arc<IntegerValueAnalysis>,
     global_names: AHashMap<SymbolId, String>,
     external_export_aliases: AHashMap<SymbolId, String>,
     function_names: AHashMap<FunctionId, String>,
@@ -180,8 +201,23 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         module_output: bool,
         options: IrJsOptions,
     ) -> Self {
+        Self::with_integer_analysis(
+            module,
+            module_output,
+            options,
+            Arc::new(analyze_integer_values(module)),
+        )
+    }
+
+    fn with_integer_analysis(
+        module: &'module ControlFlowModule<'src>,
+        module_output: bool,
+        options: IrJsOptions,
+        integer_analysis: Arc<IntegerValueAnalysis>,
+    ) -> Self {
         Self {
             module,
+            integer_analysis,
             global_names: AHashMap::new(),
             external_export_aliases: AHashMap::new(),
             function_names: AHashMap::new(),
@@ -798,10 +834,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         let structured = !single_block && can_structure(function);
         let mut context = LocalNames::new(
             function,
+            self.integer_analysis.function(function.id),
             !single_block && !structured,
             &self.top_level_mangler,
             self.options.mangle_identifiers,
             self.options.compact_boolean_literals,
+            self.options.scalar_phi_copies,
         );
         context.inline_declarations = structured;
         let uses = use_counts(function);
@@ -938,10 +976,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     ) -> Result<(), CodegenError> {
         let context = LocalNames::new(
             function,
+            self.integer_analysis.function(function.id),
             false,
             &self.top_level_mangler,
             self.options.mangle_identifiers,
             self.options.compact_boolean_literals,
+            self.options.scalar_phi_copies,
         );
         self.emit_single_block_with_context(function, wrapped, context, out)
     }
@@ -1145,10 +1185,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     ) -> Result<(), CodegenError> {
         let context = LocalNames::new(
             function,
+            self.integer_analysis.function(function.id),
             true,
             &self.top_level_mangler,
             self.options.mangle_identifiers,
             self.options.compact_boolean_literals,
+            self.options.scalar_phi_copies,
         );
         self.emit_state_machine_with_context(function, context, out)
     }
@@ -1260,10 +1302,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     ) -> Result<(), CodegenError> {
         let mut context = LocalNames::new(
             function,
+            self.integer_analysis.function(function.id),
             false,
             &self.top_level_mangler,
             self.options.mangle_identifiers,
             self.options.compact_boolean_literals,
+            self.options.scalar_phi_copies,
         );
         context.inline_declarations = true;
         self.emit_structured_with_context(function, wrapped, context, out)
@@ -1814,21 +1858,28 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 return Ok(());
             }
             if !declaration_needed {
-                if let Some(ordered) = order_scalar_assignments(&assignments) {
-                    let mut scalar = String::new();
-                    for (target, source) in ordered {
-                        scalar.push_str(target);
-                        scalar.push('=');
-                        scalar.push_str(source);
-                        scalar.push(';');
-                    }
+                let reusable_temporary = self
+                    .options
+                    .scalar_phi_copies
+                    .then(|| reusable_parallel_copy_temporary(BlockId(to), context, &assignments));
+                let temporary = reusable_temporary
+                    .as_ref()
+                    .and_then(|name| name.as_deref())
+                    .map(|name| (name, false))
+                    .or_else(|| {
+                        context
+                            .parallel_copy_temp
+                            .as_deref()
+                            .map(|name| (name, true))
+                    });
+                if let Some(scalar) = scalar_parallel_assignments(&assignments, temporary) {
                     let tuple_size = assignments
                         .iter()
                         .map(|(target, source)| target.len() + source.len())
                         .sum::<usize>()
                         + assignments.len().saturating_sub(1) * 2
                         + 6;
-                    if scalar.len() < tuple_size {
+                    if self.options.scalar_phi_copies || scalar.len() < tuple_size {
                         out.push_str(&scalar);
                         return Ok(());
                     }
@@ -2321,10 +2372,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             }
             let context = LocalNames::new(
                 &function,
+                self.integer_analysis.function(function.id),
                 false,
                 &wrapper_mangler,
                 self.options.mangle_identifiers,
                 self.options.compact_boolean_literals,
+                self.options.scalar_phi_copies,
             );
             let mut rendered = render_arrow_parameters(&function, &context)?;
             rendered.push_str("=>");
@@ -2347,10 +2400,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         }
         let mut context = LocalNames::new(
             &function,
+            self.integer_analysis.function(function.id),
             false,
             &self.top_level_mangler,
             self.options.mangle_identifiers,
             self.options.compact_boolean_literals,
+            self.options.scalar_phi_copies,
         );
         let capture_params = &function.params[..function.capture_count];
         let capture_values = capture_params
@@ -2673,6 +2728,178 @@ fn order_scalar_assignments(assignments: &[(String, String)]) -> Option<Vec<(&st
     Some(ordered)
 }
 
+fn scalar_parallel_assignments(
+    assignments: &[(String, String)],
+    temporary: Option<(&str, bool)>,
+) -> Option<String> {
+    if let Some(ordered) = order_scalar_assignments(assignments) {
+        let mut output = String::new();
+        for (target, source) in ordered {
+            output.push_str(target);
+            output.push('=');
+            output.push_str(source);
+            output.push(';');
+        }
+        return Some(output);
+    }
+
+    let (temporary, declare_temporary) = temporary?;
+    let mut remaining = assignments.to_vec();
+    let mut output = String::new();
+    let mut temporary_declared = false;
+    while !remaining.is_empty() {
+        if let Some(index) = remaining.iter().position(|(target, _)| {
+            remaining.iter().all(|(other_target, source)| {
+                other_target == target || !expression_references_name(source, target)
+            })
+        }) {
+            let (target, source) = remaining.remove(index);
+            output.push_str(&target);
+            output.push('=');
+            output.push_str(&source);
+            output.push(';');
+            continue;
+        }
+
+        if remaining
+            .iter()
+            .any(|(_, source)| expression_references_name(source, temporary))
+        {
+            return None;
+        }
+        let saved = remaining[0].0.clone();
+        if temporary_declared || !declare_temporary {
+            output.push_str(temporary);
+        } else {
+            output.push_str("var ");
+            output.push_str(temporary);
+            temporary_declared = true;
+        }
+        output.push('=');
+        output.push_str(&saved);
+        output.push(';');
+        for (_, source) in &mut remaining {
+            *source = replace_identifier(source, &saved, temporary);
+        }
+    }
+    Some(output)
+}
+
+fn reusable_parallel_copy_temporary(
+    target: BlockId,
+    context: &LocalNames,
+    assignments: &[(String, String)],
+) -> Option<String> {
+    let live_names = context.live_in_values[target.0 as usize]
+        .iter()
+        .filter_map(|value| context.value_names.get(value))
+        .collect::<AHashSet<_>>();
+    let declared = context.declared_names.borrow();
+    let mut candidates = context
+        .value_names
+        .values()
+        .filter(|name| declared.contains(*name) && !live_names.contains(name))
+        .filter(|name| {
+            assignments.iter().all(|(target, source)| {
+                target != *name && !expression_references_name(source, name)
+            })
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    candidates
+        .sort_unstable_by(|left, right| left.len().cmp(&right.len()).then_with(|| left.cmp(right)));
+    candidates.dedup();
+    candidates.into_iter().next()
+}
+
+fn live_in_values(function: &ControlFlowFunction<'_>) -> Vec<AHashSet<ValueId>> {
+    let block_count = function.blocks.len();
+    let mut definitions = vec![AHashSet::new(); block_count];
+    let mut local_uses = vec![AHashSet::new(); block_count];
+    let mut phi_definitions = vec![AHashSet::new(); block_count];
+    for block in &function.blocks {
+        let index = block.id.0 as usize;
+        for phi in &block.phis {
+            definitions[index].insert(phi.out);
+            phi_definitions[index].insert(phi.out);
+        }
+        for instruction in &block.instructions {
+            for value in op_values(&instruction.op) {
+                if !definitions[index].contains(&value) {
+                    local_uses[index].insert(value);
+                }
+            }
+            if let Some(out) = instruction.out {
+                definitions[index].insert(out);
+            }
+        }
+        for value in block
+            .terminator
+            .as_ref()
+            .into_iter()
+            .flat_map(terminator_values)
+        {
+            if !definitions[index].contains(&value) {
+                local_uses[index].insert(value);
+            }
+        }
+    }
+
+    let mut live_in = vec![AHashSet::new(); block_count];
+    let mut live_out = vec![AHashSet::new(); block_count];
+    loop {
+        let mut changed = false;
+        for block in function.blocks.iter().rev() {
+            let index = block.id.0 as usize;
+            let mut output = AHashSet::new();
+            for successor in block_successors(block) {
+                let successor_index = successor.0 as usize;
+                output.extend(
+                    live_in[successor_index]
+                        .difference(&phi_definitions[successor_index])
+                        .copied(),
+                );
+                for phi in &function.blocks[successor_index].phis {
+                    if let Some((_, value)) = phi
+                        .incoming
+                        .iter()
+                        .find(|(predecessor, _)| predecessor == &block.id)
+                    {
+                        output.insert(*value);
+                    }
+                }
+            }
+            let mut input = local_uses[index].clone();
+            input.extend(output.difference(&definitions[index]).copied());
+            if output != live_out[index] {
+                live_out[index] = output;
+                changed = true;
+            }
+            if input != live_in[index] {
+                live_in[index] = input;
+                changed = true;
+            }
+        }
+        if !changed {
+            return live_in;
+        }
+    }
+}
+
+fn replace_identifier(expression: &str, from: &str, to: &str) -> String {
+    let mut output = String::with_capacity(expression.len());
+    let mut copied_until = 0usize;
+    for (start, end) in expression_identifier_spans(expression) {
+        if &expression[start..end] == from {
+            output.push_str(&expression[copied_until..start]);
+            output.push_str(to);
+            copied_until = end;
+        }
+    }
+    output.push_str(&expression[copied_until..]);
+    output
+}
+
 fn merge_conditional_assignments<'a>(
     then_output: &'a str,
     else_output: &'a str,
@@ -2838,15 +3065,86 @@ fn is_braceless_statement(output: &str) -> bool {
 }
 
 fn expression_references_name(expression: &str, name: &str) -> bool {
-    expression.match_indices(name).any(|(start, _)| {
-        let before = start
-            .checked_sub(1)
-            .and_then(|index| expression.as_bytes().get(index))
-            .copied();
-        let after = expression.as_bytes().get(start + name.len()).copied();
-        before.is_none_or(|byte| !is_js_identifier_byte(byte))
-            && after.is_none_or(|byte| !is_js_identifier_byte(byte))
-    })
+    expression_identifier_spans(expression)
+        .into_iter()
+        .any(|(start, end)| &expression[start..end] == name)
+}
+
+fn expression_identifier_spans(expression: &str) -> Vec<(usize, usize)> {
+    let mut spans = Vec::new();
+    let mut index = 0usize;
+    scan_generated_js(expression.as_bytes(), &mut index, false, &mut spans);
+    spans
+}
+
+fn scan_generated_js(
+    bytes: &[u8],
+    index: &mut usize,
+    stop_at_brace: bool,
+    spans: &mut Vec<(usize, usize)>,
+) {
+    while *index < bytes.len() {
+        match bytes[*index] {
+            b'\'' | b'"' => skip_generated_js_string(bytes, index),
+            b'`' => scan_generated_js_template(bytes, index, spans),
+            b'{' => {
+                *index += 1;
+                scan_generated_js(bytes, index, true, spans);
+            }
+            b'}' if stop_at_brace => {
+                *index += 1;
+                return;
+            }
+            byte if is_js_identifier_start(byte) => {
+                let start = *index;
+                *index += 1;
+                while *index < bytes.len() && is_js_identifier_byte(bytes[*index]) {
+                    *index += 1;
+                }
+                let property = bytes[..start]
+                    .iter()
+                    .rfind(|byte| !byte.is_ascii_whitespace())
+                    .is_some_and(|byte| *byte == b'.');
+                if !property {
+                    spans.push((start, *index));
+                }
+            }
+            _ => *index += 1,
+        }
+    }
+}
+
+fn skip_generated_js_string(bytes: &[u8], index: &mut usize) {
+    let quote = bytes[*index];
+    *index += 1;
+    while *index < bytes.len() {
+        match bytes[*index] {
+            b'\\' => *index = (*index + 2).min(bytes.len()),
+            byte if byte == quote => {
+                *index += 1;
+                return;
+            }
+            _ => *index += 1,
+        }
+    }
+}
+
+fn scan_generated_js_template(bytes: &[u8], index: &mut usize, spans: &mut Vec<(usize, usize)>) {
+    *index += 1;
+    while *index < bytes.len() {
+        match bytes[*index] {
+            b'\\' => *index = (*index + 2).min(bytes.len()),
+            b'`' => {
+                *index += 1;
+                return;
+            }
+            b'$' if bytes.get(*index + 1) == Some(&b'{') => {
+                *index += 2;
+                scan_generated_js(bytes, index, true, spans);
+            }
+            _ => *index += 1,
+        }
+    }
 }
 
 fn reserve_expression_identifiers(mangler: &mut Mangler, expression: &str) {
@@ -2882,6 +3180,8 @@ struct LocalNames {
     inlined_values: AHashMap<ValueId, String>,
     string_constants: AHashMap<ValueId, String>,
     elidable_i32_coercions: AHashSet<ValueId>,
+    parallel_copy_temp: Option<String>,
+    live_in_values: Vec<AHashSet<ValueId>>,
     declared_names: RefCell<AHashSet<String>>,
     inline_declarations: bool,
     state: String,
@@ -2960,247 +3260,6 @@ fn render_arrow_parameters(
     Ok(rendered)
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct I32Range {
-    min: i64,
-    max: i64,
-}
-
-impl I32Range {
-    const FULL: Self = Self {
-        min: i32::MIN as i64,
-        max: i32::MAX as i64,
-    };
-
-    const fn exact(value: i64) -> Self {
-        Self {
-            min: value,
-            max: value,
-        }
-    }
-
-    fn checked_bounds(min: i64, max: i64) -> Option<Self> {
-        (min >= i64::from(i32::MIN) && max <= i64::from(i32::MAX)).then_some(Self { min, max })
-    }
-
-    fn add(self, rhs: Self) -> Option<Self> {
-        Self::checked_bounds(self.min + rhs.min, self.max + rhs.max)
-    }
-
-    fn sub(self, rhs: Self) -> Option<Self> {
-        Self::checked_bounds(self.min - rhs.max, self.max - rhs.min)
-    }
-
-    fn mul(self, rhs: Self) -> Option<Self> {
-        let products = [
-            self.min * rhs.min,
-            self.min * rhs.max,
-            self.max * rhs.min,
-            self.max * rhs.max,
-        ];
-        Self::checked_bounds(
-            *products.iter().min().expect("four products"),
-            *products.iter().max().expect("four products"),
-        )
-    }
-
-    fn neg(self) -> Option<Self> {
-        Self::checked_bounds(-self.max, -self.min)
-    }
-
-    fn modulo(self, rhs: Self) -> Option<Self> {
-        if rhs.min != rhs.max || rhs.min == 0 {
-            return None;
-        }
-        let bound = rhs.min.abs() - 1;
-        let min = if self.min < 0 {
-            self.min.max(-bound)
-        } else {
-            0
-        };
-        let max = if self.max > 0 { self.max.min(bound) } else { 0 };
-        Some(Self { min, max })
-    }
-
-    fn join(self, rhs: Self) -> Self {
-        Self {
-            min: self.min.min(rhs.min),
-            max: self.max.max(rhs.max),
-        }
-    }
-}
-
-struct I32Analysis {
-    elidable_coercions: AHashSet<ValueId>,
-}
-
-fn analyze_i32_ranges(function: &ControlFlowFunction<'_>) -> I32Analysis {
-    let mut ranges = AHashMap::<ValueId, I32Range>::new();
-    for parameter in &function.params {
-        if parameter.ty == Type::Int {
-            ranges.insert(parameter.value, I32Range::FULL);
-        }
-    }
-    seed_induction_ranges(function, &mut ranges);
-
-    let mut elidable = AHashSet::new();
-    loop {
-        let mut changed = false;
-        for phi in function.blocks.iter().flat_map(|block| &block.phis) {
-            if phi.ty != Type::Int || ranges.contains_key(&phi.out) {
-                continue;
-            }
-            let incoming = phi
-                .incoming
-                .iter()
-                .filter_map(|(_, value)| ranges.get(value).copied())
-                .collect::<Vec<_>>();
-            if incoming.len() == phi.incoming.len() && !incoming.is_empty() {
-                let joined = incoming
-                    .into_iter()
-                    .reduce(I32Range::join)
-                    .expect("non-empty incoming ranges");
-                ranges.insert(phi.out, joined);
-                changed = true;
-            }
-        }
-        for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
-            if instruction.ty.as_ref() != Some(&Type::Int) {
-                continue;
-            }
-            let Some(out) = instruction.out else {
-                continue;
-            };
-            let range = |value: &ValueId| ranges.get(value).copied().unwrap_or(I32Range::FULL);
-            let candidate = match &instruction.op {
-                ControlFlowOp::Const(ConstValue::Int(value)) => Some(I32Range::exact(*value)),
-                ControlFlowOp::Unary {
-                    op: IrUnaryOp::Neg,
-                    value,
-                } => range(value).neg(),
-                ControlFlowOp::Binary { op, lhs, rhs } => match op {
-                    IrBinaryOp::Add => range(lhs).add(range(rhs)),
-                    IrBinaryOp::Sub => range(lhs).sub(range(rhs)),
-                    IrBinaryOp::Mul => range(lhs).mul(range(rhs)),
-                    IrBinaryOp::Mod => range(lhs).modulo(range(rhs)),
-                    _ => None,
-                },
-                ControlFlowOp::Intrinsic {
-                    intrinsic:
-                        Intrinsic::ArrayLength
-                        | Intrinsic::MapSize
-                        | Intrinsic::SetSize
-                        | Intrinsic::BufferByteLength
-                        | Intrinsic::Uint8ArrayLength
-                        | Intrinsic::Uint8ArrayByteLength
-                        | Intrinsic::Uint8ArrayByteOffset
-                        | Intrinsic::StringLength,
-                    ..
-                } => Some(I32Range {
-                    min: 0,
-                    max: i64::from(i32::MAX),
-                }),
-                _ => None,
-            };
-            let Some(candidate) = candidate else {
-                continue;
-            };
-            if ranges.get(&out) != Some(&candidate) {
-                ranges.insert(out, candidate);
-                changed = true;
-            }
-            if matches!(
-                instruction.op,
-                ControlFlowOp::Unary {
-                    op: IrUnaryOp::Neg,
-                    ..
-                } | ControlFlowOp::Binary {
-                    op: IrBinaryOp::Add | IrBinaryOp::Sub | IrBinaryOp::Mul | IrBinaryOp::Mod,
-                    ..
-                }
-            ) {
-                elidable.insert(out);
-            }
-        }
-        if !changed {
-            break;
-        }
-    }
-    I32Analysis {
-        elidable_coercions: elidable,
-    }
-}
-
-fn seed_induction_ranges(
-    function: &ControlFlowFunction<'_>,
-    ranges: &mut AHashMap<ValueId, I32Range>,
-) {
-    let definitions = function
-        .blocks
-        .iter()
-        .flat_map(|block| &block.instructions)
-        .filter_map(|instruction| instruction.out.map(|out| (out, &instruction.op)))
-        .collect::<AHashMap<_, _>>();
-    let constant = |value: ValueId| match definitions.get(&value) {
-        Some(ControlFlowOp::Const(ConstValue::Int(value))) => Some(*value),
-        _ => None,
-    };
-    for shape in &function.shapes {
-        let ControlShape::Loop { header, .. } = shape else {
-            continue;
-        };
-        let block = &function.blocks[header.0 as usize];
-        let Some(Terminator::Branch { condition, .. }) = block.terminator else {
-            continue;
-        };
-        let Some(ControlFlowOp::Binary { op, lhs, rhs }) = definitions.get(&condition) else {
-            continue;
-        };
-        let (phi_value, bound, ascending, inclusive) =
-            if block.phis.iter().any(|phi| phi.out == *lhs) {
-                let Some(bound) = constant(*rhs) else {
-                    continue;
-                };
-                match op {
-                    IrBinaryOp::Less => (*lhs, bound, true, false),
-                    IrBinaryOp::LessEq => (*lhs, bound, true, true),
-                    IrBinaryOp::Greater => (*lhs, bound, false, false),
-                    IrBinaryOp::GreaterEq => (*lhs, bound, false, true),
-                    _ => continue,
-                }
-            } else if block.phis.iter().any(|phi| phi.out == *rhs) {
-                let Some(bound) = constant(*lhs) else {
-                    continue;
-                };
-                match op {
-                    IrBinaryOp::Greater => (*rhs, bound, true, false),
-                    IrBinaryOp::GreaterEq => (*rhs, bound, true, true),
-                    IrBinaryOp::Less => (*rhs, bound, false, false),
-                    IrBinaryOp::LessEq => (*rhs, bound, false, true),
-                    _ => continue,
-                }
-            } else {
-                continue;
-            };
-        let Some(phi) = block.phis.iter().find(|phi| phi.out == phi_value) else {
-            continue;
-        };
-        let Some(initial) = phi.incoming.iter().find_map(|(_, value)| constant(*value)) else {
-            continue;
-        };
-        let candidate = if ascending && initial <= bound {
-            I32Range::checked_bounds(initial, bound - i64::from(!inclusive))
-        } else if !ascending && initial >= bound {
-            I32Range::checked_bounds(bound + i64::from(!inclusive), initial)
-        } else {
-            None
-        };
-        if let Some(candidate) = candidate {
-            ranges.insert(phi_value, candidate);
-        }
-    }
-}
-
 fn shape_at(function: &ControlFlowFunction<'_>, block: BlockId) -> Option<ControlShape> {
     if !matches!(
         function.blocks[block.0 as usize].terminator,
@@ -3218,10 +3277,12 @@ fn shape_at(function: &ControlFlowFunction<'_>, block: BlockId) -> Option<Contro
 impl LocalNames {
     fn new(
         function: &ControlFlowFunction<'_>,
+        integer_facts: &FunctionIntegerFacts,
         all_values: bool,
         parent: &Mangler,
         mangle_identifiers: bool,
         compact_boolean_literals: bool,
+        scalar_phi_copies: bool,
     ) -> Self {
         let mut mangler = parent.clone();
         let mut value_names = AHashMap::new();
@@ -3285,7 +3346,6 @@ impl LocalNames {
             })
             .collect();
         let cross_block = cross_block_values(function);
-        let i32_analysis = analyze_i32_ranges(function);
         let mut values = function
             .params
             .iter()
@@ -3409,6 +3469,12 @@ impl LocalNames {
             .filter_map(|parameter| value_names.get(&parameter.value))
             .cloned()
             .collect();
+        let parallel_copy_temp = scalar_phi_copies.then(|| mangler.next_name());
+        let live_in_values = if scalar_phi_copies {
+            live_in_values(function)
+        } else {
+            Vec::new()
+        };
         Self {
             value_names,
             parameter_values,
@@ -3416,7 +3482,15 @@ impl LocalNames {
             untyped_values,
             inlined_values,
             string_constants,
-            elidable_i32_coercions: i32_analysis.elidable_coercions,
+            elidable_i32_coercions: function
+                .blocks
+                .iter()
+                .flat_map(|block| &block.instructions)
+                .filter_map(|instruction| instruction.out)
+                .filter(|value| integer_facts.can_elide_coercion(*value))
+                .collect(),
+            parallel_copy_temp,
+            live_in_values,
             declared_names: RefCell::new(declared_names),
             inline_declarations: false,
             state,
@@ -4615,7 +4689,10 @@ mod tests {
     use super::*;
     use crate::{
         analyze, lower_to_control_flow,
-        optimizer::{optimize_control_flow, optimize_control_flow_for_module},
+        optimizer::{
+            optimize_control_flow, optimize_control_flow_for_module,
+            optimize_control_flow_with_options, OptimizationOptions,
+        },
         parse_source,
     };
 
@@ -4639,6 +4716,20 @@ mod tests {
         let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
         optimize_control_flow_for_module(&mut ir).unwrap();
         emit_optimized_ir_js_module_with_options(&ir, &IrJsOptions::default()).unwrap()
+    }
+
+    fn compile_without_inlining(source: &str, scalar_replacement: bool) -> String {
+        let arena = Bump::new();
+        let program = parse_source(&arena, source).unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+        let options = OptimizationOptions {
+            inlining: false,
+            scalar_replacement,
+            ..OptimizationOptions::default()
+        };
+        optimize_control_flow_with_options(&mut ir, &options, false).unwrap();
+        emit_optimized_ir_js_with_options(&ir, &IrJsOptions::default()).unwrap()
     }
 
     #[test]
@@ -4810,6 +4901,7 @@ mod tests {
         let semantics = analyze(&program).unwrap();
         let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
         crate::optimizer::optimize_control_flow(&mut ir).unwrap();
+        let integer_analysis = analyze_integer_values(&ir);
         let function = ir
             .functions
             .iter()
@@ -4848,7 +4940,15 @@ mod tests {
                 }
             }
         }
-        let context = LocalNames::new(function, false, &Mangler::default(), true, true);
+        let context = LocalNames::new(
+            function,
+            integer_analysis.function(function.id),
+            false,
+            &Mangler::default(),
+            true,
+            true,
+            false,
+        );
         let mut checked_unwrap = false;
         let mut checked_captureless_closure = false;
         for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
@@ -5035,6 +5135,35 @@ mod tests {
             ("b".to_string(), "a".to_string()),
         ];
         assert!(order_scalar_assignments(&swap).is_none());
+        assert_eq!(
+            scalar_parallel_assignments(&swap, Some(("c", true))),
+            Some("var c=a;a=b;b=c;".to_string())
+        );
+        assert_eq!(
+            replace_identifier("a+(data.a||\"a\")", "a", "b"),
+            "b+(data.a||\"a\")"
+        );
+        assert!(!expression_references_name("data.a+'a'", "a"));
+        assert_eq!(
+            scalar_parallel_assignments(
+                &[
+                    ("a".to_string(), "b".to_string()),
+                    ("b".to_string(), "data.a".to_string()),
+                ],
+                Some(("c", true)),
+            ),
+            Some("a=b;b=data.a;".to_string())
+        );
+        assert_eq!(
+            scalar_parallel_assignments(
+                &[
+                    ("a".to_string(), "b".to_string()),
+                    ("b".to_string(), "`${a}`".to_string()),
+                ],
+                Some(("c", true)),
+            ),
+            Some("var c=a;a=b;b=`${c}`;".to_string())
+        );
     }
 
     #[test]
@@ -5191,6 +5320,33 @@ mod tests {
     }
 
     #[test]
+    fn elides_coercions_from_interprocedural_argument_and_return_ranges() {
+        let output = compile_without_inlining(
+            "extern int read();int digit(int value){return value%10;}int offset(int value){return value+5;}print(offset(digit(read())));",
+            true,
+        );
+
+        assert!(output.contains("+5}"), "{output}");
+        assert!(!output.contains("+5|0"), "{output}");
+    }
+
+    #[test]
+    fn uses_owned_field_ranges_but_invalidates_untyped_owners() {
+        let owned = compile_without_inlining(
+            "struct Box{int value;}extern int read();int increment(Box box){return box.value+1;}Box box=Box{read()%10};print(increment(box));",
+            false,
+        );
+        assert!(owned.contains("+1}"), "{owned}");
+        assert!(!owned.contains("+1|0"), "{owned}");
+
+        let exposed = compile_without_inlining(
+            "struct Box{int value;}extern int read();extern void mutate(Box box);Box box=Box{read()%10};mutate(box);print(box.value+1);",
+            false,
+        );
+        assert!(exposed.contains("+1|0"), "{exposed}");
+    }
+
+    #[test]
     fn never_introduces_math_imul_for_ordinary_multiplication() {
         let small = compile("extern int read();print(read()*3);");
         assert!(small.contains("*3|0"), "{small}");
@@ -5263,7 +5419,7 @@ mod tests {
     #[test]
     fn inlines_closures_that_read_typed_globals() {
         let output = compile(
-            "int factor=2;int[] values=[1,2];auto mapped=values.map((int value)=>value*factor);print(mapped.length);",
+            "int factor=2;int[] values=[1,2];auto mapped=values.map((int value)=>value*factor);print(mapped[0]);",
         );
         assert!(output.contains(".map("));
         assert!(output.contains("*2|0"), "{output}");
