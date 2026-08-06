@@ -293,7 +293,7 @@ impl ProgramGenerator {
             "bool gate=differentialProbe({gate_left})&&((a^b)<0)||differentialProbe({gate_right});"
         )
         .expect("writing to String cannot fail");
-        writeln!(source, "int old=b++;b+=old;if(gate){{b--;}}else{{b++;}}")
+        writeln!(source, "int old=b++;b+=old;if(gate){{--b;}}else{{++b;}}")
             .expect("writing to String cannot fail");
         writeln!(source, "{{int a={shadow};b+=a;}}return b;}}")
             .expect("writing to String cannot fail");

@@ -1,0 +1,24 @@
+int value = 1;
+print(++value);
+print(value++);
+print(--value);
+print(value--);
+print(value);
+
+int[] values = [4];
+print(++values[0]);
+print(values[0]--);
+print(values[0]);
+
+class Counter {
+  int value;
+
+  init(int initial) {
+    this.value = initial;
+  }
+}
+
+Counter counter = new Counter(7);
+print(--counter.value);
+print(counter.value++);
+print(counter.value);

@@ -79,6 +79,7 @@ struct Printer {
     previous: Option<TokenClass>,
     previous_closed_inline: Option<bool>,
     previous_word: Option<String>,
+    previous_prefix_update: bool,
     line_width: usize,
     inline_braces: Vec<bool>,
     in_import: bool,
@@ -114,6 +115,7 @@ impl Printer {
             previous: None,
             previous_closed_inline: None,
             previous_word: None,
+            previous_prefix_update: false,
             line_width,
             inline_braces: Vec::new(),
             in_import: false,
@@ -123,6 +125,7 @@ impl Printer {
 
     fn token(&mut self, kind: &TokenKind<'_>, text: &str) {
         let class = token_class(kind);
+        let prefix_update = matches!(text, "++" | "--") && self.update_is_prefix();
         if self.previous == Some(TokenClass::CloseBrace)
             && self.previous_closed_inline == Some(false)
             && text != "else"
@@ -185,6 +188,7 @@ impl Printer {
         self.previous = Some(class);
         self.previous_closed_inline = closed_inline;
         self.previous_word = (class == TokenClass::Word).then(|| text.to_string());
+        self.previous_prefix_update = prefix_update;
         if matches!(kind, TokenKind::Import) {
             self.in_import = true;
         }
@@ -198,6 +202,12 @@ impl Printer {
             return false;
         };
         if self.line_start {
+            return false;
+        }
+        if matches!(text, "++" | "--") && !self.update_is_prefix() {
+            return false;
+        }
+        if self.previous_prefix_update {
             return false;
         }
         if text == "else" && previous == TokenClass::CloseBrace {
@@ -254,6 +264,24 @@ impl Printer {
                     TokenClass::Word | TokenClass::Literal
                 )
             )
+    }
+
+    fn update_is_prefix(&self) -> bool {
+        self.previous.is_none()
+            || self.line_start
+            || matches!(
+                self.previous,
+                Some(
+                    TokenClass::OpenParen
+                        | TokenClass::OpenBracket
+                        | TokenClass::OpenBrace
+                        | TokenClass::Comma
+                        | TokenClass::Colon
+                        | TokenClass::Semicolon
+                        | TokenClass::Operator
+                )
+            )
+            || self.previous_word.as_deref() == Some("return")
     }
 
     fn line_comment(&mut self, text: &str) {
@@ -397,5 +425,16 @@ mod tests {
             output,
             format_source(&output, &FormatConfig::default()).unwrap()
         );
+    }
+
+    #[test]
+    fn keeps_prefix_and_postfix_updates_attached() {
+        let input =
+            "int value=1;print(++value);print(value++);int next=value++ + ++value;return ++value;";
+        let output = format_source(input, &FormatConfig::default()).unwrap();
+        assert!(output.contains("print(++value);"), "{output}");
+        assert!(output.contains("print(value++);"), "{output}");
+        assert!(output.contains("int next = value++ + ++value;"), "{output}");
+        assert!(output.contains("return ++value;"), "{output}");
     }
 }

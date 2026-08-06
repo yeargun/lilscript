@@ -974,6 +974,25 @@ impl<'arena, 'src> Parser<'arena, 'src> {
     }
 
     fn parse_unary_expression(&mut self) -> Result<Expr<'arena, 'src>, ParseError> {
+        let update = if self.match_kind(|kind| matches!(kind, TokenKind::PlusPlus)) {
+            Some(UpdateOp::Increment)
+        } else if self.match_kind(|kind| matches!(kind, TokenKind::MinusMinus)) {
+            Some(UpdateOp::Decrement)
+        } else {
+            None
+        };
+        if let Some(op) = update {
+            let op_span = self.previous_span();
+            let target = self.parse_unary_expression()?;
+            let target = self.arena.alloc(target);
+            return Ok(Expr::Update {
+                op,
+                target,
+                prefix: true,
+                span: op_span.merge(target.span()),
+            });
+        }
+
         if self.match_kind(|kind| matches!(kind, TokenKind::Bang)) {
             let op_span = self.previous_span();
             let expr = self.parse_unary_expression()?;
@@ -1667,6 +1686,38 @@ mod tests {
         assert_eq!(program.items.len(), 3);
         assert!(matches!(&program.items[1], Item::Stmt(Stmt::For { .. })));
         assert!(matches!(&program.items[2], Item::Stmt(Stmt::If { .. })));
+    }
+
+    #[test]
+    fn parses_prefix_and_postfix_updates_at_unary_precedence() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "int value=1;int first=++value*2;int second=value--; ",
+        )
+        .unwrap();
+        let Item::Stmt(Stmt::VarDecl(first)) = &program.items[1] else {
+            panic!("expected first declaration");
+        };
+        assert!(matches!(
+            first.initializer,
+            Some(Expr::Binary {
+                lhs,
+                op: BinaryOp::Mul,
+                ..
+            }) if matches!(lhs, Expr::Update { prefix: true, op: UpdateOp::Increment, .. })
+        ));
+        let Item::Stmt(Stmt::VarDecl(second)) = &program.items[2] else {
+            panic!("expected second declaration");
+        };
+        assert!(matches!(
+            second.initializer,
+            Some(Expr::Update {
+                prefix: false,
+                op: UpdateOp::Decrement,
+                ..
+            })
+        ));
     }
 
     #[test]

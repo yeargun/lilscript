@@ -3528,6 +3528,25 @@ mod tests {
     }
 
     #[test]
+    fn requires_numeric_assignable_update_targets() {
+        let literal = check("int value=++1;").unwrap_err();
+        assert!(
+            literal
+                .message
+                .contains("expression is not an assignable location"),
+            "{literal}"
+        );
+
+        let string = check("string value=\"ready\";value++;").unwrap_err();
+        assert!(
+            string
+                .message
+                .contains("operator `++` requires a numeric target"),
+            "{string}"
+        );
+    }
+
+    #[test]
     fn validates_nullable_assignments_calls_and_equality() {
         check(
             "T? maybe<T>(bool present,T value){if(present){return value;}return null;}int? value=maybe(true,7);bool present=value!=null;bool same=value==7;",
