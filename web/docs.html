@@ -323,7 +323,7 @@ lilscript-lint src --fix
 
 lilscript-fmt src
 lilscript-fmt src --check</code></pre>
-          <p>The Rust linter resolves the module graph and inspects typed optimized IR, so allocation findings refer to operations that survived optimization. Stable rule IDs, evidence, help, byte spans, JSON, and SARIF make findings usable by both editors and coding agents. <code>minimal</code>, <code>recommended</code>, and <code>strict</code> presets can be overridden per rule.</p>
+          <p>The Rust linter resolves the module graph and inspects typed optimized IR, so allocation findings refer to operations that survived DCE and scalar replacement. Loop-cost rules cover arrays, aggregates, maps, sets, buffers, typed-array views, materializing array operations, closures, and unresolved indirect calls. Stable rule IDs, evidence, help, byte spans, JSON, and SARIF make findings usable by both editors and coding agents. <code>minimal</code>, <code>recommended</code>, and <code>strict</code> presets can be overridden per rule.</p>
           <p>The formatter preserves comments, applies a canonical two-space layout, sorts a safe leading import block, and is idempotent. Both tools honor <code>lilscript.toml</code>; formatting can be disabled without disabling diagnostics.</p>
         </section>
 

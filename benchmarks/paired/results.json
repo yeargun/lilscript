@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-06T13:20:26.725Z",
+  "generatedAt": "2026-08-06T15:01:49.286Z",
   "closureVersion": "v20260803",
   "source": "benchmarks/paired/specs.json",
   "results": [
@@ -30,6 +30,20 @@
         "raw": 66,
         "gzip": 86,
         "brotli": 70
+      }
+    },
+    {
+      "id": "exact-wrapping-multiply",
+      "contract": "2093565239",
+      "lilscript": {
+        "raw": 60,
+        "gzip": 80,
+        "brotli": 56
+      },
+      "closure": {
+        "raw": 71,
+        "gzip": 89,
+        "brotli": 75
       }
     },
     {

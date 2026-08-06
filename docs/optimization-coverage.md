@@ -4,6 +4,13 @@ This document maps Google Closure Compiler `ADVANCED` optimization
 responsibilities to LilScript. The reference is Closure Compiler
 `v20260803`, including the optimization factories in its
 [`DefaultPassConfig.java`](https://github.com/google/closure-compiler/blob/v20260803/src/com/google/javascript/jscomp/DefaultPassConfig.java).
+Variable ordering is compared against Closure's
+[`RenameVars.java`](https://github.com/google/closure-compiler/blob/v20260803/src/com/google/javascript/jscomp/RenameVars.java),
+and emitted-character ranking against Terser's documented
+[`nth_identifier`](https://github.com/terser/terser#minify-options) frequency
+analysis. Compressor-aware decisions use actual codec output because Brotli's
+[LZ77, context modeling, and Huffman stages](https://datatracker.ietf.org/doc/rfc7932/)
+cannot be represented faithfully by raw token counts alone.
 
 LilScript does not run Closure and does not translate LilScript to annotated
 JavaScript before optimizing it. The frontend resolves and links the complete

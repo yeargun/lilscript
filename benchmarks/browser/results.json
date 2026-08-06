@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-06T13:20:30.613Z",
+  "generatedAt": "2026-08-06T15:01:53.274Z",
   "browser": "Chromium 151.0.7922.34",
   "regressionLimit": 1.03,
   "results": [
@@ -7,8 +7,8 @@
       "id": "constant-parameter-specialization",
       "batches": 2000000,
       "samples": 50,
-      "lilscriptMedianMs": 8.899999998509884,
-      "closureMedianMs": 9,
+      "lilscriptMedianMs": 8.900000002235174,
+      "closureMedianMs": 8.900000002235174,
       "upper95Ratio": 1,
       "identicalCode": true
     },
@@ -16,9 +16,18 @@
       "id": "bounded-induction",
       "batches": 200,
       "samples": 50,
-      "lilscriptMedianMs": 10.200000002980232,
-      "closureMedianMs": 12.5,
-      "upper95Ratio": 0.8333333334811623,
+      "lilscriptMedianMs": 10.199999999254942,
+      "closureMedianMs": 12.599999997764826,
+      "upper95Ratio": 0.8095238096082832,
+      "identicalCode": false
+    },
+    {
+      "id": "exact-wrapping-multiply",
+      "batches": 200,
+      "samples": 50,
+      "lilscriptMedianMs": 0.8000000007450581,
+      "closureMedianMs": 0.8000000007450581,
+      "upper95Ratio": 1.0000000046566129,
       "identicalCode": false
     },
     {

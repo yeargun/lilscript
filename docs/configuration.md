@@ -180,6 +180,11 @@ warnings. Configure any rule in `[lint.rules]` with `off`, `hint`, `warn`, or
 Trusted `pure extern` functions must appear in `pure_extern_allowlist` because
 their effects cannot be verified from LilScript source.
 
+Loop-cost analysis reports surviving arrays, aggregates, maps, sets, buffers,
+typed-array views, materializing array operations, closures, and unresolved
+indirect calls. Because it runs after optimization, values removed by DCE or
+scalar replacement do not produce allocation findings.
+
 ```sh
 lilscript-lint src
 lilscript-lint src --format json
