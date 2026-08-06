@@ -2659,24 +2659,21 @@ fn analyze_i32_ranges(function: &ControlFlowFunction<'_>) -> AHashSet<ValueId> {
                     IrBinaryOp::Mod => range(lhs).modulo(range(rhs)),
                     _ => None,
                 },
-                ControlFlowOp::Intrinsic { intrinsic, .. }
-                    if matches!(
-                        intrinsic,
+                ControlFlowOp::Intrinsic {
+                    intrinsic:
                         Intrinsic::ArrayLength
-                            | Intrinsic::MapSize
-                            | Intrinsic::SetSize
-                            | Intrinsic::BufferByteLength
-                            | Intrinsic::Uint8ArrayLength
-                            | Intrinsic::Uint8ArrayByteLength
-                            | Intrinsic::Uint8ArrayByteOffset
-                            | Intrinsic::StringLength
-                    ) =>
-                {
-                    Some(I32Range {
-                        min: 0,
-                        max: i64::from(i32::MAX),
-                    })
-                }
+                        | Intrinsic::MapSize
+                        | Intrinsic::SetSize
+                        | Intrinsic::BufferByteLength
+                        | Intrinsic::Uint8ArrayLength
+                        | Intrinsic::Uint8ArrayByteLength
+                        | Intrinsic::Uint8ArrayByteOffset
+                        | Intrinsic::StringLength,
+                    ..
+                } => Some(I32Range {
+                    min: 0,
+                    max: i64::from(i32::MAX),
+                }),
                 _ => None,
             };
             let Some(candidate) = candidate else {
@@ -4241,8 +4238,10 @@ mod tests {
         let overflow_capable = compile("extern int read();print(read()+1);");
         assert!(overflow_capable.contains("|0"), "{overflow_capable}");
 
-        let mut eager = IrJsOptions::default();
-        eager.elide_safe_integer_coercions = false;
+        let eager = IrJsOptions {
+            elide_safe_integer_coercions: false,
+            ..IrJsOptions::default()
+        };
         let eager = compile_with_options("extern int read();print(read()%10+5);", eager);
         assert!(eager.contains("|0"), "{eager}");
     }

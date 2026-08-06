@@ -1,0 +1,9 @@
+int[] values = [-19, 7, 2147483647];
+
+int safe = values[0] % 10 + 5;
+int product = (values[1] % 10) * (values[1] % 10);
+int wrapped = values[2] + 1;
+
+print(safe);
+print(product);
+print(wrapped);
