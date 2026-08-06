@@ -81,6 +81,36 @@
                   {
                     "binary": [
                       "+",
+                      {
+                        "call": ["Math.imul", { "ref": "state" }, { "int": 3 }]
+                      },
+                      { "int": 1 }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        { "print": { "ref": "state" } }
+      ]
+    },
+    {
+      "id": "ordinary-integer-multiply",
+      "functions": [],
+      "program": [
+        { "let": ["state", { "int": 7 }] },
+        {
+          "repeat": {
+            "index": "index",
+            "count": { "int": 5000 },
+            "body": [
+              {
+                "assign": [
+                  "state",
+                  {
+                    "binary": [
+                      "+",
                       { "binary": ["*", { "ref": "state" }, { "int": 3 }] },
                       { "int": 1 }
                     ]

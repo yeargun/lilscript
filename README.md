@@ -101,14 +101,15 @@ sits between absolute performance and balanced output. Four profiles, numeric
 inline budgets, and an exact `compression` decision allowlist control the
 performance/size tradeoff without changing C/native optimization.
 Production builds use an exact configurable raw, gzip-9, or Brotli-11 cost
-model to select among bounded pooling, integer-lowering, boolean-literal,
+model to select among bounded pooling, coercion-elision, boolean-literal,
 identifier-alphabet, quote-style, and declaration-spelling candidates;
 `--mode development` skips that compressor loop. `--explain human|json`
 reports optimizer passes. The
 realistic default omits signed-32-bit coercions only where range analysis proves
-them redundant. It also replaces `Math.imul(x,y)` with `x*y|0` when the product
-is exactly representable as a JavaScript double; potentially inexact products
-retain `Math.imul` and exact wrapping semantics.
+them redundant. It never introduces `Math.imul`: ordinary `int` multiplication
+uses JavaScript multiplication followed by signed-i32 normalization. A
+source-written `Math.imul(left,right)` is preserved as the explicit exact
+low-32-bit operation for code that deliberately needs it.
 Bundle policy selects a single artifact, source-module-preserving static ESM
 chunks, or size/import-limited shared chunks. See
 [docs/configuration.md](docs/configuration.md) for the complete schema and exact
@@ -269,9 +270,9 @@ npm --prefix vscode-extension run package
 ```
 
 `scripts/verify.sh` compares Node and native output for two conformance suites
-and links a generated aggregate ABI against a C host. It also runs 53 programs
+and links a generated aggregate ABI against a C host. It also runs 54 programs
 through JavaScript, emitted C, and native executables with maximum and disabled
-optional optimization, for 106 matrix executions, plus a framed LSP session
+optional optimization, for 108 matrix executions, plus a framed LSP session
 through diagnostics, completion, hover, symbols, semantic tokens, references,
 rename, formatting, quick fixes, and shutdown.
 `benchmarks/run.sh`
@@ -287,13 +288,13 @@ separate Chromium gate uses alternating warmed samples and requires the 95%
 bootstrap upper runtime ratio to remain at or below `1.03`. These are scoped
 regression gates, not universal compiler-superiority claims.
 
-On the repository's nine compiler workloads LilScript totals 1,496 raw / 1,290
-gzip / 1,055 Brotli bytes versus Closure at 2,357 / 1,687 / 1,382. LilScript is
+On the repository's nine compiler workloads LilScript totals 1,487 raw / 1,282
+gzip / 1,045 Brotli bytes versus Closure at 2,289 / 1,638 / 1,357. LilScript is
 smaller in all 27 measured cells. The separate application lab
 compares five readable JavaScript references with matching-scope LilScript,
 feeds those exact references to Closure `ADVANCED`, and keeps hand-specialized
-JavaScript as an oracle. Its checked-in run totals 1,879 raw / 1,283 gzip /
-1,124 Brotli bytes for LilScript versus 1,840 / 1,268 / 1,100 for Closure; the
+JavaScript as an oracle. Its checked-in run totals 1,815 raw / 1,256 gzip /
+1,110 Brotli bytes for LilScript versus 1,781 / 1,242 / 1,073 for Closure; the
 hand oracle remains smaller at 1,008 / 840 / 745. Real Alien Signals, mitt, and
 Motion applications are built separately by Vite and excluded from compiler
 totals. All 26 comparable/diagnostic JavaScript artifacts, three Vite package

@@ -9,5 +9,5 @@ export function checksum(values) {
 }
 
 export function unusedStats(values) {
-  return Math.imul(values.length, 1000);
+  return (values.length * 1000) | 0;
 }

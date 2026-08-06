@@ -11,7 +11,7 @@ class Counter {
 }
 
 function square(value) {
-  return Math.imul(value, value);
+  return (value * value) | 0;
 }
 
 const pair = { left: 2, right: 5 };
@@ -19,7 +19,7 @@ const counter = new Counter((pair.left + pair.right) | 0);
 const classValue = counter.add(3);
 
 const factor = 2;
-const scale = (value) => Math.imul(value, factor);
+const scale = (value) => (value * factor) | 0;
 const values = [1, 2, 3, 4];
 const mapped = values.map(scale);
 const selected = mapped.filter((value) => value >= 4);
@@ -41,7 +41,7 @@ for (let index = 0; index < 8; index = (index + 1) | 0) {
 
 let arithmetic = 20;
 arithmetic = (arithmetic - 2) | 0;
-arithmetic = Math.imul(arithmetic, 3);
+arithmetic = (arithmetic * 3) | 0;
 arithmetic = (arithmetic / 2) | 0;
 arithmetic = (arithmetic % 10) | 0;
 const logic = (total === 18 && flow === 13) || false;

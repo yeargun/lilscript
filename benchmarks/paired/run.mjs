@@ -44,7 +44,7 @@ function expression(node, target) {
     if (target === "lil" || ["==", "<", ">", "<=", ">="].includes(operator)) {
       return `(${lhs}${operator}${rhs})`;
     }
-    if (operator === "*") return `Math.imul(${lhs},${rhs})`;
+    if (operator === "*") return `((${lhs}*${rhs})|0)`;
     return `((${lhs}${operator}${rhs})|0)`;
   }
   throw new Error(`Unknown expression ${JSON.stringify(node)}`);

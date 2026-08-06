@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "generatedAt": "2026-08-06T15:23:16.387Z",
-    "compilerRevision": "0d36ed8",
+    "generatedAt": "2026-08-06T16:40:59.581Z",
+    "compilerRevision": "1cce7a4",
     "node": "v24.11.1",
     "vite": "8.2.0",
     "esbuild": "0.28.1",
@@ -19,7 +19,7 @@
       "title": "Reactive store",
       "expected": "reactive:1890621774:408",
       "source": {
-        "reference": 1122,
+        "reference": 1106,
         "lilscript": 1258,
         "hand": 246
       },
@@ -27,26 +27,26 @@
         {
           "id": "reference",
           "label": "Reference JS bundle",
-          "raw": 1163,
-          "gzip": 464,
-          "brotli": 379,
-          "medianMs": 3.3514580000000933
+          "raw": 1151,
+          "gzip": 458,
+          "brotli": 375,
+          "medianMs": 3.486333000000002
         },
         {
           "id": "esbuild",
           "label": "Reference JS esbuild",
-          "raw": 544,
-          "gzip": 310,
-          "brotli": 265,
-          "medianMs": 3.0982920000001286
+          "raw": 523,
+          "gzip": 302,
+          "brotli": 259,
+          "medianMs": 3.280167000000006
         },
         {
           "id": "closure",
           "label": "JS Closure ADVANCED",
-          "raw": 489,
-          "gzip": 302,
-          "brotli": 250,
-          "medianMs": 3.062332999999967
+          "raw": 468,
+          "gzip": 295,
+          "brotli": 242,
+          "medianMs": 3.2650409999999965
         },
         {
           "id": "hand",
@@ -54,28 +54,28 @@
           "raw": 245,
           "gzip": 194,
           "brotli": 170,
-          "medianMs": 2.900250000000028
+          "medianMs": 2.931291999999985
         },
         {
           "id": "lilscript",
           "label": "LilScript",
-          "raw": 519,
-          "gzip": 305,
-          "brotli": 275,
-          "medianMs": 3.3433750000000373
+          "raw": 490,
+          "gzip": 294,
+          "brotli": 266,
+          "medianMs": 3.326541999999961
         }
       ],
       "ecosystem": {
         "label": "Alien Signals via Vite",
         "expected": "reactive:1890621774:408",
         "files": [
-          "assets/index-BAb3oBAp.js",
+          "assets/index-DVPqLfDU.js",
           "index.html"
         ],
-        "raw": 4900,
-        "gzip": 1932,
-        "brotli": 1752,
-        "medianMs": 22.484041999999988
+        "raw": 4884,
+        "gzip": 1924,
+        "brotli": 1737,
+        "medianMs": 22.24070800000004
       }
     },
     {
@@ -83,7 +83,7 @@
       "title": "Event pipeline",
       "expected": "events:975625712:9718960",
       "source": {
-        "reference": 914,
+        "reference": 910,
         "lilscript": 1010,
         "hand": 113
       },
@@ -91,26 +91,26 @@
         {
           "id": "reference",
           "label": "Reference JS bundle",
-          "raw": 1033,
-          "gzip": 393,
-          "brotli": 320,
-          "medianMs": 1.636624999999981
+          "raw": 1029,
+          "gzip": 389,
+          "brotli": 317,
+          "medianMs": 1.714166999999975
         },
         {
           "id": "esbuild",
           "label": "Reference JS esbuild",
-          "raw": 506,
-          "gzip": 280,
-          "brotli": 244,
-          "medianMs": 1.525000000000034
+          "raw": 499,
+          "gzip": 275,
+          "brotli": 239,
+          "medianMs": 1.6589579999999842
         },
         {
           "id": "closure",
           "label": "JS Closure ADVANCED",
-          "raw": 351,
-          "gzip": 244,
-          "brotli": 198,
-          "medianMs": 1.475750000000005
+          "raw": 344,
+          "gzip": 238,
+          "brotli": 192,
+          "medianMs": 1.6231249999999875
         },
         {
           "id": "hand",
@@ -118,7 +118,7 @@
           "raw": 112,
           "gzip": 125,
           "brotli": 102,
-          "medianMs": 0.6252920000000017
+          "medianMs": 0.6263339999999857
         },
         {
           "id": "lilscript",
@@ -126,20 +126,20 @@
           "raw": 315,
           "gzip": 227,
           "brotli": 192,
-          "medianMs": 1.6495409999999993
+          "medianMs": 1.5981249999999818
         }
       ],
       "ecosystem": {
         "label": "mitt via Vite",
         "expected": "events:975625712:9718960",
         "files": [
-          "assets/index-9bl6fb9B.js",
+          "assets/index-C8ji9Tfp.js",
           "index.html"
         ],
-        "raw": 697,
-        "gzip": 477,
-        "brotli": 388,
-        "medianMs": 6.5031660000000215
+        "raw": 690,
+        "gzip": 471,
+        "brotli": 382,
+        "medianMs": 6.319457999999997
       }
     },
     {
@@ -147,7 +147,7 @@
       "title": "Binary telemetry",
       "expected": "binary:446359193:32",
       "source": {
-        "reference": 1157,
+        "reference": 1145,
         "lilscript": 1070,
         "hand": 410
       },
@@ -155,26 +155,26 @@
         {
           "id": "reference",
           "label": "Reference JS bundle",
-          "raw": 1208,
-          "gzip": 489,
-          "brotli": 441,
-          "medianMs": 10.617457999999942
+          "raw": 1196,
+          "gzip": 481,
+          "brotli": 438,
+          "medianMs": 10.301584000000048
         },
         {
           "id": "esbuild",
           "label": "Reference JS esbuild",
-          "raw": 545,
-          "gzip": 327,
-          "brotli": 299,
-          "medianMs": 10.545583000000079
+          "raw": 521,
+          "gzip": 320,
+          "brotli": 291,
+          "medianMs": 10.295749999999998
         },
         {
           "id": "closure",
           "label": "JS Closure ADVANCED",
-          "raw": 521,
-          "gzip": 319,
-          "brotli": 298,
-          "medianMs": 10.631500000000187
+          "raw": 497,
+          "gzip": 313,
+          "brotli": 290,
+          "medianMs": 10.467292000000043
         },
         {
           "id": "hand",
@@ -182,15 +182,15 @@
           "raw": 409,
           "gzip": 273,
           "brotli": 257,
-          "medianMs": 9.734082999999828
+          "medianMs": 9.616750000000025
         },
         {
           "id": "lilscript",
           "label": "LilScript",
-          "raw": 604,
-          "gzip": 370,
-          "brotli": 333,
-          "medianMs": 10.665500000000065
+          "raw": 576,
+          "gzip": 362,
+          "brotli": 335,
+          "medianMs": 10.197584000000006
         }
       ]
     },
@@ -199,7 +199,7 @@
       "title": "Module pricing",
       "expected": "module:init\nmodules:593759979:4940",
       "source": {
-        "reference": 1033,
+        "reference": 1027,
         "lilscript": 916,
         "hand": 124
       },
@@ -207,26 +207,26 @@
         {
           "id": "reference",
           "label": "Reference JS bundle",
-          "raw": 884,
-          "gzip": 395,
-          "brotli": 332,
-          "medianMs": 1.2574160000000063
+          "raw": 878,
+          "gzip": 388,
+          "brotli": 327,
+          "medianMs": 0.9660829999999976
         },
         {
           "id": "esbuild",
           "label": "Reference JS esbuild",
-          "raw": 361,
-          "gzip": 258,
-          "brotli": 214,
-          "medianMs": 1.2429580000000016
+          "raw": 352,
+          "gzip": 251,
+          "brotli": 208,
+          "medianMs": 0.9625419999999991
         },
         {
           "id": "closure",
           "label": "JS Closure ADVANCED",
-          "raw": 335,
-          "gzip": 257,
-          "brotli": 211,
-          "medianMs": 1.234499999999997
+          "raw": 328,
+          "gzip": 250,
+          "brotli": 206,
+          "medianMs": 0.9192910000000012
         },
         {
           "id": "hand",
@@ -234,15 +234,15 @@
           "raw": 123,
           "gzip": 122,
           "brotli": 112,
-          "medianMs": 0.5881669999999986
+          "medianMs": 0.5563339999999997
         },
         {
           "id": "lilscript",
           "label": "LilScript",
-          "raw": 277,
-          "gzip": 226,
-          "brotli": 191,
-          "medianMs": 1.2288750000000164
+          "raw": 270,
+          "gzip": 218,
+          "brotli": 184,
+          "medianMs": 0.9680830000000071
         }
       ]
     },
@@ -262,7 +262,7 @@
           "raw": 698,
           "gzip": 360,
           "brotli": 305,
-          "medianMs": 0.8907910000000072
+          "medianMs": 0.9188339999999897
         },
         {
           "id": "esbuild",
@@ -270,7 +270,7 @@
           "raw": 270,
           "gzip": 205,
           "brotli": 174,
-          "medianMs": 0.8713750000000005
+          "medianMs": 0.879084000000006
         },
         {
           "id": "closure",
@@ -278,7 +278,7 @@
           "raw": 144,
           "gzip": 146,
           "brotli": 143,
-          "medianMs": 0.7111659999999915
+          "medianMs": 0.7497910000000161
         },
         {
           "id": "hand",
@@ -286,7 +286,7 @@
           "raw": 119,
           "gzip": 126,
           "brotli": 104,
-          "medianMs": 0.5938750000000113
+          "medianMs": 0.6217079999999982
         },
         {
           "id": "lilscript",
@@ -294,7 +294,7 @@
           "raw": 164,
           "gzip": 155,
           "brotli": 133,
-          "medianMs": 0.7039160000000066
+          "medianMs": 0.7116670000000056
         },
         {
           "id": "lilscript-specialized",
@@ -302,7 +302,7 @@
           "raw": 133,
           "gzip": 137,
           "brotli": 106,
-          "medianMs": 0.5765829999999994
+          "medianMs": 0.587709000000018
         }
       ],
       "ecosystem": {
@@ -315,7 +315,7 @@
         "raw": 10571,
         "gzip": 4546,
         "brotli": 4152,
-        "medianMs": 2.273541999999992
+        "medianMs": 2.324957999999995
       }
     }
   ]

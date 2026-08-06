@@ -68,7 +68,7 @@ if (vector.lengthSquared() == 25.0) {
           </div>
           <div class="code-column output-column">
             <div class="code-label"><span>Optimized JavaScript</span><span>111 bytes</span></div>
-            <pre><code>var b=[1,2,3,4].map(a=&gt;Math.imul(a,2));
+            <pre><code>var b=[1,2,3,4].map(a=&gt;a*2|0);
 var a=0,c=0;
 while(a&lt;b.length){
   c=c+b[a]|0;
@@ -125,14 +125,14 @@ console.log(`sum=${c}`)</code></pre>
           <table>
             <thead><tr><th>Workload</th><th>Compiler</th><th>Raw</th><th>Gzip-9</th><th>Brotli-11</th></tr></thead>
             <tbody>
-              <tr><th rowspan="2">v0.1</th><td>LilScript</td><td>120</td><td>132</td><td>108</td></tr>
-              <tr><td>Closure</td><td>212</td><td>190</td><td>166</td></tr>
-              <tr><th rowspan="2">Full conformance</th><td>LilScript</td><td>360</td><td>279</td><td>237</td></tr>
-              <tr><td>Closure</td><td>547</td><td>368</td><td>309</td></tr>
-              <tr><th rowspan="2">Three modules</th><td>LilScript</td><td>120</td><td>133</td><td>105</td></tr>
-              <tr><td>Closure</td><td>122</td><td>134</td><td>108</td></tr>
-              <tr><th rowspan="2">Nine-workload total</th><td>LilScript</td><td>1,537</td><td>1,326</td><td>1,115</td></tr>
-              <tr><td>Closure</td><td>2,357</td><td>1,687</td><td>1,382</td></tr>
+              <tr><th rowspan="2">v0.1</th><td>LilScript</td><td>111</td><td>124</td><td>97</td></tr>
+              <tr><td>Closure</td><td>203</td><td>182</td><td>161</td></tr>
+              <tr><th rowspan="2">Full conformance</th><td>LilScript</td><td>344</td><td>265</td><td>220</td></tr>
+              <tr><td>Closure</td><td>520</td><td>355</td><td>296</td></tr>
+              <tr><th rowspan="2">Three modules</th><td>LilScript</td><td>113</td><td>127</td><td>98</td></tr>
+              <tr><td>Closure</td><td>117</td><td>127</td><td>104</td></tr>
+              <tr><th rowspan="2">Nine-workload total</th><td>LilScript</td><td>1,487</td><td>1,282</td><td>1,045</td></tr>
+              <tr><td>Closure</td><td>2,289</td><td>1,638</td><td>1,357</td></tr>
             </tbody>
           </table>
         </div>

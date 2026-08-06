@@ -27,13 +27,13 @@ const price = new IntSignal(19);
 const discount = new IntSignal(2);
 
 function updateTotal() {
-  const total = Math.imul(quantity.read(), price.read()) - discount.read();
-  digest = (Math.imul(digest, 33) + total) | 0;
+  const total = (quantity.read() * price.read() | 0) - discount.read();
+  digest = ((digest * 33 | 0) + total) | 0;
   return digest;
 }
 
 function unusedForecast(months) {
-  return Math.imul(months, 8_191) + 17;
+  return (months * 8_191 | 0) + 17;
 }
 
 quantity.watch(updateTotal);
@@ -45,4 +45,4 @@ for (let index = 0; index < 150_000; index += 1) {
   price.write((index % 41) + 3);
   if (index % 4 === 0) discount.write(index % 11);
 }
-console.log(`reactive:${digest}:${Math.imul(quantity.read(), price.read()) - discount.read()}`);
+console.log(`reactive:${digest}:${(quantity.read() * price.read() | 0) - discount.read()}`);

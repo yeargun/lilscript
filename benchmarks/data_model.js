@@ -1,5 +1,5 @@
 function area(rectangle) {
-  return Math.imul(rectangle.width, rectangle.height);
+  return (rectangle.width * rectangle.height) | 0;
 }
 
 class ModelCounter {

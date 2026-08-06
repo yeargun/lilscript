@@ -6,9 +6,9 @@ export class Quote {
 }
 
 export function lineTotal(quote) {
-  return Math.imul(quote.units, quote.cents);
+  return (quote.units * quote.cents) | 0;
 }
 
 export function unusedQuoteScore(quote) {
-  return Math.imul(lineTotal(quote), 65_537) + 91;
+  return ((lineTotal(quote) * 65_537) | 0) + 91;
 }

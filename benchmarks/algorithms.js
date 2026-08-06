@@ -1,6 +1,6 @@
 function factorial(value) {
   if (value <= 1) return 1;
-  return Math.imul(value, factorial(value - 1 | 0));
+  return (value * factorial(value - 1 | 0)) | 0;
 }
 
 function gcd(left, right) {

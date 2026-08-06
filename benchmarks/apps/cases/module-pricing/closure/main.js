@@ -6,7 +6,7 @@ class Quote {
 }
 
 function lineTotal(quote) {
-  return Math.imul(quote.units, quote.cents);
+  return (quote.units * quote.cents) | 0;
 }
 
 function basketTotal(quotes) {

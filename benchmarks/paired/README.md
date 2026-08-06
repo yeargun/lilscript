@@ -3,8 +3,9 @@
 This lane removes source-style judgment from the comparison. A small neutral
 integer-and-boolean expression/statement schema in `specs.json` is rendered
 into readable LilScript and JavaScript by the same generator. The JavaScript
-renderer inserts the signed-32-bit operations required to match LilScript
-`int` semantics.
+renderer emits ordinary multiplication with i32 normalization for LilScript
+`*` and preserves schema-authored `Math.imul` calls, so the two integer
+multiplication contracts are compared separately.
 
 `run.mjs` builds each generated LilScript program as JavaScript, C, and a native
 executable, compiles the paired JavaScript with pinned Closure ADVANCED, and

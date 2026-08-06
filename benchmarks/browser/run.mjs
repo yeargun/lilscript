@@ -80,8 +80,12 @@ try {
     ]);
     const canonicalSource = (source) => source.trim().replace(/;$/, "");
     const identicalCode = canonicalSource(lilscriptSource) === canonicalSource(closureSource);
-    const loopHeavy = new Set(["bounded-induction", "exact-wrapping-multiply"]);
-    const batches = loopHeavy.has(benchmark.id) ? 200 : 2000000;
+    const batches = benchmark.id === "bounded-induction"
+      ? 200
+      : benchmark.id === "exact-wrapping-multiply" ||
+          benchmark.id === "ordinary-integer-multiply"
+        ? 2000
+        : 2000000;
     const timings = await page.evaluate(
       ({ lilscriptSource, closureSource, batches }) => {
         const originalLog = console.log;

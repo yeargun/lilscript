@@ -10,7 +10,7 @@ class Vector {
 }
 
 const values = [1, 2, 3, 4];
-const doubled = values.map((value) => Math.imul(value, 2));
+const doubled = values.map((value) => (value * 2) | 0);
 let sum = 0;
 
 for (let index = 0; index < doubled.length; index = (index + 1) | 0) {
@@ -23,4 +23,3 @@ if (vector.lengthSquared() === 25) {
 } else {
   console.log("invalid");
 }
-

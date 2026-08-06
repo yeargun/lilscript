@@ -60,10 +60,10 @@ records from entering compiler totals. Sizes are normalized UTF-8 bytes,
 deterministic gzip level 9, and Brotli quality 11. Runtime is the median of
 cache-busted module parsing plus execution inside one dedicated Node process
 per artifact after warmup; process startup is outside the interval. Readable
-JavaScript references use
-`Math.imul` and signed 32-bit coercions where LilScript `int` operations require
-them; the hand-specialized baseline may remove coercions that are provably
-irrelevant for the fixed app inputs.
+JavaScript references use ordinary multiplication plus signed 32-bit
+normalization for LilScript `*`, and retain `Math.imul` only where the LilScript
+source calls it explicitly. The hand-specialized baseline may remove coercions
+that are provably irrelevant for the fixed app inputs.
 
 ## Run
 

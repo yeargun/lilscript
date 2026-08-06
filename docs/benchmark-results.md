@@ -13,7 +13,7 @@ Measured on 2026-08-06 with LilScript release mode and Google Closure Compiler
 | Compiler | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
 | LilScript | 111 | 124 | 97 |
-| Closure ADVANCED v20260803 | 212 | 190 | 166 |
+| Closure ADVANCED v20260803 | 203 | 182 | 161 |
 
 This case exercises class constructor/method devirtualization, scalar
 replacement, array map callbacks, integer lowering, a counted loop, branch
@@ -34,7 +34,7 @@ string predicates, case conversion, templates, and constant propagation.
 | Compiler | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
 | LilScript | 344 | 265 | 220 |
-| Closure ADVANCED v20260803 | 547 | 368 | 309 |
+| Closure ADVANCED v20260803 | 520 | 355 | 296 |
 
 This broader case combines structs, mutable classes, direct functions, global
 and local closures, while/for control flow, break/continue, short-circuit
@@ -55,8 +55,8 @@ branch removal.
 
 | Compiler | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
-| LilScript | 192 | 167 | 139 |
-| Closure ADVANCED v20260803 | 205 | 169 | 144 |
+| LilScript | 183 | 159 | 129 |
+| Closure ADVANCED v20260803 | 196 | 161 | 135 |
 
 This case combines recursion with single-use multi-block CFG inlining, two
 iterative algorithms, loop-phi coalescing, conditional returns, and integer
@@ -67,7 +67,7 @@ normalization.
 | Compiler | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
 | LilScript | 95 | 88 | 68 |
-| Closure ADVANCED v20260803 | 248 | 170 | 130 |
+| Closure ADVANCED v20260803 | 239 | 164 | 149 |
 
 This case measures nested value structs, class construction, mutable methods,
 field-index lowering, devirtualization, and scalar replacement.
@@ -77,7 +77,7 @@ field-index lowering, devirtualization, and scalar replacement.
 | Compiler | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
 | LilScript | 126 | 128 | 110 |
-| Closure ADVANCED v20260803 | 141 | 140 | 124 |
+| Closure ADVANCED v20260803 | 132 | 133 | 111 |
 
 This case measures map/filter fusion at emission time, reduce, block-arrow
 inlining, callback effects, and captured immutable globals.
@@ -97,7 +97,7 @@ short-circuit folding, templates, and repeated long-string reuse.
 | Compiler | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
 | LilScript | 113 | 127 | 98 |
-| Closure ADVANCED v20260803 | 122 | 134 | 108 |
+| Closure ADVANCED v20260803 | 117 | 127 | 104 |
 
 This case gives each compiler three real source modules. It measures relative
 import resolution, transitive linking, aliases, exported and private bindings,
@@ -108,8 +108,8 @@ and complete removal of module syntax and unused exports.
 
 | Compiler | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
-| LilScript | 1,496 | 1,290 | 1,055 |
-| Closure ADVANCED v20260803 | 2,357 | 1,687 | 1,382 |
+| LilScript | 1,487 | 1,282 | 1,045 |
+| Closure ADVANCED v20260803 | 2,289 | 1,638 | 1,357 |
 
 ## Method
 

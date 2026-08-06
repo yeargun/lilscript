@@ -5,7 +5,7 @@ let score = 0;
 let observed = 0;
 
 function record(value) {
-  score = (Math.imul(score, 31) + value) | 0;
+  score = ((score * 31 | 0) + value) | 0;
 }
 
 events.on("metric", record);
