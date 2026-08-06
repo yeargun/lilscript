@@ -1,9 +1,10 @@
 # Mechanically paired compiler gate
 
 This lane removes source-style judgment from the comparison. A small neutral
-integer expression/statement schema in `specs.json` is rendered into readable
-LilScript and JavaScript by the same generator. The JavaScript renderer inserts
-the signed-32-bit operations required to match LilScript `int` semantics.
+integer-and-boolean expression/statement schema in `specs.json` is rendered
+into readable LilScript and JavaScript by the same generator. The JavaScript
+renderer inserts the signed-32-bit operations required to match LilScript
+`int` semantics.
 
 `run.mjs` builds each generated LilScript program as JavaScript, C, and a native
 executable, compiles the paired JavaScript with pinned Closure ADVANCED, and

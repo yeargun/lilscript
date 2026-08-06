@@ -1,14 +1,23 @@
 {
-  "generatedAt": "2026-08-06T15:01:53.274Z",
+  "generatedAt": "2026-08-06T15:14:16.571Z",
   "browser": "Chromium 151.0.7922.34",
   "regressionLimit": 1.03,
   "results": [
     {
+      "id": "boolean-literals",
+      "batches": 2000000,
+      "samples": 50,
+      "lilscriptMedianMs": 9,
+      "closureMedianMs": 6.800000000745058,
+      "upper95Ratio": 1,
+      "identicalCode": true
+    },
+    {
       "id": "constant-parameter-specialization",
       "batches": 2000000,
       "samples": 50,
-      "lilscriptMedianMs": 8.900000002235174,
-      "closureMedianMs": 8.900000002235174,
+      "lilscriptMedianMs": 7,
+      "closureMedianMs": 8.899999998509884,
       "upper95Ratio": 1,
       "identicalCode": true
     },
@@ -16,9 +25,9 @@
       "id": "bounded-induction",
       "batches": 200,
       "samples": 50,
-      "lilscriptMedianMs": 10.199999999254942,
-      "closureMedianMs": 12.599999997764826,
-      "upper95Ratio": 0.8095238096082832,
+      "lilscriptMedianMs": 10.399999998509884,
+      "closureMedianMs": 12.600000001490116,
+      "upper95Ratio": 0.8253968251809481,
       "identicalCode": false
     },
     {
@@ -27,15 +36,15 @@
       "samples": 50,
       "lilscriptMedianMs": 0.8000000007450581,
       "closureMedianMs": 0.8000000007450581,
-      "upper95Ratio": 1.0000000046566129,
+      "upper95Ratio": 1,
       "identicalCode": false
     },
     {
       "id": "pure-call-chain",
       "batches": 2000000,
       "samples": 50,
-      "lilscriptMedianMs": 8.900000002235174,
-      "closureMedianMs": 8.899999998509884,
+      "lilscriptMedianMs": 8.899999998509884,
+      "closureMedianMs": 8.800000000745058,
       "upper95Ratio": 1,
       "identicalCode": true
     }

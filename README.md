@@ -101,9 +101,10 @@ sits between absolute performance and balanced output. Four profiles, numeric
 inline budgets, and an exact `compression` decision allowlist control the
 performance/size tradeoff without changing C/native optimization.
 Production builds use an exact configurable raw, gzip-9, or Brotli-11 cost
-model to select among bounded pooling, integer-lowering, identifier-alphabet,
-quote-style, and declaration-spelling candidates; `--mode development` skips
-that compressor loop. `--explain human|json` reports optimizer passes. The
+model to select among bounded pooling, integer-lowering, boolean-literal,
+identifier-alphabet, quote-style, and declaration-spelling candidates;
+`--mode development` skips that compressor loop. `--explain human|json`
+reports optimizer passes. The
 realistic default omits signed-32-bit coercions only where range analysis proves
 them redundant. It also replaces `Math.imul(x,y)` with `x*y|0` when the product
 is exactly representable as a JavaScript double; potentially inexact products
@@ -286,7 +287,7 @@ separate Chromium gate uses alternating warmed samples and requires the 95%
 bootstrap upper runtime ratio to remain at or below `1.03`. These are scoped
 regression gates, not universal compiler-superiority claims.
 
-On the repository's nine compiler workloads LilScript totals 1,503 raw / 1,296
+On the repository's nine compiler workloads LilScript totals 1,500 raw / 1,295
 gzip / 1,059 Brotli bytes versus Closure at 2,357 / 1,687 / 1,382. LilScript is
 smaller in all 27 measured cells. The separate application lab
 compares five readable JavaScript references with matching-scope LilScript,
@@ -299,7 +300,7 @@ totals. All 26 comparable/diagnostic JavaScript artifacts, three Vite package
 builds, and six native executables pass checked-in output contracts. Matching
 those contracts is regression evidence, not proof of complete library
 compatibility. In the checked-in 25-sample module-evaluation run, LilScript is
-1.039x Closure's runtime and hand-specialized JavaScript is 0.686x, so runtime
+1.018x Closure's runtime and hand-specialized JavaScript is 0.685x, so runtime
 parity is not yet claimed. Compiler methodology and tables are in
 [docs/benchmark-results.md](docs/benchmark-results.md); the pass-by-pass
 responsibility mapping is in
@@ -309,7 +310,7 @@ The complete-library lab measures installed npm packages against LilScript
 ports after translated upstream assertions, dense differential API checks, and
 JavaScript/C/native app contracts. LilScript Brotli output is 45.1% smaller than
 npm/Vite for the complete `clamp` + `lerp` app and 39.8% smaller for
-`string-hash`; it is 27.9% larger for `@motionone/easing`. Those mixed results
+`string-hash`; it is 27.7% larger for `@motionone/easing`. Those mixed results
 are published without a universal superiority claim in
 [benchmarks/libraries/RESULTS.md](benchmarks/libraries/RESULTS.md) and at
 `/libraries.html` in the Vite site.

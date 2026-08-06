@@ -33,7 +33,7 @@ string predicates, case conversion, templates, and constant propagation.
 
 | Compiler | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
-| LilScript | 351 | 271 | 224 |
+| LilScript | 348 | 270 | 224 |
 | Closure ADVANCED v20260803 | 547 | 368 | 309 |
 
 This broader case combines structs, mutable classes, direct functions, global
@@ -108,7 +108,7 @@ and complete removal of module syntax and unused exports.
 
 | Compiler | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
-| LilScript | 1,503 | 1,296 | 1,059 |
+| LilScript | 1,500 | 1,295 | 1,059 |
 | Closure ADVANCED v20260803 | 2,357 | 1,687 | 1,382 |
 
 ## Method

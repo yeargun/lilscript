@@ -27,6 +27,7 @@ function command(executable, args, options = {}) {
 
 function expression(node, target) {
   if (Object.hasOwn(node, "int")) return String(node.int);
+  if (Object.hasOwn(node, "bool")) return String(node.bool);
   if (Object.hasOwn(node, "ref")) return node.ref;
   if (Object.hasOwn(node, "call")) {
     const [name, ...args] = node.call;

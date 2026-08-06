@@ -1,9 +1,23 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-06T15:01:49.286Z",
+  "generatedAt": "2026-08-06T15:14:11.900Z",
   "closureVersion": "v20260803",
   "source": "benchmarks/paired/specs.json",
   "results": [
+    {
+      "id": "boolean-literals",
+      "contract": "true\nfalse",
+      "lilscript": {
+        "raw": 31,
+        "gzip": 41,
+        "brotli": 35
+      },
+      "closure": {
+        "raw": 33,
+        "gzip": 43,
+        "brotli": 37
+      }
+    },
     {
       "id": "constant-parameter-specialization",
       "contract": "45\n38",
