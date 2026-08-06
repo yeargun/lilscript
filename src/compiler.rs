@@ -635,15 +635,30 @@ fn select_javascript_candidate(
         .map_err(Into::into);
     }
     let mut options = Vec::new();
+    let phi_affinity_modes = match configured.phi_affinity_mode {
+        crate::codegen_ir_js::PhiAffinityMode::Conservative => [
+            crate::codegen_ir_js::PhiAffinityMode::Conservative,
+            crate::codegen_ir_js::PhiAffinityMode::Conservative,
+            crate::codegen_ir_js::PhiAffinityMode::Conservative,
+        ],
+        crate::codegen_ir_js::PhiAffinityMode::Direct => [
+            crate::codegen_ir_js::PhiAffinityMode::Direct,
+            crate::codegen_ir_js::PhiAffinityMode::Conservative,
+            crate::codegen_ir_js::PhiAffinityMode::Conservative,
+        ],
+        crate::codegen_ir_js::PhiAffinityMode::Grouped => [
+            crate::codegen_ir_js::PhiAffinityMode::Grouped,
+            crate::codegen_ir_js::PhiAffinityMode::Direct,
+            crate::codegen_ir_js::PhiAffinityMode::Conservative,
+        ],
+    };
     for pool_strings in [configured.pool_strings, false] {
         for elide_safe_integer_coercions in [configured.elide_safe_integer_coercions, false] {
             for compact_boolean_literals in [configured.compact_boolean_literals, false] {
                 for inline_structured_closures in [configured.inline_structured_closures, false] {
                     for pack_string_arrays in [configured.pack_string_arrays, false] {
                         for scalar_phi_copies in [configured.scalar_phi_copies, false] {
-                            for coalesce_deferred_phi_affinities in
-                                [configured.coalesce_deferred_phi_affinities, false]
-                            {
+                            for phi_affinity_mode in phi_affinity_modes {
                                 let candidate = crate::codegen_ir_js::IrJsOptions {
                                     pool_strings,
                                     elide_safe_integer_coercions,
@@ -651,7 +666,7 @@ fn select_javascript_candidate(
                                     inline_structured_closures,
                                     pack_string_arrays,
                                     scalar_phi_copies,
-                                    coalesce_deferred_phi_affinities,
+                                    phi_affinity_mode,
                                     ..configured
                                 };
                                 if !options.contains(&candidate) {

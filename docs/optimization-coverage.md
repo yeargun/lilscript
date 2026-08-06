@@ -36,7 +36,7 @@ JavaScript and native C backends.
 | Dead property assignment elimination | Overwritten typed field stores are removed between observation barriers |
 | Remove unused code | Unread globals, unreachable blocks, unused pure calls, unused allocations and mutation graphs, instructions, and call-graph-unreachable functions are removed |
 | Flow-sensitive inline variables | SSA def-use counts, side-effect-aware deferred expression emission, and one-use boolean merge phis fused into immediately following structured branches |
-| Coalesce variable names | CFG liveness, interference graph coloring, direct-phi affinity across conservative deferred-expression barriers, codec selection against the conservative layout, and reuse of dead locals as parallel-copy temporaries |
+| Coalesce variable names | CFG liveness, interference graph coloring, direct-phi affinity across conservative deferred-expression barriers, contracted non-interfering phi groups, codec selection across all three layouts, and reuse of dead locals as parallel-copy temporaries |
 | Collapse variable declarations | Adjacent bindings and first phi assignments are combined by the JS backend; cyclic phi copies compare tuple and scalar schedules under the configured codec |
 | Rewrite/collapse anonymous functions | Small typed closures become expression or structured block arrows; capturing closures pass explicit environments; literal captures expose dead branches during final emission |
 | Alias strings | Repeated constants are value-numbered and profitable long strings receive shared short bindings; size-first also considers delimiter-packed immutable string tables; final pooling, packing, quote, and coercion variants are selected against exact raw/gzip/Brotli cost |
@@ -75,8 +75,8 @@ The current schedule is:
 10. module-level argument/return/field range analysis, liveness-based name
     coalescing, structured boolean-phi deferral, dependency-ordered phi copies,
     liveness-reused cycle temporaries, codec-selected conservative/direct-phi
-    affinity and scalar/tuple copy layouts, induction ranges, shortest numeric
-    literals, SSA-root binary precedence, structured closure selection,
+    affinity/group and scalar/tuple copy layouts, induction ranges, shortest
+    numeric literals, SSA-root binary precedence, structured closure selection,
     string-table packing, minified backend peepholes, and deterministic
     compressor-aware candidate selection;
 11. optional source ownership or shared-module chunk planning over the surviving

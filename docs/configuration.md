@@ -20,7 +20,7 @@ dead_code_elimination = true
 priority = "size-first"
 cost_model = "brotli" # raw | gzip | brotli
 candidate_search = "production" # off | production | always
-candidate_limit = 1024
+candidate_limit = 1536
 compression = [
   "identifier-mangling",
   "entropy-aware-mangling",
@@ -123,8 +123,9 @@ only listed tactics are enabled; `compression = []` disables all of them:
   enables the comparison; omitting this decision keeps tuple copies.
 - `phi-affinity-coalescing` lets direct phi inputs share their destination name
   when normal liveness proves the pair does not interfere. Candidate search
-  compares this move-reducing layout with conservative deferred-expression
-  interference because fewer raw assignments can still compress worse.
+  compares conservative deferred-expression interference, direct affinity,
+  and contracted non-interfering phi groups because fewer raw assignments can
+  still compress worse.
 
 The numeric `inline_instruction_limit`, `inline_control_flow_limit`, and
 `max_inline_growth` keys override the selected profile. Setting
@@ -144,7 +145,7 @@ search space compares profitable string pooling, literal-table packing,
 proven-safe integer coercion elision, boolean literals, structured closures,
 identifier alphabets, quote styles, and equivalent top-level declaration,
 phi-affinity, and SSA parallel-copy layouts, bounded by `candidate_limit`. The
-default limit of `1024` covers the complete current default search space.
+default limit of `1536` covers the complete current default search space.
 
 The priority is applied after `[optimization]`: setting `inlining = false`
 disables inlining in every profile. Explicit `[mangle]` values have the highest

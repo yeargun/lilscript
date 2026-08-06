@@ -33,7 +33,7 @@ pub struct IrJsOptions {
     pub inline_structured_closures: bool,
     pub pack_string_arrays: bool,
     pub scalar_phi_copies: bool,
-    pub coalesce_deferred_phi_affinities: bool,
+    pub phi_affinity_mode: PhiAffinityMode,
     pub identifier_alphabet: IdentifierAlphabet,
     pub string_quote: StringQuote,
 }
@@ -50,7 +50,7 @@ impl Default for IrJsOptions {
             inline_structured_closures: true,
             pack_string_arrays: true,
             scalar_phi_copies: false,
-            coalesce_deferred_phi_affinities: true,
+            phi_affinity_mode: PhiAffinityMode::Grouped,
             identifier_alphabet: IdentifierAlphabet::canonical(),
             string_quote: StringQuote::Double,
         }
@@ -62,6 +62,14 @@ pub enum StringQuote {
     #[default]
     Double,
     Single,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum PhiAffinityMode {
+    Conservative,
+    Direct,
+    #[default]
+    Grouped,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -3547,7 +3555,7 @@ impl LocalNames {
                 &stored_values,
                 &parameter_values,
                 &uses,
-                options.coalesce_deferred_phi_affinities,
+                options.phi_affinity_mode,
             );
             let color_count = colors.values().copied().max().map_or(0, |color| color + 1);
             let color_names = (0..color_count)
@@ -3763,7 +3771,7 @@ fn coalesce_value_names(
     stored_values: &AHashSet<ValueId>,
     parameter_values: &AHashSet<ValueId>,
     uses: &AHashMap<ValueId, usize>,
-    coalesce_deferred_phi_affinities: bool,
+    phi_affinity_mode: PhiAffinityMode,
 ) -> AHashMap<ValueId, usize> {
     let named = stored_values
         .union(parameter_values)
@@ -4001,7 +4009,7 @@ fn coalesce_value_names(
             );
         }
     }
-    let phi_affinity_pairs = if coalesce_deferred_phi_affinities {
+    let phi_affinity_pairs = if phi_affinity_mode != PhiAffinityMode::Conservative {
         function
             .blocks
             .iter()
@@ -4071,6 +4079,15 @@ fn coalesce_value_names(
             })
             .then_with(|| left.0.cmp(&right.0))
     });
+    if phi_affinity_mode == PhiAffinityMode::Grouped {
+        return color_phi_affinity_groups(
+            &values,
+            &interference,
+            &affinities,
+            &parameter_order,
+            uses,
+        );
+    }
     let mut colors = AHashMap::<ValueId, usize>::new();
     for value in values {
         let unavailable = interference
@@ -4089,6 +4106,118 @@ fn coalesce_value_names(
         let color =
             preferred.unwrap_or_else(|| (0..).find(|color| !unavailable.contains(color)).unwrap());
         colors.insert(value, color);
+    }
+    colors
+}
+
+fn color_phi_affinity_groups(
+    values: &[ValueId],
+    interference: &AHashMap<ValueId, AHashSet<ValueId>>,
+    affinities: &AHashMap<ValueId, Vec<ValueId>>,
+    parameter_order: &AHashMap<ValueId, usize>,
+    uses: &AHashMap<ValueId, usize>,
+) -> AHashMap<ValueId, usize> {
+    let mut groups = values
+        .iter()
+        .enumerate()
+        .map(|(index, value)| (index, vec![*value]))
+        .collect::<AHashMap<_, _>>();
+    let mut group_of = values
+        .iter()
+        .enumerate()
+        .map(|(index, value)| (*value, index))
+        .collect::<AHashMap<_, _>>();
+    let mut edges = affinities
+        .iter()
+        .flat_map(|(left, rights)| {
+            rights.iter().map(|right| {
+                if left.0 < right.0 {
+                    (*left, *right)
+                } else {
+                    (*right, *left)
+                }
+            })
+        })
+        .collect::<Vec<_>>();
+    edges.sort_unstable_by_key(|(left, right)| (left.0, right.0));
+    edges.dedup();
+    for (left, right) in edges {
+        let left_group = group_of[&left];
+        let right_group = group_of[&right];
+        if left_group == right_group {
+            continue;
+        }
+        let left_members = &groups[&left_group];
+        let right_members = &groups[&right_group];
+        if left_members.iter().any(|value| {
+            right_members
+                .iter()
+                .any(|other| interference[value].contains(other))
+        }) {
+            continue;
+        }
+        let retained = left_group.min(right_group);
+        let removed = left_group.max(right_group);
+        let mut merged = groups.remove(&retained).expect("affinity group exists");
+        merged.extend(groups.remove(&removed).expect("affinity group exists"));
+        merged.sort_unstable_by_key(|value| value.0);
+        for value in &merged {
+            group_of.insert(*value, retained);
+        }
+        groups.insert(retained, merged);
+    }
+
+    let mut group_ids = groups.keys().copied().collect::<Vec<_>>();
+    group_ids.sort_unstable_by(|left, right| {
+        let left_members = &groups[left];
+        let right_members = &groups[right];
+        let left_parameter = left_members
+            .iter()
+            .filter_map(|value| parameter_order.get(value))
+            .min()
+            .copied();
+        let right_parameter = right_members
+            .iter()
+            .filter_map(|value| parameter_order.get(value))
+            .min()
+            .copied();
+        right_parameter
+            .is_some()
+            .cmp(&left_parameter.is_some())
+            .then_with(|| {
+                left_parameter
+                    .unwrap_or(usize::MAX)
+                    .cmp(&right_parameter.unwrap_or(usize::MAX))
+            })
+            .then_with(|| {
+                right_members
+                    .iter()
+                    .map(|value| uses.get(value).copied().unwrap_or(0))
+                    .sum::<usize>()
+                    .cmp(
+                        &left_members
+                            .iter()
+                            .map(|value| uses.get(value).copied().unwrap_or(0))
+                            .sum::<usize>(),
+                    )
+            })
+            .then_with(|| left_members[0].0.cmp(&right_members[0].0))
+    });
+    let mut group_colors = AHashMap::<usize, usize>::new();
+    let mut colors = AHashMap::<ValueId, usize>::new();
+    for group in group_ids {
+        let unavailable = groups[&group]
+            .iter()
+            .flat_map(|value| &interference[value])
+            .filter_map(|neighbor| group_colors.get(&group_of[neighbor]).copied())
+            .collect::<AHashSet<_>>();
+        let color = (0..)
+            .find(|color| !unavailable.contains(color))
+            .expect("an interference graph always has another color");
+        group_colors.insert(group, color);
+        for value in &groups[&group] {
+            colors.insert(*value, color);
+        }
     }
     colors
 }
@@ -4900,12 +5029,16 @@ mod tests {
     }
 
     fn compile_module(source: &str) -> String {
+        compile_module_with_options(source, IrJsOptions::default())
+    }
+
+    fn compile_module_with_options(source: &str, options: IrJsOptions) -> String {
         let arena = Bump::new();
         let program = parse_source(&arena, source).unwrap();
         let semantics = analyze(&program).unwrap();
         let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
         optimize_control_flow_for_module(&mut ir).unwrap();
-        emit_optimized_ir_js_module_with_options(&ir, &IrJsOptions::default()).unwrap()
+        emit_optimized_ir_js_module_with_options(&ir, &options).unwrap()
     }
 
     fn compile_without_inlining(source: &str, scalar_replacement: bool) -> String {
@@ -5009,12 +5142,30 @@ mod tests {
 
     #[test]
     fn coalesces_sequential_mutations_across_direct_phi_edges() {
-        let code = compile_module(
-            "export int refine(int hash,int remaining,int byte){if(remaining>=2){hash^=byte<<8;}if(remaining>=1){hash^=byte;hash=Math.imul(hash,31);}return hash;}",
+        let source = "export int refine(int hash,int remaining,int byte){if(remaining==3){hash^=byte<<16;}if(remaining>=2){hash^=byte<<8;}if(remaining>=1){hash^=byte;hash=Math.imul(hash,31);}return hash;}";
+        let code = compile_module(source);
+        let direct = compile_module_with_options(
+            source,
+            IrJsOptions {
+                phi_affinity_mode: PhiAffinityMode::Direct,
+                ..IrJsOptions::default()
+            },
+        );
+        let conservative = compile_module_with_options(
+            source,
+            IrJsOptions {
+                phi_affinity_mode: PhiAffinityMode::Conservative,
+                ..IrJsOptions::default()
+            },
         );
 
         assert!(!code.contains("else{"), "{code}");
-        assert!(!code.contains("var "), "{code}");
+        assert_ne!(direct, conservative);
+        assert!(code.len() <= direct.len(), "{code}\n{direct}");
+        assert!(
+            direct.len() < conservative.len(),
+            "{direct}\n{conservative}"
+        );
     }
 
     #[test]
@@ -5158,8 +5309,13 @@ mod tests {
             .iter()
             .map(|parameter| parameter.value)
             .collect::<AHashSet<_>>();
-        let colors =
-            coalesce_value_names(function, &named, &parameters, &use_counts(function), true);
+        let colors = coalesce_value_names(
+            function,
+            &named,
+            &parameters,
+            &use_counts(function),
+            PhiAffinityMode::Grouped,
+        );
 
         assert_ne!(colors[&callback], colors[&object]);
 
@@ -5195,8 +5351,13 @@ mod tests {
             .iter()
             .map(|parameter| parameter.value)
             .collect::<AHashSet<_>>();
-        let colors =
-            coalesce_value_names(function, &named, &parameters, &use_counts(function), true);
+        let colors = coalesce_value_names(
+            function,
+            &named,
+            &parameters,
+            &use_counts(function),
+            PhiAffinityMode::Grouped,
+        );
         for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
             if let (
                 Some(output),
@@ -5316,8 +5477,13 @@ mod tests {
             .iter()
             .map(|parameter| parameter.value)
             .collect::<AHashSet<_>>();
-        let colors =
-            coalesce_value_names(function, &named, &parameters, &use_counts(function), true);
+        let colors = coalesce_value_names(
+            function,
+            &named,
+            &parameters,
+            &use_counts(function),
+            PhiAffinityMode::Grouped,
+        );
 
         for (value, color) in &colors {
             if *value != captured {
