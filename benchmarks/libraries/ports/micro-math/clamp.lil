@@ -1,0 +1,18 @@
+export pure float clamp(float value, float min, float max) {
+  if (min < max) {
+    if (value < min) {
+      return min;
+    }
+    if (value > max) {
+      return max;
+    }
+    return value;
+  }
+  if (value < max) {
+    return max;
+  }
+  if (value > min) {
+    return min;
+  }
+  return value;
+}

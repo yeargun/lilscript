@@ -1,0 +1,59 @@
+pure float noopReturn(float value) {
+  return value;
+}
+
+pure float calcBezier(float time, float first, float second) {
+  return (((1.0 - 3.0 * second + 3.0 * first) * time + (3.0 * second - 6.0 * first)) * time + 3.0 * first) * time;
+}
+
+pure float binarySubdivide(float target, float lower, float upper, float first, float second) {
+  float current = 1.0;
+  float time = 0.0;
+  int iteration = 0;
+  bool active = true;
+  while (active) {
+    time = lower + (upper - lower) / 2.0;
+    current = calcBezier(time, first, second) - target;
+    if (current > 0.0) {
+      upper = time;
+    } else {
+      lower = time;
+    }
+    iteration += 1;
+    active = current.abs() > 0.0000001 && iteration < 12;
+  }
+  return time;
+}
+
+export pure func(float)->float cubicBezier(float x1, float y1, float x2, float y2) {
+  if (x1 == y1 && x2 == y2) {
+    return noopReturn;
+  }
+  return (float value) => {
+    if (value == 0.0 || value == 1.0) {
+      return value;
+    }
+    float time = binarySubdivide(value, 0.0, 1.0, x1, x2);
+    return calcBezier(time, y1, y2);
+  };
+}
+
+pure float clampUnit(float value) {
+  return value.max(0.0).min(1.0);
+}
+
+export pure func(float)->float steps(int count, string direction = "end") {
+  return (float value) => {
+    if (direction == "end") {
+      value = value.min(0.999);
+    } else {
+      value = value.max(0.001);
+    }
+    float expanded = value * count;
+    float rounded = expanded.floor();
+    if (direction != "end") {
+      rounded = expanded.ceil();
+    }
+    return clampUnit(rounded / count);
+  };
+}

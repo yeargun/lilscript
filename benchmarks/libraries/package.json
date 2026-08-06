@@ -1,0 +1,24 @@
+{
+  "name": "lilscript-library-compatibility-lab",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
+  "scripts": {
+    "benchmark": "node run.mjs && node --test test/*.test.mjs",
+    "verify": "node run.mjs --verify-only && node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@motionone/easing": "10.18.0",
+    "clamp": "1.0.1",
+    "lerp": "1.0.3",
+    "string-hash": "1.1.3"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.1",
+    "google-closure-compiler": "20260803.0.0",
+    "vite": "8.2.0"
+  }
+}

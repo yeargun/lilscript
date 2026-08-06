@@ -1,0 +1,43 @@
+import { cubicBezier, steps } from "../../../ports/motion-easing/index";
+
+pure bool close(float actual, float expected, float tolerance = 0.0) {
+  return (actual - expected).abs() <= tolerance;
+}
+
+int passed = 0;
+func(float)->float linear = cubicBezier(0.0, 0.0, 1.0, 1.0);
+if (linear(0.0) == 0.0) { passed += 1; }
+if (linear(1.0) == 1.0) { passed += 1; }
+if (linear(0.5) == 0.5) { passed += 1; }
+
+func(float)->float curve = cubicBezier(0.5, 0.1, 0.31, 0.96);
+if (curve(0.0) == 0.0) { passed += 1; }
+if (close(curve(0.01), 0.002, 0.005)) { passed += 1; }
+if (close(curve(0.25), 0.164, 0.005)) { passed += 1; }
+if (close(curve(0.75), 0.935, 0.005)) { passed += 1; }
+if (close(curve(0.99), 0.999, 0.005)) { passed += 1; }
+if (curve(1.0) == 1.0) { passed += 1; }
+
+func(float)->float stepEnd = steps(4);
+float[] endValues = [0.0, 0.2, 0.249, 0.25, 0.49, 0.5, 0.99, 1.0];
+float[] endExpected = [0.0, 0.0, 0.0, 0.25, 0.25, 0.5, 0.75, 0.75];
+for (int index = 0; index < endValues.length; index++) {
+  if (stepEnd(endValues[index]) == endExpected[index]) { passed += 1; }
+}
+
+func(float)->float stepStart = steps(4, "start");
+float[] startValues = [0.0, 0.2, 0.249, 0.25, 0.49, 0.5, 0.51, 0.99, 1.0, 2.0];
+float[] startExpected = [0.25, 0.25, 0.25, 0.25, 0.5, 0.5, 0.75, 1.0, 1.0, 1.0];
+for (int index = 0; index < startValues.length; index++) {
+  if (stepStart(startValues[index]) == startExpected[index]) { passed += 1; }
+}
+
+int curveDigest = 0;
+int stepDigest = 0;
+for (int index = 0; index < 120000; index++) {
+  float progress = (index % 101) / 100.0;
+  if (curve(progress) > 0.5) { curveDigest += index % 17; }
+  if (stepEnd(progress) >= 0.5) { stepDigest += index % 13; }
+  if (stepStart(progress) > 0.5) { stepDigest += index % 7; }
+}
+print(`motion-easing:${passed}:${curveDigest}:${stepDigest}`);

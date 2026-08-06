@@ -1,0 +1,17 @@
+import { stringHash } from "../../../ports/string-hash/index";
+
+int passed = 0;
+if (stringHash("Mary had a little lamb.") == 1766333550.0) { passed += 1; }
+if (stringHash("Hello, world!") == 343662184.0) { passed += 1; }
+if (stringHash("A😀Z") == 2106584963.0) { passed += 1; }
+if (stringHash("café") == 2083234952.0) { passed += 1; }
+
+string[] values = ["Mary had a little lamb.", "Hello, world!", "LilScript", "A😀Z", "café"];
+float digest = 0.0;
+for (int index = 0; index < 90000; index++) {
+  digest += stringHash(values[index % values.length]);
+  while (digest >= 4294967291.0) {
+    digest -= 4294967291.0;
+  }
+}
+print(`string-hash:${passed}:${digest}`);
