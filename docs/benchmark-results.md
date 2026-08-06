@@ -124,6 +124,20 @@ and complete removal of module syntax and unused exports.
 | LilScript | 1,466 | 1,287 | 1,061 |
 | Closure ADVANCED v20260803 | 2,450 | 1,771 | 1,471 |
 
+## Finite-value pass ablation
+
+This separate optimizer ablation uses
+`tests/cases/interprocedural_finite_values.lil`. Inlining and scalar replacement
+are disabled in both variants; only `finite_value_propagation` changes. Both
+artifacts must execute the checked output contract before sizes are accepted.
+
+| Variant | Raw | Gzip-9 | Brotli-11 |
+| --- | ---: | ---: | ---: |
+| Finite values enabled | 143 | 108 | 77 |
+| Finite values disabled | 214 | 157 | 121 |
+
+Run it with `node benchmarks/finite-values/run.mjs`.
+
 ## Method
 
 Each LilScript workload has a behaviorally equivalent JavaScript input under

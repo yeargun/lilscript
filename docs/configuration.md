@@ -10,6 +10,7 @@ preset = "maximum" # maximum | none
 constant_folding = true
 algebraic_simplification = true
 common_subexpression_elimination = true
+finite_value_propagation = true
 global_optimization = true
 inlining = true
 scalar_replacement = true
@@ -71,6 +72,11 @@ Every optional optimization key overrides its preset independently. The
 `none` preset disables optional transforms but retains mandatory IR
 normalization and correctness analyses. This makes it useful for debugging and
 for isolating pass regressions without changing language semantics.
+
+`finite_value_propagation` controls the bounded interprocedural lattice for
+booleans, strings, nullable `null`, and owned nominal fields. The default is
+enabled. Facts widen after four alternatives and become unknown at exported,
+extern, indirect-call, closure, or untyped aggregate boundaries.
 
 `javascript.priority` is a JavaScript-target policy. It never weakens semantic
 checks, mandatory IR normalization, DCE correctness, or host-boundary rules:

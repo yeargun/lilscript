@@ -262,6 +262,7 @@ cargo clippy --all-targets -- -D warnings
 cargo test --all-targets
 scripts/verify.sh
 benchmarks/run.sh
+node benchmarks/finite-values/run.mjs
 npm --prefix benchmarks/apps ci
 npm --prefix benchmarks/apps run benchmark
 npm --prefix benchmarks/libraries ci
@@ -275,15 +276,20 @@ npm --prefix vscode-extension run package
 ```
 
 `scripts/verify.sh` compares Node and native output for two conformance suites
-and links a generated aggregate ABI against a C host. It also runs 60 programs
+and links a generated aggregate ABI against a C host. It also runs 61 programs
 through JavaScript, emitted C, and native executables with maximum and disabled
-optional optimization, for 120 matrix executions, plus a framed LSP session
+optional optimization, for 122 matrix executions, plus a framed LSP session
 through diagnostics, completion, hover, symbols, semantic tokens, references,
 rename, formatting, quick fixes, and shutdown.
 `benchmarks/run.sh`
 downloads the pinned Closure Compiler `v20260803`, runs `ADVANCED` compilation,
 checks equivalent runtime output, and measures normalized raw, gzip-9, and
 Brotli-11 bytes.
+
+The finite-value ablation holds inlining and scalar replacement disabled in
+both variants and toggles only interprocedural finite-value propagation. Both
+artifacts execute the same contract; the pass reduces the checked workload from
+`214/157/121` to `143/108/77` raw/gzip-9/Brotli-11 bytes.
 
 The source-neutral lane in `benchmarks/paired` mechanically generates readable
 LilScript and JavaScript from one workload schema. Every case must agree through

@@ -51,6 +51,17 @@
         <div class="benchmark-table-wrap" data-paired-table></div>
       </section>
 
+      <section class="benchmark-project" aria-labelledby="finite-values-title">
+        <header>
+          <p class="eyebrow">Single-pass ablation</p>
+          <h2 id="finite-values-title">Interprocedural finite values</h2>
+          <p>Both artifacts disable inlining and scalar replacement and execute the same JavaScript/native contract. Only <code>finite_value_propagation</code> changes, isolating branch, field, and signature cleanup exposed by the bounded lattice.</p>
+        </header>
+        <div class="benchmark-table-wrap">
+          <table><thead><tr><th>Variant</th><th>Raw</th><th>Gzip-9</th><th>Brotli-11</th></tr></thead><tbody><tr class="lilscript-row"><th>Finite values enabled</th><td>143</td><td>108</td><td>77</td></tr><tr><th>Finite values disabled</th><td>214</td><td>157</td><td>121</td></tr></tbody></table>
+        </div>
+      </section>
+
       <section class="benchmark-project library-lab-callout" aria-labelledby="library-lab-title">
         <header>
           <p class="eyebrow">Complete npm ports</p>

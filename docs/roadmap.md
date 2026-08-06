@@ -16,8 +16,9 @@ checked-in benchmark workload. Passing a synthetic example alone is not enough.
 - Static module linking, cross-file optimization, tree shaking, static chunks.
 - Constant propagation, algebraic simplification, GVN, inlining,
   devirtualization, escape analysis, scalar replacement, DSE, and DCE.
-- Module-level integer argument, return, and owned-field range analysis, plus
-  allocation-root alias tracking for mutable built-in collections.
+- Module-level integer ranges and bounded boolean/string/null value sets across
+  arguments, returns, and owned nominal fields, plus allocation-root alias
+  tracking for mutable built-in collections.
 - Interprocedural exact array-parameter lengths for closed, stable direct-call
   sets, with mutation, reference-retention, indirect-call, and ABI barriers.
 - Frequency-ranked identifier mangling, typed property dissolution, profitable
@@ -110,8 +111,11 @@ checked-in benchmark workload. Passing a synthetic example alone is not enough.
   returned closure reaches the normal constant-fold/DCE fixed point.
 - [x] Add interprocedural exact array lengths, integer return ranges, and
   nominal field ranges with conservative open-boundary invalidation.
-- [ ] Add interprocedural finite value sets and nominal field constants beyond
-  numeric ranges.
+- [x] Add bounded interprocedural boolean/string/null value sets and nominal
+  field constants beyond numeric ranges. The four-alternative set widens at open
+  boundaries and feeds the ordinary fold/DCE fixed point; the checked
+  no-inlining ablation improves `214/157/121` bytes to `143/108/77` under
+  raw/gzip-9/Brotli-11.
 - [x] Coalesce loop-header and conditional loop-carried phis with their dead
   incoming values so common mutations no longer require temporary copy chains.
 - [x] Defer a one-use boolean merge phi into an immediately following structured
