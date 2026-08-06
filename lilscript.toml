@@ -7,6 +7,7 @@ compression = [
   "identifier-mangling",
   "string-pooling",
   "size-aware-inlining",
+  "safe-integer-coercion-elision",
 ]
 
 [bundle]

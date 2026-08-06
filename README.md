@@ -99,6 +99,9 @@ default JavaScript-specific `priority = "realistic-performance-first"` policy
 sits between absolute performance and balanced output. Four profiles, numeric
 inline budgets, and an exact `compression` decision allowlist control the
 performance/size tradeoff without changing C/native optimization.
+The realistic default omits `|0` and `Math.imul` only where range analysis
+proves signed-32-bit behavior is unchanged; overflow-capable integer operations
+remain normalized.
 Bundle policy selects a single artifact, source-module-preserving static ESM
 chunks, or size/import-limited shared chunks. See
 [docs/configuration.md](docs/configuration.md) for the complete schema and exact
@@ -263,6 +266,8 @@ possible program. Compiler methodology and tables are in
 [docs/benchmark-results.md](docs/benchmark-results.md); the pass-by-pass
 responsibility mapping is in
 [docs/optimization-coverage.md](docs/optimization-coverage.md).
+The maintained implementation and research backlog is in
+[docs/roadmap.md](docs/roadmap.md).
 
 ## v0.1 Scope
 

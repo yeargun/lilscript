@@ -26,6 +26,7 @@ pub struct IrJsOptions {
     pub mangle_properties: bool,
     pub mangle_exports: bool,
     pub pool_strings: bool,
+    pub elide_safe_integer_coercions: bool,
 }
 
 impl Default for IrJsOptions {
@@ -35,6 +36,7 @@ impl Default for IrJsOptions {
             mangle_properties: false,
             mangle_exports: false,
             pool_strings: true,
+            elide_safe_integer_coercions: true,
         }
     }
 }
@@ -1713,12 +1715,21 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         cache: &mut AHashMap<ValueId, String>,
     ) -> Result<String, CodegenError> {
         if instruction.ty.as_ref() == Some(&Type::Int) {
+            let coercion_is_elidable = self.options.elide_safe_integer_coercions
+                && instruction
+                    .out
+                    .is_some_and(|out| context.can_elide_i32_coercion(out));
             match &instruction.op {
                 ControlFlowOp::Unary {
                     op: IrUnaryOp::Neg,
                     value,
                 } => {
-                    return Ok(format!("(-{}|0)", take_value(*value, context, cache)?));
+                    let value = take_value(*value, context, cache)?;
+                    return Ok(if coercion_is_elidable {
+                        format!("(-{value})")
+                    } else {
+                        format!("(-{value}|0)")
+                    });
                 }
                 ControlFlowOp::Binary { op, lhs, rhs }
                     if matches!(
@@ -1733,9 +1744,13 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     let lhs = take_value(*lhs, context, cache)?;
                     let rhs = take_value(*rhs, context, cache)?;
                     return Ok(match op {
+                        IrBinaryOp::Mul if coercion_is_elidable => format!("({lhs}*{rhs})"),
                         IrBinaryOp::Mul => format!("Math.imul({lhs},{rhs})"),
                         IrBinaryOp::Mod if is_nonzero_i32_literal(&rhs) => {
                             format!("({lhs}%{rhs})")
+                        }
+                        _ if coercion_is_elidable => {
+                            format!("({lhs}{}{rhs})", binary_operator(*op))
                         }
                         _ => format!("({lhs}{}{rhs}|0)", binary_operator(*op)),
                     });
@@ -2476,6 +2491,7 @@ struct LocalNames {
     stored_values: AHashSet<ValueId>,
     untyped_values: AHashSet<ValueId>,
     inlined_values: AHashMap<ValueId, String>,
+    elidable_i32_coercions: AHashSet<ValueId>,
     declared_names: RefCell<AHashSet<String>>,
     inline_declarations: bool,
     state: String,
@@ -2534,6 +2550,160 @@ fn render_arrow_parameters(
     }
     rendered.push(')');
     Ok(rendered)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct I32Range {
+    min: i64,
+    max: i64,
+}
+
+impl I32Range {
+    const FULL: Self = Self {
+        min: i32::MIN as i64,
+        max: i32::MAX as i64,
+    };
+
+    const fn exact(value: i64) -> Self {
+        Self {
+            min: value,
+            max: value,
+        }
+    }
+
+    fn checked_bounds(min: i64, max: i64) -> Option<Self> {
+        (min >= i64::from(i32::MIN) && max <= i64::from(i32::MAX)).then_some(Self { min, max })
+    }
+
+    fn add(self, rhs: Self) -> Option<Self> {
+        Self::checked_bounds(self.min + rhs.min, self.max + rhs.max)
+    }
+
+    fn sub(self, rhs: Self) -> Option<Self> {
+        Self::checked_bounds(self.min - rhs.max, self.max - rhs.min)
+    }
+
+    fn mul(self, rhs: Self) -> Option<Self> {
+        let products = [
+            self.min * rhs.min,
+            self.min * rhs.max,
+            self.max * rhs.min,
+            self.max * rhs.max,
+        ];
+        Self::checked_bounds(
+            *products.iter().min().expect("four products"),
+            *products.iter().max().expect("four products"),
+        )
+    }
+
+    fn neg(self) -> Option<Self> {
+        Self::checked_bounds(-self.max, -self.min)
+    }
+
+    fn modulo(self, rhs: Self) -> Option<Self> {
+        if rhs.min != rhs.max || rhs.min == 0 {
+            return None;
+        }
+        let bound = rhs.min.abs() - 1;
+        let min = if self.min < 0 {
+            self.min.max(-bound)
+        } else {
+            0
+        };
+        let max = if self.max > 0 { self.max.min(bound) } else { 0 };
+        Some(Self { min, max })
+    }
+}
+
+fn analyze_i32_ranges(function: &ControlFlowFunction<'_>) -> AHashSet<ValueId> {
+    let mut ranges = AHashMap::<ValueId, I32Range>::new();
+    for parameter in &function.params {
+        if parameter.ty == Type::Int {
+            ranges.insert(parameter.value, I32Range::FULL);
+        }
+    }
+    for phi in function.blocks.iter().flat_map(|block| &block.phis) {
+        if phi.ty == Type::Int {
+            ranges.insert(phi.out, I32Range::FULL);
+        }
+    }
+    for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
+        if instruction.ty.as_ref() == Some(&Type::Int) {
+            if let Some(out) = instruction.out {
+                ranges.insert(out, I32Range::FULL);
+            }
+        }
+    }
+
+    let mut elidable = AHashSet::new();
+    loop {
+        let mut changed = false;
+        for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
+            if instruction.ty.as_ref() != Some(&Type::Int) {
+                continue;
+            }
+            let Some(out) = instruction.out else {
+                continue;
+            };
+            let range = |value: &ValueId| ranges.get(value).copied().unwrap_or(I32Range::FULL);
+            let candidate = match &instruction.op {
+                ControlFlowOp::Const(ConstValue::Int(value)) => Some(I32Range::exact(*value)),
+                ControlFlowOp::Unary {
+                    op: IrUnaryOp::Neg,
+                    value,
+                } => range(value).neg(),
+                ControlFlowOp::Binary { op, lhs, rhs } => match op {
+                    IrBinaryOp::Add => range(lhs).add(range(rhs)),
+                    IrBinaryOp::Sub => range(lhs).sub(range(rhs)),
+                    IrBinaryOp::Mul => range(lhs).mul(range(rhs)),
+                    IrBinaryOp::Mod => range(lhs).modulo(range(rhs)),
+                    _ => None,
+                },
+                ControlFlowOp::Intrinsic { intrinsic, .. }
+                    if matches!(
+                        intrinsic,
+                        Intrinsic::ArrayLength
+                            | Intrinsic::MapSize
+                            | Intrinsic::SetSize
+                            | Intrinsic::BufferByteLength
+                            | Intrinsic::Uint8ArrayLength
+                            | Intrinsic::Uint8ArrayByteLength
+                            | Intrinsic::Uint8ArrayByteOffset
+                            | Intrinsic::StringLength
+                    ) =>
+                {
+                    Some(I32Range {
+                        min: 0,
+                        max: i64::from(i32::MAX),
+                    })
+                }
+                _ => None,
+            };
+            let Some(candidate) = candidate else {
+                continue;
+            };
+            if ranges.get(&out) != Some(&candidate) {
+                ranges.insert(out, candidate);
+                changed = true;
+            }
+            if matches!(
+                instruction.op,
+                ControlFlowOp::Unary {
+                    op: IrUnaryOp::Neg,
+                    ..
+                } | ControlFlowOp::Binary {
+                    op: IrBinaryOp::Add | IrBinaryOp::Sub | IrBinaryOp::Mul | IrBinaryOp::Mod,
+                    ..
+                }
+            ) {
+                elidable.insert(out);
+            }
+        }
+        if !changed {
+            break;
+        }
+    }
+    elidable
 }
 
 fn shape_at(function: &ControlFlowFunction<'_>, block: BlockId) -> Option<ControlShape> {
@@ -2611,6 +2781,7 @@ impl LocalNames {
         } else {
             AHashSet::new()
         };
+        let elidable_i32_coercions = analyze_i32_ranges(function);
         let mut values = function
             .params
             .iter()
@@ -2740,6 +2911,7 @@ impl LocalNames {
             stored_values,
             untyped_values,
             inlined_values,
+            elidable_i32_coercions,
             declared_names: RefCell::new(declared_names),
             inline_declarations: false,
             state,
@@ -2780,6 +2952,10 @@ impl LocalNames {
 
     fn is_stored(&self, value: ValueId) -> bool {
         self.stored_values.contains(&value)
+    }
+
+    fn can_elide_i32_coercion(&self, value: ValueId) -> bool {
+        self.elidable_i32_coercions.contains(&value)
     }
 
     fn claim_declaration(&self, value: ValueId) -> Result<bool, CodegenError> {
@@ -3654,12 +3830,16 @@ mod tests {
     };
 
     fn compile(source: &str) -> String {
+        compile_with_options(source, IrJsOptions::default())
+    }
+
+    fn compile_with_options(source: &str, options: IrJsOptions) -> String {
         let arena = Bump::new();
         let program = parse_source(&arena, source).unwrap();
         let semantics = analyze(&program).unwrap();
         let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
         optimize_control_flow(&mut ir).unwrap();
-        emit_optimized_ir_js(&ir).unwrap()
+        emit_optimized_ir_js_with_options(&ir, &options).unwrap()
     }
 
     #[test]
@@ -4044,6 +4224,27 @@ mod tests {
             compile("extern int read();print(7%read());").contains("|0"),
             "a runtime zero divisor must still produce LilScript's integer zero"
         );
+    }
+
+    #[test]
+    fn elides_only_range_proven_integer_coercions() {
+        let bounded_add = compile("extern int read();print(read()%10+5);");
+        assert!(!bounded_add.contains("|0"), "{bounded_add}");
+
+        let bounded_multiply = compile("extern int read();print((read()%10)*(read()%10));");
+        assert!(
+            !bounded_multiply.contains("Math.imul"),
+            "{bounded_multiply}"
+        );
+        assert!(!bounded_multiply.contains("|0"), "{bounded_multiply}");
+
+        let overflow_capable = compile("extern int read();print(read()+1);");
+        assert!(overflow_capable.contains("|0"), "{overflow_capable}");
+
+        let mut eager = IrJsOptions::default();
+        eager.elide_safe_integer_coercions = false;
+        let eager = compile_with_options("extern int read();print(read()%10+5);", eager);
+        assert!(eager.contains("|0"), "{eager}");
     }
 
     #[test]

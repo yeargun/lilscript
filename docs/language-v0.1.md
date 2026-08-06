@@ -168,7 +168,11 @@ not inlined until the optimizer can substitute their call-site types.
 
 Integer arithmetic wraps to signed 32-bit two's-complement values. Integer
 division truncates toward zero; division or remainder by zero produces `0` on
-every backend. Float arithmetic follows IEEE-754 binary64 behavior.
+every backend. This is a language guarantee, not a requirement that JavaScript
+output contain `|0` after every operation: the realistic profile may omit a
+coercion when range analysis proves overflow impossible, while
+performance-first retains eager normalization for numeric hot paths. Float
+arithmetic follows IEEE-754 binary64 behavior.
 
 ## Declarations
 

@@ -1076,7 +1076,7 @@ mod tests {
         config.mangle.identifiers = Some(false);
         let unoptimized = compile_program_to_js_configured(&program, &config).unwrap();
         assert_ne!(unoptimized, "console.log(7)");
-        assert!(unoptimized.contains("Math.imul(2,3)"));
+        assert!(unoptimized.contains("2*3"));
 
         let arena = Bump::new();
         let program = parse_source(

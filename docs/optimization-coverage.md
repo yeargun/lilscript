@@ -16,6 +16,7 @@ same module to the JavaScript and native C backends.
 | Closure responsibility | LilScript implementation |
 | --- | --- |
 | Early/late peephole optimization | Constant folding, algebraic identities, boolean simplification, branch inversion, compact loops, conditional returns, declaration collapse, trailing-semicolon removal |
+| Numeric representation lowering | Signed-i32 range analysis removes `|0` and `Math.imul` only for proven-safe operations; overflow-capable arithmetic retains exact wrapping behavior |
 | Inline variables and constants | mem2reg SSA, constant propagation, single-assignment global propagation, constant rematerialization, one-use expression fusion |
 | Inline functions and simple methods | Fixed-point expression inlining plus single-use multi-block CFG inlining |
 | Inline/collapse properties | Nominal field resolution, positional field indexes, struct/class scalar replacement |
@@ -60,8 +61,8 @@ The current schedule is:
 7. escape analysis, class/struct scalar replacement, and dead field stores;
 8. another scalar fixed point;
 9. effect-aware SSA DCE and whole-program function DCE;
-10. liveness-based name coalescing, dependency-ordered phi copies, and minified
-    backend peepholes;
+10. liveness-based name coalescing, dependency-ordered phi copies, signed-i32
+    range analysis, and minified backend peepholes;
 11. optional source ownership or shared-module chunk planning over the surviving
     IR, followed by cross-chunk binding analysis and deterministic ESM emission.
 

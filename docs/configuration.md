@@ -22,6 +22,7 @@ compression = [
   "identifier-mangling",
   "string-pooling",
   "size-aware-inlining",
+  "safe-integer-coercion-elision",
 ]
 # inline_instruction_limit = 18
 # inline_control_flow_limit = 45
@@ -49,10 +50,12 @@ for isolating pass regressions without changing language semantics.
 checks, mandatory IR normalization, DCE correctness, or host-boundary rules:
 
 - `performance-first` uses straight-line/control-flow limits of `24`/`60`, has
-  no inline-growth cap, and disables automatic string pooling.
+  no inline-growth cap, disables automatic string pooling, and retains eager
+  signed-i32 normalization for numeric hot paths.
 - `realistic-performance-first` is the default. It uses limits of `18`/`45`,
   allows up to `16` estimated additional IR instructions from repeated-call
-  inlining, and enables profitable string pooling.
+  inlining, enables profitable string pooling, and removes coercions only when
+  range analysis proves the result remains a signed i32.
 - `balanced` uses limits of `12`/`30`, permits up to `4` estimated additional
   instructions, and enables profitable string pooling.
 - `size-first` uses limits of `12`/`30`, permits no positive estimated inline
@@ -69,6 +72,9 @@ only listed tactics are enabled; `compression = []` disables all of them:
   model predicts a reduction.
 - `size-aware-inlining` applies the profile's positive-growth limit to repeated
   straight-line calls.
+- `safe-integer-coercion-elision` replaces `|0` or `Math.imul` with smaller
+  ordinary arithmetic only when inferred operand ranges prove identical signed
+  32-bit behavior. Unknown or overflow-capable operations remain normalized.
 
 The numeric `inline_instruction_limit`, `inline_control_flow_limit`, and
 `max_inline_growth` keys override the selected profile. Setting

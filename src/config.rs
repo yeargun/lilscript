@@ -65,6 +65,9 @@ impl ProjectConfig {
                 self.javascript
                     .compression_enabled(CompressionDecision::StringPooling)
             }),
+            elide_safe_integer_coercions: self
+                .javascript
+                .compression_enabled(CompressionDecision::SafeIntegerCoercionElision),
         }
     }
 
@@ -119,6 +122,9 @@ impl JavaScriptPriority {
             CompressionDecision::IdentifierMangling => true,
             CompressionDecision::StringPooling => !matches!(self, Self::PerformanceFirst),
             CompressionDecision::SizeAwareInlining => !matches!(self, Self::PerformanceFirst),
+            CompressionDecision::SafeIntegerCoercionElision => {
+                !matches!(self, Self::PerformanceFirst)
+            }
             CompressionDecision::PropertyMangling | CompressionDecision::ExportMangling => false,
         }
     }
@@ -153,6 +159,7 @@ pub enum CompressionDecision {
     ExportMangling,
     StringPooling,
     SizeAwareInlining,
+    SafeIntegerCoercionElision,
 }
 
 impl CompressionDecision {
@@ -163,6 +170,7 @@ impl CompressionDecision {
             Self::ExportMangling => "export-mangling",
             Self::StringPooling => "string-pooling",
             Self::SizeAwareInlining => "size-aware-inlining",
+            Self::SafeIntegerCoercionElision => "safe-integer-coercion-elision",
         }
     }
 }
@@ -419,6 +427,7 @@ shared_min_imports = 3
         assert_eq!(performance_optimizer.inline_control_flow_limit, 60);
         assert_eq!(performance_optimizer.inline_growth_limit, None);
         assert!(!performance.js_options().pool_strings);
+        assert!(!performance.js_options().elide_safe_integer_coercions);
 
         let realistic = ProjectConfig::default();
         let realistic_optimizer = realistic.js_optimizer_options();
@@ -431,6 +440,7 @@ shared_min_imports = 3
         assert_eq!(realistic_optimizer.inline_growth_limit, Some(16));
         assert!(realistic.js_options().mangle_identifiers);
         assert!(realistic.js_options().pool_strings);
+        assert!(realistic.js_options().elide_safe_integer_coercions);
 
         let alias: ProjectConfig =
             toml::from_str("[javascript]\npriority='realisticperf-first'\n").unwrap();
@@ -450,6 +460,7 @@ shared_min_imports = 3
         let size: ProjectConfig = toml::from_str("[javascript]\npriority='size-first'\n").unwrap();
         assert_eq!(size.js_optimizer_options().inline_growth_limit, Some(0));
         assert!(size.js_options().pool_strings);
+        assert!(size.js_options().elide_safe_integer_coercions);
 
         let explicit_pooling: ProjectConfig = toml::from_str(
             "[javascript]\npriority='performance-first'\n[mangle]\npool_strings=true\n",
@@ -486,6 +497,7 @@ max_inline_growth = 3
         assert!(codegen.mangle_properties);
         assert!(!codegen.mangle_exports);
         assert!(codegen.pool_strings);
+        assert!(!codegen.elide_safe_integer_coercions);
 
         let none: ProjectConfig = toml::from_str("[javascript]\ncompression=[]\n").unwrap();
         let none_codegen = none.js_options();
@@ -494,6 +506,7 @@ max_inline_growth = 3
         assert!(!none_codegen.mangle_properties);
         assert!(!none_codegen.mangle_exports);
         assert!(!none_codegen.pool_strings);
+        assert!(!none_codegen.elide_safe_integer_coercions);
 
         let explicit_mangle: ProjectConfig = toml::from_str(
             "[javascript]\ncompression=[]\n[mangle]\nidentifiers=true\npool_strings=true\n",
