@@ -1246,6 +1246,33 @@ fn fold_and_propagate_control_flow(module: &mut ControlFlowModule<'_>) -> Optimi
                             }
                         }
                         ControlFlowOp::Intrinsic {
+                            intrinsic: Intrinsic::IntImul,
+                            receiver: None,
+                            args,
+                        } => {
+                            let folded =
+                                args.as_slice()
+                                    .first()
+                                    .zip(args.get(1))
+                                    .and_then(|(lhs, rhs)| {
+                                        match (constants.get(lhs), constants.get(rhs)) {
+                                            (
+                                                Some(ConstValue::Int(lhs)),
+                                                Some(ConstValue::Int(rhs)),
+                                            ) => Some(ConstValue::Int(i64::from(
+                                                (*lhs as i32).wrapping_mul(*rhs as i32),
+                                            ))),
+                                            _ => None,
+                                        }
+                                    });
+                            if let Some(folded) = folded {
+                                instruction.op = ControlFlowOp::Const(folded.clone());
+                                constants.insert(out, folded);
+                                changed = true;
+                                local_change = true;
+                            }
+                        }
+                        ControlFlowOp::Intrinsic {
                             intrinsic:
                                 intrinsic @ (Intrinsic::FloatAbs
                                 | Intrinsic::FloatFloor
@@ -1392,6 +1419,7 @@ fn literal_array_lengths_are_stable(function: &ControlFlowFunction<'_>) -> bool 
             ControlFlowOp::Intrinsic { intrinsic, .. } => matches!(
                 intrinsic,
                 Intrinsic::Print
+                    | Intrinsic::IntImul
                     | Intrinsic::ArrayLength
                     | Intrinsic::FloatAbs
                     | Intrinsic::FloatFloor
@@ -3325,7 +3353,9 @@ fn fold_binary(op: IrBinaryOp, lhs: &ConstValue, rhs: &ConstValue) -> Option<Con
     match (op, lhs, rhs) {
         (Add, Int(lhs), Int(rhs)) => Some(Int(i64::from((*lhs as i32).wrapping_add(*rhs as i32)))),
         (Sub, Int(lhs), Int(rhs)) => Some(Int(i64::from((*lhs as i32).wrapping_sub(*rhs as i32)))),
-        (Mul, Int(lhs), Int(rhs)) => Some(Int(i64::from((*lhs as i32).wrapping_mul(*rhs as i32)))),
+        (Mul, Int(lhs), Int(rhs)) => {
+            Some(Int(i64::from(js_i32_multiply(*lhs as i32, *rhs as i32))))
+        }
         (Div, Int(_), Int(0)) | (Mod, Int(_), Int(0)) => None,
         (Div, Int(lhs), Int(rhs)) => Some(Int(i64::from((*lhs as i32).wrapping_div(*rhs as i32)))),
         (Mod, Int(lhs), Int(rhs)) => Some(Int(i64::from((*lhs as i32).wrapping_rem(*rhs as i32)))),
@@ -3350,6 +3380,11 @@ fn fold_binary(op: IrBinaryOp, lhs: &ConstValue, rhs: &ConstValue) -> Option<Con
         (IrBinaryOp::Or, Bool(lhs), Bool(rhs)) => Some(Bool(*lhs || *rhs)),
         _ => None,
     }
+}
+
+fn js_i32_multiply(lhs: i32, rhs: i32) -> i32 {
+    let product = f64::from(lhs) * f64::from(rhs);
+    (product as i64 as u32) as i32
 }
 
 fn mixed_numeric_constants(lhs: &ConstValue, rhs: &ConstValue) -> Option<(f64, f64)> {
@@ -4120,6 +4155,16 @@ mod tests {
             ),
             Some(ConstValue::Float(2.5))
         );
+    }
+
+    #[test]
+    fn folds_integer_multiplication_with_javascript_operator_semantics() {
+        assert_eq!(js_i32_multiply(2_147_483_647, 2_147_483_647), 0);
+        assert_eq!(
+            js_i32_multiply(2_147_483_647, 2_147_483_646),
+            -2_147_483_648
+        );
+        assert_eq!(js_i32_multiply(123_456_789, 987_654_321), -67_153_024);
     }
 
     #[test]

@@ -71,9 +71,6 @@ impl ProjectConfig {
             elide_safe_integer_coercions: self
                 .javascript
                 .compression_enabled(CompressionDecision::SafeIntegerCoercionElision),
-            lower_exact_integer_multiplication: self
-                .javascript
-                .compression_enabled(CompressionDecision::DoubleExactIntegerMultiplication),
             compact_boolean_literals: self
                 .javascript
                 .compression_enabled(CompressionDecision::CompactBooleanLiterals),
@@ -160,9 +157,6 @@ impl JavaScriptPriority {
             CompressionDecision::SafeIntegerCoercionElision => {
                 !matches!(self, Self::PerformanceFirst)
             }
-            CompressionDecision::DoubleExactIntegerMultiplication => {
-                !matches!(self, Self::PerformanceFirst)
-            }
             CompressionDecision::CompactBooleanLiterals => !matches!(self, Self::PerformanceFirst),
             CompressionDecision::PropertyMangling | CompressionDecision::ExportMangling => false,
         }
@@ -201,7 +195,6 @@ pub enum CompressionDecision {
     StringPooling,
     SizeAwareInlining,
     SafeIntegerCoercionElision,
-    DoubleExactIntegerMultiplication,
     CompactBooleanLiterals,
 }
 
@@ -216,7 +209,6 @@ impl CompressionDecision {
             Self::StringPooling => "string-pooling",
             Self::SizeAwareInlining => "size-aware-inlining",
             Self::SafeIntegerCoercionElision => "safe-integer-coercion-elision",
-            Self::DoubleExactIntegerMultiplication => "double-exact-integer-multiplication",
             Self::CompactBooleanLiterals => "compact-boolean-literals",
         }
     }
@@ -245,7 +237,7 @@ impl Default for JavaScriptConfig {
             max_inline_growth: None,
             cost_model: CompressionCostModel::Brotli,
             candidate_search: CandidateSearch::Production,
-            candidate_limit: 128,
+            candidate_limit: 64,
         }
     }
 }
@@ -589,8 +581,8 @@ shared_min_imports = 3
         assert!(realistic.entropy_aware_mangling_enabled());
         assert!(realistic.js_options().pool_strings);
         assert!(realistic.js_options().elide_safe_integer_coercions);
-        assert!(realistic.js_options().lower_exact_integer_multiplication);
         assert!(realistic.js_options().compact_boolean_literals);
+        assert_eq!(realistic.javascript.candidate_limit, 64);
 
         let alias: ProjectConfig =
             toml::from_str("[javascript]\npriority='realisticperf-first'\n").unwrap();
@@ -660,7 +652,6 @@ max_inline_growth = 3
         assert!(!none_codegen.mangle_exports);
         assert!(!none_codegen.pool_strings);
         assert!(!none_codegen.elide_safe_integer_coercions);
-        assert!(!none_codegen.lower_exact_integer_multiplication);
         assert!(!none_codegen.compact_boolean_literals);
         assert!(!none.entropy_aware_mangling_enabled());
 

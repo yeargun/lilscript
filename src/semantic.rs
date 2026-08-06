@@ -1331,7 +1331,26 @@ impl<'src> Analyzer<'src> {
                 span,
             } => self.analyze_member(object, *property, *span)?,
             Expr::Call { callee, args, span } => {
-                if matches!(callee, Expr::Ident(Ident { name: "print", .. })) {
+                if matches!(
+                    callee,
+                    Expr::Member {
+                        object,
+                        property: Ident { name: "imul", .. },
+                        ..
+                    } if matches!(object, Expr::Ident(Ident { name: "Math", .. }))
+                ) {
+                    if args.len() != 2 {
+                        return Err(SemanticError::new(
+                            *span,
+                            format!("`Math.imul` expects two arguments, found {}", args.len()),
+                        ));
+                    }
+                    for arg in *args {
+                        let actual = self.analyze_expr(arg, Some(&Type::Int))?;
+                        self.require_assignable(&Type::Int, &actual, arg.span())?;
+                    }
+                    Type::Int
+                } else if matches!(callee, Expr::Ident(Ident { name: "print", .. })) {
                     if args.len() != 1 {
                         return Err(SemanticError::new(
                             *span,
@@ -3459,6 +3478,17 @@ mod tests {
     #[test]
     fn infers_auto_and_checks_array_map() {
         check("int[] values=[1,2,3]; auto doubled=values.map((int value)=>value*2);").unwrap();
+    }
+
+    #[test]
+    fn validates_explicit_math_imul_calls() {
+        check("int value=Math.imul(2147483647,2147483647);").unwrap();
+
+        let arity = check("int value=Math.imul(1);").unwrap_err();
+        assert!(arity.message.contains("expects two arguments"), "{arity}");
+
+        let argument = check("int value=Math.imul(1,2.0);").unwrap_err();
+        assert!(argument.message.contains("expected `int`"), "{argument}");
     }
 
     #[test]

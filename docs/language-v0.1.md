@@ -32,7 +32,7 @@ SSA optimization; they are not JavaScript wrappers in the generated bundle.
 
 | LilScript type | Meaning | JavaScript representation | Native representation |
 | --- | --- | --- | --- |
-| `int` | signed 32-bit integer with two's-complement wrapping | number with i32 normalization | `i32` |
+| `int` | signed 32-bit integer with operator-defined overflow behavior | number with i32 normalization | `i32` |
 | `float` | IEEE-754 binary64 | number | `f64` |
 | `bool` | `true` or `false` | boolean | C11 `bool` |
 | `string` | immutable UTF-8 text | string | runtime string handle |
@@ -166,13 +166,21 @@ boundaries. Native closures use one universal calling convention, so a concrete
 callback remains callable through `func(T...)->R`. Polymorphic functions are
 not inlined until the optimizer can substitute their call-site types.
 
-Integer arithmetic wraps to signed 32-bit two's-complement values. Integer
-division truncates toward zero; division or remainder by zero produces `0` on
-every backend. This is a language guarantee, not a requirement that JavaScript
-output contain `|0` after every operation: the realistic profile may omit a
-coercion when range analysis proves overflow impossible, while
-performance-first retains eager normalization for numeric hot paths. Float
-arithmetic follows IEEE-754 binary64 behavior.
+Integer addition, subtraction, negation, and xor wrap to signed 32-bit
+two's-complement values. Ordinary integer multiplication evaluates the operands
+as IEEE-754 binary64 numbers and then applies signed-i32 normalization, matching
+JavaScript's `(left * right) | 0` even when the rounded product exceeds the
+exact-integer range. `Math.imul(left, right)` is a typed, pure intrinsic that
+instead returns the exact low 32 bits of the product. The compiler never
+rewrites ordinary multiplication into `Math.imul`, and it never rewrites an
+explicit `Math.imul` into ordinary multiplication. The two operations agree
+when the binary64 product is exact but can differ for large operands.
+
+Integer division truncates toward zero; division or remainder by zero produces
+`0` on every backend. These are language guarantees shared by JavaScript and
+native output. JavaScript may omit an i32 coercion when range analysis proves it
+redundant, while performance-first retains eager normalization for numeric hot
+paths. Float arithmetic follows IEEE-754 binary64 behavior.
 
 ## Declarations
 

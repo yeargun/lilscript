@@ -1185,6 +1185,25 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
         ty: Type<'src>,
         span: Span,
     ) -> Result<ValueId, LowerError> {
+        if matches!(
+            callee,
+            Expr::Member {
+                object,
+                property: Ident { name: "imul", .. },
+                ..
+            } if matches!(object, Expr::Ident(Ident { name: "Math", .. }))
+        ) {
+            let args = self.lower_args(args)?;
+            return self.emit_value(
+                ControlFlowOp::Intrinsic {
+                    intrinsic: Intrinsic::IntImul,
+                    receiver: None,
+                    args,
+                },
+                ty,
+                span,
+            );
+        }
         if let Expr::Ident(ident) = callee {
             if ident.name == "print" {
                 let args = self.lower_args(args)?;

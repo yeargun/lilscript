@@ -354,6 +354,7 @@ pub enum TemplateOperand {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Intrinsic {
     Print,
+    IntImul,
     UnwrapNullable,
     UnwrapUnion,
     ArrayLength,

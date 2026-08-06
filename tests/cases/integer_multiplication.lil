@@ -1,0 +1,7 @@
+int[] left = [2147483647, 2147483647, 123456789, -2147483647 - 1];
+int[] right = [2147483647, 2147483646, 987654321, 2147483647];
+
+for (int index = 0; index < left.length; index++) {
+  print(left[index] * right[index]);
+  print(Math.imul(left[index], right[index]));
+}

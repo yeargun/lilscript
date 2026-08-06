@@ -627,20 +627,15 @@ fn select_javascript_candidate(
     let mut options = Vec::new();
     for pool_strings in [configured.pool_strings, false] {
         for elide_safe_integer_coercions in [configured.elide_safe_integer_coercions, false] {
-            for lower_exact_integer_multiplication in
-                [configured.lower_exact_integer_multiplication, false]
-            {
-                for compact_boolean_literals in [configured.compact_boolean_literals, false] {
-                    let candidate = crate::codegen_ir_js::IrJsOptions {
-                        pool_strings,
-                        elide_safe_integer_coercions,
-                        lower_exact_integer_multiplication,
-                        compact_boolean_literals,
-                        ..configured
-                    };
-                    if !options.contains(&candidate) {
-                        options.push(candidate);
-                    }
+            for compact_boolean_literals in [configured.compact_boolean_literals, false] {
+                let candidate = crate::codegen_ir_js::IrJsOptions {
+                    pool_strings,
+                    elide_safe_integer_coercions,
+                    compact_boolean_literals,
+                    ..configured
+                };
+                if !options.contains(&candidate) {
+                    options.push(candidate);
                 }
             }
         }
@@ -873,6 +868,13 @@ mod tests {
             balanced.javascript
         );
         assert!(size.javascript.contains("function"), "{}", size.javascript);
+        for output in [&performance, &realistic, &balanced, &size] {
+            assert!(
+                !output.javascript.contains("Math.imul"),
+                "ordinary multiplication introduced Math.imul: {}",
+                output.javascript
+            );
+        }
         assert!(
             size.javascript.len() < performance.javascript.len(),
             "size-first={} performance-first={}",

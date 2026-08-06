@@ -41,6 +41,9 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
             "static inline int32_t lilscript_irem(int32_t a,int32_t b){if(!b)return 0;return a==INT32_MIN&&b==-1?0:a%b;}\n",
         );
         out.push_str(
+            "static inline int32_t lilscript_mul(int32_t a,int32_t b){int64_t n=(int64_t)((double)a*(double)b);uint32_t u=(uint32_t)(uint64_t)n;return u<=INT32_MAX?(int32_t)u:(int32_t)((int64_t)u-4294967296LL);}\n",
+        );
+        out.push_str(
             "static inline double lilscript_fmin(double a,double b){if(isnan(a)||isnan(b))return NAN;if(a==0&&b==0)return signbit(a)||signbit(b)?-0.0:0.0;return a<b?a:b;}static inline double lilscript_fmax(double a,double b){if(isnan(a)||isnan(b))return NAN;if(a==0&&b==0)return signbit(a)&&signbit(b)?-0.0:0.0;return a>b?a:b;}\n",
         );
         out.push_str(
@@ -1243,6 +1246,19 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                 )?
             }
             ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::IntImul,
+                args,
+                ..
+            } => {
+                let [lhs, rhs] = args.as_slice() else {
+                    return Err(CodegenError::new(
+                        instruction.span,
+                        "Math.imul requires two integer arguments",
+                    ));
+                };
+                format!("(int32_t)((uint32_t)v{}*(uint32_t)v{})", lhs.0, rhs.0)
+            }
+            ControlFlowOp::Intrinsic {
                 intrinsic: Intrinsic::MapNew,
                 ..
             } => "lilscript_map()".to_string(),
@@ -1857,9 +1873,7 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                 IrBinaryOp::Sub => {
                     format!("(int32_t)((uint32_t){lhs_name}-(uint32_t){rhs_name})")
                 }
-                IrBinaryOp::Mul => {
-                    format!("(int32_t)((uint32_t){lhs_name}*(uint32_t){rhs_name})")
-                }
+                IrBinaryOp::Mul => format!("lilscript_mul({lhs_name},{rhs_name})"),
                 IrBinaryOp::Div => format!("lilscript_idiv({lhs_name},{rhs_name})"),
                 IrBinaryOp::Mod => format!("lilscript_irem({lhs_name},{rhs_name})"),
                 IrBinaryOp::Xor => {

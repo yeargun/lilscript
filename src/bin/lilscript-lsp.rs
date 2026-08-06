@@ -672,7 +672,7 @@ const fn hex_value(value: u8) -> Option<u8> {
 
 fn completion_result(source: Option<&str>) -> Value {
     let mut items = vec![
-        keyword("int", "Signed wrapping 32-bit integer type"),
+        keyword("int", "Signed 32-bit integer type"),
         keyword("float", "IEEE-754 binary64 type"),
         keyword("string", "Immutable UTF-8 string type"),
         keyword("bool", "Boolean type"),
@@ -711,6 +711,11 @@ fn completion_result(source: Option<&str>) -> Value {
         snippet("Map", "Map<${1:string}, ${2:int}> ${3:values} = new Map();", "Typed map declaration"),
         snippet("Set", "Set<${1:int}> ${2:values} = new Set();", "Typed set declaration"),
         snippet("Uint8Array", "Uint8Array ${1:bytes} = new Uint8Array(${2:length});", "Unsigned byte view declaration"),
+        snippet(
+            "Math.imul",
+            "Math.imul(${1:left}, ${2:right})",
+            "Exact low-32-bit integer multiplication",
+        ),
         function_item("print", "Portable observable output intrinsic"),
     ];
 
@@ -805,7 +810,9 @@ fn hover_result(params: &Value, documents: &HashMap<String, Document>) -> Value 
 
 fn language_help(word: &str) -> Option<&'static str> {
     Some(match word {
-        "int" => "Signed 32-bit integer with two's-complement wrapping semantics.",
+        "int" => "Signed 32-bit integer. Ordinary multiplication follows JavaScript number multiplication followed by i32 normalization.",
+        "Math" => "Built-in numeric namespace containing the explicit `Math.imul(int, int)` intrinsic.",
+        "imul" => "Returns the exact low 32 bits of two integer operands. The compiler preserves explicit calls and never introduces them for ordinary `*`.",
         "float" => "IEEE-754 binary64 floating-point value.",
         "string" => "Immutable UTF-8 text value.",
         "bool" => "Boolean value: `true` or `false`.",
@@ -1168,6 +1175,11 @@ mod tests {
             "struct Point{int? x;}Point? point=null;bool text=point is string;"
         )
         .is_ok());
+        assert!(completion_result(None)["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|item| item["label"] == "Math.imul"));
     }
 
     #[test]

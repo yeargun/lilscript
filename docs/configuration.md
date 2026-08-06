@@ -20,7 +20,7 @@ dead_code_elimination = true
 priority = "realistic-performance-first"
 cost_model = "brotli" # raw | gzip | brotli
 candidate_search = "production" # off | production | always
-candidate_limit = 128
+candidate_limit = 64
 compression = [
   "identifier-mangling",
   "entropy-aware-mangling",
@@ -28,7 +28,6 @@ compression = [
   "string-pooling",
   "size-aware-inlining",
   "safe-integer-coercion-elision",
-  "double-exact-integer-multiplication",
   "compact-boolean-literals",
 ]
 # inline_instruction_limit = 18
@@ -100,13 +99,9 @@ only listed tactics are enabled; `compression = []` disables all of them:
   model predicts a reduction.
 - `size-aware-inlining` applies the profile's positive-growth limit to repeated
   straight-line calls.
-- `safe-integer-coercion-elision` replaces `|0` or `Math.imul` with smaller
-  ordinary arithmetic only when inferred operand ranges prove identical signed
-  32-bit behavior. Unknown or overflow-capable operations remain normalized.
-- `double-exact-integer-multiplication` emits `left*right|0` instead of
-  `Math.imul(left,right)` when range analysis proves the integer product is
-  exactly representable by a JavaScript double before coercion. It preserves
-  wrapping behavior while avoiding `Math.imul` call overhead and bytes.
+- `safe-integer-coercion-elision` removes signed-i32 normalization from ordinary
+  arithmetic only when inferred ranges prove that the result is already in
+  range. Unknown or overflow-capable operations remain normalized.
 - `compact-boolean-literals` compares `!0`/`!1` with `true`/`false` for
   surviving boolean constants and typed default fields.
 
@@ -125,9 +120,9 @@ exact `compression` allowlist. `candidate_search = "production"` is the
 default and is skipped by CLI `--mode development`; `always` remains active in
 that mode, while `off` disables compressor-in-the-loop emission. The current
 search space compares profitable string pooling, proven-safe integer coercion
-elision, exact-double multiplication, identifier alphabets, quote styles, and
-equivalent top-level declaration spellings, bounded by `candidate_limit`. The
-default limit of `128` covers the complete current default search space.
+elision, boolean literals, identifier alphabets, quote styles, and equivalent
+top-level declaration spellings, bounded by `candidate_limit`. The default
+limit of `64` covers the complete current default search space.
 
 The priority is applied after `[optimization]`: setting `inlining = false`
 disables inlining in every profile. Explicit `[mangle]` values have the highest

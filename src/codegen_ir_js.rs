@@ -27,7 +27,6 @@ pub struct IrJsOptions {
     pub mangle_exports: bool,
     pub pool_strings: bool,
     pub elide_safe_integer_coercions: bool,
-    pub lower_exact_integer_multiplication: bool,
     pub compact_boolean_literals: bool,
     pub identifier_alphabet: IdentifierAlphabet,
     pub string_quote: StringQuote,
@@ -41,7 +40,6 @@ impl Default for IrJsOptions {
             mangle_exports: false,
             pool_strings: true,
             elide_safe_integer_coercions: true,
-            lower_exact_integer_multiplication: true,
             compact_boolean_literals: true,
             identifier_alphabet: IdentifierAlphabet::canonical(),
             string_quote: StringQuote::Double,
@@ -1852,15 +1850,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     let rhs = take_value(*rhs, context, cache)?;
                     return Ok(match op {
                         IrBinaryOp::Mul if coercion_is_elidable => format!("({lhs}*{rhs})"),
-                        IrBinaryOp::Mul
-                            if self.options.lower_exact_integer_multiplication
-                                && instruction.out.is_some_and(|out| {
-                                    context.can_lower_exact_i32_multiplication(out)
-                                }) =>
-                        {
-                            format!("({lhs}*{rhs}|0)")
-                        }
-                        IrBinaryOp::Mul => format!("Math.imul({lhs},{rhs})"),
+                        IrBinaryOp::Mul => format!("({lhs}*{rhs}|0)"),
                         IrBinaryOp::Mod if is_nonzero_i32_literal(&rhs) => {
                             format!("({lhs}%{rhs})")
                         }
@@ -2087,6 +2077,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         if intrinsic == Intrinsic::Print {
             return self.render_call("console.log", None, args, context, cache);
         }
+        if intrinsic == Intrinsic::IntImul {
+            return self.render_call("Math.imul", None, args, context, cache);
+        }
         let constructor = match intrinsic {
             Intrinsic::MapNew => Some("Map"),
             Intrinsic::SetNew => Some("Set"),
@@ -2183,6 +2176,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             Intrinsic::StringToUpperCase => "toUpperCase",
             Intrinsic::StringToLowerCase => "toLowerCase",
             Intrinsic::Print
+            | Intrinsic::IntImul
             | Intrinsic::MapNew
             | Intrinsic::SetNew
             | Intrinsic::ArrayBufferNew
@@ -2706,7 +2700,6 @@ struct LocalNames {
     untyped_values: AHashSet<ValueId>,
     inlined_values: AHashMap<ValueId, String>,
     elidable_i32_coercions: AHashSet<ValueId>,
-    exact_i32_multiplications: AHashSet<ValueId>,
     declared_names: RefCell<AHashSet<String>>,
     inline_declarations: bool,
     state: String,
@@ -2839,7 +2832,6 @@ impl I32Range {
 
 struct I32Analysis {
     elidable_coercions: AHashSet<ValueId>,
-    exact_multiplications: AHashSet<ValueId>,
 }
 
 fn analyze_i32_ranges(function: &ControlFlowFunction<'_>) -> I32Analysis {
@@ -2934,39 +2926,9 @@ fn analyze_i32_ranges(function: &ControlFlowFunction<'_>) -> I32Analysis {
             break;
         }
     }
-    let exact_multiplications = function
-        .blocks
-        .iter()
-        .flat_map(|block| &block.instructions)
-        .filter_map(|instruction| match (instruction.out, &instruction.op) {
-            (
-                Some(out),
-                ControlFlowOp::Binary {
-                    op: IrBinaryOp::Mul,
-                    lhs,
-                    rhs,
-                },
-            ) if integer_product_is_double_exact(
-                ranges.get(lhs).copied().unwrap_or(I32Range::FULL),
-                ranges.get(rhs).copied().unwrap_or(I32Range::FULL),
-            ) =>
-            {
-                Some(out)
-            }
-            _ => None,
-        })
-        .collect();
     I32Analysis {
         elidable_coercions: elidable,
-        exact_multiplications,
     }
-}
-
-fn integer_product_is_double_exact(lhs: I32Range, rhs: I32Range) -> bool {
-    const MAX_EXACT_INTEGER: i128 = 1_i128 << 53;
-    let lhs = i128::from(lhs.min.abs().max(lhs.max.abs()));
-    let rhs = i128::from(rhs.min.abs().max(rhs.max.abs()));
-    lhs * rhs <= MAX_EXACT_INTEGER
 }
 
 fn seed_induction_ranges(
@@ -3247,7 +3209,6 @@ impl LocalNames {
             untyped_values,
             inlined_values,
             elidable_i32_coercions: i32_analysis.elidable_coercions,
-            exact_i32_multiplications: i32_analysis.exact_multiplications,
             declared_names: RefCell::new(declared_names),
             inline_declarations: false,
             state,
@@ -3292,10 +3253,6 @@ impl LocalNames {
 
     fn can_elide_i32_coercion(&self, value: ValueId) -> bool {
         self.elidable_i32_coercions.contains(&value)
-    }
-
-    fn can_lower_exact_i32_multiplication(&self, value: ValueId) -> bool {
-        self.exact_i32_multiplications.contains(&value)
     }
 
     fn claim_declaration(&self, value: ValueId) -> Result<bool, CodegenError> {
@@ -3861,7 +3818,7 @@ fn op_can_defer(op: &ControlFlowOp<'_>) -> bool {
             | ControlFlowOp::Closure { .. }
             | ControlFlowOp::Template(_)
             | ControlFlowOp::Intrinsic {
-                intrinsic: Intrinsic::StringLength,
+                intrinsic: Intrinsic::StringLength | Intrinsic::IntImul,
                 ..
             }
     )
@@ -4640,7 +4597,7 @@ mod tests {
             compile(
                 "int apply(int factor){auto callback=(int value)=>value*factor;return callback(4);}print(apply(3));"
             ),
-            "console.log((b=>Math.imul(b,3))(4))"
+            "console.log((b=>b*3|0)(4))"
         );
     }
 
@@ -4842,23 +4799,29 @@ mod tests {
     }
 
     #[test]
-    fn lowers_only_double_exact_overflowing_integer_multiplications() {
-        let exact = compile("extern int read();print(read()*3);");
-        assert!(exact.contains("*3|0"), "{exact}");
-        assert!(!exact.contains("Math.imul"), "{exact}");
+    fn never_introduces_math_imul_for_ordinary_multiplication() {
+        let small = compile("extern int read();print(read()*3);");
+        assert!(small.contains("*3|0"), "{small}");
+        assert!(!small.contains("Math.imul"), "{small}");
 
-        let potentially_inexact = compile("extern int read();print(read()*8388608);");
-        assert!(
-            potentially_inexact.contains("Math.imul"),
-            "{potentially_inexact}"
+        let large = compile("extern int read();print(read()*8388608);");
+        assert!(large.contains("*8388608|0"), "{large}");
+        assert!(!large.contains("Math.imul"), "{large}");
+    }
+
+    #[test]
+    fn preserves_explicit_math_imul_calls() {
+        let output = compile("extern int read();print(Math.imul(read(),8388608));");
+        assert!(output.contains("Math.imul(read(),8388608)"), "{output}");
+    }
+
+    #[test]
+    fn folds_operator_and_imul_multiplication_with_distinct_semantics() {
+        assert_eq!(compile("print(2147483647*2147483647);"), "console.log(0)");
+        assert_eq!(
+            compile("print(Math.imul(2147483647,2147483647));"),
+            "console.log(1)"
         );
-
-        let eager = IrJsOptions {
-            lower_exact_integer_multiplication: false,
-            ..IrJsOptions::default()
-        };
-        let eager = compile_with_options("extern int read();print(read()*3);", eager);
-        assert!(eager.contains("Math.imul"), "{eager}");
     }
 
     #[test]
@@ -4873,7 +4836,7 @@ mod tests {
             compile(
                 "int factorial(int value){if(value<=1){return 1;}return value*factorial(value-1);}print(factorial(7));"
             ),
-            "function a(b){return b<=1?1:Math.imul(b,a(b-1|0))}console.log(a(7))"
+            "function a(b){return b<=1?1:b*a(b-1|0)|0}console.log(a(7))"
         );
     }
 
