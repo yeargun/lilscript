@@ -66,6 +66,9 @@ checked-in benchmark workload. Passing a synthetic example alone is not enough.
   ordinary array literals under the selected codec.
 - [x] Compare tuple and scalar SSA parallel-copy layouts under the selected
   codec, reusing liveness-proven dead locals to break copy cycles.
+- [x] Compare conservative deferred-expression interference with direct
+  phi-affinity coalescing under the selected codec, so move removal is kept
+  only when it also wins the configured raw/gzip/Brotli objective.
 - [x] Remove redundant expression parentheses at precedence-safe statement,
   assignment, return, call/constructor argument, index, array/aggregate,
   template-substitution, and numeric-intrinsic boundaries.
@@ -113,6 +116,9 @@ checked-in benchmark workload. Passing a synthetic example alone is not enough.
 - [x] Defer a one-use boolean merge phi into an immediately following structured
   branch, including declaration groups whose remaining bindings are
   uninitialized, without duplicating either branch's effects.
+- [x] Coalesce a phi with direct incoming versions across conservative deferred
+  expression barriers when normal liveness proves no interference, while
+  retaining the conservative allocation as a codec-scored candidate.
 - [ ] Complete SSA destruction across multi-exit loops, nested merges, parallel
   copy cycles, and deferred expressions using a byte-scored register allocator.
 - [x] Add context-sensitive effect and alias summaries for arrays, maps, sets,

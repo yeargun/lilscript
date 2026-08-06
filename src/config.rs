@@ -83,6 +83,9 @@ impl ProjectConfig {
             scalar_phi_copies: self
                 .javascript
                 .compression_enabled(CompressionDecision::ScalarPhiCopies),
+            coalesce_deferred_phi_affinities: self
+                .javascript
+                .compression_enabled(CompressionDecision::PhiAffinityCoalescing),
             identifier_alphabet: IdentifierAlphabet::canonical(),
             string_quote: StringQuote::Double,
         }
@@ -172,6 +175,7 @@ impl JavaScriptPriority {
             }
             CompressionDecision::StringArrayPacking => matches!(self, Self::SizeFirst),
             CompressionDecision::ScalarPhiCopies => matches!(self, Self::SizeFirst),
+            CompressionDecision::PhiAffinityCoalescing => true,
             CompressionDecision::PropertyMangling | CompressionDecision::ExportMangling => false,
         }
     }
@@ -213,6 +217,7 @@ pub enum CompressionDecision {
     StructuredClosureInlining,
     StringArrayPacking,
     ScalarPhiCopies,
+    PhiAffinityCoalescing,
 }
 
 impl CompressionDecision {
@@ -230,6 +235,7 @@ impl CompressionDecision {
             Self::StructuredClosureInlining => "structured-closure-inlining",
             Self::StringArrayPacking => "string-array-packing",
             Self::ScalarPhiCopies => "scalar-phi-copies",
+            Self::PhiAffinityCoalescing => "phi-affinity-coalescing",
         }
     }
 }
@@ -257,7 +263,7 @@ impl Default for JavaScriptConfig {
             max_inline_growth: None,
             cost_model: CompressionCostModel::Brotli,
             candidate_search: CandidateSearch::Production,
-            candidate_limit: 512,
+            candidate_limit: 1024,
         }
     }
 }
@@ -604,7 +610,8 @@ shared_min_imports = 3
         assert!(realistic.js_options().elide_safe_integer_coercions);
         assert!(realistic.js_options().compact_boolean_literals);
         assert!(!realistic.js_options().pack_string_arrays);
-        assert_eq!(realistic.javascript.candidate_limit, 512);
+        assert_eq!(realistic.javascript.candidate_limit, 1024);
+        assert!(realistic.js_options().coalesce_deferred_phi_affinities);
 
         let alias: ProjectConfig =
             toml::from_str("[javascript]\npriority='realisticperf-first'\n").unwrap();
@@ -629,6 +636,7 @@ shared_min_imports = 3
         assert!(size.js_options().inline_structured_closures);
         assert!(size.js_options().pack_string_arrays);
         assert!(size.js_options().scalar_phi_copies);
+        assert!(size.js_options().coalesce_deferred_phi_affinities);
         assert_eq!(
             ProjectConfig::default().javascript.priority,
             JavaScriptPriority::SizeFirst
@@ -685,6 +693,7 @@ max_inline_growth = 3
         assert!(!none_codegen.compact_boolean_literals);
         assert!(!none_codegen.pack_string_arrays);
         assert!(!none_codegen.scalar_phi_copies);
+        assert!(!none_codegen.coalesce_deferred_phi_affinities);
         assert!(!none.entropy_aware_mangling_enabled());
 
         let explicit_mangle: ProjectConfig = toml::from_str(

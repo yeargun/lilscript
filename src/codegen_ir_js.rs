@@ -33,6 +33,7 @@ pub struct IrJsOptions {
     pub inline_structured_closures: bool,
     pub pack_string_arrays: bool,
     pub scalar_phi_copies: bool,
+    pub coalesce_deferred_phi_affinities: bool,
     pub identifier_alphabet: IdentifierAlphabet,
     pub string_quote: StringQuote,
 }
@@ -49,6 +50,7 @@ impl Default for IrJsOptions {
             inline_structured_closures: true,
             pack_string_arrays: true,
             scalar_phi_copies: false,
+            coalesce_deferred_phi_affinities: true,
             identifier_alphabet: IdentifierAlphabet::canonical(),
             string_quote: StringQuote::Double,
         }
@@ -837,9 +839,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             self.integer_analysis.function(function.id),
             !single_block && !structured,
             &self.top_level_mangler,
-            self.options.mangle_identifiers,
-            self.options.compact_boolean_literals,
-            self.options.scalar_phi_copies,
+            &self.options,
         );
         context.inline_declarations = structured;
         let uses = use_counts(function);
@@ -979,9 +979,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             self.integer_analysis.function(function.id),
             false,
             &self.top_level_mangler,
-            self.options.mangle_identifiers,
-            self.options.compact_boolean_literals,
-            self.options.scalar_phi_copies,
+            &self.options,
         );
         self.emit_single_block_with_context(function, wrapped, context, out)
     }
@@ -1188,9 +1186,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             self.integer_analysis.function(function.id),
             true,
             &self.top_level_mangler,
-            self.options.mangle_identifiers,
-            self.options.compact_boolean_literals,
-            self.options.scalar_phi_copies,
+            &self.options,
         );
         self.emit_state_machine_with_context(function, context, out)
     }
@@ -1305,9 +1301,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             self.integer_analysis.function(function.id),
             false,
             &self.top_level_mangler,
-            self.options.mangle_identifiers,
-            self.options.compact_boolean_literals,
-            self.options.scalar_phi_copies,
+            &self.options,
         );
         context.inline_declarations = true;
         self.emit_structured_with_context(function, wrapped, context, out)
@@ -2452,9 +2446,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 self.integer_analysis.function(function.id),
                 false,
                 &wrapper_mangler,
-                self.options.mangle_identifiers,
-                self.options.compact_boolean_literals,
-                self.options.scalar_phi_copies,
+                &self.options,
             );
             let mut rendered = render_arrow_parameters(&function, &context)?;
             rendered.push_str("=>");
@@ -2480,9 +2472,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             self.integer_analysis.function(function.id),
             false,
             &self.top_level_mangler,
-            self.options.mangle_identifiers,
-            self.options.compact_boolean_literals,
-            self.options.scalar_phi_copies,
+            &self.options,
         );
         let capture_params = &function.params[..function.capture_count];
         let capture_values = capture_params
@@ -3383,10 +3373,11 @@ impl LocalNames {
         integer_facts: &FunctionIntegerFacts,
         all_values: bool,
         parent: &Mangler,
-        mangle_identifiers: bool,
-        compact_boolean_literals: bool,
-        scalar_phi_copies: bool,
+        options: &IrJsOptions,
     ) -> Self {
+        let mangle_identifiers = options.mangle_identifiers;
+        let compact_boolean_literals = options.compact_boolean_literals;
+        let scalar_phi_copies = options.scalar_phi_copies;
         let mut mangler = parent.clone();
         let mut value_names = AHashMap::new();
         let parameter_values = function
@@ -3551,7 +3542,13 @@ impl LocalNames {
             String::new()
         };
         if mangle_identifiers && function.blocks.len() > 1 {
-            let colors = coalesce_value_names(function, &stored_values, &parameter_values, &uses);
+            let colors = coalesce_value_names(
+                function,
+                &stored_values,
+                &parameter_values,
+                &uses,
+                options.coalesce_deferred_phi_affinities,
+            );
             let color_count = colors.values().copied().max().map_or(0, |color| color + 1);
             let color_names = (0..color_count)
                 .map(|_| mangler.next_name())
@@ -3766,6 +3763,7 @@ fn coalesce_value_names(
     stored_values: &AHashSet<ValueId>,
     parameter_values: &AHashSet<ValueId>,
     uses: &AHashMap<ValueId, usize>,
+    coalesce_deferred_phi_affinities: bool,
 ) -> AHashMap<ValueId, usize> {
     let named = stored_values
         .union(parameter_values)
@@ -4003,9 +4001,25 @@ fn coalesce_value_names(
             );
         }
     }
+    let phi_affinity_pairs = if coalesce_deferred_phi_affinities {
+        function
+            .blocks
+            .iter()
+            .flat_map(|block| &block.phis)
+            .flat_map(|phi| {
+                phi.incoming
+                    .iter()
+                    .flat_map(|(_, incoming)| [(phi.out, *incoming), (*incoming, phi.out)])
+            })
+            .collect::<AHashSet<_>>()
+    } else {
+        AHashSet::new()
+    };
     for operand in deferred_operands {
         for value in &named {
-            if !deferred_sink_pairs.contains(&(operand, *value)) {
+            if !deferred_sink_pairs.contains(&(operand, *value))
+                && !phi_affinity_pairs.contains(&(operand, *value))
+            {
                 connect(operand, *value);
             }
         }
@@ -4994,6 +5008,16 @@ mod tests {
     }
 
     #[test]
+    fn coalesces_sequential_mutations_across_direct_phi_edges() {
+        let code = compile_module(
+            "export int refine(int hash,int remaining,int byte){if(remaining>=2){hash^=byte<<8;}if(remaining>=1){hash^=byte;hash=Math.imul(hash,31);}return hash;}",
+        );
+
+        assert!(!code.contains("else{"), "{code}");
+        assert!(!code.contains("var "), "{code}");
+    }
+
+    #[test]
     fn folds_branches_over_literal_string_captures() {
         let code = compile(
             "func(float)->float choose(string direction){return (float value)=>{if(direction==\"end\"){return value+1.0;}return value-1.0;};}func(float)->float end=choose(\"end\");func(float)->float start=choose(\"start\");float[] values=[1.0,2.0];float total=0.0;for(int i=0;i<values.length;i++){total=total+end(values[i])+start(values[i]);}print(total);",
@@ -5134,7 +5158,8 @@ mod tests {
             .iter()
             .map(|parameter| parameter.value)
             .collect::<AHashSet<_>>();
-        let colors = coalesce_value_names(function, &named, &parameters, &use_counts(function));
+        let colors =
+            coalesce_value_names(function, &named, &parameters, &use_counts(function), true);
 
         assert_ne!(colors[&callback], colors[&object]);
 
@@ -5170,7 +5195,8 @@ mod tests {
             .iter()
             .map(|parameter| parameter.value)
             .collect::<AHashSet<_>>();
-        let colors = coalesce_value_names(function, &named, &parameters, &use_counts(function));
+        let colors =
+            coalesce_value_names(function, &named, &parameters, &use_counts(function), true);
         for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
             if let (
                 Some(output),
@@ -5191,9 +5217,10 @@ mod tests {
             integer_analysis.function(function.id),
             false,
             &Mangler::default(),
-            true,
-            true,
-            false,
+            &IrJsOptions {
+                scalar_phi_copies: false,
+                ..IrJsOptions::default()
+            },
         );
         let mut checked_unwrap = false;
         let mut checked_captureless_closure = false;
@@ -5289,7 +5316,8 @@ mod tests {
             .iter()
             .map(|parameter| parameter.value)
             .collect::<AHashSet<_>>();
-        let colors = coalesce_value_names(function, &named, &parameters, &use_counts(function));
+        let colors =
+            coalesce_value_names(function, &named, &parameters, &use_counts(function), true);
 
         for (value, color) in &colors {
             if *value != captured {

@@ -641,17 +641,22 @@ fn select_javascript_candidate(
                 for inline_structured_closures in [configured.inline_structured_closures, false] {
                     for pack_string_arrays in [configured.pack_string_arrays, false] {
                         for scalar_phi_copies in [configured.scalar_phi_copies, false] {
-                            let candidate = crate::codegen_ir_js::IrJsOptions {
-                                pool_strings,
-                                elide_safe_integer_coercions,
-                                compact_boolean_literals,
-                                inline_structured_closures,
-                                pack_string_arrays,
-                                scalar_phi_copies,
-                                ..configured
-                            };
-                            if !options.contains(&candidate) {
-                                options.push(candidate);
+                            for coalesce_deferred_phi_affinities in
+                                [configured.coalesce_deferred_phi_affinities, false]
+                            {
+                                let candidate = crate::codegen_ir_js::IrJsOptions {
+                                    pool_strings,
+                                    elide_safe_integer_coercions,
+                                    compact_boolean_literals,
+                                    inline_structured_closures,
+                                    pack_string_arrays,
+                                    scalar_phi_copies,
+                                    coalesce_deferred_phi_affinities,
+                                    ..configured
+                                };
+                                if !options.contains(&candidate) {
+                                    options.push(candidate);
+                                }
                             }
                         }
                     }

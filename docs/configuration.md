@@ -20,7 +20,7 @@ dead_code_elimination = true
 priority = "size-first"
 cost_model = "brotli" # raw | gzip | brotli
 candidate_search = "production" # off | production | always
-candidate_limit = 512
+candidate_limit = 1024
 compression = [
   "identifier-mangling",
   "entropy-aware-mangling",
@@ -32,6 +32,7 @@ compression = [
   "structured-closure-inlining",
   "string-array-packing",
   "scalar-phi-copies",
+  "phi-affinity-coalescing",
 ]
 # inline_instruction_limit = 18
 # inline_control_flow_limit = 45
@@ -120,6 +121,10 @@ only listed tactics are enabled; `compression = []` disables all of them:
   assignments against tuple destructuring. The scalar scheduler reuses a
   liveness-proven dead local for cycle breaking when one exists. Size-first
   enables the comparison; omitting this decision keeps tuple copies.
+- `phi-affinity-coalescing` lets direct phi inputs share their destination name
+  when normal liveness proves the pair does not interfere. Candidate search
+  compares this move-reducing layout with conservative deferred-expression
+  interference because fewer raw assignments can still compress worse.
 
 The numeric `inline_instruction_limit`, `inline_control_flow_limit`, and
 `max_inline_growth` keys override the selected profile. Setting
@@ -137,9 +142,9 @@ default and is skipped by CLI `--mode development`; `always` remains active in
 that mode, while `off` disables compressor-in-the-loop emission. The current
 search space compares profitable string pooling, literal-table packing,
 proven-safe integer coercion elision, boolean literals, structured closures,
-identifier alphabets, quote styles, and equivalent top-level declaration
-spellings and SSA parallel-copy layouts, bounded by `candidate_limit`. The
-default limit of `512` covers the complete current default search space.
+identifier alphabets, quote styles, and equivalent top-level declaration,
+phi-affinity, and SSA parallel-copy layouts, bounded by `candidate_limit`. The
+default limit of `1024` covers the complete current default search space.
 
 The priority is applied after `[optimization]`: setting `inlining = false`
 disables inlining in every profile. Explicit `[mangle]` values have the highest
