@@ -20,7 +20,7 @@ dead_code_elimination = true
 priority = "realistic-performance-first"
 cost_model = "brotli" # raw | gzip | brotli
 candidate_search = "production" # off | production | always
-candidate_limit = 64
+candidate_limit = 128
 compression = [
   "identifier-mangling",
   "entropy-aware-mangling",
@@ -29,6 +29,7 @@ compression = [
   "size-aware-inlining",
   "safe-integer-coercion-elision",
   "double-exact-integer-multiplication",
+  "compact-boolean-literals",
 ]
 # inline_instruction_limit = 18
 # inline_control_flow_limit = 45
@@ -106,6 +107,8 @@ only listed tactics are enabled; `compression = []` disables all of them:
   `Math.imul(left,right)` when range analysis proves the integer product is
   exactly representable by a JavaScript double before coercion. It preserves
   wrapping behavior while avoiding `Math.imul` call overhead and bytes.
+- `compact-boolean-literals` compares `!0`/`!1` with `true`/`false` for
+  surviving boolean constants and typed default fields.
 
 The numeric `inline_instruction_limit`, `inline_control_flow_limit`, and
 `max_inline_growth` keys override the selected profile. Setting
@@ -124,7 +127,7 @@ that mode, while `off` disables compressor-in-the-loop emission. The current
 search space compares profitable string pooling, proven-safe integer coercion
 elision, exact-double multiplication, identifier alphabets, quote styles, and
 equivalent top-level declaration spellings, bounded by `candidate_limit`. The
-default limit of `64` covers the complete current default search space.
+default limit of `128` covers the complete current default search space.
 
 The priority is applied after `[optimization]`: setting `inlining = false`
 disables inlining in every profile. Explicit `[mangle]` values have the highest

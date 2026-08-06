@@ -630,14 +630,17 @@ fn select_javascript_candidate(
             for lower_exact_integer_multiplication in
                 [configured.lower_exact_integer_multiplication, false]
             {
-                let candidate = crate::codegen_ir_js::IrJsOptions {
-                    pool_strings,
-                    elide_safe_integer_coercions,
-                    lower_exact_integer_multiplication,
-                    ..configured
-                };
-                if !options.contains(&candidate) {
-                    options.push(candidate);
+                for compact_boolean_literals in [configured.compact_boolean_literals, false] {
+                    let candidate = crate::codegen_ir_js::IrJsOptions {
+                        pool_strings,
+                        elide_safe_integer_coercions,
+                        lower_exact_integer_multiplication,
+                        compact_boolean_literals,
+                        ..configured
+                    };
+                    if !options.contains(&candidate) {
+                        options.push(candidate);
+                    }
                 }
             }
         }

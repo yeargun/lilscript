@@ -52,6 +52,7 @@ checked-in benchmark workload. Passing a synthetic example alone is not enough.
   final emission tactics.
 - [x] Compare quote styles and emitted-character-ranked identifier alphabets
   with exact compressor scoring.
+- [x] Compare compact and keyword boolean literals under the selected codec.
 - [ ] Expand candidate search to deeper declaration and expression layouts.
 - [ ] Add entropy-aware cross-scope name reuse and property-name assignment.
 - [ ] Add post-codegen superoptimization with semantic differential tests.

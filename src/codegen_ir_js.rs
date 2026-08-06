@@ -28,6 +28,7 @@ pub struct IrJsOptions {
     pub pool_strings: bool,
     pub elide_safe_integer_coercions: bool,
     pub lower_exact_integer_multiplication: bool,
+    pub compact_boolean_literals: bool,
     pub identifier_alphabet: IdentifierAlphabet,
     pub string_quote: StringQuote,
 }
@@ -41,6 +42,7 @@ impl Default for IrJsOptions {
             pool_strings: true,
             elide_safe_integer_coercions: true,
             lower_exact_integer_multiplication: true,
+            compact_boolean_literals: true,
             identifier_alphabet: IdentifierAlphabet::canonical(),
             string_quote: StringQuote::Double,
         }
@@ -782,6 +784,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             !single_block && !structured,
             &self.top_level_mangler,
             self.options.mangle_identifiers,
+            self.options.compact_boolean_literals,
         );
         context.inline_declarations = structured;
         let uses = use_counts(function);
@@ -921,6 +924,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             false,
             &self.top_level_mangler,
             self.options.mangle_identifiers,
+            self.options.compact_boolean_literals,
         );
         self.emit_single_block_with_context(function, wrapped, context, out)
     }
@@ -1125,6 +1129,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             true,
             &self.top_level_mangler,
             self.options.mangle_identifiers,
+            self.options.compact_boolean_literals,
         );
         self.emit_state_machine_with_context(function, context, out)
     }
@@ -1239,6 +1244,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             false,
             &self.top_level_mangler,
             self.options.mangle_identifiers,
+            self.options.compact_boolean_literals,
         );
         context.inline_declarations = true;
         self.emit_structured_with_context(function, wrapped, context, out)
@@ -1366,11 +1372,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             }
                             out.push_str(target);
                             out.push('=');
-                            if then_value == "true" {
+                            if is_true_literal(then_value) {
                                 out.push_str(&condition);
                                 out.push_str("||");
                                 out.push_str(else_value);
-                            } else if else_value == "false" {
+                            } else if is_false_literal(else_value) {
                                 out.push_str(&condition);
                                 out.push_str("&&");
                                 out.push_str(then_value);
@@ -1909,7 +1915,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 .get(value)
                 .cloned()
                 .unwrap_or_else(|| render_string_literal(value, self.options.string_quote)),
-            ControlFlowOp::Const(value) => render_const(value),
+            ControlFlowOp::Const(value) => render_const(
+                value,
+                self.options.compact_boolean_literals,
+                self.options.string_quote,
+            ),
             ControlFlowOp::Unary { op, value: operand } => format!(
                 "{}{}",
                 match op {
@@ -2210,6 +2220,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 false,
                 &wrapper_mangler,
                 self.options.mangle_identifiers,
+                self.options.compact_boolean_literals,
             );
             let mut rendered = render_arrow_parameters(&function, &context)?;
             rendered.push_str("=>");
@@ -2235,6 +2246,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             false,
             &self.top_level_mangler,
             self.options.mangle_identifiers,
+            self.options.compact_boolean_literals,
         );
         let capture_params = &function.params[..function.capture_count];
         let capture_values = capture_params
@@ -2354,7 +2366,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 value.push_str(self.property_name(field.name));
                 value.push(':');
             }
-            value.push_str(default_value(&field.ty));
+            value.push_str(default_value(
+                &field.ty,
+                self.options.compact_boolean_literals,
+            ));
         }
         value.push(if boundary { '}' } else { ']' });
         Ok(value)
@@ -3040,6 +3055,7 @@ impl LocalNames {
         all_values: bool,
         parent: &Mangler,
         mangle_identifiers: bool,
+        compact_boolean_literals: bool,
     ) -> Self {
         let mut mangler = parent.clone();
         let mut value_names = AHashMap::new();
@@ -3081,7 +3097,8 @@ impl LocalNames {
                         value @ (ConstValue::Int(_) | ConstValue::Float(_) | ConstValue::Bool(_)),
                     ),
                 ) => {
-                    let rendered = render_const(value);
+                    let rendered =
+                        render_const(value, compact_boolean_literals, StringQuote::Double);
                     let use_count = uses.get(&out).copied().unwrap_or(0);
                     let inline_cost = rendered.len() * use_count;
                     let binding_cost = rendered.len() + 7 + use_count;
@@ -3914,12 +3931,14 @@ fn op_has_side_effects(op: &ControlFlowOp<'_>) -> bool {
     )
 }
 
-fn render_const(value: &ConstValue) -> String {
+fn render_const(value: &ConstValue, compact_boolean_literals: bool, quote: StringQuote) -> String {
     match value {
         ConstValue::Int(value) => shortest_integer(*value),
         ConstValue::Float(value) => shortest_float(*value),
+        ConstValue::Bool(true) if compact_boolean_literals => "!0".to_string(),
+        ConstValue::Bool(false) if compact_boolean_literals => "!1".to_string(),
         ConstValue::Bool(value) => value.to_string(),
-        ConstValue::String(value) => render_string_literal(value, StringQuote::Double),
+        ConstValue::String(value) => render_string_literal(value, quote),
         ConstValue::Null => "null".to_string(),
     }
 }
@@ -4094,9 +4113,10 @@ fn binary_operator(op: IrBinaryOp) -> &'static str {
     }
 }
 
-fn default_value(ty: &Type<'_>) -> &'static str {
+fn default_value(ty: &Type<'_>, compact_boolean_literals: bool) -> &'static str {
     match ty {
         Type::Int | Type::Float => "0",
+        Type::Bool if compact_boolean_literals => "!1",
         Type::Bool => "false",
         Type::String => "\"\"",
         Type::Array(_) => "[]",
@@ -4105,7 +4125,9 @@ fn default_value(ty: &Type<'_>) -> &'static str {
         Type::ArrayBuffer => "new ArrayBuffer(0)",
         Type::SharedArrayBuffer => "new SharedArrayBuffer(0)",
         Type::Uint8Array => "new Uint8Array",
-        Type::Union(members) => members.first().map_or("null", default_value),
+        Type::Union(members) => members.first().map_or("null", |member| {
+            default_value(member, compact_boolean_literals)
+        }),
         Type::Null | Type::Nullable(_) => "null",
         Type::Struct(_)
         | Type::Class(_)
@@ -4152,6 +4174,14 @@ fn strip_outer_parens(value: String) -> String {
         }
     }
     value[1..value.len() - 1].to_string()
+}
+
+fn is_true_literal(value: &str) -> bool {
+    matches!(value, "true" | "!0")
+}
+
+fn is_false_literal(value: &str) -> bool {
+    matches!(value, "false" | "!1")
 }
 
 fn is_single_binding_statement(statement: &str) -> bool {
@@ -4480,7 +4510,7 @@ mod tests {
                 }
             }
         }
-        let context = LocalNames::new(function, false, &Mangler::default(), true);
+        let context = LocalNames::new(function, false, &Mangler::default(), true, true);
         let mut checked_unwrap = false;
         let mut checked_captureless_closure = false;
         for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
@@ -4712,6 +4742,27 @@ mod tests {
             render_string_literal(r#"say \"hi\" and it's\nready"#, StringQuote::Single),
             r#"'say "hi" and it\'s\nready'"#
         );
+    }
+
+    #[test]
+    fn emits_compact_boolean_constants_and_typed_defaults() {
+        let compact = compile(
+            "class Flags{bool enabled;}extern void consumeFlags(Flags value);extern void consume(bool value);Flags flags=new Flags();consumeFlags(flags);consume(true);consume(false);",
+        );
+        assert!(compact.contains("consumeFlags({enabled:!1})"), "{compact}");
+        assert!(compact.contains("consume(!0)"), "{compact}");
+        assert!(compact.contains("consume(!1)"), "{compact}");
+
+        let keyword = IrJsOptions {
+            compact_boolean_literals: false,
+            ..IrJsOptions::default()
+        };
+        let keyword = compile_with_options(
+            "extern void consume(bool value);consume(true);consume(false);",
+            keyword,
+        );
+        assert!(keyword.contains("consume(true)"), "{keyword}");
+        assert!(keyword.contains("consume(false)"), "{keyword}");
     }
 
     #[test]
