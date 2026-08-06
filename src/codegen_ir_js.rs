@@ -709,7 +709,13 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             self.options.mangle_identifiers,
         );
         context.inline_declarations = structured;
-        for (index, param) in function.params.iter().enumerate() {
+        let uses = use_counts(function);
+        let parameter_count = function
+            .params
+            .iter()
+            .rposition(|param| uses.get(&param.value).copied().unwrap_or(0) != 0)
+            .map_or(0, |index| index + 1);
+        for (index, param) in function.params.iter().take(parameter_count).enumerate() {
             if index != 0 {
                 out.push(',');
             }
@@ -1189,6 +1195,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             &mut visited,
             out,
         )?;
+        if out.ends_with("return;") {
+            out.truncate(out.len() - "return;".len());
+        }
         if wrapped {
             out.push('}');
         }
@@ -1279,7 +1288,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         } else if else_output.is_empty() {
                             out.push_str("if(");
                             out.push_str(&condition);
-                            if matches!(then_output.as_str(), "continue;" | "break;") {
+                            if is_braceless_statement(&then_output) {
                                 out.push(')');
                                 out.push_str(&then_output);
                             } else {
@@ -1290,9 +1299,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         } else if then_output.is_empty() {
                             out.push_str("if(");
                             out.push_str(&negate_condition(condition));
-                            out.push_str("){");
-                            out.push_str(&else_output);
-                            out.push('}');
+                            if is_braceless_statement(&else_output) {
+                                out.push(')');
+                                out.push_str(&else_output);
+                            } else {
+                                out.push_str("){");
+                                out.push_str(&else_output);
+                                out.push('}');
+                            }
                         } else {
                             out.push_str("if(");
                             out.push_str(&condition);
@@ -1411,6 +1425,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             out.push_str(&exit_output);
                             out.push_str("break}");
                         }
+                        let loop_body_open = compact_loop.then_some(out.len() - 1);
 
                         let continue_target = update.unwrap_or(header);
                         let nested_loop = LoopContext {
@@ -1449,7 +1464,13 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 )?;
                             }
                         }
-                        out.push('}');
+                        if loop_body_open
+                            .is_some_and(|open| is_braceless_statement(&out[open + 1..]))
+                        {
+                            out.remove(loop_body_open.expect("checked loop body opening"));
+                        } else {
+                            out.push('}');
+                        }
                         cache.clear();
                         current = exit;
                         continue;
@@ -1713,6 +1734,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     let rhs = take_value(*rhs, context, cache)?;
                     return Ok(match op {
                         IrBinaryOp::Mul => format!("Math.imul({lhs},{rhs})"),
+                        IrBinaryOp::Mod if is_nonzero_i32_literal(&rhs) => {
+                            format!("({lhs}%{rhs})")
+                        }
                         _ => format!("({lhs}{}{rhs}|0)", binary_operator(*op)),
                     });
                 }
@@ -2388,6 +2412,25 @@ fn parse_single_assignment(output: &str) -> Option<(&str, &str)> {
         && !value.is_empty()
         && !value.contains(';'))
     .then_some((target, value))
+}
+
+fn is_nonzero_i32_literal(expression: &str) -> bool {
+    expression.parse::<i32>().is_ok_and(|value| value != 0)
+}
+
+fn is_braceless_statement(output: &str) -> bool {
+    let Some(statement) = output.strip_suffix(';') else {
+        return false;
+    };
+    !statement.is_empty()
+        && !statement.contains([';', '{', '}'])
+        && !statement.starts_with("let ")
+        && !statement.starts_with("const ")
+        && !statement.starts_with("function ")
+        && !statement.starts_with("class ")
+        && !statement.starts_with("if(")
+        && !statement.starts_with("for(")
+        && !statement.starts_with("while(")
 }
 
 fn expression_references_name(expression: &str, name: &str) -> bool {
@@ -3162,7 +3205,10 @@ fn can_fuse_value(
             return false;
         }
     }
-    false
+    block
+        .terminator
+        .as_ref()
+        .is_some_and(|terminator| terminator_values(terminator).contains(&value))
 }
 
 fn cross_block_values(function: &ControlFlowFunction<'_>) -> AHashSet<ValueId> {
@@ -3977,6 +4023,41 @@ mod tests {
         assert_eq!(output.matches("for(").count(), 2, "{output}");
         assert!(!output.contains("while("), "{output}");
         assert_eq!(output.matches("var ").count(), 1, "{output}");
+    }
+
+    #[test]
+    fn fuses_deferred_loop_conditions_into_the_header() {
+        let output = compile(
+            "extern int[] readValues();int[] values=readValues();int total=0;for(int index=0;index<values.length;index++){total+=values[index];}print(total);",
+        );
+        assert!(output.contains("for(;"), "{output}");
+        assert!(!output.contains("for(;;)"), "{output}");
+    }
+
+    #[test]
+    fn omits_redundant_integer_remainder_coercions() {
+        assert_eq!(
+            compile("extern int read();print(read()%7);"),
+            "console.log(read()%7)"
+        );
+        assert!(
+            compile("extern int read();print(7%read());").contains("|0"),
+            "a runtime zero divisor must still produce LilScript's integer zero"
+        );
+    }
+
+    #[test]
+    fn emits_simple_branch_bodies_without_braces() {
+        let output = compile("extern int read();int value=read();if(value==0){print(1);}print(2);");
+        assert!(!output.contains("{console.log"), "{output}");
+    }
+
+    #[test]
+    fn emits_simple_loop_bodies_without_braces() {
+        let output = compile(
+            "extern int read();int count=read();for(int index=0;index<count;index++){print(index);}",
+        );
+        assert!(!output.contains("{console.log"), "{output}");
     }
 
     #[test]
