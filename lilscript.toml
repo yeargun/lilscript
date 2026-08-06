@@ -2,12 +2,12 @@
 preset = "maximum"
 
 [javascript]
-priority = "balanced"
-
-[mangle]
-identifiers = true
-properties = false
-exports = false
+priority = "realistic-performance-first"
+compression = [
+  "identifier-mangling",
+  "string-pooling",
+  "size-aware-inlining",
+]
 
 [bundle]
 mode = "single"

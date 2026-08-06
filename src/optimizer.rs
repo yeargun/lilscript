@@ -1194,10 +1194,11 @@ fn inline_small_functions(
                 && options.inline_growth_limit.is_none_or(|limit| {
                     let instructions = function.blocks[0].instructions.len();
                     let calls = call_counts.get(&function.id).copied().unwrap_or(0);
-                    let retained_instructions = address_taken
-                        .contains(&function.id)
-                        .then_some(instructions)
-                        .unwrap_or(0);
+                    let retained_instructions = if address_taken.contains(&function.id) {
+                        instructions
+                    } else {
+                        0
+                    };
                     let before = instructions + calls;
                     let after = retained_instructions + instructions.saturating_mul(calls);
                     after.saturating_sub(before) <= limit

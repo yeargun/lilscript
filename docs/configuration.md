@@ -17,12 +17,20 @@ dead_store_elimination = true
 dead_code_elimination = true
 
 [javascript]
-priority = "balanced" # performance-first | balanced | size-first
+priority = "realistic-performance-first"
+compression = [
+  "identifier-mangling",
+  "string-pooling",
+  "size-aware-inlining",
+]
+# inline_instruction_limit = 18
+# inline_control_flow_limit = 45
+# max_inline_growth = 16
 
 [mangle]
-identifiers = true
-properties = false
-exports = false
+# identifiers = true
+# properties = false
+# exports = false
 # pool_strings = true # optional explicit override
 
 [bundle]
@@ -40,21 +48,42 @@ for isolating pass regressions without changing language semantics.
 `javascript.priority` is a JavaScript-target policy. It never weakens semantic
 checks, mandatory IR normalization, DCE correctness, or host-boundary rules:
 
-- `performance-first` raises straight-line and control-flow inlining budgets.
-  Automatic string pooling is disabled to avoid introducing shared lookup
-  loads, unless `mangle.pool_strings` explicitly overrides it.
-- `balanced` is the default. It uses the established inlining budgets and
-  enables automatic string pooling.
-- `size-first` retains the balanced candidate limits but rejects repeated-call
-  straight-line inlining when the IR growth estimate is positive. It enables
-  automatic string pooling.
+- `performance-first` uses straight-line/control-flow limits of `24`/`60`, has
+  no inline-growth cap, and disables automatic string pooling.
+- `realistic-performance-first` is the default. It uses limits of `18`/`45`,
+  allows up to `16` estimated additional IR instructions from repeated-call
+  inlining, and enables profitable string pooling.
+- `balanced` uses limits of `12`/`30`, permits up to `4` estimated additional
+  instructions, and enables profitable string pooling.
+- `size-first` uses limits of `12`/`30`, permits no positive estimated inline
+  growth, and enables profitable string pooling.
+
+`javascript.compression` is an optional exact allowlist of contested JavaScript
+size tactics. If omitted, the selected profile supplies the list. If present,
+only listed tactics are enabled; `compression = []` disables all of them:
+
+- `identifier-mangling` assigns short names by whole-program use frequency.
+- `property-mangling` renames LilScript-owned boundary-visible properties.
+- `export-mangling` permits public ESM export names to be shortened.
+- `string-pooling` aliases repeated strings only when the emitter's raw-size
+  model predicts a reduction.
+- `size-aware-inlining` applies the profile's positive-growth limit to repeated
+  straight-line calls.
+
+The numeric `inline_instruction_limit`, `inline_control_flow_limit`, and
+`max_inline_growth` keys override the selected profile. Setting
+`max_inline_growth` explicitly also enables the growth guard, even when
+`size-aware-inlining` is absent from the allowlist. These are IR instruction
+budgets, not output-byte limits.
 
 The priority is applied after `[optimization]`: setting `inlining = false`
-disables inlining in every profile. `mangle.pool_strings` is optional; when it
-is omitted, the selected priority supplies its default. Raw, gzip, and Brotli
-sizes can disagree, so `size-first` is a compiler cost-model preference rather
-than a universal guarantee for every compressor and workload. Measure release
-artifacts with the intended transport compression.
+disables inlining in every profile. Explicit `[mangle]` values have the highest
+precedence, followed by the exact compression allowlist, then profile defaults.
+The aliases `realisticperf-first` and `realistic-perf-first` are accepted for
+`realistic-performance-first`. Raw, gzip, and Brotli sizes can disagree, so
+size policy is a compiler cost-model preference rather than a universal
+guarantee for every compressor and workload. Measure release artifacts with
+the intended transport compression.
 
 The policy affects only JavaScript. A configured `--target all` build shares
 parsing and semantic analysis, then optimizes separate JavaScript and native IR

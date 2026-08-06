@@ -671,10 +671,15 @@ mod tests {
         .unwrap();
         let mut performance = ProjectConfig::default();
         performance.javascript.priority = crate::config::JavaScriptPriority::PerformanceFirst;
+        let realistic = ProjectConfig::default();
+        let mut balanced = ProjectConfig::default();
+        balanced.javascript.priority = crate::config::JavaScriptPriority::Balanced;
         let mut size = ProjectConfig::default();
         size.javascript.priority = crate::config::JavaScriptPriority::SizeFirst;
 
         let performance = compile_program_all_configured(&program, &performance).unwrap();
+        let realistic = compile_program_all_configured(&program, &realistic).unwrap();
+        let balanced = compile_program_all_configured(&program, &balanced).unwrap();
         let size = compile_program_all_configured(&program, &size).unwrap();
 
         assert_ne!(performance.javascript, size.javascript);
@@ -683,6 +688,16 @@ mod tests {
             "{}",
             performance.javascript
         );
+        assert!(
+            !realistic.javascript.contains("function"),
+            "{}",
+            realistic.javascript
+        );
+        assert!(
+            balanced.javascript.contains("function"),
+            "{}",
+            balanced.javascript
+        );
         assert!(size.javascript.contains("function"), "{}", size.javascript);
         assert!(
             size.javascript.len() < performance.javascript.len(),
@@ -690,6 +705,8 @@ mod tests {
             size.javascript,
             performance.javascript
         );
+        assert_eq!(performance.c, realistic.c);
+        assert_eq!(performance.c, balanced.c);
         assert_eq!(performance.c, size.c);
     }
 
@@ -844,7 +861,7 @@ mod tests {
         let arena = Bump::new();
         let program = parse_source(&arena, source).unwrap();
         let mut config = ProjectConfig::default();
-        config.mangle.properties = true;
+        config.mangle.properties = Some(true);
         let mangled = compile_program_to_js_configured(&program, &config).unwrap();
         assert!(mangled.contains("document.createElement"));
         assert!(mangled.contains(".textContent"));
@@ -1056,7 +1073,7 @@ mod tests {
         let mut config = ProjectConfig::default();
         config.optimization.preset = crate::config::OptimizationPreset::None;
         config.optimization.constant_folding = Some(false);
-        config.mangle.identifiers = false;
+        config.mangle.identifiers = Some(false);
         let unoptimized = compile_program_to_js_configured(&program, &config).unwrap();
         assert_ne!(unoptimized, "console.log(7)");
         assert!(unoptimized.contains("Math.imul(2,3)"));
@@ -1067,13 +1084,13 @@ mod tests {
             "struct Point{int horizontal;int vertical;}extern void send(Point point);Point point=Point{1,2};send(point);",
         )
         .unwrap();
-        config.mangle.properties = false;
+        config.mangle.properties = Some(false);
         let preserved = compile_program_to_js_configured(&program, &config).unwrap();
         assert!(
             preserved.contains("horizontal:") && preserved.contains("vertical:"),
             "{preserved}"
         );
-        config.mangle.properties = true;
+        config.mangle.properties = Some(true);
         let mangled = compile_program_to_js_configured(&program, &config).unwrap();
         assert!(
             mangled.contains("{a:") && mangled.contains(",b:"),
@@ -1102,7 +1119,7 @@ mod tests {
         let mut config = ProjectConfig::default();
         config.bundle.mode = BundleMode::PreserveModules;
         config.optimization.inlining = Some(false);
-        config.mangle.identifiers = false;
+        config.mangle.identifiers = Some(false);
 
         let bundle = compile_path_to_js_bundle_configured(&main, &config, "entry.js").unwrap();
         for _ in 0..8 {
@@ -1182,13 +1199,13 @@ mod tests {
         )
         .unwrap();
         let mut config = ProjectConfig::default();
-        config.mangle.exports = true;
+        config.mangle.exports = Some(true);
         let output = compile_program_to_js_module_configured(&program, &config).unwrap();
         assert!(output.contains("export{"));
         assert!(!output.contains("descriptiveFunction"));
 
-        config.mangle.identifiers = false;
-        config.mangle.exports = false;
+        config.mangle.identifiers = Some(false);
+        config.mangle.exports = Some(false);
         let readable = compile_program_to_js_module_configured(&program, &config).unwrap();
         assert!(readable.contains("function descriptiveFunction(descriptiveValue)"));
         assert!(readable.contains("export{descriptiveFunction}"));
@@ -1225,7 +1242,7 @@ mod tests {
         let mut config = ProjectConfig::default();
         config.bundle.mode = BundleMode::PreserveModules;
         config.optimization.inlining = Some(false);
-        config.mangle.identifiers = false;
+        config.mangle.identifiers = Some(false);
 
         let bundle = compile_path_to_js_bundle_configured(&main, &config, "entry.js").unwrap();
         assert_eq!(bundle.files.len(), 2);
@@ -1263,7 +1280,7 @@ mod tests {
         .unwrap();
         let mut config = ProjectConfig::default();
         config.optimization.preset = crate::config::OptimizationPreset::None;
-        config.mangle.identifiers = false;
+        config.mangle.identifiers = Some(false);
         let output = compile_program_to_js_configured(&program, &config).unwrap();
 
         let load = output
@@ -1330,7 +1347,7 @@ mod tests {
         .unwrap();
         let mut config = ProjectConfig::default();
         config.optimization.preset = crate::config::OptimizationPreset::None;
-        config.mangle.identifiers = false;
+        config.mangle.identifiers = Some(false);
         let output = compile_program_to_js_configured(&program, &config).unwrap();
 
         let snapshot = output
@@ -1353,7 +1370,7 @@ mod tests {
         .unwrap();
         let mut config = ProjectConfig::default();
         config.optimization.preset = crate::config::OptimizationPreset::None;
-        config.mangle.identifiers = false;
+        config.mangle.identifiers = Some(false);
         let output = compile_program_to_js_configured(&program, &config).unwrap();
 
         assert_eq!(output.matches("Box$increment(").count(), 2, "{output}");

@@ -95,9 +95,10 @@ Compiler policy is configured in an auto-discovered `lilscript.toml`, or with
 `--config path/to/lilscript.toml`. Presets and per-pass overrides control
 folding, CSE, global optimization, inlining, scalar replacement, DCE, identifier
 and boundary-property mangling, public-export mangling, and string pooling. The
-JavaScript-specific `priority = "performance-first" | "balanced" |
-"size-first"` policy adjusts inlining growth and automatic pooling without
-changing C/native optimization.
+default JavaScript-specific `priority = "realistic-performance-first"` policy
+sits between absolute performance and balanced output. Four profiles, numeric
+inline budgets, and an exact `compression` decision allowlist control the
+performance/size tradeoff without changing C/native optimization.
 Bundle policy selects a single artifact, source-module-preserving static ESM
 chunks, or size/import-limited shared chunks. See
 [docs/configuration.md](docs/configuration.md) for the complete schema and exact

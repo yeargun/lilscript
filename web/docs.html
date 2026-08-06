@@ -311,14 +311,26 @@ code --install-extension lilscript-vscode-0.1.0.vsix</code></pre>
           <p>If the server is not on <code>PATH</code>, set <code>lilscript.server.path</code> to the absolute <code>target/release/lilscript-lsp</code> path in VS Code settings.</p>
         </section>
 
-        <section id="configuration" data-title="Configuration JavaScript priority performance size balanced compression">
+        <section id="configuration" data-title="Configuration JavaScript priority realistic performance size balanced compression decisions">
           <h2>JavaScript performance and size priority</h2>
           <pre><code>[javascript]
-priority = "balanced" # performance-first | balanced | size-first
+priority = "realistic-performance-first"
+compression = [
+  "identifier-mangling",
+  "string-pooling",
+  "size-aware-inlining",
+]
+# inline_instruction_limit = 18
+# inline_control_flow_limit = 45
+# max_inline_growth = 16
 
 [mangle]
-# pool_strings = true # optional explicit override</code></pre>
-          <p><code>performance-first</code> raises straight-line and control-flow inlining budgets and disables automatic string pooling unless explicitly overridden. <code>balanced</code> preserves the default policy. <code>size-first</code> rejects repeated-call inlining when the compiler's growth estimate is positive and enables automatic pooling.</p>
+# identifiers = true
+# properties = false
+# exports = false
+# pool_strings = true</code></pre>
+          <p><code>performance-first</code> uses inlining limits of 24/60 with unbounded growth and no automatic pooling. The default <code>realistic-performance-first</code> uses 18/45 with a +16 instruction growth budget. <code>balanced</code> uses 12/30 with +4 growth, while <code>size-first</code> allows no positive estimated growth. The latter three enable profitable string pooling.</p>
+          <p><code>compression</code> is an exact allowlist. Its decisions are <code>identifier-mangling</code>, <code>property-mangling</code>, <code>export-mangling</code>, <code>string-pooling</code>, and <code>size-aware-inlining</code>. Omit it to use profile defaults; use <code>compression = []</code> to disable every optional compression tactic. Explicit numeric limits and <code>[mangle]</code> values override the list.</p>
           <p>The setting changes JavaScript optimization only. It composes with per-pass settings, so <code>optimization.inlining = false</code> still disables inlining. Because raw, gzip, and Brotli sizes can disagree, size priority is a cost-model preference rather than a guarantee for every workload.</p>
         </section>
 

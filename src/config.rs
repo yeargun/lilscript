@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -25,29 +26,45 @@ impl ProjectConfig {
         if !options.inlining {
             return options;
         }
-        match self.javascript.priority {
-            JavaScriptPriority::PerformanceFirst => {
-                options.inline_instruction_limit = 24;
-                options.inline_control_flow_limit = 60;
-                options.inline_growth_limit = None;
-            }
-            JavaScriptPriority::Balanced => {}
-            JavaScriptPriority::SizeFirst => {
-                options.inline_growth_limit = Some(0);
-            }
-        }
+        let policy = self.javascript.priority.policy();
+        options.inline_instruction_limit = self
+            .javascript
+            .inline_instruction_limit
+            .unwrap_or(policy.inline_instruction_limit);
+        options.inline_control_flow_limit = self
+            .javascript
+            .inline_control_flow_limit
+            .unwrap_or(policy.inline_control_flow_limit);
+        options.inline_growth_limit =
+            self.javascript
+                .max_inline_growth
+                .map(Some)
+                .unwrap_or_else(|| {
+                    self.javascript
+                        .compression_enabled(CompressionDecision::SizeAwareInlining)
+                        .then_some(policy.max_inline_growth)
+                });
         options
     }
 
     pub fn js_options(&self) -> IrJsOptions {
         IrJsOptions {
-            mangle_identifiers: self.mangle.identifiers,
-            mangle_properties: self.mangle.properties,
-            mangle_exports: self.mangle.exports,
-            pool_strings: self.mangle.pool_strings.unwrap_or(!matches!(
-                self.javascript.priority,
-                JavaScriptPriority::PerformanceFirst
-            )),
+            mangle_identifiers: self.mangle.identifiers.unwrap_or_else(|| {
+                self.javascript
+                    .compression_enabled(CompressionDecision::IdentifierMangling)
+            }),
+            mangle_properties: self.mangle.properties.unwrap_or_else(|| {
+                self.javascript
+                    .compression_enabled(CompressionDecision::PropertyMangling)
+            }),
+            mangle_exports: self.mangle.exports.unwrap_or_else(|| {
+                self.javascript
+                    .compression_enabled(CompressionDecision::ExportMangling)
+            }),
+            pool_strings: self.mangle.pool_strings.unwrap_or_else(|| {
+                self.javascript
+                    .compression_enabled(CompressionDecision::StringPooling)
+            }),
         }
     }
 
@@ -61,6 +78,17 @@ impl ProjectConfig {
         if self.bundle.shared_min_imports < 2 {
             return Err("`bundle.shared_min_imports` must be at least 2".to_string());
         }
+        if let Some(decisions) = &self.javascript.compression {
+            let mut unique = HashSet::with_capacity(decisions.len());
+            for decision in decisions {
+                if !unique.insert(*decision) {
+                    return Err(format!(
+                        "`javascript.compression` contains duplicate `{}`",
+                        decision.name()
+                    ));
+                }
+            }
+        }
         Ok(())
     }
 }
@@ -70,14 +98,104 @@ impl ProjectConfig {
 pub enum JavaScriptPriority {
     PerformanceFirst,
     #[default]
+    #[serde(alias = "realisticperf-first", alias = "realistic-perf-first")]
+    RealisticPerformanceFirst,
     Balanced,
     SizeFirst,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize)]
+impl JavaScriptPriority {
+    const fn policy(self) -> JavaScriptPolicy {
+        match self {
+            Self::PerformanceFirst => JavaScriptPolicy::new(24, 60, 32),
+            Self::RealisticPerformanceFirst => JavaScriptPolicy::new(18, 45, 16),
+            Self::Balanced => JavaScriptPolicy::new(12, 30, 4),
+            Self::SizeFirst => JavaScriptPolicy::new(12, 30, 0),
+        }
+    }
+
+    const fn enables_compression(self, decision: CompressionDecision) -> bool {
+        match decision {
+            CompressionDecision::IdentifierMangling => true,
+            CompressionDecision::StringPooling => !matches!(self, Self::PerformanceFirst),
+            CompressionDecision::SizeAwareInlining => !matches!(self, Self::PerformanceFirst),
+            CompressionDecision::PropertyMangling | CompressionDecision::ExportMangling => false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct JavaScriptPolicy {
+    inline_instruction_limit: usize,
+    inline_control_flow_limit: usize,
+    max_inline_growth: usize,
+}
+
+impl JavaScriptPolicy {
+    const fn new(
+        inline_instruction_limit: usize,
+        inline_control_flow_limit: usize,
+        max_inline_growth: usize,
+    ) -> Self {
+        Self {
+            inline_instruction_limit,
+            inline_control_flow_limit,
+            max_inline_growth,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum CompressionDecision {
+    IdentifierMangling,
+    PropertyMangling,
+    ExportMangling,
+    StringPooling,
+    SizeAwareInlining,
+}
+
+impl CompressionDecision {
+    const fn name(self) -> &'static str {
+        match self {
+            Self::IdentifierMangling => "identifier-mangling",
+            Self::PropertyMangling => "property-mangling",
+            Self::ExportMangling => "export-mangling",
+            Self::StringPooling => "string-pooling",
+            Self::SizeAwareInlining => "size-aware-inlining",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct JavaScriptConfig {
     pub priority: JavaScriptPriority,
+    pub compression: Option<Vec<CompressionDecision>>,
+    pub inline_instruction_limit: Option<usize>,
+    pub inline_control_flow_limit: Option<usize>,
+    pub max_inline_growth: Option<usize>,
+}
+
+impl Default for JavaScriptConfig {
+    fn default() -> Self {
+        Self {
+            priority: JavaScriptPriority::RealisticPerformanceFirst,
+            compression: None,
+            inline_instruction_limit: None,
+            inline_control_flow_limit: None,
+            max_inline_growth: None,
+        }
+    }
+}
+
+impl JavaScriptConfig {
+    fn compression_enabled(&self, decision: CompressionDecision) -> bool {
+        self.compression.as_ref().map_or_else(
+            || self.priority.enables_compression(decision),
+            |enabled| enabled.contains(&decision),
+        )
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
@@ -148,24 +266,13 @@ impl OptimizationConfig {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct MangleConfig {
-    pub identifiers: bool,
-    pub properties: bool,
-    pub exports: bool,
+    pub identifiers: Option<bool>,
+    pub properties: Option<bool>,
+    pub exports: Option<bool>,
     pub pool_strings: Option<bool>,
-}
-
-impl Default for MangleConfig {
-    fn default() -> Self {
-        Self {
-            identifiers: true,
-            properties: false,
-            exports: false,
-            pool_strings: None,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
@@ -313,11 +420,31 @@ shared_min_imports = 3
         assert_eq!(performance_optimizer.inline_growth_limit, None);
         assert!(!performance.js_options().pool_strings);
 
-        let balanced = ProjectConfig::default();
+        let realistic = ProjectConfig::default();
+        let realistic_optimizer = realistic.js_optimizer_options();
+        assert_eq!(
+            realistic.javascript.priority,
+            JavaScriptPriority::RealisticPerformanceFirst
+        );
+        assert_eq!(realistic_optimizer.inline_instruction_limit, 18);
+        assert_eq!(realistic_optimizer.inline_control_flow_limit, 45);
+        assert_eq!(realistic_optimizer.inline_growth_limit, Some(16));
+        assert!(realistic.js_options().mangle_identifiers);
+        assert!(realistic.js_options().pool_strings);
+
+        let alias: ProjectConfig =
+            toml::from_str("[javascript]\npriority='realisticperf-first'\n").unwrap();
+        assert_eq!(
+            alias.javascript.priority,
+            JavaScriptPriority::RealisticPerformanceFirst
+        );
+
+        let balanced: ProjectConfig =
+            toml::from_str("[javascript]\npriority='balanced'\n").unwrap();
         let balanced_optimizer = balanced.js_optimizer_options();
         assert_eq!(balanced_optimizer.inline_instruction_limit, 12);
         assert_eq!(balanced_optimizer.inline_control_flow_limit, 30);
-        assert_eq!(balanced_optimizer.inline_growth_limit, None);
+        assert_eq!(balanced_optimizer.inline_growth_limit, Some(4));
         assert!(balanced.js_options().pool_strings);
 
         let size: ProjectConfig = toml::from_str("[javascript]\npriority='size-first'\n").unwrap();
@@ -332,10 +459,59 @@ shared_min_imports = 3
     }
 
     #[test]
+    fn applies_an_exact_custom_compression_decision_set() {
+        let custom: ProjectConfig = toml::from_str(
+            r#"
+[javascript]
+priority = "performance-first"
+compression = [
+  "string-pooling",
+  "size-aware-inlining",
+  "property-mangling",
+]
+inline_instruction_limit = 7
+inline_control_flow_limit = 9
+max_inline_growth = 3
+"#,
+        )
+        .unwrap();
+        custom.validate().unwrap();
+        let optimizer = custom.js_optimizer_options();
+        let codegen = custom.js_options();
+
+        assert_eq!(optimizer.inline_instruction_limit, 7);
+        assert_eq!(optimizer.inline_control_flow_limit, 9);
+        assert_eq!(optimizer.inline_growth_limit, Some(3));
+        assert!(!codegen.mangle_identifiers);
+        assert!(codegen.mangle_properties);
+        assert!(!codegen.mangle_exports);
+        assert!(codegen.pool_strings);
+
+        let none: ProjectConfig = toml::from_str("[javascript]\ncompression=[]\n").unwrap();
+        let none_codegen = none.js_options();
+        assert_eq!(none.js_optimizer_options().inline_growth_limit, None);
+        assert!(!none_codegen.mangle_identifiers);
+        assert!(!none_codegen.mangle_properties);
+        assert!(!none_codegen.mangle_exports);
+        assert!(!none_codegen.pool_strings);
+
+        let explicit_mangle: ProjectConfig = toml::from_str(
+            "[javascript]\ncompression=[]\n[mangle]\nidentifiers=true\npool_strings=true\n",
+        )
+        .unwrap();
+        assert!(explicit_mangle.js_options().mangle_identifiers);
+        assert!(explicit_mangle.js_options().pool_strings);
+    }
+
+    #[test]
     fn rejects_unknown_and_invalid_settings() {
         assert!(toml::from_str::<ProjectConfig>("[mangle]\nmagic=true").is_err());
         let config = toml::from_str::<ProjectConfig>("[bundle]\nmax_chunks=0").unwrap();
         assert!(config.validate().unwrap_err().contains("max_chunks"));
+        let duplicate: ProjectConfig =
+            toml::from_str("[javascript]\ncompression=['string-pooling','string-pooling']\n")
+                .unwrap();
+        assert!(duplicate.validate().unwrap_err().contains("duplicate"));
     }
 
     #[test]
@@ -357,7 +533,7 @@ shared_min_imports = 3
             loaded.path,
             Some(directory.join("lilscript.toml").canonicalize().unwrap())
         );
-        assert!(!loaded.config.mangle.identifiers);
+        assert!(!loaded.config.js_options().mangle_identifiers);
         std::fs::remove_dir_all(directory).unwrap();
     }
 }
