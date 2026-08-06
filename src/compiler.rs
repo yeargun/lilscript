@@ -620,13 +620,23 @@ fn optimize_and_select_javascript<'src>(
 ) -> Result<OptimizedJavascriptCandidate, CompileError> {
     let configured = config.js_optimizer_options();
     let mut optimizer_options = vec![configured];
+    if configured.inlining
+        && configured.inline_closure_factories
+        && config.ir_closure_factory_variants_enabled()
+    {
+        let mut outlined_factories = configured;
+        outlined_factories.inline_closure_factories = false;
+        optimizer_options.push(outlined_factories);
+    }
     if configured.inlining && config.ir_inlining_variants_enabled() {
         let mut no_inlining = configured;
         no_inlining.inlining = false;
         no_inlining.inline_instruction_limit = 0;
         no_inlining.inline_control_flow_limit = 0;
         no_inlining.inline_growth_limit = Some(0);
-        optimizer_options.push(no_inlining);
+        if !optimizer_options.contains(&no_inlining) {
+            optimizer_options.push(no_inlining);
+        }
     }
 
     let mut candidates = Vec::with_capacity(optimizer_options.len());

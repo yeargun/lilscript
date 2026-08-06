@@ -23,6 +23,7 @@ pub struct OptimizationOptions {
     pub finite_value_propagation: bool,
     pub global_optimization: bool,
     pub inlining: bool,
+    pub inline_closure_factories: bool,
     pub scalar_replacement: bool,
     pub dead_store_elimination: bool,
     pub dead_code_elimination: bool,
@@ -41,6 +42,7 @@ impl Default for OptimizationOptions {
             finite_value_propagation: true,
             global_optimization: true,
             inlining: true,
+            inline_closure_factories: true,
             scalar_replacement: true,
             dead_store_elimination: true,
             dead_code_elimination: true,
@@ -61,6 +63,7 @@ impl OptimizationOptions {
             finite_value_propagation: false,
             global_optimization: false,
             inlining: false,
+            inline_closure_factories: false,
             scalar_replacement: false,
             dead_store_elimination: false,
             dead_code_elimination: false,
@@ -1988,6 +1991,11 @@ fn inline_small_functions(
                 && !function_has_type_parameters(function)
                 && function.blocks.len() == 1
                 && function.blocks[0].phis.is_empty()
+                && (options.inline_closure_factories
+                    || !function.blocks[0]
+                        .instructions
+                        .iter()
+                        .any(|instruction| matches!(instruction.op, ControlFlowOp::Closure { .. })))
                 && function.blocks[0].instructions.len() <= options.inline_instruction_limit
                 && options.inline_growth_limit.is_none_or(|limit| {
                     let instructions = function.blocks[0].instructions.len();
@@ -5467,6 +5475,51 @@ mod tests {
             .flat_map(|function| &function.blocks)
             .flat_map(|block| &block.instructions)
             .any(|instruction| matches!(instruction.op, ControlFlowOp::CallDirect { .. })));
+    }
+
+    #[test]
+    fn independently_controls_closure_factory_inlining() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "func(int)->int make(int offset){return (int value)=>value+offset;}func(int)->int add=make(2);print(add(3));",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let original = lower_to_control_flow(&program, &semantics).unwrap();
+        let factory = original
+            .functions
+            .iter()
+            .find(|function| function.name == Some("make"))
+            .unwrap()
+            .id;
+
+        let mut inlined = original.clone();
+        optimize_control_flow(&mut inlined).unwrap();
+        assert!(!has_direct_call(&inlined, factory));
+
+        let mut outlined = original;
+        optimize_control_flow_with_options(
+            &mut outlined,
+            &OptimizationOptions {
+                inline_closure_factories: false,
+                ..OptimizationOptions::default()
+            },
+            false,
+        )
+        .unwrap();
+        assert!(has_direct_call(&outlined, factory));
+    }
+
+    fn has_direct_call(module: &ControlFlowModule<'_>, target: FunctionId) -> bool {
+        module
+            .functions
+            .iter()
+            .flat_map(|function| &function.blocks)
+            .flat_map(|block| &block.instructions)
+            .any(|instruction| {
+                matches!(instruction.op, ControlFlowOp::CallDirect { function, .. } if function == target)
+            })
     }
 
     #[test]

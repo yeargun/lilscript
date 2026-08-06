@@ -12,6 +12,7 @@ cd "$ROOT"
 "$ROOT/benchmarks/run.sh"
 node "$ROOT/benchmarks/finite-values/run.mjs"
 node "$ROOT/benchmarks/ir-variants/run.mjs"
+node "$ROOT/benchmarks/closure-factory-variants/run.mjs"
 node "$ROOT/benchmarks/loop-spelling/run.mjs"
 node "$ROOT/benchmarks/paired/run.mjs" --check
 "$ROOT/comparison/run-all.sh"

@@ -116,6 +116,13 @@ impl ProjectConfig {
                 .compression_enabled(CompressionDecision::IrInliningVariants)
     }
 
+    pub fn ir_closure_factory_variants_enabled(&self) -> bool {
+        self.javascript.candidate_search_enabled()
+            && self
+                .javascript
+                .compression_enabled(CompressionDecision::IrClosureFactoryVariants)
+    }
+
     pub fn loop_spelling_selection_enabled(&self) -> bool {
         self.javascript.candidate_search_enabled()
             && self
@@ -199,6 +206,7 @@ impl JavaScriptPriority {
             CompressionDecision::ScalarPhiCopies => matches!(self, Self::SizeFirst),
             CompressionDecision::PhiAffinityCoalescing => true,
             CompressionDecision::IrInliningVariants => matches!(self, Self::SizeFirst),
+            CompressionDecision::IrClosureFactoryVariants => matches!(self, Self::SizeFirst),
             CompressionDecision::LoopSpellingSelection => matches!(self, Self::SizeFirst),
             CompressionDecision::PropertyMangling | CompressionDecision::ExportMangling => false,
         }
@@ -243,6 +251,7 @@ pub enum CompressionDecision {
     ScalarPhiCopies,
     PhiAffinityCoalescing,
     IrInliningVariants,
+    IrClosureFactoryVariants,
     LoopSpellingSelection,
 }
 
@@ -263,6 +272,7 @@ impl CompressionDecision {
             Self::ScalarPhiCopies => "scalar-phi-copies",
             Self::PhiAffinityCoalescing => "phi-affinity-coalescing",
             Self::IrInliningVariants => "ir-inlining-variants",
+            Self::IrClosureFactoryVariants => "ir-closure-factory-variants",
             Self::LoopSpellingSelection => "loop-spelling-selection",
         }
     }
@@ -416,6 +426,7 @@ pub struct OptimizationConfig {
     pub finite_value_propagation: Option<bool>,
     pub global_optimization: Option<bool>,
     pub inlining: Option<bool>,
+    pub inline_closure_factories: Option<bool>,
     pub scalar_replacement: Option<bool>,
     pub dead_store_elimination: Option<bool>,
     pub dead_code_elimination: Option<bool>,
@@ -431,6 +442,7 @@ impl Default for OptimizationConfig {
             finite_value_propagation: None,
             global_optimization: None,
             inlining: None,
+            inline_closure_factories: None,
             scalar_replacement: None,
             dead_store_elimination: None,
             dead_code_elimination: None,
@@ -457,6 +469,9 @@ impl OptimizationConfig {
                 .unwrap_or(base.finite_value_propagation),
             global_optimization: self.global_optimization.unwrap_or(base.global_optimization),
             inlining: self.inlining.unwrap_or(base.inlining),
+            inline_closure_factories: self
+                .inline_closure_factories
+                .unwrap_or(base.inline_closure_factories),
             scalar_replacement: self.scalar_replacement.unwrap_or(base.scalar_replacement),
             dead_store_elimination: self
                 .dead_store_elimination
@@ -589,6 +604,7 @@ mod tests {
 preset = "none"
 constant_folding = true
 finite_value_propagation = true
+inline_closure_factories = true
 
 [javascript]
 priority = "size-first"
@@ -609,6 +625,7 @@ shared_min_imports = 3
         let optimizer = config.optimizer_options();
         assert!(optimizer.constant_folding);
         assert!(optimizer.finite_value_propagation);
+        assert!(optimizer.inline_closure_factories);
         assert!(!optimizer.inlining);
         assert_eq!(config.javascript.priority, JavaScriptPriority::SizeFirst);
         assert!(!config.js_options().mangle_identifiers);
@@ -675,6 +692,7 @@ shared_min_imports = 3
         assert!(size.js_options().pack_string_arrays);
         assert!(size.js_options().scalar_phi_copies);
         assert!(size.ir_inlining_variants_enabled());
+        assert!(size.ir_closure_factory_variants_enabled());
         assert!(size.loop_spelling_selection_enabled());
         assert_eq!(
             size.js_options().phi_affinity_mode,
@@ -688,6 +706,7 @@ shared_min_imports = 3
         assert!(!performance.entropy_aware_mangling_enabled());
         assert!(!performance.js_options().compact_boolean_literals);
         assert!(!performance.ir_inlining_variants_enabled());
+        assert!(!performance.ir_closure_factory_variants_enabled());
         assert!(!performance.loop_spelling_selection_enabled());
 
         let explicit_pooling: ProjectConfig = toml::from_str(
@@ -727,6 +746,7 @@ max_inline_growth = 3
         assert!(codegen.pool_strings);
         assert!(!codegen.elide_safe_integer_coercions);
         assert!(!custom.ir_inlining_variants_enabled());
+        assert!(!custom.ir_closure_factory_variants_enabled());
         assert!(!custom.loop_spelling_selection_enabled());
 
         let none: ProjectConfig = toml::from_str("[javascript]\ncompression=[]\n").unwrap();

@@ -1,0 +1,51 @@
+pure int scale(int value) {
+  return value * 7 + 11;
+}
+
+func(int)->int makeOffset(int offset) {
+  return (int value) => {
+    int adjusted = value + offset;
+    if (adjusted > 100) {
+      return adjusted - 3;
+    }
+    return scale(adjusted);
+  };
+}
+
+func(int)->int first = makeOffset(1);
+func(int)->int second = makeOffset(2);
+func(int)->int third = makeOffset(3);
+func(int)->int fourth = makeOffset(4);
+func(int)->int fifth = makeOffset(5);
+func(int)->int sixth = makeOffset(6);
+func(int)->int seventh = makeOffset(7);
+func(int)->int eighth = makeOffset(8);
+func(int)->int ninth = makeOffset(9);
+func(int)->int tenth = makeOffset(10);
+func(int)->int eleventh = makeOffset(11);
+func(int)->int twelfth = makeOffset(12);
+
+print(first(10));
+print(second(11));
+print(third(12));
+print(fourth(13));
+print(fifth(14));
+print(sixth(15));
+print(seventh(16));
+print(eighth(17));
+print(ninth(18));
+print(tenth(19));
+print(eleventh(20));
+print(twelfth(21));
+print(first(20));
+print(second(21));
+print(third(22));
+print(fourth(23));
+print(fifth(24));
+print(sixth(25));
+print(seventh(26));
+print(eighth(27));
+print(ninth(28));
+print(tenth(29));
+print(eleventh(30));
+print(twelfth(31));
