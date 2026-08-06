@@ -870,7 +870,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             &self.options,
         );
         context.inline_declarations = structured;
-        let uses = use_counts(function);
+        let uses = &context.use_counts;
         let parameter_count = function
             .params
             .iter()
@@ -918,7 +918,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         let Some(Terminator::Branch { condition, .. }) = header.terminator else {
             return Ok(None);
         };
-        let uses = use_counts(function);
+        let uses = &context.use_counts;
         let mut cache = AHashMap::new();
         for instruction in &header.instructions {
             let Some(out) = instruction.out else {
@@ -932,12 +932,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         }
         let condition = strip_outer_parens(take_value(condition, context, &mut cache)?);
         let Some(then_value) =
-            self.render_linear_return_path(function, then_block, context, &uses, cache.clone())?
+            self.render_linear_return_path(function, then_block, context, uses, cache.clone())?
         else {
             return Ok(None);
         };
         let Some(else_value) =
-            self.render_linear_return_path(function, else_block, context, &uses, cache)?
+            self.render_linear_return_path(function, else_block, context, uses, cache)?
         else {
             return Ok(None);
         };
@@ -1023,7 +1023,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             out.push('{');
         }
         let block = &function.blocks[0];
-        let uses = use_counts(function);
+        let uses = &context.use_counts;
         let mut cache = AHashMap::<ValueId, String>::new();
         let mut previous_binding = false;
         for (index, instruction) in block.instructions.iter().enumerate() {
@@ -1033,7 +1033,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             let mut statement = String::new();
             self.emit_linear_instruction(
                 instruction,
-                &uses,
+                uses,
                 fuse_with_next,
                 false,
                 &context,
@@ -1243,7 +1243,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         write!(out, "={};for(;;)switch({state}){{", function.entry.0)
             .expect("writing to String cannot fail");
 
-        let uses = use_counts(function);
+        let uses = &context.use_counts;
         for block in &function.blocks {
             write!(out, "case {}:", block.id.0).expect("writing to String cannot fail");
             let mut cache = AHashMap::new();
@@ -1254,7 +1254,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 });
                 self.emit_linear_instruction(
                     instruction,
-                    &uses,
+                    uses,
                     fuse_with_next,
                     true,
                     &context,
@@ -1356,7 +1356,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             }
             out.push(';');
         }
-        let uses = use_counts(function);
+        let uses = &context.use_counts;
         let mut visited = AHashSet::new();
         let mut cache = AHashMap::new();
         self.emit_structured_path(
@@ -1365,7 +1365,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             None,
             None,
             &context,
-            &uses,
+            uses,
             &mut cache,
             &mut visited,
             out,
@@ -3708,7 +3708,7 @@ impl LocalNames {
                 .collect(),
             parallel_copy_temp,
             live_in_values,
-            use_counts: use_counts(function),
+            use_counts: uses,
             declared_names: RefCell::new(declared_names),
             inline_declarations: false,
             state,
