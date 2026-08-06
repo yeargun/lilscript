@@ -22,7 +22,7 @@ JavaScript and native C backends.
 
 | Closure responsibility | LilScript implementation |
 | --- | --- |
-| Early/late peephole optimization | Constant folding, algebraic identities, boolean simplification, branch inversion, nested literal-capture branch folding, SSA-root binary precedence rendering, precedence-safe parenthesis removal, compact boolean literals, compact loops, conditional returns, declaration collapse, trailing-semicolon removal |
+| Early/late peephole optimization | Constant folding, algebraic identities, boolean simplification, branch inversion, nested literal-capture branch folding, SSA-root binary precedence rendering, precedence-safe parenthesis removal at statements and expression delimiters, compact boolean literals, compact loops, conditional returns, declaration collapse, trailing-semicolon removal |
 | Numeric representation lowering | Signed-i32 range analysis propagates bounded loop induction values, direct-call arguments and returns, and owned nominal fields; it removes coercions only for proven-safe operations. Ordinary multiplication emits `x*y|0` when normalization is required, while source-written `Math.imul` remains an explicit exact operation |
 | Inline variables and constants | mem2reg SSA, constant propagation, single-assignment global propagation, constant rematerialization, one-use expression fusion, and exact array-parameter lengths across closed stable direct-call sets |
 | Inline functions and simple methods | Fixed-point expression inlining plus single-use multi-block CFG inlining |

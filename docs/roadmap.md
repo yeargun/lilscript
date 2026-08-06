@@ -67,7 +67,8 @@ checked-in benchmark workload. Passing a synthetic example alone is not enough.
 - [x] Compare tuple and scalar SSA parallel-copy layouts under the selected
   codec, reusing liveness-proven dead locals to break copy cycles.
 - [x] Remove redundant expression parentheses at precedence-safe statement,
-  assignment, argument, and return boundaries.
+  assignment, return, call/constructor argument, index, array/aggregate,
+  template-substitution, and numeric-intrinsic boundaries.
 - [x] Carry non-integer binary root operators through SSA expression fusion and
   remove only precedence- and associativity-safe interior parentheses. Integer
   normalization expressions remain unchanged.

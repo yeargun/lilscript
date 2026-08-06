@@ -168,6 +168,6 @@ LilScript JavaScript, emitted C, and a native executable. Translated upstream
 assertions and dense differential API grids run after the app contracts. The
 generated tables are in
 [`../benchmarks/libraries/RESULTS.md`](../benchmarks/libraries/RESULTS.md).
-They show smaller LilScript Brotli payloads in four of six complete apps, but
-larger payloads for Motion easing and Emotion hash; no universal size claim
-follows.
+They show smaller LilScript Brotli payloads in five of six complete apps,
+including Motion easing, but a larger payload for Emotion hash; no universal
+size claim follows.

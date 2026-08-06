@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "generatedAt": "2026-08-06T21:09:06.173Z",
-    "compilerRevision": "b49809d",
+    "generatedAt": "2026-08-06T21:13:31.521Z",
+    "compilerRevision": "0a73662",
     "node": "v24.11.1",
     "vite": "8.2.0",
     "esbuild": "0.28.1",
@@ -47,7 +47,7 @@
             "assets/index-BdTNmHk3.js",
             "index.html"
           ],
-          "medianMs": 4.9367500000000035
+          "medianMs": 5.029875000000004
         },
         {
           "id": "closure",
@@ -64,24 +64,24 @@
             "app.js",
             "index.html"
           ],
-          "medianMs": 3.9451670000000263
+          "medianMs": 3.979666999999978
         },
         {
           "id": "lilscript",
           "label": "LilScript port",
-          "raw": 1189,
-          "gzip": 634,
-          "brotli": 582,
+          "raw": 1177,
+          "gzip": 632,
+          "brotli": 577,
           "deploy": {
-            "raw": 1375,
-            "gzip": 793,
-            "brotli": 668
+            "raw": 1363,
+            "gzip": 791,
+            "brotli": 663
           },
           "files": [
             "app.js",
             "index.html"
           ],
-          "medianMs": 4.308250000000015,
+          "medianMs": 4.417457999999982,
           "nativeVerified": true,
           "cEmitted": true
         }
@@ -125,7 +125,7 @@
             "assets/index-B6IEu8zq.js",
             "index.html"
           ],
-          "medianMs": 2.319749999999999
+          "medianMs": 2.2931250000000034
         },
         {
           "id": "closure",
@@ -142,7 +142,7 @@
             "app.js",
             "index.html"
           ],
-          "medianMs": 2.3428749999999923
+          "medianMs": 2.3187090000000126
         },
         {
           "id": "lilscript",
@@ -159,7 +159,7 @@
             "app.js",
             "index.html"
           ],
-          "medianMs": 0.9833330000000018,
+          "medianMs": 0.9622499999999974,
           "nativeVerified": true,
           "cEmitted": true
         }
@@ -199,7 +199,7 @@
             "assets/index-Bf76Xsi8.js",
             "index.html"
           ],
-          "medianMs": 3.3752090000000123
+          "medianMs": 3.3687080000000122
         },
         {
           "id": "closure",
@@ -216,24 +216,24 @@
             "app.js",
             "index.html"
           ],
-          "medianMs": 3.3304170000000113
+          "medianMs": 3.328125
         },
         {
           "id": "lilscript",
           "label": "LilScript port",
-          "raw": 495,
-          "gzip": 373,
+          "raw": 485,
+          "gzip": 371,
           "brotli": 319,
           "deploy": {
-            "raw": 681,
-            "gzip": 532,
+            "raw": 671,
+            "gzip": 530,
             "brotli": 405
           },
           "files": [
             "app.js",
             "index.html"
           ],
-          "medianMs": 2.7997080000000096,
+          "medianMs": 2.8207089999999937,
           "nativeVerified": true,
           "cEmitted": true
         }
@@ -273,7 +273,7 @@
             "assets/index-B4X7I0S2.js",
             "index.html"
           ],
-          "medianMs": 6.03004199999998
+          "medianMs": 6.17345899999998
         },
         {
           "id": "closure",
@@ -290,24 +290,24 @@
             "app.js",
             "index.html"
           ],
-          "medianMs": 6.05766600000004
+          "medianMs": 6.196832999999998
         },
         {
           "id": "lilscript",
           "label": "LilScript port",
-          "raw": 1620,
-          "gzip": 932,
-          "brotli": 797,
+          "raw": 1612,
+          "gzip": 927,
+          "brotli": 792,
           "deploy": {
-            "raw": 1806,
-            "gzip": 1091,
-            "brotli": 883
+            "raw": 1798,
+            "gzip": 1086,
+            "brotli": 878
           },
           "files": [
             "app.js",
             "index.html"
           ],
-          "medianMs": 5.820957999999962,
+          "medianMs": 5.9992919999999685,
           "nativeVerified": true,
           "cEmitted": true
         }
@@ -347,7 +347,7 @@
             "assets/index-DHXm0Jix.js",
             "index.html"
           ],
-          "medianMs": 11.531582999999955
+          "medianMs": 11.992958000000044
         },
         {
           "id": "closure",
@@ -364,24 +364,24 @@
             "app.js",
             "index.html"
           ],
-          "medianMs": 11.412584000000038
+          "medianMs": 12.092999999999961
         },
         {
           "id": "lilscript",
           "label": "LilScript port",
-          "raw": 886,
-          "gzip": 551,
-          "brotli": 473,
+          "raw": 884,
+          "gzip": 550,
+          "brotli": 472,
           "deploy": {
-            "raw": 1072,
-            "gzip": 710,
-            "brotli": 559
+            "raw": 1070,
+            "gzip": 709,
+            "brotli": 558
           },
           "files": [
             "app.js",
             "index.html"
           ],
-          "medianMs": 11.028625000000034,
+          "medianMs": 11.502707999999984,
           "nativeVerified": true,
           "cEmitted": true
         }
@@ -421,7 +421,7 @@
             "assets/index-B9SN9_CL.js",
             "index.html"
           ],
-          "medianMs": 5.091082999999998
+          "medianMs": 5.079208000000051
         },
         {
           "id": "closure",
@@ -438,24 +438,24 @@
             "app.js",
             "index.html"
           ],
-          "medianMs": 5.094374999999999
+          "medianMs": 5.103707999999983
         },
         {
           "id": "lilscript",
           "label": "LilScript port",
-          "raw": 1809,
+          "raw": 1807,
           "gzip": 858,
-          "brotli": 746,
+          "brotli": 745,
           "deploy": {
-            "raw": 1995,
+            "raw": 1993,
             "gzip": 1017,
-            "brotli": 832
+            "brotli": 831
           },
           "files": [
             "app.js",
             "index.html"
           ],
-          "medianMs": 4.386707999999999,
+          "medianMs": 4.376290999999981,
           "nativeVerified": true,
           "cEmitted": true
         }
