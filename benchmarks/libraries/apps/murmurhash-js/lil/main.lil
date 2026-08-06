@@ -1,0 +1,23 @@
+import { murmur, murmur2, murmur3 } from "../../../ports/murmurhash-js/index";
+
+string[] values = ["", "a", "hello", "LilScript", "color:hotpink", "0123456789abcdef"];
+int[] seeds = [0, 1, 42, 123456789, 2147483647, 7];
+float[] expected2 = [0.0, 626045324.0, 2013460684.0, 3301369031.0, 1739108709.0, 2343271958.0];
+float[] expected3 = [0.0, 1485495528.0, 3806057185.0, 2367583532.0, 3695485312.0, 1467914068.0];
+int passed = 0;
+for (int index = 0; index < values.length; index++) {
+  if (murmur2(values[index], seeds[index]) == expected2[index]) { passed += 1; }
+  if (murmur3(values[index], seeds[index]) == expected3[index]) { passed += 1; }
+  if (murmur(values[index], seeds[index]) == expected3[index]) { passed += 1; }
+}
+
+float digest = 0.0;
+for (int iteration = 0; iteration < 60000; iteration++) {
+  int index = iteration % values.length;
+  digest += murmur2(values[index], seeds[index]);
+  digest += murmur3(values[(index + 3) % values.length], seeds[index]);
+  while (digest >= 4294967291.0) {
+    digest -= 4294967291.0;
+  }
+}
+print(`murmurhash-js:${passed}:${digest}`);

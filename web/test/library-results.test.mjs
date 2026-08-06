@@ -10,7 +10,14 @@ const config = await readFile(new URL("../vite.config.js", import.meta.url), "ut
 test("library page is a Vite entry backed by generated results", () => {
   assert.match(config, /libraries: resolve/);
   assert.match(page, /data-library-results/);
-  assert.deepEqual(data.results.map((result) => result.id), ["motion-easing", "micro-math", "string-hash"]);
+  assert.deepEqual(data.results.map((result) => result.id), [
+    "motion-easing",
+    "micro-math",
+    "string-hash",
+    "js-levenshtein",
+    "emotion-hash",
+    "murmurhash-js",
+  ]);
 });
 
 test("every published LilScript library row passed native and C gates", () => {

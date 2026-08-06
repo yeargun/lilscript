@@ -56,6 +56,36 @@ const cases = [
     expected: "apps/string-hash/expected.txt",
     portRoots: ["ports/string-hash"],
   },
+  {
+    id: "js-levenshtein",
+    title: "Levenshtein distance",
+    scope: "Complete js-levenshtein root entrypoint",
+    packages: ["js-levenshtein"],
+    jsRoot: "apps/js-levenshtein/js",
+    lilEntry: "apps/js-levenshtein/lil/main.lil",
+    expected: "apps/js-levenshtein/expected.txt",
+    portRoots: ["ports/js-levenshtein"],
+  },
+  {
+    id: "emotion-hash",
+    title: "Emotion hash",
+    scope: "Complete @emotion/hash root entrypoint",
+    packages: ["@emotion/hash"],
+    jsRoot: "apps/emotion-hash/js",
+    lilEntry: "apps/emotion-hash/lil/main.lil",
+    expected: "apps/emotion-hash/expected.txt",
+    portRoots: ["ports/emotion-hash"],
+  },
+  {
+    id: "murmurhash-js",
+    title: "MurmurHash 2 and 3",
+    scope: "Complete murmurhash-js root entrypoint",
+    packages: ["murmurhash-js"],
+    jsRoot: "apps/murmurhash-js/js",
+    lilEntry: "apps/murmurhash-js/lil/main.lil",
+    expected: "apps/murmurhash-js/expected.txt",
+    portRoots: ["ports/murmurhash-js"],
+  },
 ];
 
 function command(program, args, options = {}) {
@@ -239,7 +269,7 @@ function renderReport(report) {
       "",
       `Contract: \`${result.expected}\``,
       "",
-      `Translated upstream assertions: **${result.translatedAssertions}**. Monthly downloads at selection time: **${result.monthlyDownloads.toLocaleString("en-US")}**.`,
+      `Translated upstream assertions: **${result.translatedAssertions}**. Added package-contract assertions: **${result.additionalAssertions}**. Monthly downloads at selection time: **${result.monthlyDownloads.toLocaleString("en-US")}**.`,
       "",
       "| Deployable JavaScript | Raw | Gzip-9 | Brotli-11 | vs npm/Vite Brotli | Median ms |",
       "| --- | ---: | ---: | ---: | ---: | ---: |",
@@ -282,6 +312,9 @@ for (const [source, output] of [
   ["ports/micro-math/clamp.lil", "clamp.mjs"],
   ["ports/micro-math/lerp.lil", "lerp.mjs"],
   ["ports/string-hash/index.lil", "string-hash.mjs"],
+  ["ports/js-levenshtein/index.lil", "js-levenshtein.mjs"],
+  ["ports/emotion-hash/index.lil", "emotion-hash.mjs"],
+  ["ports/murmurhash-js/index.lil", "murmurhash-js.mjs"],
 ]) {
   command(compiler, [join(labRoot, source), "--target", "js-module", "-o", join(portModuleRoot, output)]);
 }
@@ -372,6 +405,7 @@ for (const benchmark of cases) {
     packages: benchmark.packages.map((name) => ({ name, version: packageVersion(name) })),
     monthlyDownloads: port.monthlyDownloads,
     translatedAssertions: port.translatedAssertions,
+    additionalAssertions: port.additionalAssertions ?? 0,
     expected,
     source: {
       npmApp: await sourceBytes([jsRoot], ".js"),

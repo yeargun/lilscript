@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "generatedAt": "2026-08-06T15:23:28.541Z",
-    "compilerRevision": "0d36ed8",
+    "generatedAt": "2026-08-06T17:16:57.300Z",
+    "compilerRevision": "808a2b9",
     "node": "v24.11.1",
     "vite": "8.2.0",
     "esbuild": "0.28.1",
@@ -11,7 +11,7 @@
     "samples": 25,
     "downloadWindow": "last-month"
   },
-  "eligibilityRule": "Every documented callable in the selected published root entrypoint is implemented for its typed input domain, translated upstream assertions pass, npm and LilScript app contracts match, and the LilScript port compiles to JavaScript, C, and a native executable.",
+  "eligibilityRule": "Every documented callable in the selected published root entrypoint is implemented for its typed input domain, all available upstream assertions plus added package-contract vectors pass, npm and LilScript app contracts match, and the LilScript port compiles to JavaScript, C, and a native executable.",
   "results": [
     {
       "id": "motion-easing",
@@ -25,6 +25,7 @@
       ],
       "monthlyDownloads": 9574633,
       "translatedAssertions": 27,
+      "additionalAssertions": 0,
       "expected": "motion-easing:27:560673:541722",
       "source": {
         "npmApp": 1421,
@@ -46,7 +47,7 @@
             "assets/index-BmYbPJ1t.js",
             "index.html"
           ],
-          "medianMs": 5.57687500000003
+          "medianMs": 6.30449999999999
         },
         {
           "id": "closure",
@@ -63,7 +64,7 @@
             "app.js",
             "index.html"
           ],
-          "medianMs": 4.275791999999996
+          "medianMs": 4.934541999999993
         },
         {
           "id": "lilscript",
@@ -80,7 +81,7 @@
             "app.js",
             "index.html"
           ],
-          "medianMs": 4.755291999999997,
+          "medianMs": 5.4886659999999665,
           "nativeVerified": true,
           "cEmitted": true
         }
@@ -102,6 +103,7 @@
       ],
       "monthlyDownloads": 4609993,
       "translatedAssertions": 10,
+      "additionalAssertions": 0,
       "expected": "micro-math:10:1800000:86076",
       "source": {
         "npmApp": 711,
@@ -123,7 +125,7 @@
             "assets/index-B6IEu8zq.js",
             "index.html"
           ],
-          "medianMs": 2.365707999999998
+          "medianMs": 2.643540999999999
         },
         {
           "id": "closure",
@@ -140,7 +142,7 @@
             "app.js",
             "index.html"
           ],
-          "medianMs": 2.3626660000000044
+          "medianMs": 2.6856250000000017
         },
         {
           "id": "lilscript",
@@ -157,7 +159,7 @@
             "app.js",
             "index.html"
           ],
-          "medianMs": 0.9742909999999938,
+          "medianMs": 1.191082999999992,
           "nativeVerified": true,
           "cEmitted": true
         }
@@ -175,6 +177,7 @@
       ],
       "monthlyDownloads": 19930081,
       "translatedAssertions": 2,
+      "additionalAssertions": 2,
       "expected": "string-hash:4:1670934855",
       "source": {
         "npmApp": 581,
@@ -196,7 +199,7 @@
             "assets/index-Bf76Xsi8.js",
             "index.html"
           ],
-          "medianMs": 3.419125000000008
+          "medianMs": 3.815957999999995
         },
         {
           "id": "closure",
@@ -213,7 +216,7 @@
             "app.js",
             "index.html"
           ],
-          "medianMs": 3.373625000000004
+          "medianMs": 3.9591250000000286
         },
         {
           "id": "lilscript",
@@ -230,7 +233,229 @@
             "app.js",
             "index.html"
           ],
-          "medianMs": 2.8846249999999998,
+          "medianMs": 3.235457999999994,
+          "nativeVerified": true,
+          "cEmitted": true
+        }
+      ]
+    },
+    {
+      "id": "js-levenshtein",
+      "title": "Levenshtein distance",
+      "scope": "Complete js-levenshtein root entrypoint",
+      "packages": [
+        {
+          "name": "js-levenshtein",
+          "version": "1.1.6"
+        }
+      ],
+      "monthlyDownloads": 41652021,
+      "translatedAssertions": 14,
+      "additionalAssertions": 0,
+      "expected": "js-levenshtein:14:2049950",
+      "source": {
+        "npmApp": 980,
+        "lilscriptAppAndPort": 3746
+      },
+      "artifacts": [
+        {
+          "id": "vite",
+          "label": "Installed npm package + Vite",
+          "raw": 1970,
+          "gzip": 1077,
+          "brotli": 969,
+          "deploy": {
+            "raw": 2251,
+            "gzip": 1300,
+            "brotli": 1099
+          },
+          "files": [
+            "assets/index-B4X7I0S2.js",
+            "index.html"
+          ],
+          "medianMs": 6.565040999999951
+        },
+        {
+          "id": "closure",
+          "label": "Installed npm package + Closure ADVANCED",
+          "raw": 2030,
+          "gzip": 1099,
+          "brotli": 996,
+          "deploy": {
+            "raw": 2216,
+            "gzip": 1258,
+            "brotli": 1082
+          },
+          "files": [
+            "app.js",
+            "index.html"
+          ],
+          "medianMs": 6.6374589999999785
+        },
+        {
+          "id": "lilscript",
+          "label": "LilScript port",
+          "raw": 1737,
+          "gzip": 976,
+          "brotli": 854,
+          "deploy": {
+            "raw": 1923,
+            "gzip": 1135,
+            "brotli": 940
+          },
+          "files": [
+            "app.js",
+            "index.html"
+          ],
+          "medianMs": 7.468625000000031,
+          "nativeVerified": true,
+          "cEmitted": true
+        }
+      ]
+    },
+    {
+      "id": "emotion-hash",
+      "title": "Emotion hash",
+      "scope": "Complete @emotion/hash root entrypoint",
+      "packages": [
+        {
+          "name": "@emotion/hash",
+          "version": "0.9.2"
+        }
+      ],
+      "monthlyDownloads": 122398176,
+      "translatedAssertions": 1,
+      "additionalAssertions": 7,
+      "expected": "emotion-hash:8:30831534",
+      "source": {
+        "npmApp": 658,
+        "lilscriptAppAndPort": 1652
+      },
+      "artifacts": [
+        {
+          "id": "vite",
+          "label": "Installed npm package + Vite",
+          "raw": 907,
+          "gzip": 498,
+          "brotli": 430,
+          "deploy": {
+            "raw": 1186,
+            "gzip": 716,
+            "brotli": 555
+          },
+          "files": [
+            "assets/index-DHXm0Jix.js",
+            "index.html"
+          ],
+          "medianMs": 12.485875000000021
+        },
+        {
+          "id": "closure",
+          "label": "Installed npm package + Closure ADVANCED",
+          "raw": 924,
+          "gzip": 496,
+          "brotli": 434,
+          "deploy": {
+            "raw": 1110,
+            "gzip": 655,
+            "brotli": 520
+          },
+          "files": [
+            "app.js",
+            "index.html"
+          ],
+          "medianMs": 12.486917000000062
+        },
+        {
+          "id": "lilscript",
+          "label": "LilScript port",
+          "raw": 986,
+          "gzip": 587,
+          "brotli": 506,
+          "deploy": {
+            "raw": 1172,
+            "gzip": 746,
+            "brotli": 592
+          },
+          "files": [
+            "app.js",
+            "index.html"
+          ],
+          "medianMs": 11.96145899999999,
+          "nativeVerified": true,
+          "cEmitted": true
+        }
+      ]
+    },
+    {
+      "id": "murmurhash-js",
+      "title": "MurmurHash 2 and 3",
+      "scope": "Complete murmurhash-js root entrypoint",
+      "packages": [
+        {
+          "name": "murmurhash-js",
+          "version": "1.0.0"
+        }
+      ],
+      "monthlyDownloads": 24364654,
+      "translatedAssertions": 0,
+      "additionalAssertions": 18,
+      "expected": "murmurhash-js:18:855861453",
+      "source": {
+        "npmApp": 1030,
+        "lilscriptAppAndPort": 3711
+      },
+      "artifacts": [
+        {
+          "id": "vite",
+          "label": "Installed npm package + Vite",
+          "raw": 2782,
+          "gzip": 1118,
+          "brotli": 992,
+          "deploy": {
+            "raw": 3062,
+            "gzip": 1340,
+            "brotli": 1131
+          },
+          "files": [
+            "assets/index-B9SN9_CL.js",
+            "index.html"
+          ],
+          "medianMs": 5.153290999999967
+        },
+        {
+          "id": "closure",
+          "label": "Installed npm package + Closure ADVANCED",
+          "raw": 2905,
+          "gzip": 1203,
+          "brotli": 1059,
+          "deploy": {
+            "raw": 3091,
+            "gzip": 1362,
+            "brotli": 1145
+          },
+          "files": [
+            "app.js",
+            "index.html"
+          ],
+          "medianMs": 5.169708000000014
+        },
+        {
+          "id": "lilscript",
+          "label": "LilScript port",
+          "raw": 1990,
+          "gzip": 913,
+          "brotli": 789,
+          "deploy": {
+            "raw": 2176,
+            "gzip": 1072,
+            "brotli": 875
+          },
+          "files": [
+            "app.js",
+            "index.html"
+          ],
+          "medianMs": 4.491208999999969,
           "nativeVerified": true,
           "cEmitted": true
         }
@@ -264,9 +489,9 @@
       "reason": "Its public API includes getters and Symbol.iterator semantics."
     },
     {
-      "package": "@emotion/hash",
-      "version": "0.9.2",
-      "reason": "Exact output still requires logical right shift and unsigned radix conversion support."
+      "package": "robust-predicates",
+      "version": "3.0.3",
+      "reason": "Its eight-function robust geometry root is audited as a high-value next port, but the 2,300-line adaptive expansion implementation is not yet rewritten or compatibility-gated."
     }
   ]
 }

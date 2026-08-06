@@ -39,11 +39,11 @@ const wins = libraryData.results.filter((result) => {
   return lilscript.brotli < vite.brotli;
 }).length;
 document.querySelector("[data-library-summary]").textContent =
-  `LilScript produces the smaller Brotli JavaScript payload in ${wins} of ${libraryData.results.length} complete-port apps. Motion easing remains larger, so this page makes no universal size claim.`;
+  `LilScript produces the smaller Brotli JavaScript payload in ${wins} of ${libraryData.results.length} complete-port apps. Motion easing and Emotion hash remain larger, so this page makes no universal size claim.`;
 
 document.querySelector("[data-library-results]").innerHTML = libraryData.results.map((result) => {
   const packages = result.packages.map((item) => `${item.name}@${item.version}`).join(" + ");
-  return `<section class="benchmark-project" id="${escape(result.id)}"><header><p class="eyebrow">${escape(result.scope)}</p><h2>${escape(result.title)}</h2><p><code>${escape(packages)}</code> with ${number.format(result.monthlyDownloads)} monthly downloads at selection time. ${number.format(result.translatedAssertions)} translated upstream assertions precede dense differential API tests.</p><code class="benchmark-contract">${escape(result.expected)}</code></header><div class="benchmark-table-wrap">${artifactTable(result)}</div><details class="deploy-details"><summary>Full deploy size</summary><div class="benchmark-table-wrap">${deployTable(result)}</div></details></section>`;
+  return `<section class="benchmark-project" id="${escape(result.id)}"><header><p class="eyebrow">${escape(result.scope)}</p><h2>${escape(result.title)}</h2><p><code>${escape(packages)}</code> with ${number.format(result.monthlyDownloads)} monthly downloads at selection time. ${number.format(result.translatedAssertions)} translated upstream assertions and ${number.format(result.additionalAssertions ?? 0)} added contract assertions precede dense differential API tests.</p><code class="benchmark-contract">${escape(result.expected)}</code></header><div class="benchmark-table-wrap">${artifactTable(result)}</div><details class="deploy-details"><summary>Full deploy size</summary><div class="benchmark-table-wrap">${deployTable(result)}</div></details></section>`;
 }).join("");
 
 document.querySelector("[data-ineligible-table]").innerHTML = `<table><thead><tr><th>Package</th><th>Version</th><th>Current blocker</th></tr></thead><tbody>${libraryData.auditedButIneligible.map((item) => `<tr><th>${escape(item.package)}</th><td>${escape(item.version)}</td><td>${escape(item.reason)}</td></tr>`).join("")}</tbody></table>`;

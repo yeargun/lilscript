@@ -6,11 +6,21 @@ import { cubicBezier as npmCubicBezier, steps as npmSteps } from "@motionone/eas
 import npmClamp from "clamp";
 import npmLerp from "lerp";
 import npmStringHash from "string-hash";
+import npmLevenshtein from "js-levenshtein";
+import npmEmotionHash from "@emotion/hash";
+import npmMurmur from "murmurhash-js";
 
 import { clamp as lilClamp } from "../build/ports/clamp.mjs";
 import { lerp as lilLerp } from "../build/ports/lerp.mjs";
 import { cubicBezier as lilCubicBezier, steps as lilSteps } from "../build/ports/motion-easing.mjs";
 import { stringHash as lilStringHash } from "../build/ports/string-hash.mjs";
+import { levenshtein as lilLevenshtein } from "../build/ports/js-levenshtein.mjs";
+import { emotionHash as lilEmotionHash } from "../build/ports/emotion-hash.mjs";
+import {
+  murmur as lilMurmur,
+  murmur2 as lilMurmur2,
+  murmur3 as lilMurmur3,
+} from "../build/ports/murmurhash-js.mjs";
 
 const report = JSON.parse(await readFile(new URL("../build/results.json", import.meta.url), "utf8"));
 const compatibility = JSON.parse(await readFile(new URL("../compatibility/libraries.json", import.meta.url), "utf8"));
@@ -22,7 +32,7 @@ test("only compatibility-gated ports enter the measured result set", () => {
     const lilscript = result.artifacts.at(-1);
     assert.equal(lilscript.nativeVerified, true);
     assert.equal(lilscript.cEmitted, true);
-    assert.ok(result.translatedAssertions > 0);
+    assert.ok(result.translatedAssertions + result.additionalAssertions > 0);
   }
 });
 
@@ -90,11 +100,64 @@ test("string-hash matches UTF-16 input classes", () => {
   for (const value of values) assert.equal(lilStringHash(value), npmStringHash(value), value);
 });
 
+test("js-levenshtein matches installed-package UTF-16 distances", () => {
+  const values = [
+    "",
+    "a",
+    "ab",
+    "kitten",
+    "sitting",
+    "A😀Z",
+    "café",
+    "e\u0301",
+    "中文网页",
+    "因為我是中國人所以我會說中文",
+    "x".repeat(96),
+  ];
+  for (const left of values) {
+    for (const right of values) {
+      assert.equal(lilLevenshtein(left, right), npmLevenshtein(left, right), `${left}/${right}`);
+    }
+  }
+});
+
+test("@emotion/hash matches installed-package byte-tail classes", () => {
+  const values = [
+    "",
+    "a",
+    "ab",
+    "abc",
+    "abcd",
+    "abcde",
+    "something",
+    "color: hotpink;",
+    "A😀Z",
+    "café",
+    "中文网页",
+    "0123456789abcdef".repeat(32),
+  ];
+  for (const value of values) assert.equal(lilEmotionHash(value), npmEmotionHash(value), value);
+});
+
+test("murmurhash-js matches both algorithms and its default alias", () => {
+  const values = ["", "a", "ab", "abc", "abcd", "hello", "LilScript", "0123456789abcdef"];
+  for (const value of values) {
+    for (const seed of [0, 1, 7, 42, 123456789, 2147483647]) {
+      assert.equal(lilMurmur2(value, seed), npmMurmur.murmur2(value, seed));
+      assert.equal(lilMurmur3(value, seed), npmMurmur.murmur3(value, seed));
+      assert.equal(lilMurmur(value, seed), npmMurmur(value, seed));
+    }
+  }
+});
+
 test("Closure inputs contain the installed package implementations", async () => {
   const markers = new Map([
     ["motion-easing", ["node_modules/@motionone/easing", "node_modules/@motionone/utils"]],
     ["micro-math", ["node_modules/clamp/index.js", "node_modules/lerp/index.js"]],
     ["string-hash", ["node_modules/string-hash/index.js"]],
+    ["js-levenshtein", ["node_modules/js-levenshtein/index.js"]],
+    ["emotion-hash", ["node_modules/@emotion/hash"]],
+    ["murmurhash-js", ["node_modules/murmurhash-js/murmurhash2_gc.js", "node_modules/murmurhash-js/murmurhash3_gc.js"]],
   ]);
   for (const [id, expectedMarkers] of markers) {
     const input = await readFile(new URL(`../build/${id}/closure-input.js`, import.meta.url), "utf8");
@@ -104,7 +167,7 @@ test("Closure inputs contain the installed package implementations", async () =>
 
 test("ineligible dynamic packages are not presented as complete", () => {
   const rejected = new Set(report.auditedButIneligible.map((item) => item.package));
-  for (const name of ["motion", "mitt", "nanoid", "clsx", "yocto-queue", "@emotion/hash"]) {
+  for (const name of ["motion", "mitt", "nanoid", "clsx", "yocto-queue", "robust-predicates"]) {
     assert.equal(rejected.has(name), true);
   }
 });

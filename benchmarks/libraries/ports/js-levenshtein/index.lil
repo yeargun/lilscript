@@ -1,0 +1,96 @@
+pure int minimumEdit(int diagonal, int vertical, int horizontal, int rightCode, int leftCode) {
+  if (diagonal < vertical || horizontal < vertical) {
+    if (diagonal > horizontal) {
+      return horizontal + 1;
+    }
+    return diagonal + 1;
+  }
+  if (rightCode == leftCode) {
+    return vertical;
+  }
+  return vertical + 1;
+}
+
+pure int distanceCore(string left, string right, int offset, int leftLength, int rightLength) {
+  int[] vector = [];
+  for (int y = 0; y < leftLength; y++) {
+    vector.push(y + 1);
+    vector.push(left.charCodeAt(offset + y));
+  }
+  int vectorEnd = vector.length - 1;
+  int x = 0;
+  int result = 0;
+  while (x < rightLength - 3) {
+    int distance0 = x;
+    int code0 = right.charCodeAt(offset + distance0);
+    int distance1 = x + 1;
+    int code1 = right.charCodeAt(offset + distance1);
+    int distance2 = x + 2;
+    int code2 = right.charCodeAt(offset + distance2);
+    int distance3 = x + 3;
+    int code3 = right.charCodeAt(offset + distance3);
+    x += 4;
+    result = x;
+    for (int y = 0; y < vectorEnd; y += 2) {
+      int previous = vector[y];
+      int leftCode = vector[y + 1];
+      distance0 = minimumEdit(previous, distance0, distance1, code0, leftCode);
+      distance1 = minimumEdit(distance0, distance1, distance2, code1, leftCode);
+      distance2 = minimumEdit(distance1, distance2, distance3, code2, leftCode);
+      result = minimumEdit(distance2, distance3, result, code3, leftCode);
+      vector[y] = result;
+      distance3 = distance2;
+      distance2 = distance1;
+      distance1 = distance0;
+      distance0 = previous;
+    }
+  }
+  while (x < rightLength) {
+    int distance0 = x;
+    int code = right.charCodeAt(offset + distance0);
+    x += 1;
+    result = x;
+    for (int y = 0; y < vectorEnd; y += 2) {
+      int previous = vector[y];
+      result = minimumEdit(previous, distance0, result, code, vector[y + 1]);
+      vector[y] = result;
+      distance0 = previous;
+    }
+  }
+  return result;
+}
+
+export pure int levenshtein(string left, string right) {
+  if (left == right) {
+    return 0;
+  }
+  if (left.length > right.length) {
+    string swap = left;
+    left = right;
+    right = swap;
+  }
+
+  int leftLength = left.length;
+  int rightLength = right.length;
+  while (leftLength > 0) {
+    if (left.charCodeAt(leftLength - 1) != right.charCodeAt(rightLength - 1)) {
+      break;
+    }
+    leftLength -= 1;
+    rightLength -= 1;
+  }
+
+  int offset = 0;
+  while (offset < leftLength) {
+    if (left.charCodeAt(offset) != right.charCodeAt(offset)) {
+      break;
+    }
+    offset += 1;
+  }
+  leftLength -= offset;
+  rightLength -= offset;
+  if (leftLength == 0 || rightLength < 3) {
+    return rightLength;
+  }
+  return distanceCore(left, right, offset, leftLength, rightLength);
+}

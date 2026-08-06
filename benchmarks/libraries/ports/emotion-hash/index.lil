@@ -1,0 +1,36 @@
+pure int multiplyMurmur(int value) {
+  return Math.imul(value, 1540483477);
+}
+
+export pure string emotionHash(string value) {
+  int hash = 0;
+  int index = 0;
+  int remaining = value.length;
+  while (remaining >= 4) {
+    int mixed = (value.charCodeAt(index) & 255)
+      | ((value.charCodeAt(index + 1) & 255) << 8)
+      | ((value.charCodeAt(index + 2) & 255) << 16)
+      | ((value.charCodeAt(index + 3) & 255) << 24);
+    mixed = multiplyMurmur(mixed);
+    mixed ^= mixed >>> 24;
+    hash = multiplyMurmur(mixed) ^ multiplyMurmur(hash);
+    index += 4;
+    remaining -= 4;
+  }
+
+  if (remaining == 3) {
+    hash ^= (value.charCodeAt(index + 2) & 255) << 16;
+  }
+  if (remaining >= 2) {
+    hash ^= (value.charCodeAt(index + 1) & 255) << 8;
+  }
+  if (remaining >= 1) {
+    hash ^= value.charCodeAt(index) & 255;
+    hash = multiplyMurmur(hash);
+  }
+
+  hash ^= hash >>> 13;
+  hash = multiplyMurmur(hash);
+  hash ^= hash >>> 15;
+  return hash.toUnsignedString(36);
+}

@@ -1,0 +1,93 @@
+pure int multiply32(int value, int multiplier) {
+  return Math.imul(value, multiplier);
+}
+
+pure float unsigned32(int value) {
+  float result = value;
+  if (value < 0) {
+    result += 4294967296.0;
+  }
+  return result;
+}
+
+export pure float murmur2(string value, int seed) {
+  int remaining = value.length;
+  int hash = seed ^ remaining;
+  int index = 0;
+  while (remaining >= 4) {
+    int mixed = (value.charCodeAt(index) & 255)
+      | ((value.charCodeAt(index + 1) & 255) << 8)
+      | ((value.charCodeAt(index + 2) & 255) << 16)
+      | ((value.charCodeAt(index + 3) & 255) << 24);
+    mixed = multiply32(mixed, 1540483477);
+    mixed ^= mixed >>> 24;
+    mixed = multiply32(mixed, 1540483477);
+    hash = multiply32(hash, 1540483477) ^ mixed;
+    remaining -= 4;
+    index += 4;
+  }
+  if (remaining == 3) {
+    hash ^= (value.charCodeAt(index + 2) & 255) << 16;
+  }
+  if (remaining >= 2) {
+    hash ^= (value.charCodeAt(index + 1) & 255) << 8;
+  }
+  if (remaining >= 1) {
+    hash ^= value.charCodeAt(index) & 255;
+    hash = multiply32(hash, 1540483477);
+  }
+  hash ^= hash >>> 13;
+  hash = multiply32(hash, 1540483477);
+  hash ^= hash >>> 15;
+  return unsigned32(hash);
+}
+
+export pure float murmur3(string key, int seed) {
+  int remainder = key.length & 3;
+  int bytes = key.length - remainder;
+  int hash = seed;
+  int constant1 = -862048943;
+  int constant2 = 461845907;
+  int index = 0;
+  while (index < bytes) {
+    int mixed = (key.charCodeAt(index) & 255)
+      | ((key.charCodeAt(index + 1) & 255) << 8)
+      | ((key.charCodeAt(index + 2) & 255) << 16)
+      | ((key.charCodeAt(index + 3) & 255) << 24);
+    index += 4;
+    mixed = multiply32(mixed, constant1);
+    mixed = (mixed << 15) | (mixed >>> 17);
+    mixed = multiply32(mixed, constant2);
+    hash ^= mixed;
+    hash = (hash << 13) | (hash >>> 19);
+    int transformed = multiply32(hash, 5);
+    hash = (transformed & 65535) + 27492 + ((((transformed >>> 16) + 58964) & 65535) << 16);
+  }
+
+  int tail = 0;
+  if (remainder == 3) {
+    tail ^= (key.charCodeAt(index + 2) & 255) << 16;
+  }
+  if (remainder >= 2) {
+    tail ^= (key.charCodeAt(index + 1) & 255) << 8;
+  }
+  if (remainder >= 1) {
+    tail ^= key.charCodeAt(index) & 255;
+    tail = multiply32(tail, constant1);
+    tail = (tail << 15) | (tail >>> 17);
+    tail = multiply32(tail, constant2);
+    hash ^= tail;
+  }
+
+  hash ^= key.length;
+  hash ^= hash >>> 16;
+  hash = multiply32(hash, -2048144789);
+  hash ^= hash >>> 13;
+  hash = multiply32(hash, -1028477387);
+  hash ^= hash >>> 16;
+  return unsigned32(hash);
+}
+
+export pure float murmur(string key, int seed) {
+  return murmur3(key, seed);
+}
