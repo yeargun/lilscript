@@ -177,8 +177,9 @@ proven-safe integer coercion elision, boolean literals, structured closures,
 identifier alphabets, quote styles, and equivalent top-level declaration,
 phi-affinity, and SSA parallel-copy layouts, bounded by `candidate_limit`.
 Size-first then compares both condition-only loop spellings for a deterministic
-eight-candidate beam, followed by prefix/postfix mutation spelling for the best
-eight survivors. The default limit of `1536` covers the base
+eight-candidate beam. Prefix/postfix mutation spelling retains up to eight
+survivors from each auto/while/for family, preventing one spelling from hiding
+a better cross-dimension combination. The default limit of `1536` covers the base
 final-emission search space per optimizer IR.
 
 The priority is applied after `[optimization]`: setting `inlining = false`

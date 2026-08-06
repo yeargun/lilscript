@@ -87,13 +87,15 @@ checked-in benchmark workload. Passing a synthetic example alone is not enough.
   improve from `677/244/173` to `627/243/172` raw/gzip/Brotli.
 - [x] Replace condition-only loop keyword frequency guesses with a bounded
   codec-scored beam over equivalent `while(c)` and `for(;c;)` layouts. The
-  complete MurmurHash port keeps raw/gzip at `1741/840` and reduces Brotli from
-  `740` to `734`; Motion easing improves gzip/Brotli from `614/562` to
-  `610/557` under the configured Brotli objective.
+  complete MurmurHash port chooses `1741/840/734` over the heuristic's
+  `1734/835/737`, an explicit raw/gzip trade for the configured Brotli
+  objective.
 - [x] Score assignment, prefix, and postfix forms for one-use loop-carried
   increments only after range analysis proves coercion-free i32 behavior. The
-  complete Emotion hash port improves from `816/538/456` to `814/536/455`, and
-  Levenshtein improves from `1582/899/778` to `1580/897/776`.
+  complete Levenshtein port improves from `1582/899/778` to `1580/897/776`.
+- [x] Preserve up to eight candidates from every loop-spelling family before
+  scoring mutation forms, preventing beam collapse across interacting layout
+  dimensions. Motion improves from `1148/611/557` to `1148/610/553`.
 - [ ] Expand optimizer-level IR variants from the current inlining choice to
   specialization, structural loop shape, and SSA destruction under the
   selected codec.

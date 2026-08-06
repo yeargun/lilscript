@@ -127,18 +127,17 @@ selected objective and improves `677/244/173` to `627/243/172` raw/gzip/Brotli.
 
 `benchmarks/loop-spelling/run.mjs` executes the complete `murmurhash-js` port
 with identical optimizer and final-emission settings while omitting only
-`loop-spelling-selection`. Exact Brotli selection keeps raw/gzip at
-`1741/840` and reduces Brotli-11 from `740` to `734`; both artifacts must match
-the package contract before measurement. The complete Motion easing port also
-improves from `614/562` to `610/557` gzip/Brotli while spending eight raw bytes
-under the explicitly selected Brotli objective.
+`loop-spelling-selection`. Exact Brotli selection chooses `1741/840/734` over
+the frequency heuristic's `1734/835/737` raw/gzip/Brotli, explicitly spending
+raw and gzip bytes for the configured Brotli objective. Both artifacts must
+match the package contract before measurement.
 
 `benchmarks/mutation-spelling/run.mjs` compiles and executes the complete
-Emotion hash port while omitting only `mutation-spelling-selection`. SSA use
+Levenshtein port while omitting only `mutation-spelling-selection`. SSA use
 counts and integer ranges gate every shorthand before exact prefix/postfix
-scoring. The isolated production artifact improves from `816/538/456` to
-`814/536/455` raw/gzip/Brotli; Levenshtein independently improves from
-`1582/899/778` to `1580/897/776`.
+scoring. The isolated production artifact improves from `1582/899/778` to
+`1580/897/776` raw/gzip/Brotli. Diversity across loop-spelling families also
+improves the complete Motion artifact from `1148/611/557` to `1148/610/553`.
 
 `benchmarks/run.sh` compiles ten behaviorally equivalent LilScript/JavaScript
 workloads, runs both outputs, invokes Closure `ADVANCED`, and measures normalized
