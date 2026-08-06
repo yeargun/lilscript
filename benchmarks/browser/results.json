@@ -1,0 +1,34 @@
+{
+  "generatedAt": "2026-08-06T13:20:30.613Z",
+  "browser": "Chromium 151.0.7922.34",
+  "regressionLimit": 1.03,
+  "results": [
+    {
+      "id": "constant-parameter-specialization",
+      "batches": 2000000,
+      "samples": 50,
+      "lilscriptMedianMs": 8.899999998509884,
+      "closureMedianMs": 9,
+      "upper95Ratio": 1,
+      "identicalCode": true
+    },
+    {
+      "id": "bounded-induction",
+      "batches": 200,
+      "samples": 50,
+      "lilscriptMedianMs": 10.200000002980232,
+      "closureMedianMs": 12.5,
+      "upper95Ratio": 0.8333333334811623,
+      "identicalCode": false
+    },
+    {
+      "id": "pure-call-chain",
+      "batches": 2000000,
+      "samples": 50,
+      "lilscriptMedianMs": 8.900000002235174,
+      "closureMedianMs": 8.899999998509884,
+      "upper95Ratio": 1,
+      "identicalCode": true
+    }
+  ]
+}

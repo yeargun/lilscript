@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-06T13:20:26.725Z",
+  "closureVersion": "v20260803",
+  "source": "benchmarks/paired/specs.json",
+  "results": [
+    {
+      "id": "constant-parameter-specialization",
+      "contract": "45\n38",
+      "lilscript": {
+        "raw": 31,
+        "gzip": 42,
+        "brotli": 35
+      },
+      "closure": {
+        "raw": 33,
+        "gzip": 44,
+        "brotli": 37
+      }
+    },
+    {
+      "id": "bounded-induction",
+      "contract": "959979",
+      "lilscript": {
+        "raw": 60,
+        "gzip": 80,
+        "brotli": 60
+      },
+      "closure": {
+        "raw": 66,
+        "gzip": 86,
+        "brotli": 70
+      }
+    },
+    {
+      "id": "pure-call-chain",
+      "contract": "42",
+      "lilscript": {
+        "raw": 15,
+        "gzip": 35,
+        "brotli": 19
+      },
+      "closure": {
+        "raw": 17,
+        "gzip": 37,
+        "brotli": 21
+      }
+    }
+  ]
+}

@@ -1,4 +1,6 @@
 import benchmarkData from "./benchmark-results.json";
+import browserData from "./browser-results.json";
+import pairedData from "./paired-results.json";
 import "./site.js";
 
 const comparableIds = ["reference", "esbuild", "closure", "hand", "lilscript"];
@@ -79,3 +81,12 @@ for (const container of document.querySelectorAll("[data-compiler-table]")) {
 const metadata = benchmarkData.metadata;
 document.querySelector("[data-benchmark-method]").textContent =
   `Measured on ${metadata.generatedAt.slice(0, 10)} from compiler revision ${metadata.compilerRevision} with Node ${metadata.node}, Vite ${metadata.vite}, esbuild ${metadata.esbuild}, and Closure Compiler ${metadata.closure}. Runtime is the median of ${metadata.samples} cache-busted module evaluations in one dedicated process per artifact after ${metadata.warmups} warmups; process startup is excluded.`;
+
+const pairedRows = pairedData.results.map((result) => {
+  const runtime = browserData.results.find((candidate) => candidate.id === result.id);
+  if (!runtime) throw new Error(`Missing browser runtime result: ${result.id}`);
+  return `<tr><th>${result.id}</th><td>${number.format(result.lilscript.raw)} / ${number.format(result.closure.raw)}</td><td>${number.format(result.lilscript.gzip)} / ${number.format(result.closure.gzip)}</td><td>${number.format(result.lilscript.brotli)} / ${number.format(result.closure.brotli)}</td><td>${runtime.upper95Ratio.toFixed(3)}x</td><td><code>${result.contract.replaceAll("\n", " / ")}</code></td></tr>`;
+});
+document.querySelector("[data-paired-table]").innerHTML = `<table><thead><tr><th>Generated workload</th><th>Raw L/C</th><th>Gzip L/C</th><th>Brotli L/C</th><th>Runtime upper 95%</th><th>Contract</th></tr></thead><tbody>${pairedRows.join("")}</tbody></table>`;
+document.querySelector("[data-paired-method]").textContent =
+  `Generated ${pairedData.generatedAt.slice(0, 10)} from one neutral workload schema. Every row passed Closure JavaScript, LilScript JavaScript, emitted C, and native execution before its per-case size gate. ${browserData.browser} then measured 50 warmed alternating samples; the runtime column is the bootstrap upper confidence ratio, gated at ${browserData.regressionLimit.toFixed(2)}x.`;

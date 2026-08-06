@@ -100,6 +100,9 @@ default JavaScript-specific `priority = "realistic-performance-first"` policy
 sits between absolute performance and balanced output. Four profiles, numeric
 inline budgets, and an exact `compression` decision allowlist control the
 performance/size tradeoff without changing C/native optimization.
+Production builds use an exact configurable raw, gzip-9, or Brotli-11 cost
+model to select among bounded final-emission candidates; `--mode development`
+skips that compressor loop. `--explain human|json` reports optimizer passes.
 The realistic default omits `|0` and `Math.imul` only where range analysis
 proves signed-32-bit behavior is unchanged; overflow-capable integer operations
 remain normalized.
@@ -172,8 +175,9 @@ port 4173.
 ## VS Code
 
 The repository includes a native language server and installable VS Code
-extension with `.lil` syntax highlighting, compiler diagnostics, completion,
-hover documentation, snippets, bracket/comment support, and document symbols.
+extension with `.lil` syntax highlighting, compiler and linter diagnostics,
+completion, hover documentation, snippets, symbols, semantic tokens,
+scope-aware rename/references, formatting, import organization, and quick fixes.
 
 ```sh
 cargo build --release --bin lilscript-lsp
@@ -186,6 +190,17 @@ code --install-extension lilscript-vscode-0.1.0.vsix
 The extension discovers the language server in this repository's release or
 debug target directory, then falls back to `PATH`. Set `lilscript.server.path` in
 VS Code settings when the executable is installed elsewhere.
+
+The standalone Rust tools use the same project configuration:
+
+```sh
+target/release/lilscript-lint src --deny-warnings
+target/release/lilscript-lint src --format sarif
+target/release/lilscript-fmt src --check
+```
+
+Lint presets, per-rule severities, suppressions, formatter policy, and global
+disable switches are configured in `lilscript.toml`.
 
 ## Web platform
 
@@ -242,6 +257,10 @@ npm --prefix benchmarks/apps ci
 npm --prefix benchmarks/apps run benchmark
 npm --prefix benchmarks/libraries ci
 npm --prefix benchmarks/libraries run benchmark
+npm --prefix benchmarks/browser ci
+npm --prefix benchmarks/browser run install-browser
+npm --prefix benchmarks/browser run benchmark
+node benchmarks/paired/run.mjs
 npm --prefix web run build
 npm --prefix vscode-extension run package
 ```
@@ -250,26 +269,35 @@ npm --prefix vscode-extension run package
 and links a generated aggregate ABI against a C host. It also runs 53 programs
 through JavaScript, emitted C, and native executables with maximum and disabled
 optional optimization, for 106 matrix executions, plus a framed LSP session
-through diagnostics, completion, hover, symbols, and shutdown.
+through diagnostics, completion, hover, symbols, semantic tokens, references,
+rename, formatting, quick fixes, and shutdown.
 `benchmarks/run.sh`
 downloads the pinned Closure Compiler `v20260803`, runs `ADVANCED` compilation,
 checks equivalent runtime output, and measures normalized raw, gzip-9, and
 Brotli-11 bytes.
 
-On the repository's nine compiler workloads LilScript totals 1,527 raw / 1,308
-gzip / 1,094 Brotli bytes versus Closure at 2,357 / 1,687 / 1,382. LilScript is
-smaller in 26 measured cells and ties the 27th. The separate application lab
+The source-neutral lane in `benchmarks/paired` mechanically generates readable
+LilScript and JavaScript from one workload schema. Every case must agree through
+Closure JavaScript, LilScript JavaScript, emitted C, and native execution, and
+LilScript may not exceed Closure in any per-case raw/gzip/Brotli cell. The
+separate Chromium gate uses alternating warmed samples and requires the 95%
+bootstrap upper runtime ratio to remain at or below `1.03`. These are scoped
+regression gates, not universal compiler-superiority claims.
+
+On the repository's nine compiler workloads LilScript totals 1,537 raw / 1,326
+gzip / 1,115 Brotli bytes versus Closure at 2,357 / 1,687 / 1,382. LilScript is
+smaller in all 27 measured cells. The separate application lab
 compares five readable JavaScript references with matching-scope LilScript,
 feeds those exact references to Closure `ADVANCED`, and keeps hand-specialized
-JavaScript as an oracle. Its checked-in run totals 1,854 raw / 1,241 gzip /
-1,092 Brotli bytes for LilScript versus 1,840 / 1,268 / 1,100 for Closure; the
+JavaScript as an oracle. Its checked-in run totals 1,888 raw / 1,292 gzip /
+1,131 Brotli bytes for LilScript versus 1,840 / 1,268 / 1,100 for Closure; the
 hand oracle remains smaller at 1,008 / 840 / 745. Real Alien Signals, mitt, and
 Motion applications are built separately by Vite and excluded from compiler
 totals. All 26 comparable/diagnostic JavaScript artifacts, three Vite package
 builds, and six native executables pass checked-in output contracts. Matching
 those contracts is regression evidence, not proof of complete library
 compatibility. In the checked-in 25-sample module-evaluation run, LilScript is
-1.045x Closure's runtime and hand-specialized JavaScript is 0.684x, so runtime
+1.023x Closure's runtime and hand-specialized JavaScript is 0.678x, so runtime
 parity is not yet claimed. Compiler methodology and tables are in
 [docs/benchmark-results.md](docs/benchmark-results.md); the pass-by-pass
 responsibility mapping is in
@@ -277,9 +305,9 @@ responsibility mapping is in
 
 The complete-library lab measures installed npm packages against LilScript
 ports after translated upstream assertions, dense differential API checks, and
-JavaScript/C/native app contracts. LilScript Brotli output is 43.0% smaller than
-npm/Vite for the complete `clamp` + `lerp` app and 36.3% smaller for
-`string-hash`; it is 34.1% larger for `@motionone/easing`. Those mixed results
+JavaScript/C/native app contracts. LilScript Brotli output is 45.1% smaller than
+npm/Vite for the complete `clamp` + `lerp` app and 38.4% smaller for
+`string-hash`; it is 28.2% larger for `@motionone/easing`. Those mixed results
 are published without a universal superiority claim in
 [benchmarks/libraries/RESULTS.md](benchmarks/libraries/RESULTS.md) and at
 `/libraries.html` in the Vite site.

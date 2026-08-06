@@ -6,3 +6,4 @@ for app in "$ROOT"/apps/*; do
   "$app/build.sh"
 done
 node "$ROOT/lib/summarize.mjs" "$ROOT"
+node "$ROOT/lib/check-size-gate.mjs" "$ROOT"

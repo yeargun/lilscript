@@ -51,6 +51,7 @@
           <a href="#native">Native applications</a>
           <a href="#extern">Host boundaries</a>
           <a href="#language-server">VS Code and LSP</a>
+          <a href="#tooling">Lint and format</a>
           <p>Compiler</p>
           <a href="#configuration">Configuration</a>
           <a href="#optimization">Optimization model</a>
@@ -309,14 +310,30 @@ cd vscode-extension
 npm install
 npm run package
 code --install-extension lilscript-vscode-0.1.0.vsix</code></pre>
-          <p>The extension recognizes <code>.lil</code>, supplies syntax highlighting, brackets and comments, snippets, live compiler diagnostics, completion, hover documentation, and document symbols.</p>
+          <p>The extension recognizes <code>.lil</code>, supplies syntax highlighting, compiler and lint diagnostics, completion, hover documentation, symbols, semantic tokens, scope-aware references and rename, formatting, import organization, and safe quick fixes.</p>
           <p>If the server is not on <code>PATH</code>, set <code>lilscript.server.path</code> to the absolute <code>target/release/lilscript-lsp</code> path in VS Code settings.</p>
+        </section>
+
+        <section id="tooling" data-title="Linter formatter code rules agents SARIF JSON fixes">
+          <h2>Lint and format</h2>
+          <pre><code>lilscript-lint src
+lilscript-lint src --format json
+lilscript-lint src --format sarif --deny-warnings
+lilscript-lint src --fix
+
+lilscript-fmt src
+lilscript-fmt src --check</code></pre>
+          <p>The Rust linter resolves the module graph and inspects typed optimized IR, so allocation findings refer to operations that survived optimization. Stable rule IDs, evidence, help, byte spans, JSON, and SARIF make findings usable by both editors and coding agents. <code>minimal</code>, <code>recommended</code>, and <code>strict</code> presets can be overridden per rule.</p>
+          <p>The formatter preserves comments, applies a canonical two-space layout, sorts a safe leading import block, and is idempotent. Both tools honor <code>lilscript.toml</code>; formatting can be disabled without disabling diagnostics.</p>
         </section>
 
         <section id="configuration" data-title="Configuration JavaScript priority realistic performance size balanced compression decisions">
           <h2>JavaScript performance and size priority</h2>
           <pre><code>[javascript]
 priority = "realistic-performance-first"
+cost_model = "brotli"
+candidate_search = "production"
+candidate_limit = 32
 compression = [
   "identifier-mangling",
   "string-pooling",
@@ -334,6 +351,7 @@ compression = [
 # pool_strings = true</code></pre>
           <p><code>performance-first</code> uses inlining limits of 24/60 with unbounded growth, no automatic pooling, and eager signed-i32 normalization. The default <code>realistic-performance-first</code> uses 18/45 with a +16 instruction growth budget. <code>balanced</code> uses 12/30 with +4 growth, while <code>size-first</code> allows no positive estimated growth. The latter three enable profitable string pooling and proven-safe integer coercion elision.</p>
           <p><code>compression</code> is an exact allowlist. Its decisions are <code>identifier-mangling</code>, <code>property-mangling</code>, <code>export-mangling</code>, <code>string-pooling</code>, <code>size-aware-inlining</code>, and <code>safe-integer-coercion-elision</code>. The last option removes <code>|0</code> or <code>Math.imul</code> only when inferred ranges prove signed-32-bit behavior is unchanged. Omit the list to use profile defaults; use <code>compression = []</code> to disable every optional compression tactic.</p>
+          <p><code>cost_model</code> selects exact raw, gzip-9, or Brotli-11 measurement for a deterministic bounded final candidate search. Production mode enables it by default; <code>--mode development</code> skips it for faster rebuilds. The search only compares tactics already allowed by <code>compression</code>.</p>
           <p>The setting changes JavaScript optimization only. It composes with per-pass settings, so <code>optimization.inlining = false</code> still disables inlining. Because raw, gzip, and Brotli sizes can disagree, size priority is a cost-model preference rather than a guarantee for every workload.</p>
         </section>
 
@@ -365,8 +383,10 @@ compression = [
 cargo clippy --all-targets -- -D warnings
 cargo test --all-targets
 scripts/verify.sh
-benchmarks/run.sh</code></pre>
-          <p>The matrix compiles 51 programs with maximum and disabled optional optimization, then requires Node, the direct native output, independently compiled emitted C, and checked-in expected output to agree across 102 executions. Nine equivalent workloads are also executed before comparing raw, gzip-9, and Brotli-11 output against Closure ADVANCED v20260803. Current compiler-corpus totals are 1,527 / 1,308 / 1,094 bytes for LilScript and 2,357 / 1,687 / 1,382 bytes for Closure. The application lab separately verifies five matching-scope compiler workloads, three context-only Vite package builds, 26 JavaScript artifacts, and six native executables. Closure receives the exact readable JavaScript reference, while real Alien Signals, mitt, and Motion builds are excluded from compiler totals. Complete measurements and limits are on the <a href="/benchmarks.html">benchmark page</a>.</p>
+benchmarks/run.sh
+node benchmarks/paired/run.mjs
+npm --prefix benchmarks/browser run benchmark</code></pre>
+          <p>The matrix compiles 53 programs with maximum and disabled optional optimization, then requires Node, the direct native output, independently compiled emitted C, and checked-in expected output to agree across 106 executions. Nine equivalent workloads are also executed before comparing raw, gzip-9, and Brotli-11 output against Closure ADVANCED v20260803. A second source-neutral lane mechanically generates both languages and rejects any per-case raw, gzip, or Brotli loss; its Chromium gate rejects a 95% runtime upper bound above 1.03. The application and complete-library labs remain separate because installed npm code and a LilScript port are not identical implementations. Complete measurements and limits are on the <a href="/benchmarks.html">benchmark page</a>.</p>
         </section>
       </main>
     </div>

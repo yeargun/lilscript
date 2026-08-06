@@ -33,7 +33,7 @@ checked-in benchmark workload. Passing a synthetic example alone is not enough.
 - [x] Add an exact allowlist for contested compression decisions.
 - [x] Elide integer normalization only when range analysis proves signed i32
   behavior is unchanged; keep eager normalization available for numeric code.
-- [ ] Add loop induction-variable range analysis so bounded UI/application
+- [x] Add loop induction-variable range analysis so bounded UI/application
   loops do not pay unnecessary `|0` costs.
 - [ ] Add interprocedural argument/return ranges and field ranges.
 - [ ] Model deoptimization-sensitive JavaScript shapes, allocation pressure,
@@ -46,10 +46,12 @@ checked-in benchmark workload. Passing a synthetic example alone is not enough.
 - [x] Measure raw, gzip-9, and Brotli-11 output independently.
 - [x] Rank short identifiers by whole-program use frequency.
 - [x] Pool strings only when the local raw-byte model predicts a win.
-- [ ] Replace local raw-byte estimates with selectable raw/gzip/Brotli cost
+- [x] Replace final-output raw-byte estimates with selectable raw/gzip/Brotli cost
   models that account for repeated token context.
-- [ ] Search equivalent expression forms, declaration layouts, quote styles,
-  and identifier assignments using a bounded compressor-in-the-loop pass.
+- [x] Add deterministic bounded compressor-in-the-loop selection for contested
+  final emission tactics.
+- [ ] Expand candidate search beyond top-level declaration spelling to quote
+  styles, deeper declaration layouts, and alternative identifier assignments.
 - [ ] Add entropy-aware cross-scope name reuse and property-name assignment.
 - [ ] Add post-codegen superoptimization with semantic differential tests.
 - [ ] Track parse/compile cost and memory alongside transfer size so extreme
@@ -59,6 +61,8 @@ checked-in benchmark workload. Passing a synthetic example alone is not enough.
 
 - [x] Fixed-point direct inlining and single-use multi-block CFG inlining.
 - [x] Purity/effect inference, checked `pure`, and trusted host purity contracts.
+- [x] Constant-parameter specialization plus unused direct-call parameter and
+  return-value elimination.
 - [x] Struct/class scalar replacement and typed positional aggregate lowering.
 - [ ] Add richer alias analysis for mutable arrays, maps, sets, and host calls.
 - [ ] Add partial escape analysis and stack/region allocation for native output.
@@ -97,14 +101,14 @@ checked-in benchmark workload. Passing a synthetic example alone is not enough.
 
 - [x] Diagnostics, completion, hover, symbols, syntax highlighting, and editor
   packaging.
-- [ ] Add formatter, import organizer, rename/references, semantic tokens, and
-  incremental workspace analysis.
-- [ ] Add a configurable linter for correctness, allocation, boundary safety,
+- [x] Add a lossless syntax layer, formatter, import organizer, scope-aware
+  rename/references, semantic tokens, and configuration-aware editor actions.
+- [ ] Add incremental workspace analysis and persistent caches.
+- [x] Add a configurable linter for correctness, allocation, boundary safety,
   bundle cost, and suspicious purity declarations.
-- [ ] Emit source maps and optimization explanations from source through SSA to
-  JavaScript chunks.
-- [ ] Add incremental compilation and persistent module caches for Vite-class
-  reload latency.
+- [x] Emit structured per-pass optimization explanations for single JavaScript
+  builds.
+- [ ] Emit source maps from source through SSA to JavaScript chunks.
 
 ## Evidence expansion
 
@@ -120,6 +124,8 @@ checked-in benchmark workload. Passing a synthetic example alone is not enough.
   application lanes without claiming complete library rewrites.
 - [ ] Run browser benchmarks for parse, startup, animation-frame stability,
   steady-state throughput, memory, and transfer compression.
+- [x] Add a mechanically generated paired-source transfer-size gate and a
+  Chromium steady-state runtime regression gate with confidence bounds.
 - [ ] Add differential fuzzing against a reference interpreter and native C.
 - [x] Publish every checked-in project, source scope, behavior contract, raw,
   gzip, Brotli, and runtime result in the Vite documentation site.

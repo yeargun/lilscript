@@ -12,7 +12,7 @@ Measured on 2026-08-06 with LilScript release mode and Google Closure Compiler
 
 | Compiler | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
-| LilScript | 111 | 126 | 103 |
+| LilScript | 120 | 132 | 108 |
 | Closure ADVANCED v20260803 | 212 | 190 | 166 |
 
 This case exercises class constructor/method devirtualization, scalar
@@ -33,7 +33,7 @@ string predicates, case conversion, templates, and constant propagation.
 
 | Compiler | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
-| LilScript | 355 | 271 | 221 |
+| LilScript | 360 | 279 | 237 |
 | Closure ADVANCED v20260803 | 547 | 368 | 309 |
 
 This broader case combines structs, mutable classes, direct functions, global
@@ -55,7 +55,7 @@ branch removal.
 
 | Compiler | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
-| LilScript | 201 | 167 | 136 |
+| LilScript | 192 | 167 | 139 |
 | Closure ADVANCED v20260803 | 205 | 169 | 144 |
 
 This case combines recursion with single-use multi-block CFG inlining, two
@@ -96,7 +96,7 @@ short-circuit folding, templates, and repeated long-string reuse.
 
 | Compiler | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
-| LilScript | 115 | 129 | 108 |
+| LilScript | 120 | 133 | 105 |
 | Closure ADVANCED v20260803 | 122 | 134 | 108 |
 
 This case gives each compiler three real source modules. It measures relative
@@ -108,7 +108,7 @@ and complete removal of module syntax and unused exports.
 
 | Compiler | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
-| LilScript | 1,527 | 1,308 | 1,094 |
+| LilScript | 1,537 | 1,326 | 1,115 |
 | Closure ADVANCED v20260803 | 2,357 | 1,687 | 1,382 |
 
 ## Method
@@ -134,7 +134,7 @@ benchmarks/run.sh
 ```
 
 The measured conclusion is deliberately scoped: LilScript is smaller in all
-nine raw and gzip cells, smaller in eight Brotli cells, and tied in the ninth.
+27 raw, gzip, and Brotli cells.
 The suite is reproducible evidence for these features, not proof of universal
 superiority over arbitrary JavaScript or future language features. The broader
 application comparison, including ecosystem dependencies, hand-specialized

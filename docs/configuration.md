@@ -18,6 +18,9 @@ dead_code_elimination = true
 
 [javascript]
 priority = "realistic-performance-first"
+cost_model = "brotli" # raw | gzip | brotli
+candidate_search = "production" # off | production | always
+candidate_limit = 32
 compression = [
   "identifier-mangling",
   "string-pooling",
@@ -39,6 +42,22 @@ mode = "single" # single | split | preserve-modules
 min_chunk_bytes = 16384
 max_chunks = 32
 shared_min_imports = 2
+
+[lint]
+enabled = true
+preset = "recommended" # minimal | recommended | strict
+deny_warnings = false
+exclude = ["**/generated/**"]
+pure_extern_allowlist = ["auditedHostFunction"]
+
+[lint.rules]
+"performance/allocation-in-loop" = "warn" # off | hint | warn | error
+
+[format]
+enabled = true
+line_width = 100
+newline = "lf" # lf | crlf
+organize_imports = true
 ```
 
 Every optional optimization key overrides its preset independently. The
@@ -82,6 +101,18 @@ The numeric `inline_instruction_limit`, `inline_control_flow_limit`, and
 `size-aware-inlining` is absent from the allowlist. These are IR instruction
 budgets, not output-byte limits.
 
+`javascript.cost_model` selects the exact objective used by the bounded final
+candidate search. `raw` compares emitted bytes, `gzip` uses level 9, and
+`brotli` uses quality 11. Candidate selection is deterministic: ties use raw
+bytes and then lexical output order. The search only disables already enabled
+contested tactics for comparison; it never turns on a tactic omitted from the
+exact `compression` allowlist. `candidate_search = "production"` is the
+default and is skipped by CLI `--mode development`; `always` remains active in
+that mode, while `off` disables compressor-in-the-loop emission. The current
+search space compares profitable string pooling, proven-safe integer coercion
+elision, and equivalent top-level declaration spellings, bounded by
+`candidate_limit`.
+
 The priority is applied after `[optimization]`: setting `inlining = false`
 disables inlining in every profile. Explicit `[mangle]` values have the highest
 precedence, followed by the exact compression allowlist, then profile defaults.
@@ -123,3 +154,37 @@ sibling chunks, and `<entry-stem>.manifest.json`. Chunk imports are static ESM
 imports and therefore load eagerly; LilScript does not yet have a dynamic
 `import()` expression or lazy runtime chunk loader. Use an `.mjs` output when
 running directly in Node without a `"type": "module"` package boundary.
+
+## Lint and format policy
+
+`lilscript-lint` performs module-aware semantic checks and inspects optimized
+IR for allocation and materialization findings. `minimal` enables only
+correctness errors. `recommended` adds effect/performance warnings and size
+hints. `strict` promotes effect findings to errors and size findings to
+warnings. Configure any rule in `[lint.rules]` with `off`, `hint`, `warn`, or
+`error`. Set
+`deny_warnings = true` or pass `--deny-warnings` for a warning-free CI gate.
+Trusted `pure extern` functions must appear in `pure_extern_allowlist` because
+their effects cannot be verified from LilScript source.
+
+```sh
+lilscript-lint src
+lilscript-lint src --format json
+lilscript-lint src --format sarif --deny-warnings
+lilscript-lint src --fix
+```
+
+Use `// lilscript-lint-disable RULE` to suppress a rule from that line onward,
+or `// lilscript-lint-disable-next-line RULE` for one following line. The
+current machine-applicable fix removes unreachable expression statements;
+findings that require intent remain diagnostic-only.
+
+`lilscript-fmt` is a deterministic, comment-preserving formatter and import
+organizer. It writes by default, supports `--check` for CI and `--stdout` for a
+single file, and is idempotence-tested. Set `format.enabled = false` to disable
+CLI/LSP formatting by policy; `--force` explicitly overrides it in the CLI.
+
+```sh
+lilscript-fmt src
+lilscript-fmt src --check
+```

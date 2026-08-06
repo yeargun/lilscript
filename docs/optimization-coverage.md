@@ -23,7 +23,7 @@ JavaScript and native C backends.
 | Collapse object literals | Non-escaping structs dissolve into SSA scalars; remaining typed aggregates use positional arrays in JavaScript |
 | Disambiguate/ambiguate/rename properties | Nominal owner types and field indexes remove internal property names entirely; boundary names remain ABI-stable |
 | Devirtualize methods | Class calls become direct typed function calls before inlining |
-| Optimize calls and constructors | Direct-call lowering, recursive-call protection, constructor inlining, allocation removal, effect summaries |
+| Optimize calls and constructors | Direct-call lowering, recursive-call protection, constant-parameter specialization, unused parameter/return removal, constructor inlining, allocation removal, effect summaries |
 | Mark pure functions | Interprocedural fixed-point effect analysis over direct calls and known closure targets, plus checked `pure` contracts and trusted `pure extern` declarations |
 | Dead assignment elimination | SSA promotion removes local stores; DCE removes unused value chains |
 | Dead property assignment elimination | Overwritten typed field stores are removed between observation barriers |
@@ -32,7 +32,7 @@ JavaScript and native C backends.
 | Coalesce variable names | CFG liveness, interference graph coloring, and phi move affinity |
 | Collapse variable declarations | Adjacent bindings and first phi assignments are combined by the JS backend |
 | Rewrite/collapse anonymous functions | Small typed closures become expression or block arrows; capturing closures pass explicit environments |
-| Alias strings | Repeated constants are value-numbered and profitable long strings receive shared short bindings |
+| Alias strings | Repeated constants are value-numbered and profitable long strings receive shared short bindings; final pooling and coercion variants are selected against exact raw/gzip/Brotli cost |
 | Rename variables and globals | Frequency-ranked base-54/base-64 identifiers with extern names reserved |
 | Rescope globals | Entry-only globals become locals; immutable shared globals become constants |
 | Rewrite modules and tree shake exports | Relative module graphs are linked into private symbol namespaces; executable exports remain shakeable, while `js-module` roots runtime exports and emits mangled ESM aliases |
@@ -57,12 +57,14 @@ The current schedule is:
    value numbering, branch folding, and unreachable removal;
 5. immutable-global propagation, devirtualization, and explicit purity
    validation;
-6. fixed-point expression and multi-block CFG inlining;
+6. constant-parameter specialization, unused parameter/return removal, and
+   fixed-point expression and multi-block CFG inlining;
 7. escape analysis, class/struct scalar replacement, and dead field stores;
 8. another scalar fixed point;
 9. effect-aware SSA DCE and whole-program function DCE;
-10. liveness-based name coalescing, dependency-ordered phi copies, signed-i32
-    range analysis, and minified backend peepholes;
+10. liveness-based name coalescing, dependency-ordered phi copies, induction
+    range analysis, shortest numeric literals, minified backend peepholes, and
+    deterministic compressor-aware candidate selection;
 11. optional source ownership or shared-module chunk planning over the surviving
     IR, followed by cross-chunk binding analysis and deterministic ESM emission.
 
@@ -86,3 +88,11 @@ workloads, runs both outputs, invokes Closure `ADVANCED`, and measures normalize
 raw, gzip-9, and Brotli-11 bytes. The benchmark is a reproducible corpus result,
 not a proof that any finite compiler beats another compiler on every possible
 future program.
+
+`benchmarks/paired/run.mjs` removes manual source-style differences for a
+second gate by generating both languages from one neutral integer workload
+schema. Every generated case must match through Closure JavaScript, LilScript
+JavaScript, emitted C, and native execution, and LilScript may not exceed
+Closure in any raw/gzip/Brotli cell. `benchmarks/browser/run.mjs` separately
+requires the 95% bootstrap upper bound for warmed Chromium runtime to remain at
+or below `1.03` on those paired cases.

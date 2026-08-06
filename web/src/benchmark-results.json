@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "generatedAt": "2026-08-06T10:26:58.551Z",
-    "compilerRevision": "f9d5695",
+    "generatedAt": "2026-08-06T13:20:05.682Z",
+    "compilerRevision": "c04c4c2",
     "node": "v24.11.1",
     "vite": "8.2.0",
     "esbuild": "0.28.1",
@@ -30,7 +30,7 @@
           "raw": 1163,
           "gzip": 464,
           "brotli": 379,
-          "medianMs": 3.4297500000000127
+          "medianMs": 3.284416999999962
         },
         {
           "id": "esbuild",
@@ -38,7 +38,7 @@
           "raw": 544,
           "gzip": 310,
           "brotli": 265,
-          "medianMs": 3.1300830000000133
+          "medianMs": 3.112124999999992
         },
         {
           "id": "closure",
@@ -46,7 +46,7 @@
           "raw": 489,
           "gzip": 302,
           "brotli": 250,
-          "medianMs": 3.196458000000007
+          "medianMs": 3.0871250000000146
         },
         {
           "id": "hand",
@@ -54,15 +54,15 @@
           "raw": 245,
           "gzip": 194,
           "brotli": 170,
-          "medianMs": 2.9537500000001273
+          "medianMs": 2.901874999999791
         },
         {
           "id": "lilscript",
           "label": "LilScript",
-          "raw": 513,
-          "gzip": 295,
-          "brotli": 262,
-          "medianMs": 3.3481669999999895
+          "raw": 519,
+          "gzip": 305,
+          "brotli": 275,
+          "medianMs": 3.2754169999999476
         }
       ],
       "ecosystem": {
@@ -75,7 +75,7 @@
         "raw": 4900,
         "gzip": 1932,
         "brotli": 1752,
-        "medianMs": 22.627250000000004
+        "medianMs": 22.192499999999995
       }
     },
     {
@@ -94,7 +94,7 @@
           "raw": 1033,
           "gzip": 393,
           "brotli": 320,
-          "medianMs": 1.634666999999979
+          "medianMs": 1.593416000000019
         },
         {
           "id": "esbuild",
@@ -102,7 +102,7 @@
           "raw": 506,
           "gzip": 280,
           "brotli": 244,
-          "medianMs": 1.551333999999997
+          "medianMs": 1.5417079999999999
         },
         {
           "id": "closure",
@@ -110,7 +110,7 @@
           "raw": 351,
           "gzip": 244,
           "brotli": 198,
-          "medianMs": 1.538583000000017
+          "medianMs": 1.5074579999999855
         },
         {
           "id": "hand",
@@ -118,15 +118,15 @@
           "raw": 112,
           "gzip": 125,
           "brotli": 102,
-          "medianMs": 0.6410829999999947
+          "medianMs": 0.6182920000000252
         },
         {
           "id": "lilscript",
           "label": "LilScript",
-          "raw": 322,
-          "gzip": 224,
-          "brotli": 188,
-          "medianMs": 1.7005419999999845
+          "raw": 324,
+          "gzip": 236,
+          "brotli": 196,
+          "medianMs": 1.6595419999999876
         }
       ],
       "ecosystem": {
@@ -139,7 +139,7 @@
         "raw": 697,
         "gzip": 477,
         "brotli": 388,
-        "medianMs": 6.422833999999995
+        "medianMs": 6.346458000000013
       }
     },
     {
@@ -158,7 +158,7 @@
           "raw": 1208,
           "gzip": 489,
           "brotli": 441,
-          "medianMs": 10.630457999999976
+          "medianMs": 10.363416999999913
         },
         {
           "id": "esbuild",
@@ -166,7 +166,7 @@
           "raw": 545,
           "gzip": 327,
           "brotli": 299,
-          "medianMs": 10.657249999999976
+          "medianMs": 10.386375000000044
         },
         {
           "id": "closure",
@@ -174,7 +174,7 @@
           "raw": 521,
           "gzip": 319,
           "brotli": 298,
-          "medianMs": 10.692082999999911
+          "medianMs": 10.501125000000002
         },
         {
           "id": "hand",
@@ -182,15 +182,15 @@
           "raw": 409,
           "gzip": 273,
           "brotli": 257,
-          "medianMs": 9.813583000000108
+          "medianMs": 9.403332999999975
         },
         {
           "id": "lilscript",
           "label": "LilScript",
-          "raw": 568,
-          "gzip": 331,
-          "brotli": 312,
-          "medianMs": 10.649457999999981
+          "raw": 604,
+          "gzip": 370,
+          "brotli": 333,
+          "medianMs": 10.403290999999967
         }
       ]
     },
@@ -210,7 +210,7 @@
           "raw": 884,
           "gzip": 395,
           "brotli": 332,
-          "medianMs": 1.154167000000001
+          "medianMs": 1.152583000000007
         },
         {
           "id": "esbuild",
@@ -218,7 +218,7 @@
           "raw": 361,
           "gzip": 258,
           "brotli": 214,
-          "medianMs": 1.1412909999999954
+          "medianMs": 1.144207999999992
         },
         {
           "id": "closure",
@@ -226,7 +226,7 @@
           "raw": 335,
           "gzip": 257,
           "brotli": 211,
-          "medianMs": 1.091667000000001
+          "medianMs": 1.1020829999999933
         },
         {
           "id": "hand",
@@ -234,15 +234,15 @@
           "raw": 123,
           "gzip": 122,
           "brotli": 112,
-          "medianMs": 0.5517079999999908
+          "medianMs": 0.551124999999999
         },
         {
           "id": "lilscript",
           "label": "LilScript",
-          "raw": 272,
-          "gzip": 224,
-          "brotli": 189,
-          "medianMs": 1.1248339999999928
+          "raw": 277,
+          "gzip": 226,
+          "brotli": 194,
+          "medianMs": 1.106624999999994
         }
       ]
     },
@@ -262,7 +262,7 @@
           "raw": 698,
           "gzip": 360,
           "brotli": 305,
-          "medianMs": 0.8733749999999958
+          "medianMs": 0.8697910000000064
         },
         {
           "id": "esbuild",
@@ -270,7 +270,7 @@
           "raw": 270,
           "gzip": 205,
           "brotli": 174,
-          "medianMs": 0.8587079999999929
+          "medianMs": 0.8525840000000073
         },
         {
           "id": "closure",
@@ -278,7 +278,7 @@
           "raw": 144,
           "gzip": 146,
           "brotli": 143,
-          "medianMs": 0.7128749999999968
+          "medianMs": 0.7092920000000049
         },
         {
           "id": "hand",
@@ -286,23 +286,23 @@
           "raw": 119,
           "gzip": 126,
           "brotli": 104,
-          "medianMs": 0.5970419999999876
+          "medianMs": 0.5883330000000058
         },
         {
           "id": "lilscript",
           "label": "LilScript",
-          "raw": 179,
-          "gzip": 167,
-          "brotli": 141,
-          "medianMs": 0.7485829999999964
+          "raw": 164,
+          "gzip": 155,
+          "brotli": 133,
+          "medianMs": 0.6823750000000075
         },
         {
           "id": "lilscript-specialized",
           "label": "LilScript specialized source (diagnostic)",
-          "raw": 146,
-          "gzip": 148,
-          "brotli": 128,
-          "medianMs": 0.6274579999999901
+          "raw": 133,
+          "gzip": 137,
+          "brotli": 106,
+          "medianMs": 0.5608339999999998
         }
       ],
       "ecosystem": {
@@ -315,7 +315,7 @@
         "raw": 10571,
         "gzip": 4546,
         "brotli": 4152,
-        "medianMs": 2.2500420000000076
+        "medianMs": 2.2222910000000127
       }
     }
   ]

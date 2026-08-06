@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "id": "constant-parameter-specialization",
+      "functions": [
+        {
+          "name": "scaleAndBias",
+          "params": ["value", "factor", "bias"],
+          "return": {
+            "binary": [
+              "+",
+              { "binary": ["*", { "ref": "value" }, { "ref": "factor" }] },
+              { "ref": "bias" }
+            ]
+          }
+        }
+      ],
+      "program": [
+        {
+          "print": {
+            "call": ["scaleAndBias", { "int": 6 }, { "int": 7 }, { "int": 3 }]
+          }
+        },
+        {
+          "print": {
+            "call": ["scaleAndBias", { "int": 9 }, { "int": 4 }, { "int": 2 }]
+          }
+        }
+      ]
+    },
+    {
+      "id": "bounded-induction",
+      "functions": [],
+      "program": [
+        { "let": ["total", { "int": 0 }] },
+        {
+          "repeat": {
+            "index": "index",
+            "count": { "int": 120000 },
+            "body": [
+              {
+                "assign": [
+                  "total",
+                  {
+                    "binary": [
+                      "+",
+                      { "ref": "total" },
+                      { "binary": ["%", { "ref": "index" }, { "int": 17 }] }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        { "print": { "ref": "total" } }
+      ]
+    },
+    {
+      "id": "pure-call-chain",
+      "functions": [
+        {
+          "name": "increment",
+          "params": ["value"],
+          "return": { "binary": ["+", { "ref": "value" }, { "int": 1 }] }
+        },
+        {
+          "name": "threeSteps",
+          "params": ["value"],
+          "return": {
+            "call": [
+              "increment",
+              { "call": ["increment", { "call": ["increment", { "ref": "value" }] }] }
+            ]
+          }
+        },
+        {
+          "name": "unreachableHelper",
+          "params": ["value"],
+          "return": { "binary": ["*", { "ref": "value" }, { "int": 1000 }] }
+        }
+      ],
+      "program": [
+        { "print": { "call": ["threeSteps", { "int": 39 }] } }
+      ]
+    }
+  ]
+}

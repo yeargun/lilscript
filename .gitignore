@@ -4,6 +4,8 @@
 /benchmarks/apps/node_modules/
 /benchmarks/libraries/build/
 /benchmarks/libraries/node_modules/
+/benchmarks/paired/build/
+/benchmarks/browser/node_modules/
 /web/node_modules/
 /web/dist/
 /vscode-extension/node_modules/
