@@ -1382,7 +1382,25 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             }
 
             if let Some(shape) = shape_at(function, current) {
-                self.flush_cache(cache, context, out)?;
+                let retained_condition = match &shape {
+                    ControlShape::If { header, .. } => {
+                        let block = &function.blocks[header.0 as usize];
+                        if block.instructions.is_empty() {
+                            match block.terminator {
+                                Some(Terminator::Branch { condition, .. })
+                                    if cache.contains_key(&condition) =>
+                                {
+                                    Some(condition)
+                                }
+                                _ => None,
+                            }
+                        } else {
+                            None
+                        }
+                    }
+                    ControlShape::Loop { .. } => None,
+                };
+                self.flush_cache_except(cache, context, out, retained_condition)?;
                 match shape {
                     ControlShape::If {
                         header,
@@ -1427,6 +1445,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             &mut else_visited,
                             &mut else_output,
                         )?;
+                        let mut deferred_merge = None;
                         if is_true_literal(&condition) {
                             out.push_str(&then_output);
                             if then_end == PathEnd::Terminated {
@@ -1440,32 +1459,67 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         } else if let Some((declare, target, then_value, else_value, trailing)) =
                             merge_conditional_assignments(&then_output, &else_output)
                         {
-                            if declare {
-                                out.push_str("var ");
-                            }
-                            out.push_str(target);
-                            out.push('=');
+                            let mut value = String::new();
                             if is_true_literal(then_value) && is_false_literal(else_value) {
-                                out.push_str(&condition);
+                                value.push_str(&condition);
                             } else if is_false_literal(then_value) && is_true_literal(else_value) {
-                                out.push_str(&negate_condition(condition.clone()));
+                                value.push_str(&negate_condition(condition.clone()));
                             } else if is_true_literal(then_value) {
-                                push_logical_operand(out, &condition, IrBinaryOp::Or);
-                                out.push_str("||");
-                                push_logical_operand(out, else_value, IrBinaryOp::Or);
+                                push_logical_operand(&mut value, &condition, IrBinaryOp::Or);
+                                value.push_str("||");
+                                push_logical_operand(&mut value, else_value, IrBinaryOp::Or);
                             } else if is_false_literal(else_value) {
-                                push_logical_operand(out, &condition, IrBinaryOp::And);
-                                out.push_str("&&");
-                                push_logical_operand(out, then_value, IrBinaryOp::And);
+                                push_logical_operand(&mut value, &condition, IrBinaryOp::And);
+                                value.push_str("&&");
+                                push_logical_operand(&mut value, then_value, IrBinaryOp::And);
                             } else {
-                                out.push_str(&condition);
-                                out.push('?');
-                                out.push_str(then_value);
-                                out.push(':');
-                                out.push_str(else_value);
+                                value.push_str(&condition);
+                                value.push('?');
+                                value.push_str(then_value);
+                                value.push(':');
+                                value.push_str(else_value);
                             }
-                            out.push_str(trailing);
-                            out.push(';');
+                            let declaration_tail = if trailing.is_empty() {
+                                Some(None)
+                            } else if declare {
+                                uninitialized_declaration_tail(trailing).map(Some)
+                            } else {
+                                None
+                            };
+                            let deferred = if declaration_tail.is_some() {
+                                function.blocks[merge_block.0 as usize]
+                                    .phis
+                                    .iter()
+                                    .find(|phi| {
+                                        context.value_name(phi.out).ok() == Some(target)
+                                            && uses.get(&phi.out).copied() == Some(1)
+                                            && immediately_branches_on_phi(
+                                                function,
+                                                merge_block,
+                                                phi.out,
+                                            )
+                                    })
+                                    .map(|phi| phi.out)
+                            } else {
+                                None
+                            };
+                            if let Some(value_id) = deferred {
+                                if let Some(names) = declaration_tail.flatten() {
+                                    out.push_str("var ");
+                                    out.push_str(names);
+                                    out.push(';');
+                                }
+                                deferred_merge = Some((value_id, format!("({value})")));
+                            } else {
+                                if declare {
+                                    out.push_str("var ");
+                                }
+                                out.push_str(target);
+                                out.push('=');
+                                out.push_str(&value);
+                                out.push_str(trailing);
+                                out.push(';');
+                            }
                         } else if let Some((then_target, then_value, else_target, else_value)) =
                             conditional_assignment_expression(&then_output, &else_output)
                         {
@@ -1511,6 +1565,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             out.push('}');
                         }
                         cache.clear();
+                        if let Some((value, expression)) = deferred_merge {
+                            cache.insert(value, expression);
+                        }
                         current = merge_block;
                         continue;
                     }
@@ -1764,12 +1821,15 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         Ok(())
     }
 
-    fn flush_cache(
+    fn flush_cache_except(
         &self,
         cache: &mut AHashMap<ValueId, String>,
         context: &LocalNames,
         out: &mut String,
+        retained: Option<ValueId>,
     ) -> Result<(), CodegenError> {
+        let retained =
+            retained.and_then(|value| cache.remove(&value).map(|expression| (value, expression)));
         let mut values = cache.drain().collect::<Vec<_>>();
         values.sort_by_key(|(value, _)| value.0);
         for (value, expression) in values {
@@ -1780,6 +1840,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             out.push('=');
             out.push_str(&strip_outer_parens(expression));
             out.push(';');
+        }
+        if let Some((value, expression)) = retained {
+            cache.insert(value, expression);
         }
         Ok(())
     }
@@ -2040,8 +2103,18 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 value(*operand, cache)?
             ),
             ControlFlowOp::Binary { op, lhs, rhs } => {
-                let lhs = value(*lhs, cache)?;
-                let rhs = value(*rhs, cache)?;
+                let lhs = render_binary_operand(
+                    value(*lhs, cache)?,
+                    context.binary_operator(*lhs),
+                    *op,
+                    BinaryOperandSide::Left,
+                );
+                let rhs = render_binary_operand(
+                    value(*rhs, cache)?,
+                    context.binary_operator(*rhs),
+                    *op,
+                    BinaryOperandSide::Right,
+                );
                 if matches!(op, IrBinaryOp::Eq | IrBinaryOp::NotEq)
                     && is_rendered_string_literal(&lhs)
                     && is_rendered_string_literal(&rhs)
@@ -3019,6 +3092,17 @@ fn parse_single_assignment(output: &str) -> Option<(bool, &str, &str, &str)> {
     .then_some((declare, target, value, trailing))
 }
 
+fn uninitialized_declaration_tail(trailing: &str) -> Option<&str> {
+    let names = trailing.strip_prefix(',')?;
+    (!names.is_empty()
+        && names.split(',').all(|name| {
+            !name.is_empty()
+                && is_js_identifier_start(name.as_bytes()[0])
+                && name.bytes().all(is_js_identifier_byte)
+        }))
+    .then_some(names)
+}
+
 fn split_top_level_comma(value: &str) -> Option<usize> {
     let mut depth = 0usize;
     let mut quote = None;
@@ -3179,6 +3263,7 @@ struct LocalNames {
     untyped_values: AHashSet<ValueId>,
     inlined_values: AHashMap<ValueId, String>,
     string_constants: AHashMap<ValueId, String>,
+    binary_operators: AHashMap<ValueId, IrBinaryOp>,
     elidable_i32_coercions: AHashSet<ValueId>,
     parallel_copy_temp: Option<String>,
     live_in_values: Vec<AHashSet<ValueId>>,
@@ -3274,6 +3359,20 @@ fn shape_at(function: &ControlFlowFunction<'_>, block: BlockId) -> Option<Contro
         .cloned()
 }
 
+fn immediately_branches_on_phi(
+    function: &ControlFlowFunction<'_>,
+    block: BlockId,
+    value: ValueId,
+) -> bool {
+    let block = &function.blocks[block.0 as usize];
+    block.instructions.is_empty()
+        && matches!(block.terminator, Some(Terminator::Branch { condition, .. }) if condition == value)
+        && function
+            .shapes
+            .iter()
+            .any(|shape| matches!(shape, ControlShape::If { header, .. } if *header == block.id))
+}
+
 impl LocalNames {
     fn new(
         function: &ControlFlowFunction<'_>,
@@ -3344,6 +3443,19 @@ impl LocalNames {
                 }
                 _ => None,
             })
+            .collect();
+        let binary_operators = function
+            .blocks
+            .iter()
+            .flat_map(|block| &block.instructions)
+            .filter_map(
+                |instruction| match (instruction.out, &instruction.ty, &instruction.op) {
+                    (Some(out), Some(ty), ControlFlowOp::Binary { op, .. }) if ty != &Type::Int => {
+                        Some((out, *op))
+                    }
+                    _ => None,
+                },
+            )
             .collect();
         let cross_block = cross_block_values(function);
         let mut values = function
@@ -3482,6 +3594,7 @@ impl LocalNames {
             untyped_values,
             inlined_values,
             string_constants,
+            binary_operators,
             elidable_i32_coercions: function
                 .blocks
                 .iter()
@@ -3535,6 +3648,10 @@ impl LocalNames {
 
     fn can_elide_i32_coercion(&self, value: ValueId) -> bool {
         self.elidable_i32_coercions.contains(&value)
+    }
+
+    fn binary_operator(&self, value: ValueId) -> Option<IrBinaryOp> {
+        self.binary_operators.get(&value).copied()
     }
 
     fn claim_declaration(&self, value: ValueId) -> Result<bool, CodegenError> {
@@ -4456,6 +4573,61 @@ fn binary_operator(op: IrBinaryOp) -> &'static str {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum BinaryOperandSide {
+    Left,
+    Right,
+}
+
+fn render_binary_operand(
+    expression: String,
+    child: Option<IrBinaryOp>,
+    parent: IrBinaryOp,
+    side: BinaryOperandSide,
+) -> String {
+    let Some(child) = child else {
+        return expression;
+    };
+    let child_precedence = binary_precedence(child);
+    let parent_precedence = binary_precedence(parent);
+    let can_unwrap = child_precedence > parent_precedence
+        || (child_precedence == parent_precedence
+            && match side {
+                BinaryOperandSide::Left => true,
+                BinaryOperandSide::Right => {
+                    child == parent
+                        && matches!(
+                            parent,
+                            IrBinaryOp::BitAnd
+                                | IrBinaryOp::BitOr
+                                | IrBinaryOp::Xor
+                                | IrBinaryOp::And
+                                | IrBinaryOp::Or
+                        )
+                }
+            });
+    if can_unwrap {
+        strip_outer_parens(expression)
+    } else {
+        expression
+    }
+}
+
+fn binary_precedence(op: IrBinaryOp) -> u8 {
+    match op {
+        IrBinaryOp::Or => 1,
+        IrBinaryOp::And => 2,
+        IrBinaryOp::BitOr => 3,
+        IrBinaryOp::Xor => 4,
+        IrBinaryOp::BitAnd => 5,
+        IrBinaryOp::Eq | IrBinaryOp::NotEq => 6,
+        IrBinaryOp::Less | IrBinaryOp::LessEq | IrBinaryOp::Greater | IrBinaryOp::GreaterEq => 7,
+        IrBinaryOp::ShiftLeft | IrBinaryOp::ShiftRight | IrBinaryOp::UnsignedShiftRight => 8,
+        IrBinaryOp::Add | IrBinaryOp::Sub => 9,
+        IrBinaryOp::Mul | IrBinaryOp::Div | IrBinaryOp::Mod => 10,
+    }
+}
+
 fn default_value(ty: &Type<'_>, compact_boolean_literals: bool) -> &'static str {
     match ty {
         Type::Int | Type::Float => "0",
@@ -4745,6 +4917,66 @@ mod tests {
 
         assert!(code.contains("&&("), "{code}");
         assert!(!code.contains("&&depth>0||"), "{code}");
+    }
+
+    #[test]
+    fn defers_one_use_short_circuit_phis_into_their_branch() {
+        let code = compile_module(
+            "export void report(int left,int right){if(left==0&&right==0){print(1);}print(2);}",
+        );
+
+        assert!(code.contains("&&"), "{code}");
+        assert!(!code.contains("var "), "{code}");
+        assert!(!code.contains(";if("), "{code}");
+    }
+
+    #[test]
+    fn removes_only_precedence_safe_binary_parentheses() {
+        assert_eq!(
+            render_binary_operand(
+                "(a-b)".to_string(),
+                Some(IrBinaryOp::Sub),
+                IrBinaryOp::Add,
+                BinaryOperandSide::Left,
+            ),
+            "a-b"
+        );
+        assert_eq!(
+            render_binary_operand(
+                "(b*c)".to_string(),
+                Some(IrBinaryOp::Mul),
+                IrBinaryOp::Sub,
+                BinaryOperandSide::Right,
+            ),
+            "b*c"
+        );
+        assert_eq!(
+            render_binary_operand(
+                "(b-c)".to_string(),
+                Some(IrBinaryOp::Sub),
+                IrBinaryOp::Add,
+                BinaryOperandSide::Right,
+            ),
+            "(b-c)"
+        );
+        assert_eq!(
+            render_binary_operand(
+                "(a+b)".to_string(),
+                Some(IrBinaryOp::Add),
+                IrBinaryOp::Mul,
+                BinaryOperandSide::Left,
+            ),
+            "(a+b)"
+        );
+        assert_eq!(
+            render_binary_operand(
+                "(b&&c)".to_string(),
+                Some(IrBinaryOp::And),
+                IrBinaryOp::And,
+                BinaryOperandSide::Right,
+            ),
+            "b&&c"
+        );
     }
 
     #[test]
