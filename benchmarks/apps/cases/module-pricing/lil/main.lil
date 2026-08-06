@@ -1,0 +1,10 @@
+import "./startup";
+import { Quote } from "./model";
+import { basketTotal } from "./pricing";
+
+Quote[] quotes = [Quote{3, 199}, Quote{5, 349}, Quote{2, 1299}];
+int digest = 0;
+for (int index = 0; index < 120000; index++) {
+  digest = (digest + basketTotal(quotes) + index % 17) % 1000000007;
+}
+print(`modules:${digest}:${basketTotal(quotes)}`);

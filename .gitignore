@@ -1,5 +1,7 @@
 /target/
 /benchmarks/build/
+/benchmarks/apps/build/
+/benchmarks/apps/node_modules/
 /web/node_modules/
 /web/dist/
 /vscode-extension/node_modules/

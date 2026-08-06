@@ -1,0 +1,1 @@
+let d=0,q=3,p=19,x=2;const u=()=>{d=Math.imul(d,33)+Math.imul(q,p)-x|0};u();for(let i=0;i<150000;i++){let n=i%23+1;n!==q&&(q=n,u());n=i%41+3;n!==p&&(p=n,u());if(i%4===0){n=i%11;n!==x&&(x=n,u())}}console.log(`reactive:${d}:${Math.imul(q,p)-x|0}`)

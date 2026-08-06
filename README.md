@@ -229,6 +229,8 @@ cargo clippy --all-targets -- -D warnings
 cargo test --all-targets
 scripts/verify.sh
 benchmarks/run.sh
+npm --prefix benchmarks/apps ci
+npm --prefix benchmarks/apps run benchmark
 npm --prefix web run build
 npm --prefix vscode-extension run package
 ```
@@ -243,13 +245,17 @@ downloads the pinned Closure Compiler `v20260803`, runs `ADVANCED` compilation,
 checks equivalent runtime output, and measures normalized raw, gzip-9, and
 Brotli-11 bytes.
 
-On the repository's nine current workloads LilScript is smaller in every measured
-raw, gzip-9, and Brotli-11 cell. Across the corpus it totals 1,508 raw / 1,300
-gzip / 1,080 Brotli bytes versus Closure at 2,357 / 1,687 / 1,382. The module
-workload uses three real source modules for each compiler and measures
-116 / 130 / 104 bytes for LilScript versus 122 / 134 / 108 for Closure. These are
+On the repository's nine compiler workloads LilScript totals 1,527 raw / 1,308
+gzip / 1,094 Brotli bytes versus Closure at 2,357 / 1,687 / 1,382. LilScript is
+smaller in 26 measured cells and ties the 27th. The separate application lab
+builds four behavior-equivalent apps as a readable JavaScript bundle, an
+esbuild-minified bundle, Closure-friendly `ADVANCED` input, hand-specialized
+JavaScript, and LilScript. Its checked-in run totals 1,620 raw / 1,071 gzip /
+948 Brotli bytes for LilScript versus 1,692 / 1,118 / 952 for Closure; the hand
+baseline remains smaller at 889 / 714 / 641. All 20 JavaScript artifacts and
+four native LilScript executables pass checked-in output contracts. These are
 workload-specific results, not a claim that one compiler wins for every
-possible program. Full methodology and tables are in
+possible program. Compiler methodology and tables are in
 [docs/benchmark-results.md](docs/benchmark-results.md); the pass-by-pass
 responsibility mapping is in
 [docs/optimization-coverage.md](docs/optimization-coverage.md).

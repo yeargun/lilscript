@@ -1,0 +1,60 @@
+int digest = 0;
+
+class IntSignal {
+  int value;
+  (func(int)->int)[] observers;
+
+  init(int value) {
+    this.value = value;
+  }
+
+  pure int read() {
+    return this.value;
+  }
+
+  void watch(func(int)->int observer) {
+    this.observers.push(observer);
+  }
+
+  void write(int next) {
+    if (next == this.value) {
+      return;
+    }
+    this.value = next;
+    for (int index = 0; index < this.observers.length; index++) {
+      func(int)->int observer = this.observers[index];
+      observer(next);
+    }
+  }
+}
+
+IntSignal quantity = new IntSignal(3);
+IntSignal price = new IntSignal(19);
+IntSignal discount = new IntSignal(2);
+
+int updateTotal(int ignored) {
+  int subtotal = quantity.read() * price.read();
+  int total = subtotal - discount.read();
+  digest = digest * 33 + total;
+  return digest;
+}
+
+pure int unusedForecast(int months) {
+  return months * 8191 + 17;
+}
+
+quantity.watch(updateTotal);
+price.watch(updateTotal);
+discount.watch(updateTotal);
+updateTotal(0);
+
+for (int index = 0; index < 150000; index++) {
+  quantity.write(index % 23 + 1);
+  price.write(index % 41 + 3);
+  if (index % 4 == 0) {
+    discount.write(index % 11);
+  }
+}
+
+int finalTotal = quantity.read() * price.read() - discount.read();
+print(`reactive:${digest}:${finalTotal}`);

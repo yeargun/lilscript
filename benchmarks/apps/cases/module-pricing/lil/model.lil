@@ -1,0 +1,12 @@
+export struct Quote {
+  int units;
+  int cents;
+}
+
+export pure int lineTotal(Quote quote) {
+  return quote.units * quote.cents;
+}
+
+export pure int unusedQuoteScore(Quote quote) {
+  return lineTotal(quote) * 65537 + 91;
+}

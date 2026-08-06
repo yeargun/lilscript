@@ -1,0 +1,13 @@
+import { Quote, lineTotal } from "./model";
+
+export pure int basketTotal(Quote[] quotes) {
+  int total = 0;
+  for (int index = 0; index < quotes.length; index++) {
+    total = total + lineTotal(quotes[index]);
+  }
+  return total;
+}
+
+export pure int unusedRegionalPrice(Quote[] quotes) {
+  return basketTotal(quotes) + 999983;
+}

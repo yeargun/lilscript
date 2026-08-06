@@ -1,0 +1,31 @@
+int decodeFrame(int seed, Uint8Array sharedBytes) {
+  ArrayBuffer buffer = new ArrayBuffer(96);
+  Uint8Array bytes = new Uint8Array(buffer);
+  for (int index = 0; index < bytes.length; index++) {
+    bytes[index] = (seed + index * 17 + index % 7) % 256;
+  }
+
+  Uint8Array payload = bytes.subarray(4, 92);
+  int checksum = 0;
+  int peaks = 0;
+  for (int index = 0; index < payload.length; index++) {
+    int value = payload[index];
+    checksum = (checksum + value * (index + 3)) % 1000000007;
+    if (value > 239) {
+      peaks++;
+    }
+  }
+  sharedBytes[seed % sharedBytes.length] = checksum % 256;
+  return (checksum + peaks * 257) % 1000000007;
+}
+
+SharedArrayBuffer shared = new SharedArrayBuffer(32);
+Uint8Array sharedBytes = new Uint8Array(shared);
+int digest = 0;
+for (int round = 0; round < 20000; round++) {
+  digest = (digest + decodeFrame(round % 251, sharedBytes)) % 1000000007;
+}
+for (int index = 0; index < sharedBytes.length; index++) {
+  digest = (digest + sharedBytes[index] * (index + 1)) % 1000000007;
+}
+print(`binary:${digest}:${shared.byteLength}`);

@@ -1,0 +1,44 @@
+int score = 0;
+int observed = 0;
+
+class MetricEvents {
+  (func(int)->int)[] metricHandlers;
+  (func(int)->int)[] anyHandlers;
+
+  void onMetric(func(int)->int handler) {
+    this.metricHandlers.push(handler);
+  }
+
+  void onAny(func(int)->int handler) {
+    this.anyHandlers.push(handler);
+  }
+
+  void emitMetric(int value) {
+    for (int index = 0; index < this.metricHandlers.length; index++) {
+      func(int)->int handler = this.metricHandlers[index];
+      handler(value);
+    }
+    for (int index = 0; index < this.anyHandlers.length; index++) {
+      func(int)->int handler = this.anyHandlers[index];
+      handler(value);
+    }
+  }
+}
+
+int record(int value) {
+  score = score * 31 + value;
+  return score;
+}
+
+int recordAny(int value) {
+  observed = observed + value + 6;
+  return observed;
+}
+
+MetricEvents events = new MetricEvents();
+events.onMetric(record);
+events.onAny(recordAny);
+for (int index = 0; index < 180000; index++) {
+  events.emitMetric(index % 97);
+}
+print(`events:${score}:${observed}`);
