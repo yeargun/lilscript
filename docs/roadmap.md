@@ -77,9 +77,12 @@ checked-in benchmark workload. Passing a synthetic example alone is not enough.
 - [x] Carry non-integer binary root operators through SSA expression fusion and
   remove only precedence- and associativity-safe interior parentheses. Integer
   normalization expressions remain unchanged.
-- [ ] Score optimizer-level IR variants, not only final emission variants, so
-  inlining, specialization, loop shape, and SSA destruction can compete under
-  the selected codec.
+- [x] Score configured inlining against a fully outlined optimizer IR under the
+  selected codec for size-first single-file and ESM builds. The isolated
+  workload improves from `283/152/108` to `221/114/89` raw/gzip/Brotli, and the
+  complete Emotion hash port improves from `866/542/463` to `816/538/456`.
+- [ ] Expand optimizer-level IR variants from the current inlining choice to
+  specialization, loop shape, and SSA destruction under the selected codec.
 - [ ] Complete a precedence-carrying JavaScript expression IR for unary,
   conditional, call, member, and integer-normalization expressions without
   parsing generated strings.

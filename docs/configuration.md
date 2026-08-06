@@ -34,6 +34,7 @@ compression = [
   "string-array-packing",
   "scalar-phi-copies",
   "phi-affinity-coalescing",
+  "ir-inlining-variants",
 ]
 # inline_instruction_limit = 18
 # inline_control_flow_limit = 45
@@ -132,6 +133,10 @@ only listed tactics are enabled; `compression = []` disables all of them:
   compares conservative deferred-expression interference, direct affinity,
   and contracted non-interfering phi groups because fewer raw assignments can
   still compress worse.
+- `ir-inlining-variants` lets the configured inlining pipeline compete with a
+  fully outlined IR under the exact selected codec. It is enabled by
+  size-first, applies to single-file and reusable ESM output, and is omitted by
+  performance-oriented profiles because it runs a second optimizer pipeline.
 
 The numeric `inline_instruction_limit`, `inline_control_flow_limit`, and
 `max_inline_growth` keys override the selected profile. Setting
@@ -139,8 +144,8 @@ The numeric `inline_instruction_limit`, `inline_control_flow_limit`, and
 `size-aware-inlining` is absent from the allowlist. These are IR instruction
 budgets, not output-byte limits.
 
-`javascript.cost_model` selects the exact objective used by the bounded final
-candidate search. `raw` compares emitted bytes, `gzip` uses level 9, and
+`javascript.cost_model` selects the exact objective used by optimizer-IR and
+bounded final-emission candidate search. `raw` compares emitted bytes, `gzip` uses level 9, and
 `brotli` uses quality 11. Candidate selection is deterministic: ties use raw
 bytes and then lexical output order. The search only disables already enabled
 contested tactics for comparison; it never turns on a tactic omitted from the
@@ -151,7 +156,8 @@ search space compares profitable string pooling, literal-table packing,
 proven-safe integer coercion elision, boolean literals, structured closures,
 identifier alphabets, quote styles, and equivalent top-level declaration,
 phi-affinity, and SSA parallel-copy layouts, bounded by `candidate_limit`. The
-default limit of `1536` covers the complete current default search space.
+default limit of `1536` covers the complete current final-emission search space
+per optimizer IR.
 
 The priority is applied after `[optimization]`: setting `inlining = false`
 disables inlining in every profile. Explicit `[mangle]` values have the highest

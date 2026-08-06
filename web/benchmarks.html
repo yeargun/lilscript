@@ -62,6 +62,17 @@
         </div>
       </section>
 
+      <section class="benchmark-project" aria-labelledby="ir-variants-title">
+        <header>
+          <p class="eyebrow">Optimizer-IR ablation</p>
+          <h2 id="ir-variants-title">Codec-selected inlining</h2>
+          <p>Both artifacts execute the same JavaScript/native contract with identical final-emission search. The enabled build lets configured inlining compete with an outlined IR; Brotli retains the shared helper.</p>
+        </header>
+        <div class="benchmark-table-wrap">
+          <table><thead><tr><th>Variant</th><th>Raw</th><th>Gzip-9</th><th>Brotli-11</th></tr></thead><tbody><tr class="lilscript-row"><th>Inlining IR variants enabled</th><td>221</td><td>114</td><td>89</td></tr><tr><th>Inlining IR variants disabled</th><td>283</td><td>152</td><td>108</td></tr></tbody></table>
+        </div>
+      </section>
+
       <section class="benchmark-project library-lab-callout" aria-labelledby="library-lab-title">
         <header>
           <p class="eyebrow">Complete npm ports</p>

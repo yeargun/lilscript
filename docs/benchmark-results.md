@@ -138,6 +138,21 @@ artifacts must execute the checked output contract before sizes are accepted.
 
 Run it with `node benchmarks/finite-values/run.mjs`.
 
+## Inlining IR pass ablation
+
+`tests/cases/ir_inlining_variant.lil` holds the final emission search and every
+optimizer setting constant while omitting only `ir-inlining-variants`. Both
+artifacts execute the JavaScript/native contract before measurement.
+
+| Variant | Raw | Gzip-9 | Brotli-11 |
+| --- | ---: | ---: | ---: |
+| Inlining IR variants enabled | 221 | 114 | 89 |
+| Inlining IR variants disabled | 283 | 152 | 108 |
+
+Run it with `node benchmarks/ir-variants/run.mjs`. The complete-library lab also
+shows an independent production-sized win: Emotion hash improves from
+`866/542/463` to `816/538/456` raw/gzip-9/Brotli-11.
+
 ## Method
 
 Each LilScript workload has a behaviorally equivalent JavaScript input under

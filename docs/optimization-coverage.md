@@ -25,7 +25,7 @@ JavaScript and native C backends.
 | Early/late peephole optimization | Constant folding, algebraic identities, boolean simplification, branch inversion, nested literal-capture branch folding, SSA-root binary precedence rendering, precedence-safe parenthesis removal at statements and expression delimiters, compact boolean literals, compact loops, conditional returns, declaration collapse, trailing-semicolon removal |
 | Numeric representation lowering | Signed-i32 range analysis propagates bounded loop induction values, direct-call arguments and returns, and owned nominal fields; it removes coercions only for proven-safe operations. Ordinary multiplication emits `x*y|0` when normalization is required, while source-written `Math.imul` remains an explicit exact operation |
 | Inline variables and constants | mem2reg SSA, constant propagation, single-assignment global propagation, constant rematerialization, one-use expression fusion, exact array-parameter lengths, and bounded boolean/string/null argument and return sets across closed stable direct-call sets |
-| Inline functions and simple methods | Fixed-point expression inlining plus single-use multi-block CFG inlining |
+| Inline functions and simple methods | Fixed-point expression inlining plus single-use multi-block CFG inlining; size-first single-file/ESM builds compare that IR with a fully outlined IR under the exact selected codec |
 | Inline/collapse properties | Nominal field resolution, positional field indexes, struct/class scalar replacement, and owned-field range/finite-constant summaries invalidated at untyped boundaries |
 | Collapse object literals | Non-escaping structs dissolve into SSA scalars; remaining typed aggregates use positional arrays in JavaScript |
 | Disambiguate/ambiguate/rename properties | Nominal owner types and field indexes remove internal property names entirely; boundary names remain ABI-stable |
@@ -73,8 +73,10 @@ The current schedule is:
    dead field stores;
 8. another scalar fixed point;
 9. effect-aware SSA DCE and whole-program function DCE;
-10. module-level integer argument/return/field range analysis, liveness-based name
-    coalescing, structured boolean-phi deferral, dependency-ordered phi copies,
+10. codec selection between configured-inlining and outlined optimizer IRs,
+    followed by module-level integer argument/return/field range analysis,
+    liveness-based name coalescing, structured boolean-phi deferral,
+    dependency-ordered phi copies,
     liveness-reused cycle temporaries, codec-selected conservative/direct-phi
     affinity/group and scalar/tuple copy layouts, induction ranges, shortest
     numeric literals, SSA-root binary precedence, structured closure selection,
@@ -85,7 +87,7 @@ The current schedule is:
 
 ## Executable evidence
 
-`scripts/verify-matrix.sh` compiles 61 independent `.lil` programs, including a
+`scripts/verify-matrix.sh` compiles 62 independent `.lil` programs, including a
 multi-file module graph, with one
 `--target all` invocation per program. Each invocation emits JavaScript, emits
 C, and invokes Clang for a native executable. The script then compiles the
@@ -93,7 +95,7 @@ emitted C independently and requires the JavaScript, direct native executable,
 independently compiled C executable, and checked-in expected output to match.
 The corpus includes collection mutation/identity/nullable lookup and binary
 memory copy/view/coercion behavior under both maximum and disabled optional
-optimization, for 122 backend-mode executions. This includes regressions for
+optimization, for 124 backend-mode executions. This includes regressions for
 interprocedural integer ranges, finite values/fields, exact array lengths,
 unobserved collection
 mutation removal, and
@@ -108,6 +110,12 @@ and every other optimizer setting constant while toggling only
 `finite_value_propagation`. Both variants execute the matrix contract before
 the gate requires a raw, gzip-9, and Brotli-11 win. The current checked workload
 improves from `214/157/121` bytes to `143/108/77`.
+
+`benchmarks/ir-variants/run.mjs` holds the source, final-emission search, and
+all optimizer settings constant while omitting only `ir-inlining-variants`.
+Both artifacts execute first. Exact Brotli selection retains a shared helper
+and improves `283/152/108` bytes to `221/114/89`; the complete Emotion hash
+port independently improves from `866/542/463` to `816/538/456`.
 
 `benchmarks/run.sh` compiles ten behaviorally equivalent LilScript/JavaScript
 workloads, runs both outputs, invokes Closure `ADVANCED`, and measures normalized

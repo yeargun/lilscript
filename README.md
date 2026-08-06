@@ -263,6 +263,7 @@ cargo test --all-targets
 scripts/verify.sh
 benchmarks/run.sh
 node benchmarks/finite-values/run.mjs
+node benchmarks/ir-variants/run.mjs
 npm --prefix benchmarks/apps ci
 npm --prefix benchmarks/apps run benchmark
 npm --prefix benchmarks/libraries ci
@@ -276,9 +277,9 @@ npm --prefix vscode-extension run package
 ```
 
 `scripts/verify.sh` compares Node and native output for two conformance suites
-and links a generated aggregate ABI against a C host. It also runs 61 programs
+and links a generated aggregate ABI against a C host. It also runs 62 programs
 through JavaScript, emitted C, and native executables with maximum and disabled
-optional optimization, for 122 matrix executions, plus a framed LSP session
+optional optimization, for 124 matrix executions, plus a framed LSP session
 through diagnostics, completion, hover, symbols, semantic tokens, references,
 rename, formatting, quick fixes, and shutdown.
 `benchmarks/run.sh`
@@ -290,6 +291,8 @@ The finite-value ablation holds inlining and scalar replacement disabled in
 both variants and toggles only interprocedural finite-value propagation. Both
 artifacts execute the same contract; the pass reduces the checked workload from
 `214/157/121` to `143/108/77` raw/gzip-9/Brotli-11 bytes.
+The inlining-IR ablation holds every other optimizer and emitter decision
+constant; exact codec selection improves `283/152/108` to `221/114/89`.
 
 The source-neutral lane in `benchmarks/paired` mechanically generates readable
 LilScript and JavaScript from one workload schema. Every case must agree through
@@ -324,7 +327,7 @@ JavaScript/C/native app contracts. LilScript produces the smaller Brotli
 artifact in five of six complete ports: 2.9% smaller than npm/Vite for
 `@motionone/easing`, 49.5% smaller for
 `clamp` + `lerp`, 45.8% smaller for `string-hash`, 19.7% smaller for
-`js-levenshtein`, and 25.4% smaller for `murmurhash-js`. It remains 7.7% larger
+`js-levenshtein`, and 25.4% smaller for `murmurhash-js`. It remains 6.0% larger
 for `@emotion/hash`. Those mixed results are published without a universal
 superiority claim in
 [benchmarks/libraries/RESULTS.md](benchmarks/libraries/RESULTS.md) and at
