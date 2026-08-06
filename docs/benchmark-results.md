@@ -12,7 +12,7 @@ Measured on 2026-08-06 with LilScript release mode and Google Closure Compiler
 
 | Compiler | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
-| LilScript | 111 | 124 | 97 |
+| LilScript | 100 | 117 | 90 |
 | Closure ADVANCED v20260803 | 203 | 182 | 161 |
 
 This case exercises class constructor/method devirtualization, scalar
@@ -33,7 +33,7 @@ string predicates, case conversion, templates, and constant propagation.
 
 | Compiler | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
-| LilScript | 344 | 265 | 220 |
+| LilScript | 327 | 263 | 218 |
 | Closure ADVANCED v20260803 | 520 | 355 | 296 |
 
 This broader case combines structs, mutable classes, direct functions, global
@@ -55,7 +55,7 @@ branch removal.
 
 | Compiler | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
-| LilScript | 183 | 159 | 129 |
+| LilScript | 189 | 165 | 136 |
 | Closure ADVANCED v20260803 | 196 | 161 | 135 |
 
 This case combines recursion with single-use multi-block CFG inlining, two
@@ -66,7 +66,7 @@ normalization.
 
 | Compiler | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
-| LilScript | 95 | 88 | 68 |
+| LilScript | 91 | 86 | 70 |
 | Closure ADVANCED v20260803 | 239 | 164 | 149 |
 
 This case measures nested value structs, class construction, mutable methods,
@@ -96,7 +96,7 @@ short-circuit folding, templates, and repeated long-string reuse.
 
 | Compiler | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
-| LilScript | 113 | 127 | 98 |
+| LilScript | 102 | 117 | 92 |
 | Closure ADVANCED v20260803 | 117 | 127 | 104 |
 
 This case gives each compiler three real source modules. It measures relative
@@ -108,7 +108,7 @@ and complete removal of module syntax and unused exports.
 
 | Compiler | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
-| LilScript | 1,487 | 1,282 | 1,045 |
+| LilScript | 1,450 | 1,267 | 1,039 |
 | Closure ADVANCED v20260803 | 2,289 | 1,638 | 1,357 |
 
 ## Method
@@ -146,13 +146,15 @@ JavaScript, runtime samples, generated C, and native behavior checks, is in
 The separate [`../benchmarks/libraries`](../benchmarks/libraries) project uses
 installed, version-pinned npm packages rather than matching-scope synthetic
 implementations. It currently covers the complete documented callable root
-entrypoints of `@motionone/easing@10.18.0`, `clamp@1.0.1`, `lerp@1.0.3`, and
-`string-hash@1.1.3` for their typed input domains.
+entrypoints of `@motionone/easing@10.18.0`, `clamp@1.0.1`, `lerp@1.0.3`,
+`string-hash@1.1.3`, `js-levenshtein@1.1.6`, `@emotion/hash@0.9.2`, and
+`murmurhash-js@1.0.0` for their typed input domains.
 
 Each case must match through Vite, an esbuild-to-Closure ADVANCED pipeline,
 LilScript JavaScript, emitted C, and a native executable. Translated upstream
 assertions and dense differential API grids run after the app contracts. The
 generated tables are in
 [`../benchmarks/libraries/RESULTS.md`](../benchmarks/libraries/RESULTS.md).
-They show smaller LilScript Brotli payloads for the clamp/lerp and string-hash
-apps, but a larger payload for Motion easing; no universal size claim follows.
+They show smaller LilScript Brotli payloads in four of six complete apps, but
+larger payloads for Motion easing and Emotion hash; no universal size claim
+follows.

@@ -21,16 +21,18 @@ check(close(curve(0.99), 0.999, 0.005));
 check(curve(1) === 1);
 
 const stepEnd = steps(4);
-for (const [value, expected] of [
-  [0, 0], [0.2, 0], [0.249, 0], [0.25, 0.25], [0.49, 0.25],
-  [0.5, 0.5], [0.99, 0.75], [1, 0.75],
-]) check(stepEnd(value) === expected);
+const endValues = [0, 0.2, 0.249, 0.25, 0.49, 0.5, 0.99, 1];
+const endExpected = [0, 0, 0, 0.25, 0.25, 0.5, 0.75, 0.75];
+for (let index = 0; index < endValues.length; index += 1) {
+  check(stepEnd(endValues[index]) === endExpected[index]);
+}
 
 const stepStart = steps(4, "start");
-for (const [value, expected] of [
-  [0, 0.25], [0.2, 0.25], [0.249, 0.25], [0.25, 0.25], [0.49, 0.5],
-  [0.5, 0.5], [0.51, 0.75], [0.99, 1], [1, 1], [2, 1],
-]) check(stepStart(value) === expected);
+const startValues = [0, 0.2, 0.249, 0.25, 0.49, 0.5, 0.51, 0.99, 1, 2];
+const startExpected = [0.25, 0.25, 0.25, 0.25, 0.5, 0.5, 0.75, 1, 1, 1];
+for (let index = 0; index < startValues.length; index += 1) {
+  check(stepStart(startValues[index]) === startExpected[index]);
+}
 
 let curveDigest = 0;
 let stepDigest = 0;

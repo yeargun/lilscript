@@ -331,10 +331,10 @@ lilscript-fmt src --check</code></pre>
         <section id="configuration" data-title="Configuration JavaScript priority realistic performance size balanced compression decisions">
           <h2>JavaScript performance and size priority</h2>
           <pre><code>[javascript]
-priority = "realistic-performance-first"
+priority = "size-first"
 cost_model = "brotli"
 candidate_search = "production"
-candidate_limit = 64
+candidate_limit = 256
 compression = [
   "identifier-mangling",
   "entropy-aware-mangling",
@@ -343,6 +343,8 @@ compression = [
   "size-aware-inlining",
   "safe-integer-coercion-elision",
   "compact-boolean-literals",
+  "structured-closure-inlining",
+  "string-array-packing",
 ]
 # inline_instruction_limit = 18
 # inline_control_flow_limit = 45
@@ -353,9 +355,9 @@ compression = [
 # properties = false
 # exports = false
 # pool_strings = true</code></pre>
-          <p><code>performance-first</code> uses inlining limits of 24/60 with unbounded growth, no automatic pooling, and eager signed-i32 normalization. The default <code>realistic-performance-first</code> uses 18/45 with a +16 instruction growth budget. <code>balanced</code> uses 12/30 with +4 growth, while <code>size-first</code> allows no positive estimated growth. The latter three enable profitable string pooling and proven-safe integer coercion elision.</p>
-          <p><code>compression</code> is an exact allowlist. Its decisions are <code>identifier-mangling</code>, <code>entropy-aware-mangling</code>, <code>quote-style-selection</code>, <code>property-mangling</code>, <code>export-mangling</code>, <code>string-pooling</code>, <code>size-aware-inlining</code>, <code>safe-integer-coercion-elision</code>, and <code>compact-boolean-literals</code>. Coercions are removed only when inferred ranges prove signed-32-bit behavior is unchanged. Ordinary multiplication uses JavaScript <code>*</code> with i32 normalization and never introduces <code>Math.imul</code>; explicit <code>Math.imul</code> calls remain exact. Compact booleans compare <code>!0</code>/<code>!1</code> with keyword literals. Omit the list to use profile defaults; use <code>compression = []</code> to disable every optional compression tactic.</p>
-          <p><code>cost_model</code> selects exact raw, gzip-9, or Brotli-11 measurement for a deterministic bounded final candidate search over pooling, coercion elision, boolean literals, identifier alphabets, quote styles, and declaration spellings. Production mode enables it by default; <code>--mode development</code> skips it for faster rebuilds. The search only compares tactics already allowed by <code>compression</code>; the default limit of 64 covers the current default search space.</p>
+          <p><code>performance-first</code> uses inlining limits of 24/60 with unbounded growth, no automatic pooling, and eager signed-i32 normalization. <code>realistic-performance-first</code> uses 18/45 with a +16 instruction growth budget. <code>balanced</code> uses 12/30 with +4 growth, while the default <code>size-first</code> uses 12/30 with +16 temporary IR instructions so a following fold/DCE fixed point can expose net byte wins. The latter three enable profitable string pooling and proven-safe integer coercion elision; size-first also considers delimiter-packed string tables.</p>
+          <p><code>compression</code> is an exact allowlist. Its decisions are <code>identifier-mangling</code>, <code>entropy-aware-mangling</code>, <code>quote-style-selection</code>, <code>property-mangling</code>, <code>export-mangling</code>, <code>string-pooling</code>, <code>size-aware-inlining</code>, <code>safe-integer-coercion-elision</code>, <code>compact-boolean-literals</code>, <code>structured-closure-inlining</code>, and <code>string-array-packing</code>. Coercions are removed only when inferred ranges prove signed-32-bit behavior is unchanged. Ordinary multiplication uses JavaScript <code>*</code> with i32 normalization and never introduces <code>Math.imul</code>; explicit <code>Math.imul</code> calls remain exact. Structured closures and packed string arrays are compressor-scored against their outlined and literal alternatives. Omit the list to use profile defaults; use <code>compression = []</code> to disable every optional compression tactic.</p>
+          <p><code>cost_model</code> selects exact raw, gzip-9, or Brotli-11 measurement for a deterministic bounded final candidate search over pooling, string-table packing, coercion elision, boolean literals, structured closures, identifier alphabets, quote styles, and declaration spellings. Production mode enables it by default; <code>--mode development</code> skips it for faster rebuilds. The search only compares tactics already allowed by <code>compression</code>; the default limit of 256 covers the current default search space.</p>
           <p>The setting changes JavaScript optimization only. It composes with per-pass settings, so <code>optimization.inlining = false</code> still disables inlining. Because raw, gzip, and Brotli sizes can disagree, size priority is a cost-model preference rather than a guarantee for every workload.</p>
         </section>
 
@@ -390,7 +392,7 @@ scripts/verify.sh
 benchmarks/run.sh
 node benchmarks/paired/run.mjs
 npm --prefix benchmarks/browser run benchmark</code></pre>
-          <p>The matrix compiles 54 programs with maximum and disabled optional optimization, then requires Node, the direct native output, independently compiled emitted C, and checked-in expected output to agree across 108 executions. Nine equivalent workloads are also executed before comparing raw, gzip-9, and Brotli-11 output against Closure ADVANCED v20260803. A second source-neutral lane mechanically generates both languages and rejects any per-case raw, gzip, or Brotli loss; its Chromium gate rejects a 95% runtime upper bound above 1.03. The application and complete-library labs remain separate because installed npm code and a LilScript port are not identical implementations. Complete measurements and limits are on the <a href="/benchmarks.html">benchmark page</a>.</p>
+          <p>The matrix compiles 57 programs with maximum and disabled optional optimization, then requires Node, the direct native output, independently compiled emitted C, and checked-in expected output to agree across 114 executions. Nine equivalent workloads are also executed before comparing raw, gzip-9, and Brotli-11 output against Closure ADVANCED v20260803. A second source-neutral lane mechanically generates both languages and rejects any per-case raw, gzip, or Brotli loss; its Chromium gate rejects a 95% runtime upper bound above 1.03. The application and complete-library labs remain separate because installed npm code and a LilScript port are not identical implementations. Complete measurements and limits are on the <a href="/benchmarks.html">benchmark page</a>.</p>
         </section>
       </main>
     </div>

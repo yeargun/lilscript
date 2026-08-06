@@ -5,11 +5,15 @@ import test from "node:test";
 const page = await readFile(new URL("../libraries.html", import.meta.url), "utf8");
 const benchmarkPage = await readFile(new URL("../benchmarks.html", import.meta.url), "utf8");
 const data = JSON.parse(await readFile(new URL("../src/library-results.json", import.meta.url), "utf8"));
+const clientRuntime = JSON.parse(
+  await readFile(new URL("../src/client-runtime-results.json", import.meta.url), "utf8"),
+);
 const config = await readFile(new URL("../vite.config.js", import.meta.url), "utf8");
 
 test("library page is a Vite entry backed by generated results", () => {
   assert.match(config, /libraries: resolve/);
   assert.match(page, /data-library-results/);
+  assert.match(page, /data-client-runtime/);
   assert.deepEqual(data.results.map((result) => result.id), [
     "motion-easing",
     "micro-math",
@@ -18,6 +22,15 @@ test("library page is a Vite entry backed by generated results", () => {
     "emotion-hash",
     "murmurhash-js",
   ]);
+});
+
+test("partial Solid evidence reports its compatibility denominator", () => {
+  assert.equal(clientRuntime.status, "partial");
+  assert.equal(clientRuntime.port.adaptedCasesPassed, 109);
+  assert.equal(clientRuntime.port.adaptedCasesTotal, 469);
+  assert.equal(clientRuntime.port.executions, 654);
+  assert.equal(clientRuntime.upstream.testsPassed, 469);
+  assert.ok(clientRuntime.notPorted.length > 0);
 });
 
 test("every published LilScript library row passed native and C gates", () => {

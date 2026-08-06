@@ -96,16 +96,17 @@ Compiler policy is configured in an auto-discovered `lilscript.toml`, or with
 `--config path/to/lilscript.toml`. Presets and per-pass overrides control
 folding, CSE, global optimization, inlining, scalar replacement, DCE, identifier
 and boundary-property mangling, public-export mangling, and string pooling. The
-default JavaScript-specific `priority = "realistic-performance-first"` policy
-sits between absolute performance and balanced output. Four profiles, numeric
+default JavaScript-specific `priority = "size-first"` policy minimizes the
+selected release transfer metric. Four profiles, numeric
 inline budgets, and an exact `compression` decision allowlist control the
 performance/size tradeoff without changing C/native optimization.
 Production builds use an exact configurable raw, gzip-9, or Brotli-11 cost
-model to select among bounded pooling, coercion-elision, boolean-literal,
-identifier-alphabet, quote-style, and declaration-spelling candidates;
+model to select among bounded pooling, literal-table packing, coercion-elision,
+boolean-literal, identifier-alphabet, quote-style, structured-closure, and
+declaration-spelling candidates;
 `--mode development` skips that compressor loop. `--explain human|json`
 reports optimizer passes. The
-realistic default omits signed-32-bit coercions only where range analysis proves
+size default omits signed-32-bit coercions only where range analysis proves
 them redundant. It never introduces `Math.imul`: ordinary `int` multiplication
 uses JavaScript multiplication followed by signed-i32 normalization. A
 source-written `Math.imul(left,right)` is preserved as the explicit exact
@@ -274,9 +275,9 @@ npm --prefix vscode-extension run package
 ```
 
 `scripts/verify.sh` compares Node and native output for two conformance suites
-and links a generated aggregate ABI against a C host. It also runs 54 programs
+and links a generated aggregate ABI against a C host. It also runs 57 programs
 through JavaScript, emitted C, and native executables with maximum and disabled
-optional optimization, for 108 matrix executions, plus a framed LSP session
+optional optimization, for 114 matrix executions, plus a framed LSP session
 through diagnostics, completion, hover, symbols, semantic tokens, references,
 rename, formatting, quick fixes, and shutdown.
 `benchmarks/run.sh`
@@ -292,8 +293,8 @@ separate Chromium gate uses alternating warmed samples and requires the 95%
 bootstrap upper runtime ratio to remain at or below `1.03`. These are scoped
 regression gates, not universal compiler-superiority claims.
 
-On the repository's nine compiler workloads LilScript totals 1,487 raw / 1,282
-gzip / 1,045 Brotli bytes versus Closure at 2,289 / 1,638 / 1,357. LilScript is
+On the repository's nine compiler workloads LilScript totals 1,450 raw / 1,267
+gzip / 1,039 Brotli bytes versus Closure at 2,289 / 1,638 / 1,357. LilScript is
 smaller in all 27 measured cells. The separate application lab
 compares five readable JavaScript references with matching-scope LilScript,
 feeds those exact references to Closure `ADVANCED`, and keeps hand-specialized
@@ -313,12 +314,24 @@ responsibility mapping is in
 
 The complete-library lab measures installed npm packages against LilScript
 ports after translated upstream assertions, dense differential API checks, and
-JavaScript/C/native app contracts. LilScript Brotli output is 45.1% smaller than
-npm/Vite for the complete `clamp` + `lerp` app and 39.8% smaller for
-`string-hash`; it is 27.7% larger for `@motionone/easing`. Those mixed results
-are published without a universal superiority claim in
+JavaScript/C/native app contracts. LilScript produces the smaller Brotli
+artifact in four of six complete ports: 46.9% smaller than npm/Vite for
+`clamp` + `lerp`, 43.0% smaller for `string-hash`, 15.7% smaller for
+`js-levenshtein`, and 24.1% smaller for `murmurhash-js`. It remains 2.4% larger
+for `@motionone/easing` and 10.9% larger for `@emotion/hash`. Those mixed
+results are published without a universal superiority claim in
 [benchmarks/libraries/RESULTS.md](benchmarks/libraries/RESULTS.md) and at
 `/libraries.html` in the Vite site.
+
+The separate [Solid client-runtime lab](https://github.com/yeargun/lilscript-solid-lab)
+contains 2,355 lines of LilScript and passes 109 adapted behaviors through
+optimized/unoptimized JavaScript, emitted C, and native execution (654 runs).
+The unchanged `solid-js@1.9.13` reference suite remains 469/469. Its current
+compiler artifact is 2,001 Brotli bytes versus 4,451 for the official Solid
+Vite app, but this is partial implementation evidence, not a claim of full
+Solid compatibility; missing stores, errors, promises, transitions, complete
+DOM reconciliation, Suspense, and hydration remain published beside the size
+table.
 The maintained implementation and research backlog is in
 [docs/roadmap.md](docs/roadmap.md).
 Motion's audited compatibility gate is in
