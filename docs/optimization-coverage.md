@@ -126,8 +126,8 @@ improves from `214/157/121` bytes to `143/108/77`.
 `benchmarks/ir-variants/run.mjs` holds the source, final-emission search, and
 all optimizer settings constant while omitting only `ir-inlining-variants`.
 Both artifacts execute first. Exact Brotli selection retains a shared helper
-and improves `283/152/108` bytes to `221/114/89`; the complete Emotion hash
-port independently improves from `866/542/463` to `816/538/456`.
+and improves `267/144/109` bytes to `219/113/83`; the complete Emotion hash
+port independently improves from `866/535/456` to `816/532/452`.
 
 `benchmarks/closure-factory-variants/run.mjs` keeps ordinary inlining and the
 fully outlined IR candidate available in both builds while omitting only
@@ -135,19 +135,22 @@ fully outlined IR candidate available in both builds while omitting only
 through JavaScript, C, and native gates. Partial factory preservation wins the
 selected objective and improves `677/244/173` to `627/243/172` raw/gzip/Brotli.
 
-`benchmarks/loop-spelling/run.mjs` executes the complete `murmurhash-js` port
-with identical optimizer and final-emission settings while omitting only
-`loop-spelling-selection`. Exact Brotli selection chooses `1741/840/734` over
-the frequency heuristic's `1734/835/737` raw/gzip/Brotli, explicitly spending
-raw and gzip bytes for the configured Brotli objective. Both artifacts must
-match the package contract before measurement.
+`benchmarks/loop-spelling/run.mjs` executes an order-sensitive control-flow
+fixture with identical optimizer and final-emission policy while omitting only
+`loop-spelling-selection`. Exact Brotli selection chooses `837/242/177` over
+the frequency heuristic's `527/243/178` raw/gzip/Brotli, explicitly spending
+raw bytes for one-byte gzip and Brotli wins. Both artifacts must produce `137`
+before measurement. The complete MurmurHash port is currently byte-identical
+between modes at `1734/831/733`, so it remains library evidence but no longer
+supports a loop-spelling ablation claim.
 
 `benchmarks/mutation-spelling/run.mjs` compiles and executes the complete
 Levenshtein port while omitting only `mutation-spelling-selection`. SSA use
 counts and integer ranges gate every shorthand before exact prefix/postfix
-scoring. The isolated production artifact improves from `1582/899/778` to
-`1580/897/776` raw/gzip/Brotli. Diversity across loop-spelling families also
-improves the complete Motion artifact from `1148/611/557` to `1148/610/553`.
+scoring. The isolated production artifact improves from `1578/897/776` to
+`1576/896/773` raw/gzip/Brotli. Candidate retention remains stratified by
+loop-spelling family before mutation scoring so one early layout cannot erase
+the other families.
 
 `benchmarks/run.sh` compiles ten behaviorally equivalent LilScript/JavaScript
 workloads, runs both outputs, invokes Closure `ADVANCED`, and measures normalized

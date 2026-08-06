@@ -2,8 +2,8 @@ import { runPassAblation } from "../pass-ablation.mjs";
 
 runPassAblation({
   id: "loop-spelling",
-  source: "benchmarks/libraries/apps/murmurhash-js/lil/main.lil",
-  expected: "benchmarks/libraries/apps/murmurhash-js/expected.txt",
+  source: "benchmarks/loop-spelling/fixture.lil",
+  expected: "benchmarks/loop-spelling/fixture.out",
   variants: [
     ["Codec-selected spelling", "lilscript.toml", "selected.js"],
     [
@@ -12,5 +12,5 @@ runPassAblation({
       "heuristic.js",
     ],
   ],
-  strictMetrics: ["brotli"],
+  strictMetrics: ["gzip", "brotli"],
 });

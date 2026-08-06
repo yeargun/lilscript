@@ -23,7 +23,7 @@ folding, and template output.
 
 | Compiler | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
-| LilScript | 268 | 207 | 190 |
+| LilScript | 266 | 206 | 178 |
 | Closure ADVANCED v20260803 | 378 | 258 | 214 |
 
 This case exercises mutable array operations, filter/reduce/forEach callbacks,
@@ -33,7 +33,7 @@ string predicates, case conversion, templates, and constant propagation.
 
 | Compiler | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
-| LilScript | 327 | 263 | 218 |
+| LilScript | 321 | 258 | 208 |
 | Closure ADVANCED v20260803 | 520 | 355 | 296 |
 
 This broader case combines structs, mutable classes, direct functions, global
@@ -55,7 +55,7 @@ branch removal.
 
 | Compiler | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
-| LilScript | 191 | 159 | 134 |
+| LilScript | 191 | 156 | 128 |
 | Closure ADVANCED v20260803 | 196 | 161 | 135 |
 
 This case combines recursion with single-use multi-block CFG inlining, two
@@ -77,7 +77,7 @@ field-index lowering, devirtualization, and scalar replacement.
 
 | Compiler | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
-| LilScript | 126 | 128 | 110 |
+| LilScript | 124 | 126 | 105 |
 | Closure ADVANCED v20260803 | 132 | 133 | 111 |
 
 This case measures map/filter fusion at emission time, reduce, block-arrow
@@ -121,7 +121,7 @@ and complete removal of module syntax and unused exports.
 
 | Compiler | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
-| LilScript | 1,466 | 1,287 | 1,061 |
+| LilScript | 1,456 | 1,276 | 1,028 |
 | Closure ADVANCED v20260803 | 2,450 | 1,771 | 1,471 |
 
 ## Finite-value pass ablation
@@ -146,12 +146,12 @@ artifacts execute the JavaScript/native contract before measurement.
 
 | Variant | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
-| Inlining IR variants enabled | 221 | 114 | 89 |
-| Inlining IR variants disabled | 283 | 152 | 108 |
+| Inlining IR variants enabled | 219 | 113 | 83 |
+| Inlining IR variants disabled | 267 | 144 | 109 |
 
 Run it with `node benchmarks/ir-variants/run.mjs`. The complete-library lab also
 shows an independent production-sized win: Emotion hash improves from
-`866/542/463` to `816/538/456` raw/gzip-9/Brotli-11.
+`866/535/456` to `816/532/452` raw/gzip-9/Brotli-11.
 
 ## Closure factory IR ablation
 
@@ -170,18 +170,23 @@ Run it with `node benchmarks/closure-factory-variants/run.mjs`.
 
 ## Loop spelling ablation
 
-The complete `murmurhash-js` LilScript port holds optimizer and emitter policy
-constant while omitting only `loop-spelling-selection`. Both outputs execute
-the package contract before measurement. `while(condition)` and
-`for(;condition;)` have equal raw length, so the win comes from exact Brotli
-token context rather than a source-length heuristic.
+The checked-in order-sensitive control-flow fixture places condition-only loops
+before update-bearing loops. Both builds use the same optimizer and emitter
+policy; the disabled build omits only `loop-spelling-selection`, and both must
+print `137`. This isolates the case where a frequency heuristic cannot see
+future token context. The Brotli objective accepts a large raw-size trade only
+because both compressed artifacts are one byte smaller.
 
 | Variant | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
-| Codec-selected spelling | 1741 | 840 | 734 |
-| Frequency heuristic | 1734 | 835 | 737 |
+| Codec-selected spelling | 837 | 242 | 177 |
+| Frequency heuristic | 527 | 243 | 178 |
 
 Run it with `node benchmarks/loop-spelling/run.mjs`.
+
+The complete MurmurHash port currently emits `1734/831/733` in both modes. It
+remains part of the complete-library corpus, but a byte-identical result is not
+reported as an optimization win.
 
 ## Mutation spelling ablation
 
@@ -193,8 +198,8 @@ artifacts execute the same package contract before measurement.
 
 | Variant | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
-| Mutation spelling selected | 1580 | 897 | 776 |
-| Assignment spelling only | 1582 | 899 | 778 |
+| Mutation spelling selected | 1576 | 896 | 773 |
+| Assignment spelling only | 1578 | 897 | 776 |
 
 Run it with `node benchmarks/mutation-spelling/run.mjs`.
 

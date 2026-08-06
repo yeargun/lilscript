@@ -1,6 +1,6 @@
 # Complete library compatibility results
 
-Generated 2026-08-06T22:59:37.138Z from LilScript `7fd8b8d` with Node `v24.11.1`, Vite `8.2.0`, esbuild `0.28.1`, and Closure Compiler `20260803.0.0`.
+Generated 2026-08-06T23:34:57.630Z from LilScript `b069356` with Node `v24.11.1`, Vite `8.2.0`, esbuild `0.28.1`, and Closure Compiler `20260803.0.0`.
 
 Each row executes the same checked app contract. The npm rows use the installed package, not a hand-specialized substitute. Closure receives an unminified esbuild bundle of that npm app because Closure does not install or resolve the package itself in this lab. LilScript also emits C and a native executable, and both must match before measurements are published.
 
@@ -14,15 +14,15 @@ Translated upstream assertions: **27**. Added package-contract assertions: **0**
 
 | Deployable JavaScript | Raw | Gzip-9 | Brotli-11 | vs npm/Vite Brotli | Median ms |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Installed npm package + Vite | 1107 | 608 | 579 | 0.0% | 5.14 |
-| Installed npm package + Closure ADVANCED | 1024 | 583 | 530 | -8.5% | 4.05 |
-| LilScript port | 1148 | 610 | 553 | -4.5% | 4.51 |
+| Installed npm package + Vite | 1107 | 608 | 579 | 0.0% | 5.12 |
+| Installed npm package + Closure ADVANCED | 1024 | 583 | 530 | -8.5% | 4.06 |
+| LilScript port | 1140 | 609 | 551 | -4.8% | 4.44 |
 
 | Full deploy (HTML + JS) | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
 | Installed npm package + Vite | 1387 | 829 | 712 |
 | Installed npm package + Closure ADVANCED | 1210 | 742 | 616 |
-| LilScript port | 1334 | 769 | 639 |
+| LilScript port | 1326 | 768 | 637 |
 
 ## Clamp and lerp
 
@@ -34,15 +34,15 @@ Translated upstream assertions: **10**. Added package-contract assertions: **0**
 
 | Deployable JavaScript | Raw | Gzip-9 | Brotli-11 | vs npm/Vite Brotli | Median ms |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Installed npm package + Vite | 1134 | 607 | 554 | 0.0% | 2.37 |
-| Installed npm package + Closure ADVANCED | 1169 | 630 | 562 | +1.4% | 2.38 |
-| LilScript port | 528 | 320 | 279 | -49.6% | 0.98 |
+| Installed npm package + Vite | 1134 | 607 | 554 | 0.0% | 2.43 |
+| Installed npm package + Closure ADVANCED | 1169 | 630 | 562 | +1.4% | 2.44 |
+| LilScript port | 525 | 320 | 275 | -50.4% | 1.02 |
 
 | Full deploy (HTML + JS) | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
 | Installed npm package + Vite | 1411 | 828 | 687 |
 | Installed npm package + Closure ADVANCED | 1355 | 789 | 648 |
-| LilScript port | 714 | 479 | 365 |
+| LilScript port | 711 | 479 | 361 |
 
 ## String hash
 
@@ -54,15 +54,15 @@ Translated upstream assertions: **2**. Added package-contract assertions: **2**.
 
 | Deployable JavaScript | Raw | Gzip-9 | Brotli-11 | vs npm/Vite Brotli | Median ms |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Installed npm package + Vite | 1076 | 637 | 568 | 0.0% | 3.41 |
-| Installed npm package + Closure ADVANCED | 1113 | 656 | 581 | +2.3% | 3.45 |
-| LilScript port | 481 | 356 | 308 | -45.8% | 2.83 |
+| Installed npm package + Vite | 1076 | 637 | 568 | 0.0% | 3.33 |
+| Installed npm package + Closure ADVANCED | 1113 | 656 | 581 | +2.3% | 3.36 |
+| LilScript port | 483 | 356 | 309 | -45.6% | 2.79 |
 
 | Full deploy (HTML + JS) | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
 | Installed npm package + Vite | 1354 | 857 | 698 |
 | Installed npm package + Closure ADVANCED | 1299 | 815 | 667 |
-| LilScript port | 667 | 515 | 394 |
+| LilScript port | 669 | 515 | 395 |
 
 ## Levenshtein distance
 
@@ -74,15 +74,15 @@ Translated upstream assertions: **14**. Added package-contract assertions: **0**
 
 | Deployable JavaScript | Raw | Gzip-9 | Brotli-11 | vs npm/Vite Brotli | Median ms |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Installed npm package + Vite | 1970 | 1077 | 969 | 0.0% | 6.17 |
-| Installed npm package + Closure ADVANCED | 2030 | 1099 | 996 | +2.8% | 6.20 |
-| LilScript port | 1580 | 897 | 776 | -19.9% | 6.32 |
+| Installed npm package + Vite | 1970 | 1077 | 969 | 0.0% | 6.05 |
+| Installed npm package + Closure ADVANCED | 2030 | 1099 | 996 | +2.8% | 6.04 |
+| LilScript port | 1576 | 896 | 773 | -20.2% | 6.12 |
 
 | Full deploy (HTML + JS) | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
 | Installed npm package + Vite | 2251 | 1300 | 1099 |
 | Installed npm package + Closure ADVANCED | 2216 | 1258 | 1082 |
-| LilScript port | 1766 | 1056 | 862 |
+| LilScript port | 1762 | 1055 | 859 |
 
 ## Emotion hash
 
@@ -94,15 +94,15 @@ Translated upstream assertions: **1**. Added package-contract assertions: **7**.
 
 | Deployable JavaScript | Raw | Gzip-9 | Brotli-11 | vs npm/Vite Brotli | Median ms |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Installed npm package + Vite | 907 | 498 | 430 | 0.0% | 11.90 |
-| Installed npm package + Closure ADVANCED | 924 | 496 | 434 | +0.9% | 11.84 |
-| LilScript port | 824 | 539 | 454 | +5.6% | 11.37 |
+| Installed npm package + Vite | 907 | 498 | 430 | 0.0% | 11.46 |
+| Installed npm package + Closure ADVANCED | 924 | 496 | 434 | +0.9% | 11.51 |
+| LilScript port | 816 | 532 | 452 | +5.1% | 11.13 |
 
 | Full deploy (HTML + JS) | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
 | Installed npm package + Vite | 1186 | 716 | 555 |
 | Installed npm package + Closure ADVANCED | 1110 | 655 | 520 |
-| LilScript port | 1010 | 698 | 540 |
+| LilScript port | 1002 | 691 | 538 |
 
 ## MurmurHash 2 and 3
 
@@ -114,15 +114,15 @@ Translated upstream assertions: **0**. Added package-contract assertions: **18**
 
 | Deployable JavaScript | Raw | Gzip-9 | Brotli-11 | vs npm/Vite Brotli | Median ms |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Installed npm package + Vite | 2782 | 1118 | 992 | 0.0% | 5.13 |
-| Installed npm package + Closure ADVANCED | 2905 | 1203 | 1059 | +6.8% | 5.19 |
-| LilScript port | 1741 | 840 | 734 | -26.0% | 4.42 |
+| Installed npm package + Vite | 2782 | 1118 | 992 | 0.0% | 5.11 |
+| Installed npm package + Closure ADVANCED | 2905 | 1203 | 1059 | +6.8% | 5.11 |
+| LilScript port | 1734 | 831 | 733 | -26.1% | 4.32 |
 
 | Full deploy (HTML + JS) | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
 | Installed npm package + Vite | 3062 | 1340 | 1131 |
 | Installed npm package + Closure ADVANCED | 3091 | 1362 | 1145 |
-| LilScript port | 1927 | 999 | 820 |
+| LilScript port | 1920 | 990 | 819 |
 
 ## Limits
 

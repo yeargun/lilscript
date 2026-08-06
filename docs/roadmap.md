@@ -79,23 +79,24 @@ checked-in benchmark workload. Passing a synthetic example alone is not enough.
   normalization expressions remain unchanged.
 - [x] Score configured inlining against a fully outlined optimizer IR under the
   selected codec for size-first single-file and ESM builds. The isolated
-  workload improves from `283/152/108` to `221/114/89` raw/gzip/Brotli, and the
-  complete Emotion hash port improves from `866/542/463` to `816/538/456`.
+  workload improves from `267/144/109` to `219/113/83` raw/gzip/Brotli, and the
+  complete Emotion hash port improves from `866/535/456` to `816/532/452`.
 - [x] Score capture-specialized closure-factory inlining against a partial IR
   that preserves reusable factories while retaining every other inliner. With
   the fully outlined baseline still available, twelve capture signatures
   improve from `677/244/173` to `627/243/172` raw/gzip/Brotli.
 - [x] Replace condition-only loop keyword frequency guesses with a bounded
-  codec-scored beam over equivalent `while(c)` and `for(;c;)` layouts. The
-  complete MurmurHash port chooses `1741/840/734` over the heuristic's
-  `1734/835/737`, an explicit raw/gzip trade for the configured Brotli
-  objective.
+  codec-scored beam over equivalent `while(c)` and `for(;c;)` layouts. An
+  order-sensitive control-flow fixture chooses `837/242/177` over the
+  heuristic's `527/243/178`, explicitly spending raw bytes for one-byte gzip
+  and Brotli wins. The complete MurmurHash port is currently neutral at
+  `1734/831/733` in both modes and is not presented as a loop-spelling win.
 - [x] Score assignment, prefix, and postfix forms for one-use loop-carried
   increments only after range analysis proves coercion-free i32 behavior. The
-  complete Levenshtein port improves from `1582/899/778` to `1580/897/776`.
+  complete Levenshtein port improves from `1578/897/776` to `1576/896/773`.
 - [x] Preserve up to eight candidates from every loop-spelling family before
   scoring mutation forms, preventing beam collapse across interacting layout
-  dimensions. Motion improves from `1148/611/557` to `1148/610/553`.
+  dimensions.
 - [ ] Expand optimizer-level IR variants from the current inlining choice to
   specialization, structural loop shape, and SSA destruction under the
   selected codec.

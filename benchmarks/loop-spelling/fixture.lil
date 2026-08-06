@@ -1,0 +1,118 @@
+int cursor = 0;
+bool advance(int limit) {
+  cursor ++;
+  return cursor < limit;
+}
+void drain0() {
+  while (advance(3)) {
+  }
+}
+void drain1() {
+  while (advance(5)) {
+  }
+}
+void drain2() {
+  while (advance(7)) {
+  }
+}
+void drain3() {
+  while (advance(9)) {
+  }
+}
+void drain4() {
+  while (advance(11)) {
+  }
+}
+void drain5() {
+  while (advance(13)) {
+  }
+}
+void drain6() {
+  while (advance(15)) {
+  }
+}
+void drain7() {
+  while (advance(17)) {
+  }
+}
+void count0() {
+  for (int index = 0;index < 10;index ++) {
+    if (index == 2) {
+      break;
+    }
+    cursor += index;
+  }
+}
+void count1() {
+  for (int index = 0;index < 10;index ++) {
+    if (index == 3) {
+      break;
+    }
+    cursor += index;
+  }
+}
+void count2() {
+  for (int index = 0;index < 10;index ++) {
+    if (index == 4) {
+      break;
+    }
+    cursor += index;
+  }
+}
+void count3() {
+  for (int index = 0;index < 10;index ++) {
+    if (index == 5) {
+      break;
+    }
+    cursor += index;
+  }
+}
+void count4() {
+  for (int index = 0;index < 10;index ++) {
+    if (index == 6) {
+      break;
+    }
+    cursor += index;
+  }
+}
+void count5() {
+  for (int index = 0;index < 10;index ++) {
+    if (index == 7) {
+      break;
+    }
+    cursor += index;
+  }
+}
+void count6() {
+  for (int index = 0;index < 10;index ++) {
+    if (index == 8) {
+      break;
+    }
+    cursor += index;
+  }
+}
+void count7() {
+  for (int index = 0;index < 10;index ++) {
+    if (index == 9) {
+      break;
+    }
+    cursor += index;
+  }
+}
+drain0();
+drain1();
+drain2();
+drain3();
+drain4();
+drain5();
+drain6();
+drain7();
+count0();
+count1();
+count2();
+count3();
+count4();
+count5();
+count6();
+count7();
+print(cursor);

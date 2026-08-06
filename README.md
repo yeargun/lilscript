@@ -299,7 +299,7 @@ both variants and toggles only interprocedural finite-value propagation. Both
 artifacts execute the same contract; the pass reduces the checked workload from
 `214/157/121` to `143/108/77` raw/gzip-9/Brotli-11 bytes.
 The inlining-IR ablation holds every other optimizer and emitter decision
-constant; exact codec selection improves `283/152/108` to `221/114/89`.
+constant; exact codec selection improves `267/144/109` to `219/113/83`.
 
 The source-neutral lane in `benchmarks/paired` mechanically generates readable
 LilScript and JavaScript from one workload schema. Every case must agree through
@@ -309,8 +309,8 @@ separate Chromium gate uses alternating warmed samples and requires the 95%
 bootstrap upper runtime ratio to remain at or below `1.03`. These are scoped
 regression gates, not universal compiler-superiority claims.
 
-On the repository's ten compiler workloads LilScript totals 1,466 raw / 1,287
-gzip / 1,061 Brotli bytes versus Closure at 2,450 / 1,771 / 1,471. LilScript is
+On the repository's ten compiler workloads LilScript totals 1,456 raw / 1,276
+gzip / 1,028 Brotli bytes versus Closure at 2,450 / 1,771 / 1,471. LilScript is
 smaller in all 30 measured cells. The separate application lab
 compares five readable JavaScript references with matching-scope LilScript,
 feeds those exact references to Closure `ADVANCED`, and keeps hand-specialized
