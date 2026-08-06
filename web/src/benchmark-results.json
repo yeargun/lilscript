@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "generatedAt": "2026-08-06T15:16:10.718Z",
-    "compilerRevision": "f72e0a4",
+    "generatedAt": "2026-08-06T15:23:16.387Z",
+    "compilerRevision": "0d36ed8",
     "node": "v24.11.1",
     "vite": "8.2.0",
     "esbuild": "0.28.1",
@@ -30,7 +30,7 @@
           "raw": 1163,
           "gzip": 464,
           "brotli": 379,
-          "medianMs": 3.3160839999999325
+          "medianMs": 3.3514580000000933
         },
         {
           "id": "esbuild",
@@ -38,7 +38,7 @@
           "raw": 544,
           "gzip": 310,
           "brotli": 265,
-          "medianMs": 3.1195829999999773
+          "medianMs": 3.0982920000001286
         },
         {
           "id": "closure",
@@ -46,7 +46,7 @@
           "raw": 489,
           "gzip": 302,
           "brotli": 250,
-          "medianMs": 3.0745829999999614
+          "medianMs": 3.062332999999967
         },
         {
           "id": "hand",
@@ -54,7 +54,7 @@
           "raw": 245,
           "gzip": 194,
           "brotli": 170,
-          "medianMs": 2.917291999999975
+          "medianMs": 2.900250000000028
         },
         {
           "id": "lilscript",
@@ -62,7 +62,7 @@
           "raw": 519,
           "gzip": 305,
           "brotli": 275,
-          "medianMs": 3.336999999999989
+          "medianMs": 3.3433750000000373
         }
       ],
       "ecosystem": {
@@ -75,7 +75,7 @@
         "raw": 4900,
         "gzip": 1932,
         "brotli": 1752,
-        "medianMs": 22.27299999999991
+        "medianMs": 22.484041999999988
       }
     },
     {
@@ -94,7 +94,7 @@
           "raw": 1033,
           "gzip": 393,
           "brotli": 320,
-          "medianMs": 1.6310419999999937
+          "medianMs": 1.636624999999981
         },
         {
           "id": "esbuild",
@@ -102,7 +102,7 @@
           "raw": 506,
           "gzip": 280,
           "brotli": 244,
-          "medianMs": 1.525624999999991
+          "medianMs": 1.525000000000034
         },
         {
           "id": "closure",
@@ -110,7 +110,7 @@
           "raw": 351,
           "gzip": 244,
           "brotli": 198,
-          "medianMs": 1.522625000000005
+          "medianMs": 1.475750000000005
         },
         {
           "id": "hand",
@@ -118,7 +118,7 @@
           "raw": 112,
           "gzip": 125,
           "brotli": 102,
-          "medianMs": 0.6303340000000048
+          "medianMs": 0.6252920000000017
         },
         {
           "id": "lilscript",
@@ -126,7 +126,7 @@
           "raw": 315,
           "gzip": 227,
           "brotli": 192,
-          "medianMs": 1.599207999999976
+          "medianMs": 1.6495409999999993
         }
       ],
       "ecosystem": {
@@ -139,7 +139,7 @@
         "raw": 697,
         "gzip": 477,
         "brotli": 388,
-        "medianMs": 6.427666999999985
+        "medianMs": 6.5031660000000215
       }
     },
     {
@@ -158,7 +158,7 @@
           "raw": 1208,
           "gzip": 489,
           "brotli": 441,
-          "medianMs": 10.64100000000002
+          "medianMs": 10.617457999999942
         },
         {
           "id": "esbuild",
@@ -166,7 +166,7 @@
           "raw": 545,
           "gzip": 327,
           "brotli": 299,
-          "medianMs": 10.676750000000084
+          "medianMs": 10.545583000000079
         },
         {
           "id": "closure",
@@ -174,7 +174,7 @@
           "raw": 521,
           "gzip": 319,
           "brotli": 298,
-          "medianMs": 10.710792000000083
+          "medianMs": 10.631500000000187
         },
         {
           "id": "hand",
@@ -182,7 +182,7 @@
           "raw": 409,
           "gzip": 273,
           "brotli": 257,
-          "medianMs": 9.779500000000098
+          "medianMs": 9.734082999999828
         },
         {
           "id": "lilscript",
@@ -190,7 +190,7 @@
           "raw": 604,
           "gzip": 370,
           "brotli": 333,
-          "medianMs": 10.67254099999991
+          "medianMs": 10.665500000000065
         }
       ]
     },
@@ -210,7 +210,7 @@
           "raw": 884,
           "gzip": 395,
           "brotli": 332,
-          "medianMs": 1.1717079999999953
+          "medianMs": 1.2574160000000063
         },
         {
           "id": "esbuild",
@@ -218,7 +218,7 @@
           "raw": 361,
           "gzip": 258,
           "brotli": 214,
-          "medianMs": 1.1843750000000028
+          "medianMs": 1.2429580000000016
         },
         {
           "id": "closure",
@@ -226,7 +226,7 @@
           "raw": 335,
           "gzip": 257,
           "brotli": 211,
-          "medianMs": 1.1258749999999935
+          "medianMs": 1.234499999999997
         },
         {
           "id": "hand",
@@ -234,7 +234,7 @@
           "raw": 123,
           "gzip": 122,
           "brotli": 112,
-          "medianMs": 0.5557920000000109
+          "medianMs": 0.5881669999999986
         },
         {
           "id": "lilscript",
@@ -242,7 +242,7 @@
           "raw": 277,
           "gzip": 226,
           "brotli": 191,
-          "medianMs": 1.1295829999999967
+          "medianMs": 1.2288750000000164
         }
       ]
     },
@@ -262,7 +262,7 @@
           "raw": 698,
           "gzip": 360,
           "brotli": 305,
-          "medianMs": 0.883416000000004
+          "medianMs": 0.8907910000000072
         },
         {
           "id": "esbuild",
@@ -270,7 +270,7 @@
           "raw": 270,
           "gzip": 205,
           "brotli": 174,
-          "medianMs": 0.8690830000000176
+          "medianMs": 0.8713750000000005
         },
         {
           "id": "closure",
@@ -278,7 +278,7 @@
           "raw": 144,
           "gzip": 146,
           "brotli": 143,
-          "medianMs": 0.7325830000000053
+          "medianMs": 0.7111659999999915
         },
         {
           "id": "hand",
@@ -286,7 +286,7 @@
           "raw": 119,
           "gzip": 126,
           "brotli": 104,
-          "medianMs": 0.625040999999996
+          "medianMs": 0.5938750000000113
         },
         {
           "id": "lilscript",
@@ -294,7 +294,7 @@
           "raw": 164,
           "gzip": 155,
           "brotli": 133,
-          "medianMs": 0.7035419999999988
+          "medianMs": 0.7039160000000066
         },
         {
           "id": "lilscript-specialized",
@@ -302,7 +302,7 @@
           "raw": 133,
           "gzip": 137,
           "brotli": 106,
-          "medianMs": 0.5860000000000127
+          "medianMs": 0.5765829999999994
         }
       ],
       "ecosystem": {
@@ -315,7 +315,7 @@
         "raw": 10571,
         "gzip": 4546,
         "brotli": 4152,
-        "medianMs": 2.2931250000000034
+        "medianMs": 2.273541999999992
       }
     }
   ]

@@ -1,6 +1,6 @@
 # Complete library compatibility results
 
-Generated 2026-08-06T15:16:19.563Z from LilScript `f72e0a4` with Node `v24.11.1`, Vite `8.2.0`, esbuild `0.28.1`, and Closure Compiler `20260803.0.0`.
+Generated 2026-08-06T15:23:28.541Z from LilScript `0d36ed8` with Node `v24.11.1`, Vite `8.2.0`, esbuild `0.28.1`, and Closure Compiler `20260803.0.0`.
 
 Each row executes the same checked app contract. The npm rows use the installed package, not a hand-specialized substitute. Closure receives an unminified esbuild bundle of that npm app because Closure does not install or resolve the package itself in this lab. LilScript also emits C and a native executable, and both must match before measurements are published.
 
@@ -15,8 +15,8 @@ Translated upstream assertions: **27**. Monthly downloads at selection time: **9
 | Deployable JavaScript | Raw | Gzip-9 | Brotli-11 | vs npm/Vite Brotli | Median ms |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Installed npm package + Vite | 1091 | 595 | 560 | 0.0% | 5.58 |
-| Installed npm package + Closure ADVANCED | 1023 | 574 | 524 | -6.4% | 4.25 |
-| LilScript port | 1432 | 814 | 715 | +27.7% | 4.75 |
+| Installed npm package + Closure ADVANCED | 1023 | 574 | 524 | -6.4% | 4.28 |
+| LilScript port | 1432 | 814 | 715 | +27.7% | 4.76 |
 
 | Full deploy (HTML + JS) | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
@@ -34,8 +34,8 @@ Translated upstream assertions: **10**. Monthly downloads at selection time: **4
 
 | Deployable JavaScript | Raw | Gzip-9 | Brotli-11 | vs npm/Vite Brotli | Median ms |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Installed npm package + Vite | 1134 | 607 | 554 | 0.0% | 2.38 |
-| Installed npm package + Closure ADVANCED | 1169 | 630 | 562 | +1.4% | 2.38 |
+| Installed npm package + Vite | 1134 | 607 | 554 | 0.0% | 2.37 |
+| Installed npm package + Closure ADVANCED | 1169 | 630 | 562 | +1.4% | 2.36 |
 | LilScript port | 557 | 350 | 304 | -45.1% | 0.97 |
 
 | Full deploy (HTML + JS) | Raw | Gzip-9 | Brotli-11 |
@@ -54,9 +54,9 @@ Translated upstream assertions: **2**. Monthly downloads at selection time: **19
 
 | Deployable JavaScript | Raw | Gzip-9 | Brotli-11 | vs npm/Vite Brotli | Median ms |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Installed npm package + Vite | 1076 | 637 | 568 | 0.0% | 3.40 |
-| Installed npm package + Closure ADVANCED | 1113 | 656 | 581 | +2.3% | 3.39 |
-| LilScript port | 533 | 391 | 342 | -39.8% | 2.89 |
+| Installed npm package + Vite | 1076 | 637 | 568 | 0.0% | 3.42 |
+| Installed npm package + Closure ADVANCED | 1113 | 656 | 581 | +2.3% | 3.37 |
+| LilScript port | 533 | 391 | 342 | -39.8% | 2.88 |
 
 | Full deploy (HTML + JS) | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |

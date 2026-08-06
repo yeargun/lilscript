@@ -287,8 +287,8 @@ separate Chromium gate uses alternating warmed samples and requires the 95%
 bootstrap upper runtime ratio to remain at or below `1.03`. These are scoped
 regression gates, not universal compiler-superiority claims.
 
-On the repository's nine compiler workloads LilScript totals 1,500 raw / 1,295
-gzip / 1,059 Brotli bytes versus Closure at 2,357 / 1,687 / 1,382. LilScript is
+On the repository's nine compiler workloads LilScript totals 1,496 raw / 1,290
+gzip / 1,055 Brotli bytes versus Closure at 2,357 / 1,687 / 1,382. LilScript is
 smaller in all 27 measured cells. The separate application lab
 compares five readable JavaScript references with matching-scope LilScript,
 feeds those exact references to Closure `ADVANCED`, and keeps hand-specialized
@@ -300,7 +300,7 @@ totals. All 26 comparable/diagnostic JavaScript artifacts, three Vite package
 builds, and six native executables pass checked-in output contracts. Matching
 those contracts is regression evidence, not proof of complete library
 compatibility. In the checked-in 25-sample module-evaluation run, LilScript is
-1.018x Closure's runtime and hand-specialized JavaScript is 0.685x, so runtime
+1.038x Closure's runtime and hand-specialized JavaScript is 0.681x, so runtime
 parity is not yet claimed. Compiler methodology and tables are in
 [docs/benchmark-results.md](docs/benchmark-results.md); the pass-by-pass
 responsibility mapping is in
