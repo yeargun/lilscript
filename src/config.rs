@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use serde::Deserialize;
 
 use crate::codegen_ir_js::{
-    IdentifierAlphabet, IrJsOptions, LoopSpelling, PhiAffinityMode, StringQuote,
+    IdentifierAlphabet, IrJsOptions, LoopSpelling, MutationSpelling, PhiAffinityMode, StringQuote,
 };
 use crate::optimizer::OptimizationOptions;
 
@@ -94,6 +94,7 @@ impl ProjectConfig {
                 PhiAffinityMode::Conservative
             },
             loop_spelling: LoopSpelling::Auto,
+            mutation_spelling: MutationSpelling::Assignment,
             identifier_alphabet: IdentifierAlphabet::canonical(),
             string_quote: StringQuote::Double,
         }
@@ -128,6 +129,13 @@ impl ProjectConfig {
             && self
                 .javascript
                 .compression_enabled(CompressionDecision::LoopSpellingSelection)
+    }
+
+    pub fn mutation_spelling_selection_enabled(&self) -> bool {
+        self.javascript.candidate_search_enabled()
+            && self
+                .javascript
+                .compression_enabled(CompressionDecision::MutationSpellingSelection)
     }
 
     pub fn validate(&self) -> Result<(), String> {
@@ -208,6 +216,7 @@ impl JavaScriptPriority {
             CompressionDecision::IrInliningVariants => matches!(self, Self::SizeFirst),
             CompressionDecision::IrClosureFactoryVariants => matches!(self, Self::SizeFirst),
             CompressionDecision::LoopSpellingSelection => matches!(self, Self::SizeFirst),
+            CompressionDecision::MutationSpellingSelection => matches!(self, Self::SizeFirst),
             CompressionDecision::PropertyMangling | CompressionDecision::ExportMangling => false,
         }
     }
@@ -253,6 +262,7 @@ pub enum CompressionDecision {
     IrInliningVariants,
     IrClosureFactoryVariants,
     LoopSpellingSelection,
+    MutationSpellingSelection,
 }
 
 impl CompressionDecision {
@@ -274,6 +284,7 @@ impl CompressionDecision {
             Self::IrInliningVariants => "ir-inlining-variants",
             Self::IrClosureFactoryVariants => "ir-closure-factory-variants",
             Self::LoopSpellingSelection => "loop-spelling-selection",
+            Self::MutationSpellingSelection => "mutation-spelling-selection",
         }
     }
 }
@@ -694,6 +705,7 @@ shared_min_imports = 3
         assert!(size.ir_inlining_variants_enabled());
         assert!(size.ir_closure_factory_variants_enabled());
         assert!(size.loop_spelling_selection_enabled());
+        assert!(size.mutation_spelling_selection_enabled());
         assert_eq!(
             size.js_options().phi_affinity_mode,
             PhiAffinityMode::Grouped
@@ -708,6 +720,7 @@ shared_min_imports = 3
         assert!(!performance.ir_inlining_variants_enabled());
         assert!(!performance.ir_closure_factory_variants_enabled());
         assert!(!performance.loop_spelling_selection_enabled());
+        assert!(!performance.mutation_spelling_selection_enabled());
 
         let explicit_pooling: ProjectConfig = toml::from_str(
             "[javascript]\npriority='performance-first'\n[mangle]\npool_strings=true\n",
@@ -748,6 +761,7 @@ max_inline_growth = 3
         assert!(!custom.ir_inlining_variants_enabled());
         assert!(!custom.ir_closure_factory_variants_enabled());
         assert!(!custom.loop_spelling_selection_enabled());
+        assert!(!custom.mutation_spelling_selection_enabled());
 
         let none: ProjectConfig = toml::from_str("[javascript]\ncompression=[]\n").unwrap();
         let none_codegen = none.js_options();

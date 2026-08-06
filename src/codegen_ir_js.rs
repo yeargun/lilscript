@@ -35,6 +35,7 @@ pub struct IrJsOptions {
     pub scalar_phi_copies: bool,
     pub phi_affinity_mode: PhiAffinityMode,
     pub loop_spelling: LoopSpelling,
+    pub mutation_spelling: MutationSpelling,
     pub identifier_alphabet: IdentifierAlphabet,
     pub string_quote: StringQuote,
 }
@@ -53,6 +54,7 @@ impl Default for IrJsOptions {
             scalar_phi_copies: false,
             phi_affinity_mode: PhiAffinityMode::Grouped,
             loop_spelling: LoopSpelling::Auto,
+            mutation_spelling: MutationSpelling::Assignment,
             identifier_alphabet: IdentifierAlphabet::canonical(),
             string_quote: StringQuote::Double,
         }
@@ -80,6 +82,14 @@ pub enum LoopSpelling {
     Auto,
     While,
     For,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum MutationSpelling {
+    #[default]
+    Assignment,
+    Prefix,
+    Postfix,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1888,16 +1898,44 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             sources.push(strip_outer_parens(take_value(*source, context, cache)?));
         }
         let mut assignments = Vec::with_capacity(copies.len());
+        let mut single_assignment_copy = None;
         let mut declaration_needed = false;
-        for ((target, _), source) in copies.iter().zip(sources) {
+        for ((target, source_value), source) in copies.iter().zip(sources) {
             let target_value = *target;
             let target = context.value_name(target_value)?.to_string();
             if target != source {
                 declaration_needed |= context.claim_declaration(target_value)?;
+                single_assignment_copy = assignments
+                    .is_empty()
+                    .then_some((target_value, *source_value));
                 assignments.push((target, source));
             }
         }
         if assignments.len() == 1 {
+            let compact_update = (!declaration_needed
+                && self.options.mutation_spelling != MutationSpelling::Assignment
+                && single_assignment_copy.is_some_and(|(target, source)| {
+                    is_one_use_increment_copy(
+                        function,
+                        BlockId(from),
+                        target,
+                        source,
+                        &context.use_counts,
+                        context,
+                    )
+                }))
+            .then_some(self.options.mutation_spelling);
+            if let Some(spelling) = compact_update {
+                if spelling == MutationSpelling::Prefix {
+                    out.push_str("++");
+                }
+                out.push_str(&assignments[0].0);
+                if spelling == MutationSpelling::Postfix {
+                    out.push_str("++");
+                }
+                out.push(';');
+                return Ok(());
+            }
             if declaration_needed {
                 out.push_str("var ");
             }
@@ -3087,6 +3125,47 @@ fn for_update_clause(output: &str) -> Option<String> {
     .then(|| clause.to_string())
 }
 
+fn is_one_use_increment_copy(
+    function: &ControlFlowFunction<'_>,
+    from: BlockId,
+    target: ValueId,
+    source: ValueId,
+    uses: &AHashMap<ValueId, usize>,
+    context: &LocalNames,
+) -> bool {
+    if uses.get(&source).copied() != Some(1) || !context.can_elide_i32_coercion(source) {
+        return false;
+    }
+    let Some(instruction) = function.blocks[from.0 as usize]
+        .instructions
+        .iter()
+        .find(|instruction| instruction.out == Some(source))
+    else {
+        return false;
+    };
+    let ControlFlowOp::Binary {
+        op: IrBinaryOp::Add,
+        lhs,
+        rhs,
+    } = instruction.op
+    else {
+        return false;
+    };
+    (lhs == target && is_int_constant(function, rhs, 1))
+        || (rhs == target && is_int_constant(function, lhs, 1))
+}
+
+fn is_int_constant(function: &ControlFlowFunction<'_>, value: ValueId, expected: i64) -> bool {
+    function
+        .blocks
+        .iter()
+        .flat_map(|block| &block.instructions)
+        .any(|instruction| {
+            instruction.out == Some(value)
+                && matches!(instruction.op, ControlFlowOp::Const(ConstValue::Int(value)) if value == expected)
+        })
+}
+
 fn parse_single_assignment(output: &str) -> Option<(bool, &str, &str, &str)> {
     let statement = output.strip_suffix(';')?;
     let (declare, statement) = statement
@@ -3284,6 +3363,7 @@ struct LocalNames {
     elidable_i32_coercions: AHashSet<ValueId>,
     parallel_copy_temp: Option<String>,
     live_in_values: Vec<AHashSet<ValueId>>,
+    use_counts: AHashMap<ValueId, usize>,
     declared_names: RefCell<AHashSet<String>>,
     inline_declarations: bool,
     state: String,
@@ -3628,6 +3708,7 @@ impl LocalNames {
                 .collect(),
             parallel_copy_temp,
             live_in_values,
+            use_counts: use_counts(function),
             declared_names: RefCell::new(declared_names),
             inline_declarations: false,
             state,
@@ -5882,6 +5963,28 @@ mod tests {
 
         assert!(as_while.contains("while(ready())"), "{as_while}");
         assert!(as_for.contains("for(;ready();)"), "{as_for}");
+    }
+
+    #[test]
+    fn compacts_only_range_proven_one_use_increments() {
+        let proven = compile_with_options(
+            "int total=0;for(int index=0;index<4;index++){total+=index;}print(total);",
+            IrJsOptions {
+                mutation_spelling: MutationSpelling::Postfix,
+                ..IrJsOptions::default()
+            },
+        );
+        let unknown = compile_with_options(
+            "extern int read();int index=read();while(index<read()){index++;}print(index);",
+            IrJsOptions {
+                mutation_spelling: MutationSpelling::Postfix,
+                ..IrJsOptions::default()
+            },
+        );
+
+        assert!(proven.contains("++"), "{proven}");
+        assert!(!unknown.contains("++"), "{unknown}");
+        assert!(unknown.contains("+1|0"), "{unknown}");
     }
 
     #[test]
