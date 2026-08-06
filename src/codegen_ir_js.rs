@@ -1843,7 +1843,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             | IrBinaryOp::Mul
                             | IrBinaryOp::Div
                             | IrBinaryOp::Mod
+                            | IrBinaryOp::BitAnd
+                            | IrBinaryOp::BitOr
                             | IrBinaryOp::Xor
+                            | IrBinaryOp::ShiftLeft
+                            | IrBinaryOp::ShiftRight
+                            | IrBinaryOp::UnsignedShiftRight
                     ) =>
                 {
                     let lhs = take_value(*lhs, context, cache)?;
@@ -1854,7 +1859,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         IrBinaryOp::Mod if is_nonzero_i32_literal(&rhs) => {
                             format!("({lhs}%{rhs})")
                         }
+                        IrBinaryOp::BitAnd => format!("({lhs}&{rhs})"),
+                        IrBinaryOp::BitOr => format!("({lhs}|{rhs})"),
                         IrBinaryOp::Xor => format!("({lhs}^{rhs})"),
+                        IrBinaryOp::ShiftLeft => format!("({lhs}<<{rhs})"),
+                        IrBinaryOp::ShiftRight => format!("({lhs}>>{rhs})"),
+                        IrBinaryOp::UnsignedShiftRight => format!("({lhs}>>>{rhs}|0)"),
                         _ if coercion_is_elidable => {
                             format!("({lhs}{}{rhs})", binary_operator(*op))
                         }
@@ -2132,6 +2142,18 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     cache,
                 )?;
                 return Ok(format!("({call}|0)"));
+            }
+            Intrinsic::IntToString | Intrinsic::IntToUnsignedString => {
+                let radix = if let Some(radix) = args.first() {
+                    take_value(*radix, context, cache)?
+                } else {
+                    "10".to_string()
+                };
+                return Ok(if matches!(intrinsic, Intrinsic::IntToUnsignedString) {
+                    format!("({receiver}>>>0).toString({radix})")
+                } else {
+                    format!("({receiver}).toString({radix})")
+                });
             }
             Intrinsic::FloatAbs
             | Intrinsic::FloatFloor
@@ -3818,7 +3840,10 @@ fn op_can_defer(op: &ControlFlowOp<'_>) -> bool {
             | ControlFlowOp::Closure { .. }
             | ControlFlowOp::Template(_)
             | ControlFlowOp::Intrinsic {
-                intrinsic: Intrinsic::StringLength | Intrinsic::IntImul,
+                intrinsic: Intrinsic::StringLength
+                    | Intrinsic::IntImul
+                    | Intrinsic::IntToString
+                    | Intrinsic::IntToUnsignedString,
                 ..
             }
     )
@@ -4062,7 +4087,12 @@ fn binary_operator(op: IrBinaryOp) -> &'static str {
         IrBinaryOp::Mul => "*",
         IrBinaryOp::Div => "/",
         IrBinaryOp::Mod => "%",
+        IrBinaryOp::BitAnd => "&",
+        IrBinaryOp::BitOr => "|",
         IrBinaryOp::Xor => "^",
+        IrBinaryOp::ShiftLeft => "<<",
+        IrBinaryOp::ShiftRight => ">>",
+        IrBinaryOp::UnsignedShiftRight => ">>>",
         IrBinaryOp::Eq => "==",
         IrBinaryOp::NotEq => "!=",
         IrBinaryOp::Less => "<",

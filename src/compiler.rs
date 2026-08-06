@@ -1012,6 +1012,11 @@ mod tests {
             .unwrap(),
             "console.log(25)"
         );
+
+        assert!(compile_source(
+            "pure int localWork(int value){int[] work=[];work.push(value);work[0]+=1;return work[0];}print(localWork(4));"
+        )
+        .is_ok());
     }
 
     #[test]

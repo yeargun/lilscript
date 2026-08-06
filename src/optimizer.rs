@@ -693,6 +693,8 @@ fn is_commutative(op: IrBinaryOp) -> bool {
         op,
         IrBinaryOp::Add
             | IrBinaryOp::Mul
+            | IrBinaryOp::BitAnd
+            | IrBinaryOp::BitOr
             | IrBinaryOp::Eq
             | IrBinaryOp::NotEq
             | IrBinaryOp::Xor
@@ -1274,6 +1276,36 @@ fn fold_and_propagate_control_flow(module: &mut ControlFlowModule<'_>) -> Optimi
                         }
                         ControlFlowOp::Intrinsic {
                             intrinsic:
+                                intrinsic @ (Intrinsic::IntToString | Intrinsic::IntToUnsignedString),
+                            receiver: Some(receiver),
+                            args,
+                        } => {
+                            let folded = constants.get(receiver).and_then(|receiver| {
+                                let ConstValue::Int(value) = receiver else {
+                                    return None;
+                                };
+                                let radix = args
+                                    .first()
+                                    .map(|argument| constants.get(argument))
+                                    .unwrap_or(Some(&ConstValue::Int(10)));
+                                let Some(ConstValue::Int(radix @ 2..=36)) = radix else {
+                                    return None;
+                                };
+                                Some(ConstValue::String(format_i32_radix(
+                                    *value as i32,
+                                    *radix as u32,
+                                    matches!(intrinsic, Intrinsic::IntToUnsignedString),
+                                )))
+                            });
+                            if let Some(folded) = folded {
+                                instruction.op = ControlFlowOp::Const(folded.clone());
+                                constants.insert(out, folded);
+                                changed = true;
+                                local_change = true;
+                            }
+                        }
+                        ControlFlowOp::Intrinsic {
+                            intrinsic:
                                 intrinsic @ (Intrinsic::FloatAbs
                                 | Intrinsic::FloatFloor
                                 | Intrinsic::FloatCeil
@@ -1420,6 +1452,8 @@ fn literal_array_lengths_are_stable(function: &ControlFlowFunction<'_>) -> bool 
                 intrinsic,
                 Intrinsic::Print
                     | Intrinsic::IntImul
+                    | Intrinsic::IntToString
+                    | Intrinsic::IntToUnsignedString
                     | Intrinsic::ArrayLength
                     | Intrinsic::FloatAbs
                     | Intrinsic::FloatFloor
@@ -2911,12 +2945,33 @@ fn find_effectful_functions(module: &ControlFlowModule<'_>) -> AHashSet<crate::i
                 continue;
             }
             let targets = closure_targets(function);
+            let local_mutables = function
+                .blocks
+                .iter()
+                .flat_map(|block| &block.instructions)
+                .filter_map(|instruction| match instruction.op {
+                    ControlFlowOp::Array(_)
+                    | ControlFlowOp::Struct { .. }
+                    | ControlFlowOp::NewClass { .. }
+                    | ControlFlowOp::Intrinsic {
+                        intrinsic:
+                            Intrinsic::MapNew
+                            | Intrinsic::SetNew
+                            | Intrinsic::ArrayBufferNew
+                            | Intrinsic::SharedArrayBufferNew
+                            | Intrinsic::Uint8ArrayNew,
+                        ..
+                    } => instruction.out,
+                    _ => None,
+                })
+                .collect::<AHashSet<_>>();
             let has_effect = function
                 .blocks
                 .iter()
                 .flat_map(|block| &block.instructions)
                 .any(|instruction| {
-                    control_flow_op_has_side_effects(&instruction.op, &effectful, &targets)
+                    !is_local_mutation(&instruction.op, &local_mutables)
+                        && control_flow_op_has_side_effects(&instruction.op, &effectful, &targets)
                 });
             if has_effect {
                 effectful.insert(function.id);
@@ -2926,6 +2981,28 @@ fn find_effectful_functions(module: &ControlFlowModule<'_>) -> AHashSet<crate::i
         if !changed {
             return effectful;
         }
+    }
+}
+
+fn is_local_mutation(op: &ControlFlowOp<'_>, local_mutables: &AHashSet<ValueId>) -> bool {
+    match op {
+        ControlFlowOp::FieldSet { object, .. } | ControlFlowOp::IndexSet { object, .. } => {
+            local_mutables.contains(object)
+        }
+        ControlFlowOp::Intrinsic {
+            intrinsic:
+                Intrinsic::ArrayPush
+                | Intrinsic::ArrayPop
+                | Intrinsic::MapSet
+                | Intrinsic::MapDelete
+                | Intrinsic::MapClear
+                | Intrinsic::SetAdd
+                | Intrinsic::SetDelete
+                | Intrinsic::SetClear,
+            receiver: Some(receiver),
+            ..
+        } => local_mutables.contains(receiver),
+        _ => false,
     }
 }
 
@@ -3332,7 +3409,10 @@ fn push_template_string(parts: &mut Vec<TemplateOperand>, value: &str) {
 
 fn fold_binary(op: IrBinaryOp, lhs: &ConstValue, rhs: &ConstValue) -> Option<ConstValue> {
     use ConstValue::{Bool, Float, Int, String};
-    use IrBinaryOp::{Add, Div, Eq, Greater, GreaterEq, Less, LessEq, Mod, Mul, NotEq, Sub, Xor};
+    use IrBinaryOp::{
+        Add, BitAnd, BitOr, Div, Eq, Greater, GreaterEq, Less, LessEq, Mod, Mul, NotEq, ShiftLeft,
+        ShiftRight, Sub, UnsignedShiftRight, Xor,
+    };
 
     if let Some((lhs, rhs)) = mixed_numeric_constants(lhs, rhs) {
         return match op {
@@ -3359,7 +3439,18 @@ fn fold_binary(op: IrBinaryOp, lhs: &ConstValue, rhs: &ConstValue) -> Option<Con
         (Div, Int(_), Int(0)) | (Mod, Int(_), Int(0)) => None,
         (Div, Int(lhs), Int(rhs)) => Some(Int(i64::from((*lhs as i32).wrapping_div(*rhs as i32)))),
         (Mod, Int(lhs), Int(rhs)) => Some(Int(i64::from((*lhs as i32).wrapping_rem(*rhs as i32)))),
+        (BitAnd, Int(lhs), Int(rhs)) => Some(Int(i64::from((*lhs as i32) & (*rhs as i32)))),
+        (BitOr, Int(lhs), Int(rhs)) => Some(Int(i64::from((*lhs as i32) | (*rhs as i32)))),
         (Xor, Int(lhs), Int(rhs)) => Some(Int(i64::from((*lhs as i32) ^ (*rhs as i32)))),
+        (ShiftLeft, Int(lhs), Int(rhs)) => Some(Int(i64::from(
+            (*lhs as i32).wrapping_shl((*rhs as u32) & 31),
+        ))),
+        (ShiftRight, Int(lhs), Int(rhs)) => {
+            Some(Int(i64::from((*lhs as i32) >> ((*rhs as u32) & 31))))
+        }
+        (UnsignedShiftRight, Int(lhs), Int(rhs)) => Some(Int(i64::from(
+            (((*lhs as i32) as u32) >> ((*rhs as u32) & 31)) as i32,
+        ))),
         (Add, Float(lhs), Float(rhs)) => Some(Float(lhs + rhs)),
         (Sub, Float(lhs), Float(rhs)) => Some(Float(lhs - rhs)),
         (Mul, Float(lhs), Float(rhs)) => Some(Float(lhs * rhs)),
@@ -3385,6 +3476,29 @@ fn fold_binary(op: IrBinaryOp, lhs: &ConstValue, rhs: &ConstValue) -> Option<Con
 fn js_i32_multiply(lhs: i32, rhs: i32) -> i32 {
     let product = f64::from(lhs) * f64::from(rhs);
     (product as i64 as u32) as i32
+}
+
+fn format_i32_radix(value: i32, radix: u32, unsigned: bool) -> String {
+    const DIGITS: &[u8; 36] = b"0123456789abcdefghijklmnopqrstuvwxyz";
+    let negative = !unsigned && value < 0;
+    let mut magnitude = if unsigned {
+        value as u32
+    } else {
+        value.unsigned_abs()
+    };
+    let mut reversed = Vec::new();
+    loop {
+        reversed.push(DIGITS[(magnitude % radix) as usize]);
+        magnitude /= radix;
+        if magnitude == 0 {
+            break;
+        }
+    }
+    if negative {
+        reversed.push(b'-');
+    }
+    reversed.reverse();
+    String::from_utf8(reversed).expect("radix digits are ASCII")
 }
 
 fn mixed_numeric_constants(lhs: &ConstValue, rhs: &ConstValue) -> Option<(f64, f64)> {

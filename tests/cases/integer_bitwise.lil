@@ -1,0 +1,24 @@
+int all = -1;
+int sign = 1 << 31;
+print(sign);
+print(sign >> 31);
+print(all >>> 1);
+print(sign >>> 31);
+print(1 << 33);
+print(305419896 & 16711935);
+print(301989888 | 3407872);
+print(1437226410 ^ 252645135);
+
+int assigned = -1431655766;
+assigned &= 268435455;
+assigned |= 268435456;
+assigned ^= 16711935;
+assigned <<= 4;
+assigned >>= 2;
+assigned >>>= 1;
+print(assigned);
+
+print(all.toString(16));
+print(all.toUnsignedString(16));
+print(sign.toUnsignedString(2));
+print(35.toString(36));

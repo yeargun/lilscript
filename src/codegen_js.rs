@@ -931,9 +931,15 @@ impl<'src> JsEmitter<'src> {
         rhs: &Expr<'ast, 'src>,
         out: &mut String,
     ) -> Result<(), CodegenError> {
+        if op == BinaryOp::UnsignedShiftRight {
+            out.push('(');
+        }
         self.emit_expr_with_binary_parentheses(lhs, op, true, out)?;
         out.push_str(binary_op_js(op));
         self.emit_expr_with_binary_parentheses(rhs, op, false, out)?;
+        if op == BinaryOp::UnsignedShiftRight {
+            out.push_str("|0)");
+        }
         Ok(())
     }
 
@@ -957,6 +963,9 @@ impl<'src> JsEmitter<'src> {
                             BinaryOp::Sub
                                 | BinaryOp::Div
                                 | BinaryOp::Mod
+                                | BinaryOp::ShiftLeft
+                                | BinaryOp::ShiftRight
+                                | BinaryOp::UnsignedShiftRight
                                 | BinaryOp::Less
                                 | BinaryOp::LessEq
                                 | BinaryOp::Greater
@@ -1091,7 +1100,12 @@ fn binary_op_js(op: BinaryOp) -> &'static str {
         BinaryOp::Mul => "*",
         BinaryOp::Div => "/",
         BinaryOp::Mod => "%",
+        BinaryOp::BitAnd => "&",
+        BinaryOp::BitOr => "|",
         BinaryOp::Xor => "^",
+        BinaryOp::ShiftLeft => "<<",
+        BinaryOp::ShiftRight => ">>",
+        BinaryOp::UnsignedShiftRight => ">>>",
         BinaryOp::Eq => "==",
         BinaryOp::NotEq => "!=",
         BinaryOp::Less => "<",
@@ -1111,7 +1125,12 @@ fn assignment_op_js(op: AssignmentOp) -> &'static str {
         AssignmentOp::Mul => "*=",
         AssignmentOp::Div => "/=",
         AssignmentOp::Mod => "%=",
+        AssignmentOp::BitAnd => "&=",
+        AssignmentOp::BitOr => "|=",
         AssignmentOp::Xor => "^=",
+        AssignmentOp::ShiftLeft => "<<=",
+        AssignmentOp::ShiftRight => ">>=",
+        AssignmentOp::UnsignedShiftRight => ">>>=",
     }
 }
 
@@ -1119,11 +1138,14 @@ fn binary_precedence(op: BinaryOp) -> u8 {
     match op {
         BinaryOp::Or => 1,
         BinaryOp::And => 2,
-        BinaryOp::Xor => 3,
-        BinaryOp::Eq | BinaryOp::NotEq => 4,
-        BinaryOp::Less | BinaryOp::LessEq | BinaryOp::Greater | BinaryOp::GreaterEq => 5,
-        BinaryOp::Add | BinaryOp::Sub => 6,
-        BinaryOp::Mul | BinaryOp::Div | BinaryOp::Mod => 7,
+        BinaryOp::BitOr => 3,
+        BinaryOp::Xor => 4,
+        BinaryOp::BitAnd => 5,
+        BinaryOp::Eq | BinaryOp::NotEq => 6,
+        BinaryOp::Less | BinaryOp::LessEq | BinaryOp::Greater | BinaryOp::GreaterEq => 7,
+        BinaryOp::ShiftLeft | BinaryOp::ShiftRight | BinaryOp::UnsignedShiftRight => 8,
+        BinaryOp::Add | BinaryOp::Sub => 9,
+        BinaryOp::Mul | BinaryOp::Div | BinaryOp::Mod => 10,
     }
 }
 

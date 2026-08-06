@@ -716,6 +716,11 @@ fn completion_result(source: Option<&str>) -> Value {
             "Math.imul(${1:left}, ${2:right})",
             "Exact low-32-bit integer multiplication",
         ),
+        snippet(
+            "toUnsignedString",
+            "toUnsignedString(${1:36})",
+            "Format an integer's unsigned 32-bit bit pattern",
+        ),
         function_item("print", "Portable observable output intrinsic"),
     ];
 
@@ -813,6 +818,8 @@ fn language_help(word: &str) -> Option<&'static str> {
         "int" => "Signed 32-bit integer. Ordinary multiplication follows JavaScript number multiplication followed by i32 normalization.",
         "Math" => "Built-in numeric namespace containing the explicit `Math.imul(int, int)` intrinsic.",
         "imul" => "Returns the exact low 32 bits of two integer operands. The compiler preserves explicit calls and never introduces them for ordinary `*`.",
+        "toUnsignedString" => "Formats an int's unsigned 32-bit bit pattern with a radix from 2 through 36.",
+        "toString" => "Formats a signed int with a radix from 2 through 36.",
         "float" => "IEEE-754 binary64 floating-point value.",
         "string" => "Immutable UTF-8 text value.",
         "bool" => "Boolean value: `true` or `false`.",
@@ -1180,6 +1187,11 @@ mod tests {
             .unwrap()
             .iter()
             .any(|item| item["label"] == "Math.imul"));
+        assert!(completion_result(None)["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|item| item["label"] == "toUnsignedString"));
     }
 
     #[test]

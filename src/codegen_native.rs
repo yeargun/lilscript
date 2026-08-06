@@ -44,6 +44,9 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
             "static inline int32_t lilscript_mul(int32_t a,int32_t b){int64_t n=(int64_t)((double)a*(double)b);uint32_t u=(uint32_t)(uint64_t)n;return u<=INT32_MAX?(int32_t)u:(int32_t)((int64_t)u-4294967296LL);}\n",
         );
         out.push_str(
+            "static inline int32_t lilscript_from_u32(uint32_t u){return u<=INT32_MAX?(int32_t)u:(int32_t)((int64_t)u-4294967296LL);}static inline int32_t lilscript_shl(int32_t a,int32_t b){return lilscript_from_u32((uint32_t)a<<((uint32_t)b&31));}static inline int32_t lilscript_shr(int32_t a,int32_t b){uint32_t n=(uint32_t)b&31;if(!n)return a;uint32_t r=(uint32_t)a>>n;if(a<0)r|=UINT32_MAX<<(32-n);return lilscript_from_u32(r);}static inline int32_t lilscript_ushr(int32_t a,int32_t b){return lilscript_from_u32((uint32_t)a>>((uint32_t)b&31));}\n",
+        );
+        out.push_str(
             "static inline double lilscript_fmin(double a,double b){if(isnan(a)||isnan(b))return NAN;if(a==0&&b==0)return signbit(a)||signbit(b)?-0.0:0.0;return a<b?a:b;}static inline double lilscript_fmax(double a,double b){if(isnan(a)||isnan(b))return NAN;if(a==0&&b==0)return signbit(a)&&signbit(b)?-0.0:0.0;return a>b?a:b;}\n",
         );
         out.push_str(
@@ -87,6 +90,9 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
         );
         out.push_str(
             "static inline LilScriptString lilscript_i32(int32_t v){char b[16];snprintf(b,sizeof b,\"%d\",v);return lilscript_dup(b);}\n",
+        );
+        out.push_str(
+            "static inline LilScriptString lilscript_i32_radix(int32_t v,int32_t radix,bool unsign){if(radix<2||radix>36)abort();static const char d[]=\"0123456789abcdefghijklmnopqrstuvwxyz\";char b[35],*p=b+sizeof b;*--p=0;bool neg=!unsign&&v<0;uint32_t n=unsign?(uint32_t)v:neg?(uint32_t)(0-(uint32_t)v):(uint32_t)v;do{*--p=d[n%(uint32_t)radix];n/=(uint32_t)radix;}while(n);if(neg)*--p='-';return lilscript_dup(p);}\n",
         );
         out.push_str(
             "static inline LilScriptString lilscript_f64(double v){char b[32];snprintf(b,sizeof b,\"%.17g\",v);return lilscript_dup(b);}\n",
@@ -1259,6 +1265,20 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                 format!("(int32_t)((uint32_t)v{}*(uint32_t)v{})", lhs.0, rhs.0)
             }
             ControlFlowOp::Intrinsic {
+                intrinsic: intrinsic @ (Intrinsic::IntToString | Intrinsic::IntToUnsignedString),
+                receiver: Some(receiver),
+                args,
+            } => {
+                let radix = args
+                    .first()
+                    .map_or_else(|| "10".to_string(), |radix| format!("v{}", radix.0));
+                format!(
+                    "lilscript_i32_radix(v{},{radix},{})",
+                    receiver.0,
+                    matches!(intrinsic, Intrinsic::IntToUnsignedString)
+                )
+            }
+            ControlFlowOp::Intrinsic {
                 intrinsic: Intrinsic::MapNew,
                 ..
             } => "lilscript_map()".to_string(),
@@ -1876,8 +1896,19 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                 IrBinaryOp::Mul => format!("lilscript_mul({lhs_name},{rhs_name})"),
                 IrBinaryOp::Div => format!("lilscript_idiv({lhs_name},{rhs_name})"),
                 IrBinaryOp::Mod => format!("lilscript_irem({lhs_name},{rhs_name})"),
+                IrBinaryOp::BitAnd => {
+                    format!("lilscript_from_u32((uint32_t){lhs_name}&(uint32_t){rhs_name})")
+                }
+                IrBinaryOp::BitOr => {
+                    format!("lilscript_from_u32((uint32_t){lhs_name}|(uint32_t){rhs_name})")
+                }
                 IrBinaryOp::Xor => {
-                    format!("(int32_t)((uint32_t){lhs_name}^(uint32_t){rhs_name})")
+                    format!("lilscript_from_u32((uint32_t){lhs_name}^(uint32_t){rhs_name})")
+                }
+                IrBinaryOp::ShiftLeft => format!("lilscript_shl({lhs_name},{rhs_name})"),
+                IrBinaryOp::ShiftRight => format!("lilscript_shr({lhs_name},{rhs_name})"),
+                IrBinaryOp::UnsignedShiftRight => {
+                    format!("lilscript_ushr({lhs_name},{rhs_name})")
                 }
                 _ => {
                     return Err(CodegenError::new(span, "invalid integer binary operation"));
@@ -2315,7 +2346,12 @@ fn c_binary_operator(op: IrBinaryOp) -> &'static str {
         IrBinaryOp::Mul => "*",
         IrBinaryOp::Div => "/",
         IrBinaryOp::Mod => "%",
+        IrBinaryOp::BitAnd => "&",
+        IrBinaryOp::BitOr => "|",
         IrBinaryOp::Xor => "^",
+        IrBinaryOp::ShiftLeft => "<<",
+        IrBinaryOp::ShiftRight => ">>",
+        IrBinaryOp::UnsignedShiftRight => ">>>",
         IrBinaryOp::Eq => "==",
         IrBinaryOp::NotEq => "!=",
         IrBinaryOp::Less => "<",

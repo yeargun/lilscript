@@ -1654,6 +1654,17 @@ impl<'src> Analyzer<'src> {
                     format!("float has no member `{}`", property.name),
                 )),
             },
+            Type::Int => match property.name {
+                "toString" | "toUnsignedString" => Ok(Type::Function(FunctionType {
+                    params: vec![Type::Int],
+                    defaults: vec![Some(DefaultValue::Int(10))],
+                    return_type: Box::new(Type::String),
+                })),
+                _ => Err(SemanticError::new(
+                    span,
+                    format!("int has no member `{}`", property.name),
+                )),
+            },
             Type::Array(element) => match property.name {
                 "map" | "filter" | "forEach" | "reduce" => Err(SemanticError::new(
                     span,
@@ -2150,8 +2161,17 @@ impl<'src> Analyzer<'src> {
             {
                 Ok(common_numeric_type(lhs, rhs))
             }
-            BinaryOp::Mod if lhs == &Type::Int && rhs == &Type::Int => Ok(Type::Int),
-            BinaryOp::Xor if lhs == &Type::Int && rhs == &Type::Int => Ok(Type::Int),
+            BinaryOp::Mod
+            | BinaryOp::BitAnd
+            | BinaryOp::BitOr
+            | BinaryOp::Xor
+            | BinaryOp::ShiftLeft
+            | BinaryOp::ShiftRight
+            | BinaryOp::UnsignedShiftRight
+                if lhs == &Type::Int && rhs == &Type::Int =>
+            {
+                Ok(Type::Int)
+            }
             BinaryOp::Eq | BinaryOp::NotEq if equality_comparable(lhs, rhs) => Ok(Type::Bool),
             BinaryOp::Less | BinaryOp::LessEq | BinaryOp::Greater | BinaryOp::GreaterEq
                 if (lhs.is_numeric() && rhs.is_numeric())
@@ -3131,7 +3151,12 @@ fn assignment_binary_op(op: AssignmentOp) -> BinaryOp {
         AssignmentOp::Mul => BinaryOp::Mul,
         AssignmentOp::Div => BinaryOp::Div,
         AssignmentOp::Mod => BinaryOp::Mod,
+        AssignmentOp::BitAnd => BinaryOp::BitAnd,
+        AssignmentOp::BitOr => BinaryOp::BitOr,
         AssignmentOp::Xor => BinaryOp::Xor,
+        AssignmentOp::ShiftLeft => BinaryOp::ShiftLeft,
+        AssignmentOp::ShiftRight => BinaryOp::ShiftRight,
+        AssignmentOp::UnsignedShiftRight => BinaryOp::UnsignedShiftRight,
     }
 }
 
@@ -3450,7 +3475,12 @@ fn binary_op_name(op: BinaryOp) -> &'static str {
         BinaryOp::Mul => "*",
         BinaryOp::Div => "/",
         BinaryOp::Mod => "%",
+        BinaryOp::BitAnd => "&",
+        BinaryOp::BitOr => "|",
         BinaryOp::Xor => "^",
+        BinaryOp::ShiftLeft => "<<",
+        BinaryOp::ShiftRight => ">>",
+        BinaryOp::UnsignedShiftRight => ">>>",
         BinaryOp::Eq => "==",
         BinaryOp::NotEq => "!=",
         BinaryOp::Less => "<",

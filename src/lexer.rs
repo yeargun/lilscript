@@ -107,6 +107,16 @@ pub enum TokenKind<'src> {
     PercentEq,
     #[token("^=")]
     CaretEq,
+    #[token("&=")]
+    AmpersandEq,
+    #[token("|=")]
+    PipeEq,
+    #[token("<<=")]
+    ShiftLeftEq,
+    #[token(">>=")]
+    ShiftRightEq,
+    #[token(">>>=")]
+    UnsignedShiftRightEq,
 
     #[token("=")]
     Eq,
@@ -122,6 +132,14 @@ pub enum TokenKind<'src> {
     Percent,
     #[token("^")]
     Caret,
+    #[token("&")]
+    Ampersand,
+    #[token("<<")]
+    ShiftLeft,
+    #[token(">>")]
+    ShiftRight,
+    #[token(">>>")]
+    UnsignedShiftRight,
     #[token("!")]
     Bang,
     #[token("<")]
@@ -295,6 +313,29 @@ mod tests {
         assert!(tokens
             .iter()
             .any(|token| matches!(&token.kind, TokenKind::StringLiteral("\"p\""))));
+    }
+
+    #[test]
+    fn lexes_bitwise_and_shift_assignments_longest_first() {
+        let tokens = lex("a&=b;a|=b;a<<=b;a>>=b;a>>>=b;a>>>b;").unwrap();
+        assert!(tokens
+            .iter()
+            .any(|token| matches!(token.kind, TokenKind::AmpersandEq)));
+        assert!(tokens
+            .iter()
+            .any(|token| matches!(token.kind, TokenKind::PipeEq)));
+        assert!(tokens
+            .iter()
+            .any(|token| matches!(token.kind, TokenKind::ShiftLeftEq)));
+        assert!(tokens
+            .iter()
+            .any(|token| matches!(token.kind, TokenKind::ShiftRightEq)));
+        assert!(tokens
+            .iter()
+            .any(|token| matches!(token.kind, TokenKind::UnsignedShiftRightEq)));
+        assert!(tokens
+            .iter()
+            .any(|token| matches!(token.kind, TokenKind::UnsignedShiftRight)));
     }
 
     #[test]

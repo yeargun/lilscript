@@ -375,7 +375,12 @@ pub enum AssignmentOp {
     Mul,
     Div,
     Mod,
+    BitAnd,
+    BitOr,
     Xor,
+    ShiftLeft,
+    ShiftRight,
+    UnsignedShiftRight,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -397,7 +402,12 @@ pub enum BinaryOp {
     Mul,
     Div,
     Mod,
+    BitAnd,
+    BitOr,
     Xor,
+    ShiftLeft,
+    ShiftRight,
+    UnsignedShiftRight,
     Eq,
     NotEq,
     Less,

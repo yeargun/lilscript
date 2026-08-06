@@ -31,7 +31,7 @@ JavaScript and native C backends.
 | Disambiguate/ambiguate/rename properties | Nominal owner types and field indexes remove internal property names entirely; boundary names remain ABI-stable |
 | Devirtualize methods | Class calls become direct typed function calls before inlining |
 | Optimize calls and constructors | Direct-call lowering, recursive-call protection, constant-parameter specialization, unused parameter/return removal, constructor inlining, allocation removal, effect summaries |
-| Mark pure functions | Interprocedural fixed-point effect analysis over direct calls and known closure targets, plus checked `pure` contracts and trusted `pure extern` declarations |
+| Mark pure functions | Interprocedural fixed-point effect analysis over direct calls and known closure targets, local scratch-allocation mutation filtering, checked `pure` contracts, and trusted `pure extern` declarations |
 | Dead assignment elimination | SSA promotion removes local stores; DCE removes unused value chains |
 | Dead property assignment elimination | Overwritten typed field stores are removed between observation barriers |
 | Remove unused code | Unread globals, unreachable blocks, unused pure calls, unused allocations, instructions, and call-graph-unreachable functions are removed |

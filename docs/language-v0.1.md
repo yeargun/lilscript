@@ -166,8 +166,10 @@ boundaries. Native closures use one universal calling convention, so a concrete
 callback remains callable through `func(T...)->R`. Polymorphic functions are
 not inlined until the optimizer can substitute their call-site types.
 
-Integer addition, subtraction, negation, and xor wrap to signed 32-bit
-two's-complement values. Ordinary integer multiplication evaluates the operands
+Integer addition, subtraction, negation, `&`, `|`, and `^` wrap to signed
+32-bit two's-complement values. `<<` shifts the bit pattern left, `>>` sign
+extends, and `>>>` shifts the unsigned bit pattern before reinterpreting the
+result as a signed `int`; every shift count is masked with `31`. Ordinary integer multiplication evaluates the operands
 as IEEE-754 binary64 numbers and then applies signed-i32 normalization, matching
 JavaScript's `(left * right) | 0` even when the rounded product exceeds the
 exact-integer range. `Math.imul(left, right)` is a typed, pure intrinsic that
@@ -378,11 +380,11 @@ The v0.1 statement set is:
 - `break` and `continue`;
 - `return`.
 
-Assignments support `=`, `+=`, `-=`, `*=`, `/=`, `%=`, and `^=`. Prefix `!` and `-`,
+Assignments support `=`, `+=`, `-=`, `*=`, `/=`, `%=`, `&=`, `|=`, `^=`,
+`<<=`, `>>=`, and `>>>=`. Prefix `!` and `-`,
 postfix calls/member/index access, and the standard arithmetic, comparison,
-equality, and short-circuit logical operators are supported. Binary `^`
-performs signed 32-bit integer XOR. Assignment is an expression and evaluates
-to the assigned value.
+equality, bitwise, shift, and short-circuit logical operators are supported.
+Assignment is an expression and evaluates to the assigned value.
 
 ## Standard library surface
 
@@ -393,6 +395,10 @@ matches JavaScript string indexing while native storage remains UTF-8.
 `charCodeAt` returns `0` for an out-of-range index. Calls are statically checked
 and are intrinsic optimization candidates; they are not untyped JavaScript
 dispatch.
+
+Integers provide `toString(radix = 10)` for signed output and
+`toUnsignedString(radix = 10)` for the unsigned 32-bit bit pattern. Radices from
+2 through 36 are supported identically by JavaScript and native targets.
 
 Floats provide optimizer-known `abs()`, `floor()`, `ceil()`, `min(other)`, and
 `max(other)` methods. They lower to the corresponding `Math` operations in

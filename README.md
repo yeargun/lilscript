@@ -110,6 +110,10 @@ them redundant. It never introduces `Math.imul`: ordinary `int` multiplication
 uses JavaScript multiplication followed by signed-i32 normalization. A
 source-written `Math.imul(left,right)` is preserved as the explicit exact
 low-32-bit operation for code that deliberately needs it.
+Integer `&`, `|`, `^`, `<<`, `>>`, and `>>>` operate on signed 32-bit values;
+shift counts are masked to five bits. Use `value.toUnsignedString(radix)` when
+the unsigned bit pattern, rather than the signed integer, must cross a string
+boundary.
 Bundle policy selects a single artifact, source-module-preserving static ESM
 chunks, or size/import-limited shared chunks. See
 [docs/configuration.md](docs/configuration.md) for the complete schema and exact
