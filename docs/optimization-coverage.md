@@ -24,7 +24,7 @@ JavaScript and native C backends.
 | --- | --- |
 | Early/late peephole optimization | Constant folding, algebraic identities, boolean simplification, branch inversion, nested literal-capture branch folding, precedence-safe parenthesis removal, compact boolean literals, compact loops, conditional returns, declaration collapse, trailing-semicolon removal |
 | Numeric representation lowering | Signed-i32 range analysis propagates bounded loop induction values, direct-call arguments and returns, and owned nominal fields; it removes coercions only for proven-safe operations. Ordinary multiplication emits `x*y|0` when normalization is required, while source-written `Math.imul` remains an explicit exact operation |
-| Inline variables and constants | mem2reg SSA, constant propagation, single-assignment global propagation, constant rematerialization, one-use expression fusion |
+| Inline variables and constants | mem2reg SSA, constant propagation, single-assignment global propagation, constant rematerialization, one-use expression fusion, and exact array-parameter lengths across closed stable direct-call sets |
 | Inline functions and simple methods | Fixed-point expression inlining plus single-use multi-block CFG inlining |
 | Inline/collapse properties | Nominal field resolution, positional field indexes, struct/class scalar replacement, and owned-field range summaries invalidated at untyped boundaries |
 | Collapse object literals | Non-escaping structs dissolve into SSA scalars; remaining typed aggregates use positional arrays in JavaScript |
@@ -60,8 +60,9 @@ The current schedule is:
    and dependency-order initialization;
 2. entry-global internalization and unread-global removal;
 3. pruned mem2reg SSA and phi insertion;
-4. constant propagation, trivial-phi removal, algebraic simplification, local
-   value numbering, branch folding, and unreachable removal;
+4. local/interprocedural constant and stable array-length propagation,
+   trivial-phi removal, algebraic simplification, local value numbering, branch
+   folding, and unreachable removal;
 5. immutable-global propagation, devirtualization, and explicit purity
    validation;
 6. constant-parameter specialization, unused parameter/return removal, and
@@ -82,7 +83,7 @@ The current schedule is:
 
 ## Executable evidence
 
-`scripts/verify-matrix.sh` compiles 59 independent `.lil` programs, including a
+`scripts/verify-matrix.sh` compiles 60 independent `.lil` programs, including a
 multi-file module graph, with one
 `--target all` invocation per program. Each invocation emits JavaScript, emits
 C, and invokes Clang for a native executable. The script then compiles the
@@ -90,8 +91,9 @@ emitted C independently and requires the JavaScript, direct native executable,
 independently compiled C executable, and checked-in expected output to match.
 The corpus includes collection mutation/identity/nullable lookup and binary
 memory copy/view/coercion behavior under both maximum and disabled optional
-optimization, for 118 backend-mode executions. This includes regressions for
-interprocedural integer facts, unobserved collection mutation removal, and
+optimization, for 120 backend-mode executions. This includes regressions for
+interprocedural integer and exact array-length facts, unobserved collection
+mutation removal, and
 loop-carried values crossing an early return and a nested short-circuit
 coalescing regression extracted from the Solid client-runtime gate.
 `scripts/verify-bundles.mjs` additionally executes preserve-module and shared

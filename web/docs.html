@@ -393,7 +393,7 @@ scripts/verify.sh
 benchmarks/run.sh
 node benchmarks/paired/run.mjs
 npm --prefix benchmarks/browser run benchmark</code></pre>
-          <p>The matrix compiles 59 programs with maximum and disabled optional optimization, then requires Node, the direct native output, independently compiled emitted C, and checked-in expected output to agree across 118 executions. Ten equivalent workloads are also executed before comparing raw, gzip-9, and Brotli-11 output against Closure ADVANCED v20260803. A second source-neutral lane mechanically generates both languages and rejects any per-case raw, gzip, or Brotli loss; its Chromium gate rejects a 95% runtime upper bound above 1.03. The application and complete-library labs remain separate because installed npm code and a LilScript port are not identical implementations. Complete measurements and limits are on the <a href="/benchmarks.html">benchmark page</a>.</p>
+          <p>The matrix compiles 60 programs with maximum and disabled optional optimization, then requires Node, the direct native output, independently compiled emitted C, and checked-in expected output to agree across 120 executions. Ten equivalent workloads are also executed before comparing raw, gzip-9, and Brotli-11 output against Closure ADVANCED v20260803. A second source-neutral lane mechanically generates both languages and rejects any per-case raw, gzip, or Brotli loss; its Chromium gate rejects a 95% runtime upper bound above 1.03. The application and complete-library labs remain separate because installed npm code and a LilScript port are not identical implementations. Complete measurements and limits are on the <a href="/benchmarks.html">benchmark page</a>.</p>
         </section>
       </main>
     </div>

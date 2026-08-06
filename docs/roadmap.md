@@ -18,6 +18,8 @@ checked-in benchmark workload. Passing a synthetic example alone is not enough.
   devirtualization, escape analysis, scalar replacement, DSE, and DCE.
 - Module-level integer argument, return, and owned-field range analysis, plus
   allocation-root alias tracking for mutable built-in collections.
+- Interprocedural exact array-parameter lengths for closed, stable direct-call
+  sets, with mutation, reference-retention, indirect-call, and ABI barriers.
 - Frequency-ranked identifier mangling, typed property dissolution, profitable
   string pooling, literal string-table packing, and configurable JavaScript
   size/performance policy.
@@ -97,8 +99,10 @@ checked-in benchmark workload. Passing a synthetic example alone is not enough.
   frequency and emitted-byte cost.
 - [ ] Clone higher-order factories by constant capture signature so each
   returned closure reaches the normal constant-fold/DCE fixed point.
-- [ ] Add interprocedural value sets, array lengths, return ranges, and nominal
-  field constants.
+- [x] Add interprocedural exact array lengths, integer return ranges, and
+  nominal field ranges with conservative open-boundary invalidation.
+- [ ] Add interprocedural finite value sets and nominal field constants beyond
+  numeric ranges.
 - [x] Coalesce loop-header and conditional loop-carried phis with their dead
   incoming values so common mutations no longer require temporary copy chains.
 - [ ] Complete SSA destruction across multi-exit loops, nested merges, parallel
