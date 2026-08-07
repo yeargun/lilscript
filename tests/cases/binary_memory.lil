@@ -20,6 +20,14 @@ bytes[2] = -1;
 print(bytes[0]);
 print(bytes[1]);
 print(bytes[2]);
+bytes[3] = 255;
+print(++bytes[3]);
+print(bytes[3]);
+print(--bytes[3]);
+print(bytes[3]);
+bytes[3] = 255;
+print(bytes[3] += 2);
+print(bytes[3]);
 
 Uint8Array window = bytes.subarray(1, 3);
 print(window.length);

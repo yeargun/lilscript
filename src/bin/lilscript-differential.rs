@@ -234,7 +234,8 @@ impl ProgramGenerator {
         let mut source = String::from(
             "int differentialCalls=0;\n\
              bool differentialProbe(int value){differentialCalls++;return (value&1)==0;}\n\
-             int differentialRotate(int value,int amount){return (value<<amount)|(value>>>(32-amount));}\n",
+             int differentialRotate(int value,int amount){return (value<<amount)|(value>>>(32-amount));}\n\
+             int differentialMemory(int seed){ArrayBuffer storage=new ArrayBuffer(6);Uint8Array bytes=new Uint8Array(storage);bytes[0]=seed;bytes[1]=seed>>>8;bytes[2]=-1;Uint8Array alias=bytes.subarray(1,4);int old=alias[0]++;Uint8Array copied=bytes.slice(-5,4);copied[0]^=255;ArrayBuffer middle=storage.slice(1,4);Uint8Array middleBytes=new Uint8Array(middle);SharedArrayBuffer shared=new SharedArrayBuffer(2);Uint8Array sharedBytes=new Uint8Array(shared);sharedBytes[0]=copied[0]+middleBytes[1];return bytes[0]+(bytes[1]<<8)+(bytes[2]<<16)+old+alias.byteOffset+copied.length+shared.byteLength+sharedBytes[0];}\n",
         );
         let mut calls = String::new();
         for case in 0..cases {
@@ -245,6 +246,9 @@ impl ProgramGenerator {
                 .expect("writing to String cannot fail");
         }
         source.push_str(&calls);
+        let memory_seed = self.random.literal();
+        writeln!(source, "print(differentialMemory({memory_seed}));")
+            .expect("writing to String cannot fail");
         source.push_str("print(differentialCalls);\n");
         source
     }
@@ -435,7 +439,7 @@ mod tests {
         });
         let semantics = analyze(&program).unwrap();
         let output = interpret_program(&program, &semantics).unwrap();
-        assert_eq!(output.lines().count(), 9);
+        assert_eq!(output.lines().count(), 10);
     }
 
     #[test]

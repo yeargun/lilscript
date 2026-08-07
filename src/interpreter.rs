@@ -52,6 +52,8 @@ enum Value {
     String(String),
     Bool(bool),
     Array(Rc<RefCell<Vec<Value>>>),
+    Buffer(Rc<BufferValue>),
+    Uint8Array(Rc<Uint8ArrayValue>),
     Callable(Callable),
     Null,
     Void,
@@ -61,6 +63,19 @@ enum Value {
 enum Callable {
     Function(SymbolId),
     Closure(usize),
+}
+
+#[derive(Debug)]
+struct BufferValue {
+    bytes: RefCell<Vec<u8>>,
+    shared: bool,
+}
+
+#[derive(Debug)]
+struct Uint8ArrayValue {
+    buffer: Rc<BufferValue>,
+    offset: usize,
+    length: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -75,6 +90,10 @@ enum RuntimePlace {
     Binding(SymbolId),
     ArrayElement {
         array: Rc<RefCell<Vec<Value>>>,
+        index: usize,
+    },
+    Uint8Element {
+        view: Rc<Uint8ArrayValue>,
         index: usize,
     },
 }
@@ -92,6 +111,14 @@ impl Value {
             Self::Array(_) => Err(InterpretError::new(
                 span,
                 "array value cannot be printed directly",
+            )),
+            Self::Buffer(_) => Err(InterpretError::new(
+                span,
+                "buffer value cannot be printed directly",
+            )),
+            Self::Uint8Array(_) => Err(InterpretError::new(
+                span,
+                "Uint8Array value cannot be printed directly",
             )),
             Self::Callable(_) => Err(InterpretError::new(
                 span,
@@ -121,8 +148,8 @@ impl Default for InterpreterLimits {
 /// Evaluates the checked language core without going through IR.
 ///
 /// This intentionally independent path is used as a semantic oracle for
-/// differential compiler testing. Unsupported host, nominal aggregate, class,
-/// and binary-memory operations fail explicitly instead of approximating them.
+/// differential compiler testing. Unsupported host, nominal aggregate,
+/// map/set, and class operations fail explicitly instead of approximating them.
 pub fn interpret_program<'ast, 'src>(
     program: &Program<'ast, 'src>,
     semantics: &SemanticModel<'src>,
@@ -353,6 +380,9 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 }
                 Ok(Value::Array(Rc::new(RefCell::new(values))))
             }
+            Expr::New {
+                class, args, span, ..
+            } => self.evaluate_new(class.name, args, *span),
             Expr::Unary { op, expr, span } => {
                 let value = self.evaluate(expr)?;
                 match (op, value) {
@@ -444,23 +474,13 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 span,
             } => {
                 let object = self.evaluate(object)?;
-                match (object, property.name) {
-                    (Value::Array(values), "length") => {
-                        Ok(Value::Int(i32::try_from(values.borrow().len()).map_err(
-                            |_| InterpretError::new(*span, "array length exceeds the i32 range"),
-                        )?))
-                    }
-                    _ => Err(InterpretError::new(
-                        *span,
-                        "reference interpreter does not support this member expression",
-                    )),
-                }
+                self.evaluate_member(object, property.name, *span)
             }
             Expr::Index { span, .. } => {
                 let place = self.evaluate_place(expression)?;
                 self.load_place(&place, *span)
             }
-            Expr::StructLiteral { span, .. } | Expr::New { span, .. } => Err(InterpretError::new(
+            Expr::StructLiteral { span, .. } => Err(InterpretError::new(
                 *span,
                 "reference interpreter does not support nominal aggregate or class expressions",
             )),
@@ -473,6 +493,84 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
             _ => Err(InterpretError::new(
                 expression.span(),
                 "condition did not evaluate to bool",
+            )),
+        }
+    }
+
+    fn evaluate_new(
+        &mut self,
+        name: &str,
+        args: &'ast [Expr<'ast, 'src>],
+        span: Span,
+    ) -> Result<Value, InterpretError> {
+        let [argument] = args else {
+            return Err(InterpretError::new(
+                span,
+                "reference interpreter only supports one-argument binary constructors",
+            ));
+        };
+        let argument = self.evaluate(argument)?;
+        match (name, argument) {
+            ("ArrayBuffer", Value::Int(length)) => {
+                Ok(Value::Buffer(new_buffer(length, false, span)?))
+            }
+            ("SharedArrayBuffer", Value::Int(length)) => {
+                Ok(Value::Buffer(new_buffer(length, true, span)?))
+            }
+            ("Uint8Array", Value::Int(length)) => {
+                let buffer = new_buffer(length, false, span)?;
+                let length = buffer.bytes.borrow().len();
+                Ok(Value::Uint8Array(Rc::new(Uint8ArrayValue {
+                    length,
+                    buffer,
+                    offset: 0,
+                })))
+            }
+            ("Uint8Array", Value::Buffer(buffer)) => {
+                let length = buffer.bytes.borrow().len();
+                Ok(Value::Uint8Array(Rc::new(Uint8ArrayValue {
+                    length,
+                    buffer,
+                    offset: 0,
+                })))
+            }
+            _ => Err(InterpretError::new(
+                span,
+                format!("unsupported interpreted constructor `{name}`"),
+            )),
+        }
+    }
+
+    fn evaluate_member(
+        &self,
+        object: Value,
+        property: &str,
+        span: Span,
+    ) -> Result<Value, InterpretError> {
+        match (object, property) {
+            (Value::Array(values), "length") => Ok(Value::Int(
+                i32::try_from(values.borrow().len())
+                    .map_err(|_| InterpretError::new(span, "array length exceeds the i32 range"))?,
+            )),
+            (Value::Buffer(buffer), "byteLength") => Ok(Value::Int(
+                i32::try_from(buffer.bytes.borrow().len()).map_err(|_| {
+                    InterpretError::new(span, "buffer length exceeds the i32 range")
+                })?,
+            )),
+            (Value::Uint8Array(view), "length" | "byteLength") => {
+                Ok(Value::Int(i32::try_from(view.length).map_err(|_| {
+                    InterpretError::new(span, "Uint8Array length exceeds the i32 range")
+                })?))
+            }
+            (Value::Uint8Array(view), "byteOffset") => {
+                Ok(Value::Int(i32::try_from(view.offset).map_err(|_| {
+                    InterpretError::new(span, "Uint8Array offset exceeds the i32 range")
+                })?))
+            }
+            (Value::Uint8Array(view), "buffer") => Ok(Value::Buffer(view.buffer.clone())),
+            _ => Err(InterpretError::new(
+                span,
+                "reference interpreter does not support this member expression",
             )),
         }
     }
@@ -712,6 +810,9 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
         for argument in args {
             arguments.push(self.evaluate(argument)?);
         }
+        if matches!(receiver, Value::Buffer(_) | Value::Uint8Array(_)) {
+            return self.evaluate_binary_method(receiver, method, &arguments, span);
+        }
         let Value::Array(array) = receiver else {
             return Err(InterpretError::new(
                 span,
@@ -834,6 +935,54 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
         }
     }
 
+    fn evaluate_binary_method(
+        &self,
+        receiver: Value,
+        method: &str,
+        arguments: &[Value],
+        span: Span,
+    ) -> Result<Value, InterpretError> {
+        match (receiver, method) {
+            (Value::Buffer(buffer), "slice") => {
+                let length = buffer.bytes.borrow().len();
+                let (start, end) = slice_range(arguments, length, span)?;
+                let bytes = buffer.bytes.borrow()[start..end].to_vec();
+                Ok(Value::Buffer(Rc::new(BufferValue {
+                    bytes: RefCell::new(bytes),
+                    shared: buffer.shared,
+                })))
+            }
+            (Value::Uint8Array(view), "slice") => {
+                let (start, end) = slice_range(arguments, view.length, span)?;
+                let absolute_start = view.offset + start;
+                let absolute_end = view.offset + end;
+                let bytes = view.buffer.bytes.borrow()[absolute_start..absolute_end].to_vec();
+                let length = bytes.len();
+                let buffer = Rc::new(BufferValue {
+                    bytes: RefCell::new(bytes),
+                    shared: false,
+                });
+                Ok(Value::Uint8Array(Rc::new(Uint8ArrayValue {
+                    buffer,
+                    offset: 0,
+                    length,
+                })))
+            }
+            (Value::Uint8Array(view), "subarray") => {
+                let (start, end) = slice_range(arguments, view.length, span)?;
+                Ok(Value::Uint8Array(Rc::new(Uint8ArrayValue {
+                    buffer: view.buffer.clone(),
+                    offset: view.offset + start,
+                    length: end - start,
+                })))
+            }
+            _ => Err(InterpretError::new(
+                span,
+                format!("unsupported interpreted binary-memory method `{method}`"),
+            )),
+        }
+    }
+
     fn evaluate_assignment(
         &mut self,
         op: AssignmentOp,
@@ -884,21 +1033,33 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 index,
                 span,
             } => {
-                let Value::Array(array) = self.evaluate(object)? else {
-                    return Err(InterpretError::new(
-                        *span,
-                        "reference interpreter only supports array indexing",
-                    ));
-                };
+                let object = self.evaluate(object)?;
                 let Value::Int(index) = self.evaluate(index)? else {
-                    return Err(InterpretError::new(*span, "array index is not int"));
+                    return Err(InterpretError::new(*span, "index is not int"));
                 };
                 let index = usize::try_from(index)
-                    .map_err(|_| InterpretError::new(*span, "array index is negative"))?;
-                if index >= array.borrow().len() {
-                    return Err(InterpretError::new(*span, "array index is out of bounds"));
+                    .map_err(|_| InterpretError::new(*span, "index is negative"))?;
+                match object {
+                    Value::Array(array) => {
+                        if index >= array.borrow().len() {
+                            return Err(InterpretError::new(*span, "array index is out of bounds"));
+                        }
+                        Ok(RuntimePlace::ArrayElement { array, index })
+                    }
+                    Value::Uint8Array(view) => {
+                        if index >= view.length {
+                            return Err(InterpretError::new(
+                                *span,
+                                "Uint8Array index is out of bounds",
+                            ));
+                        }
+                        Ok(RuntimePlace::Uint8Element { view, index })
+                    }
+                    _ => Err(InterpretError::new(
+                        *span,
+                        "reference interpreter only supports array and Uint8Array indexing",
+                    )),
                 }
-                Ok(RuntimePlace::ArrayElement { array, index })
             }
             _ => Err(InterpretError::new(
                 expression.span(),
@@ -915,6 +1076,14 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 .get(*index)
                 .cloned()
                 .ok_or_else(|| InterpretError::new(span, "array index is out of bounds")),
+            RuntimePlace::Uint8Element { view, index } => view
+                .buffer
+                .bytes
+                .borrow()
+                .get(view.offset + *index)
+                .copied()
+                .map(|value| Value::Int(i32::from(value)))
+                .ok_or_else(|| InterpretError::new(span, "Uint8Array index is out of bounds")),
         }
     }
 
@@ -932,6 +1101,20 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                     .get_mut(*index)
                     .ok_or_else(|| InterpretError::new(span, "array index is out of bounds"))?;
                 *target = value;
+                Ok(())
+            }
+            RuntimePlace::Uint8Element { view, index } => {
+                let Value::Int(value) = value else {
+                    return Err(InterpretError::new(
+                        span,
+                        "Uint8Array assignment value is not int",
+                    ));
+                };
+                let mut bytes = view.buffer.bytes.borrow_mut();
+                let target = bytes.get_mut(view.offset + *index).ok_or_else(|| {
+                    InterpretError::new(span, "Uint8Array index is out of bounds")
+                })?;
+                *target = value as u8;
                 Ok(())
             }
         }
@@ -1006,6 +1189,8 @@ fn values_equal(lhs: &Value, rhs: &Value) -> bool {
         (Value::String(lhs), Value::String(rhs)) => lhs == rhs,
         (Value::Bool(lhs), Value::Bool(rhs)) => lhs == rhs,
         (Value::Array(lhs), Value::Array(rhs)) => Rc::ptr_eq(lhs, rhs),
+        (Value::Buffer(lhs), Value::Buffer(rhs)) => Rc::ptr_eq(lhs, rhs),
+        (Value::Uint8Array(lhs), Value::Uint8Array(rhs)) => Rc::ptr_eq(lhs, rhs),
         (Value::Null, Value::Null) => true,
         _ => false,
     }
@@ -1023,6 +1208,17 @@ fn value_matches_type(value: &Value, target: TypeKind<'_, '_>) -> Option<bool> {
         TypeKind::Bool => Some(matches!(value, Value::Bool(_))),
         TypeKind::Array(_) => Some(matches!(value, Value::Array(_))),
         TypeKind::Function { .. } => Some(matches!(value, Value::Callable(_))),
+        TypeKind::Named {
+            name: "ArrayBuffer",
+            ..
+        } => Some(matches!(value, Value::Buffer(buffer) if !buffer.shared)),
+        TypeKind::Named {
+            name: "SharedArrayBuffer",
+            ..
+        } => Some(matches!(value, Value::Buffer(buffer) if buffer.shared)),
+        TypeKind::Named {
+            name: "Uint8Array", ..
+        } => Some(matches!(value, Value::Uint8Array(_))),
         TypeKind::Nullable(_) if matches!(value, Value::Null) => Some(true),
         TypeKind::Nullable(inner) => value_matches_type(value, inner.kind),
         TypeKind::Union(members) => {
@@ -1033,6 +1229,47 @@ fn value_matches_type(value: &Value, target: TypeKind<'_, '_>) -> Option<bool> {
             Some(matches)
         }
         TypeKind::Void | TypeKind::Auto | TypeKind::Named { .. } => None,
+    }
+}
+
+fn new_buffer(length: i32, shared: bool, span: Span) -> Result<Rc<BufferValue>, InterpretError> {
+    let length = usize::try_from(length)
+        .map_err(|_| InterpretError::new(span, "buffer length is negative"))?;
+    Ok(Rc::new(BufferValue {
+        bytes: RefCell::new(vec![0; length]),
+        shared,
+    }))
+}
+
+fn slice_range(
+    arguments: &[Value],
+    length: usize,
+    span: Span,
+) -> Result<(usize, usize), InterpretError> {
+    if arguments.is_empty() || arguments.len() > 2 {
+        return Err(InterpretError::new(
+            span,
+            "binary-memory slice requires a start and optional end",
+        ));
+    }
+    let Value::Int(start) = arguments[0] else {
+        return Err(InterpretError::new(span, "slice start is not int"));
+    };
+    let end = match arguments.get(1) {
+        Some(Value::Int(end)) => *end,
+        Some(_) => return Err(InterpretError::new(span, "slice end is not int")),
+        None => i32::MAX,
+    };
+    let start = normalize_slice_index(start, length);
+    let end = normalize_slice_index(end, length).max(start);
+    Ok((start, end))
+}
+
+fn normalize_slice_index(index: i32, length: usize) -> usize {
+    if index < 0 {
+        (length as i64 + i64::from(index)).clamp(0, length as i64) as usize
+    } else {
+        usize::try_from(index).unwrap_or(usize::MAX).min(length)
     }
 }
 
@@ -1135,6 +1372,45 @@ mod tests {
                     print(mapped[1]);
                 "#,),
             "3\n2\n4\n"
+        );
+    }
+
+    #[test]
+    fn evaluates_binary_memory_aliasing_and_byte_coercion() {
+        assert_eq!(
+            run(r#"
+                    ArrayBuffer buffer=new ArrayBuffer(4);
+                    Uint8Array bytes=new Uint8Array(buffer);
+                    Uint8Array same=bytes;
+                    print(same==bytes);
+                    print(bytes==new Uint8Array(buffer));
+                    print(bytes.buffer==buffer);
+                    bytes[0]=257;
+                    bytes[1]=-1;
+                    print(buffer.byteLength);
+                    print(bytes[0]);
+                    print(bytes[1]);
+                    print(++bytes[1]);
+                    print(bytes[1]);
+                    Uint8Array window=bytes.subarray(-2,4);
+                    print(window.byteOffset);
+                    window[0]=9;
+                    print(bytes[2]);
+                    Uint8Array copied=bytes.slice(1,4);
+                    copied[1]=7;
+                    print(copied.length);
+                    print(copied[1]);
+                    print(bytes[2]);
+                    SharedArrayBuffer shared=new SharedArrayBuffer(3);
+                    Uint8Array sharedBytes=new Uint8Array(shared);
+                    sharedBytes[1]=42;
+                    SharedArrayBuffer sharedCopy=shared.slice(1,3);
+                    Uint8Array sharedCopyBytes=new Uint8Array(sharedCopy);
+                    print(shared.byteLength);
+                    print(sharedCopy.byteLength);
+                    print(sharedCopyBytes[0]);
+                "#,),
+            "true\nfalse\ntrue\n4\n1\n255\n256\n0\n2\n9\n3\n7\n9\n3\n2\n42\n"
         );
     }
 
