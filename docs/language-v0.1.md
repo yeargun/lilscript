@@ -227,9 +227,11 @@ externs can be imported. Imported names may be aliased with `as`. Module-private
 bindings are namespaced by the linker, so equal private names in different files
 cannot collide.
 
-Imports must begin with `./` or `../`, resolve to `.lil` files, and form an
-acyclic graph. Every module is initialized once in dependency-first order.
-Side-effect-only imports therefore preserve initialization behavior.
+Relative imports must begin with `./` or `../` and resolve to `.lil` files.
+Bare imports resolve only through a verified `lilscript.lock`. Static imports
+form an acyclic graph. Every static module is initialized once in
+dependency-first order, so side-effect-only imports preserve initialization
+behavior.
 
 In an executable build, an export is an accessibility declaration rather than a
 retention root. Unused imported and exported functions, types, globals, and pure
@@ -244,8 +246,13 @@ produce JavaScript bindings. The default bundle policy emits one optimized
 application artifact. A project can opt into static ESM chunks with
 `bundle.mode = "preserve-modules"` or `"split"`; partitioning occurs after
 whole-program optimization and produces a manifest. These imports are eager.
-Lazy imports and runtime chunk loading remain outside the language contract
-because LilScript does not yet define a dynamic import expression.
+The dynamic expression `import("./feature")` returns a typed `Task<module>`.
+`then`, `catch`, and `finally` are statically checked; contextual `auto` arrow
+parameters receive the module namespace or `ModuleLoadError`. Split builds emit
+lazy ESM chunks, normalize load failures to stable `specifier` and `message`
+fields, and tree-shake unreferenced namespace exports. Lazy-only modules must be
+initialization-free. Dynamic module tasks are JavaScript-only. The complete
+delivery and package contract is in `docs/modules-and-delivery.md`.
 
 ## Aggregates and classes
 

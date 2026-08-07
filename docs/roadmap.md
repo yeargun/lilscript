@@ -161,14 +161,14 @@ checked-in benchmark workload. Passing a synthetic example alone is not enough.
 
 - [x] Static graph resolution, private namespaces, live ESM exports, tree
   shaking, preserve-module chunks, and shared static chunks.
-- [ ] Define dynamic `import()` syntax and typed asynchronous module values.
-- [ ] Emit lazy chunks with deterministic manifests, preload policy, and runtime
+- [x] Define dynamic `import()` syntax and typed asynchronous module values.
+- [x] Emit lazy chunks with deterministic manifests, preload policy, and runtime
   failure handling.
-- [ ] Add chunk graph optimization using request count, minimum bytes, shared
+- [x] Add chunk graph optimization using request count, minimum bytes, shared
   reachability, cache stability, and gzip/Brotli costs.
-- [ ] Score chunk candidates by full deploy cost: compressed bytes, request
+- [x] Score chunk candidates by full deploy cost: compressed bytes, request
   overhead, dependency depth, preload behavior, and long-term cache reuse.
-- [ ] Add package resolution, lockfiles, reproducible dependency builds, and
+- [x] Add package resolution, lockfiles, reproducible dependency builds, and
   stable library ABI/versioning policy.
 
 ## Platform and native targets

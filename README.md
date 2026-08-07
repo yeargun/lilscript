@@ -117,8 +117,10 @@ Integer `&`, `|`, `^`, `<<`, `>>`, and `>>>` operate on signed 32-bit values;
 shift counts are masked to five bits. Use `value.toUnsignedString(radix)` when
 the unsigned bit pattern, rather than the signed integer, must cross a string
 boundary.
-Bundle policy selects a single artifact, source-module-preserving static ESM
-chunks, or size/import-limited shared chunks. See
+Bundle policy selects a single artifact, source-module-preserving ESM chunks,
+or deploy-cost-scored shared and lazy chunks. Exact raw/gzip/Brotli bytes,
+requests, dependency depth, preload policy, reachability, and cache reuse feed
+the chunk score. See
 [docs/configuration.md](docs/configuration.md) for the complete schema and exact
 chunk eligibility rules.
 
@@ -151,10 +153,23 @@ class exports are compile-time type exports; functions and globals are runtime
 ESM exports. The default `js`, `c`, `native`, and `all` targets remain
 closed-world executable builds, so their exports do not prevent DCE.
 
-When `bundle.mode` is `split` or `preserve-modules`, JavaScript output becomes a
-static ESM entry plus sibling chunks and a deterministic JSON manifest. The
-whole program is still optimized before partitioning. C and native output stay
-single artifacts, and `--target all` can emit both forms in one invocation.
+`import("./feature")` returns a typed asynchronous module value. Its `then`,
+`catch`, and `finally` callbacks are checked, unused namespace exports are tree
+shaken, and split builds emit a real lazy chunk with normalized load failures.
+Lazy-only modules are initialization-free by contract.
+
+When `bundle.mode` is `split` or `preserve-modules`, JavaScript output becomes
+an ESM entry plus sibling chunks and a deterministic manifest containing
+transport sizes, dependency edges, content hashes, preload files, and deploy
+costs. The whole program is still optimized before partitioning. C and native
+output stay single artifacts; dynamic module tasks themselves are JavaScript
+only.
+
+Bare imports resolve from content-verified path dependencies in
+`lilscript.lock`. Run `lilscript src/main.lil --write-lock -o build/app.js` to
+pin the transitive semver/ABI graph. Normal builds reject stale source hashes
+and never rewrite the lock. The full contract is in
+[docs/modules-and-delivery.md](docs/modules-and-delivery.md).
 
 ## Playground
 

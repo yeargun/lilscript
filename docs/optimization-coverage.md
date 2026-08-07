@@ -43,7 +43,7 @@ JavaScript and native C backends.
 | Rename variables and globals | Use-frequency-ranked base-54/base-64 identifiers with extern names reserved, plus exact-compressor selection of emitted-character-ranked alphabets |
 | Rescope globals | Entry-only globals become locals; immutable shared globals become constants |
 | Rewrite modules and tree shake exports | Relative module graphs are linked into private symbol namespaces; executable exports remain shakeable, while `js-module` roots runtime exports and emits mangled ESM aliases |
-| Cross-chunk code/method motion | Whole-program optimization runs before deterministic static ESM partitioning; preserve-module and shared size/import policies emit explicit imports, live exports, and a manifest. Dynamic/lazy imports remain unsupported |
+| Cross-chunk code/method motion | Whole-program optimization runs before deterministic ESM partitioning; preserve-module, measured shared chunks, and typed lazy imports emit explicit dependencies, live exports, and a content-addressed manifest |
 | Prototype extraction and dotted-property conversion | Not applicable: LilScript has no prototype mutation or dynamic property grammar |
 
 Closure also contains JavaScript-input processing for JSDoc, `goog.*`,
@@ -84,8 +84,11 @@ The current schedule is:
     range-proven prefix/postfix mutation spelling, string-table packing,
     minified backend peepholes, and deterministic compressor-aware candidate
     selection;
-11. optional source ownership or shared-module chunk planning over the surviving
-    IR, followed by cross-chunk binding analysis and deterministic ESM emission.
+11. source ownership and mandatory lazy boundaries, followed by full-plan chunk
+    candidate scoring over raw/gzip/Brotli bytes, requests, dependency depth,
+    preload policy, shared reachability, and cache reuse;
+12. cross-chunk binding analysis, per-namespace lazy export tree shaking, stable
+    source-identity chunk names, and deterministic ESM/manifest emission.
 
 ## Executable evidence
 
@@ -103,9 +106,10 @@ entry-length snapshots across all array callback methods, unobserved collection
 mutation removal, multi-use conditional-return values, and
 loop-carried values crossing an early return and a nested short-circuit
 coalescing regression extracted from the Solid client-runtime gate.
-`scripts/verify-bundles.mjs` additionally executes preserve-module and shared
-split bundles, checks their manifests, and exercises live bindings across a
-circular ESM dependency between the entry and a reader chunk.
+`scripts/verify-bundles.mjs` additionally executes preserve-module, shared, and
+lazy bundles; checks exact compressed manifest metadata and preload output;
+exercises live bindings; verifies missing-chunk failure normalization; and
+proves deterministic package locks plus stale-source rejection.
 
 `lilscript-differential` independently evaluates generated typed AST programs
 without lowering them to CFG/SSA. The fixed 64-case release batch exercises all

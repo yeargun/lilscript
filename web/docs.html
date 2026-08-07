@@ -133,6 +133,7 @@ func(int)-&gt;int twice = (int value) =&gt; value * 2;</code></pre>
               <tr><td><code>string</code></td><td>Immutable UTF-8 text</td><td>String</td></tr>
               <tr><td><code>T?</code></td><td>A <code>T</code> value or <code>null</code></td><td>Raw value or <code>null</code></td></tr>
               <tr><td><code>T[]</code></td><td>Mutable homogeneous array</td><td>Selected optimized array representation</td></tr>
+              <tr><td><code>Task&lt;T&gt;</code></td><td>Typed asynchronous value with checked chaining</td><td>Promise-compatible value</td></tr>
             </tbody>
           </table>
           <p>Integer bitwise operators <code>&amp;</code>, <code>|</code>, <code>^</code>, <code>&lt;&lt;</code>, <code>&gt;&gt;</code>, and <code>&gt;&gt;&gt;</code> return signed 32-bit values and mask shift counts to 0-31. <code>value.toString(radix)</code> formats the signed value; <code>value.toUnsignedString(radix)</code> formats its unsigned bit pattern. Both JavaScript and native targets support radices 2-36.</p>
@@ -149,8 +150,20 @@ export pure int square(int value) {
 import { square as sq } from "./math";
 import "./startup.lil";
 print(sq(5));</code></pre>
-          <p>Imports are relative, static, and resolved from the entry file. Private names are isolated per module, dependencies initialize once before importers, and cycles are rejected. The compiler erases module boundaries before SSA optimization, so calls can inline and aggregates can dissolve across files.</p>
-          <p><code>export</code> controls visibility but does not keep unreachable code alive. The default JavaScript target emits one bundle with no import/export wrappers. This is smaller for fully static applications than forced runtime chunks.</p>
+          <p>Static relative imports remain the default. Private names are isolated per module, dependencies initialize once before importers, and static cycles are rejected. The compiler erases module boundaries before SSA optimization, so calls can inline and aggregates can dissolve across files.</p>
+          <p><code>export</code> controls visibility but does not keep unreachable code alive. Bare package imports resolve through a deterministic, content-verified <code>lilscript.lock</code>.</p>
+          <h3>Typed lazy modules</h3>
+          <pre><code>import("./feature")
+  .then((auto feature) =&gt; print(feature.answer(40)))
+  .catch((auto error) =&gt; print(error.message));</code></pre>
+          <p><code>import()</code> requires a static string and returns <code>Task&lt;module&gt;</code>. The callback namespace exposes exact declared export types. Split builds emit a real lazy ESM chunk, tree-shake unused namespace exports, normalize load failures, and can emit <code>modulepreload</code> links. Lazy-only modules may not contain top-level executable initialization.</p>
+          <h3>Packages and reproducibility</h3>
+          <pre><code>[dependencies]
+mathkit = { path = "../mathkit", version = "^1.2", abi = 1 }
+
+# refresh and verify before compilation
+lilscript src/main.lil --write-lock -o build/app.js</code></pre>
+          <p>The lockfile pins transitive dependency edges, semver, compiler ABI, relative roots, entries, and SHA-256 source checksums. Normal builds reject missing, stale, conflicting, or root-escaping dependencies and never rewrite the lockfile.</p>
         </section>
 
         <section id="arrays" data-title="Arrays strings map filter reduce forEach push pop methods">
@@ -367,12 +380,28 @@ compression = [
 # identifiers = true
 # properties = false
 # exports = false
-# pool_strings = true</code></pre>
+# pool_strings = true
+
+[bundle]
+mode = "split"
+min_chunk_bytes = 16384
+max_chunks = 32
+shared_min_imports = 2
+preload = "none"
+
+[bundle.cost]
+gzip_weight = 1
+brotli_weight = 2
+request_overhead_bytes = 1000
+dependency_depth_penalty_bytes = 160
+preload_request_discount_percent = 70
+cache_reuse_discount_percent = 20</code></pre>
           <p><code>performance-first</code> uses inlining limits of 24/60 with unbounded growth, no automatic pooling, and eager signed-i32 normalization. <code>realistic-performance-first</code> uses 18/45 with a +16 instruction growth budget. <code>balanced</code> uses 12/30 with +4 growth, while the default <code>size-first</code> uses 12/30 with +16 temporary IR instructions so a following fold/DCE fixed point can expose net byte wins. The latter three enable profitable string pooling and proven-safe integer coercion elision; size-first also considers delimiter-packed string tables.</p>
           <p><code>finite_value_propagation</code> enables bounded boolean, string, nullable-null, and owned-field facts across closed direct calls. Facts widen after four alternatives and are invalidated at exported, extern, indirect-call, closure, and untyped aggregate boundaries.</p>
           <p><code>compression</code> is an exact allowlist. Its decisions are <code>identifier-mangling</code>, <code>entropy-aware-mangling</code>, <code>quote-style-selection</code>, <code>property-mangling</code>, <code>export-mangling</code>, <code>string-pooling</code>, <code>size-aware-inlining</code>, <code>safe-integer-coercion-elision</code>, <code>compact-boolean-literals</code>, <code>structured-closure-inlining</code>, <code>string-array-packing</code>, <code>scalar-phi-copies</code>, <code>phi-affinity-coalescing</code>, <code>ir-inlining-variants</code>, <code>ir-closure-factory-variants</code>, <code>loop-spelling-selection</code>, and <code>mutation-spelling-selection</code>. Coercions are removed only when inferred ranges prove signed-32-bit behavior is unchanged. Ordinary multiplication uses JavaScript <code>*</code> with i32 normalization and never introduces <code>Math.imul</code>; explicit <code>Math.imul</code> calls remain exact. Structured closures, packed string arrays, phi affinity, scalar versus tuple parallel copies, optimizer IR variants, condition-loop spellings, and range-proven increment forms are compressor-scored against their alternatives. Omit the list to use profile defaults; use <code>compression = []</code> to disable every optional compression tactic.</p>
           <p><code>cost_model</code> selects exact raw, gzip-9, or Brotli-11 measurement for deterministic optimizer-IR and bounded final-emission candidate search. Size-first compares configured inlining with closure-factory-preserving and fully outlined IRs for single-file and reusable ESM output, then scores loop and mutation spellings with deterministic beams. Mutation scoring retains finalists from every auto/while/for family so interacting dimensions cannot collapse into one spelling. Performance-oriented profiles avoid those extra pipelines and emissions. Increment shorthand requires one-use SSA and a range proof that i32 coercion is unnecessary. <code>optimization.inline_closure_factories</code> independently disables that inliner for every backend. Production mode enables candidate search by default; <code>--mode development</code> skips it for faster rebuilds. The search only compares tactics already allowed by <code>compression</code>; the default base limit of 1536 applies per optimizer IR.</p>
           <p>The setting changes JavaScript optimization only. It composes with per-pass settings, so <code>optimization.inlining = false</code> still disables inlining. Because raw, gzip, and Brotli sizes can disagree, size priority is a cost-model preference rather than a guarantee for every workload.</p>
+          <p>Chunk candidates are scored as complete deployments after optimization. The planner combines weighted raw, gzip, and Brotli bytes with requests, dependency depth, preload discounts, shared reachability, and cache reuse. Manifest v2 records the measured inputs, artifact graph, stable source-identity names, content hashes, and selected deploy cost.</p>
         </section>
 
         <section id="optimization" data-title="Optimization SSA SRA DCE inlining devirtualization mangling">

@@ -55,6 +55,16 @@ mode = "single" # single | split | preserve-modules
 min_chunk_bytes = 16384
 max_chunks = 32
 shared_min_imports = 2
+preload = "none" # none | entry | all
+
+[bundle.cost]
+raw_weight = 0
+gzip_weight = 1
+brotli_weight = 2
+request_overhead_bytes = 1000
+dependency_depth_penalty_bytes = 160
+preload_request_discount_percent = 70
+cache_reuse_discount_percent = 20
 
 [lint]
 enabled = true
@@ -214,15 +224,43 @@ replacement, and DCE happen before a chunk boundary is selected.
   module globals remain in the entry chunk. Size/import/count limits do not
   override source-module preservation.
 - `split` considers modules imported by at least `shared_min_imports` distinct
-  modules, measures their emitted chunk bytes, rejects chunks smaller than
-  `min_chunk_bytes`, and retains at most `max_chunks` candidates (largest
-  first, with deterministic module-order tie breaking).
+  modules, rejects optional chunks smaller than `min_chunk_bytes`, then scores
+  complete emitted plans. The score combines weighted raw/gzip/Brotli bytes,
+  request overhead, dependency depth, preload behavior, shared reachability,
+  and cache reuse. The least-cost eligible shared chunk honors the explicit
+  split request; every additional optional chunk must lower deploy cost.
 
 `split` and `preserve-modules` require `--output`. They write the entry module,
-sibling chunks, and `<entry-stem>.manifest.json`. Chunk imports are static ESM
-imports and therefore load eagerly; LilScript does not yet have a dynamic
-`import()` expression or lazy runtime chunk loader. Use an `.mjs` output when
-running directly in Node without a `"type": "module"` package boundary.
+sibling chunks, and `<entry-stem>.manifest.json`. Static imports load eagerly.
+`import("./feature")` creates a typed asynchronous module task and a mandatory
+lazy chunk for a lazy-only module. `preload = "entry"` preloads chunks directly
+requested by the entry artifact; `all` preloads every lazy root. Manifest v2
+contains deterministic build/cache hashes, exact transport sizes, dependency
+edges, and deploy-cost values. Use an `.mjs` output when running directly in
+Node without a `"type": "module"` package boundary.
+
+`[bundle.cost]` values are integer deployment-policy weights, not runtime
+measurements. At least one byte weight must be nonzero. Request/depth values are
+byte-equivalent penalties; preload and cache values are percentages from 0 to
+100. Candidate code is always measured with gzip level 9 and Brotli quality 11.
+
+Package metadata and locked path dependencies are configured at the top level:
+
+```toml
+[package]
+name = "example"
+version = "1.0.0"
+abi = 1
+entry = "src/lib.lil"
+
+[dependencies]
+mathkit = { path = "../mathkit", version = "^1.2", abi = 1 }
+```
+
+Run `lilscript src/main.lil --write-lock -o build/app.js` to rewrite
+`lilscript.lock`. Normal builds verify the complete transitive graph, semver,
+ABI, package-root confinement, and SHA-256 source checksum without mutating the
+lockfile. See `docs/modules-and-delivery.md` for the full contract.
 
 ## Lint and format policy
 
