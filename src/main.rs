@@ -10,7 +10,8 @@ use lilscript::package::write_lockfile;
 use lilscript::{
     compile_path_all_configured, compile_path_configured, compile_path_explained_configured,
     compile_path_to_c_configured, compile_path_to_js_bundle_configured,
-    compile_path_to_js_module_configured, render_module_diagnostic, JavaScriptBundle,
+    compile_path_to_js_module_configured, profile_template_path_configured,
+    render_module_diagnostic, JavaScriptBundle,
 };
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -64,6 +65,10 @@ struct Args {
     /// Resolve all path dependencies and rewrite lilscript.lock before compiling.
     #[arg(long)]
     write_lock: bool,
+
+    /// Write a versioned profile template with stable function/loop keys, then exit.
+    #[arg(long)]
+    profile_template: Option<PathBuf>,
 }
 
 fn main() {
@@ -83,6 +88,15 @@ fn run() -> Result<(), String> {
     }
     if matches!(args.mode, BuildMode::Development) {
         loaded.config.javascript.candidate_search = CandidateSearch::Off;
+    }
+    if let Some(output) = &args.profile_template {
+        let profile = profile_template_path_configured(&args.input, &loaded.config)
+            .map_err(|error| render_module_diagnostic(&error))?;
+        let json = serde_json::to_string_pretty(&profile)
+            .map_err(|error| format!("failed to serialize profile template: {error}"))?;
+        fs::write(output, format!("{json}\n"))
+            .map_err(|error| format!("failed to write {}: {error}", output.display()))?;
+        return Ok(());
     }
     match args.target {
         Target::Js => {
@@ -193,6 +207,26 @@ fn print_explanation(
             eprintln!(
                 "{:<34} {}",
                 "estimated startup memory", metrics.syntax.estimated_memory_bytes
+            );
+            eprintln!(
+                "{:<34} {}",
+                "JavaScript performance score", metrics.performance.score
+            );
+            eprintln!(
+                "{:<34} {}",
+                "deoptimization risk", metrics.performance.deoptimization_risk
+            );
+            eprintln!(
+                "{:<34} {}",
+                "allocation pressure", metrics.performance.allocation_pressure
+            );
+            eprintln!(
+                "{:<34} {}",
+                "indirect-call pressure", metrics.performance.indirect_call_pressure
+            );
+            eprintln!(
+                "{:<34} {}",
+                "monomorphic call weight", metrics.performance.monomorphic_call_sites
             );
             eprintln!(
                 "{:<34} {}",

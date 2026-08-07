@@ -10,7 +10,7 @@ use crate::ir::{
 };
 use crate::lower::lower_to_control_flow;
 use crate::optimizer::optimize_control_flow;
-use crate::semantic::{analyze, Type};
+use crate::semantic::{analyze, EscapeState, Type};
 use crate::{ast::Program, span::Span};
 
 pub fn compile_to_c<'ast, 'src>(program: &Program<'ast, 'src>) -> Result<String, CompileError> {
@@ -21,18 +21,59 @@ pub fn compile_to_c<'ast, 'src>(program: &Program<'ast, 'src>) -> Result<String,
 }
 
 pub fn emit_native_c(module: &ControlFlowModule<'_>) -> Result<String, CodegenError> {
-    NativeEmitter { module }.emit()
+    emit_native_c_with_options(module, &NativeOptions::default())
+}
+
+pub fn emit_native_c_with_options(
+    module: &ControlFlowModule<'_>,
+    options: &NativeOptions,
+) -> Result<String, CodegenError> {
+    NativeEmitter {
+        module,
+        options: *options,
+    }
+    .emit()
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NativeOptions {
+    pub partial_escape_analysis: bool,
+    pub stack_allocation: bool,
+    pub region_allocation: bool,
+    pub stack_array_element_limit: usize,
+}
+
+impl Default for NativeOptions {
+    fn default() -> Self {
+        Self {
+            partial_escape_analysis: true,
+            stack_allocation: true,
+            region_allocation: true,
+            stack_array_element_limit: 64,
+        }
+    }
 }
 
 struct NativeEmitter<'module, 'src> {
     module: &'module ControlFlowModule<'src>,
+    options: NativeOptions,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum NativeStorage<'src> {
+    StackArray(usize),
+    RegionArray(usize),
+    StackClass(&'src str),
+    RegionClass,
+    StackClosure(FunctionId),
+    RegionClosure(FunctionId),
 }
 
 impl<'module, 'src> NativeEmitter<'module, 'src> {
     fn emit(&self) -> Result<String, CodegenError> {
         self.validate_host_boundaries()?;
         let mut out = String::from(
-            "#include <stdbool.h>\n#include <ctype.h>\n#include <math.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n",
+            "#include <stdbool.h>\n#include <ctype.h>\n#include <math.h>\n#include <stddef.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n",
         );
         out.push_str(
             "static inline int32_t lilscript_idiv(int32_t a,int32_t b){if(!b)return 0;return a==INT32_MIN&&b==-1?INT32_MIN:a/b;}\n",
@@ -51,6 +92,9 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
         );
         out.push_str(
             "typedef struct LilScriptArrayHeader{void*data;int32_t len,cap;}*LilScriptArray;typedef struct{void*fn;void*env;}LilScriptClosure;typedef char* LilScriptString;typedef struct{uint8_t tag;union{int32_t i;double f;bool b;const char*s;void*p;LilScriptClosure c;};}LilScriptValue;typedef struct{bool has;LilScriptValue value;}LilScriptOptional;typedef struct LilScriptMapHeader{LilScriptValue*keys,*values;int32_t len,cap;}*LilScriptMap;typedef struct LilScriptSetHeader{LilScriptValue*values;int32_t len,cap;}*LilScriptSet;typedef struct LilScriptBufferHeader{uint8_t*data;int32_t len;bool shared;}*LilScriptBuffer;typedef struct LilScriptUint8ArrayHeader{LilScriptBuffer buffer;int32_t offset,len;}*LilScriptUint8Array;\n",
+        );
+        out.push_str(
+            "typedef struct LilScriptRegionChunk{struct LilScriptRegionChunk*next;size_t used,cap;max_align_t align;unsigned char data[];}LilScriptRegionChunk;typedef struct{LilScriptRegionChunk*head;}LilScriptRegion;static inline void*lilscript_region_alloc(LilScriptRegion*r,size_t n){size_t a=_Alignof(max_align_t),p=r->head?(r->head->used+a-1)&~(a-1):0;if(!r->head||p+n>r->head->cap){size_t c=n+a>4096?n+a:4096;LilScriptRegionChunk*x=malloc(sizeof*x+c);if(!x)abort();x->next=r->head;x->used=0;x->cap=c;r->head=x;p=0;}void*v=r->head->data+p;r->head->used=p+n;return v;}static inline void lilscript_region_dispose(LilScriptRegion*r){while(r->head){LilScriptRegionChunk*x=r->head;r->head=x->next;free(x);}}\n",
         );
         out.push_str(
             "static inline LilScriptOptional lilscript_optional_f64(LilScriptOptional v){if(v.has){int32_t i=v.value.i;v.value.tag=2;v.value.f=(double)i;}return v;}\n",
@@ -419,6 +463,72 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
         Ok(())
     }
 
+    fn native_allocation_plan(
+        &self,
+        function: &ControlFlowFunction<'src>,
+    ) -> AHashMap<ValueId, NativeStorage<'src>> {
+        if !self.options.partial_escape_analysis {
+            return AHashMap::new();
+        }
+        let mut plan = AHashMap::new();
+        for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
+            let Some(value) = instruction.out else {
+                continue;
+            };
+            let escape = function
+                .value_escapes
+                .get(value.0 as usize)
+                .copied()
+                .unwrap_or(EscapeState::EscapesToUntypedBoundary);
+            let bounded = allocation_is_function_bounded(self.module, function, value);
+            let storage = match &instruction.op {
+                ControlFlowOp::Array(values)
+                    if escape == EscapeState::LocalOnly
+                        && bounded
+                        && array_capacity_is_fixed(function, value) =>
+                {
+                    if self.options.stack_allocation
+                        && values.len() <= self.options.stack_array_element_limit
+                    {
+                        Some(NativeStorage::StackArray(values.len()))
+                    } else if self.options.region_allocation && bounded {
+                        Some(NativeStorage::RegionArray(values.len()))
+                    } else {
+                        None
+                    }
+                }
+                ControlFlowOp::NewClass { class, .. }
+                    if escape == EscapeState::LocalOnly
+                        && bounded
+                        && self.options.stack_allocation =>
+                {
+                    Some(NativeStorage::StackClass(class))
+                }
+                ControlFlowOp::NewClass { .. } if self.options.region_allocation && bounded => {
+                    Some(NativeStorage::RegionClass)
+                }
+                ControlFlowOp::Closure { function, captures }
+                    if !captures.is_empty()
+                        && escape == EscapeState::LocalOnly
+                        && bounded
+                        && self.options.stack_allocation =>
+                {
+                    Some(NativeStorage::StackClosure(*function))
+                }
+                ControlFlowOp::Closure { function, captures }
+                    if !captures.is_empty() && self.options.region_allocation && bounded =>
+                {
+                    Some(NativeStorage::RegionClosure(*function))
+                }
+                _ => None,
+            };
+            if let Some(storage) = storage {
+                plan.insert(value, storage);
+            }
+        }
+        plan
+    }
+
     fn emit_function(
         &self,
         function: &ControlFlowFunction<'src>,
@@ -433,6 +543,15 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
         }
 
         let types = value_types(function);
+        let allocation_plan = self.native_allocation_plan(function);
+        let uses_region = allocation_plan.values().any(|storage| {
+            matches!(
+                storage,
+                NativeStorage::RegionArray(_)
+                    | NativeStorage::RegionClass
+                    | NativeStorage::RegionClosure(_)
+            )
+        });
         let mut declarations = types.iter().collect::<Vec<_>>();
         declarations.sort_unstable_by_key(|(value, _)| value.0);
         for (value, ty) in declarations {
@@ -448,6 +567,41 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                 continue;
             }
             write!(out, "{} v{};", c_type(ty), value.0).expect("writing to String cannot fail");
+        }
+        let mut storage = allocation_plan.iter().collect::<Vec<_>>();
+        storage.sort_unstable_by_key(|(value, _)| value.0);
+        for (value, allocation) in storage {
+            match allocation {
+                NativeStorage::StackArray(length) => {
+                    write!(
+                        out,
+                        "struct LilScriptArrayHeader h{};LilScriptValue d{}[{}];",
+                        value.0,
+                        value.0,
+                        (*length).max(1)
+                    )
+                    .expect("writing to String cannot fail");
+                }
+                NativeStorage::StackClass(class) => {
+                    write!(
+                        out,
+                        "struct {} c{};",
+                        aggregate_type_name("Class", class),
+                        value.0
+                    )
+                    .expect("writing to String cannot fail");
+                }
+                NativeStorage::StackClosure(target) => {
+                    write!(out, "E{} e{}_storage;", target.0, value.0)
+                        .expect("writing to String cannot fail");
+                }
+                NativeStorage::RegionArray(_)
+                | NativeStorage::RegionClass
+                | NativeStorage::RegionClosure(_) => {}
+            }
+        }
+        if uses_region {
+            out.push_str("LilScriptRegion r={0};");
         }
         if function.kind == FunctionKind::Closure {
             if function.capture_count == 0 {
@@ -480,9 +634,9 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
         for block in &function.blocks {
             write!(out, "case {}:{{", block.id.0).expect("writing to String cannot fail");
             for instruction in &block.instructions {
-                self.emit_instruction(instruction, &types, out)?;
+                self.emit_instruction(instruction, &types, &allocation_plan, out)?;
             }
-            self.emit_terminator(function, block.id, &types, &mut phi_temp, out)?;
+            self.emit_terminator(function, block.id, &types, &mut phi_temp, uses_region, out)?;
             out.push('}');
         }
         out.push('}');
@@ -497,6 +651,7 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
         &self,
         instruction: &ControlFlowInstruction<'src>,
         types: &AHashMap<ValueId, Type<'src>>,
+        allocation_plan: &AHashMap<ValueId, NativeStorage<'src>>,
         out: &mut String,
     ) -> Result<(), CodegenError> {
         match &instruction.op {
@@ -508,12 +663,36 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                         "array instruction has no array type",
                     ));
                 };
-                write!(
-                    out,
-                    "v{}=lilscript_array({},sizeof(LilScriptValue));",
-                    result.0,
-                    values.len()
-                )
+                match allocation_plan.get(&result) {
+                    Some(NativeStorage::StackArray(_)) => write!(
+                        out,
+                        "v{}=&h{};v{}->data=d{};v{}->len=v{}->cap={};",
+                        result.0,
+                        result.0,
+                        result.0,
+                        result.0,
+                        result.0,
+                        result.0,
+                        values.len()
+                    ),
+                    Some(NativeStorage::RegionArray(_)) => write!(
+                        out,
+                        "v{}=lilscript_region_alloc(&r,sizeof*v{});v{}->data=lilscript_region_alloc(&r,{}*sizeof(LilScriptValue));v{}->len=v{}->cap={};",
+                        result.0,
+                        result.0,
+                        result.0,
+                        values.len().max(1),
+                        result.0,
+                        result.0,
+                        values.len()
+                    ),
+                    _ => write!(
+                        out,
+                        "v{}=lilscript_array({},sizeof(LilScriptValue));",
+                        result.0,
+                        values.len()
+                    ),
+                }
                 .expect("writing to String cannot fail");
                 for (index, value) in values.iter().enumerate() {
                     let normalized = self.render_value_conversion(
@@ -543,11 +722,23 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                 args,
             } => {
                 let result = required_output(instruction)?;
-                write!(
-                    out,
-                    "v{}=calloc(1,sizeof*v{});if(!v{})abort();",
-                    result.0, result.0, result.0
-                )
+                match allocation_plan.get(&result) {
+                    Some(NativeStorage::StackClass(_)) => write!(
+                        out,
+                        "v{}=&c{};memset(v{},0,sizeof*v{});",
+                        result.0, result.0, result.0, result.0
+                    ),
+                    Some(NativeStorage::RegionClass) => write!(
+                        out,
+                        "v{}=lilscript_region_alloc(&r,sizeof*v{});memset(v{},0,sizeof*v{});",
+                        result.0, result.0, result.0, result.0
+                    ),
+                    _ => write!(
+                        out,
+                        "v{}=calloc(1,sizeof*v{});if(!v{})abort();",
+                        result.0, result.0, result.0
+                    ),
+                }
                 .expect("writing to String cannot fail");
                 let layout = self
                     .module
@@ -626,11 +817,21 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                     )
                     .expect("writing to String cannot fail");
                 } else {
-                    write!(
-                        out,
-                        "E{}*e{}=malloc(sizeof(E{}));if(!e{})abort();",
-                        function.0, result.0, function.0, result.0
-                    )
+                    match allocation_plan.get(&result) {
+                        Some(NativeStorage::StackClosure(_)) => {
+                            write!(out, "E{}*e{}=&e{}_storage;", function.0, result.0, result.0)
+                        }
+                        Some(NativeStorage::RegionClosure(_)) => write!(
+                            out,
+                            "E{}*e{}=lilscript_region_alloc(&r,sizeof(E{}));",
+                            function.0, result.0, function.0
+                        ),
+                        _ => write!(
+                            out,
+                            "E{}*e{}=malloc(sizeof(E{}));if(!e{})abort();",
+                            function.0, result.0, function.0, result.0
+                        ),
+                    }
                     .expect("writing to String cannot fail");
                     let closure = self.function(*function)?;
                     for (index, capture) in captures.iter().enumerate() {
@@ -2060,6 +2261,7 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
         from: BlockId,
         types: &AHashMap<ValueId, Type<'src>>,
         phi_temp: &mut usize,
+        uses_region: bool,
         out: &mut String,
     ) -> Result<(), CodegenError> {
         let block = &function.blocks[from.0 as usize];
@@ -2093,7 +2295,15 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                         &universal,
                         block.span,
                     )?;
-                    write!(out, "return {converted};").expect("writing to String cannot fail");
+                    if uses_region {
+                        write!(
+                            out,
+                            "LilScriptValue z={converted};lilscript_region_dispose(&r);return z;"
+                        )
+                        .expect("writing to String cannot fail");
+                    } else {
+                        write!(out, "return {converted};").expect("writing to String cannot fail");
+                    }
                 } else {
                     let converted = self.render_value_conversion(
                         &format!("v{}", value.0),
@@ -2101,16 +2311,36 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                         &function.return_type,
                         block.span,
                     )?;
-                    write!(out, "return {converted};").expect("writing to String cannot fail");
+                    if uses_region {
+                        write!(
+                            out,
+                            "{} z={converted};lilscript_region_dispose(&r);return z;",
+                            c_type(&function.return_type)
+                        )
+                        .expect("writing to String cannot fail");
+                    } else {
+                        write!(out, "return {converted};").expect("writing to String cannot fail");
+                    }
                 }
             }
             Terminator::Return(None) if function.kind == FunctionKind::Entry => {
+                if uses_region {
+                    out.push_str("lilscript_region_dispose(&r);");
+                }
                 out.push_str("return 0;");
             }
             Terminator::Return(None) if function.kind == FunctionKind::Closure => {
+                if uses_region {
+                    out.push_str("lilscript_region_dispose(&r);");
+                }
                 out.push_str("return (LilScriptValue){0};")
             }
-            Terminator::Return(None) => out.push_str("return;"),
+            Terminator::Return(None) => {
+                if uses_region {
+                    out.push_str("lilscript_region_dispose(&r);");
+                }
+                out.push_str("return;");
+            }
             Terminator::Unreachable => out.push_str("abort();"),
         }
         Ok(())
@@ -2176,6 +2406,154 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
             CodegenError::new(Span::empty(0), format!("missing IR function {}", id.0))
         })
     }
+}
+
+fn allocation_is_function_bounded(
+    module: &ControlFlowModule<'_>,
+    function: &ControlFlowFunction<'_>,
+    value: ValueId,
+) -> bool {
+    for block in &function.blocks {
+        if block
+            .phis
+            .iter()
+            .any(|phi| phi.incoming.iter().any(|(_, incoming)| *incoming == value))
+        {
+            return false;
+        }
+        if matches!(block.terminator, Some(Terminator::Return(Some(returned))) if returned == value)
+        {
+            return false;
+        }
+        for instruction in &block.instructions {
+            let unsafe_use = match &instruction.op {
+                ControlFlowOp::StoreLocal { value: stored, .. }
+                | ControlFlowOp::StoreGlobal { value: stored, .. } => *stored == value,
+                ControlFlowOp::Array(values) | ControlFlowOp::Struct { fields: values, .. } => {
+                    values.contains(&value)
+                }
+                ControlFlowOp::NewClass { args, .. } => args.contains(&value),
+                ControlFlowOp::Closure { captures, .. } => captures.contains(&value),
+                ControlFlowOp::FieldSet {
+                    object,
+                    value: stored,
+                    ..
+                }
+                | ControlFlowOp::HostFieldSet {
+                    object,
+                    value: stored,
+                    ..
+                } => *stored == value && *object != value,
+                ControlFlowOp::IndexSet {
+                    object,
+                    index,
+                    value: stored,
+                } => (*stored == value && *object != value) || *index == value,
+                ControlFlowOp::CallDirect { function, args } => {
+                    direct_call_retains_value(module, *function, args, value)
+                }
+                ControlFlowOp::CallMethod {
+                    receiver,
+                    function,
+                    args,
+                    ..
+                } => {
+                    let mut direct_args = vec![*receiver];
+                    direct_args.extend(args);
+                    direct_call_retains_value(module, *function, &direct_args, value)
+                }
+                ControlFlowOp::CallValue { callee, args } => {
+                    *callee == value || args.contains(&value)
+                }
+                ControlFlowOp::HostCall { receiver, args, .. } => {
+                    *receiver == value || args.contains(&value)
+                }
+                ControlFlowOp::Intrinsic { receiver, args, .. } => {
+                    args.contains(&value)
+                        || (receiver == &Some(value) && intrinsic_retains_receiver(&instruction.op))
+                }
+                ControlFlowOp::Template(parts) => parts
+                    .iter()
+                    .any(|part| matches!(part, TemplateOperand::Value(item) if *item == value)),
+                _ => false,
+            };
+            if unsafe_use {
+                return false;
+            }
+        }
+    }
+    true
+}
+
+fn direct_call_retains_value(
+    module: &ControlFlowModule<'_>,
+    function: FunctionId,
+    args: &[ValueId],
+    value: ValueId,
+) -> bool {
+    let Some(callee) = module.functions.get(function.0 as usize) else {
+        return true;
+    };
+    args.iter()
+        .enumerate()
+        .filter(|(_, argument)| **argument == value)
+        .any(|(index, _)| {
+            callee
+                .params
+                .get(index)
+                .and_then(|parameter| callee.value_escapes.get(parameter.value.0 as usize))
+                .copied()
+                != Some(EscapeState::LocalOnly)
+        })
+}
+
+fn intrinsic_retains_receiver(operation: &ControlFlowOp<'_>) -> bool {
+    matches!(
+        operation,
+        ControlFlowOp::Intrinsic {
+            intrinsic: Intrinsic::ArrayPush
+                | Intrinsic::MapSet
+                | Intrinsic::SetAdd
+                | Intrinsic::BufferSlice
+                | Intrinsic::Uint8ArrayBuffer
+                | Intrinsic::Uint8ArraySlice
+                | Intrinsic::Uint8ArraySubarray,
+            ..
+        }
+    )
+}
+
+fn array_capacity_is_fixed(function: &ControlFlowFunction<'_>, value: ValueId) -> bool {
+    for block in &function.blocks {
+        if block
+            .phis
+            .iter()
+            .any(|phi| phi.incoming.iter().any(|(_, incoming)| *incoming == value))
+        {
+            return false;
+        }
+        for instruction in &block.instructions {
+            match &instruction.op {
+                ControlFlowOp::Intrinsic {
+                    intrinsic: Intrinsic::ArrayPush,
+                    receiver: Some(receiver),
+                    ..
+                } if *receiver == value => return false,
+                ControlFlowOp::CallDirect { args, .. }
+                | ControlFlowOp::CallValue { args, .. }
+                | ControlFlowOp::HostCall { args, .. }
+                    if args.contains(&value) =>
+                {
+                    return false;
+                }
+                ControlFlowOp::Closure { captures, .. } if captures.contains(&value) => {
+                    return false;
+                }
+                _ => {}
+            }
+        }
+    }
+    true
 }
 
 fn required_output(instruction: &ControlFlowInstruction<'_>) -> Result<ValueId, CodegenError> {
@@ -2422,7 +2800,7 @@ mod tests {
     }
 
     #[test]
-    fn adapts_named_functions_used_as_closures() {
+    fn devirtualizes_named_functions_used_as_local_closures() {
         let arena = Bump::new();
         let program = parse_source(
             &arena,
@@ -2430,7 +2808,56 @@ mod tests {
         )
         .unwrap();
         let c = compile_to_c(&program).unwrap();
-        assert!(c.contains("static LilScriptValue a"));
-        assert!(c.contains("(LilScriptClosure){(void*)a"));
+        assert!(!c.contains("static LilScriptValue a"));
+    }
+
+    #[test]
+    fn stack_allocates_fixed_local_arrays_and_keeps_resizable_arrays_on_heap() {
+        let arena = Bump::new();
+        let fixed =
+            parse_source(&arena, "int[] values=[1,2,3];values[1]=7;print(values[1]);").unwrap();
+        let fixed_c = compile_to_c(&fixed).unwrap();
+        assert!(
+            fixed_c.contains("struct LilScriptArrayHeader h"),
+            "{fixed_c}"
+        );
+
+        let arena = Bump::new();
+        let resizable = parse_source(
+            &arena,
+            "int[] values=[1,2,3];values.push(4);print(values.length);",
+        )
+        .unwrap();
+        let resizable_c = compile_to_c(&resizable).unwrap();
+        assert!(resizable_c.contains("=lilscript_array(3"), "{resizable_c}");
+
+        let arena = Bump::new();
+        let aliased = parse_source(
+            &arena,
+            "class Bag{int[] values;init(){this.values=[];}}Bag bag=new Bag();bag.values.push(9);print(bag.values.length);",
+        )
+        .unwrap();
+        let aliased_c = compile_to_c(&aliased).unwrap();
+        assert!(aliased_c.contains("=lilscript_array(0"), "{aliased_c}");
+    }
+
+    #[test]
+    fn region_allocates_bounded_arrays_above_the_stack_limit() {
+        let arena = Bump::new();
+        let program =
+            parse_source(&arena, "int[] values=[1,2,3];values[1]=7;print(values[1]);").unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+        optimize_control_flow(&mut ir).unwrap();
+        let c = emit_native_c_with_options(
+            &ir,
+            &NativeOptions {
+                stack_array_element_limit: 1,
+                ..NativeOptions::default()
+            },
+        )
+        .unwrap();
+        assert!(c.contains("=lilscript_region_alloc(&r,sizeof*v"), "{c}");
+        assert!(c.contains("lilscript_region_dispose(&r)"), "{c}");
     }
 }

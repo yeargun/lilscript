@@ -15,6 +15,7 @@ node "$ROOT/benchmarks/ir-variants/run.mjs"
 node "$ROOT/benchmarks/closure-factory-variants/run.mjs"
 node "$ROOT/benchmarks/loop-spelling/run.mjs"
 node "$ROOT/benchmarks/mutation-spelling/run.mjs"
+node "$ROOT/benchmarks/profile-guided/run.mjs"
 node "$ROOT/benchmarks/paired/run.mjs" --check
 "$ROOT/comparison/run-all.sh"
 npm --prefix "$ROOT/benchmarks/apps" run verify

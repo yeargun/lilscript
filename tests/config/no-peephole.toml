@@ -19,5 +19,9 @@ optimizations = [
   "compound-mutation-variants",
   "entropy-cross-scope-reuse",
   "entropy-property-assignment",
+  "performance-shape-model",
+  "profile-guided-optimization",
+  "call-site-specialization",
+  "capture-signature-cloning",
   "startup-cost-guard",
 ]

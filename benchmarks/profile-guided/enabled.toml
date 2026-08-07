@@ -1,0 +1,26 @@
+[optimization]
+preset = "maximum"
+inlining = false
+profile_guided = true
+call_site_specialization = true
+capture_signature_cloning = true
+
+[javascript]
+priority = "size-first"
+optimization_level = 0
+optimizations = [
+  "performance-shape-model",
+  "profile-guided-optimization",
+  "call-site-specialization",
+]
+cost_model = "brotli"
+candidate_search = "production"
+candidate_limit = 64
+
+[profile]
+specialization_min_count = 100
+max_specializations_per_function = 4
+max_clone_instructions = 64
+
+[profile.loops]
+"$entry#0" = 100000

@@ -8,7 +8,9 @@ use crate::codegen_ir_js::{
     ControlFlowSpelling, IdentifierAlphabet, IrJsOptions, LoopSpelling, MutationSpelling,
     PhiAffinityMode, StateMachineSpelling, StringQuote,
 };
+use crate::codegen_native::NativeOptions;
 use crate::optimizer::OptimizationOptions;
+use crate::profile::{JavaScriptPerformanceWeights, OptimizationProfile};
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize)]
 #[serde(default, deny_unknown_fields)]
@@ -19,6 +21,8 @@ pub struct ProjectConfig {
     pub javascript: JavaScriptConfig,
     pub mangle: MangleConfig,
     pub bundle: BundleConfig,
+    pub profile: OptimizationProfileConfig,
+    pub native: NativeConfig,
     pub lint: LintConfig,
     pub format: FormatConfig,
     #[serde(skip)]
@@ -30,9 +34,29 @@ impl ProjectConfig {
         self.optimization.resolve()
     }
 
+    pub fn native_profile_guided_optimization(&self) -> bool {
+        self.optimization.profile_guided.unwrap_or(matches!(
+            self.optimization.preset,
+            OptimizationPreset::Maximum
+        ))
+    }
+
+    pub fn js_profile_guided_optimization(&self) -> bool {
+        self.native_profile_guided_optimization()
+            && self.javascript_optimization_configured(
+                JavaScriptOptimization::ProfileGuidedOptimization,
+            )
+    }
+
     pub fn js_optimizer_options(&self) -> OptimizationOptions {
         let mut options = self.optimization.resolve();
         options.specialize_tagged_constants = true;
+        options.call_site_specialization &= self
+            .javascript
+            .optimization_enabled(JavaScriptOptimization::CallSiteSpecialization, None);
+        options.capture_signature_cloning &= self
+            .javascript
+            .optimization_enabled(JavaScriptOptimization::CaptureSignatureCloning, None);
         if !options.inlining {
             return options;
         }
@@ -55,6 +79,55 @@ impl ProjectConfig {
                         .then_some(policy.max_inline_growth)
                 });
         options
+    }
+
+    pub fn load_optimization_profile(&self) -> Result<OptimizationProfile, String> {
+        let mut profile = if let Some(path) = &self.profile.path {
+            let path = if path.is_absolute() {
+                path.clone()
+            } else {
+                self.config_dir
+                    .as_deref()
+                    .unwrap_or_else(|| Path::new("."))
+                    .join(path)
+            };
+            let source = fs::read_to_string(&path).map_err(|error| {
+                format!(
+                    "failed to read optimization profile `{}`: {error}",
+                    path.display()
+                )
+            })?;
+            serde_json::from_str::<OptimizationProfile>(&source).map_err(|error| {
+                format!("invalid optimization profile `{}`: {error}", path.display())
+            })?
+        } else {
+            OptimizationProfile::default()
+        };
+        profile.merge(&OptimizationProfile {
+            version: 1,
+            functions: self.profile.functions.clone(),
+            loops: self.profile.loops.clone(),
+        });
+        profile.validate()?;
+        Ok(profile)
+    }
+
+    pub const fn javascript_performance_weights(&self) -> JavaScriptPerformanceWeights {
+        JavaScriptPerformanceWeights {
+            deoptimization: self.javascript.performance.deoptimization_weight,
+            allocation: self.javascript.performance.allocation_weight,
+            indirect_call: self.javascript.performance.indirect_call_weight,
+            hot_code: self.javascript.performance.hot_code_weight,
+        }
+    }
+
+    pub const fn native_options(&self) -> NativeOptions {
+        NativeOptions {
+            partial_escape_analysis: self.native.partial_escape_analysis,
+            stack_allocation: self.native.stack_allocation,
+            region_allocation: self.native.region_allocation,
+            stack_array_element_limit: self.native.stack_array_element_limit,
+        }
     }
 
     pub fn js_options(&self) -> IrJsOptions {
@@ -254,6 +327,40 @@ impl ProjectConfig {
                 }
             }
         }
+        if self.javascript.performance.deoptimization_weight == 0
+            && self.javascript.performance.allocation_weight == 0
+            && self.javascript.performance.indirect_call_weight == 0
+            && self.javascript.performance.hot_code_weight == 0
+        {
+            return Err(
+                "`javascript.performance` must enable at least one cost weight".to_string(),
+            );
+        }
+        if self.javascript.performance.max_regression_percent > 1_000 {
+            return Err(
+                "`javascript.performance.max_regression_percent` must be at most 1000".to_string(),
+            );
+        }
+        if self.profile.specialization_min_count == 0 {
+            return Err("`profile.specialization_min_count` must be greater than zero".to_string());
+        }
+        if self.profile.max_specializations_per_function == 0 {
+            return Err(
+                "`profile.max_specializations_per_function` must be greater than zero".to_string(),
+            );
+        }
+        if self.profile.max_clone_instructions == 0 {
+            return Err("`profile.max_clone_instructions` must be greater than zero".to_string());
+        }
+        if self.native.stack_array_element_limit == 0 {
+            return Err("`native.stack_array_element_limit` must be greater than zero".to_string());
+        }
+        OptimizationProfile {
+            version: 1,
+            functions: self.profile.functions.clone(),
+            loops: self.profile.loops.clone(),
+        }
+        .validate()?;
         for (name, percent) in [
             (
                 "parse_overhead_limit_percent",
@@ -280,6 +387,20 @@ impl ProjectConfig {
                 return Err("`lint.rules` contains an empty rule name".to_string());
             }
             let _ = severity;
+        }
+        if let Some(providers) = &self.lint.providers {
+            let mut unique = HashSet::with_capacity(providers.len());
+            for provider in providers {
+                if provider.trim().is_empty() || provider.contains('/') {
+                    return Err(
+                        "`lint.providers` names must be nonempty namespace identifiers without `/`"
+                            .to_string(),
+                    );
+                }
+                if !unique.insert(provider) {
+                    return Err(format!("`lint.providers` contains duplicate `{provider}`"));
+                }
+            }
         }
         Ok(())
     }
@@ -464,6 +585,7 @@ pub struct JavaScriptConfig {
     pub candidate_search: CandidateSearch,
     pub candidate_limit: usize,
     pub startup: StartupCostConfig,
+    pub performance: JavaScriptPerformanceConfig,
 }
 
 impl Default for JavaScriptConfig {
@@ -480,6 +602,7 @@ impl Default for JavaScriptConfig {
             candidate_search: CandidateSearch::Production,
             candidate_limit: 1536,
             startup: StartupCostConfig::default(),
+            performance: JavaScriptPerformanceConfig::default(),
         }
     }
 }
@@ -503,6 +626,10 @@ pub enum JavaScriptOptimization {
     EntropyPropertyAssignment,
     ParsedPeephole,
     StartupCostGuard,
+    PerformanceShapeModel,
+    ProfileGuidedOptimization,
+    CallSiteSpecialization,
+    CaptureSignatureCloning,
 }
 
 impl JavaScriptOptimization {
@@ -524,6 +651,10 @@ impl JavaScriptOptimization {
             Self::EntropyPropertyAssignment => "entropy-property-assignment",
             Self::ParsedPeephole => "parsed-peephole",
             Self::StartupCostGuard => "startup-cost-guard",
+            Self::PerformanceShapeModel => "performance-shape-model",
+            Self::ProfileGuidedOptimization => "profile-guided-optimization",
+            Self::CallSiteSpecialization => "call-site-specialization",
+            Self::CaptureSignatureCloning => "capture-signature-cloning",
         }
     }
 
@@ -540,6 +671,76 @@ impl JavaScriptOptimization {
             Self::IrClosureFactoryVariants | Self::DoLoopVariants => 11,
             Self::SwitchLoweringVariants => 12,
             Self::StartupCostGuard => 1,
+            Self::PerformanceShapeModel => 3,
+            Self::ProfileGuidedOptimization => 10,
+            Self::CallSiteSpecialization => 11,
+            Self::CaptureSignatureCloning => 12,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct JavaScriptPerformanceConfig {
+    pub deoptimization_weight: u32,
+    pub allocation_weight: u32,
+    pub indirect_call_weight: u32,
+    pub hot_code_weight: u32,
+    pub max_regression_percent: u32,
+}
+
+impl Default for JavaScriptPerformanceConfig {
+    fn default() -> Self {
+        Self {
+            deoptimization_weight: 32,
+            allocation_weight: 12,
+            indirect_call_weight: 24,
+            hot_code_weight: 1,
+            max_regression_percent: 25,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct OptimizationProfileConfig {
+    pub path: Option<PathBuf>,
+    pub functions: BTreeMap<String, u64>,
+    pub loops: BTreeMap<String, u64>,
+    pub specialization_min_count: u64,
+    pub max_specializations_per_function: usize,
+    pub max_clone_instructions: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct NativeConfig {
+    pub partial_escape_analysis: bool,
+    pub stack_allocation: bool,
+    pub region_allocation: bool,
+    pub stack_array_element_limit: usize,
+}
+
+impl Default for NativeConfig {
+    fn default() -> Self {
+        Self {
+            partial_escape_analysis: true,
+            stack_allocation: true,
+            region_allocation: true,
+            stack_array_element_limit: 64,
+        }
+    }
+}
+
+impl Default for OptimizationProfileConfig {
+    fn default() -> Self {
+        Self {
+            path: None,
+            functions: BTreeMap::new(),
+            loops: BTreeMap::new(),
+            specialization_min_count: 100,
+            max_specializations_per_function: 8,
+            max_clone_instructions: 64,
         }
     }
 }
@@ -611,6 +812,7 @@ pub struct LintConfig {
     pub enabled: bool,
     pub preset: LintPreset,
     pub deny_warnings: bool,
+    pub providers: Option<Vec<String>>,
     pub exclude: Vec<String>,
     pub pure_extern_allowlist: Vec<String>,
     pub rules: BTreeMap<String, LintSeverity>,
@@ -622,6 +824,7 @@ impl Default for LintConfig {
             enabled: true,
             preset: LintPreset::Recommended,
             deny_warnings: false,
+            providers: None,
             exclude: Vec::new(),
             pure_extern_allowlist: Vec::new(),
             rules: BTreeMap::new(),
@@ -721,6 +924,9 @@ pub struct OptimizationConfig {
     pub scalar_replacement: Option<bool>,
     pub dead_store_elimination: Option<bool>,
     pub dead_code_elimination: Option<bool>,
+    pub call_site_specialization: Option<bool>,
+    pub capture_signature_cloning: Option<bool>,
+    pub profile_guided: Option<bool>,
 }
 
 impl Default for OptimizationConfig {
@@ -737,6 +943,9 @@ impl Default for OptimizationConfig {
             scalar_replacement: None,
             dead_store_elimination: None,
             dead_code_elimination: None,
+            call_site_specialization: None,
+            capture_signature_cloning: None,
+            profile_guided: None,
         }
     }
 }
@@ -771,6 +980,12 @@ impl OptimizationConfig {
                 .dead_code_elimination
                 .unwrap_or(base.dead_code_elimination),
             specialize_tagged_constants: base.specialize_tagged_constants,
+            call_site_specialization: self
+                .call_site_specialization
+                .unwrap_or(base.call_site_specialization),
+            capture_signature_cloning: self
+                .capture_signature_cloning
+                .unwrap_or(base.capture_signature_cloning),
             inline_instruction_limit: base.inline_instruction_limit,
             inline_control_flow_limit: base.inline_control_flow_limit,
             inline_growth_limit: base.inline_growth_limit,
@@ -1196,5 +1411,90 @@ optimizations = ["parsed-peephole", "do-loop-variants"]
         );
         assert!(!loaded.config.js_options().mangle_identifiers);
         std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn loads_and_overlays_versioned_profile_data() {
+        let directory = std::env::temp_dir().join(format!(
+            "lilscript-profile-config-test-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&directory).unwrap();
+        std::fs::write(
+            directory.join("profile.json"),
+            r#"{"version":1,"functions":{"render":40},"loops":{"render#0":80}}"#,
+        )
+        .unwrap();
+        let config_path = directory.join("lilscript.toml");
+        std::fs::write(
+            &config_path,
+            "[profile]\npath='profile.json'\n[profile.functions]\nrender=100\n",
+        )
+        .unwrap();
+        let input = directory.join("main.lil");
+        std::fs::write(&input, "print(1);").unwrap();
+
+        let loaded = load_project_config(&input, Some(&config_path)).unwrap();
+        let profile = loaded.config.load_optimization_profile().unwrap();
+        assert_eq!(profile.functions.get("render"), Some(&100));
+        assert_eq!(profile.loops.get("render#0"), Some(&80));
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn validates_performance_native_profile_and_provider_controls() {
+        let config: ProjectConfig = toml::from_str(
+            r#"
+[javascript.performance]
+deoptimization_weight = 10
+allocation_weight = 5
+indirect_call_weight = 20
+hot_code_weight = 1
+max_regression_percent = 15
+
+[profile]
+specialization_min_count = 50
+max_specializations_per_function = 3
+max_clone_instructions = 40
+
+[native]
+partial_escape_analysis = true
+stack_allocation = true
+region_allocation = true
+stack_array_element_limit = 32
+
+[lint]
+providers = ["correctness", "web"]
+[lint.rules]
+"web/eager-host-access" = "hint"
+"#,
+        )
+        .unwrap();
+        config.validate().unwrap();
+        assert_eq!(config.profile.specialization_min_count, 50);
+        assert_eq!(config.native_options().stack_array_element_limit, 32);
+        assert_eq!(config.lint.providers.as_ref().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn global_optimizer_disables_override_javascript_effort_features() {
+        let config: ProjectConfig = toml::from_str(
+            r#"
+[optimization]
+preset = "maximum"
+call_site_specialization = false
+capture_signature_cloning = false
+profile_guided = false
+
+[javascript]
+optimization_level = 15
+"#,
+        )
+        .unwrap();
+        let options = config.js_optimizer_options();
+        assert!(!options.call_site_specialization);
+        assert!(!options.capture_signature_cloning);
+        assert!(!config.js_profile_guided_optimization());
+        assert!(!config.native_profile_guided_optimization());
     }
 }

@@ -1,0 +1,13 @@
+int apply(func(int)->int operation, int value) {
+  return operation(value);
+}
+
+int increment(int value) {
+  return value + 1;
+}
+
+int total = 0;
+for (int index = 0; index < 10000; index++) {
+  total = total + apply(increment, index);
+}
+print(total);

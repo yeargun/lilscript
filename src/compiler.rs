@@ -14,7 +14,7 @@ use crate::codegen_ir_js::{
     IrJsChunkPlan, IrJsChunkSpec,
 };
 use crate::codegen_js::{compile_to_js, CompileError};
-use crate::codegen_native::{compile_to_c, emit_native_c};
+use crate::codegen_native::{compile_to_c, emit_native_c, emit_native_c_with_options};
 use crate::config::{
     BundleMode, CompressionCostModel, JavaScriptOptimization, PreloadPolicy, ProjectConfig,
 };
@@ -29,10 +29,14 @@ use crate::module::{
     ModuleSet,
 };
 use crate::optimizer::{
-    optimize_control_flow, optimize_control_flow_for_module, optimize_control_flow_with_options,
-    OptimizationReport,
+    optimize_control_flow, optimize_control_flow_for_module, optimize_control_flow_with_guidance,
+    OptimizationGuidance, OptimizationReport,
 };
 use crate::parser::{parse_source, ParseError};
+use crate::profile::{
+    analyze_javascript_performance, function_profile_key, loop_profile_key,
+    JavaScriptPerformanceMetrics, OptimizationProfile,
+};
 use crate::semantic::analyze;
 use crate::span::Span;
 use crate::value_analysis::{analyze_integer_values, IntegerValueAnalysis};
@@ -58,6 +62,8 @@ pub struct JavaScriptSelectionMetrics {
     pub startup_score: u64,
     pub syntax: JavaScriptSyntaxMetrics,
     pub baseline_syntax: JavaScriptSyntaxMetrics,
+    pub performance: JavaScriptPerformanceMetrics,
+    pub baseline_performance: JavaScriptPerformanceMetrics,
     pub candidates_evaluated: usize,
     pub peephole_rewrites: usize,
     pub compiler_time_micros: u128,
@@ -211,6 +217,32 @@ pub fn compile_path_explained_configured(
     })
 }
 
+pub fn profile_template_path_configured(
+    path: &Path,
+    config: &ProjectConfig,
+) -> Result<OptimizationProfile, ModuleError> {
+    let arena = Bump::new();
+    let modules = discover_modules_configured(path, config)?;
+    let programs = parse_modules(&arena, &modules)?;
+    let linked = link_modules(&arena, &modules, &programs)?;
+    let semantics = analyze(&linked)
+        .map_err(|error| module_compile_error(&modules, CompileError::Semantic(error)))?;
+    let ir = lower_to_control_flow(&linked, &semantics)
+        .map_err(|error| module_compile_error(&modules, CompileError::Lower(error)))?;
+    let mut profile = OptimizationProfile::default();
+    for function in &ir.functions {
+        profile.functions.insert(function_profile_key(function), 1);
+        for (shape_index, shape) in function.shapes.iter().enumerate() {
+            if matches!(shape, crate::ir::ControlShape::Loop { .. }) {
+                profile
+                    .loops
+                    .insert(loop_profile_key(function, shape_index), 1);
+            }
+        }
+    }
+    Ok(profile)
+}
+
 pub fn compile_path_to_c(path: &Path) -> Result<String, ModuleError> {
     let modules = discover_modules(path)?;
     let arena = Bump::new();
@@ -270,7 +302,13 @@ pub fn compile_path_to_js_bundle_configured(
     let mut ir = lower_to_control_flow(&linked, &semantics)
         .map_err(CompileError::from)
         .map_err(|error| module_compile_error(&modules, error))?;
-    optimize_control_flow_with_options(&mut ir, &config.js_optimizer_options(), true)
+    let guidance = load_optimization_guidance(
+        config,
+        config
+            .javascript_optimization_configured(JavaScriptOptimization::ProfileGuidedOptimization),
+    )
+    .map_err(|error| module_compile_error(&modules, error))?;
+    optimize_control_flow_with_guidance(&mut ir, &config.js_optimizer_options(), true, &guidance)
         .map_err(CompileError::from)
         .map_err(|error| module_compile_error(&modules, error))?;
 
@@ -955,8 +993,15 @@ fn compile_program_all_configured<'ast, 'src>(
     let javascript_ir = lower_to_control_flow(program, &semantics)?;
     let mut native_ir = javascript_ir.clone();
     let selected = optimize_and_select_javascript(javascript_ir, config, false)?;
-    optimize_control_flow_with_options(&mut native_ir, &config.optimizer_options(), false)?;
-    let c = emit_native_c(&native_ir)?;
+    let native_guidance =
+        load_optimization_guidance(config, config.native_profile_guided_optimization())?;
+    optimize_control_flow_with_guidance(
+        &mut native_ir,
+        &config.optimizer_options(),
+        false,
+        &native_guidance,
+    )?;
+    let c = emit_native_c_with_options(&native_ir, &config.native_options())?;
     Ok(CompilationArtifacts {
         javascript: selected.javascript,
         c,
@@ -1012,7 +1057,20 @@ fn optimize_and_select_javascript<'src>(
     preserve_exports: bool,
 ) -> Result<OptimizedJavascriptCandidate, CompileError> {
     let started = Instant::now();
+    let profile = if config.js_profile_guided_optimization() {
+        config
+            .load_optimization_profile()
+            .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?
+    } else {
+        OptimizationProfile::default()
+    };
     let configured = config.js_optimizer_options();
+    let guidance = OptimizationGuidance {
+        profile: profile.clone(),
+        specialization_min_count: config.profile.specialization_min_count,
+        max_specializations_per_function: config.profile.max_specializations_per_function,
+        max_clone_instructions: config.profile.max_clone_instructions,
+    };
     let mut optimizer_options = vec![configured];
     if configured.inlining
         && configured.inline_closure_factories
@@ -1041,14 +1099,43 @@ fn optimize_and_select_javascript<'src>(
             optimizer_options.push(unspecialized);
         }
     }
+    if configured.call_site_specialization
+        && config.javascript_optimization_enabled(JavaScriptOptimization::CallSiteSpecialization)
+    {
+        let mut without_call_specialization = configured;
+        without_call_specialization.call_site_specialization = false;
+        optimizer_options.push(without_call_specialization);
+    }
+    if configured.capture_signature_cloning
+        && config.javascript_optimization_enabled(JavaScriptOptimization::CaptureSignatureCloning)
+    {
+        let mut without_capture_cloning = configured;
+        without_capture_cloning.capture_signature_cloning = false;
+        optimizer_options.push(without_capture_cloning);
+    }
+    optimizer_options.sort_by_key(|options| {
+        (
+            !options.inlining,
+            !options.inline_closure_factories,
+            !options.specialize_tagged_constants,
+            !options.call_site_specialization,
+            !options.capture_signature_cloning,
+        )
+    });
+    optimizer_options.dedup();
 
     let mut candidates = Vec::with_capacity(optimizer_options.len());
     let mut candidates_evaluated = 0;
     for options in optimizer_options {
         let mut candidate_ir = ir.clone();
-        let optimization_reports =
-            optimize_control_flow_with_options(&mut candidate_ir, &options, preserve_exports)?;
-        let selected = select_javascript_candidate(&candidate_ir, config, preserve_exports)?;
+        let optimization_reports = optimize_control_flow_with_guidance(
+            &mut candidate_ir,
+            &options,
+            preserve_exports,
+            &guidance,
+        )?;
+        let selected =
+            select_javascript_candidate(&candidate_ir, config, preserve_exports, &profile)?;
         candidates_evaluated += selected.candidates_evaluated;
         if candidates
             .iter()
@@ -1070,6 +1157,8 @@ fn optimize_and_select_javascript<'src>(
                     startup_score: selected.startup_score,
                     syntax: selected.metrics,
                     baseline_syntax: selected.baseline_metrics,
+                    performance: selected.performance,
+                    baseline_performance: selected.baseline_performance,
                     candidates_evaluated: selected.candidates_evaluated,
                     peephole_rewrites: selected.peephole_rewrites,
                     compiler_time_micros: 0,
@@ -1091,15 +1180,33 @@ fn optimize_and_select_javascript<'src>(
             });
         }
     }
+    let baseline_transfer = candidates.first().map_or(1, |candidate| candidate.0);
+    let baseline_performance = candidates.first().map_or(0, |candidate| {
+        candidate.2.selection_metrics.performance.score
+    });
     candidates.sort_by(|left, right| {
-        (
+        let left_rank = javascript_candidate_rank(
+            config,
             left.0,
+            baseline_transfer,
+            left.2.selection_metrics.performance.score,
+            baseline_performance,
+        );
+        let right_rank = javascript_candidate_rank(
+            config,
+            right.0,
+            baseline_transfer,
+            right.2.selection_metrics.performance.score,
+            baseline_performance,
+        );
+        (
+            left_rank,
             left.2.selection_metrics.startup_score,
             left.1,
             &left.2.javascript,
         )
             .cmp(&(
-                right.0,
+                right_rank,
                 right.2.selection_metrics.startup_score,
                 right.1,
                 &right.2.javascript,
@@ -1120,6 +1227,25 @@ fn optimize_and_select_javascript<'src>(
     Ok(selected)
 }
 
+fn load_optimization_guidance(
+    config: &ProjectConfig,
+    profile_guided: bool,
+) -> Result<OptimizationGuidance, CompileError> {
+    let profile = if profile_guided {
+        config
+            .load_optimization_profile()
+            .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?
+    } else {
+        OptimizationProfile::default()
+    };
+    Ok(OptimizationGuidance {
+        profile,
+        specialization_min_count: config.profile.specialization_min_count,
+        max_specializations_per_function: config.profile.max_specializations_per_function,
+        max_clone_instructions: config.profile.max_clone_instructions,
+    })
+}
+
 #[derive(Debug, Clone)]
 struct SelectedJavaScriptCandidate {
     code: String,
@@ -1127,6 +1253,8 @@ struct SelectedJavaScriptCandidate {
     startup_score: u64,
     metrics: JavaScriptSyntaxMetrics,
     baseline_metrics: JavaScriptSyntaxMetrics,
+    performance: JavaScriptPerformanceMetrics,
+    baseline_performance: JavaScriptPerformanceMetrics,
     candidates_evaluated: usize,
     peephole_rewrites: usize,
 }
@@ -1135,6 +1263,7 @@ fn select_javascript_candidate(
     ir: &ControlFlowModule<'_>,
     config: &ProjectConfig,
     module_output: bool,
+    profile: &OptimizationProfile,
 ) -> Result<SelectedJavaScriptCandidate, CompileError> {
     let configured = config.js_options();
     let integer_analysis = Arc::new(analyze_integer_values(ir));
@@ -1150,6 +1279,8 @@ fn select_javascript_candidate(
             )],
             &configured_baseline,
             config,
+            ir,
+            profile,
         );
     }
     let mut options = Vec::new();
@@ -1479,7 +1610,7 @@ fn select_javascript_candidate(
             configured,
         ));
     }
-    finalize_javascript_candidates(candidates, &configured_baseline, config)
+    finalize_javascript_candidates(candidates, &configured_baseline, config, ir, profile)
 }
 
 type JavaScriptEmissionCandidate = (usize, usize, String, crate::codegen_ir_js::IrJsOptions);
@@ -1491,12 +1622,16 @@ struct ScoredJavaScriptCandidate {
     code: String,
     metrics: JavaScriptSyntaxMetrics,
     peephole_rewrites: usize,
+    performance: JavaScriptPerformanceMetrics,
+    rank: (u64, u64),
 }
 
 fn finalize_javascript_candidates(
     candidates: Vec<JavaScriptEmissionCandidate>,
     configured_baseline: &str,
     config: &ProjectConfig,
+    ir: &ControlFlowModule<'_>,
+    profile: &OptimizationProfile,
 ) -> Result<SelectedJavaScriptCandidate, CompileError> {
     let baseline_metrics = analyze_generated_javascript(configured_baseline)
         .map_err(generated_javascript_parse_error)?;
@@ -1505,8 +1640,24 @@ fn finalize_javascript_candidates(
     let startup_guard =
         config.javascript_optimization_configured(JavaScriptOptimization::StartupCostGuard);
     let candidates_evaluated = candidates.len();
+    let baseline_transfer =
+        compressed_size(configured_baseline.as_bytes(), config.javascript.cost_model)
+            .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
+    let configured_options = config.js_options();
+    let performance_model =
+        config.javascript_optimization_configured(JavaScriptOptimization::PerformanceShapeModel);
+    let baseline_performance = if performance_model {
+        analyze_javascript_performance(
+            ir,
+            &configured_options,
+            profile,
+            config.javascript_performance_weights(),
+        )
+    } else {
+        JavaScriptPerformanceMetrics::default()
+    };
     let mut scored = Vec::<ScoredJavaScriptCandidate>::with_capacity(candidates.len());
-    for (_, _, code, _) in candidates {
+    for (_, _, code, options) in candidates {
         let (code, metrics, peephole_rewrites) = if peephole {
             let optimized =
                 optimize_generated_javascript(&code).map_err(generated_javascript_parse_error)?;
@@ -1531,27 +1682,40 @@ fn finalize_javascript_candidates(
             config.javascript.startup.compile_weight,
             config.javascript.startup.memory_weight,
         );
+        let performance = if performance_model {
+            analyze_javascript_performance(
+                ir,
+                &options,
+                profile,
+                config.javascript_performance_weights(),
+            )
+        } else {
+            JavaScriptPerformanceMetrics::default()
+        };
+        let rank = javascript_candidate_rank(
+            config,
+            transfer_cost,
+            baseline_transfer,
+            performance.score,
+            baseline_performance.score,
+        );
         scored.push(ScoredJavaScriptCandidate {
             transfer_cost,
             startup_score,
             code,
             metrics,
             peephole_rewrites,
+            performance,
+            rank,
         });
     }
     scored.sort_by(|left, right| {
-        (
-            left.transfer_cost,
-            left.startup_score,
-            left.code.len(),
-            &left.code,
-        )
-            .cmp(&(
-                right.transfer_cost,
-                right.startup_score,
-                right.code.len(),
-                &right.code,
-            ))
+        (left.rank, left.startup_score, left.code.len(), &left.code).cmp(&(
+            right.rank,
+            right.startup_score,
+            right.code.len(),
+            &right.code,
+        ))
     });
     let selected = scored.into_iter().next().ok_or_else(|| {
         crate::codegen_js::CodegenError::new(
@@ -1565,9 +1729,51 @@ fn finalize_javascript_candidates(
         startup_score: selected.startup_score,
         metrics: selected.metrics,
         baseline_metrics,
+        performance: selected.performance,
+        baseline_performance,
         candidates_evaluated,
         peephole_rewrites: selected.peephole_rewrites,
     })
+}
+
+fn javascript_candidate_rank(
+    config: &ProjectConfig,
+    transfer: usize,
+    baseline_transfer: usize,
+    performance: u64,
+    baseline_performance: u64,
+) -> (u64, u64) {
+    let transfer_ratio = normalized_ratio(transfer as u64, baseline_transfer as u64);
+    let performance_ratio = normalized_ratio(performance, baseline_performance);
+    match config.javascript.priority {
+        crate::config::JavaScriptPriority::PerformanceFirst => (performance_ratio, transfer_ratio),
+        crate::config::JavaScriptPriority::RealisticPerformanceFirst => {
+            let limit = 10_000u64.saturating_add(
+                u64::from(config.javascript.performance.max_regression_percent).saturating_mul(100),
+            );
+            let rejected = u64::from(performance_ratio > limit);
+            (
+                rejected
+                    .saturating_mul(1_000_000)
+                    .saturating_add(transfer_ratio),
+                performance_ratio,
+            )
+        }
+        crate::config::JavaScriptPriority::Balanced => (
+            transfer_ratio
+                .saturating_mul(3)
+                .saturating_add(performance_ratio.saturating_mul(2)),
+            transfer_ratio,
+        ),
+        crate::config::JavaScriptPriority::SizeFirst => (transfer_ratio, performance_ratio),
+    }
+}
+
+fn normalized_ratio(value: u64, baseline: u64) -> u64 {
+    if baseline == 0 {
+        return u64::from(value != 0).saturating_mul(10_000);
+    }
+    value.saturating_mul(10_000).saturating_div(baseline)
 }
 
 fn generated_javascript_parse_error(
@@ -1751,8 +1957,9 @@ fn compile_program_to_c_configured<'ast, 'src>(
 ) -> Result<String, CompileError> {
     let semantics = analyze(program)?;
     let mut ir = lower_to_control_flow(program, &semantics)?;
-    optimize_control_flow_with_options(&mut ir, &config.optimizer_options(), false)?;
-    emit_native_c(&ir).map_err(Into::into)
+    let guidance = load_optimization_guidance(config, config.native_profile_guided_optimization())?;
+    optimize_control_flow_with_guidance(&mut ir, &config.optimizer_options(), false, &guidance)?;
+    emit_native_c_with_options(&ir, &config.native_options()).map_err(Into::into)
 }
 
 fn module_compile_error(modules: &ModuleSet, error: CompileError) -> ModuleError {
@@ -1909,7 +2116,52 @@ mod tests {
         assert!(selected.selection_metrics.syntax.tokens > 0);
         assert!(selected.selection_metrics.transfer_bytes > 0);
         assert!(selected.selection_metrics.candidates_evaluated > 0);
+        assert!(selected.selection_metrics.performance.score > 0);
         assert_eq!(selected.selection_metrics.codec, "brotli");
+    }
+
+    #[test]
+    fn javascript_priorities_rank_transfer_and_runtime_shape_independently() {
+        let mut config = ProjectConfig::default();
+        config.javascript.priority = crate::config::JavaScriptPriority::SizeFirst;
+        assert!(
+            javascript_candidate_rank(&config, 90, 100, 120, 100)
+                < javascript_candidate_rank(&config, 100, 100, 80, 100)
+        );
+
+        config.javascript.priority = crate::config::JavaScriptPriority::PerformanceFirst;
+        assert!(
+            javascript_candidate_rank(&config, 100, 100, 80, 100)
+                < javascript_candidate_rank(&config, 90, 100, 120, 100)
+        );
+
+        config.javascript.priority = crate::config::JavaScriptPriority::RealisticPerformanceFirst;
+        config.javascript.performance.max_regression_percent = 10;
+        assert!(
+            javascript_candidate_rank(&config, 100, 100, 100, 100)
+                < javascript_candidate_rank(&config, 80, 100, 120, 100)
+        );
+    }
+
+    #[test]
+    fn profile_template_lists_stable_function_and_loop_keys() {
+        let directory = std::env::temp_dir().join(format!(
+            "lilscript-profile-template-test-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&directory).unwrap();
+        let path = directory.join("main.lil");
+        std::fs::write(
+            &path,
+            "int update(int value){while(value<3){value++;}return value;}print(update(0));",
+        )
+        .unwrap();
+
+        let profile = profile_template_path_configured(&path, &ProjectConfig::default()).unwrap();
+        assert_eq!(profile.functions.get("$entry"), Some(&1));
+        assert_eq!(profile.functions.get("update"), Some(&1));
+        assert_eq!(profile.loops.get("update#0"), Some(&1));
+        std::fs::remove_dir_all(directory).unwrap();
     }
 
     #[test]

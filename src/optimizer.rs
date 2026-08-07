@@ -5,6 +5,7 @@ use crate::ir::{
     ControlFlowOp, ExportBinding, FunctionId, FunctionKind, Instruction, Intrinsic, IrBinaryOp,
     IrLocal, IrModule, IrUnaryOp, LocalId, Phi, TemplateOperand, Terminator, ValueId,
 };
+use crate::profile::OptimizationProfile;
 use crate::semantic::{EscapeState, SymbolId, Type};
 use crate::span::Span;
 use crate::value_analysis::analyze_finite_values;
@@ -28,6 +29,8 @@ pub struct OptimizationOptions {
     pub dead_store_elimination: bool,
     pub dead_code_elimination: bool,
     pub specialize_tagged_constants: bool,
+    pub call_site_specialization: bool,
+    pub capture_signature_cloning: bool,
     pub inline_instruction_limit: usize,
     pub inline_control_flow_limit: usize,
     pub inline_growth_limit: Option<usize>,
@@ -47,6 +50,8 @@ impl Default for OptimizationOptions {
             dead_store_elimination: true,
             dead_code_elimination: true,
             specialize_tagged_constants: false,
+            call_site_specialization: true,
+            capture_signature_cloning: true,
             inline_instruction_limit: 12,
             inline_control_flow_limit: 30,
             inline_growth_limit: None,
@@ -68,9 +73,30 @@ impl OptimizationOptions {
             dead_store_elimination: false,
             dead_code_elimination: false,
             specialize_tagged_constants: false,
+            call_site_specialization: false,
+            capture_signature_cloning: false,
             inline_instruction_limit: 0,
             inline_control_flow_limit: 0,
             inline_growth_limit: Some(0),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OptimizationGuidance {
+    pub profile: OptimizationProfile,
+    pub specialization_min_count: u64,
+    pub max_specializations_per_function: usize,
+    pub max_clone_instructions: usize,
+}
+
+impl Default for OptimizationGuidance {
+    fn default() -> Self {
+        Self {
+            profile: OptimizationProfile::default(),
+            specialization_min_count: 100,
+            max_specializations_per_function: 8,
+            max_clone_instructions: 64,
         }
     }
 }
@@ -120,13 +146,21 @@ pub fn optimize_control_flow(
     module: &mut ControlFlowModule<'_>,
 ) -> Result<Vec<OptimizationReport>, SsaError> {
     module.exports.clear();
-    optimize_control_flow_inner(module, &OptimizationOptions::default())
+    optimize_control_flow_inner(
+        module,
+        &OptimizationOptions::default(),
+        &OptimizationGuidance::default(),
+    )
 }
 
 pub fn optimize_control_flow_for_module(
     module: &mut ControlFlowModule<'_>,
 ) -> Result<Vec<OptimizationReport>, SsaError> {
-    optimize_control_flow_inner(module, &OptimizationOptions::default())
+    optimize_control_flow_inner(
+        module,
+        &OptimizationOptions::default(),
+        &OptimizationGuidance::default(),
+    )
 }
 
 pub fn optimize_control_flow_with_options(
@@ -134,15 +168,30 @@ pub fn optimize_control_flow_with_options(
     options: &OptimizationOptions,
     preserve_exports: bool,
 ) -> Result<Vec<OptimizationReport>, SsaError> {
+    optimize_control_flow_with_guidance(
+        module,
+        options,
+        preserve_exports,
+        &OptimizationGuidance::default(),
+    )
+}
+
+pub fn optimize_control_flow_with_guidance(
+    module: &mut ControlFlowModule<'_>,
+    options: &OptimizationOptions,
+    preserve_exports: bool,
+    guidance: &OptimizationGuidance,
+) -> Result<Vec<OptimizationReport>, SsaError> {
     if !preserve_exports {
         module.exports.clear();
     }
-    optimize_control_flow_inner(module, options)
+    optimize_control_flow_inner(module, options, guidance)
 }
 
 fn optimize_control_flow_inner(
     module: &mut ControlFlowModule<'_>,
     options: &OptimizationOptions,
+    guidance: &OptimizationGuidance,
 ) -> Result<Vec<OptimizationReport>, SsaError> {
     let mut reports = Vec::new();
     if options.global_optimization {
@@ -158,11 +207,23 @@ fn optimize_control_flow_inner(
         reports.push(propagate_single_assignment_globals(module));
     }
     reports.push(devirtualize_methods(module));
+    reports.push(devirtualize_known_closure_calls(module));
     reports.push(specialize_constant_parameters(
         module,
         options.specialize_tagged_constants,
         options.finite_value_propagation,
     ));
+    if options.call_site_specialization {
+        reports.push(specialize_profiled_call_sites(
+            module,
+            options.specialize_tagged_constants,
+            guidance,
+        ));
+    }
+    if options.capture_signature_cloning {
+        reports.push(clone_constant_capture_signatures(module, guidance));
+    }
+    reports.push(devirtualize_known_closure_calls(module));
     reports.push(optimize_unused_parameters(module));
     reports.push(optimize_unused_returns(module));
     reports.push(validate_declared_purity(module)?);
@@ -183,6 +244,10 @@ fn optimize_control_flow_inner(
             options.specialize_tagged_constants,
             options.finite_value_propagation,
         ));
+        if options.capture_signature_cloning {
+            reports.push(clone_constant_capture_signatures(module, guidance));
+            reports.push(devirtualize_known_closure_calls(module));
+        }
         reports.push(optimize_unused_parameters(module));
         reports.push(optimize_unused_returns(module));
     }
@@ -869,6 +934,435 @@ fn devirtualize_methods(module: &mut ControlFlowModule<'_>) -> OptimizationRepor
         pass_name: "devirtualization",
         changed,
     }
+}
+
+fn devirtualize_known_closure_calls(module: &mut ControlFlowModule<'_>) -> OptimizationReport {
+    let mut changed = false;
+    let direct_targets = module
+        .functions
+        .iter()
+        .filter(|function| function.kind != FunctionKind::Closure)
+        .map(|function| function.id)
+        .collect::<AHashSet<_>>();
+    for function in &mut module.functions {
+        let closures = function
+            .blocks
+            .iter()
+            .flat_map(|block| &block.instructions)
+            .filter_map(|instruction| match (instruction.out, &instruction.op) {
+                (Some(out), ControlFlowOp::Closure { function, captures })
+                    if direct_targets.contains(function) =>
+                {
+                    Some((out, (*function, captures.clone())))
+                }
+                _ => None,
+            })
+            .collect::<AHashMap<_, _>>();
+        for instruction in function
+            .blocks
+            .iter_mut()
+            .flat_map(|block| &mut block.instructions)
+        {
+            let replacement = match &instruction.op {
+                ControlFlowOp::CallValue { callee, args } => {
+                    closures.get(callee).map(|(target, captures)| {
+                        let mut direct_args = captures.clone();
+                        direct_args.extend(args);
+                        ControlFlowOp::CallDirect {
+                            function: *target,
+                            args: direct_args,
+                        }
+                    })
+                }
+                _ => None,
+            };
+            if let Some(replacement) = replacement {
+                instruction.op = replacement;
+                changed = true;
+            }
+        }
+    }
+    OptimizationReport {
+        pass_name: "closure-call-devirtualization",
+        changed,
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+enum SpecializationValue {
+    Constant(ConstantKey),
+    Function(FunctionId),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+enum ConstantKey {
+    Int(i64),
+    Float(u64),
+    Bool(bool),
+    String(String),
+    Null,
+}
+
+impl ConstantKey {
+    fn from_value(value: &ConstValue) -> Self {
+        match value {
+            ConstValue::Int(value) => Self::Int(*value),
+            ConstValue::Float(value) => Self::Float(value.to_bits()),
+            ConstValue::Bool(value) => Self::Bool(*value),
+            ConstValue::String(value) => Self::String(value.clone()),
+            ConstValue::Null => Self::Null,
+        }
+    }
+
+    fn to_value(&self) -> ConstValue {
+        match self {
+            Self::Int(value) => ConstValue::Int(*value),
+            Self::Float(value) => ConstValue::Float(f64::from_bits(*value)),
+            Self::Bool(value) => ConstValue::Bool(*value),
+            Self::String(value) => ConstValue::String(value.clone()),
+            Self::Null => ConstValue::Null,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct ProfiledCallSite {
+    caller: usize,
+    block: usize,
+    instruction: usize,
+    frequency: u64,
+}
+
+#[derive(Debug, Clone)]
+struct ProfiledSpecialization {
+    callee: FunctionId,
+    signature: Vec<(usize, SpecializationValue)>,
+    sites: Vec<ProfiledCallSite>,
+}
+
+fn specialize_profiled_call_sites(
+    module: &mut ControlFlowModule<'_>,
+    specialize_tagged_constants: bool,
+    guidance: &OptimizationGuidance,
+) -> OptimizationReport {
+    let mut groups =
+        AHashMap::<(FunctionId, Vec<(usize, SpecializationValue)>), Vec<ProfiledCallSite>>::new();
+    for (caller_index, caller) in module.functions.iter().enumerate() {
+        let definitions = specialization_definitions(caller);
+        for (block_index, block) in caller.blocks.iter().enumerate() {
+            for (instruction_index, instruction) in block.instructions.iter().enumerate() {
+                let ControlFlowOp::CallDirect { function, args } = &instruction.op else {
+                    continue;
+                };
+                if *function == caller.id {
+                    continue;
+                }
+                let Some(callee) = module.functions.get(function.0 as usize) else {
+                    continue;
+                };
+                if !callee.live
+                    || !matches!(
+                        callee.kind,
+                        FunctionKind::Function | FunctionKind::Method { .. }
+                    )
+                {
+                    continue;
+                }
+                let signature = callee
+                    .params
+                    .iter()
+                    .zip(args)
+                    .enumerate()
+                    .filter_map(|(index, (parameter, argument))| {
+                        let value = definitions.get(argument)?;
+                        match value {
+                            SpecializationValue::Function(_)
+                                if matches!(parameter.ty, Type::Function(_)) =>
+                            {
+                                Some((index, value.clone()))
+                            }
+                            SpecializationValue::Constant(key)
+                                if specialize_tagged_constants
+                                    || constant_has_direct_native_representation(
+                                        &key.to_value(),
+                                        &parameter.ty,
+                                    ) =>
+                            {
+                                Some((index, value.clone()))
+                            }
+                            _ => None,
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                if signature.is_empty() {
+                    continue;
+                }
+                groups
+                    .entry((*function, signature))
+                    .or_default()
+                    .push(ProfiledCallSite {
+                        caller: caller_index,
+                        block: block_index,
+                        instruction: instruction_index,
+                        frequency: guidance.profile.block_count(caller, block.id),
+                    });
+            }
+        }
+    }
+
+    let mut candidates = groups
+        .into_iter()
+        .filter_map(|((callee, signature), sites)| {
+            let function = &module.functions[callee.0 as usize];
+            let instructions = function_instruction_count(function);
+            let frequency = sites
+                .iter()
+                .map(|site| site.frequency)
+                .fold(0u64, u64::saturating_add);
+            let call_savings = sites
+                .len()
+                .saturating_mul(signature.len())
+                .saturating_mul(3);
+            let clone_cost = instructions
+                .saturating_mul(4)
+                .saturating_add(function.blocks.len().saturating_mul(3));
+            (instructions <= guidance.max_clone_instructions
+                && (frequency >= guidance.specialization_min_count || call_savings > clone_cost))
+                .then_some((
+                    frequency,
+                    ProfiledSpecialization {
+                        callee,
+                        signature,
+                        sites,
+                    },
+                ))
+        })
+        .collect::<Vec<_>>();
+    candidates.sort_by(|left, right| {
+        right
+            .0
+            .cmp(&left.0)
+            .then_with(|| left.1.callee.0.cmp(&right.1.callee.0))
+            .then_with(|| left.1.signature.cmp(&right.1.signature))
+    });
+
+    let mut per_function = AHashMap::<FunctionId, usize>::new();
+    let mut changed = false;
+    for (_, candidate) in candidates {
+        let count = per_function.entry(candidate.callee).or_default();
+        if *count >= guidance.max_specializations_per_function {
+            continue;
+        }
+        *count += 1;
+        let new_id = FunctionId(module.functions.len() as u32);
+        let clone = clone_function_with_specialization(
+            &module.functions[candidate.callee.0 as usize],
+            new_id,
+            &candidate.signature,
+        );
+        module.functions.push(clone);
+        for site in candidate.sites {
+            let instruction = &mut module.functions[site.caller].blocks[site.block].instructions
+                [site.instruction];
+            let ControlFlowOp::CallDirect { function, args } = &mut instruction.op else {
+                continue;
+            };
+            *function = new_id;
+            remove_specialized_arguments(args, &candidate.signature);
+        }
+        changed = true;
+    }
+    OptimizationReport {
+        pass_name: "profiled-call-site-specialization",
+        changed,
+    }
+}
+
+fn clone_constant_capture_signatures(
+    module: &mut ControlFlowModule<'_>,
+    guidance: &OptimizationGuidance,
+) -> OptimizationReport {
+    let mut groups =
+        AHashMap::<(FunctionId, Vec<(usize, SpecializationValue)>), Vec<ProfiledCallSite>>::new();
+    for (caller_index, caller) in module.functions.iter().enumerate() {
+        let definitions = specialization_definitions(caller);
+        for (block_index, block) in caller.blocks.iter().enumerate() {
+            for (instruction_index, instruction) in block.instructions.iter().enumerate() {
+                let ControlFlowOp::Closure { function, captures } = &instruction.op else {
+                    continue;
+                };
+                if captures.is_empty() {
+                    continue;
+                }
+                let Some(target) = module.functions.get(function.0 as usize) else {
+                    continue;
+                };
+                if target.kind != FunctionKind::Closure || target.capture_count != captures.len() {
+                    continue;
+                }
+                let signature = captures
+                    .iter()
+                    .enumerate()
+                    .map(|(index, capture)| match definitions.get(capture) {
+                        Some(SpecializationValue::Constant(value)) => {
+                            Some((index, SpecializationValue::Constant(value.clone())))
+                        }
+                        _ => None,
+                    })
+                    .collect::<Option<Vec<_>>>();
+                let Some(signature) = signature else {
+                    continue;
+                };
+                groups
+                    .entry((*function, signature))
+                    .or_default()
+                    .push(ProfiledCallSite {
+                        caller: caller_index,
+                        block: block_index,
+                        instruction: instruction_index,
+                        frequency: guidance.profile.block_count(caller, block.id),
+                    });
+            }
+        }
+    }
+
+    let mut candidates = groups.into_iter().collect::<Vec<_>>();
+    candidates.sort_by(|left, right| {
+        let left_frequency = left.1.iter().map(|site| site.frequency).sum::<u64>();
+        let right_frequency = right.1.iter().map(|site| site.frequency).sum::<u64>();
+        right_frequency
+            .cmp(&left_frequency)
+            .then_with(|| left.0.cmp(&right.0))
+    });
+    let mut per_function = AHashMap::<FunctionId, usize>::new();
+    let mut changed = false;
+    for ((target, signature), sites) in candidates {
+        let frequency = sites.iter().map(|site| site.frequency).sum::<u64>();
+        let function = &module.functions[target.0 as usize];
+        let instructions = function_instruction_count(function);
+        let allocation_savings = sites
+            .len()
+            .saturating_mul(signature.len())
+            .saturating_mul(4);
+        let clone_cost = instructions.saturating_mul(4);
+        if instructions > guidance.max_clone_instructions
+            || (frequency < guidance.specialization_min_count && allocation_savings <= clone_cost)
+        {
+            continue;
+        }
+        let count = per_function.entry(target).or_default();
+        if *count >= guidance.max_specializations_per_function {
+            continue;
+        }
+        *count += 1;
+        let new_id = FunctionId(module.functions.len() as u32);
+        let mut clone = clone_function_with_specialization(
+            &module.functions[target.0 as usize],
+            new_id,
+            &signature,
+        );
+        clone.capture_count = clone.capture_count.saturating_sub(signature.len());
+        module.functions.push(clone);
+        for site in sites {
+            let instruction = &mut module.functions[site.caller].blocks[site.block].instructions
+                [site.instruction];
+            let ControlFlowOp::Closure { function, captures } = &mut instruction.op else {
+                continue;
+            };
+            *function = new_id;
+            remove_specialized_arguments(captures, &signature);
+        }
+        changed = true;
+    }
+    OptimizationReport {
+        pass_name: "capture-signature-cloning",
+        changed,
+    }
+}
+
+fn specialization_definitions(
+    function: &ControlFlowFunction<'_>,
+) -> AHashMap<ValueId, SpecializationValue> {
+    function
+        .blocks
+        .iter()
+        .flat_map(|block| &block.instructions)
+        .filter_map(|instruction| match (instruction.out, &instruction.op) {
+            (Some(out), ControlFlowOp::Const(value)) => Some((
+                out,
+                SpecializationValue::Constant(ConstantKey::from_value(value)),
+            )),
+            (Some(out), ControlFlowOp::Closure { function, captures }) if captures.is_empty() => {
+                Some((out, SpecializationValue::Function(*function)))
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+fn clone_function_with_specialization<'src>(
+    original: &ControlFlowFunction<'src>,
+    id: FunctionId,
+    signature: &[(usize, SpecializationValue)],
+) -> ControlFlowFunction<'src> {
+    let mut clone = original.clone();
+    clone.id = id;
+    let mut replacements = AHashMap::new();
+    let mut constants = Vec::new();
+    for (index, value) in signature {
+        let parameter = &clone.params[*index];
+        let out = ValueId(clone.value_count);
+        clone.value_count += 1;
+        clone.value_escapes.push(EscapeState::LocalOnly);
+        replacements.insert(parameter.value, out);
+        let operation = match value {
+            SpecializationValue::Constant(value) => ControlFlowOp::Const(value.to_value()),
+            SpecializationValue::Function(function) => ControlFlowOp::Closure {
+                function: *function,
+                captures: Vec::new(),
+            },
+        };
+        constants.push(ControlFlowInstruction {
+            out: Some(out),
+            ty: Some(parameter.ty.clone()),
+            op: operation,
+            span: parameter.span,
+        });
+    }
+    rewrite_control_flow_function(&mut clone, &replacements);
+    clone.blocks[clone.entry.0 as usize]
+        .instructions
+        .splice(0..0, constants);
+    clone.params = clone
+        .params
+        .drain(..)
+        .enumerate()
+        .filter_map(|(index, parameter)| {
+            (!signature.iter().any(|(removed, _)| *removed == index)).then_some(parameter)
+        })
+        .collect();
+    clone
+}
+
+fn remove_specialized_arguments(
+    arguments: &mut Vec<ValueId>,
+    signature: &[(usize, SpecializationValue)],
+) {
+    *arguments = arguments
+        .drain(..)
+        .enumerate()
+        .filter_map(|(index, argument)| {
+            (!signature.iter().any(|(removed, _)| *removed == index)).then_some(argument)
+        })
+        .collect();
+}
+
+fn function_instruction_count(function: &ControlFlowFunction<'_>) -> usize {
+    function
+        .blocks
+        .iter()
+        .map(|block| block.instructions.len() + block.phis.len())
+        .sum()
 }
 
 fn optimize_unused_parameters(module: &mut ControlFlowModule<'_>) -> OptimizationReport {
@@ -5353,6 +5847,7 @@ mod tests {
         assert!(module
             .functions
             .iter()
+            .filter(|function| function.live)
             .flat_map(|function| &function.blocks)
             .all(|block| block
                 .instructions
@@ -5830,5 +6325,93 @@ mod tests {
                     ..
                 }
             )));
+    }
+
+    #[test]
+    fn profile_guidance_specializes_higher_order_calls_and_devirtualizes_them() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "int apply(func(int)->int operation,int value){return operation(value);}int increment(int value){return value+1;}print(apply(increment,41));",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut module = lower_to_control_flow(&program, &semantics).unwrap();
+        let options = OptimizationOptions {
+            inlining: false,
+            specialize_tagged_constants: true,
+            ..OptimizationOptions::default()
+        };
+        let mut profile = OptimizationProfile::default();
+        profile.functions.insert("$entry".to_string(), 10_000);
+        let reports = optimize_control_flow_with_guidance(
+            &mut module,
+            &options,
+            false,
+            &OptimizationGuidance {
+                profile,
+                specialization_min_count: 10,
+                max_specializations_per_function: 4,
+                max_clone_instructions: 64,
+            },
+        )
+        .unwrap();
+
+        assert!(reports.iter().any(|report| {
+            report.pass_name == "profiled-call-site-specialization" && report.changed
+        }));
+        assert!(module
+            .functions
+            .iter()
+            .filter(|function| function.live)
+            .flat_map(|function| &function.blocks)
+            .flat_map(|block| &block.instructions)
+            .all(|instruction| !matches!(instruction.op, ControlFlowOp::CallValue { .. })));
+    }
+
+    #[test]
+    fn profile_guidance_clones_constant_capture_signatures() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "func(int)->int make(int offset){return (int value)=>value+offset;}func(int)->int add=make(2);print(add(40));",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut module = lower_to_control_flow(&program, &semantics).unwrap();
+        let options = OptimizationOptions {
+            inlining: false,
+            ..OptimizationOptions::default()
+        };
+        let mut profile = OptimizationProfile::default();
+        profile.functions.insert("$entry".to_string(), 10_000);
+        profile.functions.insert("make".to_string(), 10_000);
+        let reports = optimize_control_flow_with_guidance(
+            &mut module,
+            &options,
+            false,
+            &OptimizationGuidance {
+                profile,
+                specialization_min_count: 10,
+                max_specializations_per_function: 4,
+                max_clone_instructions: 64,
+            },
+        )
+        .unwrap();
+
+        assert!(reports
+            .iter()
+            .any(|report| { report.pass_name == "capture-signature-cloning" && report.changed }));
+        assert!(module
+            .functions
+            .iter()
+            .filter(|function| function.live)
+            .flat_map(|function| &function.blocks)
+            .flat_map(|block| &block.instructions)
+            .filter_map(|instruction| match &instruction.op {
+                ControlFlowOp::Closure { captures, .. } => Some(captures),
+                _ => None,
+            })
+            .all(Vec::is_empty));
     }
 }

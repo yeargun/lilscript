@@ -1,5 +1,8 @@
 [optimization]
 preset = "maximum"
+profile_guided = true
+call_site_specialization = true
+capture_signature_cloning = true
 
 [javascript]
 priority = "size-first"
@@ -35,6 +38,25 @@ parse_overhead_limit_percent = 30
 compile_overhead_limit_percent = 30
 memory_overhead_limit_percent = 35
 
+[javascript.performance]
+deoptimization_weight = 32
+allocation_weight = 12
+indirect_call_weight = 24
+hot_code_weight = 1
+max_regression_percent = 25
+
+[profile]
+# path = "lilscript.profile.json"
+specialization_min_count = 100
+max_specializations_per_function = 8
+max_clone_instructions = 64
+
+[native]
+partial_escape_analysis = true
+stack_allocation = true
+region_allocation = true
+stack_array_element_limit = 64
+
 [bundle]
 mode = "single"
 min_chunk_bytes = 16384
@@ -43,6 +65,7 @@ shared_min_imports = 2
 
 [lint]
 enabled = true
+providers = ["correctness", "effects", "performance", "size", "web"]
 preset = "recommended"
 deny_warnings = false
 exclude = ["**/generated/**"]

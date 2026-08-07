@@ -30,6 +30,7 @@ pub const RULES: &[&str] = &[
     "performance/aggregate-escape",
     "performance/materialized-array-chain",
     "size/eager-chunk-overhead",
+    "web/eager-host-access",
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -63,6 +64,85 @@ pub struct LintDiagnostic {
     pub help: Option<String>,
     pub fix: Option<LintFix>,
 }
+
+pub struct LintRuleContext<'context, 'ast, 'src> {
+    pub modules: &'context ModuleSet,
+    pub program: &'context Program<'ast, 'src>,
+    pub semantics: &'context SemanticModel<'src>,
+    pub ir: &'context crate::ir::ControlFlowModule<'src>,
+    pub config: &'context ProjectConfig,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LintProviderDiagnostic {
+    pub span: Span,
+    pub rule: &'static str,
+    pub message: String,
+    pub evidence: Option<String>,
+    pub help: Option<String>,
+    pub fix: Option<LintFix>,
+}
+
+pub trait LintRuleProvider: Send + Sync {
+    fn id(&self) -> &'static str;
+    fn rules(&self) -> &'static [&'static str];
+    fn check(
+        &self,
+        context: &LintRuleContext<'_, '_, '_>,
+        diagnostics: &mut Vec<LintProviderDiagnostic>,
+    );
+}
+
+#[derive(Debug, Default)]
+pub struct WebRuleProvider;
+
+impl LintRuleProvider for WebRuleProvider {
+    fn id(&self) -> &'static str {
+        "web"
+    }
+
+    fn rules(&self) -> &'static [&'static str] {
+        &["web/eager-host-access"]
+    }
+
+    fn check(
+        &self,
+        context: &LintRuleContext<'_, '_, '_>,
+        diagnostics: &mut Vec<LintProviderDiagnostic>,
+    ) {
+        let Some(entry) = context.ir.functions.get(context.ir.entry.0 as usize) else {
+            return;
+        };
+        for instruction in entry.blocks.iter().flat_map(|block| &block.instructions) {
+            if !matches!(
+                instruction.op,
+                ControlFlowOp::HostFieldGet { .. }
+                    | ControlFlowOp::HostFieldSet { .. }
+                    | ControlFlowOp::HostCall { .. }
+            ) {
+                continue;
+            }
+            diagnostics.push(LintProviderDiagnostic {
+                span: instruction.span,
+                rule: "web/eager-host-access",
+                message: "top-level host access runs before progressive enhancement starts"
+                    .to_string(),
+                evidence: Some(
+                    "the optimized entry function directly touches an extern host object"
+                        .to_string(),
+                ),
+                help: Some(
+                    "move host-dependent work behind an exported start function or a capability-gated event path"
+                        .to_string(),
+                ),
+                fix: None,
+            });
+            break;
+        }
+    }
+}
+
+static WEB_RULE_PROVIDER: WebRuleProvider = WebRuleProvider;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LintError {
@@ -100,11 +180,19 @@ struct PendingDiagnostic {
 }
 
 pub fn lint_path(path: &Path, config: &ProjectConfig) -> Result<Vec<LintDiagnostic>, LintError> {
+    lint_path_with_providers(path, config, &[&WEB_RULE_PROVIDER])
+}
+
+pub fn lint_path_with_providers(
+    path: &Path,
+    config: &ProjectConfig,
+    providers: &[&dyn LintRuleProvider],
+) -> Result<Vec<LintDiagnostic>, LintError> {
     if !config.lint.enabled || path_is_excluded(path, &config.lint.exclude) {
         return Ok(Vec::new());
     }
     let modules = discover_modules_configured(path, config)?;
-    lint_modules(modules, config)
+    lint_modules(modules, config, providers)
 }
 
 pub fn lint_path_with_source(
@@ -116,12 +204,13 @@ pub fn lint_path_with_source(
         return Ok(Vec::new());
     }
     let modules = discover_modules_configured_with_source(path, source, config)?;
-    lint_modules(modules, config)
+    lint_modules(modules, config, &[&WEB_RULE_PROVIDER])
 }
 
 fn lint_modules(
     modules: ModuleSet,
     config: &ProjectConfig,
+    providers: &[&dyn LintRuleProvider],
 ) -> Result<Vec<LintDiagnostic>, LintError> {
     let arena = Bump::new();
     let programs = parse_modules(&arena, &modules)?;
@@ -139,6 +228,48 @@ fn lint_modules(
     optimize_control_flow_with_options(&mut ir, &config.js_optimizer_options(), true)
         .map_err(|error| linked_error(&modules, error.span, error.message))?;
     lint_ir(&ir, &mut pending);
+
+    validate_rule_providers(providers).map_err(|message| LintError {
+        path: modules.modules[modules.root].path.clone(),
+        span: Span::empty(0),
+        message,
+    })?;
+    let context = LintRuleContext {
+        modules: &modules,
+        program: &linked,
+        semantics: &semantics,
+        ir: &ir,
+        config,
+    };
+    for provider in providers {
+        if !provider_enabled(&config.lint, provider.id()) {
+            continue;
+        }
+        let mut diagnostics = Vec::new();
+        provider.check(&context, &mut diagnostics);
+        if let Some(diagnostic) = diagnostics
+            .iter()
+            .find(|diagnostic| !provider.rules().contains(&diagnostic.rule))
+        {
+            return Err(LintError {
+                path: modules.modules[modules.root].path.clone(),
+                span: diagnostic.span,
+                message: format!(
+                    "lint provider `{}` emitted undeclared rule `{}`",
+                    provider.id(),
+                    diagnostic.rule
+                ),
+            });
+        }
+        pending.extend(diagnostics.into_iter().map(|diagnostic| PendingDiagnostic {
+            span: diagnostic.span,
+            rule: diagnostic.rule,
+            message: diagnostic.message,
+            evidence: diagnostic.evidence,
+            help: diagnostic.help,
+            fix: diagnostic.fix,
+        }));
+    }
 
     Ok(finalize_diagnostics(&modules, &config.lint, pending))
 }
@@ -703,6 +834,13 @@ fn finalize_diagnostics(
     let mut diagnostics = Vec::new();
     let mut seen = HashSet::new();
     for item in pending {
+        let provider = item
+            .rule
+            .split_once('/')
+            .map_or(item.rule, |(provider, _)| provider);
+        if !provider_enabled(config, provider) {
+            continue;
+        }
         let Some(severity) = severity_for(config, item.rule) else {
             continue;
         };
@@ -760,7 +898,7 @@ fn severity_for(config: &LintConfig, rule: &str) -> Option<DiagnosticSeverity> {
             LintPreset::Recommended => {
                 if rule.starts_with("correctness/") {
                     LintSeverity::Error
-                } else if rule.starts_with("size/") {
+                } else if rule.starts_with("size/") || rule.starts_with("web/") {
                     LintSeverity::Hint
                 } else {
                     LintSeverity::Warn
@@ -784,6 +922,40 @@ fn severity_for(config: &LintConfig, rule: &str) -> Option<DiagnosticSeverity> {
         }),
         LintSeverity::Error => Some(DiagnosticSeverity::Error),
     }
+}
+
+fn provider_enabled(config: &LintConfig, provider: &str) -> bool {
+    config
+        .providers
+        .as_ref()
+        .is_none_or(|providers| providers.iter().any(|enabled| enabled == provider))
+}
+
+fn validate_rule_providers(providers: &[&dyn LintRuleProvider]) -> Result<(), String> {
+    let mut provider_ids = HashSet::new();
+    let mut rules = HashSet::new();
+    for provider in providers {
+        let id = provider.id();
+        if id.is_empty() || id.contains('/') {
+            return Err(format!(
+                "lint provider `{id}` must use a nonempty namespace identifier without `/`"
+            ));
+        }
+        if !provider_ids.insert(id) {
+            return Err(format!("duplicate lint provider `{id}`"));
+        }
+        for rule in provider.rules() {
+            if !rule.starts_with(&format!("{id}/")) {
+                return Err(format!(
+                    "lint provider `{id}` owns rule `{rule}` outside its namespace"
+                ));
+            }
+            if !rules.insert(*rule) {
+                return Err(format!("duplicate pluggable lint rule `{rule}`"));
+            }
+        }
+    }
+    Ok(())
 }
 
 fn is_suppressed(source: &str, span: Span, rule: &str) -> bool {
@@ -1056,6 +1228,34 @@ mod tests {
     use super::*;
     use crate::parser::parse_source;
 
+    struct AgentRuleProvider;
+
+    impl LintRuleProvider for AgentRuleProvider {
+        fn id(&self) -> &'static str {
+            "agent"
+        }
+
+        fn rules(&self) -> &'static [&'static str] {
+            &["agent/entry-budget"]
+        }
+
+        fn check(
+            &self,
+            context: &LintRuleContext<'_, '_, '_>,
+            diagnostics: &mut Vec<LintProviderDiagnostic>,
+        ) {
+            let entry = &context.ir.functions[context.ir.entry.0 as usize];
+            diagnostics.push(LintProviderDiagnostic {
+                span: entry.span,
+                rule: "agent/entry-budget",
+                message: "agent policy checked the optimized entry".to_string(),
+                evidence: Some(format!("{} optimized blocks", entry.blocks.len())),
+                help: None,
+                fix: None,
+            });
+        }
+    }
+
     #[test]
     fn wildcard_exclusions_and_suppressions_are_deterministic() {
         assert!(wildcard_match(
@@ -1172,5 +1372,56 @@ mod tests {
         assert!(diagnostics
             .iter()
             .any(|diagnostic| diagnostic.rule == "correctness/unhandled-module-task"));
+    }
+
+    #[test]
+    fn pluggable_rule_providers_use_exact_namespaces_and_configured_severity() {
+        let directory = std::env::temp_dir().join(format!(
+            "lilscript-lint-provider-test-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&directory).unwrap();
+        let path = directory.join("main.lil");
+        std::fs::write(&path, "print(42);").unwrap();
+        let mut config = ProjectConfig::default();
+        config.lint.providers = Some(vec!["agent".to_string()]);
+        config
+            .lint
+            .rules
+            .insert("agent/entry-budget".to_string(), LintSeverity::Error);
+
+        let diagnostics = lint_path_with_providers(&path, &config, &[&AgentRuleProvider]).unwrap();
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(diagnostics[0].rule, "agent/entry-budget");
+        assert_eq!(diagnostics[0].severity, DiagnosticSeverity::Error);
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn web_provider_reports_eager_host_access_and_can_be_disabled() {
+        let directory = std::env::temp_dir().join(format!(
+            "lilscript-lint-web-provider-test-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&directory).unwrap();
+        let path = directory.join("main.lil");
+        std::fs::write(
+            &path,
+            "extern class Document{string title;}extern Document document;print(document.title);",
+        )
+        .unwrap();
+        let mut config = ProjectConfig::default();
+        config.lint.providers = Some(vec!["web".to_string()]);
+        let diagnostics = lint_path(&path, &config).unwrap();
+        assert!(diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.rule == "web/eager-host-access"));
+
+        config.lint.providers = Some(vec!["correctness".to_string()]);
+        assert!(lint_path(&path, &config)
+            .unwrap()
+            .iter()
+            .all(|diagnostic| diagnostic.rule != "web/eager-host-access"));
+        std::fs::remove_dir_all(directory).unwrap();
     }
 }
