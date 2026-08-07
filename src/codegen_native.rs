@@ -849,17 +849,14 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
         };
         write!(
             out,
-            "v{}=lilscript_array(v{}->len,sizeof(LilScriptValue));for(int32_t i{}=0;i{}<v{}->len;i{}++){{",
+            "v{}=lilscript_array(v{}->len,sizeof(LilScriptValue));{{int32_t n=v{}->len;for(int32_t i=0;i<n;i++){{",
             result.0,
             receiver.0,
-            result.0,
-            result.0,
             receiver.0,
-            result.0
         )
         .expect("writing to String cannot fail");
         let item = self.render_value_conversion(
-            &format!("((LilScriptValue*)v{}->data)[i{}]", receiver.0, result.0),
+            &format!("((LilScriptValue*)v{}->data)[i]", receiver.0),
             &Type::TypeParameter("$array"),
             input,
             instruction.span,
@@ -879,8 +876,8 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
         )?;
         write!(
             out,
-            "((LilScriptValue*)v{}->data)[i{}]={boxed};}}",
-            result.0, result.0
+            "((LilScriptValue*)v{}->data)[i]={boxed};}}}}",
+            result.0
         )
         .expect("writing to String cannot fail");
         Ok(())
@@ -907,11 +904,11 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
         let signature = closure_signature(types, callback, instruction.span)?;
         write!(
             out,
-            "v{}=lilscript_array(v{}->len,sizeof(LilScriptValue));v{}->len=0;for(int32_t i{}=0;i{}<v{}->len;i{}++){{",
-            result.0, receiver.0, result.0, result.0, result.0, receiver.0, result.0
+            "v{}=lilscript_array(v{}->len,sizeof(LilScriptValue));v{}->len=0;{{int32_t n=v{}->len;for(int32_t i=0;i<n;i++){{",
+            result.0, receiver.0, result.0, receiver.0
         )
         .expect("writing to String cannot fail");
-        let boxed_item = format!("((LilScriptValue*)v{}->data)[i{}]", receiver.0, result.0);
+        let boxed_item = format!("((LilScriptValue*)v{}->data)[i]", receiver.0);
         let item = self.render_value_conversion(
             &boxed_item,
             &Type::TypeParameter("$array"),
@@ -927,7 +924,7 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
         )?;
         write!(
             out,
-            "if({call})((LilScriptValue*)v{}->data)[v{}->len++]={boxed_item};}}",
+            "if({call})((LilScriptValue*)v{}->data)[v{}->len++]={boxed_item};}}}}",
             result.0, result.0
         )
         .expect("writing to String cannot fail");
@@ -958,14 +955,14 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
         let signature = closure_signature(types, *callback, instruction.span)?;
         write!(
             out,
-            "v{}=v{};for(int32_t i{}=0;i{}<v{}->len;i{}++){{",
-            result.0, initial.0, result.0, result.0, receiver.0, result.0
+            "v{}=v{};{{int32_t n=v{}->len;for(int32_t i=0;i<n;i++){{",
+            result.0, initial.0, receiver.0
         )
         .expect("writing to String cannot fail");
         let args = [
             format!("v{}", result.0),
             self.render_value_conversion(
-                &format!("((LilScriptValue*)v{}->data)[i{}]", receiver.0, result.0),
+                &format!("((LilScriptValue*)v{}->data)[i]", receiver.0),
                 &Type::TypeParameter("$array"),
                 element,
                 instruction.span,
@@ -981,7 +978,7 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
             signature,
             instruction.span,
         )?;
-        write!(out, "v{}={call};}}", result.0).expect("writing to String cannot fail");
+        write!(out, "v{}={call};}}}}", result.0).expect("writing to String cannot fail");
         Ok(())
     }
 
@@ -1005,12 +1002,12 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
         let signature = closure_signature(types, callback, instruction.span)?;
         write!(
             out,
-            "for(int32_t i{}=0;i{}<v{}->len;i{}++){{",
-            callback.0, callback.0, receiver.0, callback.0
+            "{{int32_t n=v{}->len;for(int32_t i=0;i<n;i++){{",
+            receiver.0
         )
         .expect("writing to String cannot fail");
         let item = self.render_value_conversion(
-            &format!("((LilScriptValue*)v{}->data)[i{}]", receiver.0, callback.0),
+            &format!("((LilScriptValue*)v{}->data)[i]", receiver.0),
             &Type::TypeParameter("$array"),
             element,
             instruction.span,
@@ -1023,7 +1020,7 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
             instruction.span,
         )?;
         out.push_str(&call);
-        out.push_str(";}");
+        out.push_str(";}}");
         Ok(())
     }
 

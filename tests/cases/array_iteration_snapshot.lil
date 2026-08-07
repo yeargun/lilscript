@@ -1,0 +1,53 @@
+int[] mapSource = [1, 2];
+
+int mapValue(int value) {
+  if (mapSource.length == 2) {
+    mapSource.push(3);
+  }
+  return value * 2;
+}
+
+int[] mapped = mapSource.map(mapValue);
+print(mapSource.length);
+print(mapped.length);
+print(mapped[1]);
+
+int[] filterSource = [1, 2];
+
+bool keepValue(int value) {
+  if (filterSource.length == 2) {
+    filterSource.push(3);
+  }
+  return value > 0;
+}
+
+int[] filtered = filterSource.filter(keepValue);
+print(filterSource.length);
+print(filtered.length);
+
+int[] reduceSource = [1, 2];
+
+int addValue(int total, int value) {
+  if (reduceSource.length == 2) {
+    reduceSource.push(3);
+  }
+  return total + value;
+}
+
+int reduced = reduceSource.reduce(addValue, 0);
+print(reduceSource.length);
+print(reduced);
+
+int[] eachSource = [1, 2];
+int visits = 0;
+
+void visitValue(int value) {
+  visits++;
+  if (eachSource.length == 2) {
+    eachSource.push(value + 2);
+  }
+}
+
+eachSource.forEach(visitValue);
+print(visits);
+print(eachSource.length);
