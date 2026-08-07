@@ -88,6 +88,9 @@ target/release/lilscript examples/full_conformance.lil --target native -o app
 
 # Parse and check once, then produce optimized app.js, app.c, and app
 target/release/lilscript examples/full_conformance.lil --target all -o build/app
+
+# Generate stable function/loop keys for an optional external PGO profile
+target/release/lilscript src/main.lil --profile-template lilscript.profile.json
 ```
 
 The native target invokes `${CC:-clang}` with C11 and `-O3`.
@@ -108,10 +111,15 @@ boolean-literal, identifier-alphabet, quote-style, structured-closure, and
 declaration, conditional/comma, loop/update, switch-dispatch, mutation, and
 SSA-copy-layout candidates, plus configured, closure-factory-preserving,
 unspecialized, and fully outlined optimizer IRs. A parsed final peephole and
-syntax-derived parse/compile/memory guard run before selection;
+syntax-derived parse/compile/memory guard run before selection. A separate
+typed-IR performance model scores deoptimization-sensitive control flow and
+runtime shapes, allocation pressure, unresolved indirect calls, and known
+monomorphic calls. Optional versioned profile counters weight hot functions
+and loops and drive bounded constant/callback specialization and
+constant-capture closure cloning without source annotations;
 `--mode development` skips that compressor loop. `--explain human|json`
-reports optimizer passes, transfer/startup metrics, candidate and rewrite
-counts, and compiler time. The
+reports optimizer passes, transfer/startup/performance metrics, candidate and
+rewrite counts, and compiler time. The
 size default omits signed-32-bit coercions only where range analysis proves
 them redundant. It never introduces `Math.imul`: ordinary `int` multiplication
 uses JavaScript multiplication followed by signed-i32 normalization. A
@@ -230,7 +238,11 @@ target/release/lilscript-fmt src --check
 ```
 
 Lint presets, per-rule severities, suppressions, formatter policy, and global
-disable switches are configured in `lilscript.toml`.
+disable switches are configured in `lilscript.toml`. The library API also
+accepts zero-copy Rust `LintRuleProvider` implementations over the checked
+module and optimized IR. Provider namespaces can be enabled independently, so
+project rules remain separate from the compiler and keep stable rule IDs for
+JSON, SARIF, the LSP, and coding agents.
 
 ## Web platform
 
@@ -285,6 +297,7 @@ scripts/verify.sh
 benchmarks/run.sh
 node benchmarks/finite-values/run.mjs
 node benchmarks/ir-variants/run.mjs
+node benchmarks/profile-guided/run.mjs
 npm --prefix benchmarks/apps ci
 npm --prefix benchmarks/apps run benchmark
 npm --prefix benchmarks/libraries ci
@@ -313,11 +326,15 @@ reproduction commands are in
 downloads the pinned Closure Compiler `v20260803`, runs `ADVANCED` compilation,
 checks equivalent runtime output, and measures normalized raw, gzip-9, and
 Brotli-11 bytes.
+The isolated profile-guided higher-order-call fixture executes the same output
+contract before measuring and changes from `111/107/80` to `107/104/77`
+raw/gzip-9/Brotli-11 bytes. This demonstrates one bounded specialization win;
+it is not a universal PGO size claim.
 
 The finite-value ablation holds inlining and scalar replacement disabled in
 both variants and toggles only interprocedural finite-value propagation. Both
 artifacts execute the same contract; the pass reduces the checked workload from
-`214/157/121` to `143/108/77` raw/gzip-9/Brotli-11 bytes.
+`216/155/118` to `143/108/77` raw/gzip-9/Brotli-11 bytes.
 The inlining-IR ablation holds every other optimizer and emitter decision
 constant; exact codec selection improves `267/144/109` to `219/113/83`.
 
@@ -330,8 +347,8 @@ separate Chromium gate uses alternating warmed samples and requires the 95%
 bootstrap upper runtime ratio to remain at or below `1.03`. These are scoped
 regression gates, not universal compiler-superiority claims.
 
-On the repository's ten compiler workloads LilScript totals 1,456 raw / 1,276
-gzip / 1,028 Brotli bytes versus Closure at 2,450 / 1,771 / 1,471. LilScript is
+On the repository's ten compiler workloads LilScript totals 1,457 raw / 1,280
+gzip / 1,032 Brotli bytes versus Closure at 2,450 / 1,771 / 1,471. LilScript is
 smaller in all 30 measured cells. The separate application lab
 compares five readable JavaScript references with matching-scope LilScript,
 feeds those exact references to Closure `ADVANCED`, and keeps hand-specialized

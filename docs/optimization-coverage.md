@@ -30,7 +30,7 @@ JavaScript and native C backends.
 | Collapse object literals | Non-escaping structs dissolve into SSA scalars; remaining typed aggregates use positional arrays in JavaScript |
 | Disambiguate/ambiguate/rename properties | Nominal owner types and field indexes remove internal property names entirely; boundary names remain ABI-stable |
 | Devirtualize methods | Class calls become direct typed function calls before inlining |
-| Optimize calls and constructors | Direct-call lowering, recursive-call protection, constant-parameter specialization, unused parameter/return removal, constructor inlining, allocation removal, effect summaries |
+| Optimize calls and constructors | Direct-call lowering, recursive-call protection, constant-parameter specialization, optional profile-weighted constant and higher-order call cloning, constant-capture closure cloning, known-closure devirtualization, unused parameter/return removal, constructor inlining, allocation removal, and effect summaries |
 | Mark pure functions | Interprocedural fixed-point summaries separate inherent effects from mutations of specific parameters across direct calls and known closure captures; local scratch-allocation mutation filtering, checked `pure` contracts, and trusted `pure extern` declarations share that model |
 | Dead assignment elimination | SSA promotion removes local stores; DCE removes unused value chains, complete unobserved local array/map/set mutation graphs, and parameter-mutating helper calls when every affected allocation group is unobserved |
 | Dead property assignment elimination | Overwritten typed field stores are removed between observation barriers |
@@ -66,8 +66,10 @@ The current schedule is:
    folding, and unreachable removal;
 5. immutable-global propagation, devirtualization, and explicit purity
    validation;
-6. constant-parameter specialization, unused parameter/return removal, and
-   fixed-point expression and multi-block CFG inlining;
+6. constant-parameter specialization, profile/byte-budgeted constant and
+   higher-order call cloning, constant-capture closure cloning, unused
+   parameter/return removal, and fixed-point expression and multi-block CFG
+   inlining;
 7. escape analysis, class/struct scalar replacement, allocation-root alias and
    parameter-effect summaries, unobserved collection-graph/call removal, and
    dead field stores;
@@ -85,7 +87,9 @@ The current schedule is:
     `while`/`for`/`do` and update-clause layouts, range-proven prefix/postfix/
     compound mutation spelling, string-table packing, entropy-aware cross-scope
     names and properties, a parsed final peephole, deterministic startup guards,
-    and compressor-aware candidate selection;
+    typed-IR deoptimization/allocation/indirect-call/monomorphism scoring with
+    optional hot function and loop weights, and compressor-aware candidate
+    selection;
 11. source ownership and mandatory lazy boundaries, followed by full-plan chunk
     candidate scoring over raw/gzip/Brotli bytes, requests, dependency depth,
     preload policy, shared reachability, and cache reuse;
@@ -113,6 +117,15 @@ lazy bundles; checks exact compressed manifest metadata and preload output;
 exercises live bindings; verifies missing-chunk failure normalization; and
 proves deterministic package locks plus stale-source rejection.
 
+The native C emitter runs a conservative second storage-placement analysis.
+Fixed non-escaping local arrays, class values, and eligible closure
+environments use frame storage; larger bounded arrays use a per-function region
+that is released along every generated return path. Resizable arrays and any
+value crossing a return, global, phi, capture, unresolved call, or external ABI
+boundary retain heap storage. Native allocation placement is configuration
+controlled and covered by emitter tests plus the full C/native execution
+matrix.
+
 `lilscript-differential` independently evaluates generated typed AST programs
 without lowering them to CFG/SSA. The fixed 64-case release batch exercises all
 integer operators, overflow, zero divisors, shifts, direct calls, mutation,
@@ -130,7 +143,7 @@ documented in `docs/differential-testing.md`.
 and every other optimizer setting constant while toggling only
 `finite_value_propagation`. Both variants execute the matrix contract before
 the gate requires a raw, gzip-9, and Brotli-11 win. The current checked workload
-improves from `214/157/121` bytes to `143/108/77`.
+improves from `216/155/118` bytes to `143/108/77`.
 
 `benchmarks/ir-variants/run.mjs` holds the source, final-emission search, and
 all optimizer settings constant while omitting only `ir-inlining-variants`.

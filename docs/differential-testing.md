@@ -68,6 +68,14 @@ peephole-off lanes hold the remaining policy constant through exact
 `javascript.optimizations` allowlists, so a post-codegen rewrite cannot conceal
 an optimizer-specific semantic error.
 
+Maximum mode also enables the performance-shape model, higher-order call-site
+specialization, constant-capture cloning, and native partial escape placement.
+Optimizer-disabled mode removes the optional clones, while emitted C/native
+execution exercises the conservative heap fallback. Dedicated unit tests force
+stack, region, and heap array plans, and the profile-guided ablation supplies an
+external hot-loop profile while requiring identical execution before size
+measurement.
+
 The fixed release seed is `0x6c696c7363726970`. During implementation, that
 seed found an invalid `a--626380242` token boundary and two integer-expression
 precedence failures involving nested shifts and `|0` coercions. Widening the

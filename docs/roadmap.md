@@ -46,10 +46,15 @@ checked-in benchmark workload. Passing a synthetic example alone is not enough.
 - [x] Preserve source-written `Math.imul` while never introducing it for
   ordinary multiplication in the application-oriented profiles.
 - [x] Add interprocedural argument/return ranges and field ranges.
-- [ ] Model deoptimization-sensitive JavaScript shapes, allocation pressure,
-  and monomorphic call sites in performance decisions.
-- [ ] Add optional profile-guided hot-function and hot-loop data without making
-  source annotations mandatory.
+- [x] Model deoptimization-sensitive JavaScript shapes, allocation pressure,
+  indirect calls, and monomorphic call sites in performance decisions. The
+  deterministic typed-IR score participates according to the selected
+  JavaScript priority and is reported separately from exact transfer/startup
+  costs.
+- [x] Add optional profile-guided hot-function and hot-loop data without making
+  source annotations mandatory. Versioned external JSON uses compiler-emitted
+  stable keys, merges with inline config counters, and leaves unprofiled code
+  at a deterministic unit frequency.
 
 ### Compression and entropy
 
@@ -145,17 +150,26 @@ checked-in benchmark workload. Passing a synthetic example alone is not enough.
 - [x] Add allocation-root alias analysis for mutable arrays, maps, sets, and
   host calls so an unobserved local mutation graph is removed as a unit while
   an observed result, escape, capture, or boundary call preserves it.
-- [ ] Add partial escape analysis and stack/region allocation for native output.
-- [ ] Add specialization for generic and higher-order calls using call-site
-  frequency and emitted-byte cost.
-- [ ] Clone higher-order factories by constant capture signature so each
-  returned closure reaches the normal constant-fold/DCE fixed point.
+- [x] Add partial escape analysis and stack/region allocation for native
+  output. Fixed local arrays, classes, and eligible closure environments use
+  frame storage; larger bounded arrays use per-function regions; uncertain,
+  resizable, returned, global, merged, captured, and boundary-crossing values
+  remain heap allocated.
+- [x] Add specialization for generic and higher-order calls using call-site
+  frequency and emitted-byte cost. Constant and known-function signatures are
+  grouped, frequency-ranked, bounded per callee, and compared as complete
+  codec-scored optimizer IR candidates. The checked PGO ablation changes from
+  `111/107/80` to `107/104/77` raw/gzip/Brotli.
+- [x] Clone higher-order factories by constant capture signature so each
+  returned closure reaches the normal constant-fold/DCE fixed point. Capture
+  slots and arguments disappear only when every capture in the signature is a
+  compile-time constant.
 - [x] Add interprocedural exact array lengths, integer return ranges, and
   nominal field ranges with conservative open-boundary invalidation.
 - [x] Add bounded interprocedural boolean/string/null value sets and nominal
   field constants beyond numeric ranges. The four-alternative set widens at open
   boundaries and feeds the ordinary fold/DCE fixed point; the checked
-  no-inlining ablation improves `214/157/121` bytes to `143/108/77` under
+  no-inlining ablation improves `216/155/118` bytes to `143/108/77` under
   raw/gzip-9/Brotli-11.
 - [x] Coalesce loop-header and conditional loop-carried phis with their dead
   incoming values so common mutations no longer require temporary copy chains.
@@ -213,6 +227,10 @@ checked-in benchmark workload. Passing a synthetic example alone is not enough.
 - [ ] Add incremental workspace analysis and persistent caches.
 - [x] Add a configurable linter for correctness, allocation, boundary safety,
   bundle cost, and suspicious purity declarations.
+- [x] Add an in-process Rust rule-provider API over checked modules and
+  optimized IR, exact provider namespace selection, provider contract
+  validation, and a progressive-enhancement web rule. Dynamic library loading
+  remains excluded until a versioned stable plugin ABI exists.
 - [x] Emit structured per-pass optimization explanations for single JavaScript
   builds.
 - [ ] Emit source maps from source through SSA to JavaScript chunks.

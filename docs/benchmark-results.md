@@ -1,6 +1,6 @@
 # LilScript v0.1 Bundle Benchmark
 
-Measured on 2026-08-06 with LilScript release mode and Google Closure Compiler
+Measured on 2026-08-07 with LilScript release mode and Google Closure Compiler
 `v20260803` at `ADVANCED` compilation level. The Closure version is pinned in
 `benchmarks/run.sh` and downloaded from Maven Central:
 
@@ -12,7 +12,7 @@ Measured on 2026-08-06 with LilScript release mode and Google Closure Compiler
 
 | Compiler | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
-| LilScript | 91 | 107 | 84 |
+| LilScript | 90 | 107 | 83 |
 | Closure ADVANCED v20260803 | 203 | 182 | 161 |
 
 This case exercises class constructor/method devirtualization, scalar
@@ -23,7 +23,7 @@ folding, and template output.
 
 | Compiler | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
-| LilScript | 266 | 206 | 178 |
+| LilScript | 266 | 207 | 178 |
 | Closure ADVANCED v20260803 | 378 | 258 | 214 |
 
 This case exercises mutable array operations, filter/reduce/forEach callbacks,
@@ -33,7 +33,7 @@ string predicates, case conversion, templates, and constant propagation.
 
 | Compiler | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
-| LilScript | 321 | 258 | 208 |
+| LilScript | 323 | 259 | 213 |
 | Closure ADVANCED v20260803 | 520 | 355 | 296 |
 
 This broader case combines structs, mutable classes, direct functions, global
@@ -55,7 +55,7 @@ branch removal.
 
 | Compiler | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
-| LilScript | 191 | 156 | 128 |
+| LilScript | 190 | 156 | 128 |
 | Closure ADVANCED v20260803 | 196 | 161 | 135 |
 
 This case combines recursion with single-use multi-block CFG inlining, two
@@ -67,7 +67,7 @@ bounded candidates; Brotli-11 selects the scalar schedule for this case.
 
 | Compiler | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
-| LilScript | 85 | 82 | 67 |
+| LilScript | 85 | 83 | 67 |
 | Closure ADVANCED v20260803 | 239 | 164 | 149 |
 
 This case measures nested value structs, class construction, mutable methods,
@@ -77,7 +77,7 @@ field-index lowering, devirtualization, and scalar replacement.
 
 | Compiler | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
-| LilScript | 124 | 126 | 105 |
+| LilScript | 126 | 127 | 107 |
 | Closure ADVANCED v20260803 | 132 | 133 | 111 |
 
 This case measures map/filter fusion at emission time, reduce, block-arrow
@@ -109,7 +109,7 @@ observable collection behavior.
 
 | Compiler | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
-| LilScript | 102 | 117 | 92 |
+| LilScript | 101 | 117 | 90 |
 | Closure ADVANCED v20260803 | 117 | 127 | 104 |
 
 This case gives each compiler three real source modules. It measures relative
@@ -121,7 +121,7 @@ and complete removal of module syntax and unused exports.
 
 | Compiler | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
-| LilScript | 1,456 | 1,276 | 1,028 |
+| LilScript | 1,457 | 1,280 | 1,032 |
 | Closure ADVANCED v20260803 | 2,450 | 1,771 | 1,471 |
 
 ## Finite-value pass ablation
@@ -134,9 +134,27 @@ artifacts must execute the checked output contract before sizes are accepted.
 | Variant | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
 | Finite values enabled | 143 | 108 | 77 |
-| Finite values disabled | 214 | 157 | 121 |
+| Finite values disabled | 216 | 155 | 118 |
 
 Run it with `node benchmarks/finite-values/run.mjs`.
+
+## Profile-guided higher-order specialization ablation
+
+`benchmarks/profile-guided/fixture.lil` passes one known callback through a
+shared higher-order function inside a 10,000-iteration loop. Both builds disable
+ordinary inlining, execute the same `50005000` output contract, and use the
+same performance-shape analysis. The enabled build adds a versioned hot-loop
+counter and permits call-site specialization; the disabled build omits that
+specialization. Final artifacts are measured only after execution succeeds.
+
+| Variant | Raw | Gzip-9 | Brotli-11 |
+| --- | ---: | ---: | ---: |
+| Profile-guided specialization | 107 | 104 | 77 |
+| Static higher-order call | 111 | 107 | 80 |
+
+Run it with `node benchmarks/profile-guided/run.mjs`. This is a focused
+four-byte raw, three-byte gzip, and three-byte Brotli result, not evidence that
+profiles improve every program.
 
 ## Inlining IR pass ablation
 

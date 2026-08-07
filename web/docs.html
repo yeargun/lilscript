@@ -341,6 +341,7 @@ lilscript-lint src --fix
 lilscript-fmt src
 lilscript-fmt src --check</code></pre>
           <p>The Rust linter resolves the module graph and inspects typed optimized IR, so allocation findings refer to operations that survived DCE and scalar replacement. Loop-cost rules cover arrays, aggregates, maps, sets, buffers, typed-array views, materializing array operations, closures, and unresolved indirect calls. Stable rule IDs, evidence, help, byte spans, JSON, and SARIF make findings usable by both editors and coding agents. <code>minimal</code>, <code>recommended</code>, and <code>strict</code> presets can be overridden per rule.</p>
+          <p>Projects embedding the compiler can register in-process Rust <code>LintRuleProvider</code> implementations over checked modules and optimized IR. Exact provider namespaces keep project rules independently selectable; duplicate namespaces and undeclared rule IDs fail validation. The built-in <code>web/eager-host-access</code> rule identifies top-level browser work that can run before a progressive-enhancement boundary.</p>
           <p>The formatter preserves comments, applies a canonical two-space layout, sorts a safe leading import block, and is idempotent. Both tools honor <code>lilscript.toml</code>; formatting can be disabled without disabling diagnostics.</p>
         </section>
 
@@ -387,6 +388,28 @@ parse_overhead_limit_percent = 30
 compile_overhead_limit_percent = 30
 memory_overhead_limit_percent = 35
 
+[javascript.performance]
+deoptimization_weight = 32
+allocation_weight = 12
+indirect_call_weight = 24
+hot_code_weight = 1
+max_regression_percent = 25
+
+[profile]
+# path = "lilscript.profile.json"
+specialization_min_count = 100
+max_specializations_per_function = 8
+max_clone_instructions = 64
+
+[native]
+partial_escape_analysis = true
+stack_allocation = true
+region_allocation = true
+stack_array_element_limit = 64
+
+[lint]
+providers = ["correctness", "effects", "performance", "size", "web"]
+
 [mangle]
 # identifiers = true
 # properties = false
@@ -410,9 +433,10 @@ cache_reuse_discount_percent = 20</code></pre>
           <p><code>performance-first</code> uses inlining limits of 24/60 with unbounded growth, no automatic pooling, and eager signed-i32 normalization. <code>realistic-performance-first</code> uses 18/45 with a +16 instruction growth budget. <code>balanced</code> uses 12/30 with +4 growth, while the default <code>size-first</code> uses 12/30 with +16 temporary IR instructions so a following fold/DCE fixed point can expose net byte wins. The latter three enable profitable string pooling and proven-safe integer coercion elision; size-first also considers delimiter-packed string tables.</p>
           <p><code>finite_value_propagation</code> enables bounded boolean, string, nullable-null, and owned-field facts across closed direct calls. Facts widen after four alternatives and are invalidated at exported, extern, indirect-call, closure, and untyped aggregate boundaries.</p>
           <p><code>compression</code> is an exact allowlist. Its decisions are <code>identifier-mangling</code>, <code>entropy-aware-mangling</code>, <code>quote-style-selection</code>, <code>property-mangling</code>, <code>export-mangling</code>, <code>string-pooling</code>, <code>size-aware-inlining</code>, <code>safe-integer-coercion-elision</code>, <code>compact-boolean-literals</code>, <code>structured-closure-inlining</code>, <code>string-array-packing</code>, <code>scalar-phi-copies</code>, <code>phi-affinity-coalescing</code>, <code>ir-inlining-variants</code>, <code>ir-closure-factory-variants</code>, <code>loop-spelling-selection</code>, and <code>mutation-spelling-selection</code>. Coercions are removed only when inferred ranges prove signed-32-bit behavior is unchanged. Ordinary multiplication uses JavaScript <code>*</code> with i32 normalization and never introduces <code>Math.imul</code>; explicit <code>Math.imul</code> calls remain exact. Structured closures, packed string arrays, phi affinity, scalar versus tuple parallel copies, optimizer IR variants, condition-loop spellings, and range-proven increment forms are compressor-scored against their alternatives. Omit the list to use profile defaults; use <code>compression = []</code> to disable every optional compression tactic.</p>
-          <p><code>optimization_level</code> controls JavaScript compiler effort from 0 to 15. Higher levels progressively add SSA, entropy, structural control-flow, loop, switch, specialization, and parsed-peephole search dimensions while raising the effective candidate cap. <code>optimizations</code> replaces that level-derived set with an exact feature allowlist, including <code>conditional-expression-variants</code>, <code>comma-expression-variants</code>, <code>structural-loop-variants</code>, <code>do-loop-variants</code>, <code>update-loop-variants</code>, <code>switch-lowering-variants</code>, <code>compound-mutation-variants</code>, <code>entropy-cross-scope-reuse</code>, <code>entropy-property-assignment</code>, <code>parsed-peephole</code>, and <code>startup-cost-guard</code>. This effort control is independent of the semantic IR-pass switches in <code>[optimization]</code>.</p>
+          <p><code>optimization_level</code> controls JavaScript compiler effort from 0 to 15. Higher levels progressively add SSA, entropy, structural control-flow, loop, switch, specialization, profile, performance-shape, and parsed-peephole dimensions while raising the effective candidate cap. <code>optimizations</code> replaces that level-derived set with an exact feature allowlist, including <code>conditional-expression-variants</code>, <code>comma-expression-variants</code>, <code>structural-loop-variants</code>, <code>do-loop-variants</code>, <code>update-loop-variants</code>, <code>switch-lowering-variants</code>, <code>compound-mutation-variants</code>, <code>entropy-cross-scope-reuse</code>, <code>entropy-property-assignment</code>, <code>performance-shape-model</code>, <code>profile-guided-optimization</code>, <code>call-site-specialization</code>, <code>capture-signature-cloning</code>, <code>parsed-peephole</code>, and <code>startup-cost-guard</code>. This effort control is independent of the semantic IR-pass switches in <code>[optimization]</code>.</p>
           <p><code>cost_model</code> selects exact raw, gzip-9, or Brotli-11 measurement for deterministic optimizer-IR and bounded final-emission candidate search. Size-first compares configured, closure-factory-preserving, unspecialized, and fully outlined IRs, then explores conditional/comma expressions, structured and state-machine dispatch, <code>while</code>/<code>for</code>/<code>do</code> loops, update clauses, switch lowering, and assignment/prefix/postfix/compound mutation. Stratified beams retain prior structural families. Production mode enables candidate search by default; <code>--mode development</code> skips it for faster reloads.</p>
-          <p>The parsed peephole validates the complete generated artifact and Pratt-parses eligible expressions before applying AST-proven rewrites. Startup policy rejects candidates whose deterministic parse, engine-compile, or memory estimate exceeds the configured baseline limits; the weights break equal-transfer ties. <code>--explain human|json</code> reports these metrics, selected codec bytes, candidate count, peephole rewrites, and measured compiler time.</p>
+          <p>The parsed peephole validates the complete generated artifact and Pratt-parses eligible expressions before applying AST-proven rewrites. Startup policy rejects candidates whose deterministic parse, engine-compile, or memory estimate exceeds the configured baseline limits. A separate typed-IR model scores deoptimization-sensitive shapes, allocations, unresolved indirect calls, and known monomorphic calls according to the selected priority. It is a deterministic proxy, not a browser measurement. <code>--explain human|json</code> reports both metric groups, selected codec bytes, candidate count, peephole rewrites, and measured compiler time.</p>
+          <p>Run <code>lilscript src/main.lil --profile-template lilscript.profile.json</code> to generate versioned stable function and loop keys. Optional external counters weight hot code without source annotations and drive bounded constant/known-callback specialization plus constant-capture closure cloning. Every clone re-enters folding and DCE and remains codec-scored against the unmodified optimizer IR. Explicit global pass disables in <code>[optimization]</code> remain authoritative over JavaScript effort features. Native output separately places proven local fixed arrays, classes, and closure environments on the frame, uses per-function regions for larger bounded arrays, and keeps uncertain or escaping values on the heap.</p>
           <p>The setting changes JavaScript optimization only. It composes with per-pass settings, so <code>optimization.inlining = false</code> still disables inlining. Because raw, gzip, and Brotli sizes can disagree, size priority is a cost-model preference rather than a guarantee for every workload.</p>
           <p>Chunk candidates are scored as complete deployments after optimization. The planner combines weighted raw, gzip, and Brotli bytes with requests, dependency depth, preload discounts, shared reachability, and cache reuse. Manifest v2 records the measured inputs, artifact graph, stable source-identity names, content hashes, and selected deploy cost.</p>
         </section>
@@ -423,8 +447,8 @@ cache_reuse_discount_percent = 20</code></pre>
             <li>Resolve the complete module graph, validate exports, namespace private bindings, and preserve dependency initialization order.</li>
             <li>Lower checked LilScript to typed control-flow IR and promote live locals to pruned SSA.</li>
             <li>Propagate local/global constants plus bounded interprocedural boolean, string, nullable-null, and owned-field facts; simplify algebra, value-number expressions, fold branches, and prune unreachable blocks to a fixed point.</li>
-            <li>Devirtualize class methods, infer effects, validate <code>pure</code> contracts, and inline eligible expression and multi-block CFG calls across files.</li>
-            <li>Analyze escapes, dissolve non-escaping structs and classes, and remove overwritten field stores.</li>
+            <li>Devirtualize class methods and known closures, infer effects, validate <code>pure</code> contracts, specialize hot constant and higher-order calls, clone constant capture signatures, and inline eligible expression and multi-block CFG calls across files.</li>
+            <li>Analyze escapes, dissolve non-escaping structs and classes, remove overwritten field stores, and select conservative frame/region storage for native output.</li>
             <li>Remove unused pure calls, allocations, instructions, functions, globals, and bindings.</li>
             <li>Coalesce non-interfering SSA values, reuse names across non-overlapping scopes, assign owned properties by weighted frequency, and carry precedence through fused unary, binary, conditional, call, member, and integer-normalization expressions.</li>
             <li>Score structural emission candidates with exact compression, validate and Pratt-parse the selected JavaScript for final peepholes, and enforce deterministic parse/compile/memory startup limits.</li>
@@ -449,6 +473,7 @@ scripts/verify.sh
 benchmarks/run.sh
 node benchmarks/finite-values/run.mjs
 node benchmarks/ir-variants/run.mjs
+node benchmarks/profile-guided/run.mjs
 node benchmarks/paired/run.mjs
 npm --prefix benchmarks/browser run benchmark</code></pre>
           <p>The matrix compiles 65 programs with maximum and disabled optional optimization, then requires Node, the direct native output, independently compiled emitted C, and checked-in expected output to agree across 130 executions. A separate Rust evaluator walks checked AST directly; its fixed 64-case generated scalar, control-flow, array, captured-callback, and binary-memory corpus must match optimized and optimizer-disabled JavaScript with parsed peepholes enabled and disabled, direct native output, and independently compiled C. Ten equivalent workloads are also executed before comparing raw, gzip-9, and Brotli-11 output against Closure ADVANCED v20260803. A second source-neutral lane mechanically generates both languages and rejects any per-case Brotli loss under the configured objective while publishing raw and gzip tradeoffs; its Chromium gate rejects a 95% runtime upper bound above 1.03. The application and complete-library labs remain separate because installed npm code and a LilScript port are not identical implementations. Complete measurements and limits are on the <a href="/benchmarks.html">benchmark page</a>.</p>

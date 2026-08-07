@@ -58,7 +58,19 @@
           <p>Both artifacts disable inlining and scalar replacement and execute the same JavaScript/native contract. Only <code>finite_value_propagation</code> changes, isolating branch, field, and signature cleanup exposed by the bounded lattice.</p>
         </header>
         <div class="benchmark-table-wrap">
-          <table><thead><tr><th>Variant</th><th>Raw</th><th>Gzip-9</th><th>Brotli-11</th></tr></thead><tbody><tr class="lilscript-row"><th>Finite values enabled</th><td>143</td><td>108</td><td>77</td></tr><tr><th>Finite values disabled</th><td>214</td><td>157</td><td>121</td></tr></tbody></table>
+          <table><thead><tr><th>Variant</th><th>Raw</th><th>Gzip-9</th><th>Brotli-11</th></tr></thead><tbody><tr class="lilscript-row"><th>Finite values enabled</th><td>143</td><td>108</td><td>77</td></tr><tr><th>Finite values disabled</th><td>216</td><td>155</td><td>118</td></tr></tbody></table>
+        </div>
+      </section>
+
+      <section class="benchmark-project" aria-labelledby="profile-guided-title">
+        <header>
+          <p class="eyebrow">External-profile ablation</p>
+          <h2 id="profile-guided-title">Higher-order specialization</h2>
+          <p>Both builds disable ordinary inlining and execute the same 10,000-iteration callback contract. The enabled build uses a versioned hot-loop profile and bounded call-site specialization; the static build omits that pass.</p>
+        </header>
+        <div class="benchmark-table-wrap">
+          <table><thead><tr><th>Variant</th><th>Raw</th><th>Gzip-9</th><th>Brotli-11</th></tr></thead><tbody><tr class="lilscript-row"><th>Profile-guided specialization</th><td>107</td><td>104</td><td>77</td></tr><tr><th>Static higher-order call</th><td>111</td><td>107</td><td>80</td></tr></tbody></table>
+          <p>This isolated fixture wins four raw bytes and three bytes under both codecs. It demonstrates one bounded decision, not a universal PGO advantage.</p>
         </div>
       </section>
 

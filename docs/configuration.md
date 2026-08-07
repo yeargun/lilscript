@@ -17,6 +17,9 @@ inline_closure_factories = true
 scalar_replacement = true
 dead_store_elimination = true
 dead_code_elimination = true
+call_site_specialization = true
+capture_signature_cloning = true
+profile_guided = true
 
 [javascript]
 priority = "size-first"
@@ -54,6 +57,25 @@ parse_overhead_limit_percent = 30
 compile_overhead_limit_percent = 30
 memory_overhead_limit_percent = 35
 
+[javascript.performance]
+deoptimization_weight = 32
+allocation_weight = 12
+indirect_call_weight = 24
+hot_code_weight = 1
+max_regression_percent = 25
+
+[profile]
+# path = "lilscript.profile.json"
+specialization_min_count = 100
+max_specializations_per_function = 8
+max_clone_instructions = 64
+
+[native]
+partial_escape_analysis = true
+stack_allocation = true
+region_allocation = true
+stack_array_element_limit = 64
+
 [mangle]
 # identifiers = true
 # properties = false
@@ -80,6 +102,7 @@ cache_reuse_discount_percent = 20
 enabled = true
 preset = "recommended" # minimal | recommended | strict
 deny_warnings = false
+providers = ["correctness", "effects", "performance", "size", "web"]
 exclude = ["**/generated/**"]
 pure_extern_allowlist = ["auditedHostFunction"]
 
@@ -204,6 +227,9 @@ are `ir-inlining-variants`, `ir-closure-factory-variants`,
 `update-loop-variants`, `switch-lowering-variants`,
 `compound-mutation-variants`, `entropy-cross-scope-reuse`,
 `entropy-property-assignment`, `parsed-peephole`, and `startup-cost-guard`.
+The remaining names are `performance-shape-model`,
+`profile-guided-optimization`, `call-site-specialization`, and
+`capture-signature-cloning`.
 An empty list disables all of these features. Duplicate names and levels above
 15 are configuration errors. With an exact allowlist, `candidate_limit` is the
 direct cap because `optimization_level` no longer selects either features or
@@ -217,7 +243,38 @@ parse, engine-compile, and memory estimates against the configured baseline.
 The three overhead limits are hard rejection thresholds, while the three
 weights break equal-transfer-size ties. `--explain human` and `--explain json`
 report the selected syntax metrics, candidate count, rewrite count, selected
-codec bytes, and measured LilScript compiler time.
+codec bytes, typed-IR performance metrics, and measured LilScript compiler
+time.
+
+The performance shape model is deterministic static analysis, not a browser
+measurement. It weights state-machine control flow, dynamically shaped values,
+host operations, allocations, unresolved indirect calls, and known direct or
+closure calls. `size-first` keeps exact transfer bytes as its primary key;
+`balanced` combines normalized transfer and shape scores;
+`realistic-performance-first` rejects candidates beyond
+`max_regression_percent` before minimizing transfer; and `performance-first`
+ranks the shape score first. The four weights allow a project to tune that
+proxy without changing language semantics.
+
+`[profile]` accepts an optional version-1 JSON file plus inline `functions` and
+`loops` tables. Inline counters override file counters. Generate all stable
+keys without annotating source:
+
+```sh
+lilscript src/main.lil --profile-template lilscript.profile.json
+```
+
+Function keys are `$entry`, a function name, `Class.method`,
+`Class.constructor`, or a source-span-keyed closure. Loop keys append the
+structured shape index, such as `$entry#0`. Counters must be positive. A hot
+or statically byte-profitable direct call can clone a bounded callee for
+constant and known-function arguments; constant closure captures can clone the
+closure body and remove its environment slots. Every clone re-enters ordinary
+folding and DCE, is bounded by the profile limits, and remains an independently
+codec-scored optimizer candidate for JavaScript. The corresponding
+`[optimization]` switches are authoritative global gates; a JavaScript effort
+level or exact feature allowlist cannot re-enable a pass explicitly set to
+`false` there.
 
 `javascript.cost_model` selects the exact objective used by optimizer-IR and
 bounded final-emission candidate search. `raw` compares emitted bytes, `gzip` uses level 9, and
@@ -250,6 +307,15 @@ The policy affects only JavaScript. A configured `--target all` build shares
 parsing and semantic analysis, then optimizes separate JavaScript and native IR
 copies. Changing `javascript.priority` therefore does not change generated C or
 the native executable's optimizer policy.
+
+`[native]` controls conservative partial escape analysis in the C/native
+backend. Fixed local arrays up to `stack_array_element_limit`, non-escaping
+class values, and eligible captured closures use function-frame storage.
+Larger bounded local arrays use a function region when enabled. Values that are
+returned, stored globally, captured across an unsafe boundary, passed to an
+unknown call, merged through a phi, or resized remain heap allocated. Every
+region is released on every generated return path. These switches alter
+storage placement, not source-visible ownership semantics.
 
 `mangle.properties` renames LilScript-owned fields that cross an untyped
 JavaScript boundary. It is off by default because external JavaScript must
@@ -323,6 +389,17 @@ Loop-cost analysis reports surviving arrays, aggregates, maps, sets, buffers,
 typed-array views, materializing array operations, closures, and unresolved
 indirect calls. Because it runs after optimization, values removed by DCE or
 scalar replacement do not produce allocation findings.
+
+`lint.providers` is an exact namespace allowlist. Built-in namespaces are
+`correctness`, `effects`, `performance`, `size`, and `web`; the web provider
+adds `web/eager-host-access` for top-level host work that can run before a
+progressive-enhancement boundary. Embedders can call
+`lint_path_with_providers` with Rust `LintRuleProvider` implementations. A
+provider receives the checked module, optimized IR, source, path, and project
+config, and emits stable namespaced diagnostics with optional evidence, help,
+and fixes. Duplicate namespaces and undeclared rule IDs are rejected before
+rules run. This is an in-process Rust API rather than an unstable dynamic
+library ABI.
 
 ```sh
 lilscript-lint src
