@@ -1,10 +1,12 @@
+use std::cell::RefCell;
 use std::fmt;
+use std::rc::Rc;
 
 use ahash::AHashMap;
 
 use crate::ast::{
-    AssignmentOp, BinaryOp, Expr, ForInitializer, FunctionDecl, Item, Program, Stmt, TemplatePart,
-    TypeKind, UnaryOp, UpdateOp, VarDecl,
+    ArrowBody, AssignmentOp, BinaryOp, Expr, ForInitializer, FunctionDecl, Item, Param, Program,
+    Stmt, TemplatePart, TypeKind, UnaryOp, UpdateOp, VarDecl,
 };
 use crate::semantic::{SemanticModel, SymbolId, Type};
 use crate::span::Span;
@@ -49,8 +51,32 @@ enum Value {
     Float(f64),
     String(String),
     Bool(bool),
+    Array(Rc<RefCell<Vec<Value>>>),
+    Callable(Callable),
     Null,
     Void,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Callable {
+    Function(SymbolId),
+    Closure(usize),
+}
+
+#[derive(Debug, Clone)]
+struct RuntimeClosure<'ast, 'src> {
+    params: &'ast [Param<'ast, 'src>],
+    body: ArrowBody<'ast, 'src>,
+    captures: AHashMap<SymbolId, Value>,
+}
+
+#[derive(Debug, Clone)]
+enum RuntimePlace {
+    Binding(SymbolId),
+    ArrayElement {
+        array: Rc<RefCell<Vec<Value>>>,
+        index: usize,
+    },
 }
 
 impl Value {
@@ -63,6 +89,14 @@ impl Value {
             Self::Float(value) => Ok(value.to_string()),
             Self::String(value) => Ok(value.clone()),
             Self::Bool(value) => Ok(value.to_string()),
+            Self::Array(_) => Err(InterpretError::new(
+                span,
+                "array value cannot be printed directly",
+            )),
+            Self::Callable(_) => Err(InterpretError::new(
+                span,
+                "callable value cannot be printed directly",
+            )),
             Self::Null => Ok("null".to_string()),
             Self::Void => Err(InterpretError::new(span, "void value cannot be printed")),
         }
@@ -84,11 +118,11 @@ impl Default for InterpreterLimits {
     }
 }
 
-/// Evaluates the checked scalar and control-flow core without going through IR.
+/// Evaluates the checked language core without going through IR.
 ///
 /// This intentionally independent path is used as a semantic oracle for
-/// differential compiler testing. Unsupported host, aggregate, class, and
-/// closure operations fail explicitly instead of approximating their behavior.
+/// differential compiler testing. Unsupported host, nominal aggregate, class,
+/// and binary-memory operations fail explicitly instead of approximating them.
 pub fn interpret_program<'ast, 'src>(
     program: &Program<'ast, 'src>,
     semantics: &SemanticModel<'src>,
@@ -110,6 +144,7 @@ struct ReferenceInterpreter<'program, 'ast, 'src> {
     functions: AHashMap<SymbolId, &'program FunctionDecl<'ast, 'src>>,
     globals: AHashMap<SymbolId, Value>,
     frames: Vec<AHashMap<SymbolId, Value>>,
+    closures: Vec<RuntimeClosure<'ast, 'src>>,
     output: String,
     remaining_steps: u64,
     recursion_depth: usize,
@@ -138,6 +173,7 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
             functions,
             globals: AHashMap::new(),
             frames: Vec::new(),
+            closures: Vec::new(),
             output: String::new(),
             remaining_steps: limits.steps,
             recursion_depth: 0,
@@ -302,7 +338,21 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
             Expr::String(value, _) => Ok(Value::String((*value).to_string())),
             Expr::Bool(value, _) => Ok(Value::Bool(*value)),
             Expr::Null(_) => Ok(Value::Null),
-            Expr::Ident(identifier) => self.read(self.symbol(identifier.span)?, identifier.span),
+            Expr::Ident(identifier) => {
+                let symbol = self.symbol(identifier.span)?;
+                if self.functions.contains_key(&symbol) {
+                    Ok(Value::Callable(Callable::Function(symbol)))
+                } else {
+                    self.read(symbol, identifier.span)
+                }
+            }
+            Expr::ArrayLiteral { elements, .. } => {
+                let mut values = Vec::with_capacity(elements.len());
+                for element in *elements {
+                    values.push(self.evaluate(element)?);
+                }
+                Ok(Value::Array(Rc::new(RefCell::new(values))))
+            }
             Expr::Unary { op, expr, span } => {
                 let value = self.evaluate(expr)?;
                 match (op, value) {
@@ -332,6 +382,21 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 self.evaluate_binary(*op, lhs, rhs, expression, *span)
             }
             Expr::Call { callee, args, span } => self.evaluate_call(callee, args, *span),
+            Expr::ArrowFunction {
+                params, body, span, ..
+            } => {
+                let captures = self.frames.last().cloned().unwrap_or_default();
+                let closure = self.closures.len();
+                self.closures.push(RuntimeClosure {
+                    params,
+                    body: body.clone(),
+                    captures,
+                });
+                self.semantics.expression_type(*span).ok_or_else(|| {
+                    InterpretError::new(*span, "closure has no checked function type")
+                })?;
+                Ok(Value::Callable(Callable::Closure(closure)))
+            }
             Expr::Assignment {
                 op,
                 target,
@@ -373,14 +438,31 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 })?;
                 Ok(Value::Bool(matches))
             }
-            Expr::ArrayLiteral { span, .. }
-            | Expr::StructLiteral { span, .. }
-            | Expr::New { span, .. }
-            | Expr::Member { span, .. }
-            | Expr::ArrowFunction { span, .. }
-            | Expr::Index { span, .. } => Err(InterpretError::new(
+            Expr::Member {
+                object,
+                property,
+                span,
+            } => {
+                let object = self.evaluate(object)?;
+                match (object, property.name) {
+                    (Value::Array(values), "length") => {
+                        Ok(Value::Int(i32::try_from(values.borrow().len()).map_err(
+                            |_| InterpretError::new(*span, "array length exceeds the i32 range"),
+                        )?))
+                    }
+                    _ => Err(InterpretError::new(
+                        *span,
+                        "reference interpreter does not support this member expression",
+                    )),
+                }
+            }
+            Expr::Index { span, .. } => {
+                let place = self.evaluate_place(expression)?;
+                self.load_place(&place, *span)
+            }
+            Expr::StructLiteral { span, .. } | Expr::New { span, .. } => Err(InterpretError::new(
                 *span,
-                "reference interpreter does not support aggregate, class, or closure expressions",
+                "reference interpreter does not support nominal aggregate or class expressions",
             )),
         }
     }
@@ -481,13 +563,7 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
         args: &'ast [Expr<'ast, 'src>],
         span: Span,
     ) -> Result<Value, InterpretError> {
-        let Expr::Ident(identifier) = callee else {
-            return Err(InterpretError::new(
-                span,
-                "reference interpreter only supports direct function calls",
-            ));
-        };
-        if identifier.name == "print" {
+        if matches!(callee, Expr::Ident(identifier) if identifier.name == "print") {
             let [argument] = args else {
                 return Err(InterpretError::new(span, "print requires one argument"));
             };
@@ -497,17 +573,48 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
             return Ok(Value::Void);
         }
 
-        let symbol = self.symbol(identifier.span)?;
-        let function = *self.functions.get(&symbol).ok_or_else(|| {
-            InterpretError::new(
-                span,
-                format!("unknown interpreted function `{}`", identifier.name),
-            )
-        })?;
-        let mut values = Vec::with_capacity(function.params.len());
+        if let Expr::Member {
+            object, property, ..
+        } = callee
+        {
+            return self.evaluate_method_call(object, property.name, args, span);
+        }
+
+        let callable = self.evaluate(callee)?;
+        let mut values = Vec::with_capacity(args.len());
         for argument in args {
             values.push(self.evaluate(argument)?);
         }
+        self.invoke_callable(callable, values, span)
+    }
+
+    fn invoke_callable(
+        &mut self,
+        callable: Value,
+        values: Vec<Value>,
+        span: Span,
+    ) -> Result<Value, InterpretError> {
+        match callable {
+            Value::Callable(Callable::Function(symbol)) => {
+                self.invoke_function(symbol, values, span)
+            }
+            Value::Callable(Callable::Closure(closure)) => {
+                self.invoke_closure(closure, values, span)
+            }
+            _ => Err(InterpretError::new(span, "value is not callable")),
+        }
+    }
+
+    fn invoke_function(
+        &mut self,
+        symbol: SymbolId,
+        mut values: Vec<Value>,
+        span: Span,
+    ) -> Result<Value, InterpretError> {
+        let function = *self
+            .functions
+            .get(&symbol)
+            .ok_or_else(|| InterpretError::new(span, "unknown interpreted function symbol"))?;
         for parameter in function.params.iter().skip(values.len()) {
             let default = parameter.default.as_ref().ok_or_else(|| {
                 InterpretError::new(
@@ -523,28 +630,206 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 "function argument count mismatch",
             ));
         }
+        let mut frame = AHashMap::with_capacity(function.params.len());
+        for (parameter, value) in function.params.iter().zip(values) {
+            frame.insert(self.symbol(parameter.name.span)?, value);
+        }
+        self.execute_callable_frame(frame, function.body, None, function.span)
+    }
+
+    fn invoke_closure(
+        &mut self,
+        closure: usize,
+        mut values: Vec<Value>,
+        span: Span,
+    ) -> Result<Value, InterpretError> {
+        let closure = self
+            .closures
+            .get(closure)
+            .cloned()
+            .ok_or_else(|| InterpretError::new(span, "unknown interpreted closure"))?;
+        for parameter in closure.params.iter().skip(values.len()) {
+            let default = parameter.default.as_ref().ok_or_else(|| {
+                InterpretError::new(parameter.span, "missing closure argument without a default")
+            })?;
+            values.push(self.evaluate(default)?);
+        }
+        if values.len() != closure.params.len() {
+            return Err(InterpretError::new(span, "closure argument count mismatch"));
+        }
+        let mut frame = closure.captures;
+        for (parameter, value) in closure.params.iter().zip(values) {
+            frame.insert(self.symbol(parameter.name.span)?, value);
+        }
+        match closure.body {
+            ArrowBody::Expr(expression) => {
+                self.execute_callable_frame(frame, &[], Some(expression), span)
+            }
+            ArrowBody::Block(body) => self.execute_callable_frame(frame, body, None, span),
+        }
+    }
+
+    fn execute_callable_frame(
+        &mut self,
+        frame: AHashMap<SymbolId, Value>,
+        body: &'ast [Stmt<'ast, 'src>],
+        expression: Option<&'ast Expr<'ast, 'src>>,
+        span: Span,
+    ) -> Result<Value, InterpretError> {
         if self.recursion_depth >= self.recursion_limit {
             return Err(InterpretError::new(
                 span,
                 "reference interpreter recursion limit exceeded",
             ));
         }
-
-        let mut frame = AHashMap::with_capacity(function.params.len());
-        for (parameter, value) in function.params.iter().zip(values) {
-            frame.insert(self.symbol(parameter.name.span)?, value);
-        }
         self.frames.push(frame);
         self.recursion_depth += 1;
-        let result = self.execute_statements(function.body);
+        let result = if let Some(expression) = expression {
+            self.evaluate(expression).map(Flow::Return)
+        } else {
+            self.execute_statements(body)
+        };
         self.recursion_depth -= 1;
         self.frames.pop();
         match result? {
             Flow::Return(value) => Ok(value),
             Flow::Next => Ok(Value::Void),
-            Flow::Break | Flow::Continue => Err(InterpretError::new(
-                function.span,
-                "loop control escaped a function",
+            Flow::Break | Flow::Continue => {
+                Err(InterpretError::new(span, "loop control escaped a callable"))
+            }
+        }
+    }
+
+    fn evaluate_method_call(
+        &mut self,
+        object: &Expr<'ast, 'src>,
+        method: &str,
+        args: &'ast [Expr<'ast, 'src>],
+        span: Span,
+    ) -> Result<Value, InterpretError> {
+        let receiver = self.evaluate(object)?;
+        let mut arguments = Vec::with_capacity(args.len());
+        for argument in args {
+            arguments.push(self.evaluate(argument)?);
+        }
+        let Value::Array(array) = receiver else {
+            return Err(InterpretError::new(
+                span,
+                "reference interpreter only supports array method calls",
+            ));
+        };
+
+        match method {
+            "push" => {
+                let [value] = arguments.as_slice() else {
+                    return Err(InterpretError::new(span, "array push requires one value"));
+                };
+                let mut array = array.borrow_mut();
+                array.push(value.clone());
+                Ok(Value::Int(i32::try_from(array.len()).map_err(|_| {
+                    InterpretError::new(span, "array length exceeds the i32 range")
+                })?))
+            }
+            "pop" => {
+                if !arguments.is_empty() {
+                    return Err(InterpretError::new(span, "array pop takes no arguments"));
+                }
+                let value = array
+                    .borrow_mut()
+                    .pop()
+                    .ok_or_else(|| InterpretError::new(span, "cannot pop an empty typed array"))?;
+                Ok(value)
+            }
+            "map" => {
+                let [callback] = arguments.as_slice() else {
+                    return Err(InterpretError::new(span, "array map requires one callback"));
+                };
+                let length = array.borrow().len();
+                let mut mapped = Vec::with_capacity(length);
+                for index in 0..length {
+                    let value = array.borrow().get(index).cloned().ok_or_else(|| {
+                        InterpretError::new(
+                            span,
+                            "array shrank during map before a pending element was visited",
+                        )
+                    })?;
+                    mapped.push(self.invoke_callable(callback.clone(), vec![value], span)?);
+                }
+                Ok(Value::Array(Rc::new(RefCell::new(mapped))))
+            }
+            "filter" => {
+                let [callback] = arguments.as_slice() else {
+                    return Err(InterpretError::new(
+                        span,
+                        "array filter requires one callback",
+                    ));
+                };
+                let length = array.borrow().len();
+                let mut filtered = Vec::with_capacity(length);
+                for index in 0..length {
+                    let value = array.borrow().get(index).cloned().ok_or_else(|| {
+                        InterpretError::new(
+                            span,
+                            "array shrank during filter before a pending element was visited",
+                        )
+                    })?;
+                    let keep = self.invoke_callable(callback.clone(), vec![value.clone()], span)?;
+                    match keep {
+                        Value::Bool(true) => filtered.push(value),
+                        Value::Bool(false) => {}
+                        _ => {
+                            return Err(InterpretError::new(
+                                span,
+                                "array filter callback did not return bool",
+                            ));
+                        }
+                    }
+                }
+                Ok(Value::Array(Rc::new(RefCell::new(filtered))))
+            }
+            "reduce" => {
+                let [callback, initial] = arguments.as_slice() else {
+                    return Err(InterpretError::new(
+                        span,
+                        "array reduce requires a callback and initial value",
+                    ));
+                };
+                let length = array.borrow().len();
+                let mut accumulator = initial.clone();
+                for index in 0..length {
+                    let value = array.borrow().get(index).cloned().ok_or_else(|| {
+                        InterpretError::new(
+                            span,
+                            "array shrank during reduce before a pending element was visited",
+                        )
+                    })?;
+                    accumulator =
+                        self.invoke_callable(callback.clone(), vec![accumulator, value], span)?;
+                }
+                Ok(accumulator)
+            }
+            "forEach" => {
+                let [callback] = arguments.as_slice() else {
+                    return Err(InterpretError::new(
+                        span,
+                        "array forEach requires one callback",
+                    ));
+                };
+                let length = array.borrow().len();
+                for index in 0..length {
+                    let value = array.borrow().get(index).cloned().ok_or_else(|| {
+                        InterpretError::new(
+                            span,
+                            "array shrank during forEach before a pending element was visited",
+                        )
+                    })?;
+                    self.invoke_callable(callback.clone(), vec![value], span)?;
+                }
+                Ok(Value::Void)
+            }
+            _ => Err(InterpretError::new(
+                span,
+                format!("unsupported interpreted array method `{method}`"),
             )),
         }
     }
@@ -556,21 +841,15 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
         rhs: &Expr<'ast, 'src>,
         span: Span,
     ) -> Result<Value, InterpretError> {
-        let Expr::Ident(identifier) = target else {
-            return Err(InterpretError::new(
-                span,
-                "reference interpreter only supports scalar assignments",
-            ));
-        };
-        let symbol = self.symbol(identifier.span)?;
+        let place = self.evaluate_place(target)?;
         let value = if op == AssignmentOp::Assign {
             self.evaluate(rhs)?
         } else {
-            let lhs = self.read(symbol, identifier.span)?;
+            let lhs = self.load_place(&place, target.span())?;
             let rhs = self.evaluate(rhs)?;
             self.evaluate_binary(assignment_binary_op(op), lhs, rhs, target, span)?
         };
-        self.assign(symbol, value.clone(), span)?;
+        self.store_place(&place, value.clone(), span)?;
         Ok(value)
     }
 
@@ -581,22 +860,81 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
         prefix: bool,
         span: Span,
     ) -> Result<Value, InterpretError> {
-        let Expr::Ident(identifier) = target else {
-            return Err(InterpretError::new(
+        let place = self.evaluate_place(target)?;
+        let old = self.load_place(&place, span)?;
+        let new = match (&old, op) {
+            (Value::Int(value), UpdateOp::Increment) => Value::Int(value.wrapping_add(1)),
+            (Value::Int(value), UpdateOp::Decrement) => Value::Int(value.wrapping_sub(1)),
+            (Value::Float(value), UpdateOp::Increment) => Value::Float(value + 1.0),
+            (Value::Float(value), UpdateOp::Decrement) => Value::Float(value - 1.0),
+            _ => return Err(InterpretError::new(span, "update target is not numeric")),
+        };
+        self.store_place(&place, new.clone(), span)?;
+        Ok(if prefix { new } else { old })
+    }
+
+    fn evaluate_place(
+        &mut self,
+        expression: &Expr<'ast, 'src>,
+    ) -> Result<RuntimePlace, InterpretError> {
+        match expression {
+            Expr::Ident(identifier) => Ok(RuntimePlace::Binding(self.symbol(identifier.span)?)),
+            Expr::Index {
+                object,
+                index,
                 span,
-                "reference interpreter only supports scalar updates",
-            ));
-        };
-        let symbol = self.symbol(identifier.span)?;
-        let Value::Int(old) = self.read(symbol, span)? else {
-            return Err(InterpretError::new(span, "update target is not int"));
-        };
-        let new = match op {
-            UpdateOp::Increment => old.wrapping_add(1),
-            UpdateOp::Decrement => old.wrapping_sub(1),
-        };
-        self.assign(symbol, Value::Int(new), span)?;
-        Ok(Value::Int(if prefix { new } else { old }))
+            } => {
+                let Value::Array(array) = self.evaluate(object)? else {
+                    return Err(InterpretError::new(
+                        *span,
+                        "reference interpreter only supports array indexing",
+                    ));
+                };
+                let Value::Int(index) = self.evaluate(index)? else {
+                    return Err(InterpretError::new(*span, "array index is not int"));
+                };
+                let index = usize::try_from(index)
+                    .map_err(|_| InterpretError::new(*span, "array index is negative"))?;
+                if index >= array.borrow().len() {
+                    return Err(InterpretError::new(*span, "array index is out of bounds"));
+                }
+                Ok(RuntimePlace::ArrayElement { array, index })
+            }
+            _ => Err(InterpretError::new(
+                expression.span(),
+                "reference interpreter does not support this assignable location",
+            )),
+        }
+    }
+
+    fn load_place(&self, place: &RuntimePlace, span: Span) -> Result<Value, InterpretError> {
+        match place {
+            RuntimePlace::Binding(symbol) => self.read(*symbol, span),
+            RuntimePlace::ArrayElement { array, index } => array
+                .borrow()
+                .get(*index)
+                .cloned()
+                .ok_or_else(|| InterpretError::new(span, "array index is out of bounds")),
+        }
+    }
+
+    fn store_place(
+        &mut self,
+        place: &RuntimePlace,
+        value: Value,
+        span: Span,
+    ) -> Result<(), InterpretError> {
+        match place {
+            RuntimePlace::Binding(symbol) => self.assign(*symbol, value, span),
+            RuntimePlace::ArrayElement { array, index } => {
+                let mut array = array.borrow_mut();
+                let target = array
+                    .get_mut(*index)
+                    .ok_or_else(|| InterpretError::new(span, "array index is out of bounds"))?;
+                *target = value;
+                Ok(())
+            }
+        }
     }
 
     fn symbol(&self, span: Span) -> Result<SymbolId, InterpretError> {
@@ -667,6 +1005,7 @@ fn values_equal(lhs: &Value, rhs: &Value) -> bool {
         (Value::Float(lhs), Value::Int(rhs)) => *lhs == f64::from(*rhs),
         (Value::String(lhs), Value::String(rhs)) => lhs == rhs,
         (Value::Bool(lhs), Value::Bool(rhs)) => lhs == rhs,
+        (Value::Array(lhs), Value::Array(rhs)) => Rc::ptr_eq(lhs, rhs),
         (Value::Null, Value::Null) => true,
         _ => false,
     }
@@ -682,6 +1021,8 @@ fn value_matches_type(value: &Value, target: TypeKind<'_, '_>) -> Option<bool> {
         TypeKind::Float => Some(matches!(value, Value::Float(_))),
         TypeKind::String => Some(matches!(value, Value::String(_))),
         TypeKind::Bool => Some(matches!(value, Value::Bool(_))),
+        TypeKind::Array(_) => Some(matches!(value, Value::Array(_))),
+        TypeKind::Function { .. } => Some(matches!(value, Value::Callable(_))),
         TypeKind::Nullable(_) if matches!(value, Value::Null) => Some(true),
         TypeKind::Nullable(inner) => value_matches_type(value, inner.kind),
         TypeKind::Union(members) => {
@@ -691,11 +1032,7 @@ fn value_matches_type(value: &Value, target: TypeKind<'_, '_>) -> Option<bool> {
             }
             Some(matches)
         }
-        TypeKind::Void
-        | TypeKind::Auto
-        | TypeKind::Named { .. }
-        | TypeKind::Array(_)
-        | TypeKind::Function { .. } => None,
+        TypeKind::Void | TypeKind::Auto | TypeKind::Named { .. } => None,
     }
 }
 
@@ -756,6 +1093,48 @@ mod tests {
         assert_eq!(
             run("int sum(int limit){int total=0;for(int i=0;i<limit;i++){if(i==2){continue;}if(i==6){break;}total+=i;}int i=0;while(i<2){total+=i;i++;}{int total=9;total++;}return total;}print(sum(8));"),
             "14\n"
+        );
+    }
+
+    #[test]
+    fn evaluates_array_identity_mutation_and_methods() {
+        assert_eq!(
+            run(r#"
+                    int[] values=[1,2,3];
+                    int[] alias=values;
+                    print(values==alias);
+                    print(values==[1,2,3]);
+                    print(++alias[0]);
+                    print(values[0]++);
+                    print(values[0]);
+                    print(values.push(4));
+                    print(values.pop());
+                    int factor=3;
+                    int[] mapped=values.map((int value)=>value*factor);
+                    int[] filtered=values.filter((int value)=>value>2);
+                    int sum=values.reduce((int total,int value)=>total+value,0);
+                    values.forEach((int value)=>{print(value);});
+                    print(values.length);
+                    print(mapped[2]);
+                    print(filtered.length);
+                    print(sum);
+                "#,),
+            "true\nfalse\n2\n2\n3\n4\n4\n3\n2\n3\n3\n9\n2\n8\n"
+        );
+    }
+
+    #[test]
+    fn snapshots_array_iteration_length() {
+        assert_eq!(
+            run(r#"
+                    int[] values=[1,2];
+                    int append(int value){if(value==1){values.push(3);}return value*2;}
+                    int[] mapped=values.map(append);
+                    print(values.length);
+                    print(mapped.length);
+                    print(mapped[1]);
+                "#,),
+            "3\n2\n4\n"
         );
     }
 

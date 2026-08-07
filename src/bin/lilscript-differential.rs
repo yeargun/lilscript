@@ -268,6 +268,12 @@ impl ProgramGenerator {
         let gate_left = self.integer_expression(2, &["x", "y", "a", "b"]);
         let gate_right = self.integer_expression(2, &["x", "y", "a", "b"]);
         let rotate = 1 + self.random.bounded(31);
+        let array_pipeline = match case % 4 {
+            0 => "int[] mapped=values.map((int value)=>{if(values.length==2){values.push(value^x);}return value+y;});alias[0]+=mapped.length;b+=values.length+mapped.length+mapped[0]+alias[0]+appended+removed;",
+            1 => "int[] selected=values.filter((int value)=>{if(values.length==2){values.push(value^x);}return ((value^y)&1)==0;});alias[0]+=selected.length;b+=values.length+selected.length+alias[0]+appended+removed;",
+            2 => "int folded=values.reduce((int total,int value)=>{if(values.length==2){values.push(value^x);}return total+value;},0);alias[0]+=values.length;b+=values.length+folded+alias[0]+appended+removed;",
+            _ => "values.forEach((int value)=>{if(values.length==2){values.push(value^x);}});alias[0]+=values.length;b+=values.length+values[2]+alias[0]+appended+removed;",
+        };
 
         writeln!(source, "int differentialCase{case}(int x,int y){{")
             .expect("writing to String cannot fail");
@@ -294,6 +300,8 @@ impl ProgramGenerator {
         )
         .expect("writing to String cannot fail");
         writeln!(source, "int old=b++;b+=old;if(gate){{--b;}}else{{++b;}}")
+            .expect("writing to String cannot fail");
+        writeln!(source, "int[] values=[a,b];int[] alias=values;int prior=alias[0]++;alias[1]+=prior;int appended=values.push(x^y);int removed=values.pop();{array_pipeline}")
             .expect("writing to String cannot fail");
         writeln!(source, "{{int a={shadow};b+=a;}}return b;}}")
             .expect("writing to String cannot fail");
