@@ -49,6 +49,11 @@ A capability is complete only when:
 - Late identical private-function folding after inlining and specialization.
   Exported, address-taken, method, constructor, closure, and incompatible
   escape contracts remain distinct.
+- Proof-driven private-function subsumption for typed scalar and known-function
+  bindings. A temporary specialization must exactly equal the narrower
+  normalized SSA/CFG; explicit call arguments replace the removed body, while
+  exported and address-taken identities remain distinct. Untouched IR remains
+  a codec-scored candidate.
 - Struct/class dissolution, typed positional lowering, collection mutation-root
   elimination, and conservative boundary invalidation.
 
@@ -124,88 +129,94 @@ property, variable, and late peephole phases rather than relying on one pass
 
 ### P0: semantic and evidence coverage
 
-- Extend the independent evaluator and differential generator to nominal
+- [ ] Extend the independent evaluator and differential generator to nominal
   aggregates, classes, maps/sets, async modules, exceptions, and typed host
   boundaries. No aggressive pass is trustworthy outside the modeled corpus.
-- Add source-to-SSA-to-chunk source maps and machine-readable optimization
+- [ ] Add source-to-SSA-to-chunk source maps and machine-readable optimization
   remarks. Every surprising retained allocation, boundary, or failed merge
   should identify the failed proof.
-- Add browser parse/compile and peak-memory measurements to release artifacts;
+- [ ] Add browser parse/compile and peak-memory measurements to release artifacts;
   deterministic syntax proxies remain selection tools, not browser claims.
 
 ### P1: highest-probability bundle wins
 
-1. **Parameterized global function merging and repeated-region outlining.**
-   Identical private functions are complete. Next, merge bodies that differ
-   only by a small constant/function operand, then outline repeated statement
-   regions when helper overhead wins the complete artifact. Preserve public or
-   address-taken identity. Gate on raw plus both codecs and call-shape cost.
-2. **Path- and context-sensitive propagation.** Add relational branch facts,
-   sparse conditional constant propagation, bounded call contexts, and
-   field-sensitive memory SSA. Widen deterministically at loops, recursion,
-   mutation, dynamic calls, and host boundaries.
-3. **Partial escape and allocation sinking for JavaScript.** Split closure
-   environments, scalarize branch-local aggregate regions, and sink allocations
-   to the paths that escape. Compare scalar, tuple, and materialized-object
-   representations with allocation and deoptimization guards.
-4. **Generalized typed pipeline fusion.** Extend the existing direct array
-   callback lowering to eligible `map`/`filter`/`reduce` chains and small
-   higher-order collection pipelines without intermediate arrays or callbacks.
-   Preserve callback order, mutation, exceptions, and observable lengths. Keep
-   unfused code when inlining or compression makes it smaller.
-5. **Joint representation selection.** Search aggregate scalar/tuple/object,
-   closure environment, switch/table, and array-of-struct versus
-   struct-of-arrays forms using escape facts, hotness, emitted bytes, and engine
-   shape stability.
-6. **Joint mangling and layout.** Extend declaration clustering to string pools
-   and individual chunks; optimize symbol assignment over interference,
-   frequency, surrounding tokens, cache-stable public names, and codec cost.
-   Use bounded local search, not an unbounded permutation search.
-7. **Typed expression superoptimization.** Add a bounded equality-saturation or
-   enumerative search for pure integer, float, boolean, and string expressions.
-   Rewrites must encode JavaScript coercion, signed-zero, NaN, overflow, and
-   evaluation-order rules and pass differential execution.
-8. **Joint chunk and symbol search.** Score chunk boundaries, declaration order,
-   name stability, preload, request count, and cache reuse together. Current
-   chunk and single-file layout searches are sound but separately optimized.
-9. **Package effect precision.** Persist typed side-effect/effect-summary
-   metadata in library artifacts so consumers can tree-shake packages without
-   reanalyzing source or trusting coarse handwritten `sideEffects` flags.
+- [x] **Bound private-function subsumption.** Reuse an existing broader
+  direct-call implementation when typed scalar or known-function bindings prove
+  exact normalized SSA/CFG equality. The isolated ablation improves
+  `445/217/179` to `351/201/172` raw/gzip/Brotli.
+- [ ] **Generalized parameterized function merging.** Extend the proof to
+  permuted parameters, then evaluate synthesized shared implementations for
+  bodies differing by one operand. Preserve identity and retain every untouched
+  artifact candidate.
+- [ ] **Repeated-region outlining.** Discover repeated pure/effect-equivalent
+  statement regions across functions and outline them only when helper calls
+  win the complete codec objective within call-shape limits.
+- [ ] **Path- and context-sensitive propagation.** Add relational branch facts,
+  sparse conditional constant propagation, bounded call contexts, and
+  field-sensitive memory SSA. Widen deterministically at loops, recursion,
+  mutation, dynamic calls, and host boundaries.
+- [ ] **Partial escape and allocation sinking for JavaScript.** Split closure
+  environments, scalarize branch-local aggregate regions, and sink allocations
+  to the paths that escape. Compare scalar, tuple, and materialized-object
+  representations with allocation and deoptimization guards.
+- [ ] **Generalized typed pipeline fusion.** Extend the existing direct array
+  callback lowering to eligible `map`/`filter`/`reduce` chains and small
+  higher-order collection pipelines without intermediate arrays or callbacks.
+  Preserve callback order, mutation, exceptions, and observable lengths. Keep
+  unfused code when inlining or compression makes it smaller.
+- [ ] **Joint representation selection.** Search aggregate scalar/tuple/object,
+  closure environment, switch/table, and array-of-struct versus
+  struct-of-arrays forms using escape facts, hotness, emitted bytes, and engine
+  shape stability.
+- [ ] **Joint mangling and layout.** Extend declaration clustering to string pools
+  and individual chunks; optimize symbol assignment over interference,
+  frequency, surrounding tokens, cache-stable public names, and codec cost.
+  Use bounded local search, not an unbounded permutation search.
+- [ ] **Typed expression superoptimization.** Add a bounded equality-saturation or
+  enumerative search for pure integer, float, boolean, and string expressions.
+  Rewrites must encode JavaScript coercion, signed-zero, NaN, overflow, and
+  evaluation-order rules and pass differential execution.
+- [ ] **Joint chunk and symbol search.** Score chunk boundaries, declaration order,
+  name stability, preload, request count, and cache reuse together. Current
+  chunk and single-file layout searches are sound but separately optimized.
+- [ ] **Package effect precision.** Persist typed side-effect/effect-summary
+  metadata in library artifacts so consumers can tree-shake packages without
+  reanalyzing source or trusting coarse handwritten `sideEffects` flags.
 
 ### P2: compiler throughput and runtime quality
 
-- Add incremental module analysis, content-addressed IR/pass caches, and
+- [ ] Add incremental module analysis, content-addressed IR/pass caches, and
   dependency-aware invalidation for the LSP and repeated builds.
-- Parallelize independent module analysis and expensive candidate emission while
+- [ ] Parallelize independent module analysis and expensive candidate emission while
   preserving deterministic output and bounded peak memory.
-- Finish byte-scored SSA destruction for nested/multi-exit control flow and
+- [ ] Finish byte-scored SSA destruction for nested/multi-exit control flow and
   parallel-copy cycles.
-- Add profile-controlled environment splitting and allocation sinking, then
+- [ ] Add profile-controlled environment splitting and allocation sinking, then
   measure monomorphic call sites, GC pressure, and deoptimization in browsers.
-- Add native LICM, strength reduction, guarded unrolling, and vectorization only
+- [ ] Add native LICM, strength reduction, guarded unrolling, and vectorization only
   where native profiles justify their compile-time and code-size costs.
 
 ### P3: web and native surface
 
-- Generate a pinned, versioned browser declaration package from Web IDL,
+- [ ] Generate a pinned, versioned browser declaration package from Web IDL,
   preserving overloads, inheritance, nullability, and stable external names.
-- Add `DataView`, typed numeric arrays, `Atomics`, workers, and explicit shared
+- [ ] Add `DataView`, typed numeric arrays, `Atomics`, workers, and explicit shared
   memory semantics.
-- Define exceptions, promises, async functions, structured cancellation, and
+- [ ] Define exceptions, promises, async functions, structured cancellation, and
   their JavaScript/native boundary behavior.
-- Keep portable C as the native reference backend until the ABI and semantic
+- [ ] Keep portable C as the native reference backend until the ABI and semantic
   corpus justify a direct machine-code backend.
 
 ## Measure-first queue
 
 These ideas are plausible, not commitments:
 
-- Cross-function substring dictionaries and suffix/prefix factoring.
-- Constant-parameter function merging beyond identical bodies.
-- Compressor-window-aware ordering across large chunks and lazy boundaries.
-- Multi-result calling conventions and tuple-return dissolution.
-- Route/island-aware progressive-enhancement entry graphs.
-- Profile-trained candidate priors that change search order but never semantic
+- [ ] Cross-function substring dictionaries and suffix/prefix factoring.
+- [ ] Constant/function-operand merging that must synthesize a new shared body.
+- [ ] Compressor-window-aware ordering across large chunks and lazy boundaries.
+- [ ] Multi-result calling conventions and tuple-return dissolution.
+- [ ] Route/island-aware progressive-enhancement entry graphs.
+- [ ] Profile-trained candidate priors that change search order but never semantic
   eligibility or final exact scoring.
 
 Each starts as an isolated ablation. It is removed or left opt-in when corpus
@@ -225,15 +236,17 @@ results are neutral, unstable, or paid back only by unrealistic source shapes.
 
 ## Near milestones
 
-1. Parameterized private-function merging with identity/effect proofs and a
-   multi-library ablation.
-2. Relational SCCP plus path-sensitive escape regions, followed by ordinary
-   fold/DCE and representation search.
-3. Codec-local symbol assignment and per-chunk declaration layout with bounded
-   compile-memory accounting.
-4. Typed collection-pipeline fusion on application and library workloads.
-5. Incremental analysis, source maps, and optimization remarks so agents and
-   editors can act on retained-cost explanations.
+- [x] Scalar/known-function private-function subsumption with identity proofs,
+  exact-codec retention, unit bailouts, and a checked ablation.
+- [ ] Generalize function merging to parameter permutations and synthesized
+  shared bodies, then run a multi-library ablation.
+- [ ] Relational SCCP plus path-sensitive escape regions, followed by ordinary
+  fold/DCE and representation search.
+- [ ] Codec-local symbol assignment and per-chunk declaration layout with bounded
+  compile-memory accounting.
+- [ ] Typed collection-pipeline fusion on application and library workloads.
+- [ ] Incremental analysis, source maps, and optimization remarks so agents and
+  editors can act on retained-cost explanations.
 
 ## Release gates
 

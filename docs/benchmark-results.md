@@ -154,6 +154,27 @@ Exported and address-taken function identities are excluded from the pass.
 Run it with `node benchmarks/function-folding/run.mjs`. This is a 54-byte raw,
 10-byte gzip, and 6-byte Brotli win on the isolated duplicate-body workload.
 
+## Private-function subsumption ablation
+
+`benchmarks/function-subsumption/fixture.lil` contains specialized scalar and
+direct-call implementations plus broader scalar and higher-order
+implementations that can reproduce them. The proof specializes a temporary IR
+clone, canonicalizes typed constants, known callbacks, and local metadata, and
+requires exact normalized SSA/CFG equality before redirecting calls with
+explicit arguments. Both builds disable inlining and execute the same
+`3940336` output contract. Exported and address-taken identities remain
+ineligible.
+
+| Variant | Raw | Gzip-9 | Brotli-11 |
+| --- | ---: | ---: | ---: |
+| Subsumption enabled | 351 | 201 | 172 |
+| Subsumption disabled | 445 | 217 | 179 |
+
+Run it with `node benchmarks/function-subsumption/run.mjs`. This isolated case
+saves 94 raw, 16 gzip, and 7 Brotli bytes. The pass is a size-first IR candidate,
+not an unconditional rewrite; the complete untouched artifact competes under
+the configured codec.
+
 ## Function declaration layout ablation
 
 `benchmarks/function-layout/fixture.lil` interleaves two pairs of structurally

@@ -73,6 +73,17 @@
         </div>
       </section>
 
+      <section class="benchmark-project" aria-labelledby="function-subsumption-title">
+        <header>
+          <p class="eyebrow">Proof-driven IR ablation</p>
+          <h2 id="function-subsumption-title">Private implementation sharing</h2>
+          <p>Specialized private functions are redirected to existing broader scalar and higher-order implementations only after typed bindings make their normalized SSA/CFG exactly equal. Both builds execute to 3940336; observable function identities remain excluded.</p>
+        </header>
+        <div class="benchmark-table-wrap">
+          <table><thead><tr><th>Variant</th><th>Raw</th><th>Gzip-9</th><th>Brotli-11</th></tr></thead><tbody><tr class="lilscript-row"><th>Subsumption enabled</th><td>351</td><td>201</td><td>172</td></tr><tr><th>Subsumption disabled</th><td>445</td><td>217</td><td>179</td></tr></tbody></table>
+        </div>
+      </section>
+
       <section class="benchmark-project" aria-labelledby="function-layout-title">
         <header>
           <p class="eyebrow">Codec-layout ablation</p>

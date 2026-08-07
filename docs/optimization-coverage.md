@@ -70,9 +70,10 @@ The current schedule is:
    higher-order call cloning, constant-capture closure cloning, unused
    parameter/return removal, and fixed-point expression and multi-block CFG
    inlining;
-7. escape analysis, class/struct scalar replacement, allocation-root alias and
-   parameter-effect summaries, unobserved collection-graph/call removal, and
-   dead field stores;
+7. proof-driven private-function subsumption under typed scalar bindings,
+   followed by escape analysis, class/struct scalar replacement,
+   allocation-root alias and parameter-effect summaries, unobserved
+   collection-graph/call removal, and dead field stores;
 8. another scalar fixed point;
 9. effect-aware SSA DCE, late identical-private-function folding, and
    whole-program function DCE;
@@ -100,7 +101,7 @@ The current schedule is:
 
 ## Executable evidence
 
-`scripts/verify-matrix.sh` compiles 65 independent `.lil` programs, including a
+`scripts/verify-matrix.sh` compiles 66 independent `.lil` programs, including a
 multi-file module graph, with one
 `--target all` invocation per program. Each invocation emits JavaScript, emits
 C, and invokes Clang for a native executable. The script then compiles the
@@ -108,7 +109,7 @@ emitted C independently and requires the JavaScript, direct native executable,
 independently compiled C executable, and checked-in expected output to match.
 The corpus includes collection mutation/identity/nullable lookup and binary
 memory copy/view/coercion behavior under both maximum and disabled optional
-optimization, for 130 backend-mode executions. This includes regressions for
+optimization, for 132 backend-mode executions. This includes regressions for
 interprocedural integer ranges, finite values/fields, exact array lengths,
 entry-length snapshots across all array callback methods, unobserved collection
 mutation removal, multi-use conditional-return values, and
@@ -151,6 +152,14 @@ improves from `216/155/118` bytes to `143/108/77`.
 toggles only late identical private-function folding. Export and address-taken
 identity barriers remain active. Both artifacts execute `95660`; folding one
 residual body changes `177/139/111` to `123/129/105` raw/gzip/Brotli.
+
+`benchmarks/function-subsumption/run.mjs` disables inlining and compares the
+untouched optimizer IR with a candidate that redirects specialized private
+functions to existing broader scalar and higher-order implementations. Extra
+parameters are bound only after exact normalized typed SSA/CFG equality
+succeeds. Both artifacts execute `3940336`; the checked fixture changes
+`445/217/179` to `351/201/172` raw/gzip/Brotli. Exported and address-taken
+functions are covered by explicit optimizer bailouts.
 
 `benchmarks/function-layout/run.mjs` keeps raw output length constant and
 compares source declaration order with a similarity path proposed from repeated

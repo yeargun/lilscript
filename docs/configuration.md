@@ -20,6 +20,7 @@ dead_code_elimination = true
 call_site_specialization = true
 capture_signature_cloning = true
 identical_function_folding = true
+# function_subsumption = true # explicit all-backend enable; false is a hard disable
 profile_guided = true
 
 [javascript]
@@ -135,6 +136,20 @@ JavaScript, level-derived or exact `identical-function-folding` selection can
 additionally bound this late
 whole-program work; native optimization uses the semantic pass switch directly.
 
+`function_subsumption` controls proof-driven implementation sharing. A private,
+direct-call-only function may be redirected to an existing function with extra
+parameters only when binding those parameters to typed scalar literals or known
+direct functions makes the normalized SSA/CFG bodies exactly equal. Calls receive
+explicit arguments without permuting source argument evaluation; LilScript
+never relies on JavaScript omitted-argument behavior. Exports, address-taken
+functions, methods, constructors, closures, type mismatches, and non-equal
+bodies are rejected. The default leaves native
+output unchanged and lets size-first JavaScript level 14+ compare transformed
+and untouched IR under the selected codec. `function_subsumption = false`
+suppresses that candidate; `true` enables the pass for native output and permits
+it for every JavaScript priority when the level-derived or exact JavaScript
+feature is enabled.
+
 `javascript.priority` is a JavaScript-target policy. It never weakens semantic
 checks, mandatory IR normalization, DCE correctness, or host-boundary rules:
 
@@ -221,16 +236,19 @@ budgets, not output-byte limits.
 passes. Levels progressively raise the candidate cap and enable additional
 dimensions. Level 0 emits one configured layout, levels 4-8 add inexpensive
 conditional, update, mutation, SSA, comma, and entropy choices, levels 9-12 add
-parsed peepholes plus structural IR/loop/switch alternatives, and levels 13-15
-use the largest configured beam. The effective cap is always the lower of the
-level cap and `candidate_limit` when the level-derived feature set is active.
+parsed peepholes plus structural IR/loop/switch alternatives, level 13 adds
+late identical-body folding and declaration layout, and levels 14-15 add
+proof-driven function-subsumption IR candidates. The effective cap is always
+the lower of the level cap and `candidate_limit` when the level-derived feature
+set is active.
 
 `javascript.optimizations` replaces the level-derived feature set with an exact
 allowlist. This is separate from the older `compression` policy: `compression`
 controls whether a representation is permitted, while `optimizations` controls
 which alternative searches and post-emission analyses are run. Available names
 are `ir-inlining-variants`, `ir-closure-factory-variants`,
-`ir-specialization-variants`, `structural-control-flow-variants`,
+`ir-function-subsumption-variants`, `ir-specialization-variants`,
+`structural-control-flow-variants`,
 `ssa-destruction-variants`, `conditional-expression-variants`,
 `comma-expression-variants`, `structural-loop-variants`, `do-loop-variants`,
 `update-loop-variants`, `switch-lowering-variants`,
@@ -244,6 +262,14 @@ An empty list disables all of these features. Duplicate names and levels above
 15 are configuration errors. With an exact allowlist, `candidate_limit` is the
 direct cap because `optimization_level` no longer selects either features or
 effort.
+
+`ir-function-subsumption-variants` is automatically searched only by
+`size-first`; `balanced`, `realistic-performance-first`, and
+`performance-first` require this exact feature name or
+`optimization.function_subsumption = true`. This is the explicit control for a
+semantics-preserving size transform that may add scalar or function arguments
+at surviving call sites. The unmodified IR always remains a complete-artifact
+candidate.
 
 `function-layout-variants` clusters emitted function declarations by repeated
 emitted eight-byte runs. Groups of at most 13 use dynamic programming; larger

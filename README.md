@@ -275,6 +275,7 @@ LilScript source
   -> typed control-flow IR
   -> mem2reg SSA and phi insertion
   -> devirtualization and inlining
+  -> proof-driven private implementation sharing
   -> constant/branch folding, GVN, algebraic simplification
   -> pure-call, dead-store, unreachable and whole-program DCE
   -> escape analysis and scalar replacement
@@ -297,6 +298,7 @@ scripts/verify.sh
 benchmarks/run.sh
 node benchmarks/finite-values/run.mjs
 node benchmarks/function-folding/run.mjs
+node benchmarks/function-subsumption/run.mjs
 node benchmarks/function-layout/run.mjs
 node benchmarks/ir-variants/run.mjs
 node benchmarks/profile-guided/run.mjs
@@ -313,9 +315,9 @@ npm --prefix vscode-extension run package
 ```
 
 `scripts/verify.sh` compares Node and native output for two conformance suites
-and links a generated aggregate ABI against a C host. It also runs 65 programs
+and links a generated aggregate ABI against a C host. It also runs 66 programs
 through JavaScript, emitted C, and native executables with maximum and disabled
-optional optimization, for 130 matrix executions, plus a framed LSP session
+optional optimization, for 132 matrix executions, plus a framed LSP session
 through diagnostics, completion, hover, symbols, semantic tokens, references,
 rename, formatting, quick fixes, and shutdown.
 The verification script also generates 64 deterministic typed programs and one
@@ -343,6 +345,11 @@ Late identical-private-function folding improves its isolated workload from
 `177/139/111` to `123/129/105`. Compressor-selected declaration layout keeps
 raw size at `1,133` while improving gzip/Brotli from `460/369` to `454/362`;
 source order remains a candidate, so the heuristic is not forced.
+Proof-driven private-function subsumption binds an existing broader
+implementation's extra scalar or known-function parameter and improves its
+isolated workload from `445/217/179` to `351/201/172`. Exported and
+address-taken identities are excluded, and the untouched optimizer IR remains
+codec-scored.
 
 The source-neutral lane in `benchmarks/paired` mechanically generates readable
 LilScript and JavaScript from one workload schema. Every case must agree through
