@@ -296,6 +296,8 @@ cargo test --all-targets
 scripts/verify.sh
 benchmarks/run.sh
 node benchmarks/finite-values/run.mjs
+node benchmarks/function-folding/run.mjs
+node benchmarks/function-layout/run.mjs
 node benchmarks/ir-variants/run.mjs
 node benchmarks/profile-guided/run.mjs
 npm --prefix benchmarks/apps ci
@@ -337,6 +339,10 @@ artifacts execute the same contract; the pass reduces the checked workload from
 `216/155/118` to `143/108/77` raw/gzip-9/Brotli-11 bytes.
 The inlining-IR ablation holds every other optimizer and emitter decision
 constant; exact codec selection improves `267/144/109` to `219/113/83`.
+Late identical-private-function folding improves its isolated workload from
+`177/139/111` to `123/129/105`. Compressor-selected declaration layout keeps
+raw size at `1,133` while improving gzip/Brotli from `460/369` to `454/362`;
+source order remains a candidate, so the heuristic is not forced.
 
 The source-neutral lane in `benchmarks/paired` mechanically generates readable
 LilScript and JavaScript from one workload schema. Every case must agree through
@@ -403,6 +409,7 @@ null-guard narrowing, first-class `A | B` unions with tagged native lowering,
 portable `value is Type` union-member guards with branch narrowing,
 explicit host `extern` declarations,
 and the standard methods listed in the language contract. Package management,
-lazy module loading, runtime chunks, generic struct literals, exceptions, async
-execution, and a direct machine-code backend are outside v0.1; native
+lockfiles, typed lazy module loading, and runtime chunks are project-delivery
+capabilities. Generic struct literals, exceptions, async functions, and a
+direct machine-code backend are outside v0.1; native
 executables currently use optimized C as the final lowering stage.

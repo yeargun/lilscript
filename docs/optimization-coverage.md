@@ -34,13 +34,13 @@ JavaScript and native C backends.
 | Mark pure functions | Interprocedural fixed-point summaries separate inherent effects from mutations of specific parameters across direct calls and known closure captures; local scratch-allocation mutation filtering, checked `pure` contracts, and trusted `pure extern` declarations share that model |
 | Dead assignment elimination | SSA promotion removes local stores; DCE removes unused value chains, complete unobserved local array/map/set mutation graphs, and parameter-mutating helper calls when every affected allocation group is unobserved |
 | Dead property assignment elimination | Overwritten typed field stores are removed between observation barriers |
-| Remove unused code | Unread globals, unreachable blocks, unused pure calls, unused allocations and mutation graphs, instructions, and call-graph-unreachable functions are removed |
+| Remove unused code | Unread globals, unreachable blocks, unused pure calls, unused allocations and mutation graphs, instructions, and call-graph-unreachable functions are removed; residual identical private direct-call functions fold after inlining while observable identities remain distinct |
 | Flow-sensitive inline variables | SSA def-use counts, side-effect-aware deferred expression emission, and one-use boolean merge phis fused into immediately following structured branches |
 | Coalesce variable names | CFG liveness, interference graph coloring, direct-phi affinity across conservative deferred-expression barriers, contracted non-interfering phi groups, codec selection across all three layouts, and reuse of dead locals as parallel-copy temporaries |
 | Collapse variable declarations | Adjacent bindings and first phi assignments are combined by the JS backend; cyclic phi copies compare tuple and scalar schedules under the configured codec |
 | Rewrite/collapse anonymous functions | Small typed closures become expression or structured block arrows; capturing closures pass explicit environments; literal captures expose dead branches during final emission |
 | Alias strings | Repeated constants are value-numbered and profitable long strings receive shared short bindings; size-first also considers delimiter-packed immutable string tables; final pooling, packing, quote, and coercion variants are selected against exact raw/gzip/Brotli cost |
-| Rename variables and globals | Use-frequency-ranked base-54/base-64 identifiers with extern names reserved, cross-scope reuse of unreachable top-level colors, loop-weighted owned-property assignment, plus exact-compressor selection of emitted-character-ranked alphabets |
+| Rename variables and globals | Use-frequency-ranked base-54/base-64 identifiers with extern names reserved, cross-scope reuse of unreachable top-level colors, loop-weighted owned-property assignment, plus exact-compressor selection of emitted-character-ranked alphabets and similarity-clustered declaration order |
 | Rescope globals | Entry-only globals become locals; immutable shared globals become constants |
 | Rewrite modules and tree shake exports | Relative module graphs are linked into private symbol namespaces; executable exports remain shakeable, while `js-module` roots runtime exports and emits mangled ESM aliases |
 | Cross-chunk code/method motion | Whole-program optimization runs before deterministic ESM partitioning; preserve-module, measured shared chunks, and typed lazy imports emit explicit dependencies, live exports, and a content-addressed manifest |
@@ -74,7 +74,8 @@ The current schedule is:
    parameter-effect summaries, unobserved collection-graph/call removal, and
    dead field stores;
 8. another scalar fixed point;
-9. effect-aware SSA DCE and whole-program function DCE;
+9. effect-aware SSA DCE, late identical-private-function folding, and
+   whole-program function DCE;
 10. codec selection among configured inlining, closure-factory-preserving
     partial inlining, fully outlined, and unspecialized optimizer IRs,
     followed by module-level integer argument/return/field range analysis,
@@ -87,7 +88,8 @@ The current schedule is:
     `while`/`for`/`do` and update-clause layouts, range-proven prefix/postfix/
     compound mutation spelling, string-table packing, entropy-aware cross-scope
     names and properties, a parsed final peephole, deterministic startup guards,
-    typed-IR deoptimization/allocation/indirect-call/monomorphism scoring with
+    similarity-clustered declaration layout, typed-IR
+    deoptimization/allocation/indirect-call/monomorphism scoring with
     optional hot function and loop weights, and compressor-aware candidate
     selection;
 11. source ownership and mandatory lazy boundaries, followed by full-plan chunk
@@ -144,6 +146,17 @@ and every other optimizer setting constant while toggling only
 `finite_value_propagation`. Both variants execute the matrix contract before
 the gate requires a raw, gzip-9, and Brotli-11 win. The current checked workload
 improves from `216/155/118` bytes to `143/108/77`.
+
+`benchmarks/function-folding/run.mjs` disables inlining in both builds and
+toggles only late identical private-function folding. Export and address-taken
+identity barriers remain active. Both artifacts execute `95660`; folding one
+residual body changes `177/139/111` to `123/129/105` raw/gzip/Brotli.
+
+`benchmarks/function-layout/run.mjs` keeps raw output length constant and
+compares source declaration order with a similarity path proposed from repeated
+eight-byte runs. The complete codec chooses the result only after emission.
+Both artifacts execute `-1393288640`; the checked fixture changes
+`1133/460/369` to `1133/454/362` raw/gzip/Brotli.
 
 `benchmarks/ir-variants/run.mjs` holds the source, final-emission search, and
 all optimizer settings constant while omitting only `ir-inlining-variants`.

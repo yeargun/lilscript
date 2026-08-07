@@ -62,6 +62,28 @@
         </div>
       </section>
 
+      <section class="benchmark-project" aria-labelledby="function-folding-title">
+        <header>
+          <p class="eyebrow">Whole-program ablation</p>
+          <h2 id="function-folding-title">Identical private functions</h2>
+          <p>Both builds disable inlining and execute to 95660. The enabled build folds one residual directly called private implementation after specialization settles; observable function identities are excluded.</p>
+        </header>
+        <div class="benchmark-table-wrap">
+          <table><thead><tr><th>Variant</th><th>Raw</th><th>Gzip-9</th><th>Brotli-11</th></tr></thead><tbody><tr class="lilscript-row"><th>Folding enabled</th><td>123</td><td>129</td><td>105</td></tr><tr><th>Folding disabled</th><td>177</td><td>139</td><td>111</td></tr></tbody></table>
+        </div>
+      </section>
+
+      <section class="benchmark-project" aria-labelledby="function-layout-title">
+        <header>
+          <p class="eyebrow">Codec-layout ablation</p>
+          <h2 id="function-layout-title">Declaration clustering</h2>
+          <p>Dynamic programming proposes an order for four interleaved function families. Source order remains a complete-artifact candidate, both builds execute to -1393288640, and raw bytes remain unchanged.</p>
+        </header>
+        <div class="benchmark-table-wrap">
+          <table><thead><tr><th>Variant</th><th>Raw</th><th>Gzip-9</th><th>Brotli-11</th></tr></thead><tbody><tr class="lilscript-row"><th>Layout search enabled</th><td>1,133</td><td>454</td><td>362</td></tr><tr><th>Source order</th><td>1,133</td><td>460</td><td>369</td></tr></tbody></table>
+        </div>
+      </section>
+
       <section class="benchmark-project" aria-labelledby="profile-guided-title">
         <header>
           <p class="eyebrow">External-profile ablation</p>

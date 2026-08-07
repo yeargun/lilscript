@@ -138,6 +138,40 @@ artifacts must execute the checked output contract before sizes are accepted.
 
 Run it with `node benchmarks/finite-values/run.mjs`.
 
+## Identical private-function folding ablation
+
+`benchmarks/function-folding/fixture.lil` keeps two directly called private
+functions identical after specialization and inlining decisions. Both builds
+disable inlining and execute the same `95660` output contract. The enabled
+build redirects calls to one implementation; the disabled build retains both.
+Exported and address-taken function identities are excluded from the pass.
+
+| Variant | Raw | Gzip-9 | Brotli-11 |
+| --- | ---: | ---: | ---: |
+| Folding enabled | 123 | 129 | 105 |
+| Folding disabled | 177 | 139 | 111 |
+
+Run it with `node benchmarks/function-folding/run.mjs`. This is a 54-byte raw,
+10-byte gzip, and 6-byte Brotli win on the isolated duplicate-body workload.
+
+## Function declaration layout ablation
+
+`benchmarks/function-layout/fixture.lil` interleaves two pairs of structurally
+similar functions. The candidate emitter groups declarations by repeated
+eight-byte token runs; a maximum-weight dynamic program handles this four-node
+case. Both artifacts execute the same `-1393288640` output contract. The raw
+length is unchanged, and the complete Brotli artifact selects whether source or
+similarity order survives.
+
+| Variant | Raw | Gzip-9 | Brotli-11 |
+| --- | ---: | ---: | ---: |
+| Layout search enabled | 1,133 | 454 | 362 |
+| Source order | 1,133 | 460 | 369 |
+
+Run it with `node benchmarks/function-layout/run.mjs`. This is evidence for the
+checked fixture, not a claim that reordering always helps; source order remains
+an exact-scored candidate.
+
 ## Profile-guided higher-order specialization ablation
 
 `benchmarks/profile-guided/fixture.lil` passes one known callback through a

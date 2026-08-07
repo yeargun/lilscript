@@ -19,6 +19,7 @@ dead_store_elimination = true
 dead_code_elimination = true
 call_site_specialization = true
 capture_signature_cloning = true
+identical_function_folding = true
 profile_guided = true
 
 [javascript]
@@ -126,6 +127,14 @@ booleans, strings, nullable `null`, and owned nominal fields. The default is
 enabled. Facts widen after four alternatives and become unknown at exported,
 extern, indirect-call, closure, or untyped aggregate boundaries.
 
+`identical_function_folding` runs after specialization and inlining decisions.
+It redirects directly called private functions with identical normalized CFGs
+and compatible escape states to one implementation. Exported, address-taken,
+method, constructor, closure, and host-visible identities are excluded. For
+JavaScript, level-derived or exact `identical-function-folding` selection can
+additionally bound this late
+whole-program work; native optimization uses the semantic pass switch directly.
+
 `javascript.priority` is a JavaScript-target policy. It never weakens semantic
 checks, mandatory IR normalization, DCE correctness, or host-boundary rules:
 
@@ -226,14 +235,21 @@ are `ir-inlining-variants`, `ir-closure-factory-variants`,
 `comma-expression-variants`, `structural-loop-variants`, `do-loop-variants`,
 `update-loop-variants`, `switch-lowering-variants`,
 `compound-mutation-variants`, `entropy-cross-scope-reuse`,
-`entropy-property-assignment`, `parsed-peephole`, and `startup-cost-guard`.
+`entropy-property-assignment`, `function-layout-variants`, `parsed-peephole`,
+and `startup-cost-guard`.
 The remaining names are `performance-shape-model`,
 `profile-guided-optimization`, `call-site-specialization`, and
-`capture-signature-cloning`.
+`capture-signature-cloning`, plus `identical-function-folding`.
 An empty list disables all of these features. Duplicate names and levels above
 15 are configuration errors. With an exact allowlist, `candidate_limit` is the
 direct cap because `optimization_level` no longer selects either features or
 effort.
+
+`function-layout-variants` clusters emitted function declarations by repeated
+emitted eight-byte runs. Groups of at most 13 use dynamic programming; larger
+groups use bounded deterministic insertion. It is only a proposal mechanism:
+the unchanged source order remains in the candidate beam, and the configured
+raw/gzip/Brotli model scores the complete artifact before selection.
 
 The parsed peephole validates the complete generated artifact and Pratt-parses
 eligible expressions before rewriting. It currently contracts AST-proven
