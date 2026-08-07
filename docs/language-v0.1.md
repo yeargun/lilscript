@@ -71,7 +71,10 @@ may specialize without changing source semantics.
 `Uint8Array` accepts a byte length or either buffer type, supports indexed reads
 and writes, and exposes `length`, `byteLength`, `byteOffset`, and `buffer`.
 `slice(start, end)` copies; `subarray(start, end)` creates a zero-copy view. The
-`end` argument defaults to the view or buffer end. This increment deliberately
+`end` argument defaults to the view or buffer end. Indexed stores coerce modulo
+256. Assignment and prefix-update expressions still evaluate to the numeric
+value before storage coercion, matching JavaScript typed-array behavior. This
+increment deliberately
 does not expose resizable/growable options, `DataView`, other typed arrays, or
 `Atomics`. JavaScript `SharedArrayBuffer` availability remains a host concern;
 the ECMAScript host may omit its global constructor, and sharing it across web

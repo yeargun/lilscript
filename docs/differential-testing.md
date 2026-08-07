@@ -18,13 +18,15 @@ The evaluator currently covers:
 - reference-identity typed arrays, aliases, length, indexing, indexed
   assignment/update, `push`, `pop`, `map`, `filter`, `reduce`, and `forEach`,
   including callback-time mutation with entry-length snapshot semantics;
+- fixed `ArrayBuffer` and `SharedArrayBuffer` storage, `Uint8Array` byte
+  coercion, view metadata, copying slices, aliasing subarrays, and buffer/view
+  identity;
 - short-circuit evaluation and the observable `print` intrinsic.
 
-Struct/class instances, maps, sets, binary memory, and host calls are rejected
-explicitly. They continue to be covered by the checked-in conformance matrix
-until their independent evaluator models exist. A step budget and recursion
-budget make a generated infinite program fail deterministically instead of
-hanging a gate.
+Struct/class instances, maps, sets, and host calls are rejected explicitly.
+They continue to be covered by the checked-in conformance matrix until their
+independent evaluator models exist. A step budget and recursion budget make a
+generated infinite program fail deterministically instead of hanging a gate.
 
 ## Generated corpus
 
@@ -35,8 +37,10 @@ negative and oversized shift counts, branches, bounded loops, `break`,
 `continue`, short-circuit side effects, shadowing, function calls, updates,
 array aliases, indexed mutation, push/pop, captured arrows, and all four array
 callback pipelines. Each callback appends to its receiver, checking that the
-original iteration length is respected. The complete generated source and
-oracle output remain under
+original iteration length is respected. Every batch also includes a binary
+memory kernel covering byte coercion, indexed updates, buffer/view aliasing,
+copying slices, shared storage, and negative range indices. The complete
+generated source and oracle output remain under
 `target/differential` after each run for reproduction.
 
 ```sh

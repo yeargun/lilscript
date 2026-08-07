@@ -233,11 +233,12 @@ checked-in benchmark workload. Passing a synthetic example alone is not enough.
   Rust evaluator, optimized and optimizer-disabled JavaScript, direct native
   execution, and independently compiled emitted C. The release seed generates
   64 typed scalar/control-flow/array functions with reference aliases, indexed
-  mutation, captured callbacks, and callback-time growth; two additional
-  96-case seeds are recorded in `docs/differential-testing.md`. Unsupported
-  nominal aggregates, maps/sets, binary memory, classes, and host operations
-  fail explicitly and remain covered by the hand-authored matrix until their
-  evaluator models are implemented.
+  mutation, captured callbacks, and callback-time growth, plus a fixed
+  ArrayBuffer/SharedArrayBuffer/Uint8Array kernel; two additional 96-case seeds
+  are recorded in `docs/differential-testing.md`. Unsupported nominal
+  aggregates, maps/sets, classes, and host operations fail explicitly and
+  remain covered by the hand-authored matrix until their evaluator models are
+  implemented.
 - [x] Publish every checked-in project, source scope, behavior contract, raw,
   gzip, Brotli, and runtime result in the Vite documentation site.
 

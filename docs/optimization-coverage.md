@@ -112,7 +112,9 @@ without lowering them to CFG/SSA. The fixed 64-case release batch exercises all
 integer operators, overflow, zero divisors, shifts, direct calls, mutation,
 short-circuit effects, branches, bounded loops, loop control, shadowing, array
 identity and indexed mutation, push/pop, captured arrows, and callback-time
-array growth. It requires exact agreement from optimized JavaScript,
+array growth. A fixed binary-memory kernel additionally covers byte coercion,
+copying and aliasing views, shared storage, and negative slice indices. It
+requires exact agreement from optimized JavaScript,
 optimizer-disabled JavaScript, the direct native executable, and emitted C
 compiled in a separate compiler invocation. The generated source and expected
 output are retained for seed reproduction; the exact scope and commands are

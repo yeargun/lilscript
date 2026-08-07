@@ -284,11 +284,12 @@ through JavaScript, emitted C, and native executables with maximum and disabled
 optional optimization, for 130 matrix executions, plus a framed LSP session
 through diagnostics, completion, hover, symbols, semantic tokens, references,
 rename, formatting, quick fixes, and shutdown.
-The verification script also generates 64 deterministic typed programs and
-requires an independent checked-AST Rust evaluator, optimized JavaScript,
-optimizer-disabled JavaScript, direct native output, and independently compiled
-emitted C to agree exactly. The evaluator scope and seed reproduction commands
-are in [`docs/differential-testing.md`](docs/differential-testing.md).
+The verification script also generates 64 deterministic typed programs and one
+binary-memory kernel, then requires an independent checked-AST Rust evaluator,
+optimized JavaScript, optimizer-disabled JavaScript, direct native output, and
+independently compiled emitted C to agree exactly. The evaluator scope and seed
+reproduction commands are in
+[`docs/differential-testing.md`](docs/differential-testing.md).
 `benchmarks/run.sh`
 downloads the pinned Closure Compiler `v20260803`, runs `ADVANCED` compilation,
 checks equivalent runtime output, and measures normalized raw, gzip-9, and
