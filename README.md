@@ -98,16 +98,20 @@ folding, CSE, global optimization, inlining, scalar replacement, DCE, identifier
 and boundary-property mangling, public-export mangling, and string pooling. The
 default JavaScript-specific `priority = "size-first"` policy minimizes the
 selected release transfer metric. Four profiles, numeric
-inline budgets, and an exact `compression` decision allowlist control the
-performance/size tradeoff without changing C/native optimization.
+inline budgets, a JavaScript search-effort level from 0 to 15, exact
+`optimizations` and `compression` allowlists, and deterministic startup-cost
+limits control the performance/size tradeoff without changing C/native
+optimization.
 Production builds use an exact configurable raw, gzip-9, or Brotli-11 cost
 model to select among bounded pooling, literal-table packing, coercion-elision,
 boolean-literal, identifier-alphabet, quote-style, structured-closure, and
-declaration-spelling, condition-only loop-spelling, and SSA-copy-layout
-candidates, range-proven increment forms, plus configured,
-closure-factory-preserving, and fully outlined optimizer IRs;
+declaration, conditional/comma, loop/update, switch-dispatch, mutation, and
+SSA-copy-layout candidates, plus configured, closure-factory-preserving,
+unspecialized, and fully outlined optimizer IRs. A parsed final peephole and
+syntax-derived parse/compile/memory guard run before selection;
 `--mode development` skips that compressor loop. `--explain human|json`
-reports optimizer passes. The
+reports optimizer passes, transfer/startup metrics, candidate and rewrite
+counts, and compiler time. The
 size default omits signed-32-bit coercions only where range analysis proves
 them redundant. It never introduces `Math.imul`: ordinary `int` multiplication
 uses JavaScript multiplication followed by signed-i32 normalization. A
@@ -320,7 +324,8 @@ constant; exact codec selection improves `267/144/109` to `219/113/83`.
 The source-neutral lane in `benchmarks/paired` mechanically generates readable
 LilScript and JavaScript from one workload schema. Every case must agree through
 Closure JavaScript, LilScript JavaScript, emitted C, and native execution, and
-LilScript may not exceed Closure in any per-case raw/gzip/Brotli cell. The
+LilScript may not exceed Closure in any per-case Brotli cell under the project
+default while raw and gzip tradeoffs remain published. The
 separate Chromium gate uses alternating warmed samples and requires the 95%
 bootstrap upper runtime ratio to remain at or below `1.03`. These are scoped
 regression gates, not universal compiler-superiority claims.

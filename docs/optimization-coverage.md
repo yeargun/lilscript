@@ -22,7 +22,7 @@ JavaScript and native C backends.
 
 | Closure responsibility | LilScript implementation |
 | --- | --- |
-| Early/late peephole optimization | Constant folding, algebraic identities, boolean simplification, branch inversion, nested literal-capture branch folding, SSA-root binary precedence rendering, token-safe negative operands, atomic integer-coercion groups, precedence-safe parenthesis removal at statements and expression delimiters, compact boolean literals, compact loops, conditional returns, declaration collapse, trailing-semicolon removal |
+| Early/late peephole optimization | Constant folding, algebraic identities, boolean simplification, branch inversion, nested literal-capture branch folding, precedence-carrying unary/binary/conditional/call/member/integer-normalization expressions, token-safe negative operands, precedence-safe parenthesis removal, compact literals/loops/returns/declarations, and a complete-artifact lexer plus Pratt-parsed compound-assignment superoptimizer |
 | Numeric representation lowering | Signed-i32 range analysis propagates bounded loop induction values, direct-call arguments and returns, and owned nominal fields; it removes coercions only for proven-safe operations. Ordinary multiplication emits `x*y|0` when normalization is required, while source-written `Math.imul` remains an explicit exact operation |
 | Inline variables and constants | mem2reg SSA, constant propagation, single-assignment global propagation, constant rematerialization, one-use expression fusion, exact array-parameter lengths, and bounded boolean/string/null argument and return sets across closed stable direct-call sets |
 | Inline functions and simple methods | Fixed-point expression inlining plus single-use multi-block CFG inlining; size-first single-file/ESM builds compare that IR with a fully outlined IR under the exact selected codec |
@@ -40,7 +40,7 @@ JavaScript and native C backends.
 | Collapse variable declarations | Adjacent bindings and first phi assignments are combined by the JS backend; cyclic phi copies compare tuple and scalar schedules under the configured codec |
 | Rewrite/collapse anonymous functions | Small typed closures become expression or structured block arrows; capturing closures pass explicit environments; literal captures expose dead branches during final emission |
 | Alias strings | Repeated constants are value-numbered and profitable long strings receive shared short bindings; size-first also considers delimiter-packed immutable string tables; final pooling, packing, quote, and coercion variants are selected against exact raw/gzip/Brotli cost |
-| Rename variables and globals | Use-frequency-ranked base-54/base-64 identifiers with extern names reserved, plus exact-compressor selection of emitted-character-ranked alphabets |
+| Rename variables and globals | Use-frequency-ranked base-54/base-64 identifiers with extern names reserved, cross-scope reuse of unreachable top-level colors, loop-weighted owned-property assignment, plus exact-compressor selection of emitted-character-ranked alphabets |
 | Rescope globals | Entry-only globals become locals; immutable shared globals become constants |
 | Rewrite modules and tree shake exports | Relative module graphs are linked into private symbol namespaces; executable exports remain shakeable, while `js-module` roots runtime exports and emits mangled ESM aliases |
 | Cross-chunk code/method motion | Whole-program optimization runs before deterministic ESM partitioning; preserve-module, measured shared chunks, and typed lazy imports emit explicit dependencies, live exports, and a content-addressed manifest |
@@ -74,16 +74,18 @@ The current schedule is:
 8. another scalar fixed point;
 9. effect-aware SSA DCE and whole-program function DCE;
 10. codec selection among configured inlining, closure-factory-preserving
-    partial inlining, and fully outlined optimizer IRs,
+    partial inlining, fully outlined, and unspecialized optimizer IRs,
     followed by module-level integer argument/return/field range analysis,
     liveness-based name coalescing, structured boolean-phi deferral,
     dependency-ordered phi copies,
     liveness-reused cycle temporaries, codec-selected conservative/direct-phi
     affinity/group and scalar/tuple copy layouts, induction ranges, shortest
-    numeric literals, SSA-root binary precedence, structured closure selection,
-    range-proven prefix/postfix mutation spelling, string-table packing,
-    minified backend peepholes, and deterministic compressor-aware candidate
-    selection;
+    numeric literals, precedence-carrying expression nodes, structured closure
+    selection, conditional/comma forms, structured/state-machine dispatch,
+    `while`/`for`/`do` and update-clause layouts, range-proven prefix/postfix/
+    compound mutation spelling, string-table packing, entropy-aware cross-scope
+    names and properties, a parsed final peephole, deterministic startup guards,
+    and compressor-aware candidate selection;
 11. source ownership and mandatory lazy boundaries, followed by full-plan chunk
     candidate scoring over raw/gzip/Brotli bytes, requests, dependency depth,
     preload policy, shared reachability, and cache reuse;
@@ -140,24 +142,26 @@ port independently improves from `866/535/456` to `816/532/452`.
 fully outlined IR candidate available in both builds while omitting only
 `ir-closure-factory-variants`. Twelve distinct capture signatures execute
 through JavaScript, C, and native gates. Partial factory preservation wins the
-selected objective and improves `677/244/173` to `627/243/172` raw/gzip/Brotli.
+selected Brotli objective and changes `677/244/177` to `648/255/176`
+raw/gzip/Brotli. The gzip increase is reported rather than hidden; a gzip-cost
+build retains the fully outlined IR as a competing candidate.
 
 `benchmarks/loop-spelling/run.mjs` executes an order-sensitive control-flow
 fixture with identical optimizer and final-emission policy while omitting only
-`loop-spelling-selection`. Exact Brotli selection chooses `837/242/177` over
-the frequency heuristic's `527/243/178` raw/gzip/Brotli, explicitly spending
-raw bytes for one-byte gzip and Brotli wins. Both artifacts must produce `137`
-before measurement. The complete MurmurHash port is currently byte-identical
-between modes at `1734/831/733`, so it remains library evidence but no longer
-supports a loop-spelling ablation claim.
+`loop-spelling-selection`. With the broader `do`, update-clause, and structural
+control-flow search active, both variants select `527/243/178`
+raw/gzip/Brotli. Both artifacts must produce `137` before a three-codec
+non-regression gate. The complete MurmurHash port is also byte-identical between
+modes at `1734/831/733`; neither workload is presented as a loop-spelling win.
 
 `benchmarks/mutation-spelling/run.mjs` compiles and executes the complete
 Levenshtein port while omitting only `mutation-spelling-selection`. SSA use
 counts and integer ranges gate every shorthand before exact prefix/postfix
-scoring. The isolated production artifact improves from `1578/897/776` to
-`1576/896/773` raw/gzip/Brotli. Candidate retention remains stratified by
+scoring. The isolated production artifact changes from `1583/899/780` to
+`1582/900/777` raw/gzip/Brotli under the Brotli objective. Candidate retention remains stratified by
 loop-spelling family before mutation scoring so one early layout cannot erase
-the other families.
+the other families. Gzip-targeted builds retain assignment spelling as a
+candidate rather than forcing the Brotli winner.
 
 `benchmarks/run.sh` compiles ten behaviorally equivalent LilScript/JavaScript
 workloads, runs both outputs, invokes Closure `ADVANCED`, and measures normalized
@@ -169,7 +173,9 @@ future program.
 second gate by generating both languages from one neutral integer workload
 schema. Every generated case must match through Closure JavaScript, LilScript
 JavaScript, emitted C, and native execution, and LilScript may not exceed
-Closure in any raw/gzip/Brotli cell. `benchmarks/browser/run.mjs` separately
+Closure in any Brotli cell under the project default objective. Raw and gzip
+remain published because codec tradeoffs are evidence, not failures.
+`benchmarks/browser/run.mjs` separately
 requires the 95% bootstrap upper bound for warmed Chromium runtime to remain at
 or below `1.03` on those paired cases.
 

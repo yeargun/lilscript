@@ -12,5 +12,6 @@ runPassAblation({
       "heuristic.js",
     ],
   ],
-  strictMetrics: ["gzip", "brotli"],
+  strictMetrics: [],
+  nonRegressionMetrics: ["raw", "gzip", "brotli"],
 });

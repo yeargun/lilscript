@@ -56,9 +56,17 @@ For one generated batch, the harness requires exact output agreement from:
 
 1. the checked-AST Rust evaluator;
 2. production optimized JavaScript in Node;
-3. JavaScript emitted with optional optimization disabled;
-4. the native executable produced by `--target all`;
-5. the emitted C compiled independently with the configured `CC`.
+3. JavaScript emitted with optional IR optimization disabled;
+4. optimized JavaScript with the parsed peephole disabled;
+5. optimizer-disabled JavaScript with the parsed peephole disabled;
+6. the native executable produced by `--target all`;
+7. the emitted C compiled independently with the configured `CC`.
+
+This four-lane JavaScript matrix means every parsed peephole rewrite is checked
+both with maximum IR optimization and without optional optimizer passes. The
+peephole-off lanes hold the remaining policy constant through exact
+`javascript.optimizations` allowlists, so a post-codegen rewrite cannot conceal
+an optimizer-specific semantic error.
 
 The fixed release seed is `0x6c696c7363726970`. During implementation, that
 seed found an invalid `a--626380242` token boundary and two integer-expression

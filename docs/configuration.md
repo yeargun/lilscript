@@ -20,9 +20,11 @@ dead_code_elimination = true
 
 [javascript]
 priority = "size-first"
+optimization_level = 15 # 0..15 compiler-effort budget
 cost_model = "brotli" # raw | gzip | brotli
 candidate_search = "production" # off | production | always
 candidate_limit = 1536
+# optimizations = ["parsed-peephole", "startup-cost-guard"]
 compression = [
   "identifier-mangling",
   "entropy-aware-mangling",
@@ -43,6 +45,14 @@ compression = [
 # inline_instruction_limit = 18
 # inline_control_flow_limit = 45
 # max_inline_growth = 16
+
+[javascript.startup]
+parse_weight = 1
+compile_weight = 1
+memory_weight = 1
+parse_overhead_limit_percent = 30
+compile_overhead_limit_percent = 30
+memory_overhead_limit_percent = 35
 
 [mangle]
 # identifiers = true
@@ -174,10 +184,45 @@ The numeric `inline_instruction_limit`, `inline_control_flow_limit`, and
 `size-aware-inlining` is absent from the allowlist. These are IR instruction
 budgets, not output-byte limits.
 
+`javascript.optimization_level` controls JavaScript search effort from `0` to
+`15`; it does not weaken type checking or the selected `[optimization]` IR
+passes. Levels progressively raise the candidate cap and enable additional
+dimensions. Level 0 emits one configured layout, levels 4-8 add inexpensive
+conditional, update, mutation, SSA, comma, and entropy choices, levels 9-12 add
+parsed peepholes plus structural IR/loop/switch alternatives, and levels 13-15
+use the largest configured beam. The effective cap is always the lower of the
+level cap and `candidate_limit` when the level-derived feature set is active.
+
+`javascript.optimizations` replaces the level-derived feature set with an exact
+allowlist. This is separate from the older `compression` policy: `compression`
+controls whether a representation is permitted, while `optimizations` controls
+which alternative searches and post-emission analyses are run. Available names
+are `ir-inlining-variants`, `ir-closure-factory-variants`,
+`ir-specialization-variants`, `structural-control-flow-variants`,
+`ssa-destruction-variants`, `conditional-expression-variants`,
+`comma-expression-variants`, `structural-loop-variants`, `do-loop-variants`,
+`update-loop-variants`, `switch-lowering-variants`,
+`compound-mutation-variants`, `entropy-cross-scope-reuse`,
+`entropy-property-assignment`, `parsed-peephole`, and `startup-cost-guard`.
+An empty list disables all of these features. Duplicate names and levels above
+15 are configuration errors. With an exact allowlist, `candidate_limit` is the
+direct cap because `optimization_level` no longer selects either features or
+effort.
+
+The parsed peephole validates the complete generated artifact and Pratt-parses
+eligible expressions before rewriting. It currently contracts AST-proven
+simple-local `x=x op y` statements to compound assignments; it does not use
+text substitutions. The startup guard compares deterministic syntax-derived
+parse, engine-compile, and memory estimates against the configured baseline.
+The three overhead limits are hard rejection thresholds, while the three
+weights break equal-transfer-size ties. `--explain human` and `--explain json`
+report the selected syntax metrics, candidate count, rewrite count, selected
+codec bytes, and measured LilScript compiler time.
+
 `javascript.cost_model` selects the exact objective used by optimizer-IR and
 bounded final-emission candidate search. `raw` compares emitted bytes, `gzip` uses level 9, and
-`brotli` uses quality 11. Candidate selection is deterministic: ties use raw
-bytes and then lexical output order. The search only disables already enabled
+`brotli` uses quality 11. Candidate selection is deterministic: ties use the
+configured startup score, raw bytes, and then lexical output order. The search only disables already enabled
 contested tactics for comparison; it never turns on a tactic omitted from the
 exact `compression` allowlist. `candidate_search = "production"` is the
 default and is skipped by CLI `--mode development`; `always` remains active in
@@ -185,12 +230,12 @@ that mode, while `off` disables compressor-in-the-loop emission. The current
 search space compares profitable string pooling, literal-table packing,
 proven-safe integer coercion elision, boolean literals, structured closures,
 identifier alphabets, quote styles, and equivalent top-level declaration,
-phi-affinity, and SSA parallel-copy layouts, bounded by `candidate_limit`.
-Size-first then compares both condition-only loop spellings for a deterministic
-eight-candidate beam. Prefix/postfix mutation spelling retains up to eight
-survivors from each auto/while/for family, preventing one spelling from hiding
-a better cross-dimension combination. The default limit of `1536` covers the base
-final-emission search space per optimizer IR.
+phi-affinity, SSA parallel-copy, conditional/comma, structured/state-machine,
+`while`/`for`/`do`, update-clause, switch/conditional-dispatch, and assignment/
+prefix/postfix/compound-mutation layouts, bounded by the effective candidate
+limit. Structural beams retain finalists from each prior family so one early
+layout cannot hide a better cross-dimension combination. The configured
+baseline is always retained as a startup-safe fallback.
 
 The priority is applied after `[optimization]`: setting `inlining = false`
 disables inlining in every profile. Explicit `[mangle]` values have the highest

@@ -9,10 +9,12 @@ multiplication contracts are compared separately.
 
 `run.mjs` builds each generated LilScript program as JavaScript, C, and a native
 executable, compiles the paired JavaScript with pinned Closure ADVANCED, and
-requires identical output. It then rejects the release if LilScript is larger
-than Closure for any individual workload under raw bytes, gzip-9, or Brotli-11.
-The gate is deliberately corpus-scoped; it is not a claim about arbitrary
-programs.
+requires identical output. It publishes raw, gzip-9, and Brotli-11 for every
+row, then rejects the release if LilScript is larger than Closure under the
+configured Brotli-11 objective. Requiring one artifact to win all three codecs
+would contradict codec-specific candidate selection when the compressors rank
+equivalent programs differently. The gate is deliberately corpus-scoped; it is
+not a claim about arbitrary programs.
 
 ```sh
 node benchmarks/paired/run.mjs

@@ -163,8 +163,13 @@ and native result must match before size measurement.
 
 | Variant | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
-| Factory IR variants enabled | 627 | 243 | 172 |
-| Factory IR variants disabled | 677 | 244 | 173 |
+| Factory IR variants enabled | 648 | 255 | 176 |
+| Factory IR variants disabled | 677 | 244 | 177 |
+
+The project default optimizes Brotli-11, so this ablation requires raw and
+Brotli wins and reports the 11-byte gzip tradeoff. A gzip-configured build
+scores the fully outlined baseline independently rather than forcing the
+factory-preserving candidate.
 
 Run it with `node benchmarks/closure-factory-variants/run.mjs`.
 
@@ -179,8 +184,12 @@ because both compressed artifacts are one byte smaller.
 
 | Variant | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
-| Codec-selected spelling | 837 | 242 | 177 |
+| Codec-selected spelling | 527 | 243 | 178 |
 | Frequency heuristic | 527 | 243 | 178 |
+
+The broader structural search now reaches the same artifact from both sides.
+This fixture is retained as a behavior and three-codec non-regression gate; it
+is no longer claimed as an isolated size win.
 
 Run it with `node benchmarks/loop-spelling/run.mjs`.
 
@@ -198,8 +207,12 @@ artifacts execute the same package contract before measurement.
 
 | Variant | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
-| Mutation spelling selected | 1576 | 896 | 773 |
-| Assignment spelling only | 1578 | 897 | 776 |
+| Mutation spelling selected | 1582 | 900 | 777 |
+| Assignment spelling only | 1583 | 899 | 780 |
+
+The default Brotli objective selects a one-byte raw and three-byte Brotli win
+while spending one gzip byte. Assignment spelling remains in the candidate set
+when gzip is the configured cost model.
 
 Run it with `node benchmarks/mutation-spelling/run.mjs`.
 

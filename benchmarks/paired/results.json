@@ -1,16 +1,17 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-06T16:34:57.073Z",
+  "generatedAt": "2026-08-07T08:52:45.940Z",
   "closureVersion": "v20260803",
+  "costModel": "brotli",
   "source": "benchmarks/paired/specs.json",
   "results": [
     {
       "id": "boolean-literals",
       "contract": "true\nfalse",
       "lilscript": {
-        "raw": 31,
-        "gzip": 41,
-        "brotli": 35
+        "raw": 36,
+        "gzip": 47,
+        "brotli": 30
       },
       "closure": {
         "raw": 33,
@@ -36,9 +37,9 @@
       "id": "bounded-induction",
       "contract": "959979",
       "lilscript": {
-        "raw": 60,
-        "gzip": 80,
-        "brotli": 60
+        "raw": 54,
+        "gzip": 74,
+        "brotli": 54
       },
       "closure": {
         "raw": 66,
@@ -50,9 +51,9 @@
       "id": "exact-wrapping-multiply",
       "contract": "2093565239",
       "lilscript": {
-        "raw": 67,
-        "gzip": 87,
-        "brotli": 71
+        "raw": 66,
+        "gzip": 84,
+        "brotli": 64
       },
       "closure": {
         "raw": 71,
@@ -64,9 +65,9 @@
       "id": "ordinary-integer-multiply",
       "contract": "2093565239",
       "lilscript": {
-        "raw": 60,
-        "gzip": 80,
-        "brotli": 56
+        "raw": 56,
+        "gzip": 76,
+        "brotli": 54
       },
       "closure": {
         "raw": 64,

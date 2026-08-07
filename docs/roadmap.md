@@ -84,33 +84,52 @@ checked-in benchmark workload. Passing a synthetic example alone is not enough.
 - [x] Score capture-specialized closure-factory inlining against a partial IR
   that preserves reusable factories while retaining every other inliner. With
   the fully outlined baseline still available, twelve capture signatures
-  improve from `677/244/173` to `627/243/172` raw/gzip/Brotli.
+  improve from `677/244/177` to `648/255/176` raw/gzip/Brotli under the default
+  Brotli objective. This is a raw/Brotli win and an explicit gzip tradeoff;
+  gzip-targeted builds score the outlined candidate independently.
 - [x] Replace condition-only loop keyword frequency guesses with a bounded
-  codec-scored beam over equivalent `while(c)` and `for(;c;)` layouts. An
-  order-sensitive control-flow fixture chooses `837/242/177` over the
-  heuristic's `527/243/178`, explicitly spending raw bytes for one-byte gzip
-  and Brotli wins. The complete MurmurHash port is currently neutral at
-  `1734/831/733` in both modes and is not presented as a loop-spelling win.
+  codec-scored beam over equivalent `while(c)` and `for(;c;)` layouts. After
+  adding `do`, update-clause, and structural-control alternatives, the isolated
+  fixture is neutral at `527/243/178` raw/gzip/Brotli with the legacy dimension
+  enabled or disabled. It remains a non-regression gate, not a size-win claim.
+  The complete MurmurHash port is likewise neutral at `1734/831/733`.
 - [x] Score assignment, prefix, and postfix forms for one-use loop-carried
   increments only after range analysis proves coercion-free i32 behavior. The
-  complete Levenshtein port improves from `1578/897/776` to `1576/896/773`.
+  complete Levenshtein port changes from `1583/899/780` to `1582/900/777`
+  raw/gzip/Brotli under the default Brotli objective: raw and Brotli improve,
+  while the one-byte gzip tradeoff remains visible.
 - [x] Preserve up to eight candidates from every loop-spelling family before
   scoring mutation forms, preventing beam collapse across interacting layout
   dimensions.
-- [ ] Expand optimizer-level IR variants from the current inlining choice to
+- [x] Expand optimizer-level IR variants from the current inlining choice to
   specialization, structural loop shape, and SSA destruction under the
-  selected codec.
-- [ ] Complete a precedence-carrying JavaScript expression IR for unary,
+  selected codec. Constant specialization can compete with an unspecialized
+  IR; final emission compares structured/state-machine control flow and
+  conservative/direct/grouped phi affinity plus scalar/tuple copies.
+- [x] Complete a precedence-carrying JavaScript expression IR for unary,
   conditional, call, member, and integer-normalization expressions without
-  parsing generated strings.
-- [ ] Expand candidate search from current declaration and condition-only loop
+  parsing generated strings. Nodes carry root shape, precedence, and grouping
+  state through deferred SSA expression fusion.
+- [x] Expand candidate search from current declaration and condition-only loop
   alternatives to conditional/comma expressions, `do` loops, update-bearing
-  loop layouts, switch lowering, and compound local mutation forms.
-- [ ] Add entropy-aware cross-scope name reuse and property-name assignment.
-- [ ] Add a parsed post-codegen peephole/superoptimizer whose every rewrite is
+  loop layouts, switch lowering, and compound local mutation forms. A bounded,
+  stratified beam keeps each structural family represented.
+- [x] Add entropy-aware cross-scope name reuse and property-name assignment.
+  Function-local allocators release unreachable top-level colors, and owned
+  fields receive frequency-ranked names with loop-weighted use counts.
+- [x] Add a parsed post-codegen peephole/superoptimizer whose every rewrite is
   differential-tested against optimized and disabled-optimizer executions.
-- [ ] Track parse/compile cost and memory alongside transfer size so extreme
-  compression choices do not silently damage startup behavior.
+  The generated-program lexer validates the complete artifact, Pratt-parses
+  eligible expression regions, and only rewrites AST-proven simple-local
+  compound assignments. Unsupported regions remain unchanged.
+- [x] Track parse/compile cost and memory alongside transfer size so extreme
+  compression choices do not silently damage startup behavior. Candidate
+  syntax metrics provide deterministic parse, compile, and memory proxies;
+  configurable overhead limits guard the selected codec objective, and
+  `--explain` reports the selected metrics and measured compiler time.
+- [x] Add `javascript.optimization_level = 0..15` to bound compiler effort and
+  candidate count, plus an exact `javascript.optimizations` allowlist for
+  enabling individual search dimensions independently of the level.
 
 ### Whole-program optimization
 

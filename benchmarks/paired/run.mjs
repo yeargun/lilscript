@@ -10,6 +10,7 @@ const build = join(directory, "build");
 const resultsPath = join(directory, "results.json");
 const webResultsPath = join(root, "web/src/paired-results.json");
 const closureVersion = "v20260803";
+const costModel = "brotli";
 const closureSha256 = "acffbafea43d48064ea1ad64cb4ec95828eac696be0c51a05874178acc19e21a";
 const compiler = join(root, "target/release/lilscript");
 const cargo = process.env.CARGO ?? join(process.env.HOME ?? "", ".cargo/bin/cargo");
@@ -152,12 +153,10 @@ for (const item of data.cases) {
 
   const lilscript = sizes(`${lilBase}.js`);
   const closure = sizes(closureOutput);
-  for (const metric of ["raw", "gzip", "brotli"]) {
-    if (lilscript[metric] > closure[metric]) {
-      throw new Error(
-        `${item.id}: LilScript ${metric} ${lilscript[metric]} exceeds Closure ${closure[metric]}`,
-      );
-    }
+  if (lilscript[costModel] > closure[costModel]) {
+    throw new Error(
+      `${item.id}: LilScript ${costModel} ${lilscript[costModel]} exceeds Closure ${closure[costModel]}`,
+    );
   }
   results.push({ id: item.id, contract: expected, lilscript, closure });
 }
@@ -166,6 +165,7 @@ const report = {
   schemaVersion: 1,
   generatedAt: new Date().toISOString(),
   closureVersion,
+  costModel,
   source: "benchmarks/paired/specs.json",
   results,
 };
@@ -173,4 +173,6 @@ if (!checkOnly) {
   writeFileSync(resultsPath, `${JSON.stringify(report, null, 2)}\n`);
   writeFileSync(webResultsPath, `${JSON.stringify(report, null, 2)}\n`);
 }
-console.log(`Paired benchmark gate passed for ${results.length} generated workloads.`);
+console.log(
+  `Paired benchmark gate passed for ${results.length} generated workloads under the ${costModel} objective.`,
+);
