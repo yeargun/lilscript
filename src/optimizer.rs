@@ -35,6 +35,7 @@ pub struct OptimizationOptions {
     pub call_site_specialization: bool,
     pub capture_signature_cloning: bool,
     pub identical_function_folding: bool,
+    pub function_subsumption: bool,
     pub inline_instruction_limit: usize,
     pub inline_control_flow_limit: usize,
     pub inline_growth_limit: Option<usize>,
@@ -57,6 +58,7 @@ impl Default for OptimizationOptions {
             call_site_specialization: true,
             capture_signature_cloning: true,
             identical_function_folding: true,
+            function_subsumption: false,
             inline_instruction_limit: 12,
             inline_control_flow_limit: 30,
             inline_growth_limit: None,
@@ -81,6 +83,7 @@ impl OptimizationOptions {
             call_site_specialization: false,
             capture_signature_cloning: false,
             identical_function_folding: false,
+            function_subsumption: false,
             inline_instruction_limit: 0,
             inline_control_flow_limit: 0,
             inline_growth_limit: Some(0),
@@ -259,6 +262,11 @@ fn optimize_control_flow_inner(
     }
 
     optimize_scalar_fixed_point(module, options, &mut reports);
+
+    if options.function_subsumption {
+        reports.push(subsume_private_functions(module));
+        optimize_scalar_fixed_point(module, options, &mut reports);
+    }
 
     reports.push(analyze_escapes(module));
     if options.scalar_replacement {
@@ -3935,39 +3943,395 @@ fn direct_call_mutates_only_unobserved_state(
         })
 }
 
-fn fold_identical_private_functions(module: &mut ControlFlowModule<'_>) -> OptimizationReport {
+const FUNCTION_SUBSUMPTION_COMPARISON_LIMIT: usize = 16_384;
+const FUNCTION_SUBSUMPTION_PAIR_LIMIT: usize = 65_536;
+const FUNCTION_SUBSUMPTION_BINDING_LIMIT: usize = 64;
+const FUNCTION_SUBSUMPTION_MAX_BOUND_PARAMETERS: usize = 3;
+
+#[derive(Debug, Clone)]
+struct PrivateFunctionSubsumption<'src> {
+    source: FunctionId,
+    target: FunctionId,
+    target_parameter_count: usize,
+    bound_arguments: Vec<(usize, SpecializationValue, Type<'src>)>,
+}
+
+fn subsume_private_functions(module: &mut ControlFlowModule<'_>) -> OptimizationReport {
+    let mut changed = false;
+    let mut comparisons = 0;
+    while comparisons < FUNCTION_SUBSUMPTION_COMPARISON_LIMIT {
+        let Some(candidate) = find_private_function_subsumption(module, &mut comparisons) else {
+            break;
+        };
+        apply_private_function_subsumption(module, candidate);
+        changed = true;
+    }
+    OptimizationReport {
+        pass_name: "private-function-subsumption",
+        changed,
+    }
+}
+
+fn find_private_function_subsumption<'src>(
+    module: &ControlFlowModule<'src>,
+    comparisons: &mut usize,
+) -> Option<PrivateFunctionSubsumption<'src>> {
+    let direct_only = private_direct_call_functions(module);
+    let mut pairs = Vec::new();
+    let mut pair_checks = 0;
+    'sources: for source in module
+        .functions
+        .iter()
+        .filter(|function| direct_only.contains(&function.id))
+    {
+        for target in module
+            .functions
+            .iter()
+            .filter(|function| direct_only.contains(&function.id))
+        {
+            if pair_checks == FUNCTION_SUBSUMPTION_PAIR_LIMIT {
+                break 'sources;
+            }
+            pair_checks += 1;
+            let Some(extra) = target.params.len().checked_sub(source.params.len()) else {
+                continue;
+            };
+            if source.id == target.id
+                || extra == 0
+                || extra > FUNCTION_SUBSUMPTION_MAX_BOUND_PARAMETERS
+                || source.declared_pure != target.declared_pure
+                || source.capture_count != target.capture_count
+                || source.return_type != target.return_type
+                || source.blocks.len() != target.blocks.len()
+                || source.shapes.len() != target.shapes.len()
+            {
+                continue;
+            }
+            pairs.push((
+                extra,
+                source.id.0.abs_diff(target.id.0),
+                source.id,
+                target.id,
+            ));
+        }
+    }
+    pairs.sort_unstable();
+
+    let mut normalized_sources = AHashMap::new();
+    for (_, _, source_id, target_id) in pairs {
+        if *comparisons >= FUNCTION_SUBSUMPTION_COMPARISON_LIMIT {
+            break;
+        }
+        let source = &module.functions[source_id.0 as usize];
+        let target = &module.functions[target_id.0 as usize];
+        let signatures = function_subsumption_signatures(module, source, target);
+        if signatures.is_empty() {
+            continue;
+        }
+        let source_body = normalized_sources
+            .entry(source_id)
+            .or_insert_with(|| normalize_private_function(source));
+        for signature in signatures {
+            if *comparisons >= FUNCTION_SUBSUMPTION_COMPARISON_LIMIT {
+                break;
+            }
+            *comparisons += 1;
+            let specialized = clone_function_with_specialization(target, target.id, &signature);
+            let specialized_body = normalize_private_function(&specialized);
+            if specialized_body != *source_body {
+                continue;
+            }
+            let bound_arguments = signature
+                .into_iter()
+                .map(|(index, value)| (index, value, target.params[index].ty.clone()))
+                .collect();
+            return Some(PrivateFunctionSubsumption {
+                source: source_id,
+                target: target_id,
+                target_parameter_count: target.params.len(),
+                bound_arguments,
+            });
+        }
+    }
+    None
+}
+
+fn function_subsumption_signatures(
+    module: &ControlFlowModule<'_>,
+    source: &ControlFlowFunction<'_>,
+    target: &ControlFlowFunction<'_>,
+) -> Vec<Vec<(usize, SpecializationValue)>> {
+    let constants = source
+        .blocks
+        .iter()
+        .flat_map(|block| &block.instructions)
+        .filter_map(|instruction| match (&instruction.op, &instruction.ty) {
+            (ControlFlowOp::Const(value), Some(ty))
+                if constant_has_direct_native_representation(value, ty) =>
+            {
+                Some((ConstantKey::from_value(value), ty))
+            }
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    let mut functions = source
+        .blocks
+        .iter()
+        .flat_map(|block| &block.instructions)
+        .filter_map(|instruction| match &instruction.op {
+            ControlFlowOp::CallDirect { function, .. }
+                if *function != source.id && *function != target.id =>
+            {
+                Some(*function)
+            }
+            ControlFlowOp::Closure { function, captures }
+                if captures.is_empty() && *function != source.id && *function != target.id =>
+            {
+                Some(*function)
+            }
+            _ => None,
+        })
+        .filter(|function| {
+            module
+                .functions
+                .get(function.0 as usize)
+                .is_some_and(|function| {
+                    function.live
+                        && matches!(function.kind, FunctionKind::Function | FunctionKind::Extern)
+                })
+        })
+        .collect::<Vec<_>>();
+    functions.sort_unstable();
+    functions.dedup();
+    let mut signatures = Vec::new();
+    for positions in function_subsumption_binding_positions(source, target) {
+        let mut position_signatures = vec![Vec::new()];
+        for index in positions {
+            let parameter = &target.params[index];
+            let mut compatible = constants
+                .iter()
+                .filter_map(|(value, ty)| {
+                    (ty == &&parameter.ty).then_some(SpecializationValue::Constant(value.clone()))
+                })
+                .collect::<Vec<_>>();
+            if let Type::Function(signature) = &parameter.ty {
+                compatible.extend(functions.iter().filter_map(|function| {
+                    function_matches_signature(&module.functions[function.0 as usize], signature)
+                        .then_some(SpecializationValue::Function(*function))
+                }));
+            }
+            compatible.sort();
+            compatible.dedup();
+            if compatible.is_empty() {
+                position_signatures.clear();
+                break;
+            }
+            let mut expanded = Vec::new();
+            for signature in position_signatures {
+                for value in &compatible {
+                    let mut candidate = signature.clone();
+                    candidate.push((index, value.clone()));
+                    expanded.push(candidate);
+                    if signatures.len() + expanded.len() == FUNCTION_SUBSUMPTION_BINDING_LIMIT {
+                        break;
+                    }
+                }
+                if signatures.len() + expanded.len() == FUNCTION_SUBSUMPTION_BINDING_LIMIT {
+                    break;
+                }
+            }
+            position_signatures = expanded;
+        }
+        signatures.extend(position_signatures);
+        if signatures.len() == FUNCTION_SUBSUMPTION_BINDING_LIMIT {
+            break;
+        }
+    }
+    signatures
+}
+
+fn function_matches_signature(
+    function: &ControlFlowFunction<'_>,
+    signature: &crate::semantic::FunctionType<'_>,
+) -> bool {
+    function.params.len() == signature.params.len()
+        && function
+            .params
+            .iter()
+            .zip(&signature.params)
+            .all(|(parameter, expected)| parameter.ty == *expected)
+        && function.return_type == *signature.return_type
+}
+
+fn function_subsumption_binding_positions(
+    source: &ControlFlowFunction<'_>,
+    target: &ControlFlowFunction<'_>,
+) -> Vec<Vec<usize>> {
+    fn search(
+        source: &ControlFlowFunction<'_>,
+        target: &ControlFlowFunction<'_>,
+        source_index: usize,
+        target_index: usize,
+        required_bindings: usize,
+        bindings: &mut Vec<usize>,
+        results: &mut Vec<Vec<usize>>,
+    ) {
+        if results.len() == FUNCTION_SUBSUMPTION_BINDING_LIMIT {
+            return;
+        }
+        if target_index == target.params.len() {
+            if source_index == source.params.len() && bindings.len() == required_bindings {
+                results.push(bindings.clone());
+            }
+            return;
+        }
+        if source_index < source.params.len()
+            && source.params[source_index].ty == target.params[target_index].ty
+        {
+            search(
+                source,
+                target,
+                source_index + 1,
+                target_index + 1,
+                required_bindings,
+                bindings,
+                results,
+            );
+        }
+        if bindings.len() < required_bindings {
+            bindings.push(target_index);
+            search(
+                source,
+                target,
+                source_index,
+                target_index + 1,
+                required_bindings,
+                bindings,
+                results,
+            );
+            bindings.pop();
+        }
+    }
+
+    let mut results = Vec::new();
+    search(
+        source,
+        target,
+        0,
+        0,
+        target.params.len() - source.params.len(),
+        &mut Vec::new(),
+        &mut results,
+    );
+    results
+}
+
+fn apply_private_function_subsumption<'src>(
+    module: &mut ControlFlowModule<'src>,
+    candidate: PrivateFunctionSubsumption<'src>,
+) {
+    for caller in &mut module.functions {
+        let mut next_value = caller.value_count;
+        let mut added_values = 0;
+        for block in &mut caller.blocks {
+            let instructions = std::mem::take(&mut block.instructions);
+            let mut rewritten = Vec::with_capacity(instructions.len());
+            for mut instruction in instructions {
+                let is_source_call = matches!(
+                    instruction.op,
+                    ControlFlowOp::CallDirect { function, .. }
+                        if function == candidate.source
+                );
+                if is_source_call {
+                    let mut bound_values = Vec::with_capacity(candidate.bound_arguments.len());
+                    for (index, value, ty) in &candidate.bound_arguments {
+                        let out = ValueId(next_value);
+                        next_value += 1;
+                        added_values += 1;
+                        rewritten.push(ControlFlowInstruction {
+                            out: Some(out),
+                            ty: Some(ty.clone()),
+                            op: match value {
+                                SpecializationValue::Constant(value) => {
+                                    ControlFlowOp::Const(value.to_value())
+                                }
+                                SpecializationValue::Function(function) => ControlFlowOp::Closure {
+                                    function: *function,
+                                    captures: Vec::new(),
+                                },
+                            },
+                            span: instruction.span,
+                        });
+                        bound_values.push((*index, out));
+                    }
+                    let ControlFlowOp::CallDirect { function, args } = &mut instruction.op else {
+                        unreachable!()
+                    };
+                    *function = candidate.target;
+                    let mut source_arguments = std::mem::take(args).into_iter();
+                    *args = (0..candidate.target_parameter_count)
+                        .map(|index| {
+                            bound_values
+                                .iter()
+                                .find_map(|(bound, value)| (*bound == index).then_some(*value))
+                                .unwrap_or_else(|| {
+                                    source_arguments
+                                        .next()
+                                        .expect("subsumed calls must match source arity")
+                                })
+                        })
+                        .collect();
+                    debug_assert!(source_arguments.next().is_none());
+                }
+                rewritten.push(instruction);
+            }
+            block.instructions = rewritten;
+        }
+        caller.value_count = next_value;
+        caller
+            .value_escapes
+            .extend(std::iter::repeat_n(EscapeState::LocalOnly, added_values));
+    }
+    module.functions[candidate.source.0 as usize].live = false;
+}
+
+fn private_direct_call_functions(module: &ControlFlowModule<'_>) -> AHashSet<FunctionId> {
     let exported = exported_functions(module);
+    let mut direct_only = module
+        .functions
+        .iter()
+        .filter(|function| {
+            function.live
+                && function.kind == FunctionKind::Function
+                && !exported.contains(&function.id)
+        })
+        .map(|function| function.id)
+        .collect::<AHashSet<_>>();
+    for function in module.functions.iter().filter(|function| function.live) {
+        for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
+            match instruction.op {
+                ControlFlowOp::Closure { function, .. }
+                | ControlFlowOp::CallMethod { function, .. } => {
+                    direct_only.remove(&function);
+                }
+                ControlFlowOp::NewClass {
+                    constructor: Some(function),
+                    ..
+                } => {
+                    direct_only.remove(&function);
+                }
+                _ => {}
+            }
+        }
+    }
+    direct_only
+}
+
+fn fold_identical_private_functions(module: &mut ControlFlowModule<'_>) -> OptimizationReport {
     let mut changed = false;
 
     loop {
-        let mut direct_only = module
-            .functions
-            .iter()
-            .filter(|function| {
-                function.live
-                    && function.kind == FunctionKind::Function
-                    && !exported.contains(&function.id)
-            })
-            .map(|function| function.id)
-            .collect::<AHashSet<_>>();
-
-        for function in module.functions.iter().filter(|function| function.live) {
-            for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
-                match instruction.op {
-                    ControlFlowOp::Closure { function, .. }
-                    | ControlFlowOp::CallMethod { function, .. } => {
-                        direct_only.remove(&function);
-                    }
-                    ControlFlowOp::NewClass {
-                        constructor: Some(function),
-                        ..
-                    } => {
-                        direct_only.remove(&function);
-                    }
-                    _ => {}
-                }
-            }
-        }
+        let direct_only = private_direct_call_functions(module);
 
         if direct_only.len() < 2 {
             break;
@@ -4109,6 +4473,9 @@ fn normalize_private_function<'src>(
     normalized.name = None;
     normalized.span = empty;
     normalized.live = true;
+    canonicalize_private_known_closure_calls(&mut normalized);
+    canonicalize_private_constant_order(&mut normalized);
+    prune_private_unused_local_metadata(&mut normalized);
 
     let mut local_ids = AHashMap::<LocalId, LocalId>::new();
     let mut next_local = 0_u32;
@@ -4294,6 +4661,94 @@ fn normalize_private_function<'src>(
     }
     normalized.value_count = next_value;
     normalized
+}
+
+fn canonicalize_private_constant_order(function: &mut ControlFlowFunction<'_>) {
+    let mut constants = Vec::new();
+    for block in &mut function.blocks {
+        let instructions = std::mem::take(&mut block.instructions);
+        let (mut block_constants, retained): (Vec<_>, Vec<_>) = instructions
+            .into_iter()
+            .partition(|instruction| matches!(instruction.op, ControlFlowOp::Const(_)));
+        constants.append(&mut block_constants);
+        block.instructions = retained;
+    }
+    constants.sort_by_key(|instruction| match &instruction.op {
+        ControlFlowOp::Const(value) => ConstantKey::from_value(value),
+        _ => unreachable!(),
+    });
+    function.blocks[function.entry.0 as usize]
+        .instructions
+        .splice(0..0, constants);
+}
+
+fn canonicalize_private_known_closure_calls(function: &mut ControlFlowFunction<'_>) {
+    let closures = function
+        .blocks
+        .iter()
+        .flat_map(|block| &block.instructions)
+        .filter_map(|instruction| match (instruction.out, &instruction.op) {
+            (Some(out), ControlFlowOp::Closure { function, captures }) if captures.is_empty() => {
+                Some((out, *function))
+            }
+            _ => None,
+        })
+        .collect::<AHashMap<_, _>>();
+    if closures.is_empty() {
+        return;
+    }
+    for instruction in function
+        .blocks
+        .iter_mut()
+        .flat_map(|block| &mut block.instructions)
+    {
+        let replacement = match &instruction.op {
+            ControlFlowOp::CallValue { callee, args } => {
+                closures
+                    .get(callee)
+                    .map(|target| ControlFlowOp::CallDirect {
+                        function: *target,
+                        args: args.clone(),
+                    })
+            }
+            _ => None,
+        };
+        if let Some(replacement) = replacement {
+            instruction.op = replacement;
+        }
+    }
+    let uses = control_flow_use_counts(function);
+    for block in &mut function.blocks {
+        block.instructions.retain(|instruction| {
+            !matches!(
+                (instruction.out, &instruction.op),
+                (Some(out), ControlFlowOp::Closure { captures, .. })
+                    if captures.is_empty() && uses.get(&out).copied().unwrap_or(0) == 0
+            )
+        });
+    }
+}
+
+fn prune_private_unused_local_metadata(function: &mut ControlFlowFunction<'_>) {
+    let mut referenced = function
+        .params
+        .iter()
+        .map(|parameter| parameter.local)
+        .collect::<AHashSet<_>>();
+    for block in &function.blocks {
+        referenced.extend(block.phis.iter().map(|phi| phi.local));
+        for instruction in &block.instructions {
+            match instruction.op {
+                ControlFlowOp::LoadLocal(local) | ControlFlowOp::StoreLocal { local, .. } => {
+                    referenced.insert(local);
+                }
+                _ => {}
+            }
+        }
+    }
+    function
+        .locals
+        .retain(|local| referenced.contains(&local.id));
 }
 
 fn eliminate_dead_functions(module: &mut ControlFlowModule<'_>) -> OptimizationReport {
@@ -5912,6 +6367,240 @@ mod tests {
                 .count(),
             1
         );
+    }
+
+    #[test]
+    fn subsumes_private_function_proven_by_constant_binding() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "extern int read();int narrow(int value){int mixed=(value+1)*17+31;mixed=mixed^(mixed>>3);return mixed%997;}int broad(int value,int bias){int mixed=(value+bias)*17+31;mixed=mixed^(mixed>>3);return mixed%997;}print(narrow(read())+broad(read(),2)+broad(read(),3));",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut control_flow = lower_to_control_flow(&program, &semantics).unwrap();
+        let narrow = control_flow
+            .functions
+            .iter()
+            .find(|function| function.name == Some("narrow"))
+            .map(|function| function.id)
+            .unwrap();
+        let broad = control_flow
+            .functions
+            .iter()
+            .find(|function| function.name == Some("broad"))
+            .map(|function| function.id)
+            .unwrap();
+        let options = OptimizationOptions {
+            inlining: false,
+            call_site_specialization: false,
+            capture_signature_cloning: false,
+            identical_function_folding: false,
+            function_subsumption: true,
+            ..OptimizationOptions::default()
+        };
+
+        let reports =
+            optimize_control_flow_with_options(&mut control_flow, &options, false).unwrap();
+
+        assert!(reports.iter().any(|report| {
+            report.pass_name == "private-function-subsumption" && report.changed
+        }));
+        assert!(!control_flow.functions[narrow.0 as usize].live);
+        let broad_calls = control_flow
+            .functions
+            .iter()
+            .flat_map(|function| &function.blocks)
+            .flat_map(|block| &block.instructions)
+            .filter_map(|instruction| match &instruction.op {
+                ControlFlowOp::CallDirect { function, args } if *function == broad => {
+                    Some(args.len())
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(broad_calls, vec![2, 2, 2]);
+    }
+
+    #[test]
+    fn subsumes_private_function_with_a_middle_constant_parameter() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "extern int read();int narrow(int value,int scale){return (value+1)*scale+31;}int broad(int value,int bias,int scale){return (value+bias)*scale+31;}print(narrow(read(),17)+narrow(read(),19)+broad(read(),2,17)+broad(read(),3,19));",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut control_flow = lower_to_control_flow(&program, &semantics).unwrap();
+        let narrow = control_flow
+            .functions
+            .iter()
+            .find(|function| function.name == Some("narrow"))
+            .map(|function| function.id)
+            .unwrap();
+        let broad = control_flow
+            .functions
+            .iter()
+            .find(|function| function.name == Some("broad"))
+            .map(|function| function.id)
+            .unwrap();
+        let options = OptimizationOptions {
+            inlining: false,
+            call_site_specialization: false,
+            capture_signature_cloning: false,
+            identical_function_folding: false,
+            function_subsumption: true,
+            ..OptimizationOptions::default()
+        };
+
+        let reports =
+            optimize_control_flow_with_options(&mut control_flow, &options, false).unwrap();
+
+        assert!(reports.iter().any(|report| {
+            report.pass_name == "private-function-subsumption" && report.changed
+        }));
+        assert!(!control_flow.functions[narrow.0 as usize].live);
+        assert!(control_flow
+            .functions
+            .iter()
+            .flat_map(|function| &function.blocks)
+            .flat_map(|block| &block.instructions)
+            .filter_map(|instruction| match &instruction.op {
+                ControlFlowOp::CallDirect { function, args } if *function == broad => {
+                    Some(args.len())
+                }
+                _ => None,
+            })
+            .all(|arguments| arguments == 3));
+    }
+
+    #[test]
+    fn subsumes_private_function_proven_by_known_callback_binding() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "extern int read();int triple(int value){return value*3;}int double(int value){return value*2;}int narrow(int value){return triple(value)*17+31;}int broad(int value,func(int)->int transform){return transform(value)*17+31;}print(narrow(read())+broad(read(),triple)+broad(read(),double));",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut control_flow = lower_to_control_flow(&program, &semantics).unwrap();
+        let narrow = control_flow
+            .functions
+            .iter()
+            .find(|function| function.name == Some("narrow"))
+            .map(|function| function.id)
+            .unwrap();
+        let options = OptimizationOptions {
+            inlining: false,
+            call_site_specialization: false,
+            capture_signature_cloning: false,
+            identical_function_folding: false,
+            function_subsumption: true,
+            ..OptimizationOptions::default()
+        };
+
+        let reports =
+            optimize_control_flow_with_options(&mut control_flow, &options, false).unwrap();
+
+        assert!(reports.iter().any(|report| {
+            report.pass_name == "private-function-subsumption" && report.changed
+        }));
+        assert!(!control_flow.functions[narrow.0 as usize].live);
+    }
+
+    #[test]
+    fn preserves_exported_identity_during_function_subsumption() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "extern int read();int narrow(int value){return (value+1)*17;}int broad(int value,int bias){return (value+bias)*17;}print(narrow(read())+broad(read(),2)+broad(read(),3));",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut control_flow = lower_to_control_flow(&program, &semantics).unwrap();
+        let narrow = control_flow
+            .functions
+            .iter()
+            .find(|function| function.name == Some("narrow"))
+            .map(|function| function.id)
+            .unwrap();
+        control_flow.exports.push(crate::ir::IrExport {
+            name: "narrow",
+            binding: ExportBinding::Function(narrow),
+            span: S,
+        });
+        let options = OptimizationOptions {
+            inlining: false,
+            call_site_specialization: false,
+            capture_signature_cloning: false,
+            identical_function_folding: false,
+            function_subsumption: true,
+            ..OptimizationOptions::default()
+        };
+
+        optimize_control_flow_with_options(&mut control_flow, &options, true).unwrap();
+
+        assert!(control_flow.functions[narrow.0 as usize].live);
+    }
+
+    #[test]
+    fn preserves_address_taken_identity_during_function_subsumption() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "extern int read();extern void retain(func(int)->int callback);int narrow(int value){return (value+1)*17;}int broad(int value,int bias){return (value+bias)*17;}retain(narrow);print(narrow(read())+broad(read(),2)+broad(read(),3));",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut control_flow = lower_to_control_flow(&program, &semantics).unwrap();
+        let narrow = control_flow
+            .functions
+            .iter()
+            .find(|function| function.name == Some("narrow"))
+            .map(|function| function.id)
+            .unwrap();
+        let options = OptimizationOptions {
+            inlining: false,
+            call_site_specialization: false,
+            capture_signature_cloning: false,
+            identical_function_folding: false,
+            function_subsumption: true,
+            ..OptimizationOptions::default()
+        };
+
+        optimize_control_flow_with_options(&mut control_flow, &options, false).unwrap();
+
+        assert!(control_flow.functions[narrow.0 as usize].live);
+    }
+
+    #[test]
+    fn rejects_function_subsumption_without_exact_specialized_cfg() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "extern int read();int narrow(int value){return (value+1)*17+4;}int broad(int value,int bias){return (value+bias)*17+3;}print(narrow(read())+broad(read(),2)+broad(read(),3));",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut control_flow = lower_to_control_flow(&program, &semantics).unwrap();
+        let narrow = control_flow
+            .functions
+            .iter()
+            .find(|function| function.name == Some("narrow"))
+            .map(|function| function.id)
+            .unwrap();
+        let options = OptimizationOptions {
+            inlining: false,
+            call_site_specialization: false,
+            capture_signature_cloning: false,
+            identical_function_folding: false,
+            function_subsumption: true,
+            ..OptimizationOptions::default()
+        };
+
+        optimize_control_flow_with_options(&mut control_flow, &options, false).unwrap();
+
+        assert!(control_flow.functions[narrow.0 as usize].live);
     }
 
     #[test]

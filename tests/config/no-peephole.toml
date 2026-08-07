@@ -7,6 +7,7 @@ optimization_level = 15
 optimizations = [
   "ir-inlining-variants",
   "ir-closure-factory-variants",
+  "ir-function-subsumption-variants",
   "ir-specialization-variants",
   "structural-control-flow-variants",
   "ssa-destruction-variants",

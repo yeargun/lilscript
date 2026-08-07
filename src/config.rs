@@ -60,6 +60,9 @@ impl ProjectConfig {
         options.identical_function_folding &= self
             .javascript
             .optimization_enabled(JavaScriptOptimization::IdenticalFunctionFolding, None);
+        options.function_subsumption &= self
+            .javascript
+            .optimization_enabled(JavaScriptOptimization::IrFunctionSubsumptionVariants, None);
         if !options.inlining {
             return options;
         }
@@ -82,6 +85,19 @@ impl ProjectConfig {
                         .then_some(policy.max_inline_growth)
                 });
         options
+    }
+
+    pub fn js_function_subsumption_variants_enabled(&self) -> bool {
+        if self.optimization.function_subsumption == Some(false)
+            || !self
+                .javascript
+                .optimization_enabled(JavaScriptOptimization::IrFunctionSubsumptionVariants, None)
+        {
+            return false;
+        }
+        self.optimization.function_subsumption == Some(true)
+            || self.javascript.optimizations.is_some()
+            || matches!(self.javascript.priority, JavaScriptPriority::SizeFirst)
     }
 
     pub fn load_optimization_profile(&self) -> Result<OptimizationProfile, String> {
@@ -616,6 +632,7 @@ impl Default for JavaScriptConfig {
 pub enum JavaScriptOptimization {
     IrInliningVariants,
     IrClosureFactoryVariants,
+    IrFunctionSubsumptionVariants,
     IrSpecializationVariants,
     StructuralControlFlowVariants,
     SsaDestructionVariants,
@@ -643,6 +660,7 @@ impl JavaScriptOptimization {
         match self {
             Self::IrInliningVariants => "ir-inlining-variants",
             Self::IrClosureFactoryVariants => "ir-closure-factory-variants",
+            Self::IrFunctionSubsumptionVariants => "ir-function-subsumption-variants",
             Self::IrSpecializationVariants => "ir-specialization-variants",
             Self::StructuralControlFlowVariants => "structural-control-flow-variants",
             Self::SsaDestructionVariants => "ssa-destruction-variants",
@@ -685,6 +703,7 @@ impl JavaScriptOptimization {
             Self::CaptureSignatureCloning => 12,
             Self::IdenticalFunctionFolding => 13,
             Self::FunctionLayoutVariants => 13,
+            Self::IrFunctionSubsumptionVariants => 14,
         }
     }
 }
@@ -937,6 +956,7 @@ pub struct OptimizationConfig {
     pub call_site_specialization: Option<bool>,
     pub capture_signature_cloning: Option<bool>,
     pub identical_function_folding: Option<bool>,
+    pub function_subsumption: Option<bool>,
     pub profile_guided: Option<bool>,
 }
 
@@ -957,6 +977,7 @@ impl Default for OptimizationConfig {
             call_site_specialization: None,
             capture_signature_cloning: None,
             identical_function_folding: None,
+            function_subsumption: None,
             profile_guided: None,
         }
     }
@@ -1001,6 +1022,9 @@ impl OptimizationConfig {
             identical_function_folding: self
                 .identical_function_folding
                 .unwrap_or(base.identical_function_folding),
+            function_subsumption: self
+                .function_subsumption
+                .unwrap_or(base.function_subsumption),
             inline_instruction_limit: base.inline_instruction_limit,
             inline_control_flow_limit: base.inline_control_flow_limit,
             inline_growth_limit: base.inline_growth_limit,
@@ -1370,12 +1394,22 @@ max_inline_growth = 3
             .javascript_optimization_configured(JavaScriptOptimization::FunctionLayoutVariants));
         assert!(exhaustive
             .javascript_optimization_configured(JavaScriptOptimization::IdenticalFunctionFolding));
+        assert!(!exhaustive.javascript_optimization_configured(
+            JavaScriptOptimization::IrFunctionSubsumptionVariants
+        ));
+
+        let level_fourteen: ProjectConfig =
+            toml::from_str("[javascript]\noptimization_level=14\n").unwrap();
+        assert!(level_fourteen.javascript_optimization_configured(
+            JavaScriptOptimization::IrFunctionSubsumptionVariants
+        ));
+        assert!(level_fourteen.js_function_subsumption_variants_enabled());
 
         let exact: ProjectConfig = toml::from_str(
             r#"
 [javascript]
 optimization_level = 0
-optimizations = ["parsed-peephole", "do-loop-variants", "function-layout-variants"]
+optimizations = ["parsed-peephole", "do-loop-variants", "function-layout-variants", "ir-function-subsumption-variants"]
 "#,
         )
         .unwrap();
@@ -1385,9 +1419,26 @@ optimizations = ["parsed-peephole", "do-loop-variants", "function-layout-variant
         assert!(exact.javascript_optimization_configured(JavaScriptOptimization::DoLoopVariants));
         assert!(exact
             .javascript_optimization_configured(JavaScriptOptimization::FunctionLayoutVariants));
+        assert!(exact.javascript_optimization_configured(
+            JavaScriptOptimization::IrFunctionSubsumptionVariants
+        ));
         assert!(!exact.javascript_optimization_configured(
             JavaScriptOptimization::ConditionalExpressionVariants
         ));
+
+        let balanced: ProjectConfig =
+            toml::from_str("[javascript]\npriority='balanced'\noptimization_level=15\n").unwrap();
+        assert!(!balanced.js_function_subsumption_variants_enabled());
+        let explicit_balanced: ProjectConfig = toml::from_str(
+            "[javascript]\npriority='balanced'\noptimization_level=0\noptimizations=['ir-function-subsumption-variants']\n",
+        )
+        .unwrap();
+        assert!(explicit_balanced.js_function_subsumption_variants_enabled());
+        let hard_disabled: ProjectConfig = toml::from_str(
+            "[optimization]\nfunction_subsumption=false\n[javascript]\noptimizations=['ir-function-subsumption-variants']\n",
+        )
+        .unwrap();
+        assert!(!hard_disabled.js_function_subsumption_variants_enabled());
     }
 
     #[test]

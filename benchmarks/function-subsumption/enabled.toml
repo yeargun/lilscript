@@ -1,0 +1,12 @@
+[optimization]
+inlining = false
+call_site_specialization = false
+capture_signature_cloning = false
+identical_function_folding = false
+
+[javascript]
+optimization_level = 0
+optimizations = ["ir-function-subsumption-variants"]
+candidate_search = "always"
+candidate_limit = 8
+cost_model = "brotli"

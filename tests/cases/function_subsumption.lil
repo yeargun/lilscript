@@ -1,0 +1,46 @@
+int narrow(int value) {
+  int mixed = (value + 1) * 17 + 31;
+  mixed = mixed ^ (mixed >> 3);
+  return mixed % 997;
+}
+
+int broad(int value, int bias) {
+  int mixed = (value + bias) * 17 + 31;
+  mixed = mixed ^ (mixed >> 3);
+  return mixed % 997;
+}
+
+int triple(int value) {
+  return value * 3;
+}
+
+int double(int value) {
+  return value * 2;
+}
+
+int narrowTransform(int value) {
+  return triple(value) * 17 + 31;
+}
+
+int broadTransform(int value, func(int)->int transform) {
+  return transform(value) * 17 + 31;
+}
+
+int total = 0;
+for (int index = 0; index < 400; index++) {
+  if (index % 3 == 0) {
+    total += narrow(index);
+  } else if (index % 3 == 1) {
+    total += broad(index, 2);
+  } else {
+    total += broad(index, 3);
+  }
+  if (index % 2 == 0) {
+    total += narrowTransform(index);
+  } else if (index % 4 == 1) {
+    total += broadTransform(index, triple);
+  } else {
+    total += broadTransform(index, double);
+  }
+}
+print(total);

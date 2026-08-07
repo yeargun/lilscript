@@ -1113,8 +1113,21 @@ fn optimize_and_select_javascript<'src>(
         without_capture_cloning.capture_signature_cloning = false;
         optimizer_options.push(without_capture_cloning);
     }
+    if config.js_function_subsumption_variants_enabled() {
+        let mut with_function_subsumption = configured;
+        with_function_subsumption.function_subsumption = true;
+        if !optimizer_options.contains(&with_function_subsumption) {
+            optimizer_options.push(with_function_subsumption);
+        }
+        let mut without_function_subsumption = configured;
+        without_function_subsumption.function_subsumption = false;
+        if !optimizer_options.contains(&without_function_subsumption) {
+            optimizer_options.push(without_function_subsumption);
+        }
+    }
     optimizer_options.sort_by_key(|options| {
         (
+            options.function_subsumption,
             !options.inlining,
             !options.inline_closure_factories,
             !options.specialize_tagged_constants,
@@ -2246,6 +2259,36 @@ mod tests {
             compressed_size(selected.as_bytes(), CompressionCostModel::Brotli).unwrap()
                 < compressed_size(baseline.as_bytes(), CompressionCostModel::Brotli).unwrap(),
             "selected:\n{selected}\nsource order:\n{baseline}"
+        );
+    }
+
+    #[test]
+    fn codec_scoring_selects_proven_private_function_subsumption() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            include_str!("../benchmarks/function-subsumption/fixture.lil"),
+        )
+        .unwrap();
+        let mut enabled = ProjectConfig::default();
+        enabled.optimization.inlining = Some(false);
+        enabled.optimization.call_site_specialization = Some(false);
+        enabled.optimization.capture_signature_cloning = Some(false);
+        enabled.optimization.identical_function_folding = Some(false);
+        enabled.javascript.optimizations =
+            Some(vec![JavaScriptOptimization::IrFunctionSubsumptionVariants]);
+        enabled.javascript.candidate_search = CandidateSearch::Always;
+        enabled.javascript.candidate_limit = 8;
+        let mut disabled = enabled.clone();
+        disabled.javascript.optimizations = Some(Vec::new());
+
+        let selected = compile_program_to_js_configured(&program, &enabled).unwrap();
+        let baseline = compile_program_to_js_configured(&program, &disabled).unwrap();
+
+        assert!(selected.len() < baseline.len(), "{selected}\n{baseline}");
+        assert!(
+            compressed_size(selected.as_bytes(), CompressionCostModel::Brotli).unwrap()
+                < compressed_size(baseline.as_bytes(), CompressionCostModel::Brotli).unwrap()
         );
     }
 
