@@ -180,6 +180,7 @@ pub(crate) fn emit_optimized_ir_js_module_with_options_and_analysis(
 pub struct IrJsChunkSpec {
     pub file_name: String,
     pub functions: Vec<FunctionId>,
+    pub lazy_module: Option<u32>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -192,6 +193,8 @@ pub struct IrJsChunkPlan {
 pub struct IrJsChunk {
     pub file_name: String,
     pub code: String,
+    pub dependencies: Vec<String>,
+    pub dynamic_dependencies: Vec<String>,
 }
 
 pub fn emit_optimized_ir_js_chunks_with_options(
@@ -223,6 +226,7 @@ struct IrJsEmitter<'module, 'src> {
     property_names: AHashMap<String, String>,
     module_output: bool,
     options: IrJsOptions,
+    dynamic_chunk_files: AHashMap<u32, String>,
 }
 
 impl<'module, 'src> IrJsEmitter<'module, 'src> {
@@ -258,6 +262,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             property_names: AHashMap::new(),
             module_output,
             options,
+            dynamic_chunk_files: AHashMap::new(),
         }
     }
 
@@ -359,6 +364,20 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             }
         }
         self.prepare();
+        for chunk in &plan.chunks {
+            if let Some(module) = chunk.lazy_module {
+                if self
+                    .dynamic_chunk_files
+                    .insert(module, chunk.file_name.clone())
+                    .is_some()
+                {
+                    return Err(CodegenError::new(
+                        fallback_span,
+                        format!("dynamic module {module} belongs to more than one chunk"),
+                    ));
+                }
+            }
+        }
         let emitted = self
             .module
             .functions
@@ -421,6 +440,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             .chain(plan.chunks.iter().map(|chunk| chunk.file_name.clone()))
             .collect::<Vec<_>>();
         let mut imports = vec![AHashMap::<usize, AHashSet<String>>::new(); unit_files.len()];
+        let mut dynamic_imports = vec![AHashSet::<u32>::new(); unit_files.len()];
         for (unit, functions) in unit_functions.iter().enumerate() {
             let mut roots = functions.clone();
             if unit == 0 {
@@ -432,6 +452,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 &self.string_aliases,
                 self.options.inline_structured_closures,
             );
+            dynamic_imports[unit].extend(references.dynamic_modules.iter().copied());
             for function in references.functions {
                 let Some(owner) = owners.get(&function) else {
                     continue;
@@ -474,6 +495,45 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 }
             }
         }
+        for (chunk_index, chunk) in plan.chunks.iter().enumerate() {
+            let Some(module_id) = chunk.lazy_module else {
+                continue;
+            };
+            let module = self
+                .module
+                .lazy_modules
+                .iter()
+                .find(|module| module.id == module_id)
+                .ok_or_else(|| {
+                    CodegenError::new(
+                        fallback_span,
+                        format!("chunk references unknown dynamic module {module_id}"),
+                    )
+                })?;
+            let unit = chunk_index + 1;
+            for export in &module.exports {
+                let (source, name) = match export.binding {
+                    ExportBinding::Function(function) => (
+                        owners
+                            .get(&function)
+                            .copied()
+                            .flatten()
+                            .map_or(0, |owner| owner + 1),
+                        self.function_name(function)?.to_string(),
+                    ),
+                    ExportBinding::Global(global) => (0, self.global_name(global)?.to_string()),
+                    ExportBinding::TypeOnly => {
+                        return Err(CodegenError::new(
+                            export.span,
+                            format!("dynamic export `{}` has no runtime binding", export.name),
+                        ));
+                    }
+                };
+                if source != unit {
+                    imports[unit].entry(source).or_default().insert(name);
+                }
+            }
+        }
 
         let mut internal_exports = vec![AHashSet::<String>::new(); unit_files.len()];
         for dependencies in &imports {
@@ -505,13 +565,79 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 self.emit_exports_excluding(&internal_exports[unit], &mut code)?;
             } else {
                 self.emit_named_exports(&internal_exports[unit], &mut code);
+                if let Some(module) = plan.chunks[unit - 1].lazy_module {
+                    self.emit_dynamic_module_exports(module, &mut code)?;
+                }
             }
             output.push(IrJsChunk {
                 file_name: unit_files[unit].clone(),
                 code,
+                dependencies: {
+                    let mut files = imports[unit]
+                        .iter()
+                        .filter(|(source, names)| **source != unit && !names.is_empty())
+                        .map(|(source, _)| unit_files[*source].clone())
+                        .collect::<Vec<_>>();
+                    files.sort_unstable();
+                    files.dedup();
+                    files
+                },
+                dynamic_dependencies: {
+                    let mut files = dynamic_imports[unit]
+                        .iter()
+                        .filter_map(|module| self.dynamic_chunk_files.get(module).cloned())
+                        .collect::<Vec<_>>();
+                    files.sort_unstable();
+                    files.dedup();
+                    files
+                },
             });
         }
         Ok(output)
+    }
+
+    fn emit_dynamic_module_exports(
+        &self,
+        module_id: u32,
+        out: &mut String,
+    ) -> Result<(), CodegenError> {
+        let module = self
+            .module
+            .lazy_modules
+            .iter()
+            .find(|module| module.id == module_id)
+            .ok_or_else(|| {
+                CodegenError::new(
+                    self.module.functions[self.module.entry.0 as usize].span,
+                    format!("missing dynamic module {module_id}"),
+                )
+            })?;
+        if module.exports.is_empty() {
+            return Ok(());
+        }
+        out.push_str("export{");
+        for (index, export) in module.exports.iter().enumerate() {
+            if index != 0 {
+                out.push(',');
+            }
+            let binding = match export.binding {
+                ExportBinding::Function(function) => self.function_name(function)?,
+                ExportBinding::Global(global) => self.global_name(global)?,
+                ExportBinding::TypeOnly => {
+                    return Err(CodegenError::new(
+                        export.span,
+                        format!("dynamic export `{}` has no runtime binding", export.name),
+                    ));
+                }
+            };
+            out.push_str(binding);
+            if binding != export.name {
+                out.push_str(" as ");
+                out.push_str(export.name);
+            }
+        }
+        out.push_str("};");
+        Ok(())
     }
 
     fn emit_module_preamble(&mut self, out: &mut String) -> Result<(), CodegenError> {
@@ -2287,6 +2413,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 let receiver = value(*receiver, cache)?;
                 self.render_call(&format!("{receiver}.{method}"), None, args, context, cache)?
             }
+            ControlFlowOp::DynamicImport { module } => self.render_dynamic_import(*module)?,
             ControlFlowOp::Intrinsic {
                 intrinsic,
                 receiver,
@@ -2320,6 +2447,51 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 ));
             }
         })
+    }
+
+    fn render_dynamic_import(&self, module_id: u32) -> Result<String, CodegenError> {
+        let module = self
+            .module
+            .lazy_modules
+            .iter()
+            .find(|module| module.id == module_id)
+            .ok_or_else(|| {
+                CodegenError::new(
+                    self.module.functions[self.module.entry.0 as usize].span,
+                    format!("missing dynamic module {module_id}"),
+                )
+            })?;
+        if let Some(file) = self.dynamic_chunk_files.get(&module_id) {
+            let file = render_string_literal(&format!("./{file}"), self.options.string_quote);
+            let source = render_string_literal(module.source, self.options.string_quote);
+            return Ok(format!(
+                "import({file}).catch(e=>Promise.reject({{specifier:{source},message:String(e)}}))"
+            ));
+        }
+
+        let mut namespace = String::from("Promise.resolve({");
+        for (index, export) in module.exports.iter().enumerate() {
+            if index != 0 {
+                namespace.push(',');
+            }
+            namespace.push_str(&render_string_literal(
+                export.name,
+                self.options.string_quote,
+            ));
+            namespace.push(':');
+            namespace.push_str(match export.binding {
+                ExportBinding::Function(function) => self.function_name(function)?,
+                ExportBinding::Global(global) => self.global_name(global)?,
+                ExportBinding::TypeOnly => {
+                    return Err(CodegenError::new(
+                        export.span,
+                        format!("dynamic export `{}` has no runtime binding", export.name),
+                    ));
+                }
+            });
+        }
+        namespace.push_str("})");
+        Ok(namespace)
     }
 
     fn render_call(
@@ -2718,6 +2890,7 @@ struct ChunkReferences {
     functions: AHashSet<FunctionId>,
     globals: AHashSet<SymbolId>,
     strings: AHashSet<String>,
+    dynamic_modules: AHashSet<u32>,
 }
 
 fn is_emitted_function(function: &ControlFlowFunction<'_>, inline_structured: bool) -> bool {
@@ -2752,6 +2925,9 @@ fn collect_chunk_references(
                     if let Some(alias) = string_aliases.get(value) {
                         references.strings.insert(alias.clone());
                     }
+                }
+                ControlFlowOp::DynamicImport { module } => {
+                    references.dynamic_modules.insert(*module);
                 }
                 ControlFlowOp::NewClass {
                     constructor: Some(target),
@@ -4465,9 +4641,10 @@ fn cross_block_values(function: &ControlFlowFunction<'_>) -> AHashSet<ValueId> {
 
 fn op_values(op: &ControlFlowOp<'_>) -> Vec<ValueId> {
     match op {
-        ControlFlowOp::Const(_) | ControlFlowOp::LoadLocal(_) | ControlFlowOp::LoadGlobal(_) => {
-            Vec::new()
-        }
+        ControlFlowOp::Const(_)
+        | ControlFlowOp::LoadLocal(_)
+        | ControlFlowOp::LoadGlobal(_)
+        | ControlFlowOp::DynamicImport { .. } => Vec::new(),
         ControlFlowOp::Unary { value, .. } | ControlFlowOp::TypeCheck { value, .. } => vec![*value],
         ControlFlowOp::Binary { lhs, rhs, .. } => vec![*lhs, *rhs],
         ControlFlowOp::Array(values) | ControlFlowOp::Struct { fields: values, .. } => {
@@ -4909,7 +5086,7 @@ fn default_value(ty: &Type<'_>, compact_boolean_literals: bool) -> &'static str 
         | Type::TypeParameter(_)
         | Type::Function(_)
         | Type::GenericFunction(_) => "null",
-        Type::Void => "void 0",
+        Type::Void | Type::Task(_) | Type::ModuleNamespace(_) | Type::ModuleLoadError => "void 0",
     }
 }
 
@@ -5348,6 +5525,7 @@ mod tests {
                 chunks: vec![IrJsChunkSpec {
                     file_name: "shared.js".to_string(),
                     functions: vec![read],
+                    lazy_module: None,
                 }],
             },
         )
@@ -5369,6 +5547,7 @@ mod tests {
                 chunks: vec![IrJsChunkSpec {
                     file_name: "entry.js".to_string(),
                     functions: vec![read],
+                    lazy_module: None,
                 }],
             },
         )

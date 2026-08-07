@@ -10,8 +10,8 @@ use crate::ir::{BlockId, ControlFlowOp, ControlShape, Intrinsic, Terminator, Val
 use crate::lexer::{lex, TokenKind};
 use crate::lower::lower_to_control_flow;
 use crate::module::{
-    discover_modules, discover_modules_with_source, link_modules, locate_linked_span,
-    parse_modules, ModuleError, ModuleSet,
+    discover_modules_configured, discover_modules_configured_with_source, link_modules,
+    locate_linked_span, parse_modules, ModuleError, ModuleSet,
 };
 use crate::optimizer::optimize_control_flow_with_options;
 use crate::semantic::{analyze, EscapeState, SemanticModel, SymbolId};
@@ -22,6 +22,7 @@ pub const RULES: &[&str] = &[
     "correctness/constant-condition",
     "correctness/unused-import",
     "correctness/unused-private-symbol",
+    "correctness/unhandled-module-task",
     "effects/pure-extern-requires-allowlist",
     "performance/allocation-in-loop",
     "performance/closure-allocation-in-loop",
@@ -102,7 +103,7 @@ pub fn lint_path(path: &Path, config: &ProjectConfig) -> Result<Vec<LintDiagnost
     if !config.lint.enabled || path_is_excluded(path, &config.lint.exclude) {
         return Ok(Vec::new());
     }
-    let modules = discover_modules(path)?;
+    let modules = discover_modules_configured(path, config)?;
     lint_modules(modules, config)
 }
 
@@ -114,7 +115,7 @@ pub fn lint_path_with_source(
     if !config.lint.enabled || path_is_excluded(path, &config.lint.exclude) {
         return Ok(Vec::new());
     }
-    let modules = discover_modules_with_source(path, source)?;
+    let modules = discover_modules_configured_with_source(path, source, config)?;
     lint_modules(modules, config)
 }
 
@@ -382,6 +383,20 @@ fn removable_statement_span(statement: &Stmt<'_, '_>) -> Option<Span> {
 
 fn lint_statement(statement: &Stmt<'_, '_>, pending: &mut Vec<PendingDiagnostic>) {
     match statement {
+        Stmt::Expr(expression)
+            if contains_dynamic_import(expression) && !task_chain_has_catch(expression) =>
+        {
+            pending.push(PendingDiagnostic {
+                span: expression.span(),
+                rule: "correctness/unhandled-module-task",
+                message: "dynamic module task has no failure handler".to_string(),
+                evidence: Some("the expression starts a runtime chunk request".to_string()),
+                help: Some(
+                    "terminate the task chain with `.catch((auto error) => ...)`".to_string(),
+                ),
+                fix: None,
+            });
+        }
         Stmt::Block { body, .. } => lint_statements(body, pending),
         Stmt::If {
             condition,
@@ -410,6 +425,61 @@ fn lint_statement(statement: &Stmt<'_, '_>, pending: &mut Vec<PendingDiagnostic>
             lint_statement(body, pending);
         }
         _ => {}
+    }
+}
+
+fn task_chain_has_catch(expression: &Expr<'_, '_>) -> bool {
+    match expression {
+        Expr::Call { callee, .. } => match callee {
+            Expr::Member {
+                object, property, ..
+            } => property.name == "catch" || task_chain_has_catch(object),
+            _ => task_chain_has_catch(callee),
+        },
+        Expr::Member { object, .. } => task_chain_has_catch(object),
+        _ => false,
+    }
+}
+
+fn contains_dynamic_import(expression: &Expr<'_, '_>) -> bool {
+    match expression {
+        Expr::DynamicImport { .. } => true,
+        Expr::ArrayLiteral { elements, .. } => elements.iter().any(contains_dynamic_import),
+        Expr::StructLiteral { values, .. } | Expr::New { args: values, .. } => {
+            values.iter().any(contains_dynamic_import)
+        }
+        Expr::Member { object, .. }
+        | Expr::Unary { expr: object, .. }
+        | Expr::TypeCheck { value: object, .. }
+        | Expr::Update { target: object, .. } => contains_dynamic_import(object),
+        Expr::Call { callee, args, .. } => {
+            contains_dynamic_import(callee) || args.iter().any(contains_dynamic_import)
+        }
+        Expr::ArrowFunction { body, .. } => match body {
+            ArrowBody::Expr(expression) => contains_dynamic_import(expression),
+            ArrowBody::Block(_) => false,
+        },
+        Expr::Binary { lhs, rhs, .. }
+        | Expr::Index {
+            object: lhs,
+            index: rhs,
+            ..
+        }
+        | Expr::Assignment {
+            target: lhs,
+            value: rhs,
+            ..
+        } => contains_dynamic_import(lhs) || contains_dynamic_import(rhs),
+        Expr::Template { parts, .. } => parts.iter().any(|part| match part {
+            crate::ast::TemplatePart::Expr(expression) => contains_dynamic_import(expression),
+            crate::ast::TemplatePart::String(..) => false,
+        }),
+        Expr::Int(..)
+        | Expr::Float(..)
+        | Expr::String(..)
+        | Expr::Bool(..)
+        | Expr::Null(..)
+        | Expr::Ident(..) => false,
     }
 }
 
@@ -956,7 +1026,12 @@ fn walk_expr_idents(expression: &Expr<'_, '_>, visitor: &mut impl FnMut(Span)) {
                 }
             }
         }
-        Expr::Int(..) | Expr::Float(..) | Expr::String(..) | Expr::Bool(..) | Expr::Null(..) => {}
+        Expr::Int(..)
+        | Expr::Float(..)
+        | Expr::String(..)
+        | Expr::Bool(..)
+        | Expr::Null(..)
+        | Expr::DynamicImport { .. } => {}
     }
 }
 
@@ -979,6 +1054,7 @@ pub fn rule_defaults() -> BTreeMap<&'static str, DiagnosticSeverity> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::parser::parse_source;
 
     #[test]
     fn wildcard_exclusions_and_suppressions_are_deterministic() {
@@ -1082,5 +1158,19 @@ mod tests {
             .iter()
             .any(|diagnostic| diagnostic.rule == "performance/indirect-call-in-loop"));
         std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn reports_unhandled_dynamic_module_tasks() {
+        let arena = Bump::new();
+        let program = parse_source(&arena, "import(\"./feature\");").unwrap();
+        let Item::Stmt(statement) = &program.items[0] else {
+            panic!("expected expression statement");
+        };
+        let mut diagnostics = Vec::new();
+        lint_statements(std::slice::from_ref(statement), &mut diagnostics);
+        assert!(diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.rule == "correctness/unhandled-module-task"));
     }
 }

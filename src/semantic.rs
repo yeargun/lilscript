@@ -34,6 +34,9 @@ pub enum Type<'src> {
     ArrayBuffer,
     SharedArrayBuffer,
     Uint8Array,
+    Task(Box<Type<'src>>),
+    ModuleNamespace(u32),
+    ModuleLoadError,
     Nullable(Box<Type<'src>>),
     Union(Vec<Type<'src>>),
     Struct(&'src str),
@@ -79,6 +82,9 @@ impl fmt::Display for Type<'_> {
             Self::ArrayBuffer => f.write_str("ArrayBuffer"),
             Self::SharedArrayBuffer => f.write_str("SharedArrayBuffer"),
             Self::Uint8Array => f.write_str("Uint8Array"),
+            Self::Task(value) => write!(f, "Task<{value}>"),
+            Self::ModuleNamespace(module) => write!(f, "module#{module}"),
+            Self::ModuleLoadError => f.write_str("ModuleLoadError"),
             Self::Nullable(inner) => match inner.as_ref() {
                 Self::Union(_) => write!(f, "({inner})?"),
                 _ => write!(f, "{inner}?"),
@@ -256,6 +262,9 @@ pub struct SemanticModel<'src> {
     symbols: Vec<Symbol<'src>>,
     structs: AHashMap<&'src str, StructInfo<'src>>,
     classes: AHashMap<&'src str, ClassInfo<'src>>,
+    dynamic_import_modules: AHashMap<Span, u32>,
+    module_exports: AHashMap<u32, AHashMap<&'src str, &'src str>>,
+    used_dynamic_exports: AHashSet<(u32, &'src str)>,
 }
 
 impl<'src> SemanticModel<'src> {
@@ -306,6 +315,14 @@ impl<'src> SemanticModel<'src> {
     pub(crate) fn binding_types(&self) -> &AHashMap<Span, Type<'src>> {
         &self.binding_types
     }
+
+    pub(crate) fn dynamic_import_module(&self, span: Span) -> Option<u32> {
+        self.dynamic_import_modules.get(&span).copied()
+    }
+
+    pub(crate) fn dynamic_export_used(&self, module: u32, name: &str) -> bool {
+        self.used_dynamic_exports.contains(&(module, name))
+    }
 }
 
 pub fn analyze<'ast, 'src>(
@@ -349,6 +366,9 @@ impl<'src> Analyzer<'src> {
                 symbols: Vec::new(),
                 structs: AHashMap::new(),
                 classes: AHashMap::new(),
+                dynamic_import_modules: AHashMap::new(),
+                module_exports: AHashMap::new(),
+                used_dynamic_exports: AHashSet::new(),
             },
             scopes: vec![AHashMap::new()],
             narrowings: vec![AHashMap::new()],
@@ -368,6 +388,15 @@ impl<'src> Analyzer<'src> {
                 import.span,
                 "imports require file-based compilation so the module graph can be resolved",
             ));
+        }
+        for import in program.dynamic_imports {
+            self.model
+                .dynamic_import_modules
+                .insert(import.span, import.module);
+            let exports = self.model.module_exports.entry(import.module).or_default();
+            for export in import.exports {
+                exports.insert(export.exported, export.binding);
+            }
         }
         self.declare_nominal_types(program)?;
         self.define_structs(program)?;
@@ -1153,6 +1182,20 @@ impl<'src> Analyzer<'src> {
             Expr::String(_, _) => Type::String,
             Expr::Bool(_, _) => Type::Bool,
             Expr::Null(_) => Type::Null,
+            Expr::DynamicImport { span, .. } => {
+                let module = self
+                    .model
+                    .dynamic_import_modules
+                    .get(span)
+                    .copied()
+                    .ok_or_else(|| {
+                        SemanticError::new(
+                            *span,
+                            "dynamic imports require file-based compilation so their module interface can be resolved",
+                        )
+                    })?;
+                Type::Task(Box::new(Type::ModuleNamespace(module)))
+            }
             Expr::Ident(ident) => {
                 let (id, declared) = {
                     let symbol = self.resolve(ident)?;
@@ -1363,14 +1406,24 @@ impl<'src> Analyzer<'src> {
                     object, property, ..
                 } = callee
                 {
-                    match property.name {
-                        "map" => self.analyze_array_map(object, args, *span)?,
-                        "filter" => self.analyze_array_filter(object, args, *span)?,
-                        "forEach" => self.analyze_array_for_each(object, args, *span)?,
-                        "reduce" => self.analyze_array_reduce(object, args, *span)?,
-                        _ => {
+                    if matches!(property.name, "then" | "catch" | "finally") {
+                        let receiver = self.analyze_expr(object, None)?;
+                        if let Type::Task(value) = receiver {
+                            self.analyze_task_call(property.name, *value, args, *span)?
+                        } else {
                             let callee_type = self.analyze_expr(callee, None)?;
                             self.analyze_call(&callee_type, args, *span, expected)?
+                        }
+                    } else {
+                        match property.name {
+                            "map" => self.analyze_array_map(object, args, *span)?,
+                            "filter" => self.analyze_array_filter(object, args, *span)?,
+                            "forEach" => self.analyze_array_for_each(object, args, *span)?,
+                            "reduce" => self.analyze_array_reduce(object, args, *span)?,
+                            _ => {
+                                let callee_type = self.analyze_expr(callee, None)?;
+                                self.analyze_call(&callee_type, args, *span, expected)?
+                            }
                         }
                     }
                 } else {
@@ -1638,6 +1691,42 @@ impl<'src> Analyzer<'src> {
                 Type::ArrayBuffer,
                 Type::SharedArrayBuffer,
             ])),
+            Type::ModuleNamespace(module) => {
+                let binding = self
+                    .model
+                    .module_exports
+                    .get(&module)
+                    .and_then(|exports| exports.get(property.name))
+                    .copied()
+                    .ok_or_else(|| {
+                        SemanticError::new(
+                            property.span,
+                            format!("dynamic module has no runtime export `{}`", property.name),
+                        )
+                    })?;
+                let symbol = self
+                    .scopes
+                    .first()
+                    .and_then(|scope| scope.get(binding))
+                    .and_then(|symbol| self.model.symbols.get(symbol.0 as usize))
+                    .ok_or_else(|| {
+                        SemanticError::new(
+                            property.span,
+                            format!("dynamic export `{}` is type-only", property.name),
+                        )
+                    })?;
+                let ty = symbol.ty.clone();
+                self.model
+                    .used_dynamic_exports
+                    .insert((module, property.name));
+                Ok(ty)
+            }
+            Type::Task(_) if matches!(property.name, "then" | "catch" | "finally") => Err(
+                SemanticError::new(span, format!("Task `{}` must be called", property.name)),
+            ),
+            Type::ModuleLoadError if matches!(property.name, "message" | "specifier") => {
+                Ok(Type::String)
+            }
             Type::Float => match property.name {
                 "abs" | "floor" | "ceil" => Ok(Type::Function(FunctionType {
                     params: Vec::new(),
@@ -2000,6 +2089,57 @@ impl<'src> Analyzer<'src> {
         Ok((*signature.return_type).clone())
     }
 
+    fn analyze_task_call<'ast>(
+        &mut self,
+        method: &str,
+        value: Type<'src>,
+        args: &[Expr<'ast, 'src>],
+        span: Span,
+    ) -> Result<Type<'src>, SemanticError> {
+        if args.len() != 1 {
+            return Err(SemanticError::new(
+                span,
+                format!("Task `{method}` expects one callback, found {}", args.len()),
+            ));
+        }
+        let parameters = match method {
+            "then" => vec![value.clone()],
+            "catch" => vec![Type::ModuleLoadError],
+            "finally" => Vec::new(),
+            _ => unreachable!("task call dispatch validates the method name"),
+        };
+        let expected = Type::Function(FunctionType {
+            params: parameters.clone(),
+            defaults: vec![None; parameters.len()],
+            return_type: Box::new(Type::Void),
+        });
+        let callback = self.analyze_expr(&args[0], Some(&expected))?;
+        let Type::Function(signature) = callback else {
+            return Err(SemanticError::new(
+                args[0].span(),
+                format!("Task `{method}` expects a function callback"),
+            ));
+        };
+        if signature.params != parameters {
+            return Err(SemanticError::new(
+                args[0].span(),
+                format!("Task `{method}` callback has an incompatible parameter list"),
+            ));
+        }
+        if method == "finally" {
+            return Ok(Type::Task(Box::new(value)));
+        }
+        let returned = match *signature.return_type {
+            Type::Task(inner) => *inner,
+            returned => returned,
+        };
+        Ok(Type::Task(Box::new(if method == "catch" {
+            normalize_union(vec![value, returned])
+        } else {
+            returned
+        })))
+    }
+
     fn analyze_generic_call<'ast>(
         &mut self,
         function: &GenericFunctionType<'src>,
@@ -2092,7 +2232,19 @@ impl<'src> Analyzer<'src> {
         self.capture_barriers.push(capture_barrier);
         let mut parameter_types = Vec::with_capacity(params.len());
         for (index, param) in params.iter().enumerate() {
-            let ty = self.resolve_value_type(param.ty, "arrow parameter")?;
+            let ty = if param.ty.is_auto() {
+                expected_signature
+                    .and_then(|signature| signature.params.get(index))
+                    .cloned()
+                    .ok_or_else(|| {
+                        SemanticError::new(
+                            param.ty.span,
+                            "`auto` arrow parameters require a contextual callback type",
+                        )
+                    })?
+            } else {
+                self.resolve_value_type(param.ty, "arrow parameter")?
+            };
             if let Some(expected) = expected_signature.and_then(|sig| sig.params.get(index)) {
                 if !is_type_assignable(expected, &ty) || !is_type_assignable(&ty, expected) {
                     return Err(SemanticError::new(
@@ -2349,6 +2501,13 @@ impl<'src> Analyzer<'src> {
                 let resolved = self.resolve_type_arguments("Set", args, &["T"], ty.span)?;
                 validate_collection_key(&resolved[0], ty.span, "Set element")?;
                 Ok(Type::Set(Box::new(resolved[0].clone())))
+            }
+            TypeKind::Named { name: "Task", args }
+                if !self.model.structs.contains_key("Task")
+                    && !self.model.classes.contains_key("Task") =>
+            {
+                let resolved = self.resolve_type_arguments("Task", args, &["T"], ty.span)?;
+                Ok(Type::Task(Box::new(resolved[0].clone())))
             }
             TypeKind::Named {
                 name: "ArrayBuffer",
@@ -2888,6 +3047,7 @@ fn substitute_type<'src>(
             Box::new(substitute_type(value, substitutions)),
         ),
         Type::Set(element) => Type::Set(Box::new(substitute_type(element, substitutions))),
+        Type::Task(value) => Type::Task(Box::new(substitute_type(value, substitutions))),
         Type::Nullable(inner) => Type::Nullable(Box::new(substitute_type(inner, substitutions))),
         Type::Union(members) => normalize_union(
             members
@@ -2976,6 +3136,7 @@ fn contains_type_parameter(ty: &Type<'_>, parameters: &AHashSet<&str>) -> bool {
             contains_type_parameter(key, parameters) || contains_type_parameter(value, parameters)
         }
         Type::Set(element) => contains_type_parameter(element, parameters),
+        Type::Task(value) => contains_type_parameter(value, parameters),
         Type::Nullable(inner) => contains_type_parameter(inner, parameters),
         Type::Union(members) => members
             .iter()
@@ -3035,6 +3196,9 @@ fn infer_type_arguments<'src>(
             infer_type_arguments(pattern_value, actual_value, parameters, substitutions, span)?;
         }
         (Type::Set(pattern), Type::Set(actual)) => {
+            infer_type_arguments(pattern, actual, parameters, substitutions, span)?;
+        }
+        (Type::Task(pattern), Type::Task(actual)) => {
             infer_type_arguments(pattern, actual, parameters, substitutions, span)?;
         }
         (Type::Nullable(pattern), Type::Nullable(actual)) => {
@@ -3113,6 +3277,7 @@ pub(crate) fn is_type_assignable(expected: &Type<'_>, actual: &Type<'_>) -> bool
             expected_key == actual_key && expected_value == actual_value
         }
         (Type::Set(expected), Type::Set(actual)) => expected == actual,
+        (Type::Task(expected), Type::Task(actual)) => is_type_assignable(expected, actual),
         (Type::Nullable(_), Type::Null) => true,
         (Type::Nullable(expected), Type::Nullable(actual)) => is_type_assignable(expected, actual),
         (Type::Nullable(expected), actual) => is_type_assignable(expected, actual),
@@ -3276,6 +3441,9 @@ fn common_type<'src>(lhs: &Type<'src>, rhs: &Type<'src>) -> Option<Type<'src>> {
         }
         (Type::Array(lhs), Type::Array(rhs)) => {
             common_type(lhs, rhs).map(|element| Type::Array(Box::new(element)))
+        }
+        (Type::Task(lhs), Type::Task(rhs)) => {
+            common_type(lhs, rhs).map(|value| Type::Task(Box::new(value)))
         }
         _ if !matches!(lhs, Type::Void | Type::GenericFunction(_))
             && !matches!(rhs, Type::Void | Type::GenericFunction(_)) =>

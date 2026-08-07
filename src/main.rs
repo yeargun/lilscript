@@ -6,6 +6,7 @@ use std::process::{Command, Stdio};
 use clap::{Parser, ValueEnum};
 
 use lilscript::config::{load_project_config, BundleMode, CandidateSearch};
+use lilscript::package::write_lockfile;
 use lilscript::{
     compile_path_all_configured, compile_path_configured, compile_path_explained_configured,
     compile_path_to_c_configured, compile_path_to_js_bundle_configured,
@@ -59,6 +60,10 @@ struct Args {
     /// Print optimizer pass decisions to stderr without contaminating JavaScript stdout.
     #[arg(long, value_enum)]
     explain: Option<ExplainFormat>,
+
+    /// Resolve all path dependencies and rewrite lilscript.lock before compiling.
+    #[arg(long)]
+    write_lock: bool,
 }
 
 fn main() {
@@ -72,6 +77,10 @@ fn run() -> Result<(), String> {
     let args = Args::parse();
     let mut loaded = load_project_config(&args.input, args.config.as_deref())
         .map_err(|error| error.to_string())?;
+    if args.write_lock {
+        let path = write_lockfile(&loaded.config).map_err(|error| error.to_string())?;
+        eprintln!("wrote {}", path.display());
+    }
     if matches!(args.mode, BuildMode::Development) {
         loaded.config.javascript.candidate_search = CandidateSearch::Off;
     }

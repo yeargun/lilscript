@@ -1,0 +1,7 @@
+export int answer(int value) {
+  return value + 2;
+}
+
+export int unused(int value) {
+  return value * 99;
+}

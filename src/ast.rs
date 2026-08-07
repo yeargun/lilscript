@@ -49,9 +49,24 @@ impl<'ast, 'src> TypeRef<'ast, 'src> {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Program<'ast, 'src> {
     pub imports: &'ast [ImportDecl<'ast, 'src>],
+    pub dynamic_imports: &'ast [DynamicImportDecl<'ast, 'src>],
     pub exports: &'ast [ExportDecl<'src>],
     pub items: &'ast [Item<'ast, 'src>],
     pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct DynamicImportDecl<'ast, 'src> {
+    pub module: u32,
+    pub source: &'src str,
+    pub span: Span,
+    pub exports: &'ast [DynamicExport<'src>],
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DynamicExport<'src> {
+    pub exported: &'src str,
+    pub binding: &'src str,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -275,6 +290,10 @@ pub enum Expr<'ast, 'src> {
         args: &'ast [Expr<'ast, 'src>],
         span: Span,
     },
+    DynamicImport {
+        source: &'src str,
+        span: Span,
+    },
     Member {
         object: &'ast Expr<'ast, 'src>,
         property: Ident<'src>,
@@ -340,6 +359,7 @@ impl<'ast, 'src> Expr<'ast, 'src> {
             | Self::ArrayLiteral { span, .. }
             | Self::StructLiteral { span, .. }
             | Self::New { span, .. }
+            | Self::DynamicImport { span, .. }
             | Self::Member { span, .. }
             | Self::Call { span, .. }
             | Self::ArrowFunction { span, .. }

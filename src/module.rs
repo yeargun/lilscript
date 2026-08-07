@@ -7,10 +7,13 @@ use bumpalo::collections::Vec as BumpVec;
 use bumpalo::Bump;
 
 use crate::ast::{
-    ArrowBody, ClassDecl, ClassMember, ConstructorDecl, ExportDecl, Expr, ExternClassDecl,
-    ExternClassMember, ExternDecl, ExternGlobalDecl, FieldDecl, ForInitializer, FunctionDecl,
-    Ident, Item, Param, Program, Stmt, StructDecl, TemplatePart, TypeKind, TypeRef, VarDecl,
+    ArrowBody, ClassDecl, ClassMember, ConstructorDecl, DynamicExport, DynamicImportDecl,
+    ExportDecl, Expr, ExternClassDecl, ExternClassMember, ExternDecl, ExternGlobalDecl, FieldDecl,
+    ForInitializer, FunctionDecl, Ident, Item, Param, Program, Stmt, StructDecl, TemplatePart,
+    TypeKind, TypeRef, VarDecl,
 };
+use crate::config::ProjectConfig;
+use crate::package::{load_package_resolver, PackageResolver};
 use crate::parser::{parse_source, ParseError};
 use crate::span::Span;
 
@@ -21,6 +24,7 @@ pub struct ModuleSource {
     pub path: PathBuf,
     pub source: String,
     pub dependencies: Vec<ModuleId>,
+    pub dynamic_dependencies: Vec<ModuleId>,
     pub offset: usize,
 }
 
@@ -29,6 +33,7 @@ pub struct ModuleSet {
     pub modules: Vec<ModuleSource>,
     pub dependency_order: Vec<ModuleId>,
     pub root: ModuleId,
+    pub eager: Vec<bool>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -73,17 +78,55 @@ enum VisitState {
     Complete,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ImportEdge {
+    Static,
+    Dynamic,
+}
+
 pub fn discover_modules(root: &Path) -> Result<ModuleSet, ModuleError> {
-    discover_modules_inner(root, None)
+    discover_modules_inner(root, None, None)
 }
 
 pub fn discover_modules_with_source(root: &Path, source: &str) -> Result<ModuleSet, ModuleError> {
-    discover_modules_inner(root, Some(source))
+    discover_modules_inner(root, Some(source), None)
+}
+
+pub fn discover_modules_configured(
+    root: &Path,
+    config: &ProjectConfig,
+) -> Result<ModuleSet, ModuleError> {
+    discover_modules_configured_inner(root, None, config)
+}
+
+pub fn discover_modules_configured_with_source(
+    root: &Path,
+    source: &str,
+    config: &ProjectConfig,
+) -> Result<ModuleSet, ModuleError> {
+    discover_modules_configured_inner(root, Some(source), config)
+}
+
+fn discover_modules_configured_inner(
+    root: &Path,
+    root_source: Option<&str>,
+    config: &ProjectConfig,
+) -> Result<ModuleSet, ModuleError> {
+    let resolver = load_package_resolver(config).map_err(|error| {
+        ModuleError::new(
+            error.path,
+            root_source.unwrap_or(""),
+            Span::empty(0),
+            error.message,
+        )
+    })?;
+    discover_modules_inner(root, root_source, resolver)
 }
 
 fn discover_modules_inner(
     root: &Path,
     root_source: Option<&str>,
+    package_resolver: Option<PackageResolver>,
 ) -> Result<ModuleSet, ModuleError> {
     let root_path = canonical_module_path(root).map_err(|message| {
         ModuleError::new(root, root_source.unwrap_or(""), Span::empty(0), message)
@@ -98,18 +141,29 @@ fn discover_modules_inner(
         states: Vec::new(),
         dependency_order: Vec::new(),
         stack: Vec::new(),
+        stack_edges: Vec::new(),
         overrides,
+        package_resolver,
     };
-    let root = loader.visit(&root_path, None)?;
+    let root = loader.visit(&root_path, None, ImportEdge::Static)?;
     let mut offset = 0usize;
     for module in &mut loader.modules {
         module.offset = offset;
         offset = offset.saturating_add(module.source.len()).saturating_add(1);
     }
+    let mut eager = vec![false; loader.modules.len()];
+    let mut pending = vec![root];
+    while let Some(module) = pending.pop() {
+        if std::mem::replace(&mut eager[module], true) {
+            continue;
+        }
+        pending.extend(loader.modules[module].dependencies.iter().copied());
+    }
     Ok(ModuleSet {
         modules: loader.modules,
         dependency_order: loader.dependency_order,
         root,
+        eager,
     })
 }
 
@@ -119,7 +173,9 @@ struct ModuleLoader {
     states: Vec<VisitState>,
     dependency_order: Vec<ModuleId>,
     stack: Vec<ModuleId>,
+    stack_edges: Vec<ImportEdge>,
     overrides: AHashMap<PathBuf, String>,
+    package_resolver: Option<PackageResolver>,
 }
 
 impl ModuleLoader {
@@ -127,6 +183,7 @@ impl ModuleLoader {
         &mut self,
         requested: &Path,
         import_site: Option<(&Path, &str, Span)>,
+        edge: ImportEdge,
     ) -> Result<ModuleId, ModuleError> {
         let path = canonical_module_path(requested).map_err(|message| {
             let (path, source, span) = import_site.unwrap_or((requested, "", Span::empty(0)));
@@ -139,6 +196,13 @@ impl ModuleLoader {
                     .iter()
                     .position(|candidate| *candidate == id)
                     .unwrap_or(0);
+                let entirely_static = self.stack_edges[cycle_start + 1..]
+                    .iter()
+                    .chain(std::iter::once(&edge))
+                    .all(|edge| *edge == ImportEdge::Static);
+                if !entirely_static {
+                    return Ok(id);
+                }
                 let mut cycle = self.stack[cycle_start..]
                     .iter()
                     .map(|module| display_module_path(&self.modules[*module].path))
@@ -178,6 +242,12 @@ impl ModuleLoader {
             .iter()
             .map(|import| (import.source.to_string(), import.span))
             .collect::<Vec<_>>();
+        let mut dynamic_imports = Vec::new();
+        collect_program_dynamic_imports(&program, &mut dynamic_imports);
+        let dynamic_imports = dynamic_imports
+            .into_iter()
+            .map(|(source, span)| (source.to_string(), span))
+            .collect::<Vec<_>>();
 
         let id = self.modules.len();
         self.by_path.insert(path.clone(), id);
@@ -186,25 +256,64 @@ impl ModuleLoader {
             path: path.clone(),
             source,
             dependencies: Vec::with_capacity(imports.len()),
+            dynamic_dependencies: Vec::with_capacity(dynamic_imports.len()),
             offset: 0,
         });
         self.stack.push(id);
+        self.stack_edges.push(edge);
 
         let parent = path.parent().unwrap_or_else(|| Path::new("."));
         let site_source = self.modules[id].source.clone();
         let mut dependencies = Vec::with_capacity(imports.len());
         for (specifier, span) in imports {
-            let dependency_path = resolve_import_path(parent, &specifier).map_err(|message| {
-                ModuleError::new(&path, &self.modules[id].source, span, message)
-            })?;
-            let dependency = self.visit(&dependency_path, Some((&path, &site_source, span)))?;
+            let dependency_path =
+                self.resolve_import_path(parent, &specifier)
+                    .map_err(|message| {
+                        ModuleError::new(&path, &self.modules[id].source, span, message)
+                    })?;
+            let dependency = self.visit(
+                &dependency_path,
+                Some((&path, &site_source, span)),
+                ImportEdge::Static,
+            )?;
             dependencies.push(dependency);
         }
         self.modules[id].dependencies = dependencies;
+        let mut dynamic_dependencies = Vec::with_capacity(dynamic_imports.len());
+        for (specifier, span) in dynamic_imports {
+            let dependency_path =
+                self.resolve_import_path(parent, &specifier)
+                    .map_err(|message| {
+                        ModuleError::new(&path, &self.modules[id].source, span, message)
+                    })?;
+            let dependency = self.visit(
+                &dependency_path,
+                Some((&path, &site_source, span)),
+                ImportEdge::Dynamic,
+            )?;
+            dynamic_dependencies.push(dependency);
+        }
+        self.modules[id].dynamic_dependencies = dynamic_dependencies;
         self.stack.pop();
+        self.stack_edges.pop();
         self.states[id] = VisitState::Complete;
         self.dependency_order.push(id);
         Ok(id)
+    }
+
+    fn resolve_import_path(&self, parent: &Path, specifier: &str) -> Result<PathBuf, String> {
+        if specifier.starts_with('.') {
+            return Ok(parent.join(specifier));
+        }
+        if Path::new(specifier).is_absolute() {
+            return Err(format!("module path `{specifier}` must not be absolute"));
+        }
+        let resolver = self.package_resolver.as_ref().ok_or_else(|| {
+            format!("package import `{specifier}` requires a locked dependency in lilscript.toml")
+        })?;
+        resolver
+            .resolve(parent, specifier)
+            .map_err(|error| error.message)
     }
 }
 
@@ -228,6 +337,7 @@ fn canonical_module_path(path: &Path) -> Result<PathBuf, String> {
     })
 }
 
+#[cfg(test)]
 fn resolve_import_path(parent: &Path, specifier: &str) -> Result<PathBuf, String> {
     let path = Path::new(specifier);
     if path.is_absolute() || !specifier.starts_with('.') {
@@ -243,6 +353,191 @@ fn display_module_path(path: &Path) -> String {
         .and_then(|name| name.to_str())
         .unwrap_or_else(|| path.to_str().unwrap_or("<module>"))
         .to_string()
+}
+
+fn collect_program_dynamic_imports<'ast, 'src>(
+    program: &Program<'ast, 'src>,
+    imports: &mut Vec<(&'src str, Span)>,
+) {
+    for item in program.items {
+        match item {
+            Item::Struct(_) | Item::ExternGlobal(_) => {}
+            Item::Class(class) => {
+                for member in class.members {
+                    match member {
+                        ClassMember::Field(_) => {}
+                        ClassMember::Constructor(constructor) => {
+                            collect_param_dynamic_imports(constructor.params, imports);
+                            collect_stmt_dynamic_imports(constructor.body, imports);
+                        }
+                        ClassMember::Method(function) => {
+                            collect_function_dynamic_imports(function, imports)
+                        }
+                    }
+                }
+            }
+            Item::ExternClass(class) => {
+                for member in class.members {
+                    if let ExternClassMember::Method(method) = member {
+                        collect_param_dynamic_imports(method.params, imports);
+                    }
+                }
+            }
+            Item::Function(function) => collect_function_dynamic_imports(function, imports),
+            Item::Extern(declaration) => collect_param_dynamic_imports(declaration.params, imports),
+            Item::Stmt(statement) => {
+                collect_stmt_dynamic_imports(std::slice::from_ref(statement), imports)
+            }
+        }
+    }
+}
+
+fn collect_function_dynamic_imports<'ast, 'src>(
+    function: &FunctionDecl<'ast, 'src>,
+    imports: &mut Vec<(&'src str, Span)>,
+) {
+    collect_param_dynamic_imports(function.params, imports);
+    collect_stmt_dynamic_imports(function.body, imports);
+}
+
+fn collect_param_dynamic_imports<'ast, 'src>(
+    params: &[Param<'ast, 'src>],
+    imports: &mut Vec<(&'src str, Span)>,
+) {
+    for default in params.iter().filter_map(|param| param.default.as_ref()) {
+        collect_expr_dynamic_imports(default, imports);
+    }
+}
+
+fn collect_stmt_dynamic_imports<'ast, 'src>(
+    statements: &[Stmt<'ast, 'src>],
+    imports: &mut Vec<(&'src str, Span)>,
+) {
+    for statement in statements {
+        match statement {
+            Stmt::VarDecl(declaration) => {
+                if let Some(initializer) = &declaration.initializer {
+                    collect_expr_dynamic_imports(initializer, imports);
+                }
+            }
+            Stmt::Expr(expression) => collect_expr_dynamic_imports(expression, imports),
+            Stmt::Return { value, .. } => {
+                if let Some(value) = value {
+                    collect_expr_dynamic_imports(value, imports);
+                }
+            }
+            Stmt::Block { body, .. } => collect_stmt_dynamic_imports(body, imports),
+            Stmt::If {
+                condition,
+                then_branch,
+                else_branch,
+                ..
+            } => {
+                collect_expr_dynamic_imports(condition, imports);
+                collect_stmt_dynamic_imports(std::slice::from_ref(*then_branch), imports);
+                if let Some(else_branch) = else_branch {
+                    collect_stmt_dynamic_imports(std::slice::from_ref(*else_branch), imports);
+                }
+            }
+            Stmt::While {
+                condition, body, ..
+            } => {
+                collect_expr_dynamic_imports(condition, imports);
+                collect_stmt_dynamic_imports(std::slice::from_ref(*body), imports);
+            }
+            Stmt::For {
+                initializer,
+                condition,
+                update,
+                body,
+                ..
+            } => {
+                if let Some(initializer) = initializer {
+                    match initializer {
+                        ForInitializer::VarDecl(declaration) => {
+                            if let Some(value) = &declaration.initializer {
+                                collect_expr_dynamic_imports(value, imports);
+                            }
+                        }
+                        ForInitializer::Expr(expression) => {
+                            collect_expr_dynamic_imports(expression, imports)
+                        }
+                    }
+                }
+                if let Some(condition) = condition {
+                    collect_expr_dynamic_imports(condition, imports);
+                }
+                if let Some(update) = update {
+                    collect_expr_dynamic_imports(update, imports);
+                }
+                collect_stmt_dynamic_imports(std::slice::from_ref(*body), imports);
+            }
+            Stmt::Break(_) | Stmt::Continue(_) => {}
+        }
+    }
+}
+
+fn collect_expr_dynamic_imports<'ast, 'src>(
+    expression: &Expr<'ast, 'src>,
+    imports: &mut Vec<(&'src str, Span)>,
+) {
+    match expression {
+        Expr::DynamicImport { source, span } => imports.push((source, *span)),
+        Expr::ArrayLiteral { elements, .. } => {
+            for element in *elements {
+                collect_expr_dynamic_imports(element, imports);
+            }
+        }
+        Expr::StructLiteral { values, .. } | Expr::New { args: values, .. } => {
+            for value in *values {
+                collect_expr_dynamic_imports(value, imports);
+            }
+        }
+        Expr::Member { object, .. }
+        | Expr::Unary { expr: object, .. }
+        | Expr::TypeCheck { value: object, .. }
+        | Expr::Update { target: object, .. } => collect_expr_dynamic_imports(object, imports),
+        Expr::Call { callee, args, .. } => {
+            collect_expr_dynamic_imports(callee, imports);
+            for argument in *args {
+                collect_expr_dynamic_imports(argument, imports);
+            }
+        }
+        Expr::ArrowFunction { params, body, .. } => {
+            collect_param_dynamic_imports(params, imports);
+            match body {
+                ArrowBody::Expr(expression) => collect_expr_dynamic_imports(expression, imports),
+                ArrowBody::Block(statements) => collect_stmt_dynamic_imports(statements, imports),
+            }
+        }
+        Expr::Binary { lhs, rhs, .. }
+        | Expr::Index {
+            object: lhs,
+            index: rhs,
+            ..
+        }
+        | Expr::Assignment {
+            target: lhs,
+            value: rhs,
+            ..
+        } => {
+            collect_expr_dynamic_imports(lhs, imports);
+            collect_expr_dynamic_imports(rhs, imports);
+        }
+        Expr::Template { parts, .. } => {
+            for part in *parts {
+                if let TemplatePart::Expr(expression) = part {
+                    collect_expr_dynamic_imports(expression, imports);
+                }
+            }
+        }
+        Expr::Int(..)
+        | Expr::Float(..)
+        | Expr::String(..)
+        | Expr::Bool(..)
+        | Expr::Null(..)
+        | Expr::Ident(..) => {}
+    }
 }
 
 pub fn parse_modules<'arena>(
@@ -264,6 +559,24 @@ pub fn link_modules<'arena>(
     modules: &'arena ModuleSet,
     programs: &'arena [Program<'arena, 'arena>],
 ) -> Result<Program<'arena, 'arena>, ModuleError> {
+    for (module_id, program) in programs.iter().enumerate() {
+        if modules.eager[module_id] {
+            continue;
+        }
+        if let Some(item) = program
+            .items
+            .iter()
+            .find(|item| matches!(item, Item::Stmt(_)))
+        {
+            return Err(module_error_at(
+                modules,
+                module_id,
+                item.span(),
+                "lazy modules must be initialization-free; move top-level executable declarations into an exported function",
+            ));
+        }
+    }
+
     let mut bindings = Vec::with_capacity(programs.len());
     for (module_id, program) in programs.iter().enumerate() {
         let mut module_bindings = AHashMap::new();
@@ -291,9 +604,11 @@ pub fn link_modules<'arena>(
         bindings.push(module_bindings);
     }
 
-    let mut exports = vec![AHashMap::new(); programs.len()];
-    for &module_id in &modules.dependency_order {
-        let program = &programs[module_id];
+    let mut reserved = bindings
+        .iter()
+        .map(|bindings| bindings.keys().copied().collect::<AHashSet<_>>())
+        .collect::<Vec<_>>();
+    for (module_id, program) in programs.iter().enumerate() {
         if program.imports.len() != modules.modules[module_id].dependencies.len() {
             return Err(module_error_at(
                 modules,
@@ -302,37 +617,107 @@ pub fn link_modules<'arena>(
                 "internal module dependency mismatch",
             ));
         }
-        for (import_index, import) in program.imports.iter().enumerate() {
-            let dependency = modules.modules[module_id].dependencies[import_index];
+        for import in program.imports {
             for specifier in import.specifiers {
-                let Some(&internal) = exports[dependency].get(specifier.imported.name) else {
+                if !reserved[module_id].insert(specifier.local.name) {
                     return Err(module_error_at(
                         modules,
                         module_id,
-                        specifier.imported.span,
-                        format!(
-                            "module `{}` does not export `{}`",
-                            import.source, specifier.imported.name
-                        ),
+                        specifier.local.span,
+                        format!("duplicate module binding `{}`", specifier.local.name),
                     ));
-                };
-                match bindings[module_id].entry(specifier.local.name) {
-                    Entry::Vacant(entry) => {
-                        entry.insert(internal);
-                    }
-                    Entry::Occupied(_) => {
-                        return Err(module_error_at(
-                            modules,
-                            module_id,
-                            specifier.local.span,
-                            format!("duplicate module binding `{}`", specifier.local.name),
-                        ));
-                    }
                 }
             }
         }
-        exports[module_id] =
-            resolve_exports(modules, module_id, program.exports, &bindings[module_id])?;
+        let mut exported_names = AHashSet::new();
+        for export in program.exports {
+            if !exported_names.insert(export.exported.name) {
+                return Err(module_error_at(
+                    modules,
+                    module_id,
+                    export.exported.span,
+                    format!("duplicate export `{}`", export.exported.name),
+                ));
+            }
+        }
+    }
+
+    // Resolve module interfaces to a fixed point. A dynamic edge may legally
+    // contain a static edge back to an already loaded module, so dependency
+    // order alone is insufficient for live bindings in that graph shape.
+    let mut exports = vec![AHashMap::new(); programs.len()];
+    loop {
+        let mut changed = false;
+        for (module_id, program) in programs.iter().enumerate() {
+            for (import_index, import) in program.imports.iter().enumerate() {
+                let dependency = modules.modules[module_id].dependencies[import_index];
+                for specifier in import.specifiers {
+                    if bindings[module_id].contains_key(specifier.local.name) {
+                        continue;
+                    }
+                    if let Some(&internal) = exports[dependency].get(specifier.imported.name) {
+                        bindings[module_id].insert(specifier.local.name, internal);
+                        changed = true;
+                    }
+                }
+            }
+            for export in program.exports {
+                if exports[module_id].contains_key(export.exported.name) {
+                    continue;
+                }
+                if let Some(&internal) = bindings[module_id].get(export.local.name) {
+                    exports[module_id].insert(export.exported.name, internal);
+                    changed = true;
+                }
+            }
+        }
+        if !changed {
+            break;
+        }
+    }
+    for (module_id, program) in programs.iter().enumerate() {
+        for (import_index, import) in program.imports.iter().enumerate() {
+            let dependency = modules.modules[module_id].dependencies[import_index];
+            for specifier in import.specifiers {
+                if bindings[module_id].contains_key(specifier.local.name) {
+                    continue;
+                }
+                let declared = programs[dependency]
+                    .exports
+                    .iter()
+                    .any(|export| export.exported.name == specifier.imported.name);
+                let message = if declared {
+                    format!(
+                        "cyclic module binding `{}` cannot be resolved",
+                        specifier.imported.name
+                    )
+                } else {
+                    format!(
+                        "module `{}` does not export `{}`",
+                        import.source, specifier.imported.name
+                    )
+                };
+                return Err(module_error_at(
+                    modules,
+                    module_id,
+                    specifier.imported.span,
+                    message,
+                ));
+            }
+        }
+        for export in program.exports {
+            if !exports[module_id].contains_key(export.exported.name) {
+                return Err(module_error_at(
+                    modules,
+                    module_id,
+                    export.local.span,
+                    format!(
+                        "cannot export unknown module binding `{}`",
+                        export.local.name
+                    ),
+                ));
+            }
+        }
     }
 
     let mut items = BumpVec::new_in(arena);
@@ -406,6 +791,52 @@ pub fn link_modules<'arena>(
             span: Span::new(export.span.start + offset, export.span.end + offset),
         });
     }
+    let mut linked_dynamic_imports = BumpVec::new_in(arena);
+    for (module_id, program) in programs.iter().enumerate() {
+        let mut imports = Vec::new();
+        collect_program_dynamic_imports(program, &mut imports);
+        if imports.len() != modules.modules[module_id].dynamic_dependencies.len() {
+            return Err(module_error_at(
+                modules,
+                module_id,
+                program.span,
+                "internal dynamic module dependency mismatch",
+            ));
+        }
+        for ((source, span), dependency) in imports
+            .into_iter()
+            .zip(&modules.modules[module_id].dynamic_dependencies)
+        {
+            let mut exported = exports[*dependency]
+                .iter()
+                .map(|(name, binding)| (*name, *binding))
+                .collect::<Vec<_>>();
+            exported.sort_unstable_by_key(|(name, _)| *name);
+            let mut dynamic_exports = BumpVec::new_in(arena);
+            dynamic_exports.extend(
+                exported
+                    .into_iter()
+                    .map(|(exported, binding)| DynamicExport { exported, binding }),
+            );
+            linked_dynamic_imports.push(DynamicImportDecl {
+                module: u32::try_from(*dependency).map_err(|_| {
+                    module_error_at(
+                        modules,
+                        module_id,
+                        span,
+                        "module graph exceeds the supported dynamic module id range",
+                    )
+                })?,
+                source,
+                span: Span::new(
+                    span.start + modules.modules[module_id].offset,
+                    span.end + modules.modules[module_id].offset,
+                ),
+                exports: dynamic_exports.into_bump_slice(),
+            });
+        }
+    }
+
     let span = items
         .first()
         .zip(items.last())
@@ -414,6 +845,7 @@ pub fn link_modules<'arena>(
         });
     Ok(Program {
         imports: &[],
+        dynamic_imports: linked_dynamic_imports.into_bump_slice(),
         exports: linked_exports.into_bump_slice(),
         items,
         span,
@@ -479,37 +911,6 @@ fn type_contracts_match(left: TypeRef<'_, '_>, right: TypeRef<'_, '_>) -> bool {
         }
         _ => false,
     }
-}
-
-fn resolve_exports<'arena>(
-    modules: &ModuleSet,
-    module_id: ModuleId,
-    declarations: &[ExportDecl<'arena>],
-    bindings: &AHashMap<&'arena str, &'arena str>,
-) -> Result<AHashMap<&'arena str, &'arena str>, ModuleError> {
-    let mut exports = AHashMap::new();
-    for export in declarations {
-        let Some(&internal) = bindings.get(export.local.name) else {
-            return Err(module_error_at(
-                modules,
-                module_id,
-                export.local.span,
-                format!(
-                    "cannot export unknown module binding `{}`",
-                    export.local.name
-                ),
-            ));
-        };
-        if exports.insert(export.exported.name, internal).is_some() {
-            return Err(module_error_at(
-                modules,
-                module_id,
-                export.exported.span,
-                format!("duplicate export `{}`", export.exported.name),
-            ));
-        }
-    }
-    Ok(exports)
 }
 
 fn top_level_name<'src>(item: &Item<'_, 'src>) -> Option<Ident<'src>> {
@@ -870,6 +1271,10 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
                 class: self.global_ident(*class),
                 type_args: self.clone_types(type_args),
                 args: self.clone_exprs(args),
+                span: self.span(*span),
+            },
+            Expr::DynamicImport { source, span } => Expr::DynamicImport {
+                source,
                 span: self.span(*span),
             },
             Expr::Member {

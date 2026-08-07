@@ -181,6 +181,7 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                     ControlFlowOp::HostFieldGet { .. }
                         | ControlFlowOp::HostFieldSet { .. }
                         | ControlFlowOp::HostCall { .. }
+                        | ControlFlowOp::DynamicImport { .. }
                 )
             })
         {
@@ -1762,7 +1763,10 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                 | Type::SharedArrayBuffer
                 | Type::Uint8Array
                 | Type::Class(_)
-                | Type::ClassInstance { .. } => "p",
+                | Type::ClassInstance { .. }
+                | Type::Task(_)
+                | Type::ModuleNamespace(_)
+                | Type::ModuleLoadError => "p",
                 Type::Struct(_) | Type::StructInstance { .. } => {
                     let native = c_type(from);
                     return Ok(format!(
@@ -1803,7 +1807,10 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                 | Type::SharedArrayBuffer
                 | Type::Uint8Array
                 | Type::Class(_)
-                | Type::ClassInstance { .. } => {
+                | Type::ClassInstance { .. }
+                | Type::Task(_)
+                | Type::ModuleNamespace(_)
+                | Type::ModuleLoadError => {
                     format!("({})({expression}).p", c_type(to))
                 }
                 Type::Struct(_) | Type::StructInstance { .. } => {
@@ -2253,6 +2260,9 @@ fn generic_value_tag(ty: &Type<'_>) -> u8 {
         | Type::ArrayBuffer
         | Type::SharedArrayBuffer
         | Type::Uint8Array
+        | Type::Task(_)
+        | Type::ModuleNamespace(_)
+        | Type::ModuleLoadError
         | Type::Class(_)
         | Type::ClassInstance { .. } => 6,
         Type::Struct(_) | Type::StructInstance { .. } | Type::Null | Type::Nullable(_) => 7,
@@ -2278,6 +2288,7 @@ fn c_type(ty: &Type<'_>) -> String {
         Type::ClassInstance { name, .. } => aggregate_type_name("Class", name),
         Type::TypeParameter(_) | Type::Union(_) => "LilScriptValue".to_string(),
         Type::Function(_) | Type::GenericFunction(_) => "LilScriptClosure".to_string(),
+        Type::Task(_) | Type::ModuleNamespace(_) | Type::ModuleLoadError => "void*".to_string(),
         Type::Void => "void".to_string(),
     }
 }
@@ -2303,6 +2314,7 @@ fn native_default_value(ty: &Type<'_>) -> Result<String, CodegenError> {
         Type::Class(_) | Type::ClassInstance { .. } => "NULL".to_string(),
         Type::TypeParameter(_) => "(LilScriptValue){0}".to_string(),
         Type::Function(_) | Type::GenericFunction(_) => "(LilScriptClosure){0}".to_string(),
+        Type::Task(_) | Type::ModuleNamespace(_) | Type::ModuleLoadError => "NULL".to_string(),
         Type::Union(members) => {
             let member = members.first().ok_or_else(|| {
                 CodegenError::new(Span::empty(0), "union has no native member type")

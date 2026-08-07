@@ -1,0 +1,26 @@
+version = 1
+compiler_abi = 1
+
+[root_dependencies]
+mathkit = "^1.2"
+
+[[packages]]
+name = "basekit"
+version = "1.0.3"
+abi = 1
+source = "../base"
+entry = "lib.lil"
+checksum = "sha256:1c19d3102d6f02beb29079743bc54f238746091297250c99c36c6cbfd071bbb1"
+
+[packages.dependencies]
+
+[[packages]]
+name = "mathkit"
+version = "1.2.0"
+abi = 1
+source = "../math"
+entry = "lib.lil"
+checksum = "sha256:2ec5df58663e49f5fcb1f30cbf134cdc36f3cc89efc717d26ec9036d213575c0"
+
+[packages.dependencies]
+basekit = "~1.0"

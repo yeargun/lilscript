@@ -1,0 +1,3 @@
+import {add} from "basekit";
+
+print(add(20, 22));

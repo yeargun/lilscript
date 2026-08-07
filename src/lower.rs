@@ -8,8 +8,8 @@ use crate::ast::{
 use crate::ir::{
     AggregateField, AggregateLayout, BlockId, ConstValue, ControlFlowBlock, ControlFlowFunction,
     ControlFlowInstruction, ControlFlowModule, ControlFlowOp, ControlShape, ExportBinding,
-    FunctionId, FunctionKind, Intrinsic, IrBinaryOp, IrExport, IrGlobal, IrLocal, IrParameter,
-    IrUnaryOp, LocalId, Phi, TemplateOperand, Terminator, ValueId,
+    FunctionId, FunctionKind, Intrinsic, IrBinaryOp, IrExport, IrGlobal, IrLazyModule, IrLocal,
+    IrParameter, IrUnaryOp, LocalId, Phi, TemplateOperand, Terminator, ValueId,
 };
 use crate::semantic::{DefaultValue, EscapeState, FunctionType, SemanticModel, SymbolId, Type};
 use crate::span::Span;
@@ -80,6 +80,7 @@ struct ModuleLowerer<'model, 'ast, 'src> {
     external_globals: AHashSet<SymbolId>,
     globals: Vec<IrGlobal<'src>>,
     exports: Vec<IrExport<'src>>,
+    lazy_modules: Vec<IrLazyModule<'src>>,
 }
 
 impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
@@ -99,6 +100,7 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
             external_globals: AHashSet::new(),
             globals: Vec::new(),
             exports: Vec::new(),
+            lazy_modules: Vec::new(),
         };
 
         let mut function_names = AHashMap::new();
@@ -218,6 +220,44 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
                 name: export.exported.name,
                 binding,
                 span: export.span,
+            });
+        }
+
+        let mut lazy_module_indexes = AHashMap::new();
+        for import in program.dynamic_imports {
+            if lazy_module_indexes.contains_key(&import.module) {
+                continue;
+            }
+            let mut exports = Vec::with_capacity(import.exports.len());
+            for export in import.exports {
+                if !semantics.dynamic_export_used(import.module, export.exported) {
+                    continue;
+                }
+                let binding = if let Some(function) = function_names.get(export.binding) {
+                    ExportBinding::Function(*function)
+                } else if let Some(global) = global_names.get(export.binding) {
+                    ExportBinding::Global(*global)
+                } else {
+                    return Err(LowerError::new(
+                        import.span,
+                        format!(
+                            "dynamic module export `{}` is type-only and has no runtime value",
+                            export.exported
+                        ),
+                    ));
+                };
+                exports.push(IrExport {
+                    name: export.exported,
+                    binding,
+                    span: import.span,
+                });
+            }
+            lazy_module_indexes.insert(import.module, lowerer.lazy_modules.len());
+            lowerer.lazy_modules.push(IrLazyModule {
+                id: import.module,
+                source: import.source,
+                exports,
+                span: import.span,
             });
         }
 
@@ -389,6 +429,7 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
             functions,
             globals: self.globals,
             exports: self.exports,
+            lazy_modules: self.lazy_modules,
             structs,
             classes,
             entry: FunctionId(0),
@@ -777,6 +818,13 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                 self.emit_value(ControlFlowOp::Const(ConstValue::Bool(*value)), ty, *span)
             }
             Expr::Null(span) => self.emit_value(ControlFlowOp::Const(ConstValue::Null), ty, *span),
+            Expr::DynamicImport { span, .. } => {
+                let module = self
+                    .semantics
+                    .dynamic_import_module(*span)
+                    .ok_or_else(|| LowerError::new(*span, "missing dynamic module metadata"))?;
+                self.emit_value(ControlFlowOp::DynamicImport { module }, ty, *span)
+            }
             Expr::Ident(ident) => self.lower_ident(*ident, ty),
             Expr::ArrayLiteral { elements, span } => {
                 let values = elements
@@ -1171,6 +1219,14 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                 ty,
                 span,
             ),
+            Type::ModuleNamespace(_) | Type::ModuleLoadError => self.emit_value(
+                ControlFlowOp::HostFieldGet {
+                    object: object_value,
+                    property: property.name,
+                },
+                ty,
+                span,
+            ),
             _ => Err(LowerError::new(
                 span,
                 format!("member `{}` must be called in this context", property.name),
@@ -1223,6 +1279,22 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
         } = callee
         {
             let receiver_type = self.expression_type(object)?;
+            if matches!(receiver_type, Type::Task(_))
+                && matches!(property.name, "then" | "catch" | "finally")
+            {
+                let receiver = self.lower_expr(object)?;
+                let args = self.lower_args(args)?;
+                return self.emit_value(
+                    ControlFlowOp::HostCall {
+                        receiver,
+                        method: property.name,
+                        args,
+                        pure: false,
+                    },
+                    ty,
+                    span,
+                );
+            }
             if let Some(intrinsic) = member_intrinsic(&receiver_type, property.name) {
                 let receiver = self.lower_expr(object)?;
                 let args = if matches!(
@@ -2250,7 +2322,8 @@ fn collect_expr_symbols<'ast, 'src>(
         | Expr::Float(_, _)
         | Expr::String(_, _)
         | Expr::Bool(_, _)
-        | Expr::Null(_) => {}
+        | Expr::Null(_)
+        | Expr::DynamicImport { .. } => {}
     }
 }
 
@@ -2434,7 +2507,8 @@ fn collect_expr_arrows<'ast, 'src>(
         | Expr::String(_, _)
         | Expr::Bool(_, _)
         | Expr::Null(_)
-        | Expr::Ident(_) => {}
+        | Expr::Ident(_)
+        | Expr::DynamicImport { .. } => {}
     }
 }
 

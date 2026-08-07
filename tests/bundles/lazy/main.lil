@@ -1,0 +1,2 @@
+auto featureTask = import("./feature");
+featureTask.then((auto feature) => print(feature.answer(40))).catch((auto error) => print(error.message));

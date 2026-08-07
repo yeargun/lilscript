@@ -99,7 +99,10 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         let mut exports = BumpVec::new_in(self.arena);
 
         while !self.is_at_end() {
-            if self.match_kind(|kind| matches!(kind, TokenKind::Import)) {
+            if self.check(|kind| matches!(kind, TokenKind::Import))
+                && !self.check_next(|kind| matches!(kind, TokenKind::LParen))
+            {
+                self.advance();
                 imports.push(self.parse_import_after_keyword()?);
                 continue;
             }
@@ -136,6 +139,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
 
         Ok(Program {
             imports: imports.into_bump_slice(),
+            dynamic_imports: &[],
             exports: exports.into_bump_slice(),
             items: items.into_bump_slice(),
             span,
@@ -1100,6 +1104,29 @@ impl<'arena, 'src> Parser<'arena, 'src> {
             TokenKind::True => Ok(Expr::Bool(true, token.span)),
             TokenKind::False => Ok(Expr::Bool(false, token.span)),
             TokenKind::Null => Ok(Expr::Null(token.span)),
+            TokenKind::Import => {
+                self.expect(
+                    |kind| matches!(kind, TokenKind::LParen),
+                    "expected `(` after dynamic `import`",
+                )?;
+                let path = self
+                    .advance()
+                    .ok_or_else(|| self.error_here("expected module path in dynamic `import`"))?;
+                let TokenKind::StringLiteral(raw) = path.kind else {
+                    return Err(ParseError::new(
+                        path.span,
+                        "dynamic `import` requires a static string module path",
+                    ));
+                };
+                let close = self.expect(
+                    |kind| matches!(kind, TokenKind::RParen),
+                    "expected `)` after dynamic module path",
+                )?;
+                Ok(Expr::DynamicImport {
+                    source: strip_quotes(raw),
+                    span: token.span.merge(close.span),
+                })
+            }
             TokenKind::New => {
                 let class = self.expect_ident("expected class name after `new`")?;
                 let type_args = self.parse_type_args()?;
@@ -1546,6 +1573,13 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         self.peek_kind().is_some_and(predicate)
     }
 
+    fn check_next(&self, predicate: impl FnOnce(&TokenKind<'src>) -> bool) -> bool {
+        self.tokens
+            .get(self.cursor + 1)
+            .map(|token| &token.kind)
+            .is_some_and(predicate)
+    }
+
     fn advance(&mut self) -> Option<Token<'src>> {
         let token = self.tokens.get(self.cursor).cloned()?;
         self.cursor += 1;
@@ -1961,5 +1995,31 @@ int result=from(3);"#,
             panic!("expected type guard return");
         };
         assert!(matches!(target.kind, TypeKind::String));
+    }
+
+    #[test]
+    fn parses_only_statically_resolvable_dynamic_imports() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "auto task=import(\"./feature\");task.then((auto module)=>module.run());",
+        )
+        .unwrap();
+        let Item::Stmt(Stmt::VarDecl(binding)) = &program.items[0] else {
+            panic!("expected dynamic import binding");
+        };
+        assert!(matches!(
+            binding.initializer,
+            Some(Expr::DynamicImport {
+                source: "./feature",
+                ..
+            })
+        ));
+        assert!(
+            parse_source(&arena, "string path=\"./feature\";auto task=import(path);")
+                .unwrap_err()
+                .message
+                .contains("static string")
+        );
     }
 }

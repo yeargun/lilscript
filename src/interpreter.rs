@@ -365,6 +365,10 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
             Expr::String(value, _) => Ok(Value::String((*value).to_string())),
             Expr::Bool(value, _) => Ok(Value::Bool(*value)),
             Expr::Null(_) => Ok(Value::Null),
+            Expr::DynamicImport { span, .. } => Err(InterpretError::new(
+                *span,
+                "dynamic module tasks execute only in the JavaScript backend",
+            )),
             Expr::Ident(identifier) => {
                 let symbol = self.symbol(identifier.span)?;
                 if self.functions.contains_key(&symbol) {

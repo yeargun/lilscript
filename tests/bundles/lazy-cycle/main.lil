@@ -1,0 +1,2 @@
+export pure int base() { return 40; }
+import("./feature").then((auto feature) => print(feature.run()));

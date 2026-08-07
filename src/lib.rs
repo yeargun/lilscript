@@ -12,6 +12,7 @@ pub mod lint;
 pub mod lower;
 pub mod module;
 pub mod optimizer;
+pub mod package;
 pub mod parser;
 pub mod semantic;
 pub mod span;
@@ -24,10 +25,11 @@ pub use compiler::{
     compile_path_explained_configured, compile_path_to_c, compile_path_to_c_configured,
     compile_path_to_js_bundle_configured, compile_path_to_js_module,
     compile_path_to_js_module_configured, compile_path_to_js_module_with_source,
-    compile_path_with_source, compile_source, compile_source_all, compile_source_to_c,
-    compile_source_to_js_module, render_diagnostic, render_module_diagnostic, CompilationArtifacts,
-    JavaScriptBundle, JavaScriptBundleFile, JavaScriptBundleManifest,
-    JavaScriptBundleManifestChunk, JavaScriptCompilation, SourceCompileError,
+    compile_path_with_source, compile_path_with_source_configured, compile_source,
+    compile_source_all, compile_source_to_c, compile_source_to_js_module, render_diagnostic,
+    render_module_diagnostic, CompilationArtifacts, JavaScriptBundle, JavaScriptBundleFile,
+    JavaScriptBundleManifest, JavaScriptBundleManifestChunk, JavaScriptCompilation,
+    SourceCompileError,
 };
 pub use interpreter::{
     interpret_program, interpret_program_with_limits, InterpretError, InterpreterLimits,

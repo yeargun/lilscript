@@ -1,0 +1,2 @@
+[dependencies]
+mathkit = { path = "../math", version = "^1.2", abi = 1 }

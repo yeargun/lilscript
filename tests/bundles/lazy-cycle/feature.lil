@@ -1,0 +1,3 @@
+import {base} from "./main";
+
+export pure int run() { return base() + 2; }

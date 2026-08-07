@@ -12,12 +12,16 @@ use crate::optimizer::OptimizationOptions;
 #[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct ProjectConfig {
+    pub package: Option<PackageMetadata>,
+    pub dependencies: BTreeMap<String, DependencyConfig>,
     pub optimization: OptimizationConfig,
     pub javascript: JavaScriptConfig,
     pub mangle: MangleConfig,
     pub bundle: BundleConfig,
     pub lint: LintConfig,
     pub format: FormatConfig,
+    #[serde(skip)]
+    pub config_dir: Option<PathBuf>,
 }
 
 impl ProjectConfig {
@@ -142,11 +146,58 @@ impl ProjectConfig {
         if self.bundle.min_chunk_bytes == 0 {
             return Err("`bundle.min_chunk_bytes` must be greater than zero".to_string());
         }
+        if let Some(package) = &self.package {
+            validate_package_name(&package.name)?;
+            semver::Version::parse(&package.version)
+                .map_err(|error| format!("invalid `package.version`: {error}"))?;
+            if package.abi != crate::package::LILSCRIPT_ABI_VERSION {
+                return Err(format!(
+                    "`package.abi` is {}, but this compiler supports ABI {}",
+                    package.abi,
+                    crate::package::LILSCRIPT_ABI_VERSION
+                ));
+            }
+            if package.entry.as_os_str().is_empty() {
+                return Err("`package.entry` must not be empty".to_string());
+            }
+        }
+        for (name, dependency) in &self.dependencies {
+            validate_package_name(name)?;
+            if dependency.path.as_os_str().is_empty() {
+                return Err(format!("dependency `{name}` has an empty path"));
+            }
+            semver::VersionReq::parse(&dependency.version).map_err(|error| {
+                format!("dependency `{name}` has invalid version requirement: {error}")
+            })?;
+            if dependency.abi != crate::package::LILSCRIPT_ABI_VERSION {
+                return Err(format!(
+                    "dependency `{name}` requests ABI {}, but this compiler supports ABI {}",
+                    dependency.abi,
+                    crate::package::LILSCRIPT_ABI_VERSION
+                ));
+            }
+        }
         if self.bundle.max_chunks == 0 {
             return Err("`bundle.max_chunks` must be greater than zero".to_string());
         }
         if self.bundle.shared_min_imports < 2 {
             return Err("`bundle.shared_min_imports` must be at least 2".to_string());
+        }
+        if self.bundle.cost.raw_weight == 0
+            && self.bundle.cost.gzip_weight == 0
+            && self.bundle.cost.brotli_weight == 0
+        {
+            return Err("`bundle.cost` must enable at least one byte-cost weight".to_string());
+        }
+        if self.bundle.cost.preload_request_discount_percent > 100 {
+            return Err(
+                "`bundle.cost.preload_request_discount_percent` must be at most 100".to_string(),
+            );
+        }
+        if self.bundle.cost.cache_reuse_discount_percent > 100 {
+            return Err(
+                "`bundle.cost.cache_reuse_discount_percent` must be at most 100".to_string(),
+            );
         }
         if let Some(decisions) = &self.javascript.compression {
             let mut unique = HashSet::with_capacity(decisions.len());
@@ -172,6 +223,57 @@ impl ProjectConfig {
             let _ = severity;
         }
         Ok(())
+    }
+}
+
+fn validate_package_name(name: &str) -> Result<(), String> {
+    if name.is_empty()
+        || !name
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
+    {
+        return Err(format!(
+            "package name `{name}` must contain only ASCII letters, digits, `-`, or `_`"
+        ));
+    }
+    Ok(())
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct PackageMetadata {
+    pub name: String,
+    pub version: String,
+    pub abi: u32,
+    pub entry: PathBuf,
+}
+
+impl Default for PackageMetadata {
+    fn default() -> Self {
+        Self {
+            name: String::new(),
+            version: "0.1.0".to_string(),
+            abi: crate::package::LILSCRIPT_ABI_VERSION,
+            entry: PathBuf::from("src/lib.lil"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct DependencyConfig {
+    pub path: PathBuf,
+    pub version: String,
+    pub abi: u32,
+}
+
+impl Default for DependencyConfig {
+    fn default() -> Self {
+        Self {
+            path: PathBuf::new(),
+            version: "*".to_string(),
+            abi: crate::package::LILSCRIPT_ABI_VERSION,
+        }
     }
 }
 
@@ -516,6 +618,41 @@ pub enum BundleMode {
     PreserveModules,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum PreloadPolicy {
+    #[default]
+    None,
+    Entry,
+    All,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct ChunkCostConfig {
+    pub raw_weight: u32,
+    pub gzip_weight: u32,
+    pub brotli_weight: u32,
+    pub request_overhead_bytes: usize,
+    pub dependency_depth_penalty_bytes: usize,
+    pub preload_request_discount_percent: u32,
+    pub cache_reuse_discount_percent: u32,
+}
+
+impl Default for ChunkCostConfig {
+    fn default() -> Self {
+        Self {
+            raw_weight: 0,
+            gzip_weight: 1,
+            brotli_weight: 2,
+            request_overhead_bytes: 1_000,
+            dependency_depth_penalty_bytes: 160,
+            preload_request_discount_percent: 70,
+            cache_reuse_discount_percent: 20,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct BundleConfig {
@@ -523,6 +660,8 @@ pub struct BundleConfig {
     pub min_chunk_bytes: usize,
     pub max_chunks: usize,
     pub shared_min_imports: usize,
+    pub preload: PreloadPolicy,
+    pub cost: ChunkCostConfig,
 }
 
 impl Default for BundleConfig {
@@ -532,6 +671,8 @@ impl Default for BundleConfig {
             min_chunk_bytes: 16 * 1024,
             max_chunks: 32,
             shared_min_imports: 2,
+            preload: PreloadPolicy::None,
+            cost: ChunkCostConfig::default(),
         }
     }
 }
@@ -571,10 +712,13 @@ pub fn load_project_config(
         path: path.clone(),
         message: format!("failed to read config: {error}"),
     })?;
-    let config = toml::from_str::<ProjectConfig>(&source).map_err(|error| ConfigError {
+    let mut config = toml::from_str::<ProjectConfig>(&source).map_err(|error| ConfigError {
         path: path.clone(),
         message: format!("invalid config: {error}"),
     })?;
+    config.config_dir = path
+        .parent()
+        .and_then(|directory| directory.canonicalize().ok());
     config.validate().map_err(|message| ConfigError {
         path: path.clone(),
         message,

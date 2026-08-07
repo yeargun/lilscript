@@ -872,14 +872,7 @@ fn devirtualize_methods(module: &mut ControlFlowModule<'_>) -> OptimizationRepor
 }
 
 fn optimize_unused_parameters(module: &mut ControlFlowModule<'_>) -> OptimizationReport {
-    let exported = module
-        .exports
-        .iter()
-        .filter_map(|export| match export.binding {
-            ExportBinding::Function(function) => Some(function),
-            _ => None,
-        })
-        .collect::<AHashSet<_>>();
+    let exported = exported_functions(module);
     let indirect = indirectly_referenced_functions(module);
     let removals = module
         .functions
@@ -1097,14 +1090,7 @@ fn constant_has_direct_native_representation(value: &ConstValue, ty: &Type<'_>) 
 }
 
 fn optimize_unused_returns(module: &mut ControlFlowModule<'_>) -> OptimizationReport {
-    let exported = module
-        .exports
-        .iter()
-        .filter_map(|export| match export.binding {
-            ExportBinding::Function(function) => Some(function),
-            _ => None,
-        })
-        .collect::<AHashSet<_>>();
+    let exported = exported_functions(module);
     let indirect = indirectly_referenced_functions(module);
     let mut observed = AHashSet::<FunctionId>::new();
     for function in &module.functions {
@@ -1826,6 +1812,9 @@ fn type_can_carry_reference(ty: &Type<'_>) -> bool {
         | Type::ArrayBuffer
         | Type::SharedArrayBuffer
         | Type::Uint8Array
+        | Type::Task(_)
+        | Type::ModuleNamespace(_)
+        | Type::ModuleLoadError
         | Type::Struct(_)
         | Type::Class(_)
         | Type::StructInstance { .. }
@@ -3485,6 +3474,12 @@ fn exported_functions(module: &ControlFlowModule<'_>) -> AHashSet<FunctionId> {
     module
         .exports
         .iter()
+        .chain(
+            module
+                .lazy_modules
+                .iter()
+                .flat_map(|module| module.exports.iter()),
+        )
         .filter_map(|export| match export.binding {
             ExportBinding::Function(function) => Some(function),
             _ => None,
@@ -3516,9 +3511,10 @@ fn control_flow_use_counts(function: &ControlFlowFunction<'_>) -> AHashMap<Value
 
 fn control_flow_used_values(op: &ControlFlowOp<'_>) -> Vec<ValueId> {
     match op {
-        ControlFlowOp::Const(_) | ControlFlowOp::LoadLocal(_) | ControlFlowOp::LoadGlobal(_) => {
-            Vec::new()
-        }
+        ControlFlowOp::Const(_)
+        | ControlFlowOp::LoadLocal(_)
+        | ControlFlowOp::LoadGlobal(_)
+        | ControlFlowOp::DynamicImport { .. } => Vec::new(),
         ControlFlowOp::Unary { value, .. } | ControlFlowOp::TypeCheck { value, .. } => vec![*value],
         ControlFlowOp::Binary { lhs, rhs, .. } => vec![*lhs, *rhs],
         ControlFlowOp::Array(values) => values.clone(),
@@ -3660,7 +3656,8 @@ fn summarize_function_effects(
         match &instruction.op {
             ControlFlowOp::StoreGlobal { .. }
             | ControlFlowOp::HostFieldGet { .. }
-            | ControlFlowOp::HostFieldSet { .. } => result.inherent = true,
+            | ControlFlowOp::HostFieldSet { .. }
+            | ControlFlowOp::DynamicImport { .. } => result.inherent = true,
             ControlFlowOp::FieldSet { object, .. } | ControlFlowOp::IndexSet { object, .. } => {
                 record_mutation(*object, &roots, &mut result);
             }
@@ -4872,7 +4869,10 @@ fn rewrite_control_flow_op_once(op: &mut ControlFlowOp<'_>, mapping: &AHashMap<V
 
 fn rewrite_control_flow_values(op: &mut ControlFlowOp<'_>, mut rewrite: impl FnMut(&mut ValueId)) {
     match op {
-        ControlFlowOp::Const(_) | ControlFlowOp::LoadLocal(_) | ControlFlowOp::LoadGlobal(_) => {}
+        ControlFlowOp::Const(_)
+        | ControlFlowOp::LoadLocal(_)
+        | ControlFlowOp::LoadGlobal(_)
+        | ControlFlowOp::DynamicImport { .. } => {}
         ControlFlowOp::Unary { value, .. } | ControlFlowOp::TypeCheck { value, .. } => {
             rewrite(value)
         }

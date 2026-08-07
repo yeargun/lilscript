@@ -1,0 +1,5 @@
+[package]
+name = "basekit"
+version = "1.0.3"
+abi = 1
+entry = "lib.lil"

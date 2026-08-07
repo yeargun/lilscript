@@ -1,0 +1,5 @@
+import {add} from "basekit";
+
+export int twice(int value) {
+  return add(value, value);
+}

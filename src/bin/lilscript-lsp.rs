@@ -11,7 +11,9 @@ use lilscript::lexer::{lex, lex_lossless, SyntaxElement, TokenKind, TriviaKind};
 use lilscript::lint::{lint_path_with_source, DiagnosticSeverity};
 use lilscript::semantic::analyze;
 use lilscript::span::Span;
-use lilscript::{compile_path_with_source, compile_source, parse_source};
+use lilscript::{
+    compile_path_with_source, compile_path_with_source_configured, compile_source, parse_source,
+};
 use lsp_server::{Connection, ErrorCode, Message, Notification, Request, Response};
 use serde_json::{json, Value};
 
@@ -215,7 +217,11 @@ fn send_notification(
 fn diagnostics(uri: Option<&str>, source: &str) -> Vec<Value> {
     if let Some(path) = uri.and_then(file_uri_path) {
         if path.is_file() {
-            return match compile_path_with_source(&path, source) {
+            let compilation = load_project_config(&path, None).map_or_else(
+                |_| compile_path_with_source(&path, source),
+                |loaded| compile_path_with_source_configured(&path, source, &loaded.config),
+            );
+            return match compilation {
                 Ok(_) => lint_diagnostics(&path, source),
                 Err(error) => {
                     let current = path.canonicalize().ok();
@@ -686,6 +692,7 @@ fn completion_result(source: Option<&str>) -> Value {
             "Fixed-length storage shared by byte views",
         ),
         keyword("Uint8Array", "Unsigned byte buffer view"),
+        keyword("Task", "Typed asynchronous value"),
         keyword("null", "Absent value for an explicitly nullable type"),
         keyword("is", "Narrow a union member with a portable runtime check"),
         keyword("return", "Return from the current function"),
@@ -711,6 +718,11 @@ fn completion_result(source: Option<&str>) -> Value {
         snippet("Map", "Map<${1:string}, ${2:int}> ${3:values} = new Map();", "Typed map declaration"),
         snippet("Set", "Set<${1:int}> ${2:values} = new Set();", "Typed set declaration"),
         snippet("Uint8Array", "Uint8Array ${1:bytes} = new Uint8Array(${2:length});", "Unsigned byte view declaration"),
+        snippet(
+            "dynamic import",
+            "import(\"${1:./feature}\").then((auto ${2:module}) => ${2:module}.${3:run}()).catch((auto error) => print(error.message));",
+            "Load a typed lazy module with explicit failure handling",
+        ),
         snippet(
             "Math.imul",
             "Math.imul(${1:left}, ${2:right})",
@@ -828,6 +840,7 @@ fn language_help(word: &str) -> Option<&'static str> {
         "ArrayBuffer" => "Fixed-length byte storage. Create an unsigned byte view with `Uint8Array`.",
         "SharedArrayBuffer" => "Fixed-length storage shared by views; host security policy controls browser availability.",
         "Uint8Array" => "Unsigned byte view with indexed access, copy slices, and zero-copy subarrays.",
+        "Task" => "Typed asynchronous value returned by dynamic module imports. Chain `then`, `catch`, and `finally` without an untyped Promise boundary.",
         "auto" => "Infers the binding type from its required initializer.",
         "null" => "Absent value assignable only to an explicitly nullable `T?` type.",
         "is" => "Checks a portable runtime type category and narrows a union binding in the selected branch.",

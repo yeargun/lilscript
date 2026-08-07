@@ -1,6 +1,7 @@
 use ahash::AHashMap;
 use bumpalo::Bump;
 use serde::Serialize;
+use sha2::{Digest, Sha256};
 use std::io::Write as _;
 use std::path::Path;
 use std::sync::Arc;
@@ -8,17 +9,18 @@ use std::sync::Arc;
 use crate::codegen_ir_js::{
     emit_optimized_ir_js, emit_optimized_ir_js_chunks_with_options, emit_optimized_ir_js_module,
     emit_optimized_ir_js_module_with_options_and_analysis,
-    emit_optimized_ir_js_with_options_and_analysis, ir_function_can_move_to_chunk, IrJsChunkPlan,
-    IrJsChunkSpec,
+    emit_optimized_ir_js_with_options_and_analysis, ir_function_can_move_to_chunk, IrJsChunk,
+    IrJsChunkPlan, IrJsChunkSpec,
 };
 use crate::codegen_js::{compile_to_js, CompileError};
 use crate::codegen_native::{compile_to_c, emit_native_c};
-use crate::config::{BundleMode, CompressionCostModel, ProjectConfig};
+use crate::config::{BundleMode, CompressionCostModel, PreloadPolicy, ProjectConfig};
 use crate::ir::{ControlFlowModule, FunctionId};
 use crate::lower::lower_to_control_flow;
 use crate::module::{
-    discover_modules, discover_modules_with_source, link_modules, locate_linked_span,
-    parse_modules, ModuleError, ModuleSet,
+    discover_modules, discover_modules_configured, discover_modules_configured_with_source,
+    discover_modules_with_source, link_modules, locate_linked_span, parse_modules, ModuleError,
+    ModuleSet,
 };
 use crate::optimizer::{
     optimize_control_flow, optimize_control_flow_for_module, optimize_control_flow_with_options,
@@ -57,8 +59,11 @@ pub struct JavaScriptBundleFile {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct JavaScriptBundleManifest {
     pub version: u32,
+    pub build_id: String,
     pub mode: String,
     pub entry: String,
+    pub preload: Vec<String>,
+    pub deploy_cost: u64,
     pub chunks: Vec<JavaScriptBundleManifestChunk>,
 }
 
@@ -67,6 +72,13 @@ pub struct JavaScriptBundleManifestChunk {
     pub file: String,
     pub modules: Vec<String>,
     pub bytes: usize,
+    pub gzip_bytes: usize,
+    pub brotli_bytes: usize,
+    pub kind: String,
+    pub dependencies: Vec<String>,
+    pub dynamic_dependencies: Vec<String>,
+    pub cache_key: String,
+    pub deploy_cost: u64,
 }
 
 #[derive(Debug)]
@@ -164,7 +176,7 @@ pub fn compile_path_explained_configured(
     config: &ProjectConfig,
 ) -> Result<JavaScriptCompilation, ModuleError> {
     let arena = Bump::new();
-    let modules = discover_modules(path)?;
+    let modules = discover_modules_configured(path, config)?;
     let programs = parse_modules(&arena, &modules)?;
     let linked = link_modules(&arena, &modules, &programs)?;
     let semantics = analyze(&linked)
@@ -191,7 +203,7 @@ pub fn compile_path_to_c_configured(
     path: &Path,
     config: &ProjectConfig,
 ) -> Result<String, ModuleError> {
-    let modules = discover_modules(path)?;
+    let modules = discover_modules_configured(path, config)?;
     let arena = Bump::new();
     let programs = parse_modules(&arena, &modules)?;
     let linked = link_modules(&arena, &modules, &programs)?;
@@ -215,7 +227,7 @@ pub fn compile_path_to_js_bundle_configured(
     config: &ProjectConfig,
     entry_file: &str,
 ) -> Result<JavaScriptBundle, ModuleError> {
-    let modules = discover_modules(path)?;
+    let modules = discover_modules_configured(path, config)?;
     if entry_file.is_empty()
         || Path::new(entry_file)
             .file_name()
@@ -250,12 +262,105 @@ pub fn compile_path_to_js_bundle_configured(
             .map(|spec| IrJsChunkSpec {
                 file_name: spec.file_name.clone(),
                 functions: spec.functions.clone(),
+                lazy_module: spec.lazy_module,
             })
             .collect(),
     };
-    let emitted = emit_optimized_ir_js_chunks_with_options(&ir, &config.js_options(), &plan)
+    let mut emitted = emit_optimized_ir_js_chunks_with_options(&ir, &config.js_options(), &plan)
         .map_err(CompileError::from)
         .map_err(|error| module_compile_error(&modules, error))?;
+    let preload = match config.bundle.preload {
+        PreloadPolicy::None => Vec::new(),
+        PreloadPolicy::Entry => emitted
+            .iter()
+            .find(|chunk| chunk.file_name == entry_file)
+            .map_or_else(Vec::new, |chunk| chunk.dynamic_dependencies.clone()),
+        PreloadPolicy::All => specs
+            .iter()
+            .filter(|spec| spec.lazy_module.is_some())
+            .map(|spec| spec.file_name.clone())
+            .collect(),
+    };
+    apply_module_preloads(&mut emitted, entry_file, &preload);
+    let depths = chunk_dependency_depths(&emitted, entry_file);
+    let reachability = chunk_reachability(&emitted);
+    let mut deploy_cost = 0u64;
+    for chunk in &emitted {
+        let (gzip_bytes, brotli_bytes) =
+            compressed_artifact_sizes(&chunk.code).map_err(|message| {
+                ModuleError::new(
+                    &modules.modules[modules.root].path,
+                    &modules.modules[modules.root].source,
+                    Span::empty(0),
+                    message,
+                )
+            })?;
+        deploy_cost = deploy_cost.saturating_add(artifact_deploy_cost(
+            chunk.code.len(),
+            gzip_bytes,
+            brotli_bytes,
+            depths.get(&chunk.file_name).copied().unwrap_or(0),
+            preload.contains(&chunk.file_name),
+            reachability
+                .get(&chunk.file_name)
+                .copied()
+                .unwrap_or(0)
+                .max(
+                    specs
+                        .iter()
+                        .find(|spec| spec.file_name == chunk.file_name)
+                        .map_or(0, |spec| spec.reachability),
+                ),
+            config,
+        ));
+    }
+    let chunks = specs
+        .iter()
+        .map(|spec| {
+            let emitted = emitted
+                .iter()
+                .find(|chunk| chunk.file_name == spec.file_name)
+                .expect("every planned chunk is emitted");
+            let (gzip_bytes, brotli_bytes) =
+                compressed_artifact_sizes(&emitted.code).map_err(|message| {
+                    ModuleError::new(
+                        &modules.modules[modules.root].path,
+                        &modules.modules[modules.root].source,
+                        Span::empty(0),
+                        message,
+                    )
+                })?;
+            Ok(JavaScriptBundleManifestChunk {
+                file: spec.file_name.clone(),
+                modules: vec![relative_module_name(&modules, spec.module)],
+                bytes: emitted.code.len(),
+                gzip_bytes,
+                brotli_bytes,
+                kind: if spec.lazy_module.is_some() {
+                    "lazy".to_string()
+                } else {
+                    "static".to_string()
+                },
+                dependencies: emitted.dependencies.clone(),
+                dynamic_dependencies: emitted.dynamic_dependencies.clone(),
+                cache_key: content_hash(emitted.code.as_bytes()),
+                deploy_cost: artifact_deploy_cost(
+                    emitted.code.len(),
+                    gzip_bytes,
+                    brotli_bytes,
+                    depths.get(&emitted.file_name).copied().unwrap_or(0),
+                    preload.contains(&emitted.file_name),
+                    reachability
+                        .get(&emitted.file_name)
+                        .copied()
+                        .unwrap_or(0)
+                        .max(spec.reachability),
+                    config,
+                ),
+            })
+        })
+        .collect::<Result<Vec<_>, ModuleError>>()?;
+    let build_id = bundle_build_id(&emitted);
     let files = emitted
         .into_iter()
         .map(|chunk| JavaScriptBundleFile {
@@ -263,23 +368,15 @@ pub fn compile_path_to_js_bundle_configured(
             code: chunk.code,
         })
         .collect::<Vec<_>>();
-    let chunks = specs
-        .iter()
-        .map(|spec| JavaScriptBundleManifestChunk {
-            file: spec.file_name.clone(),
-            modules: vec![relative_module_name(&modules, spec.module)],
-            bytes: files
-                .iter()
-                .find(|file| file.file_name == spec.file_name)
-                .map_or(0, |file| file.code.len()),
-        })
-        .collect();
     Ok(JavaScriptBundle {
         files,
         manifest: JavaScriptBundleManifest {
-            version: 1,
+            version: 2,
+            build_id,
             mode: bundle_mode_name(config.bundle.mode).to_string(),
             entry: entry_file.to_string(),
+            preload,
+            deploy_cost,
             chunks,
         },
     })
@@ -307,6 +404,14 @@ pub fn compile_path_with_source(path: &Path, source: &str) -> Result<String, Mod
     compile_path_js_inner(path, Some(source))
 }
 
+pub fn compile_path_with_source_configured(
+    path: &Path,
+    source: &str,
+    config: &ProjectConfig,
+) -> Result<String, ModuleError> {
+    compile_path_js_configured_inner(path, Some(source), config)
+}
+
 fn compile_path_js_inner(path: &Path, root_source: Option<&str>) -> Result<String, ModuleError> {
     let modules = match root_source {
         Some(source) => discover_modules_with_source(path, source)?,
@@ -324,8 +429,8 @@ fn compile_path_js_configured_inner(
     config: &ProjectConfig,
 ) -> Result<String, ModuleError> {
     let modules = match root_source {
-        Some(source) => discover_modules_with_source(path, source)?,
-        None => discover_modules(path)?,
+        Some(source) => discover_modules_configured_with_source(path, source, config)?,
+        None => discover_modules_configured(path, config)?,
     };
     let arena = Bump::new();
     let programs = parse_modules(&arena, &modules)?;
@@ -354,8 +459,8 @@ fn compile_path_js_module_configured_inner(
     config: &ProjectConfig,
 ) -> Result<String, ModuleError> {
     let modules = match root_source {
-        Some(source) => discover_modules_with_source(path, source)?,
-        None => discover_modules(path)?,
+        Some(source) => discover_modules_configured_with_source(path, source, config)?,
+        None => discover_modules_configured(path, config)?,
     };
     let arena = Bump::new();
     let programs = parse_modules(&arena, &modules)?;
@@ -384,8 +489,8 @@ fn compile_path_all_configured_inner(
     config: &ProjectConfig,
 ) -> Result<CompilationArtifacts, ModuleError> {
     let modules = match root_source {
-        Some(source) => discover_modules_with_source(path, source)?,
-        None => discover_modules(path)?,
+        Some(source) => discover_modules_configured_with_source(path, source, config)?,
+        None => discover_modules_configured(path, config)?,
     };
     let arena = Bump::new();
     let programs = parse_modules(&arena, &modules)?;
@@ -399,6 +504,8 @@ struct PlannedChunk {
     module: usize,
     file_name: String,
     functions: Vec<FunctionId>,
+    lazy_module: Option<u32>,
+    reachability: usize,
 }
 
 fn plan_javascript_chunks(
@@ -428,9 +535,33 @@ fn plan_javascript_chunks(
                 module,
                 file_name: module_chunk_file(modules, module, entry_file),
                 functions,
+                lazy_module: None,
+                reachability: 0,
             }
         })
         .collect::<Vec<_>>();
+    let lazy_modules = ir
+        .lazy_modules
+        .iter()
+        .filter_map(|module| {
+            let module_id = usize::try_from(module.id).ok()?;
+            (!modules.eager.get(module_id).copied().unwrap_or(true))
+                .then_some((module_id, module.id))
+        })
+        .collect::<AHashMap<_, _>>();
+    for (&module, &lazy_module) in &lazy_modules {
+        if let Some(chunk) = candidates.iter_mut().find(|chunk| chunk.module == module) {
+            chunk.lazy_module = Some(lazy_module);
+        } else {
+            candidates.push(PlannedChunk {
+                module,
+                file_name: module_chunk_file(modules, module, entry_file),
+                functions: Vec::new(),
+                lazy_module: Some(lazy_module),
+                reachability: 1,
+            });
+        }
+    }
     candidates.sort_unstable_by_key(|chunk| chunk.module);
     if config.bundle.mode == BundleMode::PreserveModules {
         return Ok(candidates);
@@ -445,7 +576,13 @@ fn plan_javascript_chunks(
             importer_counts[dependency] += 1;
         }
     }
-    candidates.retain(|chunk| importer_counts[chunk.module] >= config.bundle.shared_min_imports);
+    for chunk in &mut candidates {
+        chunk.reachability = chunk.reachability.max(importer_counts[chunk.module]);
+    }
+    candidates.retain(|chunk| {
+        !modules.eager[chunk.module]
+            || importer_counts[chunk.module] >= config.bundle.shared_min_imports
+    });
     if candidates.is_empty() {
         return Ok(candidates);
     }
@@ -457,6 +594,7 @@ fn plan_javascript_chunks(
             .map(|chunk| IrJsChunkSpec {
                 file_name: chunk.file_name.clone(),
                 functions: chunk.functions.clone(),
+                lazy_module: chunk.lazy_module,
             })
             .collect(),
     };
@@ -469,16 +607,111 @@ fn plan_javascript_chunks(
         .map(|chunk| (chunk.file_name, chunk.code.len()))
         .collect::<AHashMap<_, _>>();
     candidates.retain(|chunk| {
-        sizes.get(&chunk.file_name).copied().unwrap_or(0) >= config.bundle.min_chunk_bytes
+        !modules.eager[chunk.module]
+            || sizes.get(&chunk.file_name).copied().unwrap_or(0) >= config.bundle.min_chunk_bytes
     });
     candidates.sort_unstable_by(|left, right| {
         sizes[&right.file_name]
             .cmp(&sizes[&left.file_name])
             .then_with(|| left.module.cmp(&right.module))
     });
-    candidates.truncate(config.bundle.max_chunks);
-    candidates.sort_unstable_by_key(|chunk| chunk.module);
-    Ok(candidates)
+    let mut selected = candidates
+        .iter()
+        .filter(|chunk| !modules.eager[chunk.module])
+        .cloned()
+        .collect::<Vec<_>>();
+    let mut optional = candidates
+        .into_iter()
+        .filter(|chunk| modules.eager[chunk.module])
+        .collect::<Vec<_>>();
+    optional.truncate(config.bundle.max_chunks.saturating_mul(8).max(32));
+    selected.sort_unstable_by_key(|chunk| chunk.module);
+    let mut selected_cost = score_javascript_chunk_plan(ir, config, entry_file, &selected)
+        .map_err(|error| module_compile_error(modules, error))?;
+    while selected.len() < config.bundle.max_chunks && !optional.is_empty() {
+        let mut best = None::<(usize, u64)>;
+        for (index, candidate) in optional.iter().enumerate() {
+            let mut trial = selected.clone();
+            trial.push(candidate.clone());
+            trial.sort_unstable_by_key(|chunk| chunk.module);
+            let cost = score_javascript_chunk_plan(ir, config, entry_file, &trial)
+                .map_err(|error| module_compile_error(modules, error))?;
+            if best.is_none_or(|(best_index, best_cost)| {
+                (cost, candidate.module) < (best_cost, optional[best_index].module)
+            }) {
+                best = Some((index, cost));
+            }
+        }
+        let has_shared_selection = selected.iter().any(|chunk| modules.eager[chunk.module]);
+        let Some((index, cost)) =
+            best.filter(|(_, cost)| !has_shared_selection || *cost < selected_cost)
+        else {
+            break;
+        };
+        selected.push(optional.remove(index));
+        selected.sort_unstable_by_key(|chunk| chunk.module);
+        selected_cost = cost;
+    }
+    Ok(selected)
+}
+
+fn score_javascript_chunk_plan(
+    ir: &ControlFlowModule<'_>,
+    config: &ProjectConfig,
+    entry_file: &str,
+    chunks: &[PlannedChunk],
+) -> Result<u64, CompileError> {
+    let plan = IrJsChunkPlan {
+        entry_file: entry_file.to_string(),
+        chunks: chunks
+            .iter()
+            .map(|chunk| IrJsChunkSpec {
+                file_name: chunk.file_name.clone(),
+                functions: chunk.functions.clone(),
+                lazy_module: chunk.lazy_module,
+            })
+            .collect(),
+    };
+    let mut emitted = emit_optimized_ir_js_chunks_with_options(ir, &config.js_options(), &plan)?;
+    let depths = chunk_dependency_depths(&emitted, entry_file);
+    let reachability = chunk_reachability(&emitted);
+    let preload = match config.bundle.preload {
+        PreloadPolicy::None => Vec::new(),
+        PreloadPolicy::Entry => emitted
+            .iter()
+            .find(|chunk| chunk.file_name == entry_file)
+            .map_or_else(Vec::new, |chunk| chunk.dynamic_dependencies.clone()),
+        PreloadPolicy::All => chunks
+            .iter()
+            .filter(|chunk| chunk.lazy_module.is_some())
+            .map(|chunk| chunk.file_name.clone())
+            .collect(),
+    };
+    apply_module_preloads(&mut emitted, entry_file, &preload);
+    let mut score = 0u64;
+    for chunk in &emitted {
+        let (gzip, brotli) = compressed_artifact_sizes(&chunk.code)
+            .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
+        score = score.saturating_add(artifact_deploy_cost(
+            chunk.code.len(),
+            gzip,
+            brotli,
+            depths.get(&chunk.file_name).copied().unwrap_or(0),
+            preload.contains(&chunk.file_name),
+            reachability
+                .get(&chunk.file_name)
+                .copied()
+                .unwrap_or(0)
+                .max(
+                    chunks
+                        .iter()
+                        .find(|candidate| candidate.file_name == chunk.file_name)
+                        .map_or(0, |candidate| candidate.reachability),
+                ),
+            config,
+        ));
+    }
+    Ok(score)
 }
 
 fn linked_module_for_offset(modules: &ModuleSet, offset: usize) -> usize {
@@ -511,7 +744,13 @@ fn module_chunk_file(modules: &ModuleSet, module: usize, entry_file: &str) -> St
         .extension()
         .and_then(|extension| extension.to_str())
         .unwrap_or("js");
-    let candidate = format!("chunk-{module}-{sanitized}.{extension}");
+    let identity = relative_module_name(modules, module);
+    let digest = Sha256::digest(identity.as_bytes());
+    let stable_id = digest[..5]
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<String>();
+    let candidate = format!("chunk-{stable_id}-{sanitized}.{extension}");
     if candidate == entry_file {
         format!("lil-{candidate}")
     } else {
@@ -538,6 +777,139 @@ const fn bundle_mode_name(mode: BundleMode) -> &'static str {
         BundleMode::Split => "split",
         BundleMode::PreserveModules => "preserve-modules",
     }
+}
+
+fn compressed_artifact_sizes(code: &str) -> Result<(usize, usize), String> {
+    Ok((
+        compressed_size(code.as_bytes(), CompressionCostModel::Gzip)?,
+        compressed_size(code.as_bytes(), CompressionCostModel::Brotli)?,
+    ))
+}
+
+fn apply_module_preloads(chunks: &mut [IrJsChunk], entry: &str, preload: &[String]) {
+    if preload.is_empty() {
+        return;
+    }
+    let Some(entry) = chunks.iter_mut().find(|chunk| chunk.file_name == entry) else {
+        return;
+    };
+    let files = preload
+        .iter()
+        .map(|file| format!("./{file}"))
+        .collect::<Vec<_>>();
+    let files = serde_json::to_string(&files).expect("preload file names are serializable");
+    entry.code.insert_str(
+        0,
+        &format!(
+            "typeof document!=\"undefined\"&&{files}.forEach(a=>{{let b=document.createElement(\"link\");b.rel=\"modulepreload\",b.href=a,document.head.append(b)}});"
+        ),
+    );
+}
+
+fn content_hash(bytes: &[u8]) -> String {
+    let digest = Sha256::digest(bytes);
+    let mut encoded = String::with_capacity(digest.len() * 2);
+    for byte in digest {
+        use std::fmt::Write as _;
+        write!(encoded, "{byte:02x}").expect("writing a digest to String cannot fail");
+    }
+    encoded
+}
+
+fn bundle_build_id(chunks: &[IrJsChunk]) -> String {
+    let mut hasher = Sha256::new();
+    for chunk in chunks {
+        hasher.update((chunk.file_name.len() as u64).to_le_bytes());
+        hasher.update(chunk.file_name.as_bytes());
+        hasher.update((chunk.code.len() as u64).to_le_bytes());
+        hasher.update(chunk.code.as_bytes());
+    }
+    let digest = hasher.finalize();
+    let mut encoded = String::with_capacity(digest.len() * 2);
+    for byte in digest {
+        use std::fmt::Write as _;
+        write!(encoded, "{byte:02x}").expect("writing a digest to String cannot fail");
+    }
+    encoded
+}
+
+fn chunk_dependency_depths(chunks: &[IrJsChunk], entry: &str) -> AHashMap<String, usize> {
+    let mut depths = AHashMap::new();
+    depths.insert(entry.to_string(), 0usize);
+    let mut changed = true;
+    while changed {
+        changed = false;
+        for chunk in chunks {
+            let Some(depth) = depths.get(&chunk.file_name).copied() else {
+                continue;
+            };
+            for dependency in chunk.dependencies.iter().chain(&chunk.dynamic_dependencies) {
+                let candidate = depth.saturating_add(1);
+                let entry = depths.entry(dependency.clone()).or_insert(candidate);
+                if candidate < *entry {
+                    *entry = candidate;
+                    changed = true;
+                }
+            }
+        }
+    }
+    depths
+}
+
+fn chunk_reachability(chunks: &[IrJsChunk]) -> AHashMap<String, usize> {
+    let mut reachability = AHashMap::new();
+    for chunk in chunks {
+        let mut dependencies = chunk
+            .dependencies
+            .iter()
+            .chain(&chunk.dynamic_dependencies)
+            .collect::<Vec<_>>();
+        dependencies.sort_unstable();
+        dependencies.dedup();
+        for dependency in dependencies {
+            *reachability.entry(dependency.clone()).or_insert(0) += 1;
+        }
+    }
+    reachability
+}
+
+fn artifact_deploy_cost(
+    raw: usize,
+    gzip: usize,
+    brotli: usize,
+    depth: usize,
+    preloaded: bool,
+    reachability: usize,
+    config: &ProjectConfig,
+) -> u64 {
+    let cost = &config.bundle.cost;
+    let byte_cost = (raw as u64)
+        .saturating_mul(u64::from(cost.raw_weight))
+        .saturating_add((gzip as u64).saturating_mul(u64::from(cost.gzip_weight)))
+        .saturating_add((brotli as u64).saturating_mul(u64::from(cost.brotli_weight)));
+    let request = if depth == 0 {
+        0
+    } else {
+        let request = cost.request_overhead_bytes as u64;
+        if preloaded {
+            request.saturating_mul(u64::from(
+                100u32.saturating_sub(cost.preload_request_discount_percent),
+            )) / 100
+        } else {
+            request
+        }
+    };
+    let depth_cost =
+        (cost.dependency_depth_penalty_bytes as u64).saturating_mul(depth.saturating_sub(1) as u64);
+    let cache_reuse = reachability.saturating_sub(1).min(4) as u64;
+    let cache_discount = byte_cost
+        .saturating_mul(u64::from(cost.cache_reuse_discount_percent))
+        .saturating_mul(cache_reuse)
+        / 100;
+    byte_cost
+        .saturating_add(request)
+        .saturating_add(depth_cost)
+        .saturating_sub(cache_discount)
 }
 
 fn compile_program_all<'ast, 'src>(
@@ -1570,7 +1942,10 @@ mod tests {
         assert_eq!(bundle.manifest.chunks[0].modules, ["library.lil"]);
         let entry = &bundle.files[0].code;
         let chunk = &bundle.files[1].code;
-        assert!(entry.contains("from\"./chunk-1-library.js\""), "{entry}");
+        assert!(
+            entry.contains(&format!("from\"./{}\"", bundle.manifest.chunks[0].file)),
+            "{entry}"
+        );
         assert!(entry.contains("function $m1$set"), "{entry}");
         assert!(chunk.contains("function $m1$read"), "{chunk}");
         assert!(chunk.contains("from\"./entry.js\""), "{chunk}");

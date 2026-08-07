@@ -1258,7 +1258,10 @@ fn collect_aggregate_owners(ty: &Type<'_>, owners: &mut AHashSet<String>) {
                 collect_aggregate_owners(argument, owners);
             }
         }
-        Type::Array(element) | Type::Set(element) | Type::Nullable(element) => {
+        Type::Array(element)
+        | Type::Set(element)
+        | Type::Nullable(element)
+        | Type::Task(element) => {
             collect_aggregate_owners(element, owners);
         }
         Type::Map(key, value) => {
@@ -1291,6 +1294,8 @@ fn collect_aggregate_owners(ty: &Type<'_>, owners: &mut AHashSet<String>) {
         | Type::ArrayBuffer
         | Type::SharedArrayBuffer
         | Type::Uint8Array
+        | Type::ModuleNamespace(_)
+        | Type::ModuleLoadError
         | Type::TypeParameter(_) => {}
     }
 }

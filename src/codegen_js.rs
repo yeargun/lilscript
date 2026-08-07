@@ -580,6 +580,11 @@ impl<'src> JsEmitter<'src> {
             Expr::String(value, _) => write_string_literal(value, out),
             Expr::Bool(value, _) => out.push_str(if *value { "true" } else { "false" }),
             Expr::Null(_) => out.push_str("null"),
+            Expr::DynamicImport { source, .. } => {
+                out.push_str("import(");
+                write_string_literal(source, out);
+                out.push(')');
+            }
             Expr::Ident(ident) => {
                 if ident.name == "this" {
                     out.push_str("this");

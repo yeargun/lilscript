@@ -110,9 +110,18 @@ pub struct ControlFlowModule<'src> {
     pub functions: Vec<ControlFlowFunction<'src>>,
     pub globals: Vec<IrGlobal<'src>>,
     pub exports: Vec<IrExport<'src>>,
+    pub lazy_modules: Vec<IrLazyModule<'src>>,
     pub structs: Vec<AggregateLayout<'src>>,
     pub classes: Vec<AggregateLayout<'src>>,
     pub entry: FunctionId,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IrLazyModule<'src> {
+    pub id: u32,
+    pub source: &'src str,
+    pub exports: Vec<IrExport<'src>>,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -341,6 +350,9 @@ pub enum ControlFlowOp<'src> {
         method: &'src str,
         args: Vec<ValueId>,
         pure: bool,
+    },
+    DynamicImport {
+        module: u32,
     },
     Intrinsic {
         intrinsic: Intrinsic,

@@ -1,0 +1,6 @@
+[bundle]
+mode = "split"
+min_chunk_bytes = 1
+max_chunks = 8
+shared_min_imports = 2
+preload = "entry"
