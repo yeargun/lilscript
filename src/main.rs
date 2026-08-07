@@ -91,7 +91,11 @@ fn run() -> Result<(), String> {
                     let compilation =
                         compile_path_explained_configured(&args.input, &loaded.config)
                             .map_err(|error| render_module_diagnostic(&error))?;
-                    print_explanation(format, &compilation.optimization_reports)?;
+                    print_explanation(
+                        format,
+                        &compilation.optimization_reports,
+                        &compilation.selection_metrics,
+                    )?;
                     write_or_print(args.output.as_deref(), &compilation.javascript)?;
                 } else {
                     let js = compile_path_configured(&args.input, &loaded.config)
@@ -156,6 +160,7 @@ fn run() -> Result<(), String> {
 fn print_explanation(
     format: ExplainFormat,
     reports: &[lilscript::optimizer::OptimizationReport],
+    metrics: &lilscript::JavaScriptSelectionMetrics,
 ) -> Result<(), String> {
     match format {
         ExplainFormat::Human => {
@@ -170,11 +175,42 @@ fn print_explanation(
                     }
                 );
             }
+            eprintln!("{:<34} {}", "javascript codec", metrics.codec);
+            eprintln!(
+                "{:<34} {}",
+                "selected transfer bytes", metrics.transfer_bytes
+            );
+            eprintln!("{:<34} {}", "syntax tokens", metrics.syntax.tokens);
+            eprintln!("{:<34} {}", "syntax AST nodes", metrics.syntax.ast_nodes);
+            eprintln!(
+                "{:<34} {}",
+                "estimated parse cost", metrics.syntax.parse_cost
+            );
+            eprintln!(
+                "{:<34} {}",
+                "estimated compile cost", metrics.syntax.compile_cost
+            );
+            eprintln!(
+                "{:<34} {}",
+                "estimated startup memory", metrics.syntax.estimated_memory_bytes
+            );
+            eprintln!(
+                "{:<34} {}",
+                "candidates evaluated", metrics.candidates_evaluated
+            );
+            eprintln!("{:<34} {}", "peephole rewrites", metrics.peephole_rewrites);
+            eprintln!(
+                "{:<34} {}",
+                "compiler time (microseconds)", metrics.compiler_time_micros
+            );
         }
         ExplainFormat::Json => eprintln!(
             "{}",
-            serde_json::to_string_pretty(reports)
-                .map_err(|error| format!("failed to serialize optimization report: {error}"))?
+            serde_json::to_string_pretty(&serde_json::json!({
+                "optimization_reports": reports,
+                "javascript_selection": metrics,
+            }))
+            .map_err(|error| format!("failed to serialize optimization report: {error}"))?
         ),
     }
     Ok(())

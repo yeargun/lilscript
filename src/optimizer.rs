@@ -4996,7 +4996,15 @@ mod tests {
         assert!(reports
             .iter()
             .any(|report| { report.pass_name == "unused-return-optimization" && report.changed }));
-        assert!(output.contains("function a(b)"), "{output}");
+        let parameters = output
+            .split_once('(')
+            .and_then(|(_, rest)| rest.split_once(')'))
+            .map(|(parameters, _)| parameters)
+            .expect("specialized function must be emitted");
+        assert!(
+            !parameters.is_empty() && !parameters.contains(','),
+            "{output}"
+        );
         assert!(!output.contains("return"), "{output}");
         assert!(!output.contains("a(3,"), "{output}");
     }

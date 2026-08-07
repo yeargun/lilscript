@@ -5,7 +5,8 @@ use std::path::{Path, PathBuf};
 use serde::Deserialize;
 
 use crate::codegen_ir_js::{
-    IdentifierAlphabet, IrJsOptions, LoopSpelling, MutationSpelling, PhiAffinityMode, StringQuote,
+    ControlFlowSpelling, IdentifierAlphabet, IrJsOptions, LoopSpelling, MutationSpelling,
+    PhiAffinityMode, StateMachineSpelling, StringQuote,
 };
 use crate::optimizer::OptimizationOptions;
 
@@ -97,6 +98,19 @@ impl ProjectConfig {
             } else {
                 PhiAffinityMode::Conservative
             },
+            control_flow_spelling: ControlFlowSpelling::Auto,
+            state_machine_spelling: StateMachineSpelling::Switch,
+            conditional_expressions: self
+                .javascript
+                .optimization_enabled(JavaScriptOptimization::ConditionalExpressionVariants, None),
+            comma_expressions: false,
+            update_loop_layout: true,
+            cross_scope_name_reuse: self
+                .javascript
+                .optimization_enabled(JavaScriptOptimization::EntropyCrossScopeReuse, None),
+            entropy_property_names: self
+                .javascript
+                .optimization_enabled(JavaScriptOptimization::EntropyPropertyAssignment, None),
             loop_spelling: LoopSpelling::Auto,
             mutation_spelling: MutationSpelling::Assignment,
             identifier_alphabet: IdentifierAlphabet::canonical(),
@@ -116,30 +130,43 @@ impl ProjectConfig {
 
     pub fn ir_inlining_variants_enabled(&self) -> bool {
         self.javascript.candidate_search_enabled()
-            && self
-                .javascript
-                .compression_enabled(CompressionDecision::IrInliningVariants)
+            && self.javascript.optimization_enabled(
+                JavaScriptOptimization::IrInliningVariants,
+                Some(CompressionDecision::IrInliningVariants),
+            )
     }
 
     pub fn ir_closure_factory_variants_enabled(&self) -> bool {
         self.javascript.candidate_search_enabled()
-            && self
-                .javascript
-                .compression_enabled(CompressionDecision::IrClosureFactoryVariants)
+            && self.javascript.optimization_enabled(
+                JavaScriptOptimization::IrClosureFactoryVariants,
+                Some(CompressionDecision::IrClosureFactoryVariants),
+            )
+    }
+
+    pub fn javascript_optimization_enabled(&self, feature: JavaScriptOptimization) -> bool {
+        self.javascript.candidate_search_enabled()
+            && self.javascript.optimization_enabled(feature, None)
+    }
+
+    pub fn javascript_optimization_configured(&self, feature: JavaScriptOptimization) -> bool {
+        self.javascript.optimization_enabled(feature, None)
     }
 
     pub fn loop_spelling_selection_enabled(&self) -> bool {
         self.javascript.candidate_search_enabled()
-            && self
-                .javascript
-                .compression_enabled(CompressionDecision::LoopSpellingSelection)
+            && self.javascript.optimization_enabled(
+                JavaScriptOptimization::StructuralLoopVariants,
+                Some(CompressionDecision::LoopSpellingSelection),
+            )
     }
 
     pub fn mutation_spelling_selection_enabled(&self) -> bool {
         self.javascript.candidate_search_enabled()
-            && self
-                .javascript
-                .compression_enabled(CompressionDecision::MutationSpellingSelection)
+            && self.javascript.optimization_enabled(
+                JavaScriptOptimization::CompoundMutationVariants,
+                Some(CompressionDecision::MutationSpellingSelection),
+            )
     }
 
     pub fn validate(&self) -> Result<(), String> {
@@ -212,6 +239,38 @@ impl ProjectConfig {
         }
         if self.javascript.candidate_limit == 0 {
             return Err("`javascript.candidate_limit` must be greater than zero".to_string());
+        }
+        if self.javascript.optimization_level > 15 {
+            return Err("`javascript.optimization_level` must be between 0 and 15".to_string());
+        }
+        if let Some(features) = &self.javascript.optimizations {
+            let mut unique = HashSet::with_capacity(features.len());
+            for feature in features {
+                if !unique.insert(*feature) {
+                    return Err(format!(
+                        "`javascript.optimizations` contains duplicate `{}`",
+                        feature.name()
+                    ));
+                }
+            }
+        }
+        for (name, percent) in [
+            (
+                "parse_overhead_limit_percent",
+                self.javascript.startup.parse_overhead_limit_percent,
+            ),
+            (
+                "compile_overhead_limit_percent",
+                self.javascript.startup.compile_overhead_limit_percent,
+            ),
+            (
+                "memory_overhead_limit_percent",
+                self.javascript.startup.memory_overhead_limit_percent,
+            ),
+        ] {
+            if percent > 1_000 {
+                return Err(format!("`javascript.startup.{name}` must be at most 1000"));
+            }
         }
         if self.format.line_width < 40 {
             return Err("`format.line_width` must be at least 40".to_string());
@@ -395,6 +454,8 @@ impl CompressionDecision {
 #[serde(default, deny_unknown_fields)]
 pub struct JavaScriptConfig {
     pub priority: JavaScriptPriority,
+    pub optimization_level: u8,
+    pub optimizations: Option<Vec<JavaScriptOptimization>>,
     pub compression: Option<Vec<CompressionDecision>>,
     pub inline_instruction_limit: Option<usize>,
     pub inline_control_flow_limit: Option<usize>,
@@ -402,12 +463,15 @@ pub struct JavaScriptConfig {
     pub cost_model: CompressionCostModel,
     pub candidate_search: CandidateSearch,
     pub candidate_limit: usize,
+    pub startup: StartupCostConfig,
 }
 
 impl Default for JavaScriptConfig {
     fn default() -> Self {
         Self {
             priority: JavaScriptPriority::SizeFirst,
+            optimization_level: 15,
+            optimizations: None,
             compression: None,
             inline_instruction_limit: None,
             inline_control_flow_limit: None,
@@ -415,6 +479,91 @@ impl Default for JavaScriptConfig {
             cost_model: CompressionCostModel::Brotli,
             candidate_search: CandidateSearch::Production,
             candidate_limit: 1536,
+            startup: StartupCostConfig::default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum JavaScriptOptimization {
+    IrInliningVariants,
+    IrClosureFactoryVariants,
+    IrSpecializationVariants,
+    StructuralControlFlowVariants,
+    SsaDestructionVariants,
+    ConditionalExpressionVariants,
+    CommaExpressionVariants,
+    StructuralLoopVariants,
+    DoLoopVariants,
+    UpdateLoopVariants,
+    SwitchLoweringVariants,
+    CompoundMutationVariants,
+    EntropyCrossScopeReuse,
+    EntropyPropertyAssignment,
+    ParsedPeephole,
+    StartupCostGuard,
+}
+
+impl JavaScriptOptimization {
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::IrInliningVariants => "ir-inlining-variants",
+            Self::IrClosureFactoryVariants => "ir-closure-factory-variants",
+            Self::IrSpecializationVariants => "ir-specialization-variants",
+            Self::StructuralControlFlowVariants => "structural-control-flow-variants",
+            Self::SsaDestructionVariants => "ssa-destruction-variants",
+            Self::ConditionalExpressionVariants => "conditional-expression-variants",
+            Self::CommaExpressionVariants => "comma-expression-variants",
+            Self::StructuralLoopVariants => "structural-loop-variants",
+            Self::DoLoopVariants => "do-loop-variants",
+            Self::UpdateLoopVariants => "update-loop-variants",
+            Self::SwitchLoweringVariants => "switch-lowering-variants",
+            Self::CompoundMutationVariants => "compound-mutation-variants",
+            Self::EntropyCrossScopeReuse => "entropy-cross-scope-reuse",
+            Self::EntropyPropertyAssignment => "entropy-property-assignment",
+            Self::ParsedPeephole => "parsed-peephole",
+            Self::StartupCostGuard => "startup-cost-guard",
+        }
+    }
+
+    const fn minimum_level(self) -> u8 {
+        match self {
+            Self::ConditionalExpressionVariants => 4,
+            Self::UpdateLoopVariants | Self::CompoundMutationVariants => 5,
+            Self::CommaExpressionVariants | Self::SsaDestructionVariants => 7,
+            Self::EntropyCrossScopeReuse | Self::EntropyPropertyAssignment => 8,
+            Self::StructuralLoopVariants | Self::ParsedPeephole => 9,
+            Self::IrInliningVariants
+            | Self::IrSpecializationVariants
+            | Self::StructuralControlFlowVariants => 10,
+            Self::IrClosureFactoryVariants | Self::DoLoopVariants => 11,
+            Self::SwitchLoweringVariants => 12,
+            Self::StartupCostGuard => 1,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct StartupCostConfig {
+    pub parse_weight: u32,
+    pub compile_weight: u32,
+    pub memory_weight: u32,
+    pub parse_overhead_limit_percent: u32,
+    pub compile_overhead_limit_percent: u32,
+    pub memory_overhead_limit_percent: u32,
+}
+
+impl Default for StartupCostConfig {
+    fn default() -> Self {
+        Self {
+            parse_weight: 1,
+            compile_weight: 1,
+            memory_weight: 1,
+            parse_overhead_limit_percent: 30,
+            compile_overhead_limit_percent: 30,
+            memory_overhead_limit_percent: 35,
         }
     }
 }
@@ -518,6 +667,35 @@ impl JavaScriptConfig {
 
     pub const fn candidate_search_enabled(&self) -> bool {
         !matches!(self.candidate_search, CandidateSearch::Off)
+    }
+
+    fn optimization_enabled(
+        &self,
+        feature: JavaScriptOptimization,
+        legacy: Option<CompressionDecision>,
+    ) -> bool {
+        if let Some(features) = &self.optimizations {
+            return features.contains(&feature);
+        }
+        self.optimization_level >= feature.minimum_level()
+            && legacy.is_none_or(|decision| self.compression_enabled(decision))
+    }
+
+    pub fn effective_candidate_limit(&self) -> usize {
+        if self.optimizations.is_some() {
+            return self.candidate_limit;
+        }
+        let level_limit = match self.optimization_level {
+            0..=2 => 1,
+            3..=4 => 16,
+            5..=6 => 64,
+            7..=8 => 192,
+            9..=10 => 384,
+            11..=12 => 768,
+            13..=14 => 1_024,
+            _ => usize::MAX,
+        };
+        self.candidate_limit.min(level_limit)
     }
 }
 
@@ -933,6 +1111,47 @@ max_inline_growth = 3
     }
 
     #[test]
+    fn resolves_javascript_optimization_levels_and_exact_allowlists() {
+        let disabled: ProjectConfig =
+            toml::from_str("[javascript]\noptimization_level=0\ncandidate_limit=1536\n").unwrap();
+        disabled.validate().unwrap();
+        assert_eq!(disabled.javascript.effective_candidate_limit(), 1);
+        assert!(!disabled.javascript_optimization_configured(
+            JavaScriptOptimization::ConditionalExpressionVariants
+        ));
+        assert!(
+            !disabled.javascript_optimization_configured(JavaScriptOptimization::StartupCostGuard)
+        );
+        assert!(!disabled.js_options().conditional_expressions);
+        assert!(!disabled.js_options().cross_scope_name_reuse);
+
+        let standard: ProjectConfig =
+            toml::from_str("[javascript]\noptimization_level=9\n").unwrap();
+        assert_eq!(standard.javascript.effective_candidate_limit(), 384);
+        assert!(standard.javascript_optimization_configured(JavaScriptOptimization::ParsedPeephole));
+        assert!(standard
+            .javascript_optimization_configured(JavaScriptOptimization::EntropyPropertyAssignment));
+        assert!(!standard
+            .javascript_optimization_configured(JavaScriptOptimization::IrInliningVariants));
+
+        let exact: ProjectConfig = toml::from_str(
+            r#"
+[javascript]
+optimization_level = 0
+optimizations = ["parsed-peephole", "do-loop-variants"]
+"#,
+        )
+        .unwrap();
+        exact.validate().unwrap();
+        assert_eq!(exact.javascript.effective_candidate_limit(), 1536);
+        assert!(exact.javascript_optimization_configured(JavaScriptOptimization::ParsedPeephole));
+        assert!(exact.javascript_optimization_configured(JavaScriptOptimization::DoLoopVariants));
+        assert!(!exact.javascript_optimization_configured(
+            JavaScriptOptimization::ConditionalExpressionVariants
+        ));
+    }
+
+    #[test]
     fn rejects_unknown_and_invalid_settings() {
         assert!(toml::from_str::<ProjectConfig>("[mangle]\nmagic=true").is_err());
         let config = toml::from_str::<ProjectConfig>("[bundle]\nmax_chunks=0").unwrap();
@@ -941,6 +1160,19 @@ max_inline_growth = 3
             toml::from_str("[javascript]\ncompression=['string-pooling','string-pooling']\n")
                 .unwrap();
         assert!(duplicate.validate().unwrap_err().contains("duplicate"));
+        let invalid_level: ProjectConfig =
+            toml::from_str("[javascript]\noptimization_level=16\n").unwrap();
+        assert!(invalid_level
+            .validate()
+            .unwrap_err()
+            .contains("between 0 and 15"));
+        let duplicate_optimization: ProjectConfig =
+            toml::from_str("[javascript]\noptimizations=['parsed-peephole','parsed-peephole']\n")
+                .unwrap();
+        assert!(duplicate_optimization
+            .validate()
+            .unwrap_err()
+            .contains("duplicate"));
     }
 
     #[test]

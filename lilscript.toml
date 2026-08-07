@@ -3,9 +3,12 @@ preset = "maximum"
 
 [javascript]
 priority = "size-first"
+optimization_level = 15
 cost_model = "brotli"
 candidate_search = "production"
 candidate_limit = 1536
+# Omit this exact allowlist to use optimization_level.
+# optimizations = ["parsed-peephole", "startup-cost-guard"]
 compression = [
   "identifier-mangling",
   "entropy-aware-mangling",
@@ -23,6 +26,14 @@ compression = [
   "loop-spelling-selection",
   "mutation-spelling-selection",
 ]
+
+[javascript.startup]
+parse_weight = 1
+compile_weight = 1
+memory_weight = 1
+parse_overhead_limit_percent = 30
+compile_overhead_limit_percent = 30
+memory_overhead_limit_percent = 35
 
 [bundle]
 mode = "single"

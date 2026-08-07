@@ -1,0 +1,20 @@
+[optimization]
+preset = "none"
+
+[javascript]
+priority = "size-first"
+optimization_level = 0
+optimizations = []
+candidate_search = "off"
+
+[mangle]
+identifiers = false
+properties = false
+exports = false
+pool_strings = false
+
+[bundle]
+mode = "single"
+min_chunk_bytes = 4096
+max_chunks = 8
+shared_min_imports = 2

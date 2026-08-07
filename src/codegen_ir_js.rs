@@ -34,6 +34,13 @@ pub struct IrJsOptions {
     pub pack_string_arrays: bool,
     pub scalar_phi_copies: bool,
     pub phi_affinity_mode: PhiAffinityMode,
+    pub control_flow_spelling: ControlFlowSpelling,
+    pub state_machine_spelling: StateMachineSpelling,
+    pub conditional_expressions: bool,
+    pub comma_expressions: bool,
+    pub update_loop_layout: bool,
+    pub cross_scope_name_reuse: bool,
+    pub entropy_property_names: bool,
     pub loop_spelling: LoopSpelling,
     pub mutation_spelling: MutationSpelling,
     pub identifier_alphabet: IdentifierAlphabet,
@@ -53,6 +60,13 @@ impl Default for IrJsOptions {
             pack_string_arrays: true,
             scalar_phi_copies: false,
             phi_affinity_mode: PhiAffinityMode::Grouped,
+            control_flow_spelling: ControlFlowSpelling::Auto,
+            state_machine_spelling: StateMachineSpelling::Switch,
+            conditional_expressions: true,
+            comma_expressions: false,
+            update_loop_layout: true,
+            cross_scope_name_reuse: true,
+            entropy_property_names: true,
             loop_spelling: LoopSpelling::Auto,
             mutation_spelling: MutationSpelling::Assignment,
             identifier_alphabet: IdentifierAlphabet::canonical(),
@@ -82,6 +96,7 @@ pub enum LoopSpelling {
     Auto,
     While,
     For,
+    Do,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -90,7 +105,342 @@ pub enum MutationSpelling {
     Assignment,
     Prefix,
     Postfix,
+    Compound,
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ControlFlowSpelling {
+    #[default]
+    Auto,
+    Structured,
+    StateMachine,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum StateMachineSpelling {
+    #[default]
+    Switch,
+    Conditional,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum JsPrecedence {
+    Comma,
+    Assignment,
+    Conditional,
+    LogicalOr,
+    LogicalAnd,
+    BitOr,
+    BitXor,
+    BitAnd,
+    Equality,
+    Relational,
+    Shift,
+    Additive,
+    Multiplicative,
+    Unary,
+    Call,
+    Member,
+    Primary,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum JsExpressionRoot {
+    Atom,
+    Unary(&'static str),
+    Binary(IrBinaryOp),
+    Conditional,
+    Call,
+    Member,
+    IntegerNormalization,
+    Raw,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct JsExpression {
+    code: String,
+    ungrouped: Option<String>,
+    precedence: JsPrecedence,
+    root: JsExpressionRoot,
+    normalization_operand: Option<Box<Self>>,
+    binary_operands: Option<(Box<Self>, Box<Self>)>,
+    unary_operand: Option<Box<Self>>,
+}
+
+impl JsExpression {
+    fn atom(code: impl Into<String>) -> Self {
+        Self {
+            code: code.into(),
+            ungrouped: None,
+            precedence: JsPrecedence::Primary,
+            root: JsExpressionRoot::Atom,
+            normalization_operand: None,
+            binary_operands: None,
+            unary_operand: None,
+        }
+    }
+
+    fn raw(code: impl Into<String>, precedence: JsPrecedence) -> Self {
+        Self {
+            code: code.into(),
+            ungrouped: None,
+            precedence,
+            root: JsExpressionRoot::Raw,
+            normalization_operand: None,
+            binary_operands: None,
+            unary_operand: None,
+        }
+    }
+
+    fn grouped(ungrouped: String, precedence: JsPrecedence, root: JsExpressionRoot) -> Self {
+        Self {
+            code: format!("({ungrouped})"),
+            ungrouped: Some(ungrouped),
+            precedence,
+            root,
+            normalization_operand: None,
+            binary_operands: None,
+            unary_operand: None,
+        }
+    }
+
+    fn unary(operator: &'static str, operand: Self) -> Self {
+        let original_operand = Box::new(operand.clone());
+        let token_collision = (operator == "-" && operand.code.starts_with('-'))
+            || (operator == "+" && operand.code.starts_with('+'));
+        let operand = if operand.precedence < JsPrecedence::Unary || token_collision {
+            operand.grouped_code()
+        } else {
+            operand.code
+        };
+        Self {
+            code: format!("{operator}{operand}"),
+            ungrouped: None,
+            precedence: JsPrecedence::Unary,
+            root: JsExpressionRoot::Unary(operator),
+            normalization_operand: None,
+            binary_operands: None,
+            unary_operand: Some(original_operand),
+        }
+    }
+
+    fn binary(op: IrBinaryOp, lhs: Self, rhs: Self) -> Self {
+        let operands = (Box::new(lhs.clone()), Box::new(rhs.clone()));
+        let lhs = lhs.binary_operand(op, BinaryOperandSide::Left);
+        let rhs = rhs.binary_operand(op, BinaryOperandSide::Right);
+        let rhs = token_safe_binary_rhs(op, rhs);
+        let mut expression = Self::grouped(
+            format!("{lhs}{}{rhs}", binary_operator(op)),
+            js_binary_precedence(op),
+            JsExpressionRoot::Binary(op),
+        );
+        expression.binary_operands = Some(operands);
+        expression
+    }
+
+    fn conditional(condition: Self, then_value: Self, else_value: Self) -> Self {
+        let condition = condition.at_least(JsPrecedence::LogicalOr);
+        let then_value = then_value.at_least(JsPrecedence::Assignment);
+        let else_value = else_value.at_least(JsPrecedence::Assignment);
+        Self::grouped(
+            format!("{condition}?{then_value}:{else_value}"),
+            JsPrecedence::Conditional,
+            JsExpressionRoot::Conditional,
+        )
+    }
+
+    fn comma(expressions: impl IntoIterator<Item = Self>) -> Self {
+        let code = expressions
+            .into_iter()
+            .map(|expression| expression.at_least(JsPrecedence::Assignment))
+            .collect::<Vec<_>>()
+            .join(",");
+        Self::grouped(code, JsPrecedence::Comma, JsExpressionRoot::Raw)
+    }
+
+    fn call(callee: Self, args: impl IntoIterator<Item = Self>) -> Self {
+        let mut code = callee.at_least(JsPrecedence::Call);
+        code.push('(');
+        for (index, argument) in args.into_iter().enumerate() {
+            if index != 0 {
+                code.push(',');
+            }
+            code.push_str(&argument.at_least(JsPrecedence::Assignment));
+        }
+        code.push(')');
+        Self {
+            code,
+            ungrouped: None,
+            precedence: JsPrecedence::Call,
+            root: JsExpressionRoot::Call,
+            normalization_operand: None,
+            binary_operands: None,
+            unary_operand: None,
+        }
+    }
+
+    fn member(object: Self, property: &str) -> Self {
+        let object = if object.precedence == JsPrecedence::Primary
+            && object
+                .ungrouped
+                .as_deref()
+                .unwrap_or(&object.code)
+                .as_bytes()
+                .first()
+                .is_some_and(u8::is_ascii_digit)
+        {
+            object.grouped_code()
+        } else {
+            object.at_least(JsPrecedence::Member)
+        };
+        Self {
+            code: format!("{object}.{property}"),
+            ungrouped: None,
+            precedence: JsPrecedence::Member,
+            root: JsExpressionRoot::Member,
+            normalization_operand: None,
+            binary_operands: None,
+            unary_operand: None,
+        }
+    }
+
+    fn index(object: Self, index: Self) -> Self {
+        Self {
+            code: format!(
+                "{}[{}]",
+                object.at_least(JsPrecedence::Member),
+                index.at_least(JsPrecedence::Assignment)
+            ),
+            ungrouped: None,
+            precedence: JsPrecedence::Member,
+            root: JsExpressionRoot::Member,
+            normalization_operand: None,
+            binary_operands: None,
+            unary_operand: None,
+        }
+    }
+
+    fn integer_normalization(value: Self) -> Self {
+        let rendered = value
+            .clone()
+            .binary_operand(IrBinaryOp::BitOr, BinaryOperandSide::Left);
+        let mut normalized = Self::grouped(
+            format!("{rendered}|0"),
+            JsPrecedence::BitOr,
+            JsExpressionRoot::IntegerNormalization,
+        );
+        normalized.normalization_operand = Some(Box::new(value));
+        normalized
+    }
+
+    fn at_least(self, minimum: JsPrecedence) -> String {
+        if self.precedence < minimum {
+            self.grouped_code()
+        } else {
+            self.into_minimal()
+        }
+    }
+
+    fn grouped_code(self) -> String {
+        if self.code.starts_with('(') && self.code.ends_with(')') {
+            self.code
+        } else {
+            format!("({})", self.code)
+        }
+    }
+
+    fn into_minimal(self) -> String {
+        self.ungrouped.unwrap_or(self.code)
+    }
+
+    fn minimalized(mut self) -> Self {
+        if let Some(ungrouped) = self.ungrouped.take() {
+            self.code = ungrouped;
+        }
+        self
+    }
+
+    fn negated(self) -> String {
+        if is_true_literal(&self.code) {
+            return "!1".to_string();
+        }
+        if is_false_literal(&self.code) {
+            return "!0".to_string();
+        }
+        if self.root == JsExpressionRoot::Unary("!") {
+            return self
+                .unary_operand
+                .map(|operand| operand.into_minimal())
+                .expect("unary expressions carry their operand");
+        }
+        if let JsExpressionRoot::Binary(operator) = self.root {
+            if let Some(inverse) = inverse_comparison(operator) {
+                if let Some((lhs, rhs)) = self.binary_operands {
+                    return Self::binary(inverse, *lhs, *rhs).into_minimal();
+                }
+            }
+        }
+        Self::unary("!", self).into_minimal()
+    }
+
+    fn without_integer_normalization(self) -> Self {
+        if self.root != JsExpressionRoot::IntegerNormalization {
+            return self;
+        }
+        self.normalization_operand
+            .map(|operand| *operand)
+            .expect("integer normalization expressions carry their operand")
+    }
+
+    fn binary_operand(self, parent: IrBinaryOp, side: BinaryOperandSide) -> String {
+        let can_unwrap = match self.root {
+            JsExpressionRoot::Binary(child) => {
+                let child_precedence = js_binary_precedence(child);
+                let parent_precedence = js_binary_precedence(parent);
+                child_precedence > parent_precedence
+                    || (child_precedence == parent_precedence
+                        && match side {
+                            BinaryOperandSide::Left => true,
+                            BinaryOperandSide::Right => {
+                                child == parent
+                                    && matches!(
+                                        parent,
+                                        IrBinaryOp::BitAnd
+                                            | IrBinaryOp::BitOr
+                                            | IrBinaryOp::Xor
+                                            | IrBinaryOp::And
+                                            | IrBinaryOp::Or
+                                    )
+                            }
+                        })
+            }
+            _ => self.precedence > js_binary_precedence(parent),
+        };
+        if can_unwrap {
+            self.into_minimal()
+        } else if self.precedence < js_binary_precedence(parent) {
+            self.grouped_code()
+        } else {
+            self.code
+        }
+    }
+}
+
+impl std::fmt::Display for JsExpression {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(&self.code)
+    }
+}
+
+impl std::ops::Deref for JsExpression {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        &self.code
+    }
+}
+
+type ExpressionCache = AHashMap<ValueId, JsExpression>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct IdentifierAlphabet {
@@ -958,7 +1308,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         if !self.options.mangle_properties {
             return;
         }
-        let mut mangler = Mangler::default();
+        let mut frequencies = AHashMap::<String, usize>::new();
         for field in self
             .module
             .structs
@@ -966,9 +1316,154 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             .chain(&self.module.classes)
             .flat_map(|layout| &layout.fields)
         {
-            if !self.property_names.contains_key(field.name) {
-                self.property_names
-                    .insert(field.name.to_string(), mangler.next_name());
+            frequencies.entry(field.name.to_string()).or_insert(0);
+        }
+        for function in self
+            .module
+            .functions
+            .iter()
+            .filter(|function| function.live)
+        {
+            for block in &function.blocks {
+                let loop_weight = 1 + function
+                    .shapes
+                    .iter()
+                    .filter(|shape| matches!(shape, ControlShape::Loop { body, update, .. } if *body == block.id || *update == Some(block.id)))
+                    .count()
+                    * 3;
+                for instruction in &block.instructions {
+                    let field = match &instruction.op {
+                        ControlFlowOp::FieldGet { field, .. }
+                        | ControlFlowOp::FieldSet { field, .. } => Some(*field),
+                        _ => None,
+                    };
+                    if let Some(field) = field {
+                        *frequencies.entry(field.to_string()).or_insert(0) += loop_weight;
+                    }
+                }
+            }
+        }
+        let mut fields = frequencies.into_iter().collect::<Vec<_>>();
+        fields.sort_unstable_by(|left, right| {
+            right.1.cmp(&left.1).then_with(|| left.0.cmp(&right.0))
+        });
+        let alphabet = if self.options.entropy_property_names {
+            self.options.identifier_alphabet
+        } else {
+            IdentifierAlphabet::canonical()
+        };
+        let mut mangler = Mangler::new(alphabet);
+        for (field, _) in fields {
+            self.property_names.insert(field, mangler.next_name());
+        }
+    }
+
+    fn local_mangler(&self, function: &ControlFlowFunction<'src>) -> Mangler {
+        if !self.options.cross_scope_name_reuse || function.kind == FunctionKind::Entry {
+            return self.top_level_mangler.clone();
+        }
+        let mut referenced = AHashSet::new();
+        self.collect_top_level_references(function.id, &mut AHashSet::new(), &mut referenced);
+        let mut mangler = self.top_level_mangler.clone();
+        for candidate in self
+            .module
+            .functions
+            .iter()
+            .filter(|candidate| candidate.live && candidate.kind != FunctionKind::Extern)
+        {
+            if let Some(name) = self.function_names.get(&candidate.id) {
+                if !referenced.contains(name) {
+                    mangler.release(name);
+                }
+            }
+        }
+        for global in self.module.globals.iter().filter(|global| !global.external) {
+            if let Some(name) = self.global_names.get(&global.symbol) {
+                if !referenced.contains(name) {
+                    mangler.release(name);
+                }
+            }
+        }
+        for name in self.string_aliases.values() {
+            if !referenced.contains(name) {
+                mangler.release(name);
+            }
+        }
+        mangler.rewind();
+        mangler
+    }
+
+    fn collect_top_level_references(
+        &self,
+        function: FunctionId,
+        visited: &mut AHashSet<FunctionId>,
+        referenced: &mut AHashSet<String>,
+    ) {
+        if !visited.insert(function) {
+            return;
+        }
+        let Some(function) = self.module.functions.get(function.0 as usize) else {
+            return;
+        };
+        for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
+            match &instruction.op {
+                ControlFlowOp::CallDirect { function, .. }
+                | ControlFlowOp::NewClass {
+                    constructor: Some(function),
+                    ..
+                } => {
+                    if let Some(name) = self.function_names.get(function) {
+                        referenced.insert(name.clone());
+                    }
+                }
+                ControlFlowOp::Closure {
+                    function: closure, ..
+                } => {
+                    let inline =
+                        self.module
+                            .functions
+                            .get(closure.0 as usize)
+                            .is_some_and(|closure| {
+                                can_inline_closure(closure, self.options.inline_structured_closures)
+                            });
+                    if inline {
+                        self.collect_top_level_references(*closure, visited, referenced);
+                    } else if let Some(name) = self.function_names.get(closure) {
+                        referenced.insert(name.clone());
+                    }
+                }
+                ControlFlowOp::LoadGlobal(global) | ControlFlowOp::StoreGlobal { global, .. } => {
+                    if let Some(name) = self.global_names.get(global) {
+                        referenced.insert(name.clone());
+                    }
+                }
+                ControlFlowOp::Const(ConstValue::String(value)) => {
+                    if let Some(name) = self.string_aliases.get(value) {
+                        referenced.insert(name.clone());
+                    }
+                }
+                ControlFlowOp::DynamicImport { module } => {
+                    if let Some(module) = self
+                        .module
+                        .lazy_modules
+                        .iter()
+                        .find(|candidate| candidate.id == *module)
+                    {
+                        for export in &module.exports {
+                            let name = match export.binding {
+                                ExportBinding::Function(function) => {
+                                    self.function_names.get(&function)
+                                }
+                                ExportBinding::Global(global) => self.global_names.get(&global),
+                                ExportBinding::TypeOnly => None,
+                            };
+                            if let Some(name) = name {
+                                referenced.insert(name.clone());
+                            }
+                        }
+                    }
+                }
+                _ => {}
             }
         }
     }
@@ -987,12 +1482,17 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         out.push_str(&name);
         out.push('(');
         let single_block = function.blocks.len() == 1 && function.blocks[0].phis.is_empty();
-        let structured = !single_block && can_structure(function);
+        let structure_available = !single_block && can_structure(function);
+        let structured = match self.options.control_flow_spelling {
+            ControlFlowSpelling::Auto | ControlFlowSpelling::Structured => structure_available,
+            ControlFlowSpelling::StateMachine => false,
+        };
+        let local_mangler = self.local_mangler(function);
         let mut context = LocalNames::new(
             function,
             self.integer_analysis.function(function.id),
             !single_block && !structured,
-            &self.top_level_mangler,
+            &local_mangler,
             &self.options,
         );
         context.inline_declarations = structured;
@@ -1009,11 +1509,13 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             out.push_str(context.value_name(param.value)?);
         }
         out.push(')');
-        if let Some(expression) = self.render_conditional_return(function, &context)? {
-            out.push_str("{return ");
-            out.push_str(&expression);
-            out.push('}');
-            return Ok(());
+        if self.options.conditional_expressions {
+            if let Some(expression) = self.render_conditional_return(function, &context)? {
+                out.push_str("{return ");
+                out.push_str(&expression);
+                out.push('}');
+                return Ok(());
+            }
         }
         if single_block {
             self.emit_single_block_with_context(function, true, context, out)
@@ -1056,7 +1558,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             let expression = self.render_instruction_op(instruction, context, &mut cache)?;
             cache.insert(out, expression);
         }
-        let condition = strip_outer_parens(take_value(condition, context, &mut cache)?);
+        let condition = take_value(condition, context, &mut cache)?;
         let Some(then_value) =
             self.render_linear_return_path(function, then_block, context, uses, cache.clone())?
         else {
@@ -1067,11 +1569,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         else {
             return Ok(None);
         };
-        Ok(Some(format!(
-            "{condition}?{}:{}",
-            strip_outer_parens(then_value),
-            strip_outer_parens(else_value)
-        )))
+        Ok(Some(
+            JsExpression::conditional(condition, then_value, else_value).into_minimal(),
+        ))
     }
 
     fn render_linear_return_path(
@@ -1080,8 +1580,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         mut block: BlockId,
         context: &LocalNames,
         uses: &AHashMap<ValueId, usize>,
-        mut cache: AHashMap<ValueId, String>,
-    ) -> Result<Option<String>, CodegenError> {
+        mut cache: ExpressionCache,
+    ) -> Result<Option<JsExpression>, CodegenError> {
         let mut visited = AHashSet::new();
         let mut deferred_effects = 0usize;
         loop {
@@ -1128,11 +1628,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         wrapped: bool,
         out: &mut String,
     ) -> Result<(), CodegenError> {
+        let local_mangler = self.local_mangler(function);
         let context = LocalNames::new(
             function,
             self.integer_analysis.function(function.id),
             false,
-            &self.top_level_mangler,
+            &local_mangler,
             &self.options,
         );
         self.emit_single_block_with_context(function, wrapped, context, out)
@@ -1150,8 +1651,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         }
         let block = &function.blocks[0];
         let uses = &context.use_counts;
-        let mut cache = AHashMap::<ValueId, String>::new();
+        let mut cache = ExpressionCache::new();
         let mut previous_binding = false;
+        let mut previous_expressions = None::<(usize, Vec<JsExpression>)>;
         for (index, instruction) in block.instructions.iter().enumerate() {
             let fuse_with_next = instruction.out.is_some_and(|value| {
                 uses.get(&value).copied().unwrap_or(0) == 1 && can_fuse_value(block, index, value)
@@ -1170,14 +1672,46 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 continue;
             }
             let binding = is_single_binding_statement(&statement);
+            let statement_start = out.len();
             if previous_binding && binding {
                 out.pop();
                 out.push(',');
                 out.push_str(&statement[4..]);
+            } else if self.options.comma_expressions
+                && previous_expressions.is_some()
+                && is_comma_eligible_statement(&statement)
+            {
+                let (start, mut expressions) = previous_expressions
+                    .take()
+                    .expect("comma expression candidate was checked");
+                expressions.push(JsExpression::raw(
+                    statement
+                        .strip_suffix(';')
+                        .expect("eligible expression statements end in semicolons"),
+                    JsPrecedence::Assignment,
+                ));
+                out.truncate(start);
+                out.push_str(&JsExpression::comma(expressions.clone()).into_minimal());
+                out.push(';');
+                previous_expressions = Some((start, expressions));
             } else {
                 out.push_str(&statement);
             }
             previous_binding = binding;
+            if !binding && is_comma_eligible_statement(&statement) && previous_expressions.is_none()
+            {
+                previous_expressions = Some((
+                    statement_start,
+                    vec![JsExpression::raw(
+                        statement
+                            .strip_suffix(';')
+                            .expect("eligible expression statements end in semicolons"),
+                        JsPrecedence::Assignment,
+                    )],
+                ));
+            } else if binding || !is_comma_eligible_statement(&statement) {
+                previous_expressions = None;
+            }
         }
         match block.terminator.as_ref() {
             Some(Terminator::Return(Some(value))) => {
@@ -1221,7 +1755,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         fuse_with_next: bool,
         predeclared: bool,
         context: &LocalNames,
-        cache: &mut AHashMap<ValueId, String>,
+        cache: &mut ExpressionCache,
         out: &mut String,
     ) -> Result<(), CodegenError> {
         match &instruction.op {
@@ -1335,11 +1869,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         function: &ControlFlowFunction<'src>,
         out: &mut String,
     ) -> Result<(), CodegenError> {
+        let local_mangler = self.local_mangler(function);
         let context = LocalNames::new(
             function,
             self.integer_analysis.function(function.id),
             true,
-            &self.top_level_mangler,
+            &local_mangler,
             &self.options,
         );
         self.emit_state_machine_with_context(function, context, out)
@@ -1366,12 +1901,28 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         let state = context.state_name();
         out.push_str("let ");
         out.push_str(state);
-        write!(out, "={};for(;;)switch({state}){{", function.entry.0)
-            .expect("writing to String cannot fail");
+        match self.options.state_machine_spelling {
+            StateMachineSpelling::Switch => {
+                write!(out, "={};for(;;)switch({state}){{", function.entry.0)
+                    .expect("writing to String cannot fail");
+            }
+            StateMachineSpelling::Conditional => {
+                write!(out, "={};for(;;){{", function.entry.0)
+                    .expect("writing to String cannot fail");
+            }
+        }
 
         let uses = &context.use_counts;
         for block in &function.blocks {
-            write!(out, "case {}:", block.id.0).expect("writing to String cannot fail");
+            match self.options.state_machine_spelling {
+                StateMachineSpelling::Switch => {
+                    write!(out, "case {}:", block.id.0).expect("writing to String cannot fail");
+                }
+                StateMachineSpelling::Conditional => {
+                    write!(out, "if({state}=={}){{", block.id.0)
+                        .expect("writing to String cannot fail");
+                }
+            }
             let mut cache = AHashMap::new();
             for (index, instruction) in block.instructions.iter().enumerate() {
                 let fuse_with_next = instruction.out.is_some_and(|value| {
@@ -1439,6 +1990,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 Terminator::Return(None) => out.push_str("return;"),
                 Terminator::Unreachable => out.push_str("throw Error();"),
             }
+            if self.options.state_machine_spelling == StateMachineSpelling::Conditional {
+                out.push('}');
+            }
         }
         out.push_str("}}");
         Ok(())
@@ -1450,11 +2004,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         wrapped: bool,
         out: &mut String,
     ) -> Result<(), CodegenError> {
+        let local_mangler = self.local_mangler(function);
         let mut context = LocalNames::new(
             function,
             self.integer_analysis.function(function.id),
             false,
-            &self.top_level_mangler,
+            &local_mangler,
             &self.options,
         );
         context.inline_declarations = true;
@@ -1514,7 +2069,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         loop_context: Option<LoopContext>,
         context: &LocalNames,
         uses: &AHashMap<ValueId, usize>,
-        cache: &mut AHashMap<ValueId, String>,
+        cache: &mut ExpressionCache,
         visited: &mut AHashSet<BlockId>,
         out: &mut String,
     ) -> Result<PathEnd, CodegenError> {
@@ -1564,7 +2119,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 "if shape header is not a branch",
                             ));
                         };
-                        let condition = strip_outer_parens(take_value(condition, context, cache)?);
+                        let condition = take_value(condition, context, cache)?.minimalized();
                         let mut then_visited = visited.clone();
                         let mut then_cache = cache.clone();
                         let mut then_output = String::new();
@@ -1605,7 +2160,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 return Ok(PathEnd::Terminated);
                             }
                         } else if let Some((declare, target, then_value, else_value, trailing)) =
-                            merge_conditional_assignments(&then_output, &else_output)
+                            self.options
+                                .conditional_expressions
+                                .then(|| merge_conditional_assignments(&then_output, &else_output))
+                                .flatten()
                         {
                             let mut value = String::new();
                             if is_true_literal(then_value) && is_false_literal(else_value) {
@@ -1669,7 +2227,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 out.push(';');
                             }
                         } else if let Some((then_target, then_value, else_target, else_value)) =
-                            conditional_assignment_expression(&then_output, &else_output)
+                            self.options
+                                .conditional_expressions
+                                .then(|| {
+                                    conditional_assignment_expression(&then_output, &else_output)
+                                })
+                                .flatten()
                         {
                             out.push_str(&condition);
                             out.push('?');
@@ -1714,7 +2277,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         }
                         cache.clear();
                         if let Some((value, expression)) = deferred_merge {
-                            cache.insert(value, expression);
+                            cache.insert(
+                                value,
+                                JsExpression::raw(expression, JsPrecedence::Conditional),
+                            );
                         }
                         current = merge_block;
                         continue;
@@ -1747,7 +2313,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         }
                         let mut header_output = String::new();
                         self.emit_cached_block(block, uses, context, cache, &mut header_output)?;
-                        let condition = strip_outer_parens(take_value(condition, context, cache)?);
+                        let condition = take_value(condition, context, cache)?.minimalized();
                         let mut exit_output = String::new();
                         let mut exit_cache = cache.clone();
                         self.emit_phi_edge_cached(
@@ -1759,32 +2325,45 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             &mut exit_output,
                         )?;
                         let compact_loop = header_output.is_empty() && exit_output.is_empty();
-                        let update_clause = if compact_loop {
-                            if let Some(update_block) = update {
-                                let mut update_visited = AHashSet::new();
-                                let mut update_cache = AHashMap::new();
-                                let mut update_output = String::new();
-                                let update_end = self.emit_structured_path(
-                                    function,
-                                    update_block,
-                                    Some(header),
-                                    None,
-                                    context,
-                                    uses,
-                                    &mut update_cache,
-                                    &mut update_visited,
-                                    &mut update_output,
-                                )?;
-                                (update_end == PathEnd::ReachedStop)
-                                    .then(|| for_update_clause(&update_output))
-                                    .flatten()
+                        let do_loop =
+                            compact_loop && self.options.loop_spelling == LoopSpelling::Do;
+                        let update_clause =
+                            if compact_loop && self.options.update_loop_layout && !do_loop {
+                                if let Some(update_block) = update {
+                                    let mut update_visited = AHashSet::new();
+                                    let mut update_cache = AHashMap::new();
+                                    let mut update_output = String::new();
+                                    let update_end = self.emit_structured_path(
+                                        function,
+                                        update_block,
+                                        Some(header),
+                                        None,
+                                        context,
+                                        uses,
+                                        &mut update_cache,
+                                        &mut update_visited,
+                                        &mut update_output,
+                                    )?;
+                                    (update_end == PathEnd::ReachedStop)
+                                        .then(|| for_update_clause(&update_output))
+                                        .flatten()
+                                } else {
+                                    None
+                                }
                             } else {
                                 None
-                            }
-                        } else {
-                            None
-                        };
-                        if let Some(update_clause) = &update_clause {
+                            };
+                        let do_condition = if do_loop {
+                            let condition = if body_on_true {
+                                condition.clone().into_minimal()
+                            } else {
+                                negate_condition(condition.clone())
+                            };
+                            out.push_str("if(");
+                            out.push_str(&condition);
+                            out.push_str(")do{");
+                            Some(condition)
+                        } else if let Some(update_clause) = &update_clause {
                             out.push_str("for(;");
                             if body_on_true {
                                 out.push_str(&condition);
@@ -1794,6 +2373,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             out.push(';');
                             out.push_str(update_clause);
                             out.push_str("){");
+                            None
                         } else if compact_loop {
                             let reuse_for_spelling = match self.options.loop_spelling {
                                 LoopSpelling::Auto => {
@@ -1801,6 +2381,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 }
                                 LoopSpelling::While => false,
                                 LoopSpelling::For => true,
+                                LoopSpelling::Do => false,
                             };
                             if reuse_for_spelling {
                                 out.push_str("for(;");
@@ -1816,6 +2397,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 out.push(';');
                             }
                             out.push_str("){");
+                            None
                         } else {
                             out.push_str("for(;;){");
                             out.push_str(&header_output);
@@ -1828,8 +2410,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             out.push_str("){");
                             out.push_str(&exit_output);
                             out.push_str("break}");
-                        }
-                        let loop_body_open = compact_loop.then_some(out.len() - 1);
+                            None
+                        };
+                        let loop_body_open = (compact_loop && !do_loop).then_some(out.len() - 1);
 
                         let continue_target = update.unwrap_or(header);
                         let nested_loop = LoopContext {
@@ -1868,7 +2451,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 )?;
                             }
                         }
-                        if loop_body_open
+                        if let Some(condition) = do_condition {
+                            out.push_str("}while(");
+                            out.push_str(&condition);
+                            out.push_str(");");
+                        } else if loop_body_open
                             .is_some_and(|open| is_braceless_statement(&out[open + 1..]))
                         {
                             out.remove(loop_body_open.expect("checked loop body opening"));
@@ -1954,7 +2541,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         block: &crate::ir::ControlFlowBlock<'src>,
         uses: &AHashMap<ValueId, usize>,
         context: &LocalNames,
-        cache: &mut AHashMap<ValueId, String>,
+        cache: &mut ExpressionCache,
         out: &mut String,
     ) -> Result<(), CodegenError> {
         for (index, instruction) in block.instructions.iter().enumerate() {
@@ -1976,7 +2563,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
 
     fn flush_cache_except(
         &self,
-        cache: &mut AHashMap<ValueId, String>,
+        cache: &mut ExpressionCache,
         context: &LocalNames,
         out: &mut String,
         retained: Option<ValueId>,
@@ -2006,7 +2593,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         from: u32,
         to: u32,
         context: &LocalNames,
-        cache: &mut AHashMap<ValueId, String>,
+        cache: &mut ExpressionCache,
         out: &mut String,
     ) -> Result<(), CodegenError> {
         let copies = function.blocks[to as usize]
@@ -2038,8 +2625,34 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             }
         }
         if assignments.len() == 1 {
+            let compound_update = (!declaration_needed
+                && self.options.mutation_spelling == MutationSpelling::Compound)
+                .then(|| {
+                    single_assignment_copy.and_then(|(target, source)| {
+                        compound_assignment_copy(
+                            function,
+                            BlockId(from),
+                            target,
+                            source,
+                            &context.use_counts,
+                            context,
+                        )
+                    })
+                })
+                .flatten();
+            if let Some((operator, operand)) = compound_update {
+                out.push_str(&assignments[0].0);
+                out.push_str(operator);
+                out.push('=');
+                out.push_str(&operand);
+                out.push(';');
+                return Ok(());
+            }
             let compact_update = (!declaration_needed
-                && self.options.mutation_spelling != MutationSpelling::Assignment
+                && matches!(
+                    self.options.mutation_spelling,
+                    MutationSpelling::Prefix | MutationSpelling::Postfix
+                )
                 && single_assignment_copy.is_some_and(|(target, source)| {
                     is_one_use_increment_copy(
                         function,
@@ -2155,8 +2768,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         &mut self,
         instruction: &ControlFlowInstruction<'src>,
         context: &LocalNames,
-        cache: &mut AHashMap<ValueId, String>,
-    ) -> Result<String, CodegenError> {
+        cache: &mut ExpressionCache,
+    ) -> Result<JsExpression, CodegenError> {
         if instruction.ty.as_ref() == Some(&Type::Int) {
             let coercion_is_elidable = self.options.elide_safe_integer_coercions
                 && instruction
@@ -2168,10 +2781,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     value,
                 } => {
                     let value = take_value(*value, context, cache)?;
+                    let negated = JsExpression::unary("-", value);
                     return Ok(if coercion_is_elidable {
-                        format!("(-{value})")
+                        negated
                     } else {
-                        format!("(-{value}|0)")
+                        JsExpression::integer_normalization(negated)
                     });
                 }
                 ControlFlowOp::Binary { op, lhs, rhs }
@@ -2190,8 +2804,6 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             | IrBinaryOp::UnsignedShiftRight
                     ) =>
                 {
-                    let lhs_child = context.binary_operator(*lhs);
-                    let rhs_child = context.binary_operator(*rhs);
                     let mut lhs = take_value(*lhs, context, cache)?;
                     let mut rhs = take_value(*rhs, context, cache)?;
                     if matches!(
@@ -2203,28 +2815,20 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             | IrBinaryOp::ShiftRight
                             | IrBinaryOp::UnsignedShiftRight
                     ) {
-                        lhs = strip_redundant_i32_coercion(lhs);
-                        rhs = strip_redundant_i32_coercion(rhs);
+                        lhs = lhs.without_integer_normalization();
+                        rhs = rhs.without_integer_normalization();
                     }
-                    lhs = render_binary_operand(lhs, lhs_child, *op, BinaryOperandSide::Left);
-                    rhs = render_binary_operand(rhs, rhs_child, *op, BinaryOperandSide::Right);
-                    let rhs = token_safe_binary_rhs(*op, rhs);
+                    let rhs_is_nonzero_literal = is_nonzero_i32_literal(&rhs.code);
+                    let expression = JsExpression::binary(*op, lhs, rhs);
                     return Ok(match op {
-                        IrBinaryOp::Mul if coercion_is_elidable => format!("({lhs}*{rhs})"),
-                        IrBinaryOp::Mul => format!("({lhs}*{rhs}|0)"),
-                        IrBinaryOp::Mod if is_nonzero_i32_literal(&rhs) => {
-                            format!("({lhs}%{rhs})")
-                        }
-                        IrBinaryOp::BitAnd => format!("({lhs}&{rhs})"),
-                        IrBinaryOp::BitOr => format!("({lhs}|{rhs})"),
-                        IrBinaryOp::Xor => format!("({lhs}^{rhs})"),
-                        IrBinaryOp::ShiftLeft => format!("({lhs}<<{rhs})"),
-                        IrBinaryOp::ShiftRight => format!("({lhs}>>{rhs})"),
-                        IrBinaryOp::UnsignedShiftRight => format!("({lhs}>>>{rhs}|0)"),
-                        _ if coercion_is_elidable => {
-                            format!("({lhs}{}{rhs})", binary_operator(*op))
-                        }
-                        _ => format!("({lhs}{}{rhs}|0)", binary_operator(*op)),
+                        IrBinaryOp::BitAnd
+                        | IrBinaryOp::BitOr
+                        | IrBinaryOp::Xor
+                        | IrBinaryOp::ShiftLeft
+                        | IrBinaryOp::ShiftRight => expression,
+                        IrBinaryOp::Mod if rhs_is_nonzero_literal => expression,
+                        _ if coercion_is_elidable => expression,
+                        _ => JsExpression::integer_normalization(expression),
                     });
                 }
                 _ => {}
@@ -2251,13 +2855,15 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     rendered.push_str(&take_value(*value, context, cache)?);
                 }
                 rendered.push('}');
-                Ok(rendered)
+                Ok(JsExpression::atom(rendered))
             }
             ControlFlowOp::NewClass {
                 class,
                 constructor: None,
                 args,
-            } if boundary && args.is_empty() => self.default_class_value(class, true),
+            } if boundary && args.is_empty() => self
+                .default_class_value(class, true)
+                .map(JsExpression::atom),
             _ => self.render_op(&instruction.op, context, cache),
         }
     }
@@ -2266,60 +2872,56 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         &mut self,
         op: &ControlFlowOp<'src>,
         context: &LocalNames,
-        cache: &mut AHashMap<ValueId, String>,
-    ) -> Result<String, CodegenError> {
-        let value = |id, cache: &mut AHashMap<_, _>| take_value(id, context, cache);
+        cache: &mut ExpressionCache,
+    ) -> Result<JsExpression, CodegenError> {
+        let value = |id, cache: &mut ExpressionCache| take_value(id, context, cache);
         Ok(match op {
-            ControlFlowOp::Const(ConstValue::String(value)) => self
-                .string_aliases
-                .get(value)
-                .cloned()
-                .unwrap_or_else(|| render_string_literal(value, self.options.string_quote)),
-            ControlFlowOp::Const(value) => render_const(
+            ControlFlowOp::Const(ConstValue::String(value)) => JsExpression::atom(
+                self.string_aliases
+                    .get(value)
+                    .cloned()
+                    .unwrap_or_else(|| render_string_literal(value, self.options.string_quote)),
+            ),
+            ControlFlowOp::Const(value) => JsExpression::atom(render_const(
                 value,
                 self.options.compact_boolean_literals,
                 self.options.string_quote,
-            ),
-            ControlFlowOp::Unary { op, value: operand } => format!(
-                "{}{}",
+            )),
+            ControlFlowOp::Unary { op, value: operand } => JsExpression::unary(
                 match op {
                     IrUnaryOp::Neg => "-",
                     IrUnaryOp::Not => "!",
                 },
-                value(*operand, cache)?
+                value(*operand, cache)?,
             ),
             ControlFlowOp::Binary { op, lhs, rhs } => {
-                let lhs = render_binary_operand(
-                    value(*lhs, cache)?,
-                    context.binary_operator(*lhs),
-                    *op,
-                    BinaryOperandSide::Left,
-                );
-                let rhs = render_binary_operand(
-                    value(*rhs, cache)?,
-                    context.binary_operator(*rhs),
-                    *op,
-                    BinaryOperandSide::Right,
-                );
-                let rhs = token_safe_binary_rhs(*op, rhs);
+                let lhs = value(*lhs, cache)?;
+                let rhs = value(*rhs, cache)?;
                 if matches!(op, IrBinaryOp::Eq | IrBinaryOp::NotEq)
-                    && is_rendered_string_literal(&lhs)
-                    && is_rendered_string_literal(&rhs)
+                    && is_rendered_string_literal(&lhs.code)
+                    && is_rendered_string_literal(&rhs.code)
                 {
-                    let equal = lhs == rhs;
-                    render_const(
+                    let equal = lhs.code == rhs.code;
+                    JsExpression::atom(render_const(
                         &ConstValue::Bool(if *op == IrBinaryOp::Eq { equal } else { !equal }),
                         self.options.compact_boolean_literals,
                         self.options.string_quote,
-                    )
+                    ))
                 } else {
-                    format!("({lhs}{}{rhs})", binary_operator(*op))
+                    JsExpression::binary(*op, lhs, rhs)
                 }
             }
             ControlFlowOp::TypeCheck {
                 value: input,
                 target,
-            } => render_js_type_check(&value(*input, cache)?, target, self.options.string_quote)?,
+            } => JsExpression::raw(
+                render_js_type_check(
+                    &value(*input, cache)?.code,
+                    target,
+                    self.options.string_quote,
+                )?,
+                JsPrecedence::Equality,
+            ),
             ControlFlowOp::Array(values) => {
                 let mut rendered = String::from("[");
                 for (index, item) in values.iter().enumerate() {
@@ -2330,11 +2932,13 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 }
                 rendered.push(']');
                 if self.options.pack_string_arrays {
-                    packed_string_array(values, context, self.options.string_quote)
-                        .filter(|packed| packed.len() < rendered.len())
-                        .unwrap_or(rendered)
+                    JsExpression::atom(
+                        packed_string_array(values, context, self.options.string_quote)
+                            .filter(|packed| packed.len() < rendered.len())
+                            .unwrap_or(rendered),
+                    )
                 } else {
-                    rendered
+                    JsExpression::atom(rendered)
                 }
             }
             ControlFlowOp::Struct { fields: values, .. } => {
@@ -2346,21 +2950,26 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     rendered.push_str(&strip_outer_parens(value(*item, cache)?));
                 }
                 rendered.push(']');
-                rendered
+                JsExpression::atom(rendered)
             }
             ControlFlowOp::NewClass {
                 class,
                 constructor: None,
                 args,
-            } if args.is_empty() => self.default_class_value(class, false)?,
+            } if args.is_empty() => JsExpression::atom(self.default_class_value(class, false)?),
             ControlFlowOp::Closure { function, captures } => {
                 let captures = captures
                     .iter()
-                    .map(|capture| value(*capture, cache))
+                    .map(|capture| value(*capture, cache).map(strip_outer_parens))
                     .collect::<Result<Vec<_>, _>>()?;
-                self.render_closure(*function, &captures)?
+                let rendered = self.render_closure(*function, &captures)?;
+                if rendered.contains("=>") {
+                    JsExpression::raw(rendered, JsPrecedence::Assignment)
+                } else {
+                    JsExpression::atom(rendered)
+                }
             }
-            ControlFlowOp::LoadGlobal(symbol) => self.global_name(*symbol)?.to_string(),
+            ControlFlowOp::LoadGlobal(symbol) => JsExpression::atom(self.global_name(*symbol)?),
             ControlFlowOp::FieldGet {
                 object,
                 field,
@@ -2369,40 +2978,37 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             } => {
                 let object_value = value(*object, cache)?;
                 if context.is_untyped(*object) {
-                    format!("{object_value}.{}", self.property_name(field))
+                    JsExpression::member(object_value, self.property_name(field))
                 } else {
-                    format!("{object_value}[{index}]")
+                    JsExpression::index(object_value, JsExpression::atom(index.to_string()))
                 }
             }
             ControlFlowOp::HostFieldGet { object, property } => {
-                format!("{}.{}", value(*object, cache)?, property)
+                JsExpression::member(value(*object, cache)?, property)
             }
             ControlFlowOp::HostFieldSet {
                 object,
                 property,
                 value: assigned,
-            } => format!(
-                "{}.{}={}",
-                value(*object, cache)?,
-                property,
-                value(*assigned, cache)?
+            } => JsExpression::raw(
+                format!(
+                    "{}={}",
+                    JsExpression::member(value(*object, cache)?, property),
+                    strip_outer_parens(value(*assigned, cache)?)
+                ),
+                JsPrecedence::Assignment,
             ),
             ControlFlowOp::IndexGet { object, index } => {
-                format!(
-                    "{}[{}]",
-                    value(*object, cache)?,
-                    strip_outer_parens(value(*index, cache)?)
-                )
+                JsExpression::index(value(*object, cache)?, value(*index, cache)?)
             }
-            ControlFlowOp::CallDirect { function, args } => {
-                self.render_call(self.function_name(*function)?, None, args, context, cache)?
-            }
+            ControlFlowOp::CallDirect { function, args } => self.render_call(
+                JsExpression::atom(self.function_name(*function)?),
+                args,
+                context,
+                cache,
+            )?,
             ControlFlowOp::CallValue { callee, args } => {
-                let mut callee = value(*callee, cache)?;
-                if callee.contains("=>") {
-                    callee = format!("({callee})");
-                }
-                self.render_call(&callee, None, args, context, cache)?
+                self.render_call(value(*callee, cache)?, args, context, cache)?
             }
             ControlFlowOp::HostCall {
                 receiver,
@@ -2411,7 +3017,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 ..
             } => {
                 let receiver = value(*receiver, cache)?;
-                self.render_call(&format!("{receiver}.{method}"), None, args, context, cache)?
+                self.render_call(JsExpression::member(receiver, method), args, context, cache)?
             }
             ControlFlowOp::DynamicImport { module } => self.render_dynamic_import(*module)?,
             ControlFlowOp::Intrinsic {
@@ -2432,7 +3038,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     }
                 }
                 rendered.push('`');
-                rendered
+                JsExpression::atom(rendered)
             }
             ControlFlowOp::StoreLocal { .. }
             | ControlFlowOp::LoadLocal(_)
@@ -2449,7 +3055,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         })
     }
 
-    fn render_dynamic_import(&self, module_id: u32) -> Result<String, CodegenError> {
+    fn render_dynamic_import(&self, module_id: u32) -> Result<JsExpression, CodegenError> {
         let module = self
             .module
             .lazy_modules
@@ -2464,8 +3070,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         if let Some(file) = self.dynamic_chunk_files.get(&module_id) {
             let file = render_string_literal(&format!("./{file}"), self.options.string_quote);
             let source = render_string_literal(module.source, self.options.string_quote);
-            return Ok(format!(
-                "import({file}).catch(e=>Promise.reject({{specifier:{source},message:String(e)}}))"
+            let imported =
+                JsExpression::call(JsExpression::atom("import"), [JsExpression::atom(file)]);
+            return Ok(JsExpression::call(
+                JsExpression::member(imported, "catch"),
+                [JsExpression::raw(
+                    format!("e=>Promise.reject({{specifier:{source},message:String(e)}})"),
+                    JsPrecedence::Assignment,
+                )],
             ));
         }
 
@@ -2491,34 +3103,21 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             });
         }
         namespace.push_str("})");
-        Ok(namespace)
+        Ok(JsExpression::raw(namespace, JsPrecedence::Call))
     }
 
     fn render_call(
         &self,
-        callee: &str,
-        receiver: Option<ValueId>,
+        callee: JsExpression,
         args: &[ValueId],
         context: &LocalNames,
-        cache: &mut AHashMap<ValueId, String>,
-    ) -> Result<String, CodegenError> {
-        let mut rendered = String::new();
-        rendered.push_str(callee);
-        rendered.push('(');
-        let mut first = true;
-        if let Some(receiver) = receiver {
-            rendered.push_str(&take_value(receiver, context, cache)?);
-            first = false;
-        }
-        for arg in args {
-            if !first {
-                rendered.push(',');
-            }
-            first = false;
-            rendered.push_str(&strip_outer_parens(take_value(*arg, context, cache)?));
-        }
-        rendered.push(')');
-        Ok(rendered)
+        cache: &mut ExpressionCache,
+    ) -> Result<JsExpression, CodegenError> {
+        let arguments = args
+            .iter()
+            .map(|argument| take_value(*argument, context, cache))
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(JsExpression::call(callee, arguments))
     }
 
     fn render_intrinsic(
@@ -2527,13 +3126,23 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         receiver: Option<ValueId>,
         args: &[ValueId],
         context: &LocalNames,
-        cache: &mut AHashMap<ValueId, String>,
-    ) -> Result<String, CodegenError> {
+        cache: &mut ExpressionCache,
+    ) -> Result<JsExpression, CodegenError> {
         if intrinsic == Intrinsic::Print {
-            return self.render_call("console.log", None, args, context, cache);
+            return self.render_call(
+                JsExpression::member(JsExpression::atom("console"), "log"),
+                args,
+                context,
+                cache,
+            );
         }
         if intrinsic == Intrinsic::IntImul {
-            return self.render_call("Math.imul", None, args, context, cache);
+            return self.render_call(
+                JsExpression::member(JsExpression::atom("Math"), "imul"),
+                args,
+                context,
+                cache,
+            );
         }
         let constructor = match intrinsic {
             Intrinsic::MapNew => Some("Map"),
@@ -2552,7 +3161,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 rendered.push_str(&strip_outer_parens(take_value(*arg, context, cache)?));
             }
             rendered.push(')');
-            return Ok(rendered);
+            return Ok(JsExpression::raw(rendered, JsPrecedence::Call));
         }
         let receiver = receiver.ok_or_else(|| {
             CodegenError::new(
@@ -2564,41 +3173,70 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         let property = match intrinsic {
             Intrinsic::UnwrapNullable | Intrinsic::UnwrapUnion => return Ok(receiver),
             Intrinsic::ArrayLength | Intrinsic::StringLength => {
-                return Ok(format!("{receiver}.length"))
+                return Ok(JsExpression::member(receiver, "length"));
             }
-            Intrinsic::MapSize | Intrinsic::SetSize => return Ok(format!("{receiver}.size")),
+            Intrinsic::MapSize | Intrinsic::SetSize => {
+                return Ok(JsExpression::member(receiver, "size"));
+            }
             Intrinsic::BufferByteLength | Intrinsic::Uint8ArrayByteLength => {
-                return Ok(format!("{receiver}.byteLength"));
+                return Ok(JsExpression::member(receiver, "byteLength"));
             }
-            Intrinsic::Uint8ArrayLength => return Ok(format!("{receiver}.length")),
-            Intrinsic::Uint8ArrayByteOffset => return Ok(format!("{receiver}.byteOffset")),
-            Intrinsic::Uint8ArrayBuffer => return Ok(format!("{receiver}.buffer")),
+            Intrinsic::Uint8ArrayLength => {
+                return Ok(JsExpression::member(receiver, "length"));
+            }
+            Intrinsic::Uint8ArrayByteOffset => {
+                return Ok(JsExpression::member(receiver, "byteOffset"));
+            }
+            Intrinsic::Uint8ArrayBuffer => {
+                return Ok(JsExpression::member(receiver, "buffer"));
+            }
             Intrinsic::MapGet => {
                 let call =
-                    self.render_call(&format!("{receiver}.get"), None, args, context, cache)?;
-                return Ok(format!("({call}??null)"));
+                    self.render_call(JsExpression::member(receiver, "get"), args, context, cache)?;
+                return Ok(JsExpression::grouped(
+                    format!("{call}??null"),
+                    JsPrecedence::LogicalOr,
+                    JsExpressionRoot::Raw,
+                ));
             }
             Intrinsic::StringCharCodeAt => {
                 let call = self.render_call(
-                    &format!("{receiver}.charCodeAt"),
-                    None,
+                    JsExpression::member(receiver, "charCodeAt"),
                     args,
                     context,
                     cache,
                 )?;
-                return Ok(format!("({call}|0)"));
+                return Ok(JsExpression::integer_normalization(call));
             }
             Intrinsic::IntToString | Intrinsic::IntToUnsignedString => {
                 let radix = if let Some(radix) = args.first() {
                     take_value(*radix, context, cache)?
                 } else {
-                    "10".to_string()
+                    JsExpression::atom("10")
                 };
-                return Ok(if matches!(intrinsic, Intrinsic::IntToUnsignedString) {
-                    format!("({receiver}>>>0).toString({radix})")
+                let receiver = if matches!(intrinsic, Intrinsic::IntToUnsignedString) {
+                    JsExpression::grouped(
+                        format!(
+                            "{}>>>0",
+                            receiver.binary_operand(
+                                IrBinaryOp::UnsignedShiftRight,
+                                BinaryOperandSide::Left,
+                            )
+                        ),
+                        JsPrecedence::Shift,
+                        JsExpressionRoot::Binary(IrBinaryOp::UnsignedShiftRight),
+                    )
                 } else {
-                    format!("({receiver}).toString({radix})")
-                });
+                    JsExpression::grouped(
+                        receiver.into_minimal(),
+                        JsPrecedence::Primary,
+                        JsExpressionRoot::Raw,
+                    )
+                };
+                return Ok(JsExpression::call(
+                    JsExpression::member(receiver, "toString"),
+                    [radix],
+                ));
             }
             Intrinsic::FloatAbs
             | Intrinsic::FloatFloor
@@ -2619,7 +3257,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     rendered.push_str(&strip_outer_parens(take_value(*arg, context, cache)?));
                 }
                 rendered.push(')');
-                return Ok(rendered);
+                return Ok(JsExpression::raw(rendered, JsPrecedence::Call));
             }
             Intrinsic::ArrayMap => "map",
             Intrinsic::ArrayFilter => "filter",
@@ -2651,8 +3289,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             | Intrinsic::Uint8ArrayNew => unreachable!(),
         };
         self.render_call(
-            &format!("{receiver}.{property}"),
-            None,
+            JsExpression::member(receiver, property),
             args,
             context,
             cache,
@@ -2676,7 +3313,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             if captures.is_empty() {
                 return Ok(name.to_string());
             }
-            let mut wrapper_mangler = self.top_level_mangler.clone();
+            let mut wrapper_mangler = self.local_mangler(&function);
             for capture in captures {
                 reserve_expression_identifiers(&mut wrapper_mangler, capture);
             }
@@ -2706,11 +3343,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             rendered.push(')');
             return Ok(rendered);
         }
+        let local_mangler = self.local_mangler(&function);
         let mut context = LocalNames::new(
             &function,
             self.integer_analysis.function(function.id),
             false,
-            &self.top_level_mangler,
+            &local_mangler,
             &self.options,
         );
         let capture_params = &function.params[..function.capture_count];
@@ -2723,7 +3361,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             .filter_map(|parameter| context.value_names.get(&parameter.value))
             .cloned()
             .collect::<AHashSet<_>>();
-        let mut mangler = self.top_level_mangler.clone();
+        let mut mangler = local_mangler;
         for name in context.value_names.values().chain(captures) {
             mangler.reserve(name);
         }
@@ -3337,6 +3975,75 @@ fn is_one_use_increment_copy(
         || (rhs == target && is_int_constant(function, lhs, 1))
 }
 
+fn compound_assignment_copy(
+    function: &ControlFlowFunction<'_>,
+    from: BlockId,
+    target: ValueId,
+    source: ValueId,
+    uses: &AHashMap<ValueId, usize>,
+    context: &LocalNames,
+) -> Option<(&'static str, String)> {
+    if uses.get(&source).copied() != Some(1) {
+        return None;
+    }
+    let instruction = function.blocks[from.0 as usize]
+        .instructions
+        .iter()
+        .find(|instruction| instruction.out == Some(source))?;
+    let ControlFlowOp::Binary { op, lhs, rhs } = instruction.op else {
+        return None;
+    };
+    let integer_safe = context.can_elide_i32_coercion(source)
+        || matches!(
+            op,
+            IrBinaryOp::BitAnd
+                | IrBinaryOp::BitOr
+                | IrBinaryOp::Xor
+                | IrBinaryOp::ShiftLeft
+                | IrBinaryOp::ShiftRight
+        );
+    if instruction.ty.as_ref() != Some(&Type::Float)
+        && !(instruction.ty.as_ref() == Some(&Type::Int) && integer_safe)
+    {
+        return None;
+    }
+    let commutative = matches!(
+        op,
+        IrBinaryOp::Add
+            | IrBinaryOp::Mul
+            | IrBinaryOp::BitAnd
+            | IrBinaryOp::BitOr
+            | IrBinaryOp::Xor
+    );
+    let operand = if lhs == target {
+        rhs
+    } else if rhs == target && commutative {
+        lhs
+    } else {
+        return None;
+    };
+    let operand = context
+        .inlined_values
+        .get(&operand)
+        .cloned()
+        .map(JsExpression::into_minimal)
+        .or_else(|| context.value_names.get(&operand).cloned())?;
+    let operator = match op {
+        IrBinaryOp::Add => "+",
+        IrBinaryOp::Sub => "-",
+        IrBinaryOp::Mul => "*",
+        IrBinaryOp::Div => "/",
+        IrBinaryOp::Mod => "%",
+        IrBinaryOp::BitAnd => "&",
+        IrBinaryOp::BitOr => "|",
+        IrBinaryOp::Xor => "^",
+        IrBinaryOp::ShiftLeft => "<<",
+        IrBinaryOp::ShiftRight => ">>",
+        _ => return None,
+    };
+    Some((operator, operand))
+}
+
 fn is_int_constant(function: &ControlFlowFunction<'_>, value: ValueId, expected: i64) -> bool {
     function
         .blocks
@@ -3424,6 +4131,14 @@ fn is_braceless_statement(output: &str) -> bool {
         && !statement.starts_with("if(")
         && !statement.starts_with("for(")
         && !statement.starts_with("while(")
+}
+
+fn is_comma_eligible_statement(output: &str) -> bool {
+    is_braceless_statement(output)
+        && !output.starts_with("return")
+        && !output.starts_with("throw")
+        && !output.starts_with("break")
+        && !output.starts_with("continue")
 }
 
 fn expression_references_name(expression: &str, name: &str) -> bool {
@@ -3539,9 +4254,8 @@ struct LocalNames {
     parameter_values: AHashSet<ValueId>,
     stored_values: AHashSet<ValueId>,
     untyped_values: AHashSet<ValueId>,
-    inlined_values: AHashMap<ValueId, String>,
+    inlined_values: AHashMap<ValueId, JsExpression>,
     string_constants: AHashMap<ValueId, String>,
-    binary_operators: AHashMap<ValueId, IrBinaryOp>,
     elidable_i32_coercions: AHashSet<ValueId>,
     parallel_copy_temp: Option<String>,
     live_in_values: Vec<AHashSet<ValueId>>,
@@ -3596,13 +4310,6 @@ fn can_inline_closure(function: &ControlFlowFunction<'_>, inline_structured: boo
             .map(|block| block.instructions.len() + block.phis.len())
             .sum::<usize>()
             <= 80
-}
-
-fn strip_redundant_i32_coercion(expression: String) -> String {
-    expression
-        .strip_suffix("|0)")
-        .filter(|value| value.starts_with('('))
-        .map_or_else(|| expression.clone(), |value| format!("{value})"))
 }
 
 fn render_arrow_parameters(
@@ -3708,7 +4415,7 @@ impl LocalNames {
                     let use_count = uses.get(&out).copied().unwrap_or(0);
                     let inline_cost = rendered.len() * use_count;
                     let binding_cost = rendered.len() + 7 + use_count;
-                    (inline_cost <= binding_cost).then_some((out, rendered))
+                    (inline_cost <= binding_cost).then_some((out, JsExpression::atom(rendered)))
                 }
                 _ => None,
             })
@@ -3723,17 +4430,6 @@ impl LocalNames {
                 }
                 _ => None,
             })
-            .collect();
-        let binary_operators = function
-            .blocks
-            .iter()
-            .flat_map(|block| &block.instructions)
-            .filter_map(
-                |instruction| match (instruction.out, &instruction.ty, &instruction.op) {
-                    (Some(out), Some(_), ControlFlowOp::Binary { op, .. }) => Some((out, *op)),
-                    _ => None,
-                },
-            )
             .collect();
         let cross_block = cross_block_values(function);
         let mut values = function
@@ -3878,7 +4574,6 @@ impl LocalNames {
             untyped_values,
             inlined_values,
             string_constants,
-            binary_operators,
             elidable_i32_coercions: function
                 .blocks
                 .iter()
@@ -3933,10 +4628,6 @@ impl LocalNames {
 
     fn can_elide_i32_coercion(&self, value: ValueId) -> bool {
         self.elidable_i32_coercions.contains(&value)
-    }
-
-    fn binary_operator(&self, value: ValueId) -> Option<IrBinaryOp> {
-        self.binary_operators.get(&value).copied()
     }
 
     fn claim_declaration(&self, value: ValueId) -> Result<bool, CodegenError> {
@@ -4545,14 +5236,17 @@ fn terminator_values(terminator: &Terminator) -> Vec<ValueId> {
 fn take_value(
     value: ValueId,
     context: &LocalNames,
-    cache: &mut AHashMap<ValueId, String>,
-) -> Result<String, CodegenError> {
-    Ok(context
+    cache: &mut ExpressionCache,
+) -> Result<JsExpression, CodegenError> {
+    if let Some(expression) = context
         .inlined_values
         .get(&value)
         .cloned()
         .or_else(|| cache.remove(&value))
-        .unwrap_or(context.value_name(value)?.to_string()))
+    {
+        return Ok(expression);
+    }
+    Ok(JsExpression::atom(context.value_name(value)?))
 }
 
 fn use_counts(function: &ControlFlowFunction<'_>) -> AHashMap<ValueId, usize> {
@@ -5011,6 +5705,7 @@ enum BinaryOperandSide {
     Right,
 }
 
+#[cfg(test)]
 fn render_binary_operand(
     expression: String,
     child: Option<IrBinaryOp>,
@@ -5048,6 +5743,7 @@ fn render_binary_operand(
     }
 }
 
+#[cfg(test)]
 fn binary_precedence(op: IrBinaryOp) -> u8 {
     match op {
         IrBinaryOp::Or => 1,
@@ -5060,6 +5756,37 @@ fn binary_precedence(op: IrBinaryOp) -> u8 {
         IrBinaryOp::ShiftLeft | IrBinaryOp::ShiftRight | IrBinaryOp::UnsignedShiftRight => 8,
         IrBinaryOp::Add | IrBinaryOp::Sub => 9,
         IrBinaryOp::Mul | IrBinaryOp::Div | IrBinaryOp::Mod => 10,
+    }
+}
+
+fn js_binary_precedence(op: IrBinaryOp) -> JsPrecedence {
+    match op {
+        IrBinaryOp::Or => JsPrecedence::LogicalOr,
+        IrBinaryOp::And => JsPrecedence::LogicalAnd,
+        IrBinaryOp::BitOr => JsPrecedence::BitOr,
+        IrBinaryOp::Xor => JsPrecedence::BitXor,
+        IrBinaryOp::BitAnd => JsPrecedence::BitAnd,
+        IrBinaryOp::Eq | IrBinaryOp::NotEq => JsPrecedence::Equality,
+        IrBinaryOp::Less | IrBinaryOp::LessEq | IrBinaryOp::Greater | IrBinaryOp::GreaterEq => {
+            JsPrecedence::Relational
+        }
+        IrBinaryOp::ShiftLeft | IrBinaryOp::ShiftRight | IrBinaryOp::UnsignedShiftRight => {
+            JsPrecedence::Shift
+        }
+        IrBinaryOp::Add | IrBinaryOp::Sub => JsPrecedence::Additive,
+        IrBinaryOp::Mul | IrBinaryOp::Div | IrBinaryOp::Mod => JsPrecedence::Multiplicative,
+    }
+}
+
+const fn inverse_comparison(op: IrBinaryOp) -> Option<IrBinaryOp> {
+    match op {
+        IrBinaryOp::Eq => Some(IrBinaryOp::NotEq),
+        IrBinaryOp::NotEq => Some(IrBinaryOp::Eq),
+        IrBinaryOp::Less => Some(IrBinaryOp::GreaterEq),
+        IrBinaryOp::LessEq => Some(IrBinaryOp::Greater),
+        IrBinaryOp::Greater => Some(IrBinaryOp::LessEq),
+        IrBinaryOp::GreaterEq => Some(IrBinaryOp::Less),
+        _ => None,
     }
 }
 
@@ -5090,7 +5817,27 @@ fn default_value(ty: &Type<'_>, compact_boolean_literals: bool) -> &'static str 
     }
 }
 
-fn strip_outer_parens(value: String) -> String {
+trait IntoMinimalExpression {
+    fn into_minimal_expression(self) -> String;
+}
+
+impl IntoMinimalExpression for JsExpression {
+    fn into_minimal_expression(self) -> String {
+        self.into_minimal()
+    }
+}
+
+impl IntoMinimalExpression for String {
+    fn into_minimal_expression(self) -> String {
+        strip_outer_parens_from_string(self)
+    }
+}
+
+fn strip_outer_parens(value: impl IntoMinimalExpression) -> String {
+    value.into_minimal_expression()
+}
+
+fn strip_outer_parens_from_string(value: String) -> String {
     if !value.starts_with('(') || !value.ends_with(')') {
         return value;
     }
@@ -5146,26 +5893,8 @@ fn is_single_binding_statement(statement: &str) -> bool {
         && !statement[..statement.len() - 1].contains(';')
 }
 
-fn negate_condition(value: String) -> String {
-    let value = strip_outer_parens(value);
-    for (operator, inverse) in [
-        ("!=", "=="),
-        ("==", "!="),
-        ("<=", ">"),
-        (">=", "<"),
-        ("<", ">="),
-        (">", "<="),
-    ] {
-        if let Some(index) = value.find(operator) {
-            let mut negated = value.clone();
-            negated.replace_range(index..index + operator.len(), inverse);
-            return negated;
-        }
-    }
-    if let Some(value) = value.strip_prefix('!') {
-        return strip_outer_parens(value.to_string());
-    }
-    format!("!{value}")
+fn negate_condition(value: JsExpression) -> String {
+    value.negated()
 }
 
 #[derive(Debug, Clone)]
@@ -5192,6 +5921,14 @@ impl Mangler {
 
     fn reserve(&mut self, name: &str) {
         self.reserved.insert(name.to_string());
+    }
+
+    fn release(&mut self, name: &str) {
+        self.reserved.remove(name);
+    }
+
+    fn rewind(&mut self) {
+        self.next = 0;
     }
 
     fn next_name(&mut self) -> String {
@@ -5330,6 +6067,14 @@ mod tests {
     }
 
     fn compile_without_inlining(source: &str, scalar_replacement: bool) -> String {
+        compile_without_inlining_with_options(source, scalar_replacement, IrJsOptions::default())
+    }
+
+    fn compile_without_inlining_with_options(
+        source: &str,
+        scalar_replacement: bool,
+        js_options: IrJsOptions,
+    ) -> String {
         let arena = Bump::new();
         let program = parse_source(&arena, source).unwrap();
         let semantics = analyze(&program).unwrap();
@@ -5340,7 +6085,7 @@ mod tests {
             ..OptimizationOptions::default()
         };
         optimize_control_flow_with_options(&mut ir, &options, false).unwrap();
-        emit_optimized_ir_js_with_options(&ir, &IrJsOptions::default()).unwrap()
+        emit_optimized_ir_js_with_options(&ir, &js_options).unwrap()
     }
 
     #[test]
@@ -5822,6 +6567,41 @@ mod tests {
     }
 
     #[test]
+    fn entry_bindings_never_reuse_top_level_function_names() {
+        let output = compile_without_inlining(
+            "int helper(int value){return value+1;}int wrapper(int value){return helper(value);}extern int read();int result=read();print(wrapper(result));",
+            true,
+        );
+        let function_names = output
+            .match_indices("function ")
+            .filter_map(|(index, _)| {
+                output[index + "function ".len()..]
+                    .split_once('(')
+                    .map(|(name, _)| name)
+            })
+            .collect::<Vec<_>>();
+        let entry = output
+            .rsplit_once('}')
+            .map_or(output.as_str(), |(_, entry)| entry);
+        let declaration = entry
+            .strip_prefix("let ")
+            .or_else(|| entry.strip_prefix("var "))
+            .and_then(|entry| entry.split_once(';'))
+            .map_or("", |(declaration, _)| declaration);
+        let entry_bindings = declaration
+            .split(',')
+            .filter_map(|binding| binding.split(['=', ';']).next())
+            .collect::<Vec<_>>();
+
+        assert!(
+            function_names
+                .iter()
+                .all(|name| !entry_bindings.contains(name)),
+            "{output}"
+        );
+    }
+
+    #[test]
     fn propagates_shared_constants_through_deep_inlining() {
         assert_eq!(
             compile(
@@ -6153,8 +6933,8 @@ mod tests {
             false,
         );
 
-        assert!(output.contains("=b+1|0"), "{output}");
-        assert!(output.matches("b+1|0").count() == 1, "{output}");
+        assert!(output.contains("+1|0"), "{output}");
+        assert_eq!(output.matches("+1|0").count(), 1, "{output}");
     }
 
     #[test]
@@ -6185,6 +6965,94 @@ mod tests {
 
         assert!(as_while.contains("while(ready())"), "{as_while}");
         assert!(as_for.contains("for(;ready();)"), "{as_for}");
+    }
+
+    #[test]
+    fn emits_forced_do_update_and_conditional_dispatch_variants() {
+        let as_do = compile_with_options(
+            "extern bool ready();while(ready()){print(1);}",
+            IrJsOptions {
+                loop_spelling: LoopSpelling::Do,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(as_do.contains("do{"), "{as_do}");
+        assert!(as_do.contains("}while(ready())"), "{as_do}");
+
+        let with_update = compile_with_options(
+            "extern float read();float total=0;for(float index=0;index<read();index=index+1){total=total+index;}print(total);",
+            IrJsOptions {
+                loop_spelling: LoopSpelling::For,
+                mutation_spelling: MutationSpelling::Compound,
+                update_loop_layout: true,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(with_update.contains("+=1"), "{with_update}");
+        assert!(with_update.contains("for(;"), "{with_update}");
+
+        let conditional_dispatch = compile_without_inlining_with_options(
+            "extern int read();int classify(){int value=read();if(value>0){return value;}return -value;}print(classify());",
+            true,
+            IrJsOptions {
+                control_flow_spelling: ControlFlowSpelling::StateMachine,
+                state_machine_spelling: StateMachineSpelling::Conditional,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(
+            conditional_dispatch.contains("for(;;){if("),
+            "{conditional_dispatch}"
+        );
+        assert!(
+            !conditional_dispatch.contains("switch("),
+            "{conditional_dispatch}"
+        );
+    }
+
+    #[test]
+    fn carries_precedence_through_structural_expression_nodes() {
+        let comparison = JsExpression::binary(
+            IrBinaryOp::Less,
+            JsExpression::atom("a"),
+            JsExpression::atom("b"),
+        );
+        let call = JsExpression::call(
+            JsExpression::member(JsExpression::atom("Math"), "abs"),
+            [JsExpression::unary("-", JsExpression::atom("a"))],
+        );
+        let conditional = JsExpression::conditional(
+            comparison.clone(),
+            call,
+            JsExpression::index(JsExpression::atom("values"), JsExpression::atom("a")),
+        );
+        assert_eq!(conditional.into_minimal(), "a<b?Math.abs(-a):values[a]");
+        assert_eq!(comparison.negated(), "a>=b");
+
+        let normalized = JsExpression::integer_normalization(JsExpression::binary(
+            IrBinaryOp::Add,
+            JsExpression::atom("a"),
+            JsExpression::atom("b"),
+        ));
+        assert_eq!(
+            normalized.without_integer_normalization().into_minimal(),
+            "a+b"
+        );
+        assert_eq!(
+            JsExpression::call(
+                JsExpression::member(
+                    JsExpression::grouped(
+                        "35".to_string(),
+                        JsPrecedence::Primary,
+                        JsExpressionRoot::Raw,
+                    ),
+                    "toString",
+                ),
+                [JsExpression::atom("36")],
+            )
+            .into_minimal(),
+            "(35).toString(36)"
+        );
     }
 
     #[test]

@@ -1,0 +1,23 @@
+[optimization]
+preset = "maximum"
+
+[javascript]
+priority = "size-first"
+optimization_level = 15
+optimizations = [
+  "ir-inlining-variants",
+  "ir-closure-factory-variants",
+  "ir-specialization-variants",
+  "structural-control-flow-variants",
+  "ssa-destruction-variants",
+  "conditional-expression-variants",
+  "comma-expression-variants",
+  "structural-loop-variants",
+  "do-loop-variants",
+  "update-loop-variants",
+  "switch-lowering-variants",
+  "compound-mutation-variants",
+  "entropy-cross-scope-reuse",
+  "entropy-property-assignment",
+  "startup-cost-guard",
+]

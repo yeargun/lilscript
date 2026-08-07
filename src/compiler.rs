@@ -5,6 +5,7 @@ use sha2::{Digest, Sha256};
 use std::io::Write as _;
 use std::path::Path;
 use std::sync::Arc;
+use std::time::Instant;
 
 use crate::codegen_ir_js::{
     emit_optimized_ir_js, emit_optimized_ir_js_chunks_with_options, emit_optimized_ir_js_module,
@@ -14,8 +15,13 @@ use crate::codegen_ir_js::{
 };
 use crate::codegen_js::{compile_to_js, CompileError};
 use crate::codegen_native::{compile_to_c, emit_native_c};
-use crate::config::{BundleMode, CompressionCostModel, PreloadPolicy, ProjectConfig};
+use crate::config::{
+    BundleMode, CompressionCostModel, JavaScriptOptimization, PreloadPolicy, ProjectConfig,
+};
 use crate::ir::{ControlFlowModule, FunctionId};
+use crate::js_peephole::{
+    analyze_generated_javascript, optimize_generated_javascript, JavaScriptSyntaxMetrics,
+};
 use crate::lower::lower_to_control_flow;
 use crate::module::{
     discover_modules, discover_modules_configured, discover_modules_configured_with_source,
@@ -42,6 +48,19 @@ pub struct CompilationArtifacts {
 pub struct JavaScriptCompilation {
     pub javascript: String,
     pub optimization_reports: Vec<OptimizationReport>,
+    pub selection_metrics: JavaScriptSelectionMetrics,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct JavaScriptSelectionMetrics {
+    pub codec: String,
+    pub transfer_bytes: usize,
+    pub startup_score: u64,
+    pub syntax: JavaScriptSyntaxMetrics,
+    pub baseline_syntax: JavaScriptSyntaxMetrics,
+    pub candidates_evaluated: usize,
+    pub peephole_rewrites: usize,
+    pub compiler_time_micros: u128,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -188,6 +207,7 @@ pub fn compile_path_explained_configured(
     Ok(JavaScriptCompilation {
         javascript: selected.javascript,
         optimization_reports: selected.optimization_reports,
+        selection_metrics: selected.selection_metrics,
     })
 }
 
@@ -983,6 +1003,7 @@ fn compile_program_to_js_module_configured<'ast, 'src>(
 struct OptimizedJavascriptCandidate {
     javascript: String,
     optimization_reports: Vec<OptimizationReport>,
+    selection_metrics: JavaScriptSelectionMetrics,
 }
 
 fn optimize_and_select_javascript<'src>(
@@ -990,6 +1011,7 @@ fn optimize_and_select_javascript<'src>(
     config: &ProjectConfig,
     preserve_exports: bool,
 ) -> Result<OptimizedJavascriptCandidate, CompileError> {
+    let started = Instant::now();
     let configured = config.js_optimizer_options();
     let mut optimizer_options = vec![configured];
     if configured.inlining
@@ -1010,36 +1032,80 @@ fn optimize_and_select_javascript<'src>(
             optimizer_options.push(no_inlining);
         }
     }
+    if configured.specialize_tagged_constants
+        && config.javascript_optimization_enabled(JavaScriptOptimization::IrSpecializationVariants)
+    {
+        let mut unspecialized = configured;
+        unspecialized.specialize_tagged_constants = false;
+        if !optimizer_options.contains(&unspecialized) {
+            optimizer_options.push(unspecialized);
+        }
+    }
 
     let mut candidates = Vec::with_capacity(optimizer_options.len());
+    let mut candidates_evaluated = 0;
     for options in optimizer_options {
         let mut candidate_ir = ir.clone();
         let optimization_reports =
             optimize_control_flow_with_options(&mut candidate_ir, &options, preserve_exports)?;
-        let javascript = select_javascript_candidate(&candidate_ir, config, preserve_exports)?;
-        let cost = compressed_size(javascript.as_bytes(), config.javascript.cost_model)
-            .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
+        let selected = select_javascript_candidate(&candidate_ir, config, preserve_exports)?;
+        candidates_evaluated += selected.candidates_evaluated;
         if candidates
             .iter()
             .any(|candidate: &(usize, usize, OptimizedJavascriptCandidate)| {
-                candidate.2.javascript == javascript
+                candidate.2.javascript == selected.code
             })
         {
             continue;
         }
         candidates.push((
-            cost,
-            javascript.len(),
+            selected.transfer_cost,
+            selected.code.len(),
             OptimizedJavascriptCandidate {
-                javascript,
+                javascript: selected.code,
                 optimization_reports,
+                selection_metrics: JavaScriptSelectionMetrics {
+                    codec: compression_cost_model_name(config.javascript.cost_model).to_string(),
+                    transfer_bytes: selected.transfer_cost,
+                    startup_score: selected.startup_score,
+                    syntax: selected.metrics,
+                    baseline_syntax: selected.baseline_metrics,
+                    candidates_evaluated: selected.candidates_evaluated,
+                    peephole_rewrites: selected.peephole_rewrites,
+                    compiler_time_micros: 0,
+                },
             },
         ));
     }
+    if config.javascript_optimization_configured(JavaScriptOptimization::StartupCostGuard) {
+        if let Some(baseline) = candidates
+            .first()
+            .map(|candidate| candidate.2.selection_metrics.syntax)
+        {
+            candidates.retain(|candidate| {
+                startup_cost_allowed(
+                    candidate.2.selection_metrics.syntax,
+                    baseline,
+                    &config.javascript.startup,
+                )
+            });
+        }
+    }
     candidates.sort_by(|left, right| {
-        (left.0, left.1, &left.2.javascript).cmp(&(right.0, right.1, &right.2.javascript))
+        (
+            left.0,
+            left.2.selection_metrics.startup_score,
+            left.1,
+            &left.2.javascript,
+        )
+            .cmp(&(
+                right.0,
+                right.2.selection_metrics.startup_score,
+                right.1,
+                &right.2.javascript,
+            ))
     });
-    candidates
+    let mut selected = candidates
         .into_iter()
         .next()
         .map(|(_, _, candidate)| candidate)
@@ -1048,50 +1114,79 @@ fn optimize_and_select_javascript<'src>(
                 Span::empty(0),
                 "optimizer-level candidate search produced no JavaScript output",
             )
-            .into()
-        })
+        })?;
+    selected.selection_metrics.compiler_time_micros = started.elapsed().as_micros();
+    selected.selection_metrics.candidates_evaluated = candidates_evaluated;
+    Ok(selected)
+}
+
+#[derive(Debug, Clone)]
+struct SelectedJavaScriptCandidate {
+    code: String,
+    transfer_cost: usize,
+    startup_score: u64,
+    metrics: JavaScriptSyntaxMetrics,
+    baseline_metrics: JavaScriptSyntaxMetrics,
+    candidates_evaluated: usize,
+    peephole_rewrites: usize,
 }
 
 fn select_javascript_candidate(
     ir: &ControlFlowModule<'_>,
     config: &ProjectConfig,
     module_output: bool,
-) -> Result<String, CompileError> {
+) -> Result<SelectedJavaScriptCandidate, CompileError> {
     let configured = config.js_options();
     let integer_analysis = Arc::new(analyze_integer_values(ir));
+    let configured_baseline =
+        emit_javascript_candidate(ir, module_output, configured, Arc::clone(&integer_analysis))?;
     if !config.javascript.candidate_search_enabled() {
-        return emit_javascript_candidate(
-            ir,
-            module_output,
-            configured,
-            Arc::clone(&integer_analysis),
-        )
-        .map_err(Into::into);
+        return finalize_javascript_candidates(
+            vec![(
+                configured_baseline.len(),
+                configured_baseline.len(),
+                configured_baseline.clone(),
+                configured,
+            )],
+            &configured_baseline,
+            config,
+        );
     }
     let mut options = Vec::new();
-    let phi_affinity_modes = match configured.phi_affinity_mode {
-        crate::codegen_ir_js::PhiAffinityMode::Conservative => [
-            crate::codegen_ir_js::PhiAffinityMode::Conservative,
-            crate::codegen_ir_js::PhiAffinityMode::Conservative,
-            crate::codegen_ir_js::PhiAffinityMode::Conservative,
-        ],
-        crate::codegen_ir_js::PhiAffinityMode::Direct => [
-            crate::codegen_ir_js::PhiAffinityMode::Direct,
-            crate::codegen_ir_js::PhiAffinityMode::Conservative,
-            crate::codegen_ir_js::PhiAffinityMode::Conservative,
-        ],
-        crate::codegen_ir_js::PhiAffinityMode::Grouped => [
-            crate::codegen_ir_js::PhiAffinityMode::Grouped,
-            crate::codegen_ir_js::PhiAffinityMode::Direct,
-            crate::codegen_ir_js::PhiAffinityMode::Conservative,
-        ],
+    let ssa_variants =
+        config.javascript_optimization_enabled(JavaScriptOptimization::SsaDestructionVariants);
+    let phi_affinity_modes = if !ssa_variants {
+        [configured.phi_affinity_mode; 3]
+    } else {
+        match configured.phi_affinity_mode {
+            crate::codegen_ir_js::PhiAffinityMode::Conservative => [
+                crate::codegen_ir_js::PhiAffinityMode::Conservative,
+                crate::codegen_ir_js::PhiAffinityMode::Conservative,
+                crate::codegen_ir_js::PhiAffinityMode::Conservative,
+            ],
+            crate::codegen_ir_js::PhiAffinityMode::Direct => [
+                crate::codegen_ir_js::PhiAffinityMode::Direct,
+                crate::codegen_ir_js::PhiAffinityMode::Conservative,
+                crate::codegen_ir_js::PhiAffinityMode::Conservative,
+            ],
+            crate::codegen_ir_js::PhiAffinityMode::Grouped => [
+                crate::codegen_ir_js::PhiAffinityMode::Grouped,
+                crate::codegen_ir_js::PhiAffinityMode::Direct,
+                crate::codegen_ir_js::PhiAffinityMode::Conservative,
+            ],
+        }
     };
     for pool_strings in [configured.pool_strings, false] {
         for elide_safe_integer_coercions in [configured.elide_safe_integer_coercions, false] {
             for compact_boolean_literals in [configured.compact_boolean_literals, false] {
                 for inline_structured_closures in [configured.inline_structured_closures, false] {
                     for pack_string_arrays in [configured.pack_string_arrays, false] {
-                        for scalar_phi_copies in [configured.scalar_phi_copies, false] {
+                        let scalar_phi_candidates = if ssa_variants {
+                            [configured.scalar_phi_copies, !configured.scalar_phi_copies]
+                        } else {
+                            [configured.scalar_phi_copies; 2]
+                        };
+                        for scalar_phi_copies in scalar_phi_candidates {
                             for phi_affinity_mode in phi_affinity_modes {
                                 let candidate = crate::codegen_ir_js::IrJsOptions {
                                     pool_strings,
@@ -1113,6 +1208,11 @@ fn select_javascript_candidate(
             }
         }
     }
+    let candidate_limit = config.javascript.effective_candidate_limit();
+    let beam_policy = JavaScriptCandidateBeamPolicy {
+        cost_model: config.javascript.cost_model,
+        candidate_limit,
+    };
     let mut candidates = Vec::with_capacity(options.len() * 2);
     for options in options {
         let baseline =
@@ -1159,23 +1259,84 @@ fn select_javascript_candidate(
                             crate::codegen_js::CodegenError::new(Span::empty(0), message)
                         })?;
                     candidates.push((cost, code.len(), code, candidate_options));
-                    if candidates.len() == config.javascript.candidate_limit {
+                    if candidates.len() == candidate_limit {
                         break;
                     }
                 }
-                if candidates.len() == config.javascript.candidate_limit {
+                if candidates.len() == candidate_limit {
                     break;
                 }
             }
-            if candidates.len() == config.javascript.candidate_limit {
+            if candidates.len() == candidate_limit {
                 break;
             }
         }
-        if candidates.len() == config.javascript.candidate_limit {
+        if candidates.len() == candidate_limit {
             break;
         }
     }
     candidates.sort_by(|left, right| (left.0, left.1, &left.2).cmp(&(right.0, right.1, &right.2)));
+    if config.javascript_optimization_enabled(JavaScriptOptimization::ConditionalExpressionVariants)
+    {
+        let finalists = top_candidate_options(&candidates, 12);
+        extend_javascript_candidate_beam(
+            ir,
+            module_output,
+            beam_policy,
+            &integer_analysis,
+            &mut candidates,
+            finalists,
+            |options| {
+                [crate::codegen_ir_js::IrJsOptions {
+                    conditional_expressions: !options.conditional_expressions,
+                    ..options
+                }]
+            },
+        )?;
+    }
+    if config.javascript_optimization_enabled(JavaScriptOptimization::CommaExpressionVariants) {
+        let finalists = top_candidate_options(&candidates, 12);
+        extend_javascript_candidate_beam(
+            ir,
+            module_output,
+            beam_policy,
+            &integer_analysis,
+            &mut candidates,
+            finalists,
+            |options| {
+                [crate::codegen_ir_js::IrJsOptions {
+                    comma_expressions: !options.comma_expressions,
+                    ..options
+                }]
+            },
+        )?;
+    }
+    if config.javascript_optimization_enabled(JavaScriptOptimization::StructuralControlFlowVariants)
+    {
+        let finalists = top_candidate_options(&candidates, 12);
+        extend_javascript_candidate_beam(
+            ir,
+            module_output,
+            beam_policy,
+            &integer_analysis,
+            &mut candidates,
+            finalists,
+            |options| {
+                [
+                    crate::codegen_ir_js::IrJsOptions {
+                        control_flow_spelling:
+                            crate::codegen_ir_js::ControlFlowSpelling::Structured,
+                        ..options
+                    },
+                    crate::codegen_ir_js::IrJsOptions {
+                        control_flow_spelling:
+                            crate::codegen_ir_js::ControlFlowSpelling::StateMachine,
+                        ..options
+                    },
+                ]
+            },
+        )?;
+    }
     if config.loop_spelling_selection_enabled() {
         let finalists = candidates
             .iter()
@@ -1185,7 +1346,7 @@ fn select_javascript_candidate(
         extend_javascript_candidate_beam(
             ir,
             module_output,
-            config.javascript.cost_model,
+            beam_policy,
             &integer_analysis,
             &mut candidates,
             finalists,
@@ -1203,12 +1364,48 @@ fn select_javascript_candidate(
             },
         )?;
     }
+    if config.javascript_optimization_enabled(JavaScriptOptimization::DoLoopVariants) {
+        let finalists = top_candidate_options(&candidates, 12);
+        extend_javascript_candidate_beam(
+            ir,
+            module_output,
+            beam_policy,
+            &integer_analysis,
+            &mut candidates,
+            finalists,
+            |options| {
+                [crate::codegen_ir_js::IrJsOptions {
+                    loop_spelling: crate::codegen_ir_js::LoopSpelling::Do,
+                    update_loop_layout: false,
+                    ..options
+                }]
+            },
+        )?;
+    }
+    if config.javascript_optimization_enabled(JavaScriptOptimization::UpdateLoopVariants) {
+        let finalists = top_candidate_options(&candidates, 12);
+        extend_javascript_candidate_beam(
+            ir,
+            module_output,
+            beam_policy,
+            &integer_analysis,
+            &mut candidates,
+            finalists,
+            |options| {
+                [crate::codegen_ir_js::IrJsOptions {
+                    update_loop_layout: !options.update_loop_layout,
+                    ..options
+                }]
+            },
+        )?;
+    }
     if config.mutation_spelling_selection_enabled() {
         let mut finalists = Vec::new();
         for loop_spelling in [
             crate::codegen_ir_js::LoopSpelling::Auto,
             crate::codegen_ir_js::LoopSpelling::While,
             crate::codegen_ir_js::LoopSpelling::For,
+            crate::codegen_ir_js::LoopSpelling::Do,
         ] {
             let mut retained = 0;
             for options in candidates
@@ -1228,7 +1425,7 @@ fn select_javascript_candidate(
         extend_javascript_candidate_beam(
             ir,
             module_output,
-            config.javascript.cost_model,
+            beam_policy,
             &integer_analysis,
             &mut candidates,
             finalists,
@@ -1242,34 +1439,219 @@ fn select_javascript_candidate(
                         mutation_spelling: crate::codegen_ir_js::MutationSpelling::Postfix,
                         ..options
                     },
+                    crate::codegen_ir_js::IrJsOptions {
+                        mutation_spelling: crate::codegen_ir_js::MutationSpelling::Compound,
+                        ..options
+                    },
                 ]
             },
         )?;
     }
-    candidates
-        .into_iter()
-        .next()
-        .map(|(_, _, code, _)| code)
-        .ok_or_else(|| {
-            crate::codegen_js::CodegenError::new(
-                Span::empty(0),
-                "candidate search produced no JavaScript output",
-            )
-            .into()
-        })
+    if config.javascript_optimization_enabled(JavaScriptOptimization::SwitchLoweringVariants) {
+        let finalists = top_candidate_options(&candidates, 12);
+        extend_javascript_candidate_beam(
+            ir,
+            module_output,
+            beam_policy,
+            &integer_analysis,
+            &mut candidates,
+            finalists,
+            |options| {
+                [crate::codegen_ir_js::IrJsOptions {
+                    control_flow_spelling: crate::codegen_ir_js::ControlFlowSpelling::StateMachine,
+                    state_machine_spelling: crate::codegen_ir_js::StateMachineSpelling::Conditional,
+                    ..options
+                }]
+            },
+        )?;
+    }
+    if !candidates
+        .iter()
+        .any(|(_, _, code, _)| code == &configured_baseline)
+    {
+        let transfer_cost =
+            compressed_size(configured_baseline.as_bytes(), config.javascript.cost_model)
+                .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
+        candidates.push((
+            transfer_cost,
+            configured_baseline.len(),
+            configured_baseline.clone(),
+            configured,
+        ));
+    }
+    finalize_javascript_candidates(candidates, &configured_baseline, config)
 }
 
 type JavaScriptEmissionCandidate = (usize, usize, String, crate::codegen_ir_js::IrJsOptions);
 
+#[derive(Debug)]
+struct ScoredJavaScriptCandidate {
+    transfer_cost: usize,
+    startup_score: u64,
+    code: String,
+    metrics: JavaScriptSyntaxMetrics,
+    peephole_rewrites: usize,
+}
+
+fn finalize_javascript_candidates(
+    candidates: Vec<JavaScriptEmissionCandidate>,
+    configured_baseline: &str,
+    config: &ProjectConfig,
+) -> Result<SelectedJavaScriptCandidate, CompileError> {
+    let baseline_metrics = analyze_generated_javascript(configured_baseline)
+        .map_err(generated_javascript_parse_error)?;
+    let peephole =
+        config.javascript_optimization_configured(JavaScriptOptimization::ParsedPeephole);
+    let startup_guard =
+        config.javascript_optimization_configured(JavaScriptOptimization::StartupCostGuard);
+    let candidates_evaluated = candidates.len();
+    let mut scored = Vec::<ScoredJavaScriptCandidate>::with_capacity(candidates.len());
+    for (_, _, code, _) in candidates {
+        let (code, metrics, peephole_rewrites) = if peephole {
+            let optimized =
+                optimize_generated_javascript(&code).map_err(generated_javascript_parse_error)?;
+            (optimized.code, optimized.metrics, optimized.rewrites)
+        } else {
+            let metrics =
+                analyze_generated_javascript(&code).map_err(generated_javascript_parse_error)?;
+            (code, metrics, 0)
+        };
+        if startup_guard
+            && !startup_cost_allowed(metrics, baseline_metrics, &config.javascript.startup)
+        {
+            continue;
+        }
+        if scored.iter().any(|candidate| candidate.code == code) {
+            continue;
+        }
+        let transfer_cost = compressed_size(code.as_bytes(), config.javascript.cost_model)
+            .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
+        let startup_score = metrics.startup_score(
+            config.javascript.startup.parse_weight,
+            config.javascript.startup.compile_weight,
+            config.javascript.startup.memory_weight,
+        );
+        scored.push(ScoredJavaScriptCandidate {
+            transfer_cost,
+            startup_score,
+            code,
+            metrics,
+            peephole_rewrites,
+        });
+    }
+    scored.sort_by(|left, right| {
+        (
+            left.transfer_cost,
+            left.startup_score,
+            left.code.len(),
+            &left.code,
+        )
+            .cmp(&(
+                right.transfer_cost,
+                right.startup_score,
+                right.code.len(),
+                &right.code,
+            ))
+    });
+    let selected = scored.into_iter().next().ok_or_else(|| {
+        crate::codegen_js::CodegenError::new(
+            Span::empty(0),
+            "startup limits rejected every JavaScript candidate",
+        )
+    })?;
+    Ok(SelectedJavaScriptCandidate {
+        code: selected.code,
+        transfer_cost: selected.transfer_cost,
+        startup_score: selected.startup_score,
+        metrics: selected.metrics,
+        baseline_metrics,
+        candidates_evaluated,
+        peephole_rewrites: selected.peephole_rewrites,
+    })
+}
+
+fn generated_javascript_parse_error(
+    error: crate::js_peephole::JavaScriptParseError,
+) -> CompileError {
+    crate::codegen_js::CodegenError::new(
+        Span::empty(error.offset()),
+        format!("generated JavaScript parser failed: {error}"),
+    )
+    .into()
+}
+
+fn startup_cost_allowed(
+    candidate: JavaScriptSyntaxMetrics,
+    baseline: JavaScriptSyntaxMetrics,
+    policy: &crate::config::StartupCostConfig,
+) -> bool {
+    within_startup_limit(
+        candidate.parse_cost,
+        baseline.parse_cost,
+        policy.parse_overhead_limit_percent,
+    ) && within_startup_limit(
+        candidate.compile_cost,
+        baseline.compile_cost,
+        policy.compile_overhead_limit_percent,
+    ) && within_startup_limit(
+        candidate.estimated_memory_bytes,
+        baseline.estimated_memory_bytes,
+        policy.memory_overhead_limit_percent,
+    )
+}
+
+fn within_startup_limit(candidate: u64, baseline: u64, overhead_percent: u32) -> bool {
+    let maximum = baseline.saturating_add(
+        baseline
+            .saturating_mul(u64::from(overhead_percent))
+            .saturating_div(100),
+    );
+    candidate <= maximum
+}
+
+const fn compression_cost_model_name(model: CompressionCostModel) -> &'static str {
+    match model {
+        CompressionCostModel::Raw => "raw",
+        CompressionCostModel::Gzip => "gzip",
+        CompressionCostModel::Brotli => "brotli",
+    }
+}
+
+fn top_candidate_options(
+    candidates: &[JavaScriptEmissionCandidate],
+    limit: usize,
+) -> Vec<crate::codegen_ir_js::IrJsOptions> {
+    let mut options = Vec::new();
+    for candidate in candidates {
+        if !options.contains(&candidate.3) {
+            options.push(candidate.3);
+            if options.len() == limit {
+                break;
+            }
+        }
+    }
+    options
+}
+
+#[derive(Debug, Clone, Copy)]
+struct JavaScriptCandidateBeamPolicy {
+    cost_model: CompressionCostModel,
+    candidate_limit: usize,
+}
+
 fn extend_javascript_candidate_beam<const N: usize>(
     ir: &ControlFlowModule<'_>,
     module_output: bool,
-    cost_model: CompressionCostModel,
+    policy: JavaScriptCandidateBeamPolicy,
     integer_analysis: &Arc<IntegerValueAnalysis>,
     candidates: &mut Vec<JavaScriptEmissionCandidate>,
     finalists: Vec<crate::codegen_ir_js::IrJsOptions>,
     variants: impl Fn(crate::codegen_ir_js::IrJsOptions) -> [crate::codegen_ir_js::IrJsOptions; N],
 ) -> Result<(), CompileError> {
+    let reserve = finalists.len().saturating_mul(N).saturating_mul(2);
+    if candidates.len().saturating_add(reserve) > policy.candidate_limit {
+        candidates.truncate(policy.candidate_limit.saturating_sub(reserve).max(1));
+    }
     for options in finalists {
         for candidate_options in variants(options) {
             let code = emit_javascript_candidate(
@@ -1285,11 +1667,21 @@ fn extend_javascript_candidate_beam<const N: usize>(
                 {
                     continue;
                 }
-                let cost = compressed_size(code.as_bytes(), cost_model).map_err(|message| {
-                    crate::codegen_js::CodegenError::new(Span::empty(0), message)
-                })?;
+                let cost =
+                    compressed_size(code.as_bytes(), policy.cost_model).map_err(|message| {
+                        crate::codegen_js::CodegenError::new(Span::empty(0), message)
+                    })?;
                 candidates.push((cost, code.len(), code, candidate_options));
+                if candidates.len() >= policy.candidate_limit {
+                    break;
+                }
             }
+            if candidates.len() >= policy.candidate_limit {
+                break;
+            }
+        }
+        if candidates.len() >= policy.candidate_limit {
+            break;
         }
     }
     candidates.sort_by(|left, right| (left.0, left.1, &left.2).cmp(&(right.0, right.1, &right.2)));
@@ -1414,11 +1806,110 @@ fn render_message_diagnostic(path: &Path, source: &str, span: Span, message: &st
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::CompressionDecision;
+    use crate::config::{
+        CandidateSearch, CompressionDecision, JavaScriptOptimization, OptimizationPreset,
+        StartupCostConfig,
+    };
 
     #[test]
     fn compiles_source_end_to_end() {
         assert_eq!(compile_source("print(40+2);").unwrap(), "console.log(42)");
+    }
+
+    #[test]
+    fn parsed_peephole_is_independently_configurable() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "extern float read();void count(){float limit=read();for(float index=0;index<limit;index=index+1){print(index);}}count();",
+        )
+        .unwrap();
+        let mut disabled = ProjectConfig::default();
+        disabled.optimization.preset = OptimizationPreset::None;
+        disabled.javascript.candidate_search = CandidateSearch::Off;
+        disabled.javascript.optimizations = Some(Vec::new());
+        disabled.javascript.compression = Some(Vec::new());
+        disabled.mangle.identifiers = Some(false);
+        let plain = compile_program_to_js_configured(&program, &disabled).unwrap();
+        let update = plain
+            .split_once("for(;")
+            .and_then(|(_, loop_tail)| loop_tail.split_once(';'))
+            .and_then(|(_, update)| update.split_once(')'))
+            .map(|(update, _)| update)
+            .expect("condition-only loop must contain an update");
+        let variable = update
+            .split_once('=')
+            .map(|(variable, _)| variable)
+            .expect("plain loop update must be an assignment");
+        assert_eq!(update, format!("{variable}={variable}+1"), "{plain}");
+
+        let mut enabled = disabled;
+        enabled.javascript.optimizations = Some(vec![JavaScriptOptimization::ParsedPeephole]);
+        let optimized = compile_program_to_js_configured(&program, &enabled).unwrap();
+        assert!(optimized.contains(&format!("{variable}+=1")), "{optimized}");
+        assert!(
+            !optimized.contains(&format!("{variable}={variable}+1")),
+            "{optimized}"
+        );
+    }
+
+    #[test]
+    fn startup_guard_uses_independent_saturating_limits() {
+        let baseline = JavaScriptSyntaxMetrics {
+            parse_cost: 100,
+            compile_cost: 200,
+            estimated_memory_bytes: 400,
+            ..JavaScriptSyntaxMetrics::default()
+        };
+        let policy = StartupCostConfig {
+            parse_overhead_limit_percent: 10,
+            compile_overhead_limit_percent: 20,
+            memory_overhead_limit_percent: 25,
+            ..StartupCostConfig::default()
+        };
+        assert!(startup_cost_allowed(
+            JavaScriptSyntaxMetrics {
+                parse_cost: 110,
+                compile_cost: 240,
+                estimated_memory_bytes: 500,
+                ..JavaScriptSyntaxMetrics::default()
+            },
+            baseline,
+            &policy,
+        ));
+        assert!(!startup_cost_allowed(
+            JavaScriptSyntaxMetrics {
+                parse_cost: 111,
+                compile_cost: 240,
+                estimated_memory_bytes: 500,
+                ..JavaScriptSyntaxMetrics::default()
+            },
+            baseline,
+            &policy,
+        ));
+    }
+
+    #[test]
+    fn explained_compilation_reports_selection_costs() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "int square(int value){return value*value;}print(square(9));",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let ir = lower_to_control_flow(&program, &semantics).unwrap();
+        let selected =
+            optimize_and_select_javascript(ir, &ProjectConfig::default(), false).unwrap();
+
+        assert_eq!(
+            selected.selection_metrics.syntax.bytes,
+            selected.javascript.len()
+        );
+        assert!(selected.selection_metrics.syntax.tokens > 0);
+        assert!(selected.selection_metrics.transfer_bytes > 0);
+        assert!(selected.selection_metrics.candidates_evaluated > 0);
+        assert_eq!(selected.selection_metrics.codec, "brotli");
     }
 
     #[test]
@@ -2118,8 +2609,8 @@ mod tests {
         .unwrap();
         let output = compile_program_to_js_configured(&program, &config).unwrap();
         let load = output
-            .find("=values.length;")
-            .expect("array length read must be stored");
+            .find("length=values.length")
+            .unwrap_or_else(|| panic!("array length read must be stored: {output}"));
         let mutation = output
             .find("values.push(2)")
             .expect("array mutation must remain");

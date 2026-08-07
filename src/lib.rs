@@ -7,6 +7,7 @@ pub mod config;
 pub mod formatter;
 pub mod interpreter;
 pub mod ir;
+pub mod js_peephole;
 pub mod lexer;
 pub mod lint;
 pub mod lower;
@@ -29,7 +30,7 @@ pub use compiler::{
     compile_source_all, compile_source_to_c, compile_source_to_js_module, render_diagnostic,
     render_module_diagnostic, CompilationArtifacts, JavaScriptBundle, JavaScriptBundleFile,
     JavaScriptBundleManifest, JavaScriptBundleManifestChunk, JavaScriptCompilation,
-    SourceCompileError,
+    JavaScriptSelectionMetrics, SourceCompileError,
 };
 pub use interpreter::{
     interpret_program, interpret_program_with_limits, InterpretError, InterpreterLimits,

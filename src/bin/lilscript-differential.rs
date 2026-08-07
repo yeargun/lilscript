@@ -53,6 +53,8 @@ fn run() -> Result<(), String> {
     let expected_path = output_dir.join("expected.out");
     let optimized_base = output_dir.join("optimized");
     let no_optimization_js = output_dir.join("no-optimization.js");
+    let optimized_no_peephole_js = output_dir.join("optimized-no-peephole.js");
+    let no_optimization_no_peephole_js = output_dir.join("no-optimization-no-peephole.js");
     let emitted_c_native = output_dir.join("emitted-c-native");
     let source = ProgramGenerator::new(args.seed).generate(args.cases);
 
@@ -99,6 +101,24 @@ fn run() -> Result<(), String> {
             .arg(&no_optimization_js),
         "optimizer-disabled JavaScript compilation",
     )?;
+    run_checked(
+        Command::new(&compiler)
+            .arg(&source_path)
+            .args(["--target", "js", "--mode", "production", "--config"])
+            .arg(root.join("tests/config/no-peephole.toml"))
+            .arg("-o")
+            .arg(&optimized_no_peephole_js),
+        "peephole-disabled optimized JavaScript compilation",
+    )?;
+    run_checked(
+        Command::new(&compiler)
+            .arg(&source_path)
+            .args(["--target", "js", "--mode", "production", "--config"])
+            .arg(root.join("tests/config/no-optimization-no-peephole.toml"))
+            .arg("-o")
+            .arg(&no_optimization_no_peephole_js),
+        "peephole-disabled optimizer-disabled JavaScript compilation",
+    )?;
 
     let node = std::env::var_os("NODE").unwrap_or_else(|| "node".into());
     let optimized_js = optimized_base.with_extension("js");
@@ -118,6 +138,26 @@ fn run() -> Result<(), String> {
         run_checked(
             Command::new(&node).arg(&no_optimization_js),
             "optimizer-disabled JavaScript",
+        )?,
+        args.seed,
+        &source_path,
+    )?;
+    compare_output(
+        "peephole-disabled optimized JavaScript",
+        &expected,
+        run_checked(
+            Command::new(&node).arg(&optimized_no_peephole_js),
+            "peephole-disabled optimized JavaScript",
+        )?,
+        args.seed,
+        &source_path,
+    )?;
+    compare_output(
+        "peephole-disabled optimizer-disabled JavaScript",
+        &expected,
+        run_checked(
+            Command::new(&node).arg(&no_optimization_no_peephole_js),
+            "peephole-disabled optimizer-disabled JavaScript",
         )?,
         args.seed,
         &source_path,
@@ -152,7 +192,7 @@ fn run() -> Result<(), String> {
     )?;
 
     println!(
-        "{} deterministic programs matched the Rust reference evaluator across optimized JS, optimizer-disabled JS, emitted C, and native execution (seed {:#018x}).",
+        "{} deterministic programs matched the Rust reference evaluator across optimized and optimizer-disabled JavaScript with parsed peepholes enabled and disabled, emitted C, and native execution (seed {:#018x}).",
         args.cases, args.seed
     );
     Ok(())
