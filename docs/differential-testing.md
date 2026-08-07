@@ -14,12 +14,17 @@ The evaluator currently covers:
   mutation;
 - direct functions, defaults, return, recursion limits, blocks, branches,
   `while`, `for`, `break`, `continue`, assignments, and prefix/postfix updates;
+- first-class named functions and value-capturing arrow functions;
+- reference-identity typed arrays, aliases, length, indexing, indexed
+  assignment/update, `push`, `pop`, `map`, `filter`, `reduce`, and `forEach`,
+  including callback-time mutation with entry-length snapshot semantics;
 - short-circuit evaluation and the observable `print` intrinsic.
 
-Aggregate storage, classes, closures, and host calls are rejected explicitly.
-They continue to be covered by the checked-in conformance matrix until their
-independent evaluator models exist. A step budget and recursion budget make a
-generated infinite program fail deterministically instead of hanging a gate.
+Struct/class instances, maps, sets, binary memory, and host calls are rejected
+explicitly. They continue to be covered by the checked-in conformance matrix
+until their independent evaluator models exist. A step budget and recursion
+budget make a generated infinite program fail deterministically instead of
+hanging a gate.
 
 ## Generated corpus
 
@@ -27,8 +32,11 @@ generated infinite program fail deterministically instead of hanging a gate.
 typed functions containing nested integer and boolean expressions, every
 integer binary and compound-assignment operator, overflow, zero divisors,
 negative and oversized shift counts, branches, bounded loops, `break`,
-`continue`, short-circuit side effects, shadowing, function calls, and updates.
-The complete generated source and oracle output remain under
+`continue`, short-circuit side effects, shadowing, function calls, updates,
+array aliases, indexed mutation, push/pop, captured arrows, and all four array
+callback pipelines. Each callback appends to its receiver, checking that the
+original iteration length is respected. The complete generated source and
+oracle output remain under
 `target/differential` after each run for reproduction.
 
 ```sh
@@ -50,11 +58,13 @@ For one generated batch, the harness requires exact output agreement from:
 
 The fixed release seed is `0x6c696c7363726970`. During implementation, that
 seed found an invalid `a--626380242` token boundary and two integer-expression
-precedence failures involving nested shifts and `|0` coercions. Regression
-tests now pin all three cases, and `scripts/verify.sh` runs the 64-case batch on
-every release verification. Seeds `0xdeadbeefcafebabe` and
+precedence failures involving nested shifts and `|0` coercions. Widening the
+oracle to arrays also found native callback loops consuming elements appended
+during `reduce`; all array callback loops now snapshot their entry length.
+Regression tests pin these cases, and `scripts/verify.sh` runs the 64-case batch
+on every release verification. Seeds `0xdeadbeefcafebabe` and
 `0x0123456789abcdef` also pass 96 generated functions each.
 
 This gate proves agreement only over generated programs in the documented
-subset. It complements rather than replaces module, aggregate, collection,
-binary-memory, browser, and library behavior suites.
+subset. It complements rather than replaces module, nominal aggregate,
+map/set, binary-memory, browser, and library behavior suites.

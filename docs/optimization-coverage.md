@@ -89,7 +89,7 @@ The current schedule is:
 
 ## Executable evidence
 
-`scripts/verify-matrix.sh` compiles 63 independent `.lil` programs, including a
+`scripts/verify-matrix.sh` compiles 65 independent `.lil` programs, including a
 multi-file module graph, with one
 `--target all` invocation per program. Each invocation emits JavaScript, emits
 C, and invokes Clang for a native executable. The script then compiles the
@@ -97,9 +97,9 @@ emitted C independently and requires the JavaScript, direct native executable,
 independently compiled C executable, and checked-in expected output to match.
 The corpus includes collection mutation/identity/nullable lookup and binary
 memory copy/view/coercion behavior under both maximum and disabled optional
-optimization, for 126 backend-mode executions. This includes regressions for
+optimization, for 130 backend-mode executions. This includes regressions for
 interprocedural integer ranges, finite values/fields, exact array lengths,
-unobserved collection
+entry-length snapshots across all array callback methods, unobserved collection
 mutation removal, multi-use conditional-return values, and
 loop-carried values crossing an early return and a nested short-circuit
 coalescing regression extracted from the Solid client-runtime gate.
@@ -110,12 +110,13 @@ circular ESM dependency between the entry and a reader chunk.
 `lilscript-differential` independently evaluates generated typed AST programs
 without lowering them to CFG/SSA. The fixed 64-case release batch exercises all
 integer operators, overflow, zero divisors, shifts, direct calls, mutation,
-short-circuit effects, branches, bounded loops, loop control, and shadowing.
-It requires exact agreement from optimized JavaScript, optimizer-disabled
-JavaScript, the direct native executable, and emitted C compiled in a separate
-compiler invocation. The generated source and expected output are retained for
-seed reproduction; the exact scope and commands are documented in
-`docs/differential-testing.md`.
+short-circuit effects, branches, bounded loops, loop control, shadowing, array
+identity and indexed mutation, push/pop, captured arrows, and callback-time
+array growth. It requires exact agreement from optimized JavaScript,
+optimizer-disabled JavaScript, the direct native executable, and emitted C
+compiled in a separate compiler invocation. The generated source and expected
+output are retained for seed reproduction; the exact scope and commands are
+documented in `docs/differential-testing.md`.
 
 `benchmarks/finite-values/run.mjs` holds inlining, scalar replacement, source,
 and every other optimizer setting constant while toggling only

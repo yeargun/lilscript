@@ -395,7 +395,10 @@ assigned value.
 ## Standard library surface
 
 Arrays provide typed `length`, `map`, `filter`, `reduce`, `forEach`, `push`, and
-`pop`. Strings provide UTF-16 code-unit `length` and `charCodeAt`, plus
+`pop`. Callback methods snapshot the receiver length when the call begins, so
+elements appended by a callback are not visited by that call. Reads of existing
+future elements remain live, matching JavaScript's dense-array iteration
+behavior. Strings provide UTF-16 code-unit `length` and `charCodeAt`, plus
 `includes`, `startsWith`, `endsWith`, `toUpperCase`, and `toLowerCase`. This
 matches JavaScript string indexing while native storage remains UTF-8.
 `charCodeAt` returns `0` for an out-of-range index. Calls are statically checked

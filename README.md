@@ -279,9 +279,9 @@ npm --prefix vscode-extension run package
 ```
 
 `scripts/verify.sh` compares Node and native output for two conformance suites
-and links a generated aggregate ABI against a C host. It also runs 63 programs
+and links a generated aggregate ABI against a C host. It also runs 65 programs
 through JavaScript, emitted C, and native executables with maximum and disabled
-optional optimization, for 126 matrix executions, plus a framed LSP session
+optional optimization, for 130 matrix executions, plus a framed LSP session
 through diagnostics, completion, hover, symbols, semantic tokens, references,
 rename, formatting, quick fixes, and shutdown.
 The verification script also generates 64 deterministic typed programs and
