@@ -1,0 +1,21 @@
+int left(int value) {
+  int mixed = value * 17 + 31;
+  mixed = mixed ^ (mixed >> 3);
+  return mixed % 997;
+}
+
+int right(int item) {
+  int result = item * 17 + 31;
+  result = result ^ (result >> 3);
+  return result % 997;
+}
+
+int total = 0;
+for (int index = 0; index < 200; index++) {
+  if (index % 2 == 0) {
+    total += left(index);
+  } else {
+    total += right(index);
+  }
+}
+print(total);

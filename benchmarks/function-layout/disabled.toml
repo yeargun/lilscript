@@ -1,0 +1,14 @@
+[optimization]
+preset = "none"
+
+[javascript]
+optimizations = []
+compression = []
+candidate_search = "off"
+cost_model = "brotli"
+
+[mangle]
+identifiers = false
+properties = false
+exports = false
+pool_strings = false

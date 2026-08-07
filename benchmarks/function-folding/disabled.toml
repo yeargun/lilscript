@@ -1,0 +1,8 @@
+[optimization]
+inlining = false
+call_site_specialization = false
+capture_signature_cloning = false
+identical_function_folding = false
+
+[javascript]
+candidate_search = "off"

@@ -1,0 +1,72 @@
+int numericAlpha(int value) {
+  value = value * 3 + 101;
+  value = value * 5 + 103;
+  value = value * 7 + 107;
+  value = value * 11 + 109;
+  value = value * 13 + 113;
+  value = value * 17 + 127;
+  value = value * 19 + 131;
+  value = value * 23 + 137;
+  value = value * 29 + 139;
+  value = value * 31 + 149;
+  value = value * 37 + 151;
+  value = value * 41 + 157;
+  return value;
+}
+
+int bitwiseAlpha(int value) {
+  value = value ^ (value >> 1);
+  value = value + value % 17;
+  value = value ^ (value << 3);
+  value = value + value % 19;
+  value = value ^ (value >> 5);
+  value = value + value % 23;
+  value = value ^ (value << 7);
+  value = value + value % 29;
+  value = value ^ (value >> 9);
+  value = value + value % 31;
+  value = value ^ (value << 11);
+  value = value + value % 37;
+  return value;
+}
+
+int numericBeta(int value) {
+  value = value * 3 + 163;
+  value = value * 5 + 167;
+  value = value * 7 + 173;
+  value = value * 11 + 179;
+  value = value * 13 + 181;
+  value = value * 17 + 191;
+  value = value * 19 + 193;
+  value = value * 23 + 197;
+  value = value * 29 + 199;
+  value = value * 31 + 211;
+  value = value * 37 + 223;
+  value = value * 41 + 227;
+  return value;
+}
+
+int bitwiseBeta(int value) {
+  value = value ^ (value >> 2);
+  value = value + value % 41;
+  value = value ^ (value << 4);
+  value = value + value % 43;
+  value = value ^ (value >> 6);
+  value = value + value % 47;
+  value = value ^ (value << 8);
+  value = value + value % 53;
+  value = value ^ (value >> 10);
+  value = value + value % 59;
+  value = value ^ (value << 12);
+  value = value + value % 61;
+  return value;
+}
+
+int total = 0;
+for (int index = 0; index < 10; index++) {
+  total += numericAlpha(index);
+  total += bitwiseAlpha(index);
+  total += numericBeta(index);
+  total += bitwiseBeta(index);
+}
+print(total);

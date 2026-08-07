@@ -5,8 +5,8 @@ use std::path::{Path, PathBuf};
 use serde::Deserialize;
 
 use crate::codegen_ir_js::{
-    ControlFlowSpelling, IdentifierAlphabet, IrJsOptions, LoopSpelling, MutationSpelling,
-    PhiAffinityMode, StateMachineSpelling, StringQuote,
+    ControlFlowSpelling, FunctionLayout, IdentifierAlphabet, IrJsOptions, LoopSpelling,
+    MutationSpelling, PhiAffinityMode, StateMachineSpelling, StringQuote,
 };
 use crate::codegen_native::NativeOptions;
 use crate::optimizer::OptimizationOptions;
@@ -57,6 +57,9 @@ impl ProjectConfig {
         options.capture_signature_cloning &= self
             .javascript
             .optimization_enabled(JavaScriptOptimization::CaptureSignatureCloning, None);
+        options.identical_function_folding &= self
+            .javascript
+            .optimization_enabled(JavaScriptOptimization::IdenticalFunctionFolding, None);
         if !options.inlining {
             return options;
         }
@@ -184,6 +187,7 @@ impl ProjectConfig {
             entropy_property_names: self
                 .javascript
                 .optimization_enabled(JavaScriptOptimization::EntropyPropertyAssignment, None),
+            function_layout: FunctionLayout::Source,
             loop_spelling: LoopSpelling::Auto,
             mutation_spelling: MutationSpelling::Assignment,
             identifier_alphabet: IdentifierAlphabet::canonical(),
@@ -630,6 +634,8 @@ pub enum JavaScriptOptimization {
     ProfileGuidedOptimization,
     CallSiteSpecialization,
     CaptureSignatureCloning,
+    IdenticalFunctionFolding,
+    FunctionLayoutVariants,
 }
 
 impl JavaScriptOptimization {
@@ -655,6 +661,8 @@ impl JavaScriptOptimization {
             Self::ProfileGuidedOptimization => "profile-guided-optimization",
             Self::CallSiteSpecialization => "call-site-specialization",
             Self::CaptureSignatureCloning => "capture-signature-cloning",
+            Self::IdenticalFunctionFolding => "identical-function-folding",
+            Self::FunctionLayoutVariants => "function-layout-variants",
         }
     }
 
@@ -675,6 +683,8 @@ impl JavaScriptOptimization {
             Self::ProfileGuidedOptimization => 10,
             Self::CallSiteSpecialization => 11,
             Self::CaptureSignatureCloning => 12,
+            Self::IdenticalFunctionFolding => 13,
+            Self::FunctionLayoutVariants => 13,
         }
     }
 }
@@ -926,6 +936,7 @@ pub struct OptimizationConfig {
     pub dead_code_elimination: Option<bool>,
     pub call_site_specialization: Option<bool>,
     pub capture_signature_cloning: Option<bool>,
+    pub identical_function_folding: Option<bool>,
     pub profile_guided: Option<bool>,
 }
 
@@ -945,6 +956,7 @@ impl Default for OptimizationConfig {
             dead_code_elimination: None,
             call_site_specialization: None,
             capture_signature_cloning: None,
+            identical_function_folding: None,
             profile_guided: None,
         }
     }
@@ -986,6 +998,9 @@ impl OptimizationConfig {
             capture_signature_cloning: self
                 .capture_signature_cloning
                 .unwrap_or(base.capture_signature_cloning),
+            identical_function_folding: self
+                .identical_function_folding
+                .unwrap_or(base.identical_function_folding),
             inline_instruction_limit: base.inline_instruction_limit,
             inline_control_flow_limit: base.inline_control_flow_limit,
             inline_growth_limit: base.inline_growth_limit,
@@ -1349,11 +1364,18 @@ max_inline_growth = 3
         assert!(!standard
             .javascript_optimization_configured(JavaScriptOptimization::IrInliningVariants));
 
+        let exhaustive: ProjectConfig =
+            toml::from_str("[javascript]\noptimization_level=13\n").unwrap();
+        assert!(exhaustive
+            .javascript_optimization_configured(JavaScriptOptimization::FunctionLayoutVariants));
+        assert!(exhaustive
+            .javascript_optimization_configured(JavaScriptOptimization::IdenticalFunctionFolding));
+
         let exact: ProjectConfig = toml::from_str(
             r#"
 [javascript]
 optimization_level = 0
-optimizations = ["parsed-peephole", "do-loop-variants"]
+optimizations = ["parsed-peephole", "do-loop-variants", "function-layout-variants"]
 "#,
         )
         .unwrap();
@@ -1361,6 +1383,8 @@ optimizations = ["parsed-peephole", "do-loop-variants"]
         assert_eq!(exact.javascript.effective_candidate_limit(), 1536);
         assert!(exact.javascript_optimization_configured(JavaScriptOptimization::ParsedPeephole));
         assert!(exact.javascript_optimization_configured(JavaScriptOptimization::DoLoopVariants));
+        assert!(exact
+            .javascript_optimization_configured(JavaScriptOptimization::FunctionLayoutVariants));
         assert!(!exact.javascript_optimization_configured(
             JavaScriptOptimization::ConditionalExpressionVariants
         ));

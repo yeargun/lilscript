@@ -1,3 +1,6 @@
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
+
 use ahash::{AHashMap, AHashSet};
 
 use crate::ir::{
@@ -31,6 +34,7 @@ pub struct OptimizationOptions {
     pub specialize_tagged_constants: bool,
     pub call_site_specialization: bool,
     pub capture_signature_cloning: bool,
+    pub identical_function_folding: bool,
     pub inline_instruction_limit: usize,
     pub inline_control_flow_limit: usize,
     pub inline_growth_limit: Option<usize>,
@@ -52,6 +56,7 @@ impl Default for OptimizationOptions {
             specialize_tagged_constants: false,
             call_site_specialization: true,
             capture_signature_cloning: true,
+            identical_function_folding: true,
             inline_instruction_limit: 12,
             inline_control_flow_limit: 30,
             inline_growth_limit: None,
@@ -75,6 +80,7 @@ impl OptimizationOptions {
             specialize_tagged_constants: false,
             call_site_specialization: false,
             capture_signature_cloning: false,
+            identical_function_folding: false,
             inline_instruction_limit: 0,
             inline_control_flow_limit: 0,
             inline_growth_limit: Some(0),
@@ -270,6 +276,10 @@ fn optimize_control_flow_inner(
     reports.push(optimize_unused_parameters(module));
     reports.push(optimize_unused_returns(module));
     optimize_scalar_fixed_point(module, options, &mut reports);
+
+    if options.identical_function_folding {
+        reports.push(fold_identical_private_functions(module));
+    }
 
     if options.dead_code_elimination {
         reports.push(eliminate_dead_control_flow_instructions(module));
@@ -3925,6 +3935,367 @@ fn direct_call_mutates_only_unobserved_state(
         })
 }
 
+fn fold_identical_private_functions(module: &mut ControlFlowModule<'_>) -> OptimizationReport {
+    let exported = exported_functions(module);
+    let mut changed = false;
+
+    loop {
+        let mut direct_only = module
+            .functions
+            .iter()
+            .filter(|function| {
+                function.live
+                    && function.kind == FunctionKind::Function
+                    && !exported.contains(&function.id)
+            })
+            .map(|function| function.id)
+            .collect::<AHashSet<_>>();
+
+        for function in module.functions.iter().filter(|function| function.live) {
+            for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
+                match instruction.op {
+                    ControlFlowOp::Closure { function, .. }
+                    | ControlFlowOp::CallMethod { function, .. } => {
+                        direct_only.remove(&function);
+                    }
+                    ControlFlowOp::NewClass {
+                        constructor: Some(function),
+                        ..
+                    } => {
+                        direct_only.remove(&function);
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        if direct_only.len() < 2 {
+            break;
+        }
+        let mut groups = AHashMap::<PrivateFunctionShape, Vec<FunctionId>>::new();
+        for function in module
+            .functions
+            .iter()
+            .filter(|function| direct_only.contains(&function.id))
+        {
+            groups
+                .entry(private_function_shape(function))
+                .or_default()
+                .push(function.id);
+        }
+        let mut redirects = AHashMap::<FunctionId, FunctionId>::new();
+        for group in groups.values().filter(|group| group.len() > 1) {
+            let normalized = group
+                .iter()
+                .map(|function| {
+                    (
+                        *function,
+                        normalize_private_function(&module.functions[function.0 as usize]),
+                    )
+                })
+                .collect::<Vec<_>>();
+            let mut representatives = Vec::<usize>::new();
+            for (index, (function, body)) in normalized.iter().enumerate() {
+                if let Some(representative) = representatives
+                    .iter()
+                    .copied()
+                    .find(|representative| normalized[*representative].1 == *body)
+                {
+                    redirects.insert(*function, normalized[representative].0);
+                } else {
+                    representatives.push(index);
+                }
+            }
+        }
+        if redirects.is_empty() {
+            break;
+        }
+
+        for function in &mut module.functions {
+            for instruction in function
+                .blocks
+                .iter_mut()
+                .flat_map(|block| &mut block.instructions)
+            {
+                rewrite_function_reference(&mut instruction.op, &redirects);
+            }
+        }
+        for duplicate in redirects.keys() {
+            module.functions[duplicate.0 as usize].live = false;
+        }
+        changed = true;
+    }
+
+    OptimizationReport {
+        pass_name: "identical-private-function-folding",
+        changed,
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct PrivateFunctionShape {
+    declared_pure: bool,
+    parameter_count: usize,
+    local_count: usize,
+    capture_count: usize,
+    shape_count: usize,
+    blocks: Vec<(usize, usize, usize, u64)>,
+}
+
+fn private_function_shape(function: &ControlFlowFunction<'_>) -> PrivateFunctionShape {
+    let blocks = function
+        .blocks
+        .iter()
+        .map(|block| {
+            let mut hasher = DefaultHasher::new();
+            for phi in &block.phis {
+                phi.incoming.len().hash(&mut hasher);
+            }
+            for instruction in &block.instructions {
+                std::mem::discriminant(&instruction.op).hash(&mut hasher);
+                instruction.out.is_some().hash(&mut hasher);
+            }
+            block
+                .terminator
+                .as_ref()
+                .map(std::mem::discriminant)
+                .hash(&mut hasher);
+            (
+                block.phis.len(),
+                block.instructions.len(),
+                block.phis.iter().map(|phi| phi.incoming.len()).sum(),
+                hasher.finish(),
+            )
+        })
+        .collect();
+    PrivateFunctionShape {
+        declared_pure: function.declared_pure,
+        parameter_count: function.params.len(),
+        local_count: function.locals.len(),
+        capture_count: function.capture_count,
+        shape_count: function.shapes.len(),
+        blocks,
+    }
+}
+
+fn rewrite_function_reference(
+    op: &mut ControlFlowOp<'_>,
+    redirects: &AHashMap<FunctionId, FunctionId>,
+) {
+    let reference = match op {
+        ControlFlowOp::NewClass {
+            constructor: Some(function),
+            ..
+        }
+        | ControlFlowOp::Closure { function, .. }
+        | ControlFlowOp::CallDirect { function, .. }
+        | ControlFlowOp::CallMethod { function, .. } => function,
+        _ => return,
+    };
+    while let Some(representative) = redirects.get(reference) {
+        *reference = *representative;
+    }
+}
+
+fn normalize_private_function<'src>(
+    function: &ControlFlowFunction<'src>,
+) -> ControlFlowFunction<'src> {
+    const SELF_REFERENCE: FunctionId = FunctionId(u32::MAX);
+    let mut normalized = function.clone();
+    let empty = Span::empty(0);
+    let original_id = normalized.id;
+    let original_value_escapes = normalized.value_escapes.clone();
+    normalized.id = SELF_REFERENCE;
+    normalized.name = None;
+    normalized.span = empty;
+    normalized.live = true;
+
+    let mut local_ids = AHashMap::<LocalId, LocalId>::new();
+    let mut next_local = 0_u32;
+    for parameter in &normalized.params {
+        local_ids.entry(parameter.local).or_insert_with(|| {
+            let id = LocalId(next_local);
+            next_local += 1;
+            id
+        });
+    }
+    for local in &normalized.locals {
+        local_ids.entry(local.id).or_insert_with(|| {
+            let id = LocalId(next_local);
+            next_local += 1;
+            id
+        });
+    }
+    for block in &normalized.blocks {
+        for phi in &block.phis {
+            local_ids.entry(phi.local).or_insert_with(|| {
+                let id = LocalId(next_local);
+                next_local += 1;
+                id
+            });
+        }
+        for instruction in &block.instructions {
+            let local = match instruction.op {
+                ControlFlowOp::LoadLocal(local) | ControlFlowOp::StoreLocal { local, .. } => {
+                    Some(local)
+                }
+                _ => None,
+            };
+            if let Some(local) = local {
+                local_ids.entry(local).or_insert_with(|| {
+                    let id = LocalId(next_local);
+                    next_local += 1;
+                    id
+                });
+            }
+        }
+    }
+
+    let mut value_ids = AHashMap::<ValueId, ValueId>::new();
+    let mut next_value = 0_u32;
+    for parameter in &normalized.params {
+        value_ids.entry(parameter.value).or_insert_with(|| {
+            let id = ValueId(next_value);
+            next_value += 1;
+            id
+        });
+    }
+    for block in &normalized.blocks {
+        for phi in &block.phis {
+            value_ids.entry(phi.out).or_insert_with(|| {
+                let id = ValueId(next_value);
+                next_value += 1;
+                id
+            });
+        }
+        for instruction in &block.instructions {
+            if let Some(out) = instruction.out {
+                value_ids.entry(out).or_insert_with(|| {
+                    let id = ValueId(next_value);
+                    next_value += 1;
+                    id
+                });
+            }
+        }
+    }
+    normalized.value_escapes = vec![EscapeState::LocalOnly; next_value as usize];
+    for (original, canonical) in &value_ids {
+        if let Some(state) = original_value_escapes.get(original.0 as usize) {
+            normalized.value_escapes[canonical.0 as usize] = *state;
+        }
+    }
+
+    let block_ids = normalized
+        .blocks
+        .iter()
+        .enumerate()
+        .map(|(index, block)| (block.id, BlockId(index as u32)))
+        .collect::<AHashMap<_, _>>();
+    normalized.entry = block_ids[&normalized.entry];
+    for (index, parameter) in normalized.params.iter_mut().enumerate() {
+        parameter.symbol = SymbolId(index as u32);
+        parameter.local = local_ids[&parameter.local];
+        parameter.value = value_ids[&parameter.value];
+        parameter.name = "";
+        parameter.span = empty;
+    }
+    for (index, local) in normalized.locals.iter_mut().enumerate() {
+        local.id = local_ids[&local.id];
+        local.symbol = SymbolId((normalized.params.len() + index) as u32);
+        local.name = "";
+        local.span = empty;
+    }
+    for block in &mut normalized.blocks {
+        block.id = block_ids[&block.id];
+        block.span = empty;
+        for phi in &mut block.phis {
+            phi.out = value_ids[&phi.out];
+            phi.local = local_ids[&phi.local];
+            for (predecessor, value) in &mut phi.incoming {
+                *predecessor = block_ids[predecessor];
+                *value = value_ids[value];
+            }
+            phi.span = empty;
+        }
+        for instruction in &mut block.instructions {
+            if let Some(out) = &mut instruction.out {
+                *out = value_ids[out];
+            }
+            rewrite_control_flow_values(&mut instruction.op, |value| {
+                *value = value_ids[value];
+            });
+            match &mut instruction.op {
+                ControlFlowOp::LoadLocal(local) => *local = local_ids[local],
+                ControlFlowOp::StoreLocal { local, .. } => *local = local_ids[local],
+                ControlFlowOp::NewClass {
+                    constructor: Some(reference),
+                    ..
+                }
+                | ControlFlowOp::Closure {
+                    function: reference,
+                    ..
+                }
+                | ControlFlowOp::CallDirect {
+                    function: reference,
+                    ..
+                }
+                | ControlFlowOp::CallMethod {
+                    function: reference,
+                    ..
+                } if *reference == original_id => *reference = SELF_REFERENCE,
+                _ => {}
+            }
+            instruction.span = empty;
+        }
+        if let Some(terminator) = &mut block.terminator {
+            match terminator {
+                Terminator::Jump(target) => *target = block_ids[target],
+                Terminator::Branch {
+                    condition,
+                    then_block,
+                    else_block,
+                } => {
+                    *condition = value_ids[condition];
+                    *then_block = block_ids[then_block];
+                    *else_block = block_ids[else_block];
+                }
+                Terminator::Return(Some(value)) => *value = value_ids[value],
+                Terminator::Return(None) | Terminator::Unreachable => {}
+            }
+        }
+    }
+    for shape in &mut normalized.shapes {
+        match shape {
+            crate::ir::ControlShape::If {
+                header,
+                then_block,
+                else_block,
+                merge_block,
+            } => {
+                *header = block_ids[header];
+                *then_block = block_ids[then_block];
+                *else_block = block_ids[else_block];
+                *merge_block = block_ids[merge_block];
+            }
+            crate::ir::ControlShape::Loop {
+                header,
+                body,
+                update,
+                exit,
+            } => {
+                *header = block_ids[header];
+                *body = block_ids[body];
+                if let Some(update) = update {
+                    *update = block_ids[update];
+                }
+                *exit = block_ids[exit];
+            }
+        }
+    }
+    normalized.value_count = next_value;
+    normalized
+}
+
 fn eliminate_dead_functions(module: &mut ControlFlowModule<'_>) -> OptimizationReport {
     let mut reachable = AHashSet::new();
     let mut work = vec![module.entry];
@@ -5501,6 +5872,163 @@ mod tests {
         );
         assert!(!output.contains("return"), "{output}");
         assert!(!output.contains("a(3,"), "{output}");
+    }
+
+    #[test]
+    fn folds_identical_private_functions_after_inlining_decisions() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "extern int read();int left(int value){return value*3+1;}int right(int item){return item*3+1;}print(left(read())+right(read()));",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut control_flow = lower_to_control_flow(&program, &semantics).unwrap();
+        let right = control_flow
+            .functions
+            .iter()
+            .find(|function| function.name == Some("right"))
+            .map(|function| function.id)
+            .unwrap();
+        let options = OptimizationOptions {
+            inlining: false,
+            call_site_specialization: false,
+            capture_signature_cloning: false,
+            ..OptimizationOptions::default()
+        };
+
+        let reports =
+            optimize_control_flow_with_options(&mut control_flow, &options, false).unwrap();
+
+        assert!(reports.iter().any(|report| {
+            report.pass_name == "identical-private-function-folding" && report.changed
+        }));
+        assert!(!control_flow.functions[right.0 as usize].live);
+        assert_eq!(
+            control_flow
+                .functions
+                .iter()
+                .filter(|function| function.live && function.kind == FunctionKind::Function)
+                .count(),
+            1
+        );
+    }
+
+    #[test]
+    fn preserves_exported_function_identity_during_identical_folding() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "extern int read();int left(int value){return value*3+1;}int right(int item){return item*3+1;}print(left(read())+right(read()));",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut control_flow = lower_to_control_flow(&program, &semantics).unwrap();
+        let right = control_flow
+            .functions
+            .iter()
+            .find(|function| function.name == Some("right"))
+            .map(|function| function.id)
+            .unwrap();
+        control_flow.exports.push(crate::ir::IrExport {
+            name: "right",
+            binding: ExportBinding::Function(right),
+            span: S,
+        });
+        let options = OptimizationOptions {
+            inlining: false,
+            call_site_specialization: false,
+            capture_signature_cloning: false,
+            ..OptimizationOptions::default()
+        };
+
+        optimize_control_flow_with_options(&mut control_flow, &options, true).unwrap();
+
+        assert!(control_flow.functions[right.0 as usize].live);
+        assert_eq!(
+            control_flow
+                .functions
+                .iter()
+                .filter(|function| function.live && function.kind == FunctionKind::Function)
+                .count(),
+            2
+        );
+    }
+
+    #[test]
+    fn preserves_address_taken_function_identity_during_identical_folding() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "extern int read();extern void retain(func(int)->int callback);int left(int value){return value*3+1;}int right(int item){return item*3+1;}retain(right);print(left(read()));",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut control_flow = lower_to_control_flow(&program, &semantics).unwrap();
+        let options = OptimizationOptions {
+            inlining: false,
+            call_site_specialization: false,
+            capture_signature_cloning: false,
+            ..OptimizationOptions::default()
+        };
+
+        optimize_control_flow_with_options(&mut control_flow, &options, false).unwrap();
+
+        assert_eq!(
+            control_flow
+                .functions
+                .iter()
+                .filter(|function| function.live && function.kind == FunctionKind::Function)
+                .count(),
+            2
+        );
+    }
+
+    #[test]
+    fn preserves_distinct_escape_contracts_during_identical_folding() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "struct Box{int value;}extern void retain(Box box);int left(Box box){return box.value;}int right(Box item){return item.value;}Box local=Box{1};Box escaped=Box{2};retain(escaped);print(left(local)+right(escaped));",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut control_flow = lower_to_control_flow(&program, &semantics).unwrap();
+        let options = OptimizationOptions {
+            inlining: false,
+            call_site_specialization: false,
+            capture_signature_cloning: false,
+            ..OptimizationOptions::default()
+        };
+
+        optimize_control_flow_with_options(&mut control_flow, &options, false).unwrap();
+
+        assert_eq!(
+            control_flow
+                .functions
+                .iter()
+                .filter(|function| function.live && function.kind == FunctionKind::Function)
+                .count(),
+            2
+        );
+    }
+
+    #[test]
+    fn normalizes_phi_locals_removed_from_function_metadata() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            include_str!("../tests/cases/nested_short_circuit.lil"),
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut control_flow = lower_to_control_flow(&program, &semantics).unwrap();
+
+        let reports = optimize_control_flow(&mut control_flow).unwrap();
+
+        assert!(reports
+            .iter()
+            .any(|report| report.pass_name == "identical-private-function-folding"));
     }
 
     #[test]

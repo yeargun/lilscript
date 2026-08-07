@@ -41,6 +41,7 @@ pub struct IrJsOptions {
     pub update_loop_layout: bool,
     pub cross_scope_name_reuse: bool,
     pub entropy_property_names: bool,
+    pub function_layout: FunctionLayout,
     pub loop_spelling: LoopSpelling,
     pub mutation_spelling: MutationSpelling,
     pub identifier_alphabet: IdentifierAlphabet,
@@ -67,12 +68,177 @@ impl Default for IrJsOptions {
             update_loop_layout: true,
             cross_scope_name_reuse: true,
             entropy_property_names: true,
+            function_layout: FunctionLayout::Source,
             loop_spelling: LoopSpelling::Auto,
             mutation_spelling: MutationSpelling::Assignment,
             identifier_alphabet: IdentifierAlphabet::canonical(),
             string_quote: StringQuote::Double,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum FunctionLayout {
+    #[default]
+    Source,
+    CompressionSimilarity,
+}
+
+const FUNCTION_LAYOUT_DP_LIMIT: usize = 13;
+const FUNCTION_LAYOUT_NGRAM_LIMIT: usize = 4_096;
+
+fn compression_similarity_order(segments: &[String]) -> Vec<usize> {
+    let count = segments.len();
+    if count < 3 {
+        return (0..count).collect();
+    }
+    let profiles = segments
+        .iter()
+        .map(|segment| function_ngram_profile(segment.as_bytes()))
+        .collect::<Vec<_>>();
+    let mut similarities = vec![vec![0_usize; count]; count];
+    for left in 0..count {
+        for right in left + 1..count {
+            let (smaller, larger) = if profiles[left].len() <= profiles[right].len() {
+                (&profiles[left], &profiles[right])
+            } else {
+                (&profiles[right], &profiles[left])
+            };
+            let score = smaller
+                .iter()
+                .map(|(ngram, occurrences)| {
+                    usize::from((*occurrences).min(larger.get(ngram).copied().unwrap_or_default()))
+                })
+                .sum();
+            similarities[left][right] = score;
+            similarities[right][left] = score;
+        }
+    }
+
+    let source = (0..count).collect::<Vec<_>>();
+    let candidate = if count <= FUNCTION_LAYOUT_DP_LIMIT {
+        maximum_similarity_path(&similarities)
+    } else {
+        greedy_similarity_path(&similarities)
+    };
+    if path_similarity(&candidate, &similarities) > path_similarity(&source, &similarities) {
+        candidate
+    } else {
+        source
+    }
+}
+
+fn function_ngram_profile(bytes: &[u8]) -> AHashMap<u64, u16> {
+    let mut profile = AHashMap::new();
+    for window in bytes.windows(8) {
+        let ngram = u64::from_le_bytes(window.try_into().expect("an eight-byte window"));
+        if profile.len() < FUNCTION_LAYOUT_NGRAM_LIMIT || profile.contains_key(&ngram) {
+            let occurrences = profile.entry(ngram).or_insert(0_u16);
+            *occurrences = occurrences.saturating_add(1);
+        }
+    }
+    profile
+}
+
+fn maximum_similarity_path(similarities: &[Vec<usize>]) -> Vec<usize> {
+    let count = similarities.len();
+    let state_count = 1_usize << count;
+    let mut scores = vec![None::<usize>; state_count * count];
+    let mut parents = vec![usize::MAX; state_count * count];
+    for node in 0..count {
+        scores[((1_usize << node) * count) + node] = Some(0);
+    }
+    for mask in 1_usize..state_count {
+        for (last, similarity_row) in similarities.iter().enumerate() {
+            let index = mask * count + last;
+            let Some(score) = scores[index] else {
+                continue;
+            };
+            for (next, similarity) in similarity_row.iter().copied().enumerate() {
+                let bit = 1_usize << next;
+                if mask & bit != 0 {
+                    continue;
+                }
+                let next_index = (mask | bit) * count + next;
+                let next_score = score.saturating_add(similarity);
+                if scores[next_index].is_none_or(|current| next_score > current)
+                    || (scores[next_index] == Some(next_score) && last < parents[next_index])
+                {
+                    scores[next_index] = Some(next_score);
+                    parents[next_index] = last;
+                }
+            }
+        }
+    }
+
+    let full = state_count - 1;
+    let mut last = (0..count)
+        .max_by(|left, right| {
+            scores[full * count + *left]
+                .cmp(&scores[full * count + *right])
+                .then_with(|| right.cmp(left))
+        })
+        .unwrap_or_default();
+    let mut mask = full;
+    let mut path = Vec::with_capacity(count);
+    loop {
+        path.push(last);
+        let parent = parents[mask * count + last];
+        mask &= !(1_usize << last);
+        if parent == usize::MAX {
+            break;
+        }
+        last = parent;
+    }
+    path.reverse();
+    path
+}
+
+fn greedy_similarity_path(similarities: &[Vec<usize>]) -> Vec<usize> {
+    let count = similarities.len();
+    let mut strongest = (0_usize, 1_usize, similarities[0][1]);
+    for (left, similarity_row) in similarities.iter().enumerate() {
+        for (right, similarity) in similarity_row.iter().copied().enumerate().skip(left + 1) {
+            if similarity > strongest.2 {
+                strongest = (left, right, similarity);
+            }
+        }
+    }
+    let mut path = vec![strongest.0, strongest.1];
+    let mut remaining = (0..count)
+        .filter(|node| !path.contains(node))
+        .collect::<Vec<_>>();
+    while !remaining.is_empty() {
+        let mut best = (i128::MIN, usize::MAX, usize::MAX);
+        for candidate in &remaining {
+            for position in 0..=path.len() {
+                let added = if position == 0 {
+                    similarities[*candidate][path[0]] as i128
+                } else if position == path.len() {
+                    similarities[path[position - 1]][*candidate] as i128
+                } else {
+                    similarities[path[position - 1]][*candidate] as i128
+                        + similarities[*candidate][path[position]] as i128
+                        - similarities[path[position - 1]][path[position]] as i128
+                };
+                let choice = (added, *candidate, position);
+                if choice.0 > best.0
+                    || (choice.0 == best.0 && (choice.1, choice.2) < (best.1, best.2))
+                {
+                    best = choice;
+                }
+            }
+        }
+        path.insert(best.2, best.1);
+        remaining.retain(|candidate| *candidate != best.1);
+    }
+    path
+}
+
+fn path_similarity(path: &[usize], similarities: &[Vec<usize>]) -> usize {
+    path.windows(2)
+        .map(|edge| similarities[edge[0]][edge[1]])
+        .sum()
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -655,18 +821,20 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         }
         self.emit_external_export_aliases(&mut out)?;
 
-        let functions = self.module.functions.clone();
-        for function in &functions {
-            if !function.live
-                || function.kind == FunctionKind::Entry
-                || function.kind == FunctionKind::Extern
-                || (function.kind == FunctionKind::Closure
-                    && can_inline_closure(function, self.options.inline_structured_closures))
-            {
-                continue;
-            }
-            self.emit_function(function, &mut out)?;
-        }
+        let functions = self
+            .module
+            .functions
+            .iter()
+            .filter(|function| {
+                function.live
+                    && function.kind != FunctionKind::Entry
+                    && function.kind != FunctionKind::Extern
+                    && !(function.kind == FunctionKind::Closure
+                        && can_inline_closure(function, self.options.inline_structured_closures))
+            })
+            .map(|function| function.id)
+            .collect::<Vec<_>>();
+        self.emit_function_group(&functions, &mut out)?;
 
         if entry_is_single_block {
             self.emit_single_block(&entry, false, &mut out)?;
@@ -905,10 +1073,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             if unit == 0 {
                 self.emit_module_preamble(&mut code)?;
             }
-            for function in &unit_functions[unit] {
-                let function = self.function(*function)?.clone();
-                self.emit_function(&function, &mut code)?;
-            }
+            self.emit_function_group(&unit_functions[unit], &mut code)?;
             if unit == 0 {
                 self.emit_entry_body(&mut code)?;
                 self.emit_named_exports(&internal_exports[unit], &mut code);
@@ -1524,6 +1689,32 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         } else {
             self.emit_state_machine_with_context(function, context, out)
         }
+    }
+
+    fn emit_function_group(
+        &mut self,
+        functions: &[FunctionId],
+        out: &mut String,
+    ) -> Result<(), CodegenError> {
+        if self.options.function_layout == FunctionLayout::Source {
+            for function in functions {
+                let function = self.function(*function)?.clone();
+                self.emit_function(&function, out)?;
+            }
+            return Ok(());
+        }
+        let mut segments = Vec::with_capacity(functions.len());
+        for function in functions {
+            let function = self.function(*function)?.clone();
+            let mut code = String::new();
+            self.emit_function(&function, &mut code)?;
+            segments.push(code);
+        }
+        let order = compression_similarity_order(&segments);
+        for index in order {
+            out.push_str(&segments[index]);
+        }
+        Ok(())
     }
 
     fn render_conditional_return(
@@ -6091,6 +6282,22 @@ mod tests {
     #[test]
     fn emits_compact_straight_line_ir() {
         assert_eq!(compile("print(1+2*3);"), "console.log(7)");
+    }
+
+    #[test]
+    fn clusters_similar_function_declarations_with_dynamic_programming() {
+        let segments = vec![
+            "function warmA(a){return a*a+a*17+a%11}".to_string(),
+            "function coldA(a){return a^a>>>3^987654321}".to_string(),
+            "function warmB(a){return a*a+a*19+a%13}".to_string(),
+            "function coldB(a){return a^a>>>5^987654323}".to_string(),
+        ];
+
+        let order = compression_similarity_order(&segments);
+
+        let position = |function| order.iter().position(|item| *item == function).unwrap();
+        assert_eq!(position(0).abs_diff(position(2)), 1, "{order:?}");
+        assert_eq!(position(1).abs_diff(position(3)), 1, "{order:?}");
     }
 
     #[test]

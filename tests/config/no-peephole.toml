@@ -23,5 +23,7 @@ optimizations = [
   "profile-guided-optimization",
   "call-site-specialization",
   "capture-signature-cloning",
+  "identical-function-folding",
+  "function-layout-variants",
   "startup-cost-guard",
 ]

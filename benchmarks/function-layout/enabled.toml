@@ -1,0 +1,15 @@
+[optimization]
+preset = "none"
+
+[javascript]
+optimizations = ["function-layout-variants"]
+compression = []
+candidate_search = "always"
+candidate_limit = 16
+cost_model = "brotli"
+
+[mangle]
+identifiers = false
+properties = false
+exports = false
+pool_strings = false

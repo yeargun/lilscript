@@ -1596,6 +1596,23 @@ fn select_javascript_candidate(
             },
         )?;
     }
+    if config.javascript_optimization_enabled(JavaScriptOptimization::FunctionLayoutVariants) {
+        let finalists = top_candidate_options(&candidates, 12);
+        extend_javascript_candidate_beam(
+            ir,
+            module_output,
+            beam_policy,
+            &integer_analysis,
+            &mut candidates,
+            finalists,
+            |options| {
+                [crate::codegen_ir_js::IrJsOptions {
+                    function_layout: crate::codegen_ir_js::FunctionLayout::CompressionSimilarity,
+                    ..options
+                }]
+            },
+        )?;
+    }
     if !candidates
         .iter()
         .any(|(_, _, code, _)| code == &configured_baseline)
@@ -2196,6 +2213,40 @@ mod tests {
         assert_eq!(selected, outlined);
         assert!(selected.len() < inlined.len(), "{selected}\n{inlined}");
         assert!(selected.contains("function"), "{selected}");
+    }
+
+    #[test]
+    fn codec_scoring_selects_a_better_function_layout_without_raw_growth() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            include_str!("../benchmarks/function-layout/fixture.lil"),
+        )
+        .unwrap();
+        let mut enabled = ProjectConfig::default();
+        enabled.optimization.preset = OptimizationPreset::None;
+        enabled.javascript.optimizations =
+            Some(vec![JavaScriptOptimization::FunctionLayoutVariants]);
+        enabled.javascript.compression = Some(Vec::new());
+        enabled.javascript.candidate_search = CandidateSearch::Always;
+        enabled.javascript.candidate_limit = 16;
+        enabled.mangle.identifiers = Some(false);
+        enabled.mangle.properties = Some(false);
+        enabled.mangle.exports = Some(false);
+        enabled.mangle.pool_strings = Some(false);
+        let mut source_order = enabled.clone();
+        source_order.javascript.optimizations = Some(Vec::new());
+        source_order.javascript.candidate_search = CandidateSearch::Off;
+
+        let selected = compile_program_to_js_configured(&program, &enabled).unwrap();
+        let baseline = compile_program_to_js_configured(&program, &source_order).unwrap();
+
+        assert_eq!(selected.len(), baseline.len());
+        assert!(
+            compressed_size(selected.as_bytes(), CompressionCostModel::Brotli).unwrap()
+                < compressed_size(baseline.as_bytes(), CompressionCostModel::Brotli).unwrap(),
+            "selected:\n{selected}\nsource order:\n{baseline}"
+        );
     }
 
     #[test]

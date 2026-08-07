@@ -3,6 +3,7 @@ preset = "maximum"
 profile_guided = true
 call_site_specialization = true
 capture_signature_cloning = true
+identical_function_folding = true
 
 [javascript]
 priority = "size-first"
