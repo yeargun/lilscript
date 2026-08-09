@@ -57,3 +57,15 @@ test("detail and explorer pages keep project navigation in new tabs", async () =
   assert.match(script, /benchmark-detail\.html\?project=/);
   assert.match(detail, /data-project-detail/);
 });
+
+test("explorer explains aggregate compression rates and fair comparison", async () => {
+  const explorer = await readFile(new URL("../explorer.html", import.meta.url), "utf8");
+  const script = await readFile(new URL("../src/explorer.js", import.meta.url), "utf8");
+  assert.match(explorer, /data-aggregate-summary/);
+  assert.match(explorer, /Overall averages/);
+  assert.match(explorer, /compression saved =/);
+  assert.match(explorer, /Global averages are descriptive/);
+  assert.match(explorer, /Compare inside one project/);
+  assert.match(script, /weightedGzipReduction/);
+  assert.match(script, /metric-rate/);
+});

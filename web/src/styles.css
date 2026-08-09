@@ -1188,6 +1188,82 @@ tbody tr:last-child td {
   font-weight: 700;
 }
 
+.aggregate-panel {
+  margin-top: 16px;
+  padding: 22px;
+  border: 1px solid var(--line);
+  background: #f6f8f7;
+}
+
+.aggregate-panel > header {
+  display: flex;
+  justify-content: space-between;
+  gap: 28px;
+  align-items: end;
+}
+
+.aggregate-panel .eyebrow {
+  margin-bottom: 7px;
+}
+
+.aggregate-panel h2 {
+  margin: 0;
+  font-size: 23px;
+}
+
+.aggregate-panel header > p {
+  max-width: 520px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.aggregate-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.aggregate-summary article {
+  display: flex;
+  min-height: 125px;
+  flex-direction: column;
+  padding: 17px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+}
+
+.aggregate-summary strong {
+  color: var(--green-dark);
+  font-size: 27px;
+  font-variant-numeric: tabular-nums;
+}
+
+.aggregate-summary span {
+  margin-top: 5px;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 730;
+}
+
+.aggregate-summary small {
+  margin-top: auto;
+  padding-top: 13px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.aggregate-note {
+  max-width: none;
+  margin: 14px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
 .table-result-count {
   margin: 15px 0 8px;
   color: var(--muted);
@@ -1311,6 +1387,23 @@ tbody tr:last-child td {
   text-align: right;
 }
 
+.metric-value,
+.metric-rate {
+  display: block;
+}
+
+.metric-value {
+  font-weight: 690;
+}
+
+.metric-rate {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 520;
+  white-space: nowrap;
+}
+
 .status-badge,
 .detail-badges span {
   display: inline-flex;
@@ -1365,6 +1458,73 @@ tbody tr:last-child td {
   color: var(--muted);
   font-size: 13px;
   line-height: 1.55;
+}
+
+.comparison-steps,
+.interpretation-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 25px;
+}
+
+.comparison-steps article,
+.interpretation-grid article {
+  padding: 18px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+}
+
+.comparison-steps article > span {
+  color: var(--green-dark);
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 11px;
+  font-weight: 760;
+}
+
+.comparison-steps h3,
+.interpretation-grid h3 {
+  margin: 12px 0 0;
+  font-size: 15px;
+}
+
+.comparison-steps p,
+.interpretation-grid p {
+  margin-top: 9px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.rate-formulas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-top: 18px;
+}
+
+.rate-formulas code {
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--soft);
+  color: var(--green-dark);
+  font-size: 11px;
+}
+
+.interpretation-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.method-warning {
+  max-width: none !important;
+  padding: 15px 17px;
+  border-left: 3px solid var(--yellow);
+  background: #fffaf0;
+  font-size: 13px;
+}
+
+.definitions-heading {
+  margin: 38px 0 14px !important;
 }
 
 .detail-hero {
@@ -1471,6 +1631,10 @@ tbody tr:last-child td {
   .explorer-controls .wide-control {
     grid-column: span 2;
   }
+  .aggregate-summary,
+  .comparison-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 900px) {
@@ -1494,6 +1658,16 @@ tbody tr:last-child td {
   .source-card header {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .aggregate-panel > header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .comparison-steps,
+  .interpretation-grid {
+    grid-template-columns: 1fr;
   }
 
   .explorer-main {
@@ -1577,5 +1751,19 @@ tbody tr:last-child td {
 
   .explorer-main.show-all-columns .explorer-table {
     min-width: 0;
+  }
+}
+
+@media (max-width: 540px) {
+  .aggregate-panel {
+    padding: 16px;
+  }
+
+  .aggregate-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .aggregate-summary article {
+    min-height: 108px;
   }
 }
