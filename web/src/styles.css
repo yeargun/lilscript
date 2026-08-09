@@ -1113,6 +1113,10 @@ tbody tr:last-child td {
   padding-bottom: 76px;
 }
 
+.explorer-main {
+  width: min(1360px, calc(100% - 32px));
+}
+
 .catalog-summary {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1144,7 +1148,7 @@ tbody tr:last-child td {
 
 .explorer-controls {
   display: grid;
-  grid-template-columns: 1.5fr repeat(5, minmax(125px, 0.7fr)) auto;
+  grid-template-columns: minmax(180px, 1.4fr) repeat(6, minmax(100px, 0.75fr)) auto;
   gap: 10px;
   align-items: end;
   padding: 18px;
@@ -1196,6 +1200,38 @@ tbody tr:last-child td {
   background: var(--paper);
 }
 
+.explorer-table {
+  width: 100%;
+  min-width: 860px;
+  table-layout: fixed;
+  font-size: 12px;
+}
+
+.explorer-table .project-column {
+  width: 24%;
+}
+
+.explorer-table .artifact-column {
+  width: 29%;
+}
+
+.explorer-table .mangling-column {
+  width: 17%;
+}
+
+.explorer-table .metric-column {
+  width: 10%;
+}
+
+.explorer-main:not(.show-all-columns) .optional-column {
+  display: none;
+}
+
+.explorer-main.show-all-columns .explorer-table {
+  min-width: 1260px;
+  table-layout: auto;
+}
+
 .explorer-table thead {
   position: sticky;
   top: 0;
@@ -1204,12 +1240,46 @@ tbody tr:last-child td {
 
 .explorer-table th,
 .explorer-table td {
-  white-space: nowrap;
+  padding: 9px 10px;
+  vertical-align: top;
 }
 
 .explorer-table th:first-child {
-  min-width: 245px;
   white-space: normal;
+}
+
+.artifact-cell,
+.mangling-cell {
+  overflow-wrap: anywhere;
+}
+
+.artifact-cell small,
+.mangling-cell small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.project-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 550;
+}
+
+.show-all-columns .project-meta {
+  display: none;
+}
+
+.show-all-columns .artifact-cell small,
+.show-all-columns .mangling-cell small {
+  display: none;
 }
 
 .explorer-table th small,
@@ -1403,7 +1473,7 @@ tbody tr:last-child td {
   }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 900px) {
   .catalog-summary,
   .definition-grid,
   .roadmap-grid {
@@ -1424,5 +1494,88 @@ tbody tr:last-child td {
   .source-card header {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .explorer-main {
+    width: min(100% - 22px, 680px);
+  }
+
+  .explorer-table-wrap {
+    max-height: none;
+    overflow: visible;
+    border: 0;
+    background: transparent;
+  }
+
+  .explorer-table,
+  .explorer-table tbody {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .explorer-table thead {
+    display: none;
+  }
+
+  .explorer-table tr {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0;
+    overflow: hidden;
+    margin-bottom: 10px;
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    background: var(--paper);
+  }
+
+  .explorer-table th,
+  .explorer-table td {
+    display: block;
+    border: 0;
+    white-space: normal;
+  }
+
+  .explorer-table .project-cell,
+  .explorer-table .artifact-cell,
+  .explorer-table .mangling-cell,
+  .explorer-table .optional-cell {
+    grid-column: 1 / -1;
+  }
+
+  .explorer-table .project-cell {
+    padding: 14px 14px 10px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .explorer-table .artifact-cell,
+  .explorer-table .mangling-cell,
+  .explorer-table .optional-cell {
+    padding: 9px 14px;
+  }
+
+  .explorer-table .mangling-cell {
+    background: var(--soft);
+  }
+
+  .explorer-table .metric-cell {
+    padding: 11px 8px 13px;
+    border-top: 1px solid var(--line);
+    text-align: center;
+  }
+
+  .explorer-table .metric-cell::before,
+  .explorer-table .optional-cell::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 4px;
+    color: var(--muted);
+    font-size: 9px;
+    font-weight: 760;
+    text-transform: uppercase;
+  }
+
+  .explorer-main.show-all-columns .explorer-table {
+    min-width: 0;
   }
 }

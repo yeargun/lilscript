@@ -47,7 +47,12 @@ test("detail and explorer pages keep project navigation in new tabs", async () =
   const script = await readFile(new URL("../src/explorer.js", import.meta.url), "utf8");
   const detail = await readFile(new URL("../benchmark-detail.html", import.meta.url), "utf8");
   assert.match(explorer, /data-filter-category/);
+  assert.match(explorer, /data-column-view/);
+  assert.match(explorer, /value="core">Core comparison/);
   assert.match(explorer, /data-sort/);
+  assert.match(explorer, /value="core">Core evidence first/);
+  assert.match(script, /show-all-columns/);
+  assert.match(script, /projectIndex - right\.projectIndex/);
   assert.match(script, /target="_blank"/);
   assert.match(script, /benchmark-detail\.html\?project=/);
   assert.match(detail, /data-project-detail/);

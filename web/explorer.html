@@ -29,13 +29,14 @@
         <label><span>Status</span><select data-filter-status><option value="">All statuses</option></select></label>
         <label><span>Tool</span><select data-filter-tool><option value="">All tools</option></select></label>
         <label><span>Mangling</span><select data-filter-mode><option value="">All modes</option></select></label>
-        <label><span>Sort</span><select data-sort><option value="project">Project</option><option value="raw">Raw bytes</option><option value="gzip">Gzip bytes</option><option value="brotli">Brotli bytes</option><option value="tool">Tool</option><option value="category">Category</option></select></label>
+        <label><span>Columns</span><select data-column-view><option value="core">Core comparison</option><option value="full">Full metadata</option></select></label>
+        <label><span>Sort</span><select data-sort><option value="core">Core evidence first</option><option value="project">Project</option><option value="raw">Raw bytes</option><option value="gzip">Gzip bytes</option><option value="brotli">Brotli bytes</option><option value="tool">Tool</option><option value="category">Category</option></select></label>
         <button class="secondary-button" type="button" data-sort-direction aria-label="Reverse sort direction">Ascending</button>
       </section>
       <p class="table-result-count" data-result-count aria-live="polite"></p>
       <div class="benchmark-table-wrap explorer-table-wrap">
         <table class="explorer-table">
-          <thead><tr><th>Project</th><th>Category</th><th>Status</th><th>Artifact lane</th><th>Tool</th><th>Mangling</th><th>Properties</th><th>Raw</th><th>Gzip-9</th><th>Brotli-11</th></tr></thead>
+          <thead><tr><th class="project-column">Project</th><th class="optional-column">Category</th><th class="optional-column">Status</th><th class="artifact-column">Artifact lane</th><th class="optional-column">Tool</th><th class="mangling-column">Mangling</th><th class="optional-column">Properties</th><th class="metric-column">Raw</th><th class="metric-column">Gzip-9</th><th class="metric-column">Brotli-11</th></tr></thead>
           <tbody data-explorer-rows></tbody>
         </table>
       </div>

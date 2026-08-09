@@ -12,13 +12,14 @@ const labels = {
 };
 const escape = (value) => String(value ?? "")
   .replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
-const rows = catalog.projects.flatMap((project) => project.artifacts.map((artifact) => ({ project, artifact })));
+const rows = catalog.projects.flatMap((project, projectIndex) => project.artifacts.map((artifact, artifactIndex) => ({ project, artifact, projectIndex, artifactIndex })));
 const controls = {
   search: document.querySelector("[data-filter-search]"),
   category: document.querySelector("[data-filter-category]"),
   status: document.querySelector("[data-filter-status]"),
   tool: document.querySelector("[data-filter-tool]"),
   mode: document.querySelector("[data-filter-mode]"),
+  view: document.querySelector("[data-column-view]"),
   sort: document.querySelector("[data-sort]"),
   direction: document.querySelector("[data-sort-direction]"),
 };
@@ -52,7 +53,9 @@ function compare(left, right) {
   const key = controls.sort.value;
   let a;
   let b;
-  if (["raw", "gzip", "brotli"].includes(key)) {
+  if (key === "core") {
+    return (left.projectIndex - right.projectIndex) || (left.artifactIndex - right.artifactIndex);
+  } else if (["raw", "gzip", "brotli"].includes(key)) {
     a = left.artifact[key]; b = right.artifact[key];
   } else if (key === "tool") {
     a = left.artifact.tool; b = right.artifact.tool;
@@ -65,6 +68,7 @@ function compare(left, right) {
   return (ascending ? 1 : -1) * (order || left.artifact.label.localeCompare(right.artifact.label));
 }
 function render() {
+  document.querySelector(".explorer-main").classList.toggle("show-all-columns", controls.view.value === "full");
   const query = controls.search.value.trim().toLowerCase();
   const filtered = rows.filter((row) =>
     (!query || haystack(row).includes(query)) &&
@@ -76,10 +80,10 @@ function render() {
   document.querySelector("[data-result-count]").textContent = `${number.format(filtered.length)} of ${number.format(rows.length)} artifact rows across ${new Set(filtered.map((row) => row.project.key)).size} projects`;
   document.querySelector("[data-explorer-rows]").innerHTML = filtered.map(({ project, artifact }) => `
     <tr>
-      <th><a class="project-link" target="_blank" rel="noopener" href="/benchmark-detail.html?project=${encodeURIComponent(project.key)}">${escape(project.title)}<i data-lucide="external-link" aria-hidden="true"></i></a><small>${escape(project.packages.map((item) => item.name).join(" + ") || project.id)}</small></th>
-      <td>${escape(labels[project.category] ?? project.category)}</td><td><span class="status-badge ${escape(project.status)}">${escape(project.status)}</span></td>
-      <td>${escape(artifact.label)}</td><td>${escape(artifact.tool)}</td><td>${escape(artifact.mode)}</td><td>${escape(artifact.propertyMangling)}</td>
-      <td class="numeric">${number.format(artifact.raw)}</td><td class="numeric">${number.format(artifact.gzip)}</td><td class="numeric">${number.format(artifact.brotli)}</td>
+      <th class="project-cell"><a class="project-link" target="_blank" rel="noopener" href="/benchmark-detail.html?project=${encodeURIComponent(project.key)}">${escape(project.title)}<i data-lucide="external-link" aria-hidden="true"></i></a><span class="project-meta"><span>${escape(labels[project.category] ?? project.category)}</span><span class="status-badge ${escape(project.status)}">${escape(project.status)}</span></span><small>${escape(project.packages.map((item) => item.name).join(" + ") || project.id)}</small></th>
+      <td class="optional-column optional-cell" data-label="Category">${escape(labels[project.category] ?? project.category)}</td><td class="optional-column optional-cell" data-label="Status"><span class="status-badge ${escape(project.status)}">${escape(project.status)}</span></td>
+      <td class="artifact-cell" data-label="Artifact">${escape(artifact.label)}<small>${escape(artifact.tool)}</small></td><td class="optional-column optional-cell" data-label="Tool">${escape(artifact.tool)}</td><td class="mangling-cell" data-label="Mangling">${escape(artifact.mode)}<small>properties: ${escape(artifact.propertyMangling)}</small></td><td class="optional-column optional-cell" data-label="Properties">${escape(artifact.propertyMangling)}</td>
+      <td class="numeric metric-cell" data-label="Raw">${number.format(artifact.raw)}</td><td class="numeric metric-cell" data-label="Gzip-9">${number.format(artifact.gzip)}</td><td class="numeric metric-cell" data-label="Brotli-11">${number.format(artifact.brotli)}</td>
     </tr>`).join("") || '<tr><td colspan="10" class="empty-table">No artifact matches these filters.</td></tr>';
   renderIcons(document.querySelector("[data-explorer-rows]"));
 }
