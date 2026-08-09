@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="LilScript browser delivery architecture: chunk dependencies, activation phases, progressive enhancement, orchestration, caching, and native-target boundaries.">
+    <title>Browser delivery architecture | LilScript</title>
+    <link rel="stylesheet" href="/src/styles.css">
+  </head>
+  <body class="content-page delivery-page">
+    <header class="site-header">
+      <a class="wordmark" href="/" aria-label="LilScript playground"><span class="wordmark-mark" aria-hidden="true">L</span><span>LilScript</span></a>
+      <button class="nav-toggle icon-button" type="button" aria-label="Toggle navigation" aria-expanded="false"><i data-lucide="menu" aria-hidden="true"></i></button>
+      <nav class="site-nav" aria-label="Primary navigation"><a href="/">Playground</a><a href="/docs.html">Docs</a><a href="/benchmarks.html">Benchmarks</a><a href="/explorer.html">Explorer</a><a class="active" href="/delivery.html">Delivery</a><a href="/roadmap.html">Roadmap</a><a href="/about.html">About</a></nav>
+    </header>
+
+    <main class="delivery-main content-width">
+      <section class="delivery-hero">
+        <p class="eyebrow">Browser-first architecture study</p>
+        <h1>Chunks carry bytes.<br>Phases decide experience.</h1>
+        <p class="lead">LilScript should optimize network placement, execution correctness, progressive enhancement, and cache survival as one delivery problem—without pretending that a critical module can outrun a dependency it synchronously needs.</p>
+        <div class="delivery-law">
+          <span>Dependency law</span>
+          <p>If Chunk A has a static import from Chunk B, the browser can prioritize A’s request, but it must fetch and evaluate the required B module graph before evaluating A. Priority changes discovery and transport; it does not repeal dependency order.</p>
+        </div>
+      </section>
+
+      <section class="scenario-lab" id="scenario" aria-labelledby="scenario-title">
+        <header class="delivery-section-header">
+          <div><p class="eyebrow">Your exact scenario</p><h2 id="scenario-title">What can run before Module 5?</h2></div>
+          <p>Switch the dependency strategy. The source behavior stays explicit; the compiler is not allowed to silently make synchronous work asynchronous.</p>
+        </header>
+        <div class="strategy-tabs" role="tablist" aria-label="Chunk dependency strategies">
+          <button id="strategy-static" class="strategy-tab active" type="button" role="tab" aria-selected="true" aria-controls="panel-static" data-strategy="static">Static dependency</button>
+          <button id="strategy-phase" class="strategy-tab" type="button" role="tab" aria-selected="false" aria-controls="panel-phase" data-strategy="phase">Activation split</button>
+          <button id="strategy-extract" class="strategy-tab" type="button" role="tab" aria-selected="false" aria-controls="panel-extract" data-strategy="extract">Critical extraction</button>
+        </div>
+
+        <div class="strategy-panel" id="panel-static" role="tabpanel" aria-labelledby="strategy-static" data-strategy-panel="static">
+          <div class="chunk-graph">
+            <article class="chunk-card chunk-a">
+              <header><span>Response 01</span><h3>Chunk A</h3></header>
+              <div class="module-chip"><b>Module 1</b><small>statically imports Module 5</small></div>
+              <div class="module-chip"><b>Module 2</b><small>depends on Module 1</small></div>
+              <div class="module-chip critical-module"><b>Module 3</b><small>critical UI work</small></div>
+            </article>
+            <div class="dependency-bridge blocked"><span>static import</span><b aria-hidden="true">→</b><small>A cannot evaluate yet</small></div>
+            <article class="chunk-card chunk-b">
+              <header><span>Response 02</span><h3>Chunk B</h3></header>
+              <div class="module-chip dependency-module"><b>Module 5</b><small>required by Module 1</small></div>
+              <div class="module-chip"><b>Module 7</b><small>feature code</small></div>
+              <div class="module-chip"><b>Module 8</b><small>feature code</small></div>
+            </article>
+          </div>
+          <div class="strategy-verdict blocked-verdict"><strong>Cannot satisfy “evaluate A, then load B.”</strong><p>A native ESM entry waits for its static dependency graph. Module 3 being textually inside A does not create an independent execution unit.</p></div>
+          <ol class="delivery-timeline"><li><span>1</span><p><b>Discover A</b><small>HTML requests the entry.</small></p></li><li><span>2</span><p><b>Discover and fetch B</b><small>A’s static import exposes Module 5.</small></p></li><li><span>3</span><p><b>Evaluate B</b><small>Dependency initialization completes.</small></p></li><li><span>4</span><p><b>Evaluate A</b><small>Only now can Module 3 execute.</small></p></li></ol>
+        </div>
+
+        <div class="strategy-panel" id="panel-phase" role="tabpanel" aria-labelledby="strategy-phase" data-strategy-panel="phase" hidden>
+          <div class="chunk-graph">
+            <article class="chunk-card chunk-a">
+              <header><span>Critical response</span><h3>Chunk A</h3></header>
+              <div class="module-chip deferred-module"><b>Module 1 initializer</b><small>scheduled after import(B)</small></div>
+              <div class="module-chip deferred-module"><b>Module 2 initializer</b><small>scheduled with Module 1</small></div>
+              <div class="module-chip critical-module"><b>Module 3</b><small>runs during critical activation</small></div>
+            </article>
+            <div class="dependency-bridge allowed"><span>dynamic import</span><b aria-hidden="true">⇢</b><small>fetch now or on policy</small></div>
+            <article class="chunk-card chunk-b">
+              <header><span>Enhancement response</span><h3>Chunk B</h3></header>
+              <div class="module-chip dependency-module"><b>Module 5</b><small>loaded before deferred initializer</small></div>
+              <div class="module-chip"><b>Module 7</b><small>feature code</small></div>
+              <div class="module-chip"><b>Module 8</b><small>feature code</small></div>
+            </article>
+          </div>
+          <div class="strategy-verdict allowed-verdict"><strong>Legal when Module 1 is not needed synchronously.</strong><p>LilScript can emit Module 3 in the critical activation group, call <code>import(B)</code>, and activate Modules 1–2 only after Module 5 is available. The type system must expose that asynchronous boundary.</p></div>
+          <ol class="delivery-timeline"><li><span>1</span><p><b>Fetch and evaluate A</b><small>No static edge to B remains.</small></p></li><li><span>2</span><p><b>Run Module 3</b><small>Critical UI becomes usable.</small></p></li><li><span>3</span><p><b>Fetch B</b><small>Immediately, on intent, visibility, or idle.</small></p></li><li><span>4</span><p><b>Activate Modules 1–2</b><small>Typed dependency is now fulfilled.</small></p></li></ol>
+        </div>
+
+        <div class="strategy-panel" id="panel-extract" role="tabpanel" aria-labelledby="strategy-extract" data-strategy-panel="extract" hidden>
+          <div class="chunk-graph extracted-graph">
+            <article class="chunk-card critical-entry">
+              <header><span>HTML-owned entry</span><h3>Critical</h3></header>
+              <div class="module-chip critical-module"><b>Module 3</b><small>dependency-closed bootstrap</small></div>
+            </article>
+            <div class="dependency-bridge allowed"><span>parallel discovery</span><b aria-hidden="true">⇢</b><small>does not block critical</small></div>
+            <article class="chunk-card chunk-a">
+              <header><span>Application response</span><h3>Chunk A</h3></header>
+              <div class="module-chip"><b>Modules 1–2</b><small>retain their static Module 5 edge</small></div>
+            </article>
+            <article class="chunk-card chunk-b compact-chunk">
+              <header><span>Dependency response</span><h3>Chunk B</h3></header>
+              <div class="module-chip dependency-module"><b>Modules 5, 7, 8</b><small>evaluate before Chunk A</small></div>
+            </article>
+          </div>
+          <div class="strategy-verdict allowed-verdict"><strong>Best default for truly critical work.</strong><p>Extract Module 3 into a dependency-closed critical entry or inline bootstrap. A and B may preserve ordinary static ESM semantics while critical rendering or event capture proceeds independently.</p></div>
+          <ol class="delivery-timeline"><li><span>1</span><p><b>HTML renders</b><small>Useful markup exists without application JS.</small></p></li><li><span>2</span><p><b>Critical entry runs</b><small>Module 3 has no later-phase dependency.</small></p></li><li><span>3</span><p><b>A and B load</b><small>The browser resolves their normal graph.</small></p></li><li><span>4</span><p><b>Enhancement attaches</b><small>Existing UI upgrades without replacement.</small></p></li></ol>
+        </div>
+      </section>
+
+      <section class="delivery-section" aria-labelledby="axes-title">
+        <header class="delivery-section-header"><div><p class="eyebrow">Do not collapse the axes</p><h2 id="axes-title">Four decisions, not one bundle switch</h2></div><p>A folder name can inform placement. It cannot safely dictate when code becomes observable.</p></header>
+        <div class="delivery-axis-grid">
+          <article><span>01</span><h3>Placement</h3><p>Which functions and data share an HTTP response? Automatic, folder-preferred, or manually required groups belong here.</p></article>
+          <article><span>02</span><h3>Discovery and fetch</h3><p>When does the browser learn each URL, and at what priority? HTML, modulepreload, intent, visibility, and idle policy belong here.</p></article>
+          <article><span>03</span><h3>Instantiation and evaluation</h3><p>Static ESM dependencies preserve dependency-first execution. Dynamic imports and generated initializers create explicit later phases.</p></article>
+          <article><span>04</span><h3>Activation</h3><p>When may a feature touch the DOM, install listeners, or expose state? Critical, interactive, visible, idle, and manual activation belong here.</p></article>
+        </div>
+      </section>
+
+      <section class="delivery-section manual-section" aria-labelledby="manual-title">
+        <header class="delivery-section-header"><div><p class="eyebrow">Manual and folder-based bundling</p><h2 id="manual-title">Folders are useful affinity. They are not execution semantics.</h2></div><p><strong>My recommendation:</strong> support folder-based control, but make it one input to a constrained planner. A critical phase, a physical response, and a source directory must remain different concepts.</p></header>
+        <div class="manual-layout">
+          <div class="delivery-code-card manual-code-card">
+            <header><span>delivery policy</span><span>concept</span></header>
+            <pre><code>delivery browser {
+  phase critical {
+    root Module3;
+    budget brotli &lt;= 8kb;
+    budget requests &lt;= 2;
+  }
+
+  prefer folder "./checkout" as checkout;
+  keep "./editor" together;
+  isolate "./admin" on interaction;
+  share automatic;
+}</code></pre>
+          </div>
+          <div class="manual-policy-grid">
+            <article><span>Default</span><h3>Automatic packing</h3><p>The planner searches placements using exact per-response Brotli/gzip bytes, request depth, reuse, invalidation, and activation scenarios.</p></article>
+            <article><span>Soft control</span><h3><code>prefer folder</code></h3><p>Preserve team ownership and cache locality when competitive. The optimizer may cross the folder boundary, but must explain the measured win.</p></article>
+            <article><span>Hard control</span><h3><code>keep</code> / <code>isolate</code></h3><p>Honor deliberate product, security, licensing, or rollout boundaries. If semantics make a rule impossible, fail with the exact dependency path.</p></article>
+            <article><span>Separate axis</span><h3><code>phase</code></h3><p>Defines what must become usable and when. It computes a dependency closure; it does not assume everything beside it in a directory is critical.</p></article>
+          </div>
+        </div>
+        <div class="manual-rules">
+          <article><strong>Why folder-only loses</strong><p>Feature folders often import shared state, design systems, and utilities. Blind one-folder/one-chunk output creates tiny requests, duplicate helpers, cache-coupled barrels, or a giant “shared” chunk.</p></article>
+          <article><strong>Why full automation loses</strong><p>The cost model cannot infer every deployment boundary, business-critical interaction, permission surface, or intentional cache cohort. Manual constraints are essential—not an afterthought.</p></article>
+          <article><strong>The compiler contract</strong><p>First build the semantic activation DAG. Then pack its ownership sets into responses under hard rules and soft affinities. Finally print a “why this chunk?” report with rejected alternatives.</p></article>
+        </div>
+      </section>
+
+      <section class="delivery-section injection-section" aria-labelledby="injection-title">
+        <header class="delivery-section-header"><div><p class="eyebrow">Linker operations</p><h2 id="injection-title">“Inject it into A” has four different meanings</h2></div><p>Each technique has a different execution and identity contract. LilScript should choose only among transformations it can prove equivalent.</p></header>
+        <div class="injection-grid">
+          <article><span>Native edge</span><h3>Emit an ESM import</h3><p>Smallest runtime and real live bindings. Correct for always-needed dependencies, but a static edge makes B part of A’s evaluation prerequisite.</p><small>Use when dependency order is intentional.</small></article>
+          <article><span>Activation edge</span><h3>Emit a typed initializer</h3><p>Keep Module 1’s body behind <code>initModule1(module5)</code>. Module 3 can activate first; the initializer runs exactly once after <code>import(B)</code> resolves.</p><small>Needs effect and ordering analysis.</small></article>
+          <article><span>Ownership move</span><h3>Hoist or clone proven-safe code</h3><p>Move a required pure function or immutable constant into A, or clone it into both chunks when import scaffolding costs more.</p><small>Never clone observable identity or state.</small></article>
+          <article><span>Generated bridge</span><h3>Emit a tiny orchestration module</h3><p>A generated bridge maps activation IDs to dynamic imports, normalizes failures, and wires progressive HTML to features without reimplementing the ESM loader.</p><small>Pay only when several phases share it.</small></article>
+        </div>
+        <div class="injection-invariants">
+          <h3>Non-negotiable invariants</h3>
+          <ul><li>Mutable state and live exports have one authoritative owner.</li><li>Module side effects execute once and in a semantically valid order.</li><li>Functions, classes, symbols, and singleton objects are not cloned when identity is observable.</li><li>Deferred failures and cancellation remain visible through typed tasks.</li><li>Import/export, bridge, manifest, and loader bytes enter the chunk cost.</li></ul>
+        </div>
+      </section>
+
+      <section class="delivery-section primitive-section" aria-labelledby="primitive-title">
+        <header class="delivery-section-header"><div><p class="eyebrow">Language design sketch</p><h2 id="primitive-title">Express user-visible phases, not loader tricks</h2></div><p>This is proposed syntax, not a shipped promise. The important part is the compile-time contract behind it.</p></header>
+        <div class="primitive-layout">
+          <div class="delivery-code-card">
+            <header><span>progressive-checkout.lil</span><span>concept</span></header>
+            <pre><code>progressive Checkout {
+  critical {
+    render CheckoutShell();
+    capture intent for "submit";
+  }
+
+  enhance form on interaction
+    from "./checkout/validation";
+
+  enhance totals on visible
+    from "./checkout/pricing";
+
+  prepare recommendations on idle
+    from "./recommendations";
+}</code></pre>
+          </div>
+          <div class="primitive-contracts">
+            <article><h3><code>critical</code></h3><p>The compiler computes its complete dependency closure and enforces byte/request budgets. A later-phase synchronous dependency is an error unless safely hoisted or cloned.</p></article>
+            <article><h3><code>enhance … on</code></h3><p>Declares activation policy: interaction, visibility, idle, intent, or manual. It compiles to a typed dynamic boundary and must upgrade existing HTML.</p></article>
+            <article><h3><code>capture intent</code></h3><p>Installs a tiny generated listener before the feature arrives. It records declared, replay-safe intent instead of blindly replaying arbitrary browser events.</p></article>
+            <article><h3>Delivery budgets</h3><p>Critical Brotli bytes, request count, graph depth, and activation latency are build constraints. An annotation without a verified closure is merely a comment.</p></article>
+          </div>
+        </div>
+        <div class="phase-rule"><strong>Compiler rule:</strong><span>a phase may depend synchronously only on the same or an earlier phase. A dependency on a later phase must return a typed task or cross a compiler-generated activation interface.</span></div>
+      </section>
+
+      <section class="delivery-section" aria-labelledby="orchestrator-title">
+        <header class="delivery-section-header"><div><p class="eyebrow">Generated orchestrator</p><h2 id="orchestrator-title">A small coordinator, not a second module loader</h2></div><p>The browser should keep fetching, caching, linking, and evaluating ESM. LilScript’s runtime should only schedule activation and connect progressive HTML to typed features.</p></header>
+        <div class="orchestrator-stack" aria-label="Proposed browser orchestration layers">
+          <article class="stack-html"><span>Layer 0 · always</span><h3>Semantic HTML and CSS</h3><p>Content, forms, links, and essential actions work before enhancement. Build/server output owns critical markup and preload declarations.</p></article>
+          <article class="stack-core"><span>Layer 1 · generated</span><h3>Per-app activation core</h3><p>Event delegation, intent capture, dynamic import scheduling, cancellation, build-id checks, and normalized load failure signals. Tree-shaken to only used policies.</p></article>
+          <article class="stack-features"><span>Layer 2 · on demand</span><h3>Typed feature chunks</h3><p>Critical, interaction, visible, idle, and manual activation groups with exact dependency and capability manifests.</p></article>
+          <article class="stack-offline"><span>Layer 3 · optional</span><h3>Offline/cache worker</h3><p>Versioned Service Worker only when offline or background behavior is requested. It is not required for ordinary HTTP caching.</p></article>
+        </div>
+        <div class="tradeoff-grid">
+          <article><h3>Inline core</h3><p><strong>Wins:</strong> immediate discovery and no request. <strong>Costs:</strong> repeated HTML bytes, CSP nonce/hash handling, and no independent cache.</p></article>
+          <article><h3>External core</h3><p><strong>Wins:</strong> long-lived cache and shared pages. <strong>Costs:</strong> another discovery edge unless preloaded, plus version coordination.</p></article>
+          <article><h3>Generated hybrid</h3><p><strong>Recommendation:</strong> inline the minimal phase manifest or intent bridge; keep reusable scheduling machinery in a content-addressed module when measurement pays for it.</p></article>
+        </div>
+      </section>
+
+      <section class="delivery-section cache-section" aria-labelledby="cache-title">
+        <header class="delivery-section-header"><div><p class="eyebrow">Cache architecture</p><h2 id="cache-title">Optimize the second deployment, not only the first visit</h2></div><p>A small initial build can still be poor if one leaf change invalidates every parent URL or strands users on deleted chunks.</p></header>
+        <div class="cache-plan">
+          <article><span>HTML + manifest</span><h3>Revalidate</h3><p>Short-lived or <code>no-cache</code>. Carries the build ID, current content-addressed URLs, critical preloads, and activation manifest.</p></article>
+          <article><span>Hashed chunks</span><h3>Immutable</h3><p>Long-lived cache headers. Keep older build artifacts during rollout so already-open documents can finish lazy imports.</p></article>
+          <article><span>Stable logical IDs</span><h3>Indirect</h3><p>Import maps or manifest-driven dynamic imports can prevent a changed child hash from rewriting otherwise unchanged lazy parents.</p></article>
+          <article><span>Service Worker</span><h3>Explicitly versioned</h3><p>Only for offline or advanced policy. CacheStorage is separate from HTTP cache and requires deliberate install, activation, cleanup, and rollback behavior.</p></article>
+        </div>
+        <h3 class="subsection-title">The planner needs navigation scenarios</h3>
+        <div class="scenario-score-grid">
+          <article><b>Cold document</b><span>critical bytes, requests, depth, HTML overhead</span></article>
+          <article><b>First interaction</b><span>marginal feature bytes and activation delay</span></article>
+          <article><b>Later navigation</b><span>shared-cache hits versus unnecessary vendor downloads</span></article>
+          <article><b>Next deployment</b><span>invalidated bytes, hash cascades, and old-build coexistence</span></article>
+        </div>
+        <p class="delivery-note">Compression remains per physical response. For every candidate plan, LilScript must re-run name assignment, declaration layout, pooling, import/export aliases, and exact gzip/Brotli measurement per chunk—then score the route graph, not a concatenated global artifact.</p>
+      </section>
+
+      <section class="delivery-section" aria-labelledby="target-title">
+        <header class="delivery-section-header"><div><p class="eyebrow">JavaScript, C, and native</p><h2 id="target-title">Shared logic; capability-specific delivery</h2></div><p>Browser orchestration should not corrupt the portable language core or pretend that dynamic JavaScript modules have a C ABI.</p></header>
+        <div class="target-boundary-grid">
+          <article><h3>Portable core</h3><p>Pure logic, data structures, validation, state machines, and deterministic critical computations continue compiling to JavaScript, C, and native execution.</p></article>
+          <article><h3>Browser capability</h3><p>DOM rendering, visibility, interaction scheduling, module loading, and Service Worker policies require an explicit browser profile or typed extern capability.</p></article>
+          <article><h3>Honest diagnostics</h3><p>A native target either receives a real platform adapter or reports that the delivery primitive is browser-only. Silent stubs would make multi-output claims meaningless.</p></article>
+        </div>
+      </section>
+
+      <section class="delivery-section decision-section" aria-labelledby="decision-title">
+        <p class="eyebrow">Recommended direction</p><h2 id="decision-title">Build phase-aware chunking before adding a large runtime</h2>
+        <ol class="decision-list">
+          <li><span>01</span><div><h3>Model activation groups in IR</h3><p>Track critical, interactive, visible, idle, and manual closures independently from source folders and output chunks.</p></div></li>
+          <li><span>02</span><div><h3>Generalize chunks to arbitrary ownership sets</h3><p>Permit several modules or selected functions per chunk, while carrying origin, side effects, identity, and cross-phase constraints.</p></div></li>
+          <li><span>03</span><div><h3>Emit a delivery manifest for HTML/server use</h3><p>Critical modulepreloads should be discovered in HTML, not injected only after the entry script begins executing.</p></div></li>
+          <li><span>04</span><div><h3>Generate only the orchestration used</h3><p>No runtime for a static page; a small scheduler for deferred features; a Service Worker only for explicit offline requirements.</p></div></li>
+          <li><span>05</span><div><h3>Benchmark dependency conflicts</h3><p>Add this exact A→B scenario, route transitions, slow networks, cache-warm revisits, deployment churn, and failure recovery against Vite/Rolldown and Closure chunk output.</p></div></li>
+        </ol>
+        <div class="delivery-status">
+          <article><span>Foundation today</span><p>LilScript already exposes single, split, and preserve-modules modes and scores emitted chunks with raw, gzip, Brotli, request, depth, preload, and reuse costs.</p></article>
+          <article><span>Architectural limit</span><p>The current planned-chunk model has one owning source module. It cannot yet represent arbitrary multi-module or function-level activation groups.</p></article>
+          <article><span>Next compiler seam</span><p><code>ActivationGraph → OwnershipPlan → TransferPlan → Emission</code>, with exact measurement and semantic validation feeding back into the search.</p></article>
+        </div>
+      </section>
+
+      <section class="delivery-sources" aria-labelledby="sources-title">
+        <p class="eyebrow">Platform references</p><h2 id="sources-title">Constraints come from the browser, not taste</h2>
+        <div class="source-link-grid">
+          <a href="https://html.spec.whatwg.org/multipage/scripting.html#the-script-element" target="_blank" rel="noopener"><strong>HTML module scripts</strong><span>Module graphs fetch before dependency-ordered evaluation.</span></a>
+          <a href="https://html.spec.whatwg.org/multipage/links.html#link-type-modulepreload" target="_blank" rel="noopener"><strong><code>modulepreload</code></strong><span>Fetch into the document module map without evaluating the module.</span></a>
+          <a href="https://w3c.github.io/ServiceWorker/v1/#cache-lifetimes" target="_blank" rel="noopener"><strong>Service Worker caches</strong><span>Script-managed, separate from HTTP cache, and manually versioned.</span></a>
+          <a href="https://vite.dev/guide/build#load-error-handling" target="_blank" rel="noopener"><strong>Deployment failure recovery</strong><span>Old documents can request chunks removed by a newer deployment.</span></a>
+          <a href="https://rolldown.rs/reference/OutputOptions.codeSplitting" target="_blank" rel="noopener"><strong>Rolldown chunk groups</strong><span>Manual grouping can affect execution order and runtime overhead.</span></a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer content-width"><span>LilScript browser delivery study</span><a href="/roadmap.html">Turn the design into compiler work</a></footer>
+    <script type="module" src="/src/delivery.js"></script>
+  </body>
+</html>
