@@ -1,0 +1,55 @@
+extern class Crypto {
+  Uint8Array getRandomValues(Uint8Array values);
+}
+
+extern class MathHost {
+  pure float log2(float value);
+}
+
+extern Crypto crypto;
+extern MathHost Math;
+
+export string urlAlphabet =
+  "useandom-26T198340PX75pxJACKVERYMINDBUSHWOLF_GQZbfghjklqvwyzrict";
+
+export Uint8Array random(float bytes) {
+  return crypto.getRandomValues(new Uint8Array(bytes.toInt()));
+}
+
+export func(float)->string customRandom(
+  string alphabet,
+  float defaultSize,
+  func(float)->Uint8Array getRandom
+) {
+  int mask = (2 << Math.log2(alphabet.length - 1.0).toInt()) - 1;
+  float step = ((1.6 * mask * defaultSize) / alphabet.length).toInt() + 1.0;
+  return (float size = defaultSize) => {
+    string id = "";
+    while (true) {
+      Uint8Array bytes = getRandom(step);
+      int j = step.toInt();
+      while (j > 0) {
+        j--;
+        id += alphabet[bytes[j] & mask];
+        if (id.length >= size) {
+          return id;
+        }
+      }
+    }
+    return id;
+  };
+}
+
+export func(float)->string customAlphabet(string alphabet, float size = 21.0) {
+  return customRandom(alphabet, size.toInt(), random);
+}
+
+export string nanoid(int size = 21) {
+  string id = "";
+  Uint8Array bytes = crypto.getRandomValues(new Uint8Array(size));
+  while (size > 0) {
+    size--;
+    id += urlAlphabet[bytes[size] & 63];
+  }
+  return id;
+}

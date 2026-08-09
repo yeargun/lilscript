@@ -472,6 +472,10 @@ fn collect_stmt_dynamic_imports<'ast, 'src>(
                 }
                 collect_stmt_dynamic_imports(std::slice::from_ref(*body), imports);
             }
+            Stmt::ForIn { object, body, .. } => {
+                collect_expr_dynamic_imports(object, imports);
+                collect_stmt_dynamic_imports(std::slice::from_ref(*body), imports);
+            }
             Stmt::Break(_) | Stmt::Continue(_) => {}
         }
     }
@@ -1202,6 +1206,28 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
                     initializer,
                     condition,
                     update,
+                    body,
+                    span: self.span(*span),
+                }
+            }
+            Stmt::ForIn {
+                key_type,
+                key,
+                object,
+                body,
+                span,
+            } => {
+                self.push_scope();
+                let key_type = self.clone_type(*key_type);
+                let key = self.plain_ident(*key);
+                self.declare_local(key.name);
+                let object = self.clone_expr(object);
+                let body = self.arena.alloc(self.clone_stmt(body, false));
+                self.pop_scope();
+                Stmt::ForIn {
+                    key_type,
+                    key,
+                    object,
                     body,
                     span: self.span(*span),
                 }

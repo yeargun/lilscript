@@ -132,6 +132,36 @@ impl Expression<'_> {
             }
         }
     }
+
+    fn max_depth(&self) -> usize {
+        match self {
+            Self::Identifier(_) | Self::Literal => 1,
+            Self::Unary { operand } => 1 + operand.max_depth(),
+            Self::Binary { lhs, rhs, .. } | Self::Assignment { lhs, rhs, .. } => {
+                1 + lhs.max_depth().max(rhs.max_depth())
+            }
+            Self::Conditional {
+                condition,
+                then_value,
+                else_value,
+            } => {
+                1 + condition
+                    .max_depth()
+                    .max(then_value.max_depth())
+                    .max(else_value.max_depth())
+            }
+            Self::Call { callee, arguments } => {
+                1 + arguments
+                    .iter()
+                    .map(Self::max_depth)
+                    .fold(callee.max_depth(), usize::max)
+            }
+            Self::Member { object, property } => 1 + object.max_depth().max(property.max_depth()),
+            Self::Array(values) | Self::Sequence(values) => {
+                1 + values.iter().map(Self::max_depth).max().unwrap_or(0)
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -163,7 +193,22 @@ pub fn optimize_generated_javascript(source: &str) -> Result<PeepholeResult, Jav
     rewrites = non_overlapping_rewrites(rewrites);
 
     let code = apply_rewrites(source, &rewrites);
-    let final_tokens = if rewrites.is_empty() {
+    let (code, rotated_loops) = rotate_proven_initial_true_loops(&code)?;
+    let (code, reused_binding) = reuse_dead_var_binding(&code)?;
+    let (code, removed_declarations) = remove_unused_standalone_vars(&code)?;
+    let (code, merged_declarations) = merge_adjacent_declarations(&code)?;
+    let (code, folded_assignment_guards) = fold_assignment_guards(&code)?;
+    let (code, folded_expression_branches) = fold_expression_branches(&code)?;
+    let (code, folded_guard_returns) = fold_arrow_guard_returns(&code)?;
+    let final_tokens = if rewrites.is_empty()
+        && rotated_loops == 0
+        && !reused_binding
+        && removed_declarations == 0
+        && merged_declarations == 0
+        && folded_assignment_guards == 0
+        && folded_expression_branches == 0
+        && folded_guard_returns == 0
+    {
         tokens
     } else {
         lex(&code)?
@@ -174,24 +219,1093 @@ pub fn optimize_generated_javascript(source: &str) -> Result<PeepholeResult, Jav
     Ok(PeepholeResult {
         code,
         metrics,
-        rewrites: rewrites.len(),
+        rewrites: rewrites.len()
+            + rotated_loops
+            + usize::from(reused_binding)
+            + removed_declarations
+            + merged_declarations
+            + folded_assignment_guards
+            + folded_expression_branches
+            + folded_guard_returns,
     })
+}
+
+/// Fold a braced `if`/`else` whose arms contain only expression statements
+/// into a conditional expression. Comma grouping preserves the sequencing in
+/// multi-statement arms. The untouched artifact remains a final codec-scored
+/// candidate, so this raw-byte rewrite is never forced when gzip or Brotli
+/// prefers the structured spelling.
+fn fold_expression_branches(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    // This proposal is deliberately local. Large artifacts already exercise
+    // the structured/comma codegen beam, while reparsing and perturbing every
+    // branch there can crowd out stronger bounded candidates before final
+    // exact-codec selection.
+    const BYTE_LIMIT: usize = 16 * 1024;
+    if source.len() > BYTE_LIMIT {
+        return Ok((source.to_string(), 0));
+    }
+    let tokens = lex(source)?;
+    let mut matching_close = vec![None; tokens.len()];
+    let mut stack = Vec::<usize>::new();
+    for (index, token) in tokens.iter().enumerate() {
+        match token.text {
+            "(" | "[" | "{" => stack.push(index),
+            ")" | "]" | "}" => {
+                let Some(open) = stack.pop() else {
+                    continue;
+                };
+                matching_close[open] = Some(index);
+            }
+            _ => {}
+        }
+    }
+
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    for if_index in 0..tokens.len() {
+        if tokens[if_index].text != "if"
+            || tokens.get(if_index + 1).map(|token| token.text) != Some("(")
+        {
+            continue;
+        }
+        let condition_open = if_index + 1;
+        let Some(condition_close) = matching_close[condition_open] else {
+            continue;
+        };
+        let then_open = condition_close + 1;
+        if tokens.get(then_open).map(|token| token.text) != Some("{") {
+            continue;
+        }
+        let Some(then_close) = matching_close[then_open] else {
+            continue;
+        };
+        if tokens.get(then_close + 1).map(|token| token.text) != Some("else") {
+            continue;
+        }
+        let else_open = then_close + 2;
+        if tokens.get(else_open).map(|token| token.text) != Some("{") {
+            continue;
+        }
+        let Some(else_close) = matching_close[else_open] else {
+            continue;
+        };
+        let Some(then_value) =
+            expression_statement_sequence(source, &tokens, then_open + 1, then_close)
+        else {
+            continue;
+        };
+        let Some(else_value) =
+            expression_statement_sequence(source, &tokens, else_open + 1, else_close)
+        else {
+            continue;
+        };
+        let condition = &source[tokens[condition_open].end..tokens[condition_close].start];
+        let condition =
+            if conditional_test_needs_grouping(&tokens[condition_open + 1..condition_close]) {
+                format!("({condition})")
+            } else {
+                condition.to_string()
+            };
+        let mut end = tokens[else_close].end;
+        if tokens.get(else_close + 1).map(|token| token.text) == Some(";") {
+            end = tokens[else_close + 1].end;
+        }
+        let replacement = format!("{condition}?{then_value}:{else_value};");
+        if replacement.len() < end - tokens[if_index].start {
+            replacements.push((tokens[if_index].start, end, replacement));
+        }
+    }
+    if replacements.is_empty() {
+        return Ok((source.to_string(), 0));
+    }
+    replacements.sort_unstable_by_key(|(start, end, _)| (*start, *end));
+    let mut retained = Vec::new();
+    let mut last_end = 0;
+    for replacement in replacements {
+        if replacement.0 >= last_end {
+            last_end = replacement.1;
+            retained.push(replacement);
+        }
+    }
+    let count = retained.len();
+    let mut output = source.to_string();
+    for (start, end, replacement) in retained.into_iter().rev() {
+        output.replace_range(start..end, &replacement);
+    }
+    Ok((output, count))
+}
+
+fn expression_statement_sequence(
+    source: &str,
+    tokens: &[Token<'_>],
+    start: usize,
+    end: usize,
+) -> Option<String> {
+    let mut cursor = start;
+    let mut expressions = Vec::<String>::new();
+    while cursor < end {
+        while cursor < end && tokens[cursor].text == ";" {
+            cursor += 1;
+        }
+        if cursor == end {
+            break;
+        }
+        let mut depth = 0usize;
+        let mut statement_end = end;
+        for (index, token) in tokens.iter().enumerate().take(end).skip(cursor) {
+            match token.text {
+                "(" | "[" | "{" => depth += 1,
+                ")" | "]" | "}" => depth = depth.saturating_sub(1),
+                ";" if depth == 0 => {
+                    statement_end = index;
+                    break;
+                }
+                _ => {}
+            }
+        }
+        if statement_end == cursor {
+            cursor += 1;
+            continue;
+        }
+        let mut parser = ExpressionParser::new(&tokens[cursor..statement_end]);
+        let expression = parser.parse_complete()?;
+        let rendered = source[tokens[cursor].start..tokens[statement_end - 1].end].to_string();
+        expressions.push(if matches!(expression, Expression::Sequence(_)) {
+            format!("({rendered})")
+        } else {
+            rendered
+        });
+        cursor = statement_end + usize::from(statement_end < end);
+    }
+    match expressions.len() {
+        0 => None,
+        1 => expressions.pop(),
+        _ => Some(format!("({})", expressions.join(","))),
+    }
+}
+
+/// Fold `value=expression;if(value){...}` into
+/// `if(value=expression){...}`. The assignment result already undergoes the
+/// same JavaScript truthiness conversion in both forms, and the binding keeps
+/// the same value on both the taken and untaken paths.
+fn fold_assignment_guards(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let is_statement_start =
+        |index: usize| index == 0 || matches!(tokens[index - 1].text, "{" | "}" | ";");
+    let mut start = 0usize;
+    while start + 6 < tokens.len() {
+        if tokens[start].kind != TokenKind::Identifier
+            || tokens[start + 1].text != "="
+            || !is_statement_start(start)
+        {
+            start += 1;
+            continue;
+        }
+        let name = tokens[start].text;
+        let mut depth = 0i32;
+        let mut semicolon = None;
+        for (index, token) in tokens.iter().enumerate().skip(start + 2) {
+            match token.text {
+                "(" | "[" | "{" => depth += 1,
+                ")" | "]" | "}" => depth -= 1,
+                ";" if depth == 0 => {
+                    semicolon = Some(index);
+                    break;
+                }
+                _ => {}
+            }
+            if depth < 0 {
+                break;
+            }
+        }
+        let Some(semi) = semicolon else {
+            start += 1;
+            continue;
+        };
+        if tokens.get(semi + 1).map(|token| token.text) != Some("if")
+            || tokens.get(semi + 2).map(|token| token.text) != Some("(")
+            || tokens.get(semi + 3).map(|token| (token.kind, token.text))
+                != Some((TokenKind::Identifier, name))
+            || tokens.get(semi + 4).map(|token| token.text) != Some(")")
+        {
+            start += 1;
+            continue;
+        }
+        replacements.push((
+            tokens[start].start,
+            tokens[semi + 4].end,
+            format!("if({})", &source[tokens[start].start..tokens[semi].start]),
+        ));
+        start = semi + 5;
+    }
+    if replacements.is_empty() {
+        return Ok((source.to_string(), 0));
+    }
+    let count = replacements.len();
+    let mut output = source.to_string();
+    // Reverse order keeps all earlier source offsets stable.
+    for (start, end, replacement) in replacements.into_iter().rev() {
+        output.replace_range(start..end, &replacement);
+    }
+    Ok((output, count))
+}
+
+fn fold_arrow_guard_returns(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let mut matching_close = vec![None; tokens.len()];
+    let mut stack = Vec::<usize>::new();
+    for (index, token) in tokens.iter().enumerate() {
+        match token.text {
+            "(" | "[" | "{" => stack.push(index),
+            ")" | "]" | "}" => {
+                let Some(open) = stack.pop() else {
+                    continue;
+                };
+                matching_close[open] = Some(index);
+            }
+            _ => {}
+        }
+    }
+
+    let mut replacements = Vec::new();
+    for body_open in 1..tokens.len() {
+        if tokens[body_open].text != "{" || tokens[body_open - 1].text != "=>" {
+            continue;
+        }
+        let Some(body_close) = matching_close[body_open] else {
+            continue;
+        };
+        let if_index = body_open + 1;
+        if tokens.get(if_index).map(|token| token.text) != Some("if")
+            || tokens.get(if_index + 1).map(|token| token.text) != Some("(")
+        {
+            continue;
+        }
+        let condition_open = if_index + 1;
+        let Some(condition_close) = matching_close[condition_open] else {
+            continue;
+        };
+        let first_return = condition_close + 1;
+        if tokens.get(first_return).map(|token| token.text) != Some("return") {
+            continue;
+        }
+        let mut delimiters = Vec::<&str>::new();
+        let mut first_semicolon = None;
+        for (index, token) in tokens
+            .iter()
+            .enumerate()
+            .take(body_close)
+            .skip(first_return + 1)
+        {
+            match token.text {
+                "(" | "[" | "{" => delimiters.push(token.text),
+                ")" | "]" | "}" => {
+                    delimiters.pop();
+                }
+                ";" if delimiters.is_empty() => {
+                    first_semicolon = Some(index);
+                    break;
+                }
+                _ => {}
+            }
+        }
+        let Some(first_semicolon) = first_semicolon else {
+            continue;
+        };
+        let second_return = first_semicolon + 1;
+        if tokens.get(second_return).map(|token| token.text) != Some("return")
+            || second_return + 1 >= body_close
+        {
+            continue;
+        }
+        let second_end = if tokens[body_close - 1].text == ";" {
+            body_close - 1
+        } else {
+            body_close
+        };
+        if second_return + 1 >= second_end {
+            continue;
+        }
+
+        let condition = &source[tokens[condition_open].end..tokens[condition_close].start];
+        let condition =
+            if conditional_test_needs_grouping(&tokens[condition_open + 1..condition_close]) {
+                format!("({condition})")
+            } else {
+                condition.to_string()
+            };
+        let first = &source[tokens[first_return + 1].start..tokens[first_semicolon].start];
+        let first =
+            if expression_has_top_level_token(&tokens[first_return + 1..first_semicolon], ",") {
+                format!("({first})")
+            } else {
+                first.to_string()
+            };
+        let second = &source[tokens[second_return + 1].start..tokens[second_end].start];
+        let second = if expression_has_top_level_token(&tokens[second_return + 1..second_end], ",")
+        {
+            format!("({second})")
+        } else {
+            second.to_string()
+        };
+        let replacement = format!("{condition}?{first}:{second}");
+        let start = tokens[body_open].start;
+        let end = tokens[body_close].end;
+        if replacement.len() < end - start {
+            replacements.push((start, end, replacement));
+        }
+    }
+    if replacements.is_empty() {
+        return Ok((source.to_string(), 0));
+    }
+    // Nested candidates overlap; prefer the outermost non-overlapping set so
+    // the largest guard/body wrapper disappears in this bounded pass.
+    replacements.sort_unstable_by_key(|(start, end, _)| (*start, *end));
+    let mut retained = Vec::new();
+    let mut last_end = 0;
+    for replacement in replacements {
+        if replacement.0 >= last_end {
+            last_end = replacement.1;
+            retained.push(replacement);
+        }
+    }
+    let count = retained.len();
+    let mut output = source.to_string();
+    for (start, end, replacement) in retained.into_iter().rev() {
+        output.replace_range(start..end, &replacement);
+    }
+    Ok((output, count))
+}
+
+fn conditional_test_needs_grouping(tokens: &[Token<'_>]) -> bool {
+    let mut depth = 0usize;
+    for token in tokens {
+        match token.text {
+            "(" | "[" | "{" => depth += 1,
+            ")" | "]" | "}" => depth = depth.saturating_sub(1),
+            "," | "?" | "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "&=" | "|=" | "^=" | "<<="
+            | ">>=" | ">>>="
+                if depth == 0 =>
+            {
+                return true;
+            }
+            _ => {}
+        }
+    }
+    false
+}
+
+fn expression_has_top_level_token(tokens: &[Token<'_>], expected: &str) -> bool {
+    let mut depth = 0usize;
+    for token in tokens {
+        match token.text {
+            "(" | "[" | "{" => depth += 1,
+            ")" | "]" | "}" => depth = depth.saturating_sub(1),
+            token if token == expected && depth == 0 => return true,
+            _ => {}
+        }
+    }
+    false
+}
+
+fn merge_adjacent_declarations(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    let mut output = source.to_string();
+    let mut merged = 0;
+    loop {
+        let tokens = lex(&output)?;
+        let mut candidate = None;
+        for declaration in 0..tokens.len() {
+            let kind = tokens[declaration].text;
+            if !matches!(kind, "let" | "var" | "const")
+                || declaration
+                    .checked_sub(1)
+                    .is_some_and(|previous| !matches!(tokens[previous].text, ";" | "{" | "}"))
+            {
+                continue;
+            }
+            let mut delimiters = Vec::<&str>::new();
+            for index in declaration + 1..tokens.len().saturating_sub(1) {
+                match tokens[index].text {
+                    "(" | "[" | "{" => delimiters.push(tokens[index].text),
+                    ")" | "]" | "}" => {
+                        delimiters.pop();
+                    }
+                    ";" if delimiters.is_empty() => {
+                        if tokens[index + 1].text == kind
+                            && tokens
+                                .get(index + 2)
+                                .is_some_and(|token| token.kind == TokenKind::Identifier)
+                        {
+                            candidate = Some((tokens[index].start, tokens[index + 2].start));
+                        }
+                        break;
+                    }
+                    _ => {}
+                }
+            }
+            if candidate.is_some() {
+                break;
+            }
+        }
+        let Some((start, end)) = candidate else {
+            break;
+        };
+        output.replace_range(start..end, ",");
+        merged += 1;
+    }
+    Ok((output, merged))
+}
+
+/// Rotates the generated SSA spelling `flag=true;while(flag){...;flag=next}`
+/// into `do{...}while(next)`. The proof deliberately requires the synthetic
+/// flag to occur only at those three sites and rejects `continue`, whose
+/// bottom-condition timing would otherwise differ.
+fn rotate_proven_initial_true_loops(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let mut matching_close = vec![None; tokens.len()];
+    let mut stack = Vec::<usize>::new();
+    for (index, token) in tokens.iter().enumerate() {
+        match token.text {
+            "(" | "[" | "{" => stack.push(index),
+            ")" | "]" | "}" => {
+                let Some(open) = stack.pop() else {
+                    continue;
+                };
+                matching_close[open] = Some(index);
+            }
+            _ => {}
+        }
+    }
+
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut cursor = 0;
+    while cursor < tokens.len().saturating_sub(9) {
+        let start = cursor;
+        let Some(name) = tokens
+            .get(start)
+            .filter(|token| token.kind == TokenKind::Identifier)
+            .map(|token| token.text)
+        else {
+            cursor += 1;
+            continue;
+        };
+        if tokens.get(start + 1).map(|token| token.text) != Some("=") {
+            cursor += 1;
+            continue;
+        }
+        let while_index = if tokens.get(start + 2).map(|token| token.text) == Some("true")
+            && tokens.get(start + 3).map(|token| token.text) == Some(";")
+        {
+            start + 4
+        } else if tokens.get(start + 2).map(|token| token.text) == Some("!")
+            && tokens.get(start + 3).map(|token| token.text) == Some("0")
+            && tokens.get(start + 4).map(|token| token.text) == Some(";")
+        {
+            start + 5
+        } else {
+            cursor += 1;
+            continue;
+        };
+        if tokens.get(while_index).map(|token| token.text) != Some("while")
+            || tokens.get(while_index + 1).map(|token| token.text) != Some("(")
+            || tokens.get(while_index + 2).map(|token| token.text) != Some(name)
+            || tokens.get(while_index + 3).map(|token| token.text) != Some(")")
+            || tokens.get(while_index + 4).map(|token| token.text) != Some("{")
+        {
+            cursor += 1;
+            continue;
+        }
+        let body_open = while_index + 4;
+        let Some(body_close) = matching_close[body_open] else {
+            cursor += 1;
+            continue;
+        };
+        if tokens[body_open + 1..body_close]
+            .iter()
+            .any(|token| token.text == "continue")
+            || tokens[start..body_close]
+                .iter()
+                .filter(|token| token.kind == TokenKind::Identifier && token.text == name)
+                .count()
+                != 3
+        {
+            cursor = body_close + 1;
+            continue;
+        }
+
+        let mut delimiters = Vec::<&str>::new();
+        let mut top_level_semicolons = Vec::new();
+        for (index, token) in tokens
+            .iter()
+            .enumerate()
+            .take(body_close)
+            .skip(body_open + 1)
+        {
+            match token.text {
+                "(" | "[" | "{" => delimiters.push(token.text),
+                ")" | "]" | "}" => {
+                    delimiters.pop();
+                }
+                ";" if delimiters.is_empty() => top_level_semicolons.push(index),
+                _ => {}
+            }
+        }
+        let Some(final_semicolon) = top_level_semicolons.last().copied() else {
+            cursor = body_close + 1;
+            continue;
+        };
+        if final_semicolon + 1 != body_close {
+            cursor = body_close + 1;
+            continue;
+        }
+        let final_start = top_level_semicolons
+            .iter()
+            .rev()
+            .nth(1)
+            .map_or(body_open + 1, |index| index + 1);
+        if tokens.get(final_start).map(|token| token.text) != Some(name)
+            || tokens.get(final_start + 1).map(|token| token.text) != Some("=")
+            || final_start + 2 >= final_semicolon
+        {
+            cursor = body_close + 1;
+            continue;
+        }
+
+        let mut replacement = String::new();
+        replacement.push_str("do{");
+        let mut retained_body = &source[tokens[body_open].end..tokens[final_start].start];
+        if retained_body.ends_with(';') {
+            retained_body = &retained_body[..retained_body.len() - 1];
+        }
+        replacement.push_str(retained_body);
+        replacement.push_str("}while(");
+        replacement.push_str(&source[tokens[final_start + 2].start..tokens[final_semicolon].start]);
+        replacement.push_str(");");
+        let replaced_start = tokens[start].start;
+        let replaced_end = tokens[body_close].end;
+        if replacement.len() < replaced_end - replaced_start {
+            replacements.push((replaced_start, replaced_end, replacement));
+        }
+        cursor = body_close + 1;
+    }
+
+    if replacements.is_empty() {
+        return Ok((source.to_string(), 0));
+    }
+    let count = replacements.len();
+    let mut output = source.to_string();
+    for (start, end, replacement) in replacements.into_iter().rev() {
+        output.replace_range(start..end, &replacement);
+    }
+    Ok((output, count))
+}
+
+fn remove_unused_standalone_vars(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    let mut output = source.to_string();
+    let mut removed = 0;
+    loop {
+        let tokens = lex(&output)?;
+        let mut matching_open = vec![None; tokens.len()];
+        let mut matching_close = vec![None; tokens.len()];
+        let mut stack = Vec::<usize>::new();
+        for (index, token) in tokens.iter().enumerate() {
+            match token.text {
+                "(" | "[" | "{" => stack.push(index),
+                ")" | "]" | "}" => {
+                    let Some(open) = stack.pop() else {
+                        continue;
+                    };
+                    matching_open[index] = Some(open);
+                    matching_close[open] = Some(index);
+                }
+                _ => {}
+            }
+        }
+        let function_bodies = (0..tokens.len())
+            .filter(|index| tokens[*index].text == "{")
+            .filter_map(|body| {
+                let end = matching_close[body]?;
+                let arrow = body
+                    .checked_sub(1)
+                    .is_some_and(|previous| tokens[previous].text == "=>");
+                if arrow {
+                    let before_arrow = body.checked_sub(2)?;
+                    let parameter_start = if tokens[before_arrow].text == ")" {
+                        matching_open[before_arrow]?
+                    } else {
+                        before_arrow
+                    };
+                    return Some((body, end, parameter_start));
+                }
+                let close_params = body.checked_sub(1)?;
+                (tokens[close_params].text == ")").then_some(())?;
+                let open_params = matching_open[close_params]?;
+                let before = open_params.checked_sub(1)?;
+                let is_function = tokens[before].text == "function"
+                    || before
+                        .checked_sub(1)
+                        .is_some_and(|index| tokens[index].text == "function");
+                is_function.then_some((body, end, open_params))
+            })
+            .collect::<Vec<_>>();
+
+        let candidate = uninitialized_var_declarators(&tokens).into_iter().find_map(
+            |(index, remove_start, remove_end)| {
+                let (scope_start, scope_end) = function_bodies
+                    .iter()
+                    .copied()
+                    .filter(|(start, end, _)| *start < index && index < *end)
+                    .max_by_key(|(start, _, _)| *start)
+                    .map(|(start, end, _)| (start, end))
+                    .unwrap_or((usize::MAX, tokens.len()));
+                let first = if scope_start == usize::MAX {
+                    0
+                } else {
+                    scope_start + 1
+                };
+                let name = tokens[index].text;
+                let shadowing_nested_scopes = function_bodies
+                    .iter()
+                    .copied()
+                    .filter(|(start, end, _)| first <= *start && *end < scope_end)
+                    .filter(|(start, end, _)| {
+                        function_scope_declares(&tokens, &matching_open, *start, *end, name)
+                    })
+                    .collect::<Vec<_>>();
+                let occurrences = tokens[first..scope_end]
+                    .iter()
+                    .enumerate()
+                    .filter(|(offset, token)| {
+                        let token_index = first + *offset;
+                        token.kind == TokenKind::Identifier
+                            && token.text == name
+                            && !shadowing_nested_scopes
+                                .iter()
+                                .any(|(_, end, parameter_start)| {
+                                    *parameter_start <= token_index && token_index < *end
+                                })
+                    })
+                    .count();
+                (occurrences == 1).then_some((remove_start, remove_end))
+            },
+        );
+        let Some((start, end)) = candidate else {
+            break;
+        };
+        output.replace_range(start..end, "");
+        removed += 1;
+    }
+    Ok((output, removed))
+}
+
+/// Returns uninitialized `var` declarators with the byte range that removes
+/// just that declarator (or the complete declaration when it is the only one).
+fn uninitialized_var_declarators(tokens: &[Token<'_>]) -> Vec<(usize, usize, usize)> {
+    let mut candidates = Vec::new();
+    for var_index in 0..tokens.len() {
+        if tokens[var_index].text != "var" {
+            continue;
+        }
+        let mut delimiters = Vec::<&str>::new();
+        let mut segment_start = var_index + 1;
+        let mut segments = Vec::<(usize, usize, Option<usize>)>::new();
+        let mut cursor = segment_start;
+        let mut semicolon = None;
+        while cursor < tokens.len() {
+            match tokens[cursor].text {
+                "(" | "[" | "{" => delimiters.push(tokens[cursor].text),
+                ")" | "]" | "}" => {
+                    if delimiters.pop().is_none() {
+                        break;
+                    }
+                }
+                "," if delimiters.is_empty() => {
+                    segments.push((segment_start, cursor, Some(cursor)));
+                    segment_start = cursor + 1;
+                }
+                ";" if delimiters.is_empty() => {
+                    segments.push((segment_start, cursor, None));
+                    semicolon = Some(cursor);
+                    break;
+                }
+                _ => {}
+            }
+            cursor += 1;
+        }
+        let Some(semicolon) = semicolon else {
+            continue;
+        };
+        for (segment_index, (start, end, following_comma)) in segments.iter().enumerate() {
+            if end - start != 1 || tokens[*start].kind != TokenKind::Identifier {
+                continue;
+            }
+            let (remove_start, remove_end) = if segments.len() == 1 {
+                (tokens[var_index].start, tokens[semicolon].end)
+            } else if segment_index == 0 {
+                (
+                    tokens[*start].start,
+                    tokens[following_comma.expect("a non-final segment has a comma")].end,
+                )
+            } else {
+                (tokens[start - 1].start, tokens[*start].end)
+            };
+            candidates.push((*start, remove_start, remove_end));
+        }
+    }
+    candidates
+}
+
+fn function_scope_declares(
+    tokens: &[Token<'_>],
+    matching_open: &[Option<usize>],
+    body: usize,
+    end: usize,
+    name: &str,
+) -> bool {
+    let parameter_range = body.checked_sub(1).and_then(|before_body| {
+        if tokens[before_body].text == "=>" {
+            let before_arrow = before_body.checked_sub(1)?;
+            if tokens[before_arrow].text == ")" {
+                matching_open[before_arrow].map(|open| (open + 1, before_arrow))
+            } else {
+                Some((before_arrow, before_arrow + 1))
+            }
+        } else if tokens[before_body].text == ")" {
+            matching_open[before_body].map(|open| (open + 1, before_body))
+        } else {
+            None
+        }
+    });
+    if parameter_range.is_some_and(|(start, finish)| {
+        tokens[start..finish]
+            .iter()
+            .any(|token| token.kind == TokenKind::Identifier && token.text == name)
+    }) {
+        return true;
+    }
+
+    let mut cursor = body + 1;
+    while cursor < end {
+        if tokens[cursor].text != "var" {
+            cursor += 1;
+            continue;
+        }
+        cursor += 1;
+        let mut delimiter_depth = 0usize;
+        let mut expects_name = true;
+        while cursor < end {
+            let token = tokens[cursor];
+            if delimiter_depth == 0 && token.text == ";" {
+                break;
+            }
+            if expects_name && token.kind == TokenKind::Identifier {
+                if token.text == name {
+                    return true;
+                }
+                expects_name = false;
+            }
+            match token.text {
+                "(" | "[" | "{" => delimiter_depth += 1,
+                ")" | "]" | "}" => delimiter_depth = delimiter_depth.saturating_sub(1),
+                "," if delimiter_depth == 0 => expects_name = true,
+                _ => {}
+            }
+            cursor += 1;
+        }
+    }
+    false
+}
+
+fn reuse_dead_var_binding(source: &str) -> Result<(String, bool), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let mut matching_open = vec![None; tokens.len()];
+    let mut matching_close = vec![None; tokens.len()];
+    let mut stack = Vec::<usize>::new();
+    let mut brace_depth = vec![0usize; tokens.len()];
+    let mut depth = 0usize;
+    for (index, token) in tokens.iter().enumerate() {
+        brace_depth[index] = depth;
+        match token.text {
+            "(" | "[" | "{" => {
+                stack.push(index);
+                if token.text == "{" {
+                    depth += 1;
+                }
+            }
+            ")" | "]" | "}" => {
+                let Some(open) = stack.pop() else {
+                    continue;
+                };
+                matching_open[index] = Some(open);
+                matching_close[open] = Some(index);
+                if token.text == "}" {
+                    depth = depth.saturating_sub(1);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let function_bodies = (0..tokens.len())
+        .filter(|index| tokens[*index].text == "{")
+        .filter_map(|body| {
+            let end = matching_close[body]?;
+            if body
+                .checked_sub(1)
+                .is_some_and(|previous| tokens[previous].text == "=>")
+            {
+                let before_arrow = body.checked_sub(2)?;
+                let (parameter_start, parameter_end) = if tokens[before_arrow].text == ")" {
+                    let open = matching_open[before_arrow]?;
+                    (open + 1, before_arrow)
+                } else {
+                    (before_arrow, before_arrow + 1)
+                };
+                return Some((body, end, parameter_start, parameter_end));
+            }
+            let close_params = body.checked_sub(1)?;
+            (tokens[close_params].text == ")").then_some(())?;
+            let open_params = matching_open[close_params]?;
+            let before = open_params.checked_sub(1)?;
+            let is_function = tokens[before].text == "function"
+                || before
+                    .checked_sub(1)
+                    .is_some_and(|index| tokens[index].text == "function");
+            is_function.then_some((body, end, open_params + 1, close_params))
+        })
+        .collect::<Vec<_>>();
+    let arrow_parameter_ranges = tokens
+        .iter()
+        .enumerate()
+        .filter(|(_, token)| token.text == "=>")
+        .filter_map(|(arrow, _)| {
+            let before_arrow = arrow.checked_sub(1)?;
+            if tokens[before_arrow].text == ")" {
+                let open = matching_open[before_arrow]?;
+                Some((open + 1, before_arrow))
+            } else {
+                Some((before_arrow, before_arrow + 1))
+            }
+        })
+        .collect::<Vec<_>>();
+
+    for second_var in 0..tokens.len().saturating_sub(2) {
+        if tokens[second_var].text != "var"
+            || tokens[second_var + 1].kind != TokenKind::Identifier
+            || tokens[second_var + 2].text != "="
+            || second_var
+                .checked_sub(1)
+                .is_some_and(|previous| !matches!(tokens[previous].text, ";" | "{" | "}"))
+        {
+            continue;
+        }
+        let Some((scope_start, scope_end, _, _)) = function_bodies
+            .iter()
+            .copied()
+            .filter(|(start, end, _, _)| *start < second_var && second_var < *end)
+            .max_by_key(|(start, _, _, _)| *start)
+        else {
+            continue;
+        };
+        // Removing the `var` keyword is valid only for a single-declarator
+        // statement.  In `var next=value,i=0,tmp`, doing so would turn `i`
+        // and `tmp` into undeclared assignments (and can overwrite a mangled
+        // top-level function in modules).
+        if var_declaration_has_multiple_declarators(&tokens, second_var, scope_end) {
+            continue;
+        }
+        let declaration_depth = brace_depth[second_var];
+        let second_name = tokens[second_var + 1].text;
+        let Some(first_var) = (scope_start + 1..second_var).rev().find(|index| {
+            tokens[*index].text == "var"
+                && tokens.get(*index + 1).is_some_and(|token| {
+                    token.kind == TokenKind::Identifier && token.text != second_name
+                })
+                && tokens
+                    .get(*index + 2)
+                    .is_some_and(|token| token.text == "=")
+                && brace_depth[*index] == declaration_depth
+        }) else {
+            continue;
+        };
+        let first_name = tokens[first_var + 1].text;
+        if tokens[second_var + 2..scope_end]
+            .iter()
+            .any(|token| token.kind == TokenKind::Identifier && token.text == first_name)
+        {
+            continue;
+        }
+        if tokens[scope_start + 1..second_var]
+            .iter()
+            .any(|token| token.kind == TokenKind::Identifier && token.text == second_name)
+        {
+            continue;
+        }
+
+        let mut replacements = vec![(
+            tokens[second_var].start,
+            tokens[second_var + 1].end,
+            first_name,
+        )];
+        let mut safe = true;
+        for index in second_var + 2..scope_end {
+            let token = tokens[index];
+            if token.kind != TokenKind::Identifier || token.text != second_name {
+                continue;
+            }
+            let nested_parameter =
+                arrow_parameter_ranges
+                    .iter()
+                    .any(|(parameter_start, parameter_end)| {
+                        *parameter_start <= index && index < *parameter_end
+                    })
+                    || function_bodies
+                        .iter()
+                        .any(|(_, _, parameter_start, parameter_end)| {
+                            *parameter_start <= index && index < *parameter_end
+                        });
+            let declaration = index.checked_sub(1).is_some_and(|previous| {
+                matches!(
+                    tokens[previous].text,
+                    "var" | "let" | "const" | "function" | "class" | "catch"
+                )
+            });
+            let property = index
+                .checked_sub(1)
+                .is_some_and(|previous| matches!(tokens[previous].text, "." | "?."))
+                || tokens.get(index + 1).is_some_and(|next| next.text == ":");
+            if nested_parameter || declaration || property {
+                safe = false;
+                break;
+            }
+            replacements.push((token.start, token.end, first_name));
+        }
+        if !safe || replacements.len() == 1 {
+            continue;
+        }
+        let mut output = String::with_capacity(source.len().saturating_sub(4));
+        let mut cursor = 0;
+        for (start, end, replacement) in replacements {
+            output.push_str(&source[cursor..start]);
+            output.push_str(replacement);
+            cursor = end;
+        }
+        output.push_str(&source[cursor..]);
+        return Ok((output, true));
+    }
+    Ok((source.to_string(), false))
+}
+
+fn var_declaration_has_multiple_declarators(
+    tokens: &[Token<'_>],
+    var_index: usize,
+    scope_end: usize,
+) -> bool {
+    let mut delimiter_depth = 0usize;
+    for token in tokens
+        .iter()
+        .take(scope_end)
+        .skip(var_index.saturating_add(1))
+    {
+        match token.text {
+            "(" | "[" | "{" => delimiter_depth += 1,
+            ")" | "]" | "}" => delimiter_depth = delimiter_depth.saturating_sub(1),
+            "," if delimiter_depth == 0 => return true,
+            ";" if delimiter_depth == 0 => return false,
+            _ => {}
+        }
+    }
+    true
 }
 
 pub fn analyze_generated_javascript(
     source: &str,
 ) -> Result<JavaScriptSyntaxMetrics, JavaScriptParseError> {
     let tokens = lex(source)?;
-    let max_nesting = validate_delimiters(&tokens)?;
+    let delimiter_nesting = validate_delimiters(&tokens)?;
     let parsed = parse_expression_regions(&tokens);
-    Ok(syntax_metrics(source, &tokens, &parsed, max_nesting))
+    Ok(syntax_metrics(source, &tokens, &parsed, delimiter_nesting))
+}
+
+pub fn single_character_identifiers(source: &str) -> Result<Vec<u8>, JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let mut identifiers = tokens
+        .iter()
+        .flat_map(|token| {
+            let mut found = Vec::new();
+            if token.kind == TokenKind::Identifier && token.text.len() == 1 {
+                found.push(token.text.as_bytes()[0]);
+            } else if token.kind == TokenKind::Template {
+                for window in token.text.as_bytes().windows(4) {
+                    if window[0] == b'$'
+                        && window[1] == b'{'
+                        && window[2].is_ascii_alphabetic()
+                        && window[3] == b'}'
+                    {
+                        found.push(window[2]);
+                    }
+                }
+            }
+            found
+        })
+        .collect::<Vec<_>>();
+    identifiers.sort_unstable();
+    identifiers.dedup();
+    Ok(identifiers)
+}
+
+pub fn remap_single_character_identifiers(
+    source: &str,
+    mapping: &[u8; 128],
+) -> Result<String, JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let mut replacements = Vec::new();
+    for token in &tokens {
+        if token.kind == TokenKind::Identifier && token.text.len() == 1 {
+            let byte = token.text.as_bytes()[0];
+            let replacement = mapping[byte as usize];
+            if replacement != byte {
+                replacements.push((token.start, token.end, replacement));
+            }
+        } else if token.kind == TokenKind::Template {
+            for (offset, window) in token.text.as_bytes().windows(4).enumerate() {
+                if window[0] != b'$'
+                    || window[1] != b'{'
+                    || !window[2].is_ascii_alphabetic()
+                    || window[3] != b'}'
+                {
+                    continue;
+                }
+                let replacement = mapping[window[2] as usize];
+                if replacement != window[2] {
+                    replacements.push((
+                        token.start + offset + 2,
+                        token.start + offset + 3,
+                        replacement,
+                    ));
+                }
+            }
+        }
+    }
+    if replacements.is_empty() {
+        return Ok(source.to_string());
+    }
+    let mut output = String::with_capacity(source.len());
+    let mut cursor = 0;
+    for (start, end, replacement) in replacements {
+        output.push_str(&source[cursor..start]);
+        output.push(char::from(replacement));
+        cursor = end;
+    }
+    output.push_str(&source[cursor..]);
+    Ok(output)
 }
 
 fn syntax_metrics(
     source: &str,
     tokens: &[Token<'_>],
     parsed: &[ParsedRegion<'_>],
-    max_nesting: usize,
+    delimiter_nesting: usize,
 ) -> JavaScriptSyntaxMetrics {
     let functions = tokens
         .iter()
@@ -220,6 +1334,12 @@ fn syntax_metrics(
         .iter()
         .map(|region| region.expression.node_count())
         .sum::<usize>();
+    let expression_nesting = parsed
+        .iter()
+        .map(|region| region.expression.max_depth())
+        .max()
+        .unwrap_or(0);
+    let max_nesting = delimiter_nesting.max(expression_nesting);
     let structural_nodes = tokens
         .iter()
         .filter(|token| !matches!(token.text, ";" | "," | "(" | ")" | "[" | "]" | "{" | "}"))
@@ -905,6 +2025,238 @@ mod tests {
     }
 
     #[test]
+    fn folds_an_assignment_followed_by_its_truthiness_guard() {
+        let optimized = optimize_generated_javascript(
+            "function f(x){a=read(x);if(a){use(a)}b=next();if(b){use(b)}}",
+        )
+        .unwrap();
+        assert_eq!(
+            optimized.code,
+            "function f(x){if(a=read(x)){use(a)}if(b=next()){use(b)}}"
+        );
+        assert_eq!(optimized.rewrites, 2);
+    }
+
+    #[test]
+    fn assignment_guard_folding_stays_within_proven_statement_boundaries() {
+        let sources = [
+            "function f(x){if(x)a=read();if(a)use(a)}",
+            "function f(x){while(x)a=read();if(a)use(a)}",
+            "function f(x){x?a=read():b=next();if(b)use(b)}",
+            "function f(){a.x=read();if(a.x)use(a.x)}",
+            "function f(){a=read();if(b)use(a)}",
+        ];
+
+        for source in sources {
+            let optimized = optimize_generated_javascript(source).unwrap();
+            assert_eq!(optimized.code, source);
+        }
+
+        let nested = optimize_generated_javascript(
+            "function f(){a=choose(call(1),{x:[2,3]});if(a){use(a)}}",
+        )
+        .unwrap();
+        assert_eq!(
+            nested.code,
+            "function f(){if(a=choose(call(1),{x:[2,3]})){use(a)}}"
+        );
+    }
+
+    #[test]
+    fn reuses_a_dead_function_scoped_var_binding() {
+        let optimized = optimize_generated_javascript(
+            "function f(x){var a=first(x);if(a)use(a);var b=second(x);if(b)use(b)}",
+        )
+        .unwrap();
+
+        assert_eq!(
+            optimized.code,
+            "function f(x){var a=first(x);if(a)use(a);if(a=second(x))use(a)}"
+        );
+        assert_eq!(optimized.rewrites, 2);
+
+        let optimized = optimize_generated_javascript(
+            "let f=x=>{var a=first(x);if(a)use(a);var b=second(x);if(b)use(b)};",
+        )
+        .unwrap();
+        assert_eq!(
+            optimized.code,
+            "let f=x=>{var a=first(x);if(a)use(a);if(a=second(x))use(a)};"
+        );
+    }
+
+    #[test]
+    fn never_reuses_a_binding_from_a_sibling_arrow_scope() {
+        let source = "let f=x=>{var a=first(x);return a},g=x=>{var b=second(x);return b};";
+        let (optimized, reused) = super::reuse_dead_var_binding(source).unwrap();
+        assert!(!reused);
+        assert_eq!(optimized, source);
+
+        for source in [
+            "function f(){var a=first();var b=second();use(b=>a+b)}",
+            "function f(){var a=first();var b=second();use((b)=>a+b)}",
+        ] {
+            let (optimized, reused) = super::reuse_dead_var_binding(source).unwrap();
+            assert!(!reused, "{optimized}");
+            assert_eq!(optimized, source);
+        }
+    }
+
+    #[test]
+    fn keeps_var_keyword_for_multi_declarator_reuse_candidates() {
+        let source = "function f(x){var a=first(x);if(a)use(a);var b=second(x),i=0,tmp;for(;i<2;i++)tmp=b;return tmp}";
+        let optimized = optimize_generated_javascript(source).unwrap();
+
+        assert!(
+            optimized.code.contains("var b=second(x),i=0,tmp"),
+            "{}",
+            optimized.code
+        );
+        assert!(!optimized.code.contains("a=second(x),i=0,tmp"));
+    }
+
+    #[test]
+    fn keeps_var_bindings_when_lifetimes_or_nested_names_overlap() {
+        for (source, expected) in [
+            (
+                "function f(x){var a=first(x);var b=second(x);use(a,b)}",
+                "function f(x){var a=first(x),b=second(x);use(a,b)}",
+            ),
+            (
+                "function f(x){use(b);var a=first(x);var b=second(x);use(b)}",
+                "function f(x){use(b);var a=first(x),b=second(x);use(b)}",
+            ),
+            (
+                "function f(x){var a=first(x);var b=second(x);use(function(b){return b})}",
+                "function f(x){var a=first(x),b=second(x);use(function(b){return b})}",
+            ),
+        ] {
+            let optimized = optimize_generated_javascript(source).unwrap();
+            assert_eq!(optimized.code, expected);
+        }
+    }
+
+    #[test]
+    fn removes_only_unreferenced_standalone_var_declarations() {
+        let optimized = optimize_generated_javascript(
+            "let f=a=>{var h;if(a)return 1;return b=>{var h;return b}},q=a=>{var g;return b=>{var x=0,g=1;return b+g}};function g(){var x;use(x)}",
+        )
+        .unwrap();
+        assert_eq!(
+            optimized.code,
+            "let f=a=>a?1:b=>{return b},q=a=>{return b=>{var x=0,g=1;return b+g}};function g(){var x;use(x)}"
+        );
+        assert_eq!(optimized.rewrites, 4);
+
+        let optimized = optimize_generated_javascript(
+            "let f=(a,b)=>{var e;if(a)return b;return e=>{if(e)return e;return b}};",
+        )
+        .unwrap();
+        assert_eq!(
+            optimized.code,
+            "let f=(a,b)=>a?b:e=>{if(e)return e;return b};"
+        );
+    }
+
+    #[test]
+    fn rotates_only_proven_initial_true_flag_loops() {
+        let optimized = optimize_generated_javascript(
+            "function f(a){var b,c;b=!0;while(b){c=work(a);b=c<12;}return c}",
+        )
+        .unwrap();
+        assert_eq!(
+            optimized.code,
+            "function f(a){var c;do{c=work(a)}while(c<12);return c}"
+        );
+
+        for source in [
+            "function f(){var a=true;while(a){if(read())continue;a=read()}}",
+            "function f(){var a=true;while(a){use(a);a=read()}}",
+            "function f(){var a=false;while(a){work();a=read()}}",
+        ] {
+            assert_eq!(optimize_generated_javascript(source).unwrap().code, source);
+        }
+    }
+
+    #[test]
+    fn merges_only_adjacent_same_kind_declarations() {
+        let optimized = optimize_generated_javascript(
+            "let a;let b=1;var c=2;var d=3;const e=4;const f=5;use(a,b,c,d,e,f)",
+        )
+        .unwrap();
+        assert_eq!(
+            optimized.code,
+            "let a,b=1;var c=2,d=3;const e=4,f=5;use(a,b,c,d,e,f)"
+        );
+    }
+
+    #[test]
+    fn folds_arrow_guard_returns_into_conditional_bodies() {
+        let optimized = optimize_generated_javascript(
+            "let f=(a,b)=>{if(a==b)return a;return c=>{if(c)return b;return a}};use(f)",
+        )
+        .unwrap();
+        assert_eq!(
+            optimized.code,
+            "let f=(a,b)=>a==b?a:c=>{if(c)return b;return a};use(f)"
+        );
+    }
+
+    #[test]
+    fn folds_expression_only_if_else_arms_into_a_conditional_sequence() {
+        let optimized = optimize_generated_javascript(
+            "function f(a){if(test(a)){a=a+1;b=a<12;}else{b=false;}return b}",
+        )
+        .unwrap();
+        assert_eq!(
+            optimized.code,
+            "function f(a){test(a)?(a+=1,b=a<12):b=false;return b}"
+        );
+        assert_eq!(optimized.rewrites, 2);
+
+        let optimized = optimize_generated_javascript(
+            "function f(x){if(x){first(),second()}else{third(),fourth()}}",
+        )
+        .unwrap();
+        assert_eq!(
+            optimized.code,
+            "function f(x){x?(first(),second()):(third(),fourth());}"
+        );
+
+        for source in [
+            "function f(a){if(a){return 1}else{return 2}}",
+            "function f(a){if(a){let b=1;use(b)}else{use(a)}}",
+            "function f(a){if(a)use(a);else use(0)}",
+        ] {
+            assert_eq!(optimize_generated_javascript(source).unwrap().code, source);
+        }
+    }
+
+    #[test]
+    fn groups_assignment_results_used_as_conditional_tests() {
+        let optimized = optimize_generated_javascript(
+            "let f=()=>{flag=!flag;if(flag)return 'first';return 'second'};use(f)",
+        )
+        .unwrap();
+        assert_eq!(
+            optimized.code,
+            "let f=()=>(flag=!flag)?'first':'second';use(f)"
+        );
+    }
+
+    #[test]
+    fn groups_sequence_expressions_used_as_conditional_arms() {
+        let optimized = optimize_generated_javascript(
+            "let f=x=>{if(x)return first(),second();return third(),fourth()};use(f)",
+        )
+        .unwrap();
+        assert_eq!(
+            optimized.code,
+            "let f=x=>x?(first(),second()):(third(),fourth());use(f)"
+        );
+    }
+
+    #[test]
     fn derives_stable_nonzero_startup_metrics() {
         let metrics = analyze_generated_javascript(
             "function f(a){while(a)a=f(a-1.25);return a}console.log(f(.5))",
@@ -917,6 +2269,30 @@ mod tests {
         assert!(metrics.parse_cost > 0);
         assert!(metrics.compile_cost > metrics.parse_cost / 2);
         assert!(metrics.estimated_memory_bytes > metrics.bytes as u64);
+    }
+
+    #[test]
+    fn nesting_metric_includes_expression_depth_without_delimiters() {
+        let shallow = analyze_generated_javascript("a?b:c").unwrap();
+        let deep = analyze_generated_javascript("a?b?c?d:e:f:g").unwrap();
+        assert!(
+            deep.max_nesting > shallow.max_nesting,
+            "{shallow:?} {deep:?}"
+        );
+    }
+
+    #[test]
+    fn remaps_only_identifier_tokens_for_entropy_probes() {
+        let mut mapping = std::array::from_fn(|index| index as u8);
+        mapping[b'a' as usize] = b'z';
+        assert_eq!(
+            super::remap_single_character_identifiers(
+                "let a='a';a=obj.a+1e-7;console.log(`${a}`)",
+                &mapping,
+            )
+            .unwrap(),
+            "let z='a';z=obj.z+1e-7;console.log(`${z}`)"
+        );
     }
 
     #[test]

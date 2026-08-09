@@ -1,0 +1,3 @@
+[submodule "solid-client"]
+	path = labs/solid-client
+	url = https://github.com/yeargun/lilscript-solid-lab.git

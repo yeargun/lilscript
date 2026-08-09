@@ -20,6 +20,8 @@
         <a href="/">Playground</a>
         <a href="/docs.html">Docs</a>
         <a href="/benchmarks.html">Benchmarks</a>
+        <a href="/explorer.html">Explorer</a>
+        <a href="/roadmap.html">Roadmap</a>
         <a class="active" href="/about.html">About</a>
       </nav>
     </header>
@@ -119,23 +121,14 @@ console.log(`sum=${c}`)</code></pre>
         <div class="section-heading">
           <p class="eyebrow">Measured output</p>
           <h2>Bundle efficiency is tested, not assumed</h2>
-          <p>Ten equivalent programs, including a three-module graph, execute first; normalized output is then measured against Closure Compiler ADVANCED v20260803.</p>
+          <p>The generated catalog currently covers 32 compiler applications, complete and partial library surfaces, realistic application scenarios, property-mangling stress, and mechanically paired sources across 147 artifact lanes. Every published row names its compatibility boundary and codec.</p>
         </div>
-        <div class="benchmark-table-wrap">
-          <table>
-            <thead><tr><th>Workload</th><th>Compiler</th><th>Raw</th><th>Gzip-9</th><th>Brotli-11</th></tr></thead>
-            <tbody>
-              <tr><th rowspan="2">v0.1</th><td>LilScript</td><td>90</td><td>107</td><td>83</td></tr>
-              <tr><td>Closure</td><td>203</td><td>182</td><td>161</td></tr>
-              <tr><th rowspan="2">Full conformance</th><td>LilScript</td><td>323</td><td>259</td><td>213</td></tr>
-              <tr><td>Closure</td><td>520</td><td>355</td><td>296</td></tr>
-              <tr><th rowspan="2">Three modules</th><td>LilScript</td><td>101</td><td>117</td><td>90</td></tr>
-              <tr><td>Closure</td><td>117</td><td>127</td><td>104</td></tr>
-              <tr><th rowspan="2">Ten-workload total</th><td>LilScript</td><td>1,457</td><td>1,280</td><td>1,032</td></tr>
-              <tr><td>Closure</td><td>2,450</td><td>1,771</td><td>1,471</td></tr>
-            </tbody>
-          </table>
+        <div class="feature-grid">
+          <article><h3>Fair lanes</h3><p>Vite unminified, Vite/Oxc, private-property Terser, Closure ADVANCED, and three LilScript policies stay separate.</p></article>
+          <article><h3>Independent codecs</h3><p>Raw, gzip-9, and Brotli-11 remain visible even when the configured release objective selects only one.</p></article>
+          <article><h3>Source attached</h3><p>Every local project detail is generated from the exact JavaScript and LilScript files used by its harness.</p></article>
         </div>
+        <div class="hero-actions"><a class="primary-link" href="/explorer.html">Open all measurements<i data-lucide="arrow-right" aria-hidden="true"></i></a><a class="secondary-link" href="/roadmap.html">See limits and next work</a></div>
       </section>
     </main>
 

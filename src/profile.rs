@@ -253,13 +253,23 @@ fn allocation_units(operation: &ControlFlowOp<'_>) -> Option<u64> {
                 | Intrinsic::ArrayBufferNew
                 | Intrinsic::SharedArrayBufferNew
                 | Intrinsic::BufferSlice
-                | Intrinsic::Uint8ArrayNew
-                | Intrinsic::Uint8ArraySlice
-                | Intrinsic::Uint8ArraySubarray
                 | Intrinsic::StringToUpperCase
                 | Intrinsic::StringToLowerCase,
             ..
         } => Some(2),
+        ControlFlowOp::Intrinsic { intrinsic, .. }
+            if matches!(
+                crate::typed_array::classify_typed_array_intrinsic(*intrinsic),
+                Some((
+                    _,
+                    crate::typed_array::TypedArrayIntrinsic::New
+                        | crate::typed_array::TypedArrayIntrinsic::Slice
+                        | crate::typed_array::TypedArrayIntrinsic::Subarray
+                ))
+            ) =>
+        {
+            Some(2)
+        }
         ControlFlowOp::Template(_) => Some(1),
         _ => None,
     }

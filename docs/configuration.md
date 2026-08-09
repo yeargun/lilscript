@@ -14,6 +14,8 @@ finite_value_propagation = true
 global_optimization = true
 inlining = true
 inline_closure_factories = true
+constant_parameter_specialization = true # false keeps generic constant-argument call sites
+specialize_tagged_constants = true # include boxed/union constants when specializing
 scalar_replacement = true
 dead_store_elimination = true
 dead_code_elimination = true
@@ -27,8 +29,17 @@ profile_guided = true
 priority = "size-first"
 optimization_level = 15 # 0..15 compiler-effort budget
 cost_model = "brotli" # raw | gzip | brotli
+pool_numeric_literals = true # alias repeated profitable numeric literals
 candidate_search = "production" # off | production | always
 candidate_limit = 1536
+candidate_byte_budget = 1048576 # aggregate whole-artifact search-work budget
+candidate_beam_width = 12
+max_candidate_raw_growth_percent = 0 # hard raw-size boundary; maximum 1000
+function_layout_exact_limit = 13 # 0 = heuristic only; maximum 18
+local_name_reserve = 48 # consistent short identifiers reserved for lexical locals
+stable_local_names = true # preserve source-local affinity across generated kernels
+# function_spelling = "arrow" # arrow | function; see public-ABI note below
+# public_aggregate_abi = "named" # named | positional; positional requires opaque array handles
 # optimizations = ["parsed-peephole", "startup-cost-guard"]
 compression = [
   "identifier-mangling",
@@ -38,12 +49,14 @@ compression = [
   "size-aware-inlining",
   "safe-integer-coercion-elision",
   "compact-boolean-literals",
+  "standard-grammar-elision",
   "structured-closure-inlining",
   "string-array-packing",
   "scalar-phi-copies",
   "phi-affinity-coalescing",
   "ir-inlining-variants",
   "ir-closure-factory-variants",
+  "ir-phase-ordering-variants",
   "loop-spelling-selection",
   "mutation-spelling-selection",
 ]
@@ -55,6 +68,7 @@ compression = [
 parse_weight = 1
 compile_weight = 1
 memory_weight = 1
+# max_nesting = 128 # optional absolute generated-syntax ceiling
 parse_overhead_limit_percent = 30
 compile_overhead_limit_percent = 30
 memory_overhead_limit_percent = 35
@@ -168,6 +182,24 @@ checks, mandatory IR normalization, DCE correctness, or host-boundary rules:
   considers delimiter-packed string literal tables. Packing adds startup work,
   so the performance-oriented profiles leave it disabled.
 
+`javascript.function_spelling` is an explicit JavaScript ABI and spelling
+override. When omitted, exported functions retain ordinary-function
+constructibility while the compressor search may choose arrows or function
+declarations for private bindings. `"function"` forces ordinary functions.
+`"arrow"` also permits public arrows, which removes `prototype` and rejects
+construction with `new`; use it only when the selected public API is itself
+nonconstructible (for example Nano ID's published browser arrows). The
+benchmark verifier checks arity and constructibility before a result is
+eligible, so this setting cannot silently buy bytes by changing that API.
+
+`javascript.public_aggregate_abi` defaults to `"named"`: structs and classes
+that cross a reusable JavaScript boundary use stable named fields, including
+aggregate types reachable through their public fields. `"positional"` emits
+compact array-backed handles instead. It is an explicit ABI choice for modules
+whose JavaScript consumers treat every exported aggregate as opaque and only
+pass handles back to compiled functions; JavaScript must not inspect fields or
+construct those handles as objects in that mode.
+
 `javascript.compression` is an optional exact allowlist of contested JavaScript
 size tactics. If omitted, the selected profile supplies the list. If present,
 only listed tactics are enabled; `compression = []` disables all of them:
@@ -175,7 +207,11 @@ only listed tactics are enabled; `compression = []` disables all of them:
 - `identifier-mangling` assigns short names by whole-program use frequency.
 - `entropy-aware-mangling` compares the canonical identifier alphabet with an
   alphabet ranked by emitted-character frequency, then lets the configured
-  exact compressor choose the result.
+  exact compressor choose the result. Size-first builds also run a bounded,
+  deterministic permutation search over one-character emitted identifiers.
+  The trial budget scales down with artifact size so quality-11 codec probes
+  do not make large modules impractical; every proposed alphabet is re-emitted
+  through the normal scope-aware mangler before it can be selected.
 - `quote-style-selection` compares semantically equivalent single- and
   double-quoted string literals.
 - `property-mangling` renames LilScript-owned boundary-visible properties.
@@ -189,6 +225,13 @@ only listed tactics are enabled; `compression = []` disables all of them:
   range. Unknown or overflow-capable operations remain normalized.
 - `compact-boolean-literals` compares `!0`/`!1` with `true`/`false` for
   surviving boolean constants and typed default fields.
+- `standard-grammar-elision` permits three independent, standards-valid
+  emission choices: block-terminal semicolons supplied by ECMAScript ASI,
+  empty parentheses on zero-argument `new`, and redundant grouping around a
+  call before member/index access. Candidate search keeps punctuation-retaining
+  variants because fewer raw bytes can still be worse under gzip or Brotli.
+  This does not enable malformed JavaScript, Annex B, sloppy-mode globals,
+  `with`, `eval`, or browser-only syntax recovery.
 - `structured-closure-inlining` compares compact nested structured closures
   with reusable outlined helpers under the selected compressor.
 - `string-array-packing` considers immutable literal tables such as
@@ -203,7 +246,10 @@ only listed tactics are enabled; `compression = []` disables all of them:
   when normal liveness proves the pair does not interfere. Candidate search
   compares conservative deferred-expression interference, direct affinity,
   and contracted non-interfering phi groups because fewer raw assignments can
-  still compress worse.
+  still compress worse. A loop-carried update cannot overwrite its old value
+  in place when a sibling phi still consumes that value on the same edge; the
+  parallel-copy dependency remains a hard correctness constraint in every
+  effort profile.
 - `ir-inlining-variants` lets the configured inlining pipeline compete with a
   fully outlined IR under the exact selected codec. It is enabled by
   size-first, applies to single-file and reusable ESM output, and is omitted by
@@ -214,6 +260,19 @@ only listed tactics are enabled; `compression = []` disables all of them:
   factory environments and capture-specialized closure sites. The independent
   `[optimization] inline_closure_factories` switch disables factory inlining
   for every backend when an explicit policy is required.
+- `ir-phase-ordering-variants` lets size-first builds compare the configured IR
+  against bounded aggressive-inlining candidates, both with and without early
+  common-subexpression elimination. This avoids materializing reusable
+  temporaries before later inlining duplicates or exposes their expressions.
+  These probes start only from the configured and unspecialized pipelines;
+  they are not multiplied across unrelated outlining, capture-cloning, call-
+  specialization, or function-subsumption toggles. Modules above the bounded
+  function/IR-size threshold retain one combined unspecialized + no-early-CSE
+  + aggressive-inlining proposal instead of six additional complete emission
+  searches.
+  The selected raw/gzip/Brotli codec scores complete artifacts; startup and
+  performance-shape guards still apply. Omit this decision, lower
+  `optimization_level` below 14, or disable candidate search for faster builds.
 - `loop-spelling-selection` lets equivalent condition-only loops compete as
   `while(condition)` and `for(;condition;)`. They have equal raw spelling
   length, but different token context under gzip and Brotli. Size-first scores
@@ -240,13 +299,56 @@ parsed peepholes plus structural IR/loop/switch alternatives, level 13 adds
 late identical-body folding and declaration layout, and levels 14-15 add
 proof-driven function-subsumption IR candidates. The effective cap is always
 the lower of the level cap and `candidate_limit` when the level-derived feature
-set is active.
+set is active. `candidate_beam_width` controls how many distinct leading
+emission layouts advance to each subsequent structural decision. Raising it
+can recover interactions whose first step is not locally best; lowering it
+reduces complete-artifact emissions and compressor work. It must be greater
+than zero and is always bounded by the effective candidate limit.
+
+Typical effort settings are:
+
+```toml
+# Fast edit/build loop: one configured emission and no compressor search.
+[javascript]
+optimization_level = 0
+candidate_search = "off"
+candidate_limit = 1
+candidate_byte_budget = 1
+candidate_beam_width = 1
+```
+
+```toml
+# Maximum release search: all level-derived dimensions, the full configured
+# cap even outside normal production mode, and a wider interaction beam.
+[javascript]
+optimization_level = 15
+candidate_search = "always"
+candidate_limit = 1536
+candidate_byte_budget = 67108864
+candidate_beam_width = 48
+cost_model = "brotli"
+```
+
+The checked-in default sits between these at level 15, `production` search,
+an effective 384-candidate cap shared across all IR optimizer variants, a 1 MiB
+aggregate candidate byte budget, and a beam width of 12. The byte budget is
+divided across optimizer variants and converted to a candidate count from each
+variant's configured baseline size. Thus tiny outputs can exhaust the count
+cap, while broad outputs automatically run fewer whole-artifact emissions and
+quality-11 codec probes. At least the configured output from each retained IR
+variant is always measured. Initial representation cross-products are bounded
+before full emission and codec probing, so neither cap can be multiplied
+silently by module breadth or optimizer variants. Raise
+`candidate_byte_budget` for slower maximum-compression releases. These controls change
+compiler work and representation search only; they do not disable type checks
+or mandatory correctness normalization.
 
 `javascript.optimizations` replaces the level-derived feature set with an exact
 allowlist. This is separate from the older `compression` policy: `compression`
 controls whether a representation is permitted, while `optimizations` controls
 which alternative searches and post-emission analyses are run. Available names
 are `ir-inlining-variants`, `ir-closure-factory-variants`,
+`ir-phase-ordering-variants`,
 `ir-function-subsumption-variants`, `ir-specialization-variants`,
 `structural-control-flow-variants`,
 `ssa-destruction-variants`, `conditional-expression-variants`,
@@ -259,9 +361,9 @@ The remaining names are `performance-shape-model`,
 `profile-guided-optimization`, `call-site-specialization`, and
 `capture-signature-cloning`, plus `identical-function-folding`.
 An empty list disables all of these features. Duplicate names and levels above
-15 are configuration errors. With an exact allowlist, `candidate_limit` is the
-direct cap because `optimization_level` no longer selects either features or
-effort.
+15 are configuration errors. With an exact allowlist, `optimization_level` no
+longer lowers the candidate cap; `production` search still bounds it at 384,
+while `always` uses `candidate_limit` directly.
 
 `ir-function-subsumption-variants` is automatically searched only by
 `size-first`; `balanced`, `realistic-performance-first`, and
@@ -271,19 +373,55 @@ semantics-preserving size transform that may add scalar or function arguments
 at surviving call sites. The unmodified IR always remains a complete-artifact
 candidate.
 
-`function-layout-variants` clusters emitted function declarations by repeated
-emitted eight-byte runs. Groups of at most 13 use dynamic programming; larger
-groups use bounded deterministic insertion. It is only a proposal mechanism:
-the unchanged source order remains in the candidate beam, and the configured
-raw/gzip/Brotli model scores the complete artifact before selection.
+`function-layout-variants` proposes two declaration orders from repeated
+emitted eight-byte runs. The adjacency order uses exact Held-Karp dynamic
+programming through `function_layout_exact_limit` declarations and bounded
+deterministic insertion for larger groups. The default is 13; `0` always uses
+the bounded heuristic, while release builds can raise the cutoff to at most 18
+when the exponential compile-time and memory cost is acceptable.
+The window order additionally discounts or rejects similarities beyond the
+selected codec's history: 32 KiB for gzip and 4 MiB for the configured Brotli
+encoder. These remain proposal mechanisms: unchanged source order stays in the
+beam, and the exact configured raw/gzip/Brotli model scores every complete
+artifact before selection.
+
+`local_name_reserve` keeps the first N mangled spellings out of module-scope
+function/global assignment, then releases them inside each lexical function
+scope. This makes structurally similar functions use a consistent short local
+alphabet, improving raw size and cross-function gzip/Brotli matches. Module
+bindings remain collision-free, referenced globals are still reserved in every
+function that uses them, `0` disables the reservation, and the maximum is 256.
+With production candidate search active, reservations `0`, `8`, `16`, and `32`
+also compete with the configured value. Exact raw/gzip/Brotli scoring can
+therefore choose a compact-module alphabet without discarding a larger
+configured reservation that benefits broad reusable surfaces.
+`stable_local_names = true` assigns the available spellings to interference
+colors using non-semantic source-local affinity, with deterministic definition
+order as the fallback. It does not alter liveness or the number of slots; it
+makes duplicated numerical and generated kernels retain similar local
+spellings for transport compression.
+
+`max_candidate_raw_growth_percent` is a hard selection boundary applied both
+within one emitted-IR search and across optimizer variants. The default `0`
+allows codec-aware search to choose only artifacts no larger than its
+configured baseline in raw bytes. Projects that deliberately accept raw-byte
+growth for gzip/Brotli wins can raise the percentage (up to 1000); the unchanged
+baseline remains a candidate.
 
 The parsed peephole validates the complete generated artifact and Pratt-parses
-eligible expressions before rewriting. It currently contracts AST-proven
-simple-local `x=x op y` statements to compound assignments; it does not use
-text substitutions. The startup guard compares deterministic syntax-derived
+eligible expressions before rewriting. It contracts AST-proven simple-local
+`x=x op y` statements to compound assignments, removes only unreferenced
+function-scoped bindings, fuses adjacent same-kind declarations, folds
+two-return arrow guards to conditional expressions, and rotates a generated
+`flag=true; while(flag) { ...; flag=condition }` only when token/use analysis
+proves the flag is synthetic and the loop has no `continue`. It does not use
+unparsed text substitutions. The startup guard compares deterministic syntax-derived
 parse, engine-compile, and memory estimates against the configured baseline.
 The three overhead limits are hard rejection thresholds, while the three
-weights break equal-transfer-size ties. `--explain human` and `--explain json`
+weights break equal-transfer-size ties. Optional `max_nesting` is an absolute
+candidate ceiling and remains active even when `startup-cost-guard` is not in
+an exact optimization allowlist; `0` is invalid. `--explain human` and
+`--explain json`
 report the selected syntax metrics, candidate count, rewrite count, selected
 codec bytes, typed-IR performance metrics, and measured LilScript compiler
 time.
@@ -327,14 +465,16 @@ exact `compression` allowlist. `candidate_search = "production"` is the
 default and is skipped by CLI `--mode development`; `always` remains active in
 that mode, while `off` disables compressor-in-the-loop emission. The current
 search space compares profitable string pooling, literal-table packing,
-proven-safe integer coercion elision, boolean literals, structured closures,
-identifier alphabets, quote styles, and equivalent top-level declaration,
+proven-safe integer coercion elision, numeric-literal pooling, boolean literals,
+structured closures, identifier alphabets, adaptive local-name reservations,
+quote styles, and equivalent top-level declaration,
 phi-affinity, SSA parallel-copy, conditional/comma, structured/state-machine,
 `while`/`for`/`do`, update-clause, switch/conditional-dispatch, and assignment/
 prefix/postfix/compound-mutation layouts, bounded by the effective candidate
-limit. Structural beams retain finalists from each prior family so one early
-layout cannot hide a better cross-dimension combination. The configured
-baseline is always retained as a startup-safe fallback.
+limit. `candidate_beam_width` sets the cross-dimension search window; the
+configured baseline is always retained as a startup-safe fallback. Transfer
+scores already measured during search are reused when the parsed peephole
+leaves a finalist unchanged, avoiding a second quality-11 compression pass.
 
 The priority is applied after `[optimization]`: setting `inlining = false`
 disables inlining in every profile. Explicit `[mangle]` values have the highest
@@ -359,13 +499,15 @@ unknown call, merged through a phi, or resized remain heap allocated. Every
 region is released on every generated return path. These switches alter
 storage placement, not source-visible ownership semantics.
 
-`mangle.properties` renames LilScript-owned fields that cross an untyped
-JavaScript boundary. It is off by default because external JavaScript must
-otherwise use the renamed ABI. Members declared by `extern class` are host ABI
-names and are never renamed, regardless of this setting. Internal struct and
-class fields already lower to scalar values or numeric slots. `mangle.exports`
-removes stable public ESM names and is intended for LilScript-only applications
-whose static imports are linked before codegen.
+`mangle.properties` renames eligible LilScript-owned fields. Named aggregate
+fields that cross an untyped JavaScript boundary remain stable unless
+`mangle.exports` is also explicitly enabled; this keeps the default reusable
+JavaScript ABI constructible and inspectable. Members declared by `extern
+class` are host ABI names and are never renamed. Internal struct and class
+fields already lower to scalar values or numeric slots. `mangle.exports`
+removes stable public ESM names (and permits public aggregate-field mangling)
+and is intended for LilScript-only applications whose static imports are linked
+before codegen.
 
 The bundle policy is separate from optimizer policy. Every mode first links and
 optimizes the complete static module graph, so cross-file inlining, scalar

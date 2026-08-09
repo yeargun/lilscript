@@ -18,6 +18,7 @@ pub mod parser;
 pub mod profile;
 pub mod semantic;
 pub mod span;
+pub mod typed_array;
 pub mod value_analysis;
 
 pub use codegen_js::{compile_to_js, CodegenError, CodegenOptions, CompileError, JsEmitter};
@@ -26,13 +27,13 @@ pub use compiler::{
     compile_path, compile_path_all, compile_path_all_configured, compile_path_configured,
     compile_path_explained_configured, compile_path_to_c, compile_path_to_c_configured,
     compile_path_to_js_bundle_configured, compile_path_to_js_module,
-    compile_path_to_js_module_configured, compile_path_to_js_module_with_source,
-    compile_path_with_source, compile_path_with_source_configured, compile_source,
-    compile_source_all, compile_source_to_c, compile_source_to_js_module,
-    profile_template_path_configured, render_diagnostic, render_module_diagnostic,
-    CompilationArtifacts, JavaScriptBundle, JavaScriptBundleFile, JavaScriptBundleManifest,
-    JavaScriptBundleManifestChunk, JavaScriptCompilation, JavaScriptSelectionMetrics,
-    SourceCompileError,
+    compile_path_to_js_module_configured, compile_path_to_js_module_explained_configured,
+    compile_path_to_js_module_with_source, compile_path_with_source,
+    compile_path_with_source_configured, compile_source, compile_source_all, compile_source_to_c,
+    compile_source_to_js_module, profile_template_path_configured, render_diagnostic,
+    render_module_diagnostic, CompilationArtifacts, JavaScriptBundle, JavaScriptBundleFile,
+    JavaScriptBundleManifest, JavaScriptBundleManifestChunk, JavaScriptCompilation,
+    JavaScriptSelectionMetrics, SourceCompileError,
 };
 pub use interpreter::{
     interpret_program, interpret_program_with_limits, InterpretError, InterpreterLimits,

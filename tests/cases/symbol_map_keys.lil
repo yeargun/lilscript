@@ -1,0 +1,26 @@
+Symbol EVENT = new Symbol("event");
+Symbol OTHER = new Symbol();
+Map<Symbol|string, int> store = new Map<Symbol|string, int>();
+
+store.set(EVENT, 10);
+store.set("broadcast", 20);
+store.set(OTHER, 30);
+
+print(store.has(EVENT));
+print(store.has(new Symbol("event")));
+int? eventCount = store.get(EVENT);
+if (eventCount != null) {
+  print(eventCount);
+}
+int? broadcastCount = store.get("broadcast");
+if (broadcastCount != null) {
+  print(broadcastCount);
+}
+int? otherCount = store.get(OTHER);
+if (otherCount != null) {
+  print(otherCount);
+}
+print(EVENT == EVENT);
+print(EVENT == OTHER);
+Symbol SAME = EVENT;
+print(store.has(SAME));

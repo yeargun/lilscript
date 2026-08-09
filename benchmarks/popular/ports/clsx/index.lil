@@ -1,0 +1,51 @@
+string classValue(JsValue value) {
+  string out = "";
+  if ((value is string) || (value is float)) {
+    out = out + value;
+  } else if (value.isObject()) {
+    if (value.isArray()) {
+      float length = value.length;
+      for (float index = 0.0; index < length; index++) {
+        if (value[index].truthy()) {
+          string part = "";
+          if ((part = classValue(value[index])).truthy()) {
+            if (out.truthy()) {
+              out = out + " ";
+            }
+            out = out + part;
+          }
+        }
+      }
+    } else {
+      for (string key in value) {
+        if (value[key].truthy()) {
+          if (out.truthy()) {
+            out = out + " ";
+          }
+          out = out + key;
+        }
+      }
+    }
+  }
+  return out;
+}
+
+extern JsValue arguments;
+
+export string clsx() {
+  string out = "";
+  float length = arguments.length;
+  for (float index = 0.0; index < length; index++) {
+    JsValue value = arguments[index];
+    if (value.truthy()) {
+      string part = "";
+      if ((part = classValue(value)).truthy()) {
+        if (out.truthy()) {
+          out = out + " ";
+        }
+        out = out + part;
+      }
+    }
+  }
+  return out;
+}

@@ -1,0 +1,615 @@
+export extern class Element {
+  int nodeType;
+  string? localName;
+  string textContent;
+  Element? firstChild;
+  Element? lastChild;
+  Element? nextSibling;
+  Element? previousSibling;
+  Element? parentNode;
+  void setAttribute(string name, string value);
+  void removeAttribute(string name);
+  string? getAttribute(string name);
+  Element appendChild(Element child);
+  Element removeChild(Element child);
+  Element insertBefore(Element child, Element? before);
+}
+
+export extern class Document {
+  Element createElement(string tag);
+  Element createTextNode(string data);
+}
+
+export extern Document document;
+
+export class Ref {
+  Element? current;
+
+  init() {
+    this.current = null;
+  }
+}
+
+export class PropMap {
+  Map<string, string> attrs;
+  string[] keys;
+  VNode[] children;
+  Ref? ref;
+  string key;
+
+  init() {
+    this.attrs = new Map<string, string>();
+    this.keys = [];
+    this.children = [];
+    this.ref = null;
+    this.key = "";
+  }
+
+  void setAttr(string name, string value) {
+    if (name == "key") {
+      this.key = value;
+      return;
+    }
+    if (!this.attrs.has(name)) {
+      this.keys.push(name);
+    }
+    this.attrs.set(name, value);
+  }
+
+  void setRef(Ref value) {
+    this.ref = value;
+  }
+}
+
+export class Component {
+  PropMap props;
+  VNode[] children;
+  (func(Component)->VNode)? renderFn;
+  Root? __root;
+
+  init() {
+    this.props = new PropMap();
+    this.children = [];
+    this.renderFn = null;
+    this.__root = null;
+  }
+
+  VNode render(PropMap props) {
+    (func(Component)->VNode)? maybe = this.renderFn;
+    if (maybe != null) {
+      func(Component)->VNode fn = maybe;
+      return fn(this);
+    }
+    return text("");
+  }
+}
+
+export class VNode {
+  int kind;
+  string tag;
+  PropMap props;
+  VNode[] children;
+  string text;
+  (func(PropMap)->VNode)? component;
+  (func(PropMap)->Component)? classCtor;
+  Component? classInstance;
+  Element? dom;
+  string key;
+
+  init(int kind) {
+    this.kind = kind;
+    this.tag = "";
+    this.props = new PropMap();
+    this.children = [];
+    this.text = "";
+    this.component = null;
+    this.classCtor = null;
+    this.classInstance = null;
+    this.dom = null;
+    this.key = "";
+  }
+}
+
+export class StateCell {
+  int kind;
+  int num;
+  string text;
+  string[] list;
+  Ref? refObj;
+  int memo;
+  int dep;
+  bool ready;
+  bool needsEffect;
+  (func()->void)? effectFn;
+  (func()->void)? callbackFn;
+  Root? root;
+
+  init(int kind) {
+    this.kind = kind;
+    this.num = 0;
+    this.text = "";
+    this.list = [];
+    this.refObj = null;
+    this.memo = 0;
+    this.dep = 0;
+    this.ready = false;
+    this.needsEffect = false;
+    this.effectFn = null;
+    this.callbackFn = null;
+    this.root = null;
+  }
+}
+
+class HookCursor {
+  StateCell[] cells;
+  int index;
+  Root? root;
+
+  init() {
+    this.cells = [];
+    this.index = 0;
+    this.root = null;
+  }
+}
+
+export class Root {
+  Element container;
+  HookCursor hooks;
+  VNode? tree;
+  Map<string, Component> classes;
+
+  init(Element container) {
+    this.container = container;
+    this.hooks = new HookCursor();
+    this.tree = null;
+    this.classes = new Map<string, Component>();
+  }
+}
+
+HookCursor? CURSOR = null;
+Root? ACTIVE = null;
+
+string vnodeKey(VNode node) {
+  if (node.key.length > 0) {
+    return node.key;
+  }
+  return node.props.key;
+}
+
+VNode text(string value) {
+  VNode node = new VNode(0);
+  node.text = value;
+  return node;
+}
+
+VNode element(string tag, PropMap? props, VNode[] children) {
+  VNode node = new VNode(1);
+  node.tag = tag;
+  if (props != null) {
+    node.props = props;
+    node.key = props.key;
+  }
+  node.children = children;
+  node.props.children = children;
+  return node;
+}
+
+export VNode h(string tag, PropMap? props, VNode[] children) {
+  return element(tag, props, children);
+}
+
+export VNode hText(string value) {
+  return text(value);
+}
+
+export VNode hFragment(VNode[] children) {
+  VNode node = new VNode(3);
+  node.children = children;
+  return node;
+}
+
+export VNode hComp(func(PropMap)->VNode component, PropMap? props, VNode[] children) {
+  VNode node = new VNode(2);
+  node.component = component;
+  if (props != null) {
+    node.props = props;
+    node.key = props.key;
+  }
+  node.children = children;
+  node.props.children = children;
+  return node;
+}
+
+export VNode hClass(func(PropMap)->Component ctor, PropMap? props, VNode[] children) {
+  VNode node = new VNode(4);
+  node.classCtor = ctor;
+  if (props != null) {
+    node.props = props;
+    node.key = props.key;
+  }
+  node.children = children;
+  node.props.children = children;
+  return node;
+}
+
+export VNode Fragment(PropMap props) {
+  return hFragment(props.children);
+}
+
+StateCell allocCell(int kind) {
+  StateCell cell = new StateCell(kind);
+  if (CURSOR != null) {
+    HookCursor cursor = CURSOR;
+    Root? maybeRoot = cursor.root;
+    if (maybeRoot != null) {
+      cell.root = maybeRoot;
+    }
+  }
+  return cell;
+}
+
+export StateCell useIntState(int initial) {
+  if (CURSOR == null) {
+    StateCell orphan = allocCell(0);
+    orphan.num = initial;
+    orphan.ready = true;
+    return orphan;
+  }
+  HookCursor cursor = CURSOR;
+  int i = cursor.index;
+  cursor.index = i + 1;
+  if (i >= cursor.cells.length) {
+    StateCell created = allocCell(0);
+    created.num = initial;
+    created.ready = true;
+    cursor.cells.push(created);
+    return created;
+  }
+  return cursor.cells[i];
+}
+
+export StateCell useListState(string[] initial) {
+  if (CURSOR == null) {
+    StateCell orphan = allocCell(2);
+    string[] copy = [];
+    int j = 0;
+    while (j < initial.length) {
+      copy.push(initial[j]);
+      j = j + 1;
+    }
+    orphan.list = copy;
+    orphan.ready = true;
+    return orphan;
+  }
+  HookCursor cursor = CURSOR;
+  int i = cursor.index;
+  cursor.index = i + 1;
+  if (i >= cursor.cells.length) {
+    StateCell created = allocCell(2);
+    string[] copy = [];
+    int j = 0;
+    while (j < initial.length) {
+      copy.push(initial[j]);
+      j = j + 1;
+    }
+    created.list = copy;
+    created.ready = true;
+    cursor.cells.push(created);
+    return created;
+  }
+  return cursor.cells[i];
+}
+
+export Ref useRef() {
+  if (CURSOR == null) {
+    return new Ref();
+  }
+  HookCursor cursor = CURSOR;
+  int i = cursor.index;
+  cursor.index = i + 1;
+  if (i >= cursor.cells.length) {
+    StateCell created = allocCell(3);
+    created.refObj = new Ref();
+    created.ready = true;
+    cursor.cells.push(created);
+    Ref? maybe = created.refObj;
+    if (maybe != null) {
+      return maybe;
+    }
+    return new Ref();
+  }
+  StateCell cell = cursor.cells[i];
+  if (cell.refObj == null) {
+    cell.refObj = new Ref();
+  }
+  Ref? existing = cell.refObj;
+  if (existing != null) {
+    return existing;
+  }
+  return new Ref();
+}
+
+export int useMemo(func()->int compute, int dep) {
+  if (CURSOR == null) {
+    return compute();
+  }
+  HookCursor cursor = CURSOR;
+  int i = cursor.index;
+  cursor.index = i + 1;
+  if (i >= cursor.cells.length) {
+    StateCell created = allocCell(4);
+    created.memo = compute();
+    created.dep = dep;
+    created.ready = true;
+    cursor.cells.push(created);
+    return created.memo;
+  }
+  StateCell cell = cursor.cells[i];
+  if (!cell.ready || cell.dep != dep) {
+    cell.memo = compute();
+    cell.dep = dep;
+    cell.ready = true;
+  }
+  return cell.memo;
+}
+
+export func()->void useCallback(func()->void fn, int dep) {
+  if (CURSOR == null) {
+    return fn;
+  }
+  HookCursor cursor = CURSOR;
+  int i = cursor.index;
+  cursor.index = i + 1;
+  if (i >= cursor.cells.length) {
+    StateCell created = allocCell(6);
+    created.callbackFn = fn;
+    created.dep = dep;
+    created.ready = true;
+    cursor.cells.push(created);
+    return fn;
+  }
+  StateCell cell = cursor.cells[i];
+  if (!cell.ready || cell.dep != dep) {
+    cell.callbackFn = fn;
+    cell.dep = dep;
+    cell.ready = true;
+  }
+  (func()->void)? maybeCb = cell.callbackFn;
+  if (maybeCb != null) {
+    func()->void out = maybeCb;
+    return out;
+  }
+  return fn;
+}
+
+export void useLayoutEffect(func()->void setup, int dep) {
+  useEffect(setup, dep);
+}
+
+export void useEffect(func()->void setup, int dep) {
+  if (CURSOR == null) {
+    setup();
+    return;
+  }
+  HookCursor cursor = CURSOR;
+  int i = cursor.index;
+  cursor.index = i + 1;
+  if (i >= cursor.cells.length) {
+    StateCell created = allocCell(5);
+    created.effectFn = setup;
+    created.dep = dep;
+    created.ready = true;
+    created.needsEffect = true;
+    cursor.cells.push(created);
+    return;
+  }
+  StateCell cell = cursor.cells[i];
+  if (!cell.ready || cell.dep != dep) {
+    cell.effectFn = setup;
+    cell.dep = dep;
+    cell.ready = true;
+    cell.needsEffect = true;
+  } else {
+    cell.effectFn = setup;
+  }
+}
+
+export int getInt(StateCell cell) {
+  return cell.num;
+}
+
+export string[] getList(StateCell cell) {
+  string[] copy = [];
+  int i = 0;
+  while (i < cell.list.length) {
+    copy.push(cell.list[i]);
+    i = i + 1;
+  }
+  return copy;
+}
+
+void schedule(StateCell cell) {
+  Root? maybe = cell.root;
+  if (maybe != null) {
+    rerender(maybe);
+  }
+}
+
+export void setInt(StateCell cell, int value) {
+  cell.num = value;
+  schedule(cell);
+}
+
+export void setList(StateCell cell, string[] value) {
+  string[] copy = [];
+  int i = 0;
+  while (i < value.length) {
+    copy.push(value[i]);
+    i = i + 1;
+  }
+  cell.list = copy;
+  schedule(cell);
+}
+
+void applyRef(PropMap props, Element el) {
+  Ref? maybe = props.ref;
+  if (maybe != null) {
+    maybe.current = el;
+  }
+}
+
+void setDomAttrs(Element el, PropMap props) {
+  string[] names = props.keys;
+  int k = 0;
+  while (k < names.length) {
+    string name = names[k];
+    string? val = props.attrs.get(name);
+    if (val != null) {
+      el.setAttribute(name, val);
+    }
+    k = k + 1;
+  }
+}
+
+void clearContainer(Element container) {
+  Element? cur = container.firstChild;
+  while (cur != null) {
+    Element victim = cur;
+    cur = victim.nextSibling;
+    container.removeChild(victim);
+  }
+}
+
+Element makeTextNode(string value) {
+  Document doc = document;
+  return doc.createTextNode(value);
+}
+
+Element makeHostElement(string tag) {
+  Document doc = document;
+  return doc.createElement(tag);
+}
+
+VNode expand(VNode node) {
+  if (node.kind == 2) {
+    (func(PropMap)->VNode)? maybeComp = node.component;
+    if (maybeComp != null) {
+      PropMap props = node.props;
+      props.children = node.children;
+      VNode out = maybeComp(props);
+      string key = vnodeKey(node);
+      if (key.length > 0) {
+        out.key = key;
+      }
+      return out;
+    }
+  }
+  if (node.kind == 4) {
+    (func(PropMap)->Component)? maybeCtor = node.classCtor;
+    if (maybeCtor != null) {
+      PropMap props = node.props;
+      props.children = node.children;
+      string cacheKey = vnodeKey(node);
+      if (cacheKey.length == 0) {
+        cacheKey = "class";
+      }
+      Component instance = maybeCtor(props);
+      if (ACTIVE != null) {
+        Root root = ACTIVE;
+        Component? existing = root.classes.get(cacheKey);
+        if (existing != null) {
+          instance = existing;
+        } else {
+          root.classes.set(cacheKey, instance);
+        }
+        instance.__root = root;
+      }
+      instance.props = props;
+      instance.children = node.children;
+      node.classInstance = instance;
+      VNode out = instance.render(props);
+      if (vnodeKey(node).length > 0) {
+        out.key = vnodeKey(node);
+      }
+      return out;
+    }
+  }
+  return node;
+}
+
+void mountChildren(Element parent, VNode[] children) {
+  int i = 0;
+  while (i < children.length) {
+    mountInto(parent, children[i]);
+    i = i + 1;
+  }
+}
+
+Element? mountInto(Element parent, VNode raw) {
+  VNode node = expand(raw);
+  if (node.kind == 2 || node.kind == 4) {
+    return mountInto(parent, node);
+  }
+  if (node.kind == 3) {
+    mountChildren(parent, node.children);
+    if (node.children.length > 0) {
+      node.dom = node.children[0].dom;
+    }
+    raw.dom = node.dom;
+    return node.dom;
+  }
+  if (node.kind == 0) {
+    Element textNode = parent.appendChild(makeTextNode(node.text));
+    node.dom = textNode;
+    raw.dom = textNode;
+    return textNode;
+  }
+  Element host = parent.appendChild(makeHostElement(node.tag));
+  setDomAttrs(host, node.props);
+  applyRef(node.props, host);
+  mountChildren(host, node.children);
+  node.dom = host;
+  raw.dom = host;
+  return host;
+}
+
+void flushEffects(Root root) {
+  StateCell[] cells = root.hooks.cells;
+  int i = 0;
+  while (i < cells.length) {
+    StateCell cell = cells[i];
+    if (cell.kind == 5) {
+      (func()->void)? maybeEffect = cell.effectFn;
+      if (maybeEffect != null) {
+        func()->void setup = maybeEffect;
+        setup();
+      }
+      cell.needsEffect = false;
+    }
+    i = i + 1;
+  }
+}
+
+export Root createRoot(Element container) {
+  return new Root(container);
+}
+
+export void render(VNode tree, Root root) {
+  ACTIVE = root;
+  root.hooks.index = 0;
+  root.hooks.root = root;
+  CURSOR = root.hooks;
+  clearContainer(root.container);
+  mountInto(root.container, tree);
+  root.tree = tree;
+  CURSOR = null;
+  ACTIVE = null;
+  flushEffects(root);
+}
+
+export void rerender(Root root) {
+  VNode? maybeTree = root.tree;
+  if (maybeTree != null) {
+    render(maybeTree, root);
+  }
+}

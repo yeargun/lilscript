@@ -1,0 +1,140 @@
+{
+  "pipeline": {
+    "solid": "shared JSX → babel-preset-solid → solid-js + solid-js/web",
+    "solidlil": "LSX (.lilx) → LilScript reactive + LilScript DOM (same Solid-like API)",
+    "solidlilBabel": "shared JSX → babel-preset-solid → solidlil reactive + Solid web DOM"
+  },
+  "fairness": {
+    "sharedJsxSource": "apps/shared/todolist.jsx",
+    "lilxSource": "apps/solidlil/src/main.lilx",
+    "frameworkIdentifyingStringsInApp": false,
+    "webBodyIdentical": true,
+    "webBodyBytes": 26839,
+    "webJaccard64": 1,
+    "babelTodolistDomCallCountsIdentical": true,
+    "todolistBehaviorIdentical": true,
+    "lsxDirectHostObjectDomAbi": true,
+    "solidDomCalls": {
+      "createElement": 3,
+      "insertBefore": 7,
+      "replaceChild": 3,
+      "appendChild": 1,
+      "cloneNode": 2,
+      "classList": 4,
+      "textContent": 3,
+      "setAttribute": 1
+    },
+    "solidlilBabelDomCalls": {
+      "createElement": 3,
+      "insertBefore": 7,
+      "replaceChild": 3,
+      "appendChild": 1,
+      "cloneNode": 2,
+      "classList": 4,
+      "textContent": 3,
+      "setAttribute": 1
+    }
+  },
+  "sizes": {
+    "solid-core-package": {
+      "raw": 51602,
+      "gzip9": 12155,
+      "brotli11": 10942
+    },
+    "solid-web-package": {
+      "raw": 30544,
+      "gzip9": 8585,
+      "brotli11": 7643
+    },
+    "solidlil-reactive": {
+      "raw": 11774,
+      "gzip9": 3799,
+      "brotli11": 3404
+    },
+    "solidlil-index": {
+      "raw": 5499,
+      "gzip9": 1476,
+      "brotli11": 1302
+    },
+    "solidlil-web": {
+      "raw": 30573,
+      "gzip9": 8617,
+      "brotli11": 7684
+    },
+    "solid-core-min": {
+      "raw": 8616,
+      "gzip9": 3494,
+      "brotli11": 3201
+    },
+    "solidlil-core-min": {
+      "raw": 8483,
+      "gzip9": 3393,
+      "brotli11": 3082
+    },
+    "solid-todolist": {
+      "raw": 15456,
+      "gzip9": 6077,
+      "brotli11": 5479
+    },
+    "solidlil-todolist": {
+      "raw": 10590,
+      "gzip9": 4226,
+      "brotli11": 3722
+    },
+    "solidlil-babel-todolist": {
+      "raw": 13636,
+      "gzip9": 5474,
+      "brotli11": 4894
+    }
+  },
+  "comparisons": {
+    "coreMin": {
+      "raw": -133,
+      "gzip9": -101,
+      "brotli11": -119,
+      "rawPct": -1.5436397400185702,
+      "gzipPct": -2.8906697195191757,
+      "brotliPct": -3.7175882536707276
+    },
+    "todolistLilx": {
+      "raw": -4866,
+      "gzip9": -1851,
+      "brotli11": -1757,
+      "rawPct": -31.482919254658388,
+      "gzipPct": -30.459108112555537,
+      "brotliPct": -32.067895601387114
+    },
+    "todolistBabel": {
+      "raw": -1820,
+      "gzip9": -603,
+      "brotli11": -585,
+      "rawPct": -11.77536231884058,
+      "gzipPct": -9.922659206845482,
+      "brotliPct": -10.677130863296222
+    }
+  },
+  "selectedCodec": "brotli11",
+  "sizeEligibility": {
+    "solidlilLsx": true,
+    "solidlilBabel": true,
+    "coreMin": true
+  },
+  "toolchain": {
+    "node": "v24.11.1",
+    "lilscript": "0.1.0",
+    "solidSourceCommit": "3be495cec52bf78d7cc61f054af00320ecf4058c",
+    "dependencies": {
+      "solid-js": "1.9.13"
+    },
+    "devDependencies": {
+      "@eslint/js": "10.0.1",
+      "eslint": "10.8.0",
+      "google-closure-compiler": "20260803.0.0",
+      "jsdom": "27.2.0",
+      "prettier": "3.9.6",
+      "vite": "8.2.0",
+      "vite-plugin-solid": "2.11.14",
+      "vitest": "4.1.10"
+    }
+  }
+}

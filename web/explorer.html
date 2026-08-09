@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Filter and sort every published LilScript compiler, npm library, application, and mangling benchmark artifact.">
+    <title>Benchmark Explorer | LilScript</title>
+    <link rel="stylesheet" href="/src/styles.css">
+  </head>
+  <body class="content-page">
+    <header class="site-header">
+      <a class="wordmark" href="/" aria-label="LilScript playground"><span class="wordmark-mark" aria-hidden="true">L</span><span>LilScript</span></a>
+      <button class="nav-toggle icon-button" type="button" aria-label="Toggle navigation" aria-expanded="false"><i data-lucide="menu" aria-hidden="true"></i></button>
+      <nav class="site-nav" aria-label="Primary navigation">
+        <a href="/">Playground</a><a href="/docs.html">Docs</a><a href="/benchmarks.html">Benchmarks</a><a class="active" href="/explorer.html">Explorer</a><a href="/roadmap.html">Roadmap</a><a href="/about.html">About</a>
+      </nav>
+    </header>
+    <main class="comparison-main content-width explorer-main">
+      <section class="comparison-intro">
+        <p class="eyebrow">Generated evidence catalog</p>
+        <h1>Every project, lane, and byte</h1>
+        <p class="lead">Search projects, isolate a fair mangling mode, and sort raw, gzip, or Brotli output. Project links open a source-and-method detail page in a new tab.</p>
+        <p class="comparison-note">Rows are measurements, not one global race. Only artifacts inside the same project and compatibility boundary are directly comparable.</p>
+      </section>
+      <section class="catalog-summary" data-catalog-summary aria-label="Catalog summary"></section>
+      <section class="explorer-controls" aria-label="Benchmark filters">
+        <label class="wide-control"><span>Search</span><input type="search" data-filter-search placeholder="Project, package, tool…"></label>
+        <label><span>Category</span><select data-filter-category><option value="">All categories</option></select></label>
+        <label><span>Status</span><select data-filter-status><option value="">All statuses</option></select></label>
+        <label><span>Tool</span><select data-filter-tool><option value="">All tools</option></select></label>
+        <label><span>Mangling</span><select data-filter-mode><option value="">All modes</option></select></label>
+        <label><span>Sort</span><select data-sort><option value="project">Project</option><option value="raw">Raw bytes</option><option value="gzip">Gzip bytes</option><option value="brotli">Brotli bytes</option><option value="tool">Tool</option><option value="category">Category</option></select></label>
+        <button class="secondary-button" type="button" data-sort-direction aria-label="Reverse sort direction">Ascending</button>
+      </section>
+      <p class="table-result-count" data-result-count aria-live="polite"></p>
+      <div class="benchmark-table-wrap explorer-table-wrap">
+        <table class="explorer-table">
+          <thead><tr><th>Project</th><th>Category</th><th>Status</th><th>Artifact lane</th><th>Tool</th><th>Mangling</th><th>Properties</th><th>Raw</th><th>Gzip-9</th><th>Brotli-11</th></tr></thead>
+          <tbody data-explorer-rows></tbody>
+        </table>
+      </div>
+      <section class="comparison-method">
+        <p class="eyebrow">Reading the matrix</p><h2>Three byte columns, one explicit boundary</h2>
+        <div class="definition-grid" data-definitions></div>
+      </section>
+    </main>
+    <footer class="site-footer content-width"><span>LilScript benchmark explorer</span><a href="/roadmap.html">Progress and roadmap</a></footer>
+    <script type="module" src="/src/explorer.js"></script>
+  </body>
+</html>

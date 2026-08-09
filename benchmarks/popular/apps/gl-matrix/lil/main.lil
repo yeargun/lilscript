@@ -1,0 +1,22 @@
+import {add, create, fromValues, length} from "../../../ports/gl-matrix/vec2";
+import {
+  determinant,
+  fromValues as mat2FromValues
+} from "../../../ports/gl-matrix/mat2";
+import {
+  determinant as mat2dDeterminant,
+  fromValues as mat2dFromValues
+} from "../../../ports/gl-matrix/mat2d";
+
+(float[]|Float32Array) a = fromValues(3.0, 4.0);
+(float[]|Float32Array) b = fromValues(1.0, 2.0);
+(float[]|Float32Array) out = create();
+add(out, a, b);
+print(length(a));
+print(out[0]);
+print(out[1]);
+(float[]|Float32Array) matrix = mat2FromValues(4.0, 7.0, 2.0, 6.0);
+print(determinant(matrix));
+(float[]|Float32Array) affine =
+  mat2dFromValues(1.0, 2.0, 3.0, 4.0, 5.0, 6.0);
+print(mat2dDeterminant(affine));

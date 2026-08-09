@@ -1,0 +1,136 @@
+import {
+  Element,
+  PropMap,
+  VNode,
+  StateCell,
+  Root,
+  Ref,
+  Component,
+  h,
+  hText,
+  hComp,
+  hClass,
+  hFragment,
+  useIntState,
+  useListState,
+  useRef,
+  useMemo,
+  useCallback,
+  useLayoutEffect,
+  getInt,
+  getList,
+  setInt,
+  setList,
+  createRoot,
+  render,
+  document
+} from "../../../ports/preact/index";
+
+StateCell? COUNT = null;
+StateCell? ITEMS = null;
+(func()->void)? INC = null;
+
+Component Badge(PropMap props) {
+  Component self = new Component();
+  self.props = props;
+  self.renderFn = (Component comp) => {
+    PropMap p = comp.props;
+    string? raw = p.attrs.get("n");
+    string n = "0";
+    if (raw != null) {
+      n = raw;
+    }
+    PropMap badgeProps = new PropMap();
+    badgeProps.setAttr("class", "badge");
+    badgeProps.setAttr("data-n", n);
+    VNode[] kids = [];
+    kids.push(hText(n));
+    return h("div", badgeProps, kids);
+  };
+  return self;
+}
+
+VNode App(PropMap props) {
+  StateCell count = useIntState(0);
+  string[] seed = [];
+  seed.push("a");
+  seed.push("b");
+  StateCell items = useListState(seed);
+  Ref countRef = useRef();
+  int n = getInt(count);
+  int doubled = useMemo(() => {
+    return getInt(count) * 2;
+  }, n);
+  func()->void inc = useCallback(() => {
+    setInt(count, getInt(count) + 1);
+  }, 0);
+  useLayoutEffect(() => {
+    Element? el = countRef.current;
+    if (el != null) {
+      el.setAttribute("data-doubled", doubled.toString());
+    }
+  }, doubled);
+  COUNT = count;
+  ITEMS = items;
+  INC = inc;
+
+  PropMap rootProps = new PropMap();
+  rootProps.setAttr("class", "app");
+  rootProps.setAttr("id", "root");
+  PropMap countProps = new PropMap();
+  countProps.setAttr("id", "count");
+  countProps.setRef(countRef);
+  PropMap memoProps = new PropMap();
+  memoProps.setAttr("id", "memo");
+  string label = n.toString();
+  string memoLabel = doubled.toString();
+  string[] list = getList(items);
+  VNode[] lis = [];
+  int li = 0;
+  while (li < list.length) {
+    string item = list[li];
+    PropMap liProps = new PropMap();
+    liProps.setAttr("key", item);
+    VNode[] kids = [];
+    kids.push(hText(item));
+    lis.push(h("li", liProps, kids));
+    li = li + 1;
+  }
+  PropMap badgeProps = new PropMap();
+  badgeProps.setAttr("n", label);
+  badgeProps.setAttr("key", "badge");
+  VNode countNode = h("span", countProps, [hText(label)]);
+  VNode memoNode = h("span", memoProps, [hText(memoLabel)]);
+  VNode listNode = h("ul", null, lis);
+  VNode badgeNode = hClass(Badge, badgeProps, []);
+  VNode[] rootKids = [countNode, memoNode, listNode, badgeNode];
+  VNode root = h("div", rootProps, rootKids);
+  VNode[] fragKids = [];
+  fragKids.push(root);
+  return hFragment(fragKids);
+}
+
+export void bump() {
+  if (INC != null) {
+    func()->void inc = INC;
+    inc();
+  }
+  if (ITEMS != null) {
+    StateCell cell = ITEMS;
+    string[] next = getList(cell);
+    next.push("c");
+    setList(cell, next);
+  }
+}
+
+export Element mountApp() {
+  Element mount = document.createElement("div");
+  Root root = createRoot(mount);
+  VNode[] empty = [];
+  func(PropMap)->VNode appFn = (PropMap props) => {
+    return App(props);
+  };
+  VNode tree = hComp(appFn, null, empty);
+  render(tree, root);
+  return mount;
+}

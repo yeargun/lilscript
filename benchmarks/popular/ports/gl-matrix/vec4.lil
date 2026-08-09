@@ -1,0 +1,453 @@
+import {
+  createArray,
+  equalsN,
+  exactEqualsN,
+  hypot4,
+  randomFloat
+} from "./common";
+
+export (float[]|Float32Array) create() {
+  return createArray(4);
+}
+
+export (float[]|Float32Array) clone(float[]|Float32Array a) {
+  (float[]|Float32Array) out = createArray(4);
+  out[0] = a[0];
+  out[1] = a[1];
+  out[2] = a[2];
+  out[3] = a[3];
+  return out;
+}
+
+export (float[]|Float32Array) fromValues(
+  float x,
+  float y,
+  float z,
+  float w
+) {
+  (float[]|Float32Array) out = createArray(4);
+  out[0] = x;
+  out[1] = y;
+  out[2] = z;
+  out[3] = w;
+  return out;
+}
+
+export (float[]|Float32Array) copy(
+  float[]|Float32Array out,
+  float[]|Float32Array a
+) {
+  out[0] = a[0];
+  out[1] = a[1];
+  out[2] = a[2];
+  out[3] = a[3];
+  return out;
+}
+
+export (float[]|Float32Array) set(
+  float[]|Float32Array out,
+  float x,
+  float y,
+  float z,
+  float w
+) {
+  out[0] = x;
+  out[1] = y;
+  out[2] = z;
+  out[3] = w;
+  return out;
+}
+
+export (float[]|Float32Array) add(
+  float[]|Float32Array out,
+  float[]|Float32Array a,
+  float[]|Float32Array b
+) {
+  out[0] = a[0] + b[0];
+  out[1] = a[1] + b[1];
+  out[2] = a[2] + b[2];
+  out[3] = a[3] + b[3];
+  return out;
+}
+
+export (float[]|Float32Array) subtract(
+  float[]|Float32Array out,
+  float[]|Float32Array a,
+  float[]|Float32Array b
+) {
+  out[0] = a[0] - b[0];
+  out[1] = a[1] - b[1];
+  out[2] = a[2] - b[2];
+  out[3] = a[3] - b[3];
+  return out;
+}
+
+export (float[]|Float32Array) multiply(
+  float[]|Float32Array out,
+  float[]|Float32Array a,
+  float[]|Float32Array b
+) {
+  out[0] = a[0] * b[0];
+  out[1] = a[1] * b[1];
+  out[2] = a[2] * b[2];
+  out[3] = a[3] * b[3];
+  return out;
+}
+
+export (float[]|Float32Array) divide(
+  float[]|Float32Array out,
+  float[]|Float32Array a,
+  float[]|Float32Array b
+) {
+  out[0] = a[0] / b[0];
+  out[1] = a[1] / b[1];
+  out[2] = a[2] / b[2];
+  out[3] = a[3] / b[3];
+  return out;
+}
+
+export (float[]|Float32Array) ceil(
+  float[]|Float32Array out,
+  float[]|Float32Array a
+) {
+  out[0] = a[0].ceil();
+  out[1] = a[1].ceil();
+  out[2] = a[2].ceil();
+  out[3] = a[3].ceil();
+  return out;
+}
+
+export (float[]|Float32Array) floor(
+  float[]|Float32Array out,
+  float[]|Float32Array a
+) {
+  out[0] = a[0].floor();
+  out[1] = a[1].floor();
+  out[2] = a[2].floor();
+  out[3] = a[3].floor();
+  return out;
+}
+
+export (float[]|Float32Array) min(
+  float[]|Float32Array out,
+  float[]|Float32Array a,
+  float[]|Float32Array b
+) {
+  out[0] = a[0].min(b[0]);
+  out[1] = a[1].min(b[1]);
+  out[2] = a[2].min(b[2]);
+  out[3] = a[3].min(b[3]);
+  return out;
+}
+
+export (float[]|Float32Array) max(
+  float[]|Float32Array out,
+  float[]|Float32Array a,
+  float[]|Float32Array b
+) {
+  out[0] = a[0].max(b[0]);
+  out[1] = a[1].max(b[1]);
+  out[2] = a[2].max(b[2]);
+  out[3] = a[3].max(b[3]);
+  return out;
+}
+
+export (float[]|Float32Array) round(
+  float[]|Float32Array out,
+  float[]|Float32Array a
+) {
+  out[0] = a[0].round();
+  out[1] = a[1].round();
+  out[2] = a[2].round();
+  out[3] = a[3].round();
+  return out;
+}
+
+export (float[]|Float32Array) scale(
+  float[]|Float32Array out,
+  float[]|Float32Array a,
+  float amount
+) {
+  out[0] = a[0] * amount;
+  out[1] = a[1] * amount;
+  out[2] = a[2] * amount;
+  out[3] = a[3] * amount;
+  return out;
+}
+
+export (float[]|Float32Array) scaleAndAdd(
+  float[]|Float32Array out,
+  float[]|Float32Array a,
+  float[]|Float32Array b,
+  float amount
+) {
+  out[0] = a[0] + b[0] * amount;
+  out[1] = a[1] + b[1] * amount;
+  out[2] = a[2] + b[2] * amount;
+  out[3] = a[3] + b[3] * amount;
+  return out;
+}
+
+export float distance(float[]|Float32Array a, float[]|Float32Array b) {
+  float x = b[0] - a[0];
+  float y = b[1] - a[1];
+  float z = b[2] - a[2];
+  float w = b[3] - a[3];
+  return hypot4(x, y, z, w);
+}
+
+export float squaredDistance(float[]|Float32Array a, float[]|Float32Array b) {
+  float x = b[0] - a[0];
+  float y = b[1] - a[1];
+  float z = b[2] - a[2];
+  float w = b[3] - a[3];
+  return x * x + y * y + z * z + w * w;
+}
+
+export float length(float[]|Float32Array a) {
+  return hypot4(a[0], a[1], a[2], a[3]);
+}
+
+export float squaredLength(float[]|Float32Array a) {
+  float x = a[0];
+  float y = a[1];
+  float z = a[2];
+  float w = a[3];
+  return x * x + y * y + z * z + w * w;
+}
+
+export (float[]|Float32Array) negate(
+  float[]|Float32Array out,
+  float[]|Float32Array a
+) {
+  out[0] = -a[0];
+  out[1] = -a[1];
+  out[2] = -a[2];
+  out[3] = -a[3];
+  return out;
+}
+
+export (float[]|Float32Array) inverse(
+  float[]|Float32Array out,
+  float[]|Float32Array a
+) {
+  out[0] = 1.0 / a[0];
+  out[1] = 1.0 / a[1];
+  out[2] = 1.0 / a[2];
+  out[3] = 1.0 / a[3];
+  return out;
+}
+
+export (float[]|Float32Array) normalize(
+  float[]|Float32Array out,
+  float[]|Float32Array a
+) {
+  float x = a[0];
+  float y = a[1];
+  float z = a[2];
+  float w = a[3];
+  float magnitude = x * x + y * y + z * z + w * w;
+  if (magnitude > 0.0) {
+    magnitude = 1.0 / magnitude.sqrt();
+  }
+  out[0] = x * magnitude;
+  out[1] = y * magnitude;
+  out[2] = z * magnitude;
+  out[3] = w * magnitude;
+  return out;
+}
+
+export float dot(float[]|Float32Array a, float[]|Float32Array b) {
+  return a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3];
+}
+
+export (float[]|Float32Array) cross(
+  float[]|Float32Array out,
+  float[]|Float32Array u,
+  float[]|Float32Array v,
+  float[]|Float32Array w
+) {
+  float a = v[0] * w[1] - v[1] * w[0];
+  float b = v[0] * w[2] - v[2] * w[0];
+  float c = v[0] * w[3] - v[3] * w[0];
+  float d = v[1] * w[2] - v[2] * w[1];
+  float e = v[1] * w[3] - v[3] * w[1];
+  float f = v[2] * w[3] - v[3] * w[2];
+  float g = u[0];
+  float h = u[1];
+  float i = u[2];
+  float j = u[3];
+  out[0] = h * f - i * e + j * d;
+  out[1] = -(g * f) + i * c - j * b;
+  out[2] = g * e - h * c + j * a;
+  out[3] = -(g * d) + h * b - i * a;
+  return out;
+}
+
+export (float[]|Float32Array) lerp(
+  float[]|Float32Array out,
+  float[]|Float32Array a,
+  float[]|Float32Array b,
+  float amount
+) {
+  float x = a[0];
+  float y = a[1];
+  float z = a[2];
+  float w = a[3];
+  out[0] = x + amount * (b[0] - x);
+  out[1] = y + amount * (b[1] - y);
+  out[2] = z + amount * (b[2] - z);
+  out[3] = w + amount * (b[3] - w);
+  return out;
+}
+
+export (float[]|Float32Array) random(
+  float[]|Float32Array out,
+  float? amount
+) {
+  float scale = 1.0;
+  if (amount != null) {
+    if (amount != 0.0 && amount == amount) {
+      scale = amount;
+    }
+  }
+  float v1 = 0.0;
+  float v2 = 0.0;
+  float v3 = 0.0;
+  float v4 = 0.0;
+  float s1 = 1.0;
+  float s2 = 1.0;
+  while (s1 >= 1.0) {
+    v1 = randomFloat() * 2.0 - 1.0;
+    v2 = randomFloat() * 2.0 - 1.0;
+    s1 = v1 * v1 + v2 * v2;
+  }
+  while (s2 >= 1.0) {
+    v3 = randomFloat() * 2.0 - 1.0;
+    v4 = randomFloat() * 2.0 - 1.0;
+    s2 = v3 * v3 + v4 * v4;
+  }
+  float factor = ((1.0 - s1) / s2).sqrt();
+  out[0] = scale * v1;
+  out[1] = scale * v2;
+  out[2] = scale * v3 * factor;
+  out[3] = scale * v4 * factor;
+  return out;
+}
+
+export (float[]|Float32Array) transformMat4(
+  float[]|Float32Array out,
+  float[]|Float32Array a,
+  float[]|Float32Array matrix
+) {
+  float x = a[0];
+  float y = a[1];
+  float z = a[2];
+  float w = a[3];
+  out[0] =
+    matrix[0] * x + matrix[4] * y + matrix[8] * z + matrix[12] * w;
+  out[1] =
+    matrix[1] * x + matrix[5] * y + matrix[9] * z + matrix[13] * w;
+  out[2] =
+    matrix[2] * x + matrix[6] * y + matrix[10] * z + matrix[14] * w;
+  out[3] =
+    matrix[3] * x + matrix[7] * y + matrix[11] * z + matrix[15] * w;
+  return out;
+}
+
+export (float[]|Float32Array) transformQuat(
+  float[]|Float32Array out,
+  float[]|Float32Array a,
+  float[]|Float32Array quaternion
+) {
+  float x = a[0];
+  float y = a[1];
+  float z = a[2];
+  float qx = quaternion[0];
+  float qy = quaternion[1];
+  float qz = quaternion[2];
+  float qw = quaternion[3];
+  float ix = qw * x + qy * z - qz * y;
+  float iy = qw * y + qz * x - qx * z;
+  float iz = qw * z + qx * y - qy * x;
+  float iw = -qx * x - qy * y - qz * z;
+  out[0] = ix * qw + iw * -qx + iy * -qz - iz * -qy;
+  out[1] = iy * qw + iw * -qy + iz * -qx - ix * -qz;
+  out[2] = iz * qw + iw * -qz + ix * -qy - iy * -qx;
+  out[3] = a[3];
+  return out;
+}
+
+export (float[]|Float32Array) zero(float[]|Float32Array out) {
+  out[0] = 0.0;
+  out[1] = 0.0;
+  out[2] = 0.0;
+  out[3] = 0.0;
+  return out;
+}
+
+export string str(float[]|Float32Array a) {
+  return
+    "vec4(" +
+    a[0] +
+    ", " +
+    a[1] +
+    ", " +
+    a[2] +
+    ", " +
+    a[3] +
+    ")";
+}
+
+export bool exactEquals(float[]|Float32Array a, float[]|Float32Array b) {
+  return exactEqualsN(a, b, 4);
+}
+
+export bool equals(float[]|Float32Array a, float[]|Float32Array b) {
+  return equalsN(a, b, 4);
+}
+
+export (float[]|Float32Array) forEach<T>(
+  float[]|Float32Array values,
+  int stride,
+  int offset,
+  int count,
+  func((float[]|Float32Array),(float[]|Float32Array),T)->void callback,
+  T argument
+) {
+  (float[]|Float32Array) vector = create();
+  if (stride == 0) {
+    stride = 4;
+  }
+  int limit = values.length;
+  if (count != 0) {
+    int countedLimit = count * stride + offset;
+    if (countedLimit < limit) {
+      limit = countedLimit;
+    }
+  }
+  int index = offset;
+  while (index < limit) {
+    vector[0] = values[index];
+    vector[1] = values[index + 1];
+    vector[2] = values[index + 2];
+    vector[3] = values[index + 3];
+    callback(vector, vector, argument);
+    values[index] = vector[0];
+    values[index + 1] = vector[1];
+    values[index + 2] = vector[2];
+    values[index + 3] = vector[3];
+    index = index + stride;
+  }
+  return values;
+}
+
+export {
+  length as len,
+  subtract as sub,
+  multiply as mul,
+  divide as div,
+  distance as dist,
+  squaredDistance as sqrDist,
+  squaredLength as sqrLen
+};

@@ -1,0 +1,317 @@
+import {createArray, equalsN, exactEqualsN, hypotNExtra} from "./common";
+
+export (float[]|Float32Array) create() {
+  (float[]|Float32Array) out = createArray(6);
+  out[0] = 1.0;
+  out[3] = 1.0;
+  return out;
+}
+
+export (float[]|Float32Array) clone(float[]|Float32Array a) {
+  (float[]|Float32Array) out = createArray(6);
+  out[0] = a[0];
+  out[1] = a[1];
+  out[2] = a[2];
+  out[3] = a[3];
+  out[4] = a[4];
+  out[5] = a[5];
+  return out;
+}
+
+export (float[]|Float32Array) copy(
+  float[]|Float32Array out,
+  float[]|Float32Array a
+) {
+  out[0] = a[0];
+  out[1] = a[1];
+  out[2] = a[2];
+  out[3] = a[3];
+  out[4] = a[4];
+  out[5] = a[5];
+  return out;
+}
+
+export (float[]|Float32Array) identity(float[]|Float32Array out) {
+  out[0] = 1.0;
+  out[1] = 0.0;
+  out[2] = 0.0;
+  out[3] = 1.0;
+  out[4] = 0.0;
+  out[5] = 0.0;
+  return out;
+}
+
+export (float[]|Float32Array) fromValues(
+  float a,
+  float b,
+  float c,
+  float d,
+  float tx,
+  float ty
+) {
+  (float[]|Float32Array) out = createArray(6);
+  out[0] = a;
+  out[1] = b;
+  out[2] = c;
+  out[3] = d;
+  out[4] = tx;
+  out[5] = ty;
+  return out;
+}
+
+export (float[]|Float32Array) set(
+  float[]|Float32Array out,
+  float a,
+  float b,
+  float c,
+  float d,
+  float tx,
+  float ty
+) {
+  out[0] = a;
+  out[1] = b;
+  out[2] = c;
+  out[3] = d;
+  out[4] = tx;
+  out[5] = ty;
+  return out;
+}
+
+export (float[]|Float32Array)? invert(
+  float[]|Float32Array out,
+  float[]|Float32Array a
+) {
+  float aa = a[0];
+  float ab = a[1];
+  float ac = a[2];
+  float ad = a[3];
+  float atx = a[4];
+  float aty = a[5];
+  float determinant = aa * ad - ab * ac;
+  if (determinant == 0.0) {
+    return null;
+  }
+  determinant = 1.0 / determinant;
+  out[0] = ad * determinant;
+  out[1] = -ab * determinant;
+  out[2] = -ac * determinant;
+  out[3] = aa * determinant;
+  out[4] = (ac * aty - ad * atx) * determinant;
+  out[5] = (ab * atx - aa * aty) * determinant;
+  return out;
+}
+
+export float determinant(float[]|Float32Array a) {
+  return a[0] * a[3] - a[1] * a[2];
+}
+
+export (float[]|Float32Array) multiply(
+  float[]|Float32Array out,
+  float[]|Float32Array a,
+  float[]|Float32Array b
+) {
+  float a0 = a[0];
+  float a1 = a[1];
+  float a2 = a[2];
+  float a3 = a[3];
+  float a4 = a[4];
+  float a5 = a[5];
+  float b0 = b[0];
+  float b1 = b[1];
+  float b2 = b[2];
+  float b3 = b[3];
+  float b4 = b[4];
+  float b5 = b[5];
+  out[0] = a0 * b0 + a2 * b1;
+  out[1] = a1 * b0 + a3 * b1;
+  out[2] = a0 * b2 + a2 * b3;
+  out[3] = a1 * b2 + a3 * b3;
+  out[4] = a0 * b4 + a2 * b5 + a4;
+  out[5] = a1 * b4 + a3 * b5 + a5;
+  return out;
+}
+
+export (float[]|Float32Array) rotate(
+  float[]|Float32Array out,
+  float[]|Float32Array a,
+  float radians
+) {
+  float a0 = a[0];
+  float a1 = a[1];
+  float a2 = a[2];
+  float a3 = a[3];
+  float sine = radians.sin();
+  float cosine = radians.cos();
+  out[0] = a0 * cosine + a2 * sine;
+  out[1] = a1 * cosine + a3 * sine;
+  out[2] = a0 * -sine + a2 * cosine;
+  out[3] = a1 * -sine + a3 * cosine;
+  out[4] = a[4];
+  out[5] = a[5];
+  return out;
+}
+
+export (float[]|Float32Array) scale(
+  float[]|Float32Array out,
+  float[]|Float32Array a,
+  float[]|Float32Array vector
+) {
+  float x = vector[0];
+  float y = vector[1];
+  out[0] = a[0] * x;
+  out[1] = a[1] * x;
+  out[2] = a[2] * y;
+  out[3] = a[3] * y;
+  out[4] = a[4];
+  out[5] = a[5];
+  return out;
+}
+
+export (float[]|Float32Array) translate(
+  float[]|Float32Array out,
+  float[]|Float32Array a,
+  float[]|Float32Array vector
+) {
+  float x = vector[0];
+  float y = vector[1];
+  float a0 = a[0];
+  float a1 = a[1];
+  float a2 = a[2];
+  float a3 = a[3];
+  out[0] = a0;
+  out[1] = a1;
+  out[2] = a2;
+  out[3] = a3;
+  out[4] = a0 * x + a2 * y + a[4];
+  out[5] = a1 * x + a3 * y + a[5];
+  return out;
+}
+
+export (float[]|Float32Array) fromRotation(
+  float[]|Float32Array out,
+  float radians
+) {
+  float sine = radians.sin();
+  float cosine = radians.cos();
+  out[0] = cosine;
+  out[1] = sine;
+  out[2] = -sine;
+  out[3] = cosine;
+  out[4] = 0.0;
+  out[5] = 0.0;
+  return out;
+}
+
+export (float[]|Float32Array) fromScaling(
+  float[]|Float32Array out,
+  float[]|Float32Array vector
+) {
+  out[0] = vector[0];
+  out[1] = 0.0;
+  out[2] = 0.0;
+  out[3] = vector[1];
+  out[4] = 0.0;
+  out[5] = 0.0;
+  return out;
+}
+
+export (float[]|Float32Array) fromTranslation(
+  float[]|Float32Array out,
+  float[]|Float32Array vector
+) {
+  out[0] = 1.0;
+  out[1] = 0.0;
+  out[2] = 0.0;
+  out[3] = 1.0;
+  out[4] = vector[0];
+  out[5] = vector[1];
+  return out;
+}
+
+export string str(float[]|Float32Array a) {
+  return
+    "mat2d(" +
+    a[0] +
+    ", " +
+    a[1] +
+    ", " +
+    a[2] +
+    ", " +
+    a[3] +
+    ", " +
+    a[4] +
+    ", " +
+    a[5] +
+    ")";
+}
+
+export float frob(float[]|Float32Array a) {
+  return hypotNExtra(a, 6, 1.0);
+}
+
+export (float[]|Float32Array) add(
+  float[]|Float32Array out,
+  float[]|Float32Array a,
+  float[]|Float32Array b
+) {
+  out[0] = a[0] + b[0];
+  out[1] = a[1] + b[1];
+  out[2] = a[2] + b[2];
+  out[3] = a[3] + b[3];
+  out[4] = a[4] + b[4];
+  out[5] = a[5] + b[5];
+  return out;
+}
+
+export (float[]|Float32Array) subtract(
+  float[]|Float32Array out,
+  float[]|Float32Array a,
+  float[]|Float32Array b
+) {
+  out[0] = a[0] - b[0];
+  out[1] = a[1] - b[1];
+  out[2] = a[2] - b[2];
+  out[3] = a[3] - b[3];
+  out[4] = a[4] - b[4];
+  out[5] = a[5] - b[5];
+  return out;
+}
+
+export (float[]|Float32Array) multiplyScalar(
+  float[]|Float32Array out,
+  float[]|Float32Array a,
+  float amount
+) {
+  out[0] = a[0] * amount;
+  out[1] = a[1] * amount;
+  out[2] = a[2] * amount;
+  out[3] = a[3] * amount;
+  out[4] = a[4] * amount;
+  out[5] = a[5] * amount;
+  return out;
+}
+
+export (float[]|Float32Array) multiplyScalarAndAdd(
+  float[]|Float32Array out,
+  float[]|Float32Array a,
+  float[]|Float32Array b,
+  float amount
+) {
+  out[0] = a[0] + b[0] * amount;
+  out[1] = a[1] + b[1] * amount;
+  out[2] = a[2] + b[2] * amount;
+  out[3] = a[3] + b[3] * amount;
+  out[4] = a[4] + b[4] * amount;
+  out[5] = a[5] + b[5] * amount;
+  return out;
+}
+
+export bool exactEquals(float[]|Float32Array a, float[]|Float32Array b) {
+  return exactEqualsN(a, b, 6);
+}
+
+export bool equals(float[]|Float32Array a, float[]|Float32Array b) {
+  return equalsN(a, b, 6);
+}
+
+export {multiply as mul, subtract as sub};

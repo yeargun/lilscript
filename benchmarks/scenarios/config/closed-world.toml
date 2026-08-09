@@ -1,0 +1,17 @@
+[optimization]
+preset = "maximum"
+
+[javascript]
+priority = "size-first"
+optimization_level = 15
+cost_model = "brotli"
+candidate_search = "production"
+
+[mangle]
+identifiers = true
+properties = true
+exports = true
+pool_strings = true
+
+[bundle]
+mode = "single"

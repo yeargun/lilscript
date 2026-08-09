@@ -3,15 +3,23 @@
   "measuredAt": "2026-08-06",
   "downloadWindow": "last-month",
   "downloadSource": "https://api.npmjs.org/downloads/point/last-month/{package}",
-  "eligibilityRule": "Every documented callable in the selected published root entrypoint is implemented for its typed input domain, all available upstream assertions plus added package-contract vectors pass, npm and LilScript app contracts match, and the LilScript port compiles to JavaScript, C, and a native executable.",
+  "selectedCodec": "brotli",
+  "eligibilityRule": "Every documented callable in the selected published root entrypoint is implemented for its typed input domain with the same algorithmic work; all available upstream assertions plus added package-contract vectors pass; npm and LilScript app and isolated-workload checksums match; the LilScript port compiles to JavaScript, C, and a native executable; LilScript JavaScript is no larger than both npm/Vite and public-contract-preserving Closure ADVANCED in raw bytes or the selected Brotli-11 codec; and median isolated-workload throughput and retained memory are each no worse than 1.05x npm. Gzip-9 is reported as an alternate codec, not silently substituted into the configured gate.",
   "ports": [
     {
       "id": "motion-easing",
-      "packages": ["@motionone/easing"],
-      "versions": ["10.18.0"],
+      "packages": [
+        "@motionone/easing"
+      ],
+      "versions": [
+        "10.18.0"
+      ],
       "monthlyDownloads": 9574633,
       "status": "complete-root-entrypoint",
-      "publicRuntimeApi": ["cubicBezier", "steps"],
+      "publicRuntimeApi": [
+        "cubicBezier",
+        "steps"
+      ],
       "upstreamRevision": "f357769434210262a664b8b736b61e1a615e95a7",
       "upstreamTestFiles": [
         "packages/easing/src/__tests__/cubic-bezer.test.ts",
@@ -22,102 +30,214 @@
     },
     {
       "id": "micro-math",
-      "packages": ["clamp", "lerp"],
-      "versions": ["1.0.1", "1.0.3"],
+      "packages": [
+        "clamp",
+        "lerp"
+      ],
+      "versions": [
+        "1.0.1",
+        "1.0.3"
+      ],
       "monthlyDownloads": 4609993,
       "status": "complete-root-entrypoints",
-      "publicRuntimeApi": ["clamp default callable", "lerp default callable"],
+      "publicRuntimeApi": [
+        "clamp default callable",
+        "lerp default callable"
+      ],
       "upstreamRevision": [
         "377851f0cca9f3f134b53881e294782cccdae4d8",
         "db84f3b3780cc1e1402528f0db406ffc68d31ddc"
       ],
-      "upstreamTestFiles": ["test.js", "test.js"],
+      "upstreamTestFiles": [
+        "test.js",
+        "test.js"
+      ],
       "translatedAssertions": 10,
       "notes": "All documented numeric behavior is implemented. Invalid dynamic JavaScript values are rejected statically by LilScript rather than coerced at runtime."
     },
     {
       "id": "string-hash",
-      "packages": ["string-hash"],
-      "versions": ["1.1.3"],
+      "packages": [
+        "string-hash"
+      ],
+      "versions": [
+        "1.1.3"
+      ],
       "monthlyDownloads": 19930081,
       "status": "complete-root-entrypoint",
-      "publicRuntimeApi": ["default hash callable"],
+      "publicRuntimeApi": [
+        "default hash callable"
+      ],
       "upstreamRevision": "5bf7547a91372c399f4052cc1094a93f73e10284",
-      "upstreamTestFiles": ["test.js"],
+      "upstreamTestFiles": [
+        "test.js"
+      ],
       "translatedAssertions": 2,
       "additionalAssertions": 2,
       "notes": "The additional vectors verify BMP and surrogate-pair UTF-16 behavior."
     },
     {
       "id": "js-levenshtein",
-      "packages": ["js-levenshtein"],
-      "versions": ["1.1.6"],
+      "packages": [
+        "js-levenshtein"
+      ],
+      "versions": [
+        "1.1.6"
+      ],
       "monthlyDownloads": 41652021,
       "status": "complete-root-entrypoint",
-      "publicRuntimeApi": ["default Levenshtein distance callable"],
+      "publicRuntimeApi": [
+        "default Levenshtein distance callable"
+      ],
       "upstreamRevision": "55ca1bf22bd55aa81cb5836c63582da6e9fb5fb0",
-      "upstreamTestFiles": ["test.js"],
+      "upstreamTestFiles": [
+        "test.js"
+      ],
       "translatedAssertions": 14,
       "additionalAssertions": 0,
       "notes": "The port preserves the package's prefix/suffix trimming, one-vector dynamic program, and UTF-16 code-unit behavior. Its function-local work array is verified as non-observable mutation by purity analysis."
     },
     {
       "id": "emotion-hash",
-      "packages": ["@emotion/hash"],
-      "versions": ["0.9.2"],
+      "packages": [
+        "@emotion/hash"
+      ],
+      "versions": [
+        "0.9.2"
+      ],
       "monthlyDownloads": 122398176,
       "status": "complete-root-entrypoint",
-      "publicRuntimeApi": ["default MurmurHash2 string callable"],
+      "publicRuntimeApi": [
+        "default MurmurHash2 string callable"
+      ],
       "upstreamRevision": "d57cfcb6daf48fc5458f91b4db2e072fbc2863e4",
-      "upstreamTestFiles": ["packages/hash/__tests__/index.js"],
+      "upstreamTestFiles": [
+        "packages/hash/__tests__/index.js"
+      ],
       "translatedAssertions": 1,
       "additionalAssertions": 7,
-      "notes": "The complete string-to-base36 API is implemented with typed signed bitwise operations, explicit unsigned radix serialization, and source-written Math.imul where upstream manually simulates its exact low-32-bit result."
+      "notes": "The complete string-to-base36 API preserves upstream's explicit low/high 16-bit multiplication, typed signed bitwise operations, and unsigned radix serialization."
     },
     {
       "id": "murmurhash-js",
-      "packages": ["murmurhash-js"],
-      "versions": ["1.0.0"],
+      "packages": [
+        "murmurhash-js"
+      ],
+      "versions": [
+        "1.0.0"
+      ],
       "monthlyDownloads": 24364654,
       "status": "complete-root-entrypoint",
-      "publicRuntimeApi": ["default murmur3 callable", "murmur2", "murmur3"],
+      "publicRuntimeApi": [
+        "default murmur3 callable",
+        "murmur2",
+        "murmur3"
+      ],
       "upstreamRevision": "72aabce3f52cb8f16245692a69fd35951e165af0",
       "upstreamTestFiles": [],
       "translatedAssertions": 0,
       "additionalAssertions": 18,
       "notes": "The published package contains no upstream test files. Eighteen fixed package-contract assertions cover both algorithms and the documented default murmur3 alias before dense differential vectors. Source-written Math.imul replaces the upstream low/high-half simulation without enabling compiler-introduced imul."
+    },
+    {
+      "id": "robust-predicates",
+      "packages": [
+        "robust-predicates"
+      ],
+      "versions": [
+        "3.0.3"
+      ],
+      "monthlyDownloads": 101525533,
+      "status": "complete-root-entrypoint",
+      "publicRuntimeApi": [
+        "incircle",
+        "incirclefast",
+        "insphere",
+        "inspherefast",
+        "orient2d",
+        "orient2dfast",
+        "orient3d",
+        "orient3dfast"
+      ],
+      "upstreamRevision": "8bed7fadb4284911e1111876e54a6f8acfa445cd",
+      "upstreamTestFiles": [
+        "test/test.js",
+        "test/fixtures/orient2d.txt",
+        "test/fixtures/orient3d.txt",
+        "test/fixtures/incircle.txt",
+        "test/fixtures/insphere.txt"
+      ],
+      "translatedAssertions": 23798,
+      "additionalAssertions": 320016,
+      "notes": "All eight exports and the adaptive floating-point expansion algorithms are source-equivalent to v3.0.3. The exact upstream suite is translated, including immutable commit-pinned hard fixtures verified by SHA-256; an additional deterministic corpus compares every result bit-for-bit with the installed npm package."
     }
   ],
   "auditedButIneligible": [
     {
       "package": "motion",
       "version": "13.0.0",
-      "reason": "The 312-export root and DOM animation engine are not implemented; it remains context-only in the application lab."
-    },
-    {
-      "package": "mitt",
-      "version": "3.0.1",
-      "reason": "Exact compatibility requires symbol event keys, wildcard payload unions, and the public handler Map contract."
+      "reason": "None of the seven published runtime entrypoints are implemented (1,028 entrypoint bindings / 546 unique names, including the 312-export root, DOM engine, and React surfaces); it remains context-only in the application lab."
     },
     {
       "package": "nanoid",
       "version": "6.0.1",
-      "reason": "The complete package requires secure host randomness, custom random byte generators, CLI behavior, and string character extraction."
-    },
-    {
-      "package": "clsx",
-      "version": "2.1.1",
-      "reason": "Its API is recursive variadic unknown input over arrays and dynamic object keys."
+      "reason": "The 6.0.1 package's conditioned root (five runtime exports with the pooled Node/Buffer algorithm) and two-export non-secure entrypoint remain unimplemented. The separate popular-library lab has an exact eligible port of the distinct nanoid 5.1.5 index.browser.js entrypoint only.",
+      "runtimeAudit": {
+        "auditedAt": "2026-08-09",
+        "installedVersion": "6.0.1",
+        "packageRuntimeExportKeys": [
+          ".",
+          "./non-secure"
+        ],
+        "auditedEntrypoints": [
+          {
+            "specifier": "nanoid",
+            "runtimeExports": 5,
+            "implementedRuntimeExports": 0,
+            "exportNameSha256": "248a1b8e8b81a85ad06742fbc91d96e6a05ee26eadae8ca37761dcac6bee4da1",
+            "runtimeExportNames": [
+              "customAlphabet",
+              "customRandom",
+              "nanoid",
+              "random",
+              "urlAlphabet"
+            ]
+          },
+          {
+            "specifier": "nanoid/non-secure",
+            "runtimeExports": 2,
+            "implementedRuntimeExports": 0,
+            "exportNameSha256": "45384a5fd63404403d00f6ee5b546f7c8430507e350b15b40026fafd092bddeb",
+            "runtimeExportNames": [
+              "customAlphabet",
+              "nanoid"
+            ]
+          }
+        ]
+      }
     },
     {
       "package": "yocto-queue",
       "version": "1.2.2",
-      "reason": "Its public API includes getters and Symbol.iterator semantics."
-    },
-    {
-      "package": "robust-predicates",
-      "version": "3.0.3",
-      "reason": "Its eight-function robust geometry root is audited as a high-value next port, but the 2,300-line adaptive expansion implementation is not yet rewritten or compatibility-gated."
+      "reason": "Its default class must preserve arbitrary JavaScript values and undefined, private non-enumerable linked-node state, enqueue/dequeue/peek/clear, the size getter, a live Symbol.iterator generator, and destructive drain generator. LilScript lacks exported private-field ABI and generator/yield support; a wrapper would add a second queue object and change allocations, so no size row is eligible.",
+      "runtimeAudit": {
+        "auditedAt": "2026-08-09",
+        "installedVersion": "1.2.2",
+        "packageRuntimeExportKeys": [
+          "."
+        ],
+        "auditedEntrypoints": [
+          {
+            "specifier": "yocto-queue",
+            "runtimeExports": 1,
+            "implementedRuntimeExports": 0,
+            "exportNameSha256": "37a8eec1ce19687d132fe29051dca629d164e2c4958ba141d5f4133a33f0688f",
+            "runtimeExportNames": [
+              "default"
+            ]
+          }
+        ]
+      }
     }
   ]
 }

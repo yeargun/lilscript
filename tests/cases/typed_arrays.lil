@@ -1,0 +1,56 @@
+Int8Array i8 = new Int8Array(2);
+i8[0] = 128;
+i8[1] = -200;
+print(i8[0]);
+print(i8[1]);
+
+Uint8ClampedArray clamped = new Uint8ClampedArray(3);
+clamped[0] = -1;
+clamped[1] = 128;
+clamped[2] = 300;
+print(clamped[0]);
+print(clamped[1]);
+print(clamped[2]);
+
+Int16Array i16 = new Int16Array(2);
+i16[0] = 40000;
+i16[1] = -40000;
+print(i16[0]);
+print(i16[1]);
+
+Uint16Array u16 = new Uint16Array(2);
+u16[0] = -1;
+u16[1] = 70000;
+print(u16[0]);
+print(u16[1]);
+
+Int32Array i32 = new Int32Array(2);
+i32[0] = 2147483647;
+i32[1] = -2147483647;
+print(i32[0]);
+print(i32[1]);
+
+Uint32Array u32 = new Uint32Array(2);
+u32[0] = -1;
+u32[1] = 2147483647;
+print(u32[0]);
+print(u32[1]);
+
+Float64Array f64 = new Float64Array(2);
+f64[0] = 1.5;
+f64[1] = 2.25;
+print(f64.length);
+print(f64.byteLength);
+print(f64[0]);
+print(f64[1]);
+
+Float64Array window = f64.subarray(1, 2);
+print(window.length);
+print(window.byteOffset);
+window[0] = 9.5;
+print(f64[1]);
+
+Float64Array copied = f64.slice(0, 2);
+copied[0] = 3.25;
+print(copied[0]);
+print(f64[0]);

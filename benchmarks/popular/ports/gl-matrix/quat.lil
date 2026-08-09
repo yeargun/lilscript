@@ -1,0 +1,578 @@
+import {
+  EPSILON,
+  createArray,
+  equalsN,
+  exactEqualsN,
+  hypot3,
+  hypot4,
+  randomFloat
+} from "./common";
+import {halfToRadian, tau} from "./angle";
+
+export (float[]|Float32Array) create() {
+  (float[]|Float32Array) out = createArray(4);
+  out[3] = 1.0;
+  return out;
+}
+
+export (float[]|Float32Array) identity(float[]|Float32Array out) {
+  out[0] = 0.0;
+  out[1] = 0.0;
+  out[2] = 0.0;
+  out[3] = 1.0;
+  return out;
+}
+
+export (float[]|Float32Array) setAxisAngle(
+  float[]|Float32Array out,
+  float[]|Float32Array axis,
+  float radians
+) {
+  float halfRadians = radians * 0.5;
+  float sine = halfRadians.sin();
+  out[0] = sine * axis[0];
+  out[1] = sine * axis[1];
+  out[2] = sine * axis[2];
+  out[3] = halfRadians.cos();
+  return out;
+}
+
+export float getAxisAngle(
+  float[]|Float32Array outAxis,
+  float[]|Float32Array quaternion
+) {
+  float radians = quaternion[3].acos() * 2.0;
+  float sine = (radians / 2.0).sin();
+  if (sine > EPSILON) {
+    outAxis[0] = quaternion[0] / sine;
+    outAxis[1] = quaternion[1] / sine;
+    outAxis[2] = quaternion[2] / sine;
+  } else {
+    outAxis[0] = 1.0;
+    outAxis[1] = 0.0;
+    outAxis[2] = 0.0;
+  }
+  return radians;
+}
+
+export float getAngle(
+  float[]|Float32Array a,
+  float[]|Float32Array b
+) {
+  float product = dot(a, b);
+  return (2.0 * product * product - 1.0).acos();
+}
+
+export (float[]|Float32Array) multiply(
+  float[]|Float32Array out,
+  float[]|Float32Array a,
+  float[]|Float32Array b
+) {
+  float ax = a[0];
+  float ay = a[1];
+  float az = a[2];
+  float aw = a[3];
+  float bx = b[0];
+  float by = b[1];
+  float bz = b[2];
+  float bw = b[3];
+  out[0] = ax * bw + aw * bx + ay * bz - az * by;
+  out[1] = ay * bw + aw * by + az * bx - ax * bz;
+  out[2] = az * bw + aw * bz + ax * by - ay * bx;
+  out[3] = aw * bw - ax * bx - ay * by - az * bz;
+  return out;
+}
+
+export (float[]|Float32Array) rotateX(
+  float[]|Float32Array out,
+  float[]|Float32Array a,
+  float radians
+) {
+  float halfRadians = radians * 0.5;
+  float ax = a[0];
+  float ay = a[1];
+  float az = a[2];
+  float aw = a[3];
+  float bx = halfRadians.sin();
+  float bw = halfRadians.cos();
+  out[0] = ax * bw + aw * bx;
+  out[1] = ay * bw + az * bx;
+  out[2] = az * bw - ay * bx;
+  out[3] = aw * bw - ax * bx;
+  return out;
+}
+
+export (float[]|Float32Array) rotateY(
+  float[]|Float32Array out,
+  float[]|Float32Array a,
+  float radians
+) {
+  float halfRadians = radians * 0.5;
+  float ax = a[0];
+  float ay = a[1];
+  float az = a[2];
+  float aw = a[3];
+  float by = halfRadians.sin();
+  float bw = halfRadians.cos();
+  out[0] = ax * bw - az * by;
+  out[1] = ay * bw + aw * by;
+  out[2] = az * bw + ax * by;
+  out[3] = aw * bw - ay * by;
+  return out;
+}
+
+export (float[]|Float32Array) rotateZ(
+  float[]|Float32Array out,
+  float[]|Float32Array a,
+  float radians
+) {
+  float halfRadians = radians * 0.5;
+  float ax = a[0];
+  float ay = a[1];
+  float az = a[2];
+  float aw = a[3];
+  float bz = halfRadians.sin();
+  float bw = halfRadians.cos();
+  out[0] = ax * bw + ay * bz;
+  out[1] = ay * bw - ax * bz;
+  out[2] = az * bw + aw * bz;
+  out[3] = aw * bw - az * bz;
+  return out;
+}
+
+export (float[]|Float32Array) calculateW(
+  float[]|Float32Array out,
+  float[]|Float32Array a
+) {
+  float x = a[0];
+  float y = a[1];
+  float z = a[2];
+  out[0] = x;
+  out[1] = y;
+  out[2] = z;
+  out[3] = (1.0 - x * x - y * y - z * z).abs().sqrt();
+  return out;
+}
+
+export (float[]|Float32Array) exp(
+  float[]|Float32Array out,
+  float[]|Float32Array a
+) {
+  float x = a[0];
+  float y = a[1];
+  float z = a[2];
+  float w = a[3];
+  float radius = (x * x + y * y + z * z).sqrt();
+  float exponential = w.exp();
+  float scale = 0.0;
+  if (radius > 0.0) {
+    scale = exponential * radius.sin() / radius;
+  }
+  out[0] = x * scale;
+  out[1] = y * scale;
+  out[2] = z * scale;
+  out[3] = exponential * radius.cos();
+  return out;
+}
+
+export (float[]|Float32Array) ln(
+  float[]|Float32Array out,
+  float[]|Float32Array a
+) {
+  float x = a[0];
+  float y = a[1];
+  float z = a[2];
+  float w = a[3];
+  float radius = (x * x + y * y + z * z).sqrt();
+  float scale = 0.0;
+  if (radius > 0.0) {
+    scale = radius.atan2(w) / radius;
+  }
+  out[0] = x * scale;
+  out[1] = y * scale;
+  out[2] = z * scale;
+  out[3] = 0.5 * (x * x + y * y + z * z + w * w).log();
+  return out;
+}
+
+export (float[]|Float32Array) pow(
+  float[]|Float32Array out,
+  float[]|Float32Array a,
+  float exponent
+) {
+  ln(out, a);
+  scale(out, out, exponent);
+  exp(out, out);
+  return out;
+}
+
+export (float[]|Float32Array) slerp(
+  float[]|Float32Array out,
+  float[]|Float32Array a,
+  float[]|Float32Array b,
+  float amount
+) {
+  float ax = a[0];
+  float ay = a[1];
+  float az = a[2];
+  float aw = a[3];
+  float bx = b[0];
+  float by = b[1];
+  float bz = b[2];
+  float bw = b[3];
+  float cosine = ax * bx + ay * by + az * bz + aw * bw;
+  if (cosine < 0.0) {
+    cosine = -cosine;
+    bx = -bx;
+    by = -by;
+    bz = -bz;
+    bw = -bw;
+  }
+  float scale0 = 0.0;
+  float scale1 = 0.0;
+  if (1.0 - cosine > EPSILON) {
+    float omega = cosine.acos();
+    float sine = omega.sin();
+    scale0 = ((1.0 - amount) * omega).sin() / sine;
+    scale1 = (amount * omega).sin() / sine;
+  } else {
+    scale0 = 1.0 - amount;
+    scale1 = amount;
+  }
+  out[0] = scale0 * ax + scale1 * bx;
+  out[1] = scale0 * ay + scale1 * by;
+  out[2] = scale0 * az + scale1 * bz;
+  out[3] = scale0 * aw + scale1 * bw;
+  return out;
+}
+
+export (float[]|Float32Array) random(float[]|Float32Array out) {
+  float first = randomFloat();
+  float second = randomFloat();
+  float third = randomFloat();
+  float firstRoot = (1.0 - first).sqrt();
+  float secondRoot = first.sqrt();
+  float secondAngle = tau() * second;
+  float thirdAngle = tau() * third;
+  out[0] = firstRoot * secondAngle.sin();
+  out[1] = firstRoot * secondAngle.cos();
+  out[2] = secondRoot * thirdAngle.sin();
+  out[3] = secondRoot * thirdAngle.cos();
+  return out;
+}
+
+export (float[]|Float32Array) invert(
+  float[]|Float32Array out,
+  float[]|Float32Array a
+) {
+  float a0 = a[0];
+  float a1 = a[1];
+  float a2 = a[2];
+  float a3 = a[3];
+  float squared = a0 * a0 + a1 * a1 + a2 * a2 + a3 * a3;
+  float inverseSquared = 0.0;
+  if (squared != 0.0) {
+    inverseSquared = 1.0 / squared;
+  }
+  out[0] = -a0 * inverseSquared;
+  out[1] = -a1 * inverseSquared;
+  out[2] = -a2 * inverseSquared;
+  out[3] = a3 * inverseSquared;
+  return out;
+}
+
+export (float[]|Float32Array) conjugate(
+  float[]|Float32Array out,
+  float[]|Float32Array a
+) {
+  out[0] = -a[0];
+  out[1] = -a[1];
+  out[2] = -a[2];
+  out[3] = a[3];
+  return out;
+}
+
+export (float[]|Float32Array) fromMat3(
+  float[]|Float32Array out,
+  float[]|Float32Array matrix
+) {
+  float trace = matrix[0] + matrix[4] + matrix[8];
+  float root = 0.0;
+  if (trace > 0.0) {
+    root = (trace + 1.0).sqrt();
+    out[3] = 0.5 * root;
+    root = 0.5 / root;
+    out[0] = (matrix[5] - matrix[7]) * root;
+    out[1] = (matrix[6] - matrix[2]) * root;
+    out[2] = (matrix[1] - matrix[3]) * root;
+  } else {
+    int i = 0;
+    if (matrix[4] > matrix[0]) {
+      i = 1;
+    }
+    if (matrix[8] > matrix[i * 3 + i]) {
+      i = 2;
+    }
+    int j = (i + 1) % 3;
+    int k = (i + 2) % 3;
+    root =
+      (matrix[i * 3 + i] -
+        matrix[j * 3 + j] -
+        matrix[k * 3 + k] +
+        1.0).sqrt();
+    out[i] = 0.5 * root;
+    root = 0.5 / root;
+    out[3] = (matrix[j * 3 + k] - matrix[k * 3 + j]) * root;
+    out[j] = (matrix[j * 3 + i] + matrix[i * 3 + j]) * root;
+    out[k] = (matrix[k * 3 + i] + matrix[i * 3 + k]) * root;
+  }
+  return out;
+}
+
+export (float[]|Float32Array) fromEuler(
+  float[]|Float32Array out,
+  float x,
+  float y,
+  float z
+) {
+  float halfToRadians = halfToRadian();
+  x = x * halfToRadians;
+  y = y * halfToRadians;
+  z = z * halfToRadians;
+  float sx = x.sin();
+  float cx = x.cos();
+  float sy = y.sin();
+  float cy = y.cos();
+  float sz = z.sin();
+  float cz = z.cos();
+  out[0] = sx * cy * cz - cx * sy * sz;
+  out[1] = cx * sy * cz + sx * cy * sz;
+  out[2] = cx * cy * sz - sx * sy * cz;
+  out[3] = cx * cy * cz + sx * sy * sz;
+  return out;
+}
+
+export string str(float[]|Float32Array a) {
+  return "quat(" + a[0] + ", " + a[1] + ", " + a[2] + ", " + a[3] + ")";
+}
+
+export (float[]|Float32Array) clone(float[]|Float32Array a) {
+  (float[]|Float32Array) out = createArray(4);
+  out[0] = a[0];
+  out[1] = a[1];
+  out[2] = a[2];
+  out[3] = a[3];
+  return out;
+}
+
+export (float[]|Float32Array) fromValues(
+  float x,
+  float y,
+  float z,
+  float w
+) {
+  (float[]|Float32Array) out = createArray(4);
+  out[0] = x;
+  out[1] = y;
+  out[2] = z;
+  out[3] = w;
+  return out;
+}
+
+export (float[]|Float32Array) copy(
+  float[]|Float32Array out,
+  float[]|Float32Array a
+) {
+  out[0] = a[0];
+  out[1] = a[1];
+  out[2] = a[2];
+  out[3] = a[3];
+  return out;
+}
+
+export (float[]|Float32Array) set(
+  float[]|Float32Array out,
+  float x,
+  float y,
+  float z,
+  float w
+) {
+  out[0] = x;
+  out[1] = y;
+  out[2] = z;
+  out[3] = w;
+  return out;
+}
+
+export (float[]|Float32Array) add(
+  float[]|Float32Array out,
+  float[]|Float32Array a,
+  float[]|Float32Array b
+) {
+  out[0] = a[0] + b[0];
+  out[1] = a[1] + b[1];
+  out[2] = a[2] + b[2];
+  out[3] = a[3] + b[3];
+  return out;
+}
+
+export (float[]|Float32Array) scale(
+  float[]|Float32Array out,
+  float[]|Float32Array a,
+  float amount
+) {
+  out[0] = a[0] * amount;
+  out[1] = a[1] * amount;
+  out[2] = a[2] * amount;
+  out[3] = a[3] * amount;
+  return out;
+}
+
+export float dot(
+  float[]|Float32Array a,
+  float[]|Float32Array b
+) {
+  return a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3];
+}
+
+export (float[]|Float32Array) lerp(
+  float[]|Float32Array out,
+  float[]|Float32Array a,
+  float[]|Float32Array b,
+  float amount
+) {
+  float a0 = a[0];
+  float a1 = a[1];
+  float a2 = a[2];
+  float a3 = a[3];
+  out[0] = a0 + amount * (b[0] - a0);
+  out[1] = a1 + amount * (b[1] - a1);
+  out[2] = a2 + amount * (b[2] - a2);
+  out[3] = a3 + amount * (b[3] - a3);
+  return out;
+}
+
+export float length(float[]|Float32Array a) {
+  return hypot4(a[0], a[1], a[2], a[3]);
+}
+
+export float squaredLength(float[]|Float32Array a) {
+  float x = a[0];
+  float y = a[1];
+  float z = a[2];
+  float w = a[3];
+  return x * x + y * y + z * z + w * w;
+}
+
+export (float[]|Float32Array) normalize(
+  float[]|Float32Array out,
+  float[]|Float32Array a
+) {
+  float x = a[0];
+  float y = a[1];
+  float z = a[2];
+  float w = a[3];
+  float magnitude = x * x + y * y + z * z + w * w;
+  if (magnitude > 0.0) {
+    magnitude = 1.0 / magnitude.sqrt();
+  }
+  out[0] = x * magnitude;
+  out[1] = y * magnitude;
+  out[2] = z * magnitude;
+  out[3] = w * magnitude;
+  return out;
+}
+
+export bool exactEquals(
+  float[]|Float32Array a,
+  float[]|Float32Array b
+) {
+  return exactEqualsN(a, b, 4);
+}
+
+export bool equals(
+  float[]|Float32Array a,
+  float[]|Float32Array b
+) {
+  return equalsN(a, b, 4);
+}
+
+export (float[]|Float32Array) rotationTo(
+  float[]|Float32Array out,
+  float[]|Float32Array a,
+  float[]|Float32Array b
+) {
+  float product = a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  if (product < -0.999999) {
+    float x = 0.0;
+    float y = -a[2];
+    float z = a[1];
+    float magnitude = hypot3(x, y, z);
+    if (magnitude < EPSILON) {
+      x = a[2];
+      y = 0.0;
+      z = -a[0];
+      magnitude = hypot3(x, y, z);
+    }
+    if (magnitude > 0.0) {
+      magnitude = 1.0 / magnitude;
+    }
+    (float[]|Float32Array) axis = createArray(3);
+    axis[0] = x * magnitude;
+    axis[1] = y * magnitude;
+    axis[2] = z * magnitude;
+    return setAxisAngle(out, axis, tau() * 0.5);
+  }
+  if (product > 0.999999) {
+    return identity(out);
+  }
+  float crossX = a[1] * b[2] - a[2] * b[1];
+  float crossY = a[2] * b[0] - a[0] * b[2];
+  float crossZ = a[0] * b[1] - a[1] * b[0];
+  out[0] = crossX;
+  out[1] = crossY;
+  out[2] = crossZ;
+  out[3] = 1.0 + product;
+  return normalize(out, out);
+}
+
+export (float[]|Float32Array) sqlerp(
+  float[]|Float32Array out,
+  float[]|Float32Array a,
+  float[]|Float32Array b,
+  float[]|Float32Array c,
+  float[]|Float32Array d,
+  float amount
+) {
+  (float[]|Float32Array) first = create();
+  (float[]|Float32Array) second = create();
+  slerp(first, a, d, amount);
+  slerp(second, b, c, amount);
+  return slerp(out, first, second, 2.0 * amount * (1.0 - amount));
+}
+
+export (float[]|Float32Array) setAxes(
+  float[]|Float32Array out,
+  float[]|Float32Array view,
+  float[]|Float32Array right,
+  float[]|Float32Array up
+) {
+  (float[]|Float32Array) matrix = createArray(9);
+  matrix[0] = right[0];
+  matrix[3] = right[1];
+  matrix[6] = right[2];
+  matrix[1] = up[0];
+  matrix[4] = up[1];
+  matrix[7] = up[2];
+  matrix[2] = -view[0];
+  matrix[5] = -view[1];
+  matrix[8] = -view[2];
+  fromMat3(out, matrix);
+  return normalize(out, out);
+}
+
+export {
+  multiply as mul,
+  length as len,
+  squaredLength as sqrLen
+};

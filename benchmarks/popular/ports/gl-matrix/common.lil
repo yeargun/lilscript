@@ -1,0 +1,82 @@
+extern float rand();
+extern (float[]|Float32Array) glMatrixCreateArray(int size);
+
+export float EPSILON = 0.000001;
+export float TAU = 6.283185307179586;
+export (float[]|Float32Array) createArray(int size) {
+  return glMatrixCreateArray(size);
+}
+
+export float randomFloat() {
+  return rand();
+}
+
+export bool equals(float a, float b) {
+  float difference = (a - b).abs();
+  float scale = 1.0.max(a.abs()).max(b.abs());
+  return difference <= EPSILON * scale;
+}
+
+export float hypot3(float x, float y, float z) {
+  return (x * x + y * y + z * z).sqrt();
+}
+
+export float hypot4(float x, float y, float z, float w) {
+  return (x * x + y * y + z * z + w * w).sqrt();
+}
+
+export float hypotN(float[]|Float32Array values, int count) {
+  float sum = 0.0;
+  int index = 0;
+  while (index < count) {
+    float value = values[index];
+    sum = sum + value * value;
+    index = index + 1;
+  }
+  return sum.sqrt();
+}
+
+export float hypotNExtra(
+  float[]|Float32Array values,
+  int count,
+  float extra
+) {
+  float sum = extra * extra;
+  int index = 0;
+  while (index < count) {
+    float value = values[index];
+    sum = sum + value * value;
+    index = index + 1;
+  }
+  return sum.sqrt();
+}
+
+export bool exactEqualsN(
+  float[]|Float32Array a,
+  float[]|Float32Array b,
+  int count
+) {
+  int index = 0;
+  while (index < count) {
+    if (a[index] != b[index]) {
+      return false;
+    }
+    index = index + 1;
+  }
+  return true;
+}
+
+export bool equalsN(
+  float[]|Float32Array a,
+  float[]|Float32Array b,
+  int count
+) {
+  int index = 0;
+  while (index < count) {
+    if (!equals(a[index], b[index])) {
+      return false;
+    }
+    index = index + 1;
+  }
+  return true;
+}

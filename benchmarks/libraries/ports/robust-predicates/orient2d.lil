@@ -1,0 +1,231 @@
+import {
+  epsilon,
+  expansionEstimate,
+  expansionSum,
+  expansionVector,
+  resulterrbound,
+  splitter
+} from "./util";
+
+float ccwerrboundA = (3.0 + 16.0 * epsilon) * epsilon;
+float ccwerrboundB = (2.0 + 12.0 * epsilon) * epsilon;
+float ccwerrboundC = (9.0 + 64.0 * epsilon) * epsilon * epsilon;
+
+Float64Array expansionB = expansionVector(4);
+Float64Array expansionC1 = expansionVector(8);
+Float64Array expansionC2 = expansionVector(12);
+Float64Array expansionD = expansionVector(16);
+Float64Array expansionU = expansionVector(4);
+
+float orient2dAdapt(
+  float ax,
+  float ay,
+  float bx,
+  float by,
+  float cx,
+  float cy,
+  float detsum
+) {
+  float acxtail = 0.0;
+  float acytail = 0.0;
+  float bcxtail = 0.0;
+  float bcytail = 0.0;
+  float bvirt = 0.0;
+  float split = 0.0;
+  float ahi = 0.0;
+  float alo = 0.0;
+  float bhi = 0.0;
+  float blo = 0.0;
+  float intermediate = 0.0;
+  float intermediate2 = 0.0;
+  float zero = 0.0;
+  float s1 = 0.0;
+  float s0 = 0.0;
+  float t1 = 0.0;
+  float t0 = 0.0;
+  float u3 = 0.0;
+
+  float acx = ax - cx;
+  float bcx = bx - cx;
+  float acy = ay - cy;
+  float bcy = by - cy;
+
+  s1 = acx * bcy;
+  split = splitter * acx;
+  ahi = split - (split - acx);
+  alo = acx - ahi;
+  split = splitter * bcy;
+  bhi = split - (split - bcy);
+  blo = bcy - bhi;
+  s0 = alo * blo - (s1 - ahi * bhi - alo * bhi - ahi * blo);
+  t1 = acy * bcx;
+  split = splitter * acy;
+  ahi = split - (split - acy);
+  alo = acy - ahi;
+  split = splitter * bcx;
+  bhi = split - (split - bcx);
+  blo = bcx - bhi;
+  t0 = alo * blo - (t1 - ahi * bhi - alo * bhi - ahi * blo);
+  intermediate = s0 - t0;
+  bvirt = s0 - intermediate;
+  expansionB[0] = s0 - (intermediate + bvirt) + (bvirt - t0);
+  intermediate2 = s1 + intermediate;
+  bvirt = intermediate2 - s1;
+  zero = s1 - (intermediate2 - bvirt) + (intermediate - bvirt);
+  intermediate = zero - t1;
+  bvirt = zero - intermediate;
+  expansionB[1] = zero - (intermediate + bvirt) + (bvirt - t1);
+  u3 = intermediate2 + intermediate;
+  bvirt = u3 - intermediate2;
+  expansionB[2] = intermediate2 - (u3 - bvirt) + (intermediate - bvirt);
+  expansionB[3] = u3;
+
+  float determinant = expansionEstimate(4, expansionB);
+  float errbound = ccwerrboundB * detsum;
+  if (determinant >= errbound || -determinant >= errbound) {
+    return determinant;
+  }
+
+  bvirt = ax - acx;
+  acxtail = ax - (acx + bvirt) + (bvirt - cx);
+  bvirt = bx - bcx;
+  bcxtail = bx - (bcx + bvirt) + (bvirt - cx);
+  bvirt = ay - acy;
+  acytail = ay - (acy + bvirt) + (bvirt - cy);
+  bvirt = by - bcy;
+  bcytail = by - (bcy + bvirt) + (bvirt - cy);
+
+  if (acxtail == 0.0 && acytail == 0.0 && bcxtail == 0.0 && bcytail == 0.0) {
+    return determinant;
+  }
+
+  errbound = ccwerrboundC * detsum + resulterrbound * determinant.abs();
+  determinant += (acx * bcytail + bcy * acxtail) - (acy * bcxtail + bcx * acytail);
+  if (determinant >= errbound || -determinant >= errbound) {
+    return determinant;
+  }
+
+  s1 = acxtail * bcy;
+  split = splitter * acxtail;
+  ahi = split - (split - acxtail);
+  alo = acxtail - ahi;
+  split = splitter * bcy;
+  bhi = split - (split - bcy);
+  blo = bcy - bhi;
+  s0 = alo * blo - (s1 - ahi * bhi - alo * bhi - ahi * blo);
+  t1 = acytail * bcx;
+  split = splitter * acytail;
+  ahi = split - (split - acytail);
+  alo = acytail - ahi;
+  split = splitter * bcx;
+  bhi = split - (split - bcx);
+  blo = bcx - bhi;
+  t0 = alo * blo - (t1 - ahi * bhi - alo * bhi - ahi * blo);
+  intermediate = s0 - t0;
+  bvirt = s0 - intermediate;
+  expansionU[0] = s0 - (intermediate + bvirt) + (bvirt - t0);
+  intermediate2 = s1 + intermediate;
+  bvirt = intermediate2 - s1;
+  zero = s1 - (intermediate2 - bvirt) + (intermediate - bvirt);
+  intermediate = zero - t1;
+  bvirt = zero - intermediate;
+  expansionU[1] = zero - (intermediate + bvirt) + (bvirt - t1);
+  u3 = intermediate2 + intermediate;
+  bvirt = u3 - intermediate2;
+  expansionU[2] = intermediate2 - (u3 - bvirt) + (intermediate - bvirt);
+  expansionU[3] = u3;
+  int c1Length = expansionSum(4, expansionB, 4, expansionU, expansionC1);
+
+  s1 = acx * bcytail;
+  split = splitter * acx;
+  ahi = split - (split - acx);
+  alo = acx - ahi;
+  split = splitter * bcytail;
+  bhi = split - (split - bcytail);
+  blo = bcytail - bhi;
+  s0 = alo * blo - (s1 - ahi * bhi - alo * bhi - ahi * blo);
+  t1 = acy * bcxtail;
+  split = splitter * acy;
+  ahi = split - (split - acy);
+  alo = acy - ahi;
+  split = splitter * bcxtail;
+  bhi = split - (split - bcxtail);
+  blo = bcxtail - bhi;
+  t0 = alo * blo - (t1 - ahi * bhi - alo * bhi - ahi * blo);
+  intermediate = s0 - t0;
+  bvirt = s0 - intermediate;
+  expansionU[0] = s0 - (intermediate + bvirt) + (bvirt - t0);
+  intermediate2 = s1 + intermediate;
+  bvirt = intermediate2 - s1;
+  zero = s1 - (intermediate2 - bvirt) + (intermediate - bvirt);
+  intermediate = zero - t1;
+  bvirt = zero - intermediate;
+  expansionU[1] = zero - (intermediate + bvirt) + (bvirt - t1);
+  u3 = intermediate2 + intermediate;
+  bvirt = u3 - intermediate2;
+  expansionU[2] = intermediate2 - (u3 - bvirt) + (intermediate - bvirt);
+  expansionU[3] = u3;
+  int c2Length = expansionSum(c1Length, expansionC1, 4, expansionU, expansionC2);
+
+  s1 = acxtail * bcytail;
+  split = splitter * acxtail;
+  ahi = split - (split - acxtail);
+  alo = acxtail - ahi;
+  split = splitter * bcytail;
+  bhi = split - (split - bcytail);
+  blo = bcytail - bhi;
+  s0 = alo * blo - (s1 - ahi * bhi - alo * bhi - ahi * blo);
+  t1 = acytail * bcxtail;
+  split = splitter * acytail;
+  ahi = split - (split - acytail);
+  alo = acytail - ahi;
+  split = splitter * bcxtail;
+  bhi = split - (split - bcxtail);
+  blo = bcxtail - bhi;
+  t0 = alo * blo - (t1 - ahi * bhi - alo * bhi - ahi * blo);
+  intermediate = s0 - t0;
+  bvirt = s0 - intermediate;
+  expansionU[0] = s0 - (intermediate + bvirt) + (bvirt - t0);
+  intermediate2 = s1 + intermediate;
+  bvirt = intermediate2 - s1;
+  zero = s1 - (intermediate2 - bvirt) + (intermediate - bvirt);
+  intermediate = zero - t1;
+  bvirt = zero - intermediate;
+  expansionU[1] = zero - (intermediate + bvirt) + (bvirt - t1);
+  u3 = intermediate2 + intermediate;
+  bvirt = u3 - intermediate2;
+  expansionU[2] = intermediate2 - (u3 - bvirt) + (intermediate - bvirt);
+  expansionU[3] = u3;
+  int dLength = expansionSum(c2Length, expansionC2, 4, expansionU, expansionD);
+
+  return expansionD[dLength - 1];
+}
+
+export float orient2d(
+  float ax,
+  float ay,
+  float bx,
+  float by,
+  float cx,
+  float cy
+) {
+  float detleft = (ay - cy) * (bx - cx);
+  float detright = (ax - cx) * (by - cy);
+  float determinant = detleft - detright;
+  float detsum = (detleft + detright).abs();
+  if (determinant.abs() >= ccwerrboundA * detsum) {
+    return determinant;
+  }
+  return -orient2dAdapt(ax, ay, bx, by, cx, cy, detsum);
+}
+
+export float orient2dfast(
+  float ax,
+  float ay,
+  float bx,
+  float by,
+  float cx,
+  float cy
+) {
+  return (ay - cy) * (bx - cx) - (ax - cx) * (by - cy);
+}

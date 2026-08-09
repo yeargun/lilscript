@@ -11,6 +11,7 @@ use crate::ir::{
 use crate::lower::lower_to_control_flow;
 use crate::optimizer::optimize_control_flow;
 use crate::semantic::{analyze, EscapeState, Type};
+use crate::typed_array::{classify_typed_array_intrinsic, TypedArrayIntrinsic, TypedArrayKind};
 use crate::{ast::Program, span::Span};
 
 pub fn compile_to_c<'ast, 'src>(program: &Program<'ast, 'src>) -> Result<String, CompileError> {
@@ -91,7 +92,19 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
             "static inline double lilscript_fmin(double a,double b){if(isnan(a)||isnan(b))return NAN;if(a==0&&b==0)return signbit(a)||signbit(b)?-0.0:0.0;return a<b?a:b;}static inline double lilscript_fmax(double a,double b){if(isnan(a)||isnan(b))return NAN;if(a==0&&b==0)return signbit(a)&&signbit(b)?-0.0:0.0;return a>b?a:b;}\n",
         );
         out.push_str(
-            "typedef struct LilScriptArrayHeader{void*data;int32_t len,cap;}*LilScriptArray;typedef struct{void*fn;void*env;}LilScriptClosure;typedef char* LilScriptString;typedef struct{uint8_t tag;union{int32_t i;double f;bool b;const char*s;void*p;LilScriptClosure c;};}LilScriptValue;typedef struct{bool has;LilScriptValue value;}LilScriptOptional;typedef struct LilScriptMapHeader{LilScriptValue*keys,*values;int32_t len,cap;}*LilScriptMap;typedef struct LilScriptSetHeader{LilScriptValue*values;int32_t len,cap;}*LilScriptSet;typedef struct LilScriptBufferHeader{uint8_t*data;int32_t len;bool shared;}*LilScriptBuffer;typedef struct LilScriptUint8ArrayHeader{LilScriptBuffer buffer;int32_t offset,len;}*LilScriptUint8Array;\n",
+            "static inline double lilscript_round(double x){if(signbit(x)&&x>=-0.5)return-0.0;return floor(x+0.5);}\n",
+        );
+        out.push_str(
+            "static inline int32_t lilscript_to_i32(double x){if(!isfinite(x)||x==0)return 0;double n=fmod(trunc(x),4294967296.0);if(n<0)n+=4294967296.0;return n>=2147483648.0?(int32_t)(n-4294967296.0):(int32_t)n;}\n",
+        );
+        out.push_str(
+            "typedef struct LilScriptArrayHeader{void*data;int32_t len,cap;}*LilScriptArray;typedef struct{void*fn;void*env;}LilScriptClosure;typedef char* LilScriptString;typedef struct{uint8_t tag;union{int32_t i;double f;bool b;const char*s;void*p;LilScriptClosure c;};}LilScriptValue;typedef struct{bool has;LilScriptValue value;}LilScriptOptional;typedef struct LilScriptMapHeader{LilScriptValue*keys,*values;int32_t len,cap;}*LilScriptMap;typedef struct LilScriptSetHeader{LilScriptValue*values;int32_t len,cap;}*LilScriptSet;typedef struct LilScriptBufferHeader{uint8_t*data;int32_t len;bool shared;}*LilScriptBuffer;typedef struct LilScriptTypedArrayHeader{LilScriptBuffer buffer;int32_t offset,len;}*LilScriptTypedArray;typedef LilScriptTypedArray LilScriptInt8Array;typedef LilScriptTypedArray LilScriptUint8Array;typedef LilScriptTypedArray LilScriptUint8ClampedArray;typedef LilScriptTypedArray LilScriptInt16Array;typedef LilScriptTypedArray LilScriptUint16Array;typedef LilScriptTypedArray LilScriptInt32Array;typedef LilScriptTypedArray LilScriptUint32Array;typedef LilScriptTypedArray LilScriptFloat32Array;typedef LilScriptTypedArray LilScriptFloat64Array;\n",
+        );
+        out.push_str(
+            "typedef struct LilScriptSymbolHeader{int64_t id;char*description;}*LilScriptSymbol;static int64_t lilscript_symbol_counter;\n",
+        );
+        out.push_str(
+            "static inline LilScriptSymbol lilscript_symbol(const char*desc){LilScriptSymbol s=malloc(sizeof*s);if(!s)abort();s->id=++lilscript_symbol_counter;s->description=desc?strdup(desc):NULL;return s;}\n",
         );
         out.push_str(
             "typedef struct LilScriptRegionChunk{struct LilScriptRegionChunk*next;size_t used,cap;max_align_t align;unsigned char data[];}LilScriptRegionChunk;typedef struct{LilScriptRegionChunk*head;}LilScriptRegion;static inline void*lilscript_region_alloc(LilScriptRegion*r,size_t n){size_t a=_Alignof(max_align_t),p=r->head?(r->head->used+a-1)&~(a-1):0;if(!r->head||p+n>r->head->cap){size_t c=n+a>4096?n+a:4096;LilScriptRegionChunk*x=malloc(sizeof*x+c);if(!x)abort();x->next=r->head;x->used=0;x->cap=c;r->head=x;p=0;}void*v=r->head->data+p;r->head->used=p+n;return v;}static inline void lilscript_region_dispose(LilScriptRegion*r){while(r->head){LilScriptRegionChunk*x=r->head;r->head=x->next;free(x);}}\n",
@@ -118,13 +131,34 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
             "static inline void*lilscript_pop(LilScriptArray a,size_t z){if(!a->len)abort();return(char*)a->data+(size_t)--a->len*z;}\n",
         );
         out.push_str(
+            "static inline int32_t lilscript_array_index(int32_t i,int32_t n){int64_t x=i<0?(int64_t)n+i:i;if(x<0)return 0;if(x>n)return n;return(int32_t)x;}static inline LilScriptArray lilscript_array_slice(LilScriptArray a,int32_t start,int32_t end,size_t z){int32_t x=lilscript_array_index(start,a->len),y=lilscript_array_index(end,a->len);if(y<x)y=x;LilScriptArray r=lilscript_array(y-x,z);if(y>x)memcpy(r->data,(char*)a->data+(size_t)x*z,(size_t)(y-x)*z);return r;}\n",
+        );
+        out.push_str(
             "static inline LilScriptMap lilscript_map(void){LilScriptMap m=calloc(1,sizeof*m);if(!m)abort();return m;}static inline void lilscript_map_reserve(LilScriptMap m){if(m->len<m->cap)return;m->cap=m->cap?m->cap*2:4;m->keys=realloc(m->keys,(size_t)m->cap*sizeof*m->keys);m->values=realloc(m->values,(size_t)m->cap*sizeof*m->values);if(!m->keys||!m->values)abort();}static inline int32_t lilscript_map_index(LilScriptMap m,LilScriptValue k){for(int32_t i=0;i<m->len;i++)if(lilscript_collection_eq(m->keys[i],k))return i;return -1;}static inline LilScriptOptional lilscript_map_get(LilScriptMap m,LilScriptValue k){int32_t i=lilscript_map_index(m,k);return i<0?(LilScriptOptional){false,{0}}:lilscript_value_optional(m->values[i]);}static inline bool lilscript_map_has(LilScriptMap m,LilScriptValue k){return lilscript_map_index(m,k)>=0;}static inline LilScriptMap lilscript_map_set(LilScriptMap m,LilScriptValue k,LilScriptValue v){int32_t i=lilscript_map_index(m,k);if(i>=0)m->values[i]=v;else{lilscript_map_reserve(m);m->keys[m->len]=k;m->values[m->len++]=v;}return m;}static inline bool lilscript_map_delete(LilScriptMap m,LilScriptValue k){int32_t i=lilscript_map_index(m,k);if(i<0)return false;int32_t n=--m->len-i;memmove(m->keys+i,m->keys+i+1,(size_t)n*sizeof*m->keys);memmove(m->values+i,m->values+i+1,(size_t)n*sizeof*m->values);return true;}static inline void lilscript_map_clear(LilScriptMap m){m->len=0;}\n",
         );
         out.push_str(
             "static inline LilScriptSet lilscript_set(void){LilScriptSet s=calloc(1,sizeof*s);if(!s)abort();return s;}static inline int32_t lilscript_set_index(LilScriptSet s,LilScriptValue v){for(int32_t i=0;i<s->len;i++)if(lilscript_collection_eq(s->values[i],v))return i;return -1;}static inline LilScriptSet lilscript_set_add(LilScriptSet s,LilScriptValue v){if(lilscript_set_index(s,v)>=0)return s;if(s->len==s->cap){s->cap=s->cap?s->cap*2:4;s->values=realloc(s->values,(size_t)s->cap*sizeof*s->values);if(!s->values)abort();}s->values[s->len++]=v;return s;}static inline bool lilscript_set_has(LilScriptSet s,LilScriptValue v){return lilscript_set_index(s,v)>=0;}static inline bool lilscript_set_delete(LilScriptSet s,LilScriptValue v){int32_t i=lilscript_set_index(s,v);if(i<0)return false;int32_t n=--s->len-i;memmove(s->values+i,s->values+i+1,(size_t)n*sizeof*s->values);return true;}static inline void lilscript_set_clear(LilScriptSet s){s->len=0;}\n",
         );
         out.push_str(
-            "static inline LilScriptBuffer lilscript_buffer(int32_t n,bool shared){if(n<0)abort();LilScriptBuffer b=malloc(sizeof*b);if(!b)abort();b->data=calloc((size_t)n,1);if(n&&!b->data)abort();b->len=n;b->shared=shared;return b;}static inline int32_t lilscript_buffer_index(int32_t i,int32_t n){int64_t x=i<0?(int64_t)n+i:i;if(x<0)return 0;if(x>n)return n;return(int32_t)x;}static inline LilScriptBuffer lilscript_buffer_slice(LilScriptBuffer b,int32_t start,int32_t end){int32_t x=lilscript_buffer_index(start,b->len),y=lilscript_buffer_index(end,b->len);if(y<x)y=x;LilScriptBuffer r=lilscript_buffer(y-x,b->shared);if(y>x)memcpy(r->data,b->data+x,(size_t)(y-x));return r;}static inline LilScriptUint8Array lilscript_u8_buffer(LilScriptBuffer b){LilScriptUint8Array v=malloc(sizeof*v);if(!v)abort();v->buffer=b;v->offset=0;v->len=b->len;return v;}static inline LilScriptUint8Array lilscript_u8_length(int32_t n){return lilscript_u8_buffer(lilscript_buffer(n,false));}static inline LilScriptUint8Array lilscript_u8_subarray(LilScriptUint8Array v,int32_t start,int32_t end){int32_t x=lilscript_buffer_index(start,v->len),y=lilscript_buffer_index(end,v->len);if(y<x)y=x;LilScriptUint8Array r=malloc(sizeof*r);if(!r)abort();r->buffer=v->buffer;r->offset=v->offset+x;r->len=y-x;return r;}static inline LilScriptUint8Array lilscript_u8_slice(LilScriptUint8Array v,int32_t start,int32_t end){int32_t x=lilscript_buffer_index(start,v->len),y=lilscript_buffer_index(end,v->len);if(y<x)y=x;LilScriptUint8Array r=lilscript_u8_buffer(lilscript_buffer(y-x,false));if(y>x)memcpy(r->buffer->data,v->buffer->data+v->offset+x,(size_t)(y-x));return r;}\n",
+            "static inline LilScriptBuffer lilscript_buffer(int32_t n,bool shared){if(n<0)abort();LilScriptBuffer b=malloc(sizeof*b);if(!b)abort();b->data=calloc((size_t)n,1);if(n&&!b->data)abort();b->len=n;b->shared=shared;return b;}static inline int32_t lilscript_buffer_index(int32_t i,int32_t n){int64_t x=i<0?(int64_t)n+i:i;if(x<0)return 0;if(x>n)return n;return(int32_t)x;}static inline LilScriptBuffer lilscript_buffer_slice(LilScriptBuffer b,int32_t start,int32_t end){int32_t x=lilscript_buffer_index(start,b->len),y=lilscript_buffer_index(end,b->len);if(y<x)y=x;LilScriptBuffer r=lilscript_buffer(y-x,b->shared);if(y>x)memcpy(r->data,b->data+x,(size_t)(y-x));return r;}\n",
+        );
+        out.push_str(
+            "static inline LilScriptTypedArray lilscript_ta_buffer(LilScriptBuffer b,int32_t bpe){if(bpe<=0||b->len%bpe)abort();LilScriptTypedArray v=malloc(sizeof*v);if(!v)abort();v->buffer=b;v->offset=0;v->len=b->len/bpe;return v;}static inline LilScriptTypedArray lilscript_ta_length(int32_t n,int32_t bpe){if(n<0||bpe<=0||n>INT32_MAX/bpe)abort();return lilscript_ta_buffer(lilscript_buffer(n*bpe,false),bpe);}static inline LilScriptTypedArray lilscript_ta_subarray(LilScriptTypedArray v,int32_t start,int32_t end,int32_t bpe){int32_t x=lilscript_buffer_index(start,v->len),y=lilscript_buffer_index(end,v->len);if(y<x)y=x;LilScriptTypedArray r=malloc(sizeof*r);if(!r)abort();r->buffer=v->buffer;r->offset=v->offset+x*bpe;r->len=y-x;return r;}static inline LilScriptTypedArray lilscript_ta_slice(LilScriptTypedArray v,int32_t start,int32_t end,int32_t bpe){int32_t x=lilscript_buffer_index(start,v->len),y=lilscript_buffer_index(end,v->len);if(y<x)y=x;LilScriptTypedArray r=lilscript_ta_length(y-x,bpe);if(y>x)memcpy(r->buffer->data,v->buffer->data+v->offset+(size_t)x*(size_t)bpe,(size_t)(y-x)*(size_t)bpe);return r;}\n",
+        );
+        out.push_str(
+            "static inline int32_t lilscript_ta_get_int(LilScriptTypedArray v,int32_t i,int32_t kind){uint8_t*p=v->buffer->data+v->offset;switch(kind){case 0:return(int32_t)(int8_t)p[i];case 1:case 2:return(int32_t)p[i];case 3:{int16_t x;memcpy(&x,p+(size_t)i*2,2);return(int32_t)x;}case 4:{uint16_t x;memcpy(&x,p+(size_t)i*2,2);return(int32_t)x;}case 5:case 6:{int32_t x;memcpy(&x,p+(size_t)i*4,4);return x;}default:abort();}}\n",
+        );
+        out.push_str(
+            "static inline void lilscript_ta_set_int(LilScriptTypedArray v,int32_t i,int32_t value,int32_t kind){uint8_t*p=v->buffer->data+v->offset;switch(kind){case 0:p[i]=(uint8_t)(int8_t)value;break;case 1:p[i]=(uint8_t)value;break;case 2:p[i]=(uint8_t)(value<0?0:value>255?255:value);break;case 3:{int16_t x=(int16_t)value;memcpy(p+(size_t)i*2,&x,2);break;}case 4:{uint16_t x=(uint16_t)value;memcpy(p+(size_t)i*2,&x,2);break;}case 5:case 6:memcpy(p+(size_t)i*4,&value,4);break;default:abort();}}\n",
+        );
+        out.push_str(
+            "static inline double lilscript_ta_get_f32(LilScriptTypedArray v,int32_t i){float x;memcpy(&x,v->buffer->data+v->offset+(size_t)i*4,4);return(double)x;}static inline void lilscript_ta_set_f32(LilScriptTypedArray v,int32_t i,double value){float x=(float)value;memcpy(v->buffer->data+v->offset+(size_t)i*4,&x,4);}static inline double lilscript_ta_get_f64(LilScriptTypedArray v,int32_t i){double x;memcpy(&x,v->buffer->data+v->offset+(size_t)i*8,8);return x;}static inline void lilscript_ta_set_f64(LilScriptTypedArray v,int32_t i,double value){memcpy(v->buffer->data+v->offset+(size_t)i*8,&value,8);}\n",
+        );
+        out.push_str(
+            "static inline LilScriptUint8Array lilscript_u8_buffer(LilScriptBuffer b){return lilscript_ta_buffer(b,1);}static inline LilScriptUint8Array lilscript_u8_length(int32_t n){return lilscript_ta_length(n,1);}static inline LilScriptFloat32Array lilscript_f32_buffer(LilScriptBuffer b){return lilscript_ta_buffer(b,4);}static inline LilScriptFloat32Array lilscript_f32_length(int32_t n){return lilscript_ta_length(n,4);}static inline double lilscript_f32_get(LilScriptFloat32Array v,int32_t i){return lilscript_ta_get_f32(v,i);}static inline void lilscript_f32_set(LilScriptFloat32Array v,int32_t i,double value){lilscript_ta_set_f32(v,i,value);}\n",
+        );
+        out.push_str(
+            "static inline double lilscript_float_union_get(LilScriptValue v,int32_t i){if(v.tag==8)return lilscript_f32_get(v.p,i);if(v.tag==6){LilScriptValue e=((LilScriptValue*)((LilScriptArray)v.p)->data)[i];return e.tag==2?e.f:(double)e.i;}abort();}static inline void lilscript_float_union_set(LilScriptValue v,int32_t i,double value){if(v.tag==8){lilscript_f32_set(v.p,i,value);return;}if(v.tag==6){((LilScriptValue*)((LilScriptArray)v.p)->data)[i]=(LilScriptValue){.tag=2,.f=value};return;}abort();}static inline int32_t lilscript_float_union_len(LilScriptValue v){if(v.tag==8)return((LilScriptTypedArray)v.p)->len;if(v.tag==6)return((LilScriptArray)v.p)->len;abort();}\n",
         );
         out.push_str(
             "static inline LilScriptString lilscript_dup(const char*s){size_t n=strlen(s)+1;char*r=malloc(n);if(!r)abort();memcpy(r,s,n);return r;}\n",
@@ -154,7 +188,7 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
             "static inline uint32_t lilscript_utf8_next(const unsigned char**p){uint32_t c=*(*p)++;if(c<128)return c;if((c&224)==192){uint32_t r=(c&31)<<6;return r|(*(*p)++&63);}if((c&240)==224){uint32_t r=(c&15)<<12;r|=(uint32_t)(*(*p)++&63)<<6;return r|(*(*p)++&63);}uint32_t r=(c&7)<<18;r|=(uint32_t)(*(*p)++&63)<<12;r|=(uint32_t)(*(*p)++&63)<<6;return r|(*(*p)++&63);}\n",
         );
         out.push_str(
-            "static inline int32_t lilscript_utf16_len(const char*s){const unsigned char*p=(const unsigned char*)s;int32_t n=0;while(*p){uint32_t c=lilscript_utf8_next(&p);n+=c>65535?2:1;}return n;}static inline int32_t lilscript_char_code_at(const char*s,int32_t i){if(i<0)return 0;const unsigned char*p=(const unsigned char*)s;int32_t n=0;while(*p){uint32_t c=lilscript_utf8_next(&p);if(c<=65535){if(n++==i)return(int32_t)c;}else{c-=65536;uint32_t h=55296+(c>>10),l=56320+(c&1023);if(n++==i)return(int32_t)h;if(n++==i)return(int32_t)l;}}return 0;}\n",
+            "static inline int32_t lilscript_utf16_len(const char*s){const unsigned char*p=(const unsigned char*)s;int32_t n=0;while(*p){uint32_t c=lilscript_utf8_next(&p);n+=c>65535?2:1;}return n;}static inline int32_t lilscript_char_code_at(const char*s,int32_t i){if(i<0)return 0;const unsigned char*p=(const unsigned char*)s;int32_t n=0;while(*p){uint32_t c=lilscript_utf8_next(&p);if(c<=65535){if(n++==i)return(int32_t)c;}else{c-=65536;uint32_t h=55296+(c>>10),l=56320+(c&1023);if(n++==i)return(int32_t)h;if(n++==i)return(int32_t)l;}}return 0;}static inline LilScriptString lilscript_char_at(const char*s,int32_t i){int32_t code=lilscript_char_code_at(s,i);if(i<0||i>=lilscript_utf16_len(s))return lilscript_dup(\"\");char b[5];uint32_t c=(uint32_t)code;if(c<128){b[0]=(char)c;b[1]=0;}else if(c<2048){b[0]=(char)(192|(c>>6));b[1]=(char)(128|(c&63));b[2]=0;}else{b[0]=(char)(224|(c>>12));b[1]=(char)(128|((c>>6)&63));b[2]=(char)(128|(c&63));b[3]=0;}return lilscript_dup(b);}\n",
         );
         out.push_str(
             "static inline void*lilscript_copy(const void*value,size_t size){void*copy=malloc(size);if(!copy)abort();memcpy(copy,value,size);return copy;}\n",
@@ -213,6 +247,22 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
     }
 
     fn validate_host_boundaries(&self) -> Result<(), CodegenError> {
+        if let Some(function) = self.module.functions.iter().find(|function| {
+            function
+                .params
+                .iter()
+                .any(|parameter| contains_js_value(&parameter.ty))
+                || contains_js_value(&function.return_type)
+                || function
+                    .locals
+                    .iter()
+                    .any(|local| contains_js_value(&local.ty))
+        }) {
+            return Err(CodegenError::new(
+                function.span,
+                "JsValue is only available for JavaScript targets",
+            ));
+        }
         if let Some(instruction) = self
             .module
             .functions
@@ -762,7 +812,12 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                         | Type::Set(_)
                         | Type::ArrayBuffer
                         | Type::SharedArrayBuffer
-                        | Type::Uint8Array => {
+                        | Type::Symbol => {
+                            let default = native_default_value(&field.ty)?;
+                            write!(out, "v{}->f{}={default};", result.0, field.index)
+                                .expect("writing to String cannot fail");
+                        }
+                        ty if TypedArrayKind::from_type(ty).is_some() => {
                             let default = native_default_value(&field.ty)?;
                             write!(out, "v{}->f{}={default};", result.0, field.index)
                                 .expect("writing to String cannot fail");
@@ -886,17 +941,53 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                 index,
                 value,
             } => {
-                if matches!(types.get(object), Some(Type::Uint8Array)) {
+                if let Some(kind) = types.get(object).and_then(TypedArrayKind::from_type) {
+                    if kind.element_is_float() {
+                        let converted = self.render_value_conversion(
+                            &format!("v{}", value.0),
+                            &types[value],
+                            &Type::Float,
+                            instruction.span,
+                        )?;
+                        let setter = if matches!(kind, TypedArrayKind::Float64) {
+                            "lilscript_ta_set_f64"
+                        } else {
+                            "lilscript_ta_set_f32"
+                        };
+                        write!(out, "{setter}(v{},v{},{converted});", object.0, index.0)
+                            .expect("writing to String cannot fail");
+                    } else {
+                        let converted = self.render_value_conversion(
+                            &format!("v{}", value.0),
+                            &types[value],
+                            &Type::Int,
+                            instruction.span,
+                        )?;
+                        write!(
+                            out,
+                            "lilscript_ta_set_int(v{},v{},{converted},{});",
+                            object.0,
+                            index.0,
+                            kind.native_kind_code()
+                        )
+                        .expect("writing to String cannot fail");
+                    }
+                    return Ok(());
+                }
+                if types
+                    .get(object)
+                    .is_some_and(|ty| is_float_vector_union(ty))
+                {
                     let converted = self.render_value_conversion(
                         &format!("v{}", value.0),
                         &types[value],
-                        &Type::Int,
+                        &Type::Float,
                         instruction.span,
                     )?;
                     write!(
                         out,
-                        "v{}->buffer->data[v{}->offset+v{}]=(uint8_t)({converted});",
-                        object.0, object.0, index.0
+                        "lilscript_float_union_set(v{},v{},{converted});",
+                        object.0, index.0
                     )
                     .expect("writing to String cannot fail");
                     return Ok(());
@@ -970,6 +1061,31 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                 self.emit_array_mutation(instruction, *receiver, args, types, out)?;
                 return Ok(());
             }
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::ArraySlice,
+                receiver: Some(receiver),
+                args,
+            } => {
+                let result = required_output(instruction)?;
+                let (start, end) = match args.as_slice() {
+                    [] => ("0".to_owned(), "INT32_MAX".to_owned()),
+                    [start] => (format!("v{}", start.0), "INT32_MAX".to_owned()),
+                    [start, end] => (format!("v{}", start.0), format!("v{}", end.0)),
+                    _ => {
+                        return Err(CodegenError::new(
+                            instruction.span,
+                            "array slice expects zero, one, or two arguments",
+                        ));
+                    }
+                };
+                write!(
+                    out,
+                    "v{}=lilscript_array_slice(v{},{start},{end},sizeof(LilScriptValue));",
+                    result.0, receiver.0,
+                )
+                .expect("writing to String cannot fail");
+                return Ok(());
+            }
             ControlFlowOp::Template(parts) => {
                 self.emit_template(instruction, parts, types, out)?;
                 return Ok(());
@@ -1030,6 +1146,15 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
         types: &AHashMap<ValueId, Type<'src>>,
         out: &mut String,
     ) -> Result<(), CodegenError> {
+        let Some(Type::Function(signature)) = types.get(&callback) else {
+            return Err(CodegenError::new(
+                instruction.span,
+                "array map callback has no function type",
+            ));
+        };
+        if signature.return_type.is_void() {
+            return self.emit_array_for_each(instruction, receiver, &[callback], types, out);
+        }
         let result = required_output(instruction)?;
         let Some(Type::Array(input)) = types.get(&receiver) else {
             return Err(CodegenError::new(
@@ -1041,12 +1166,6 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
             return Err(CodegenError::new(
                 instruction.span,
                 "array map output has no array type",
-            ));
-        };
-        let Some(Type::Function(signature)) = types.get(&callback) else {
-            return Err(CodegenError::new(
-                instruction.span,
-                "array map callback has no function type",
             ));
         };
         write!(
@@ -1412,14 +1531,33 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                     element,
                     instruction.span,
                 )?,
-                Some(Type::Uint8Array) => format!(
-                    "(int32_t)v{}->buffer->data[v{}->offset+v{}]",
-                    object.0, object.0, index.0
-                ),
+                Some(ty) if let Some(kind) = TypedArrayKind::from_type(ty) => {
+                    if kind.element_is_float() {
+                        let getter = if matches!(kind, TypedArrayKind::Float64) {
+                            "lilscript_ta_get_f64"
+                        } else {
+                            "lilscript_ta_get_f32"
+                        };
+                        format!("{getter}(v{},v{})", object.0, index.0)
+                    } else {
+                        format!(
+                            "lilscript_ta_get_int(v{},v{},{})",
+                            object.0,
+                            index.0,
+                            kind.native_kind_code()
+                        )
+                    }
+                }
+                Some(Type::String) => {
+                    format!("lilscript_char_at(v{},v{})", object.0, index.0)
+                }
+                Some(ty) if is_float_vector_union(ty) => {
+                    format!("lilscript_float_union_get(v{},v{})", object.0, index.0)
+                }
                 _ => {
                     return Err(CodegenError::new(
                         instruction.span,
-                        "indexed native load requires an array or Uint8Array",
+                        "indexed native load requires an array, typed array, or string",
                     ));
                 }
             },
@@ -1500,24 +1638,52 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                 )
             }
             ControlFlowOp::Intrinsic {
-                intrinsic: Intrinsic::Uint8ArrayNew,
-                args,
-                ..
-            } => {
+                intrinsic, args, ..
+            } if matches!(
+                classify_typed_array_intrinsic(*intrinsic),
+                Some((_, TypedArrayIntrinsic::New))
+            ) =>
+            {
+                let Some((kind, _)) = classify_typed_array_intrinsic(*intrinsic) else {
+                    unreachable!()
+                };
                 let source = args.first().ok_or_else(|| {
-                    CodegenError::new(instruction.span, "Uint8Array constructor requires a source")
+                    CodegenError::new(
+                        instruction.span,
+                        format!("{} constructor requires a source", kind.name()),
+                    )
                 })?;
+                let bpe = kind.bytes_per_element();
                 match types.get(source) {
-                    Some(Type::Int) => format!("lilscript_u8_length(v{})", source.0),
+                    Some(Type::Int) => format!("lilscript_ta_length(v{},{bpe})", source.0),
                     Some(Type::ArrayBuffer | Type::SharedArrayBuffer) => {
-                        format!("lilscript_u8_buffer(v{})", source.0)
+                        format!("lilscript_ta_buffer(v{},{bpe})", source.0)
                     }
                     _ => {
                         return Err(CodegenError::new(
                             instruction.span,
-                            "Uint8Array constructor has an unsupported native source",
+                            format!(
+                                "{} constructor has an unsupported native source",
+                                kind.name()
+                            ),
                         ));
                     }
+                }
+            }
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::SymbolNew,
+                args,
+                ..
+            } => {
+                if let Some(description) = args.first() {
+                    let rendered = self.render_string_value(
+                        *description,
+                        &types[description],
+                        instruction.span,
+                    )?;
+                    format!("lilscript_symbol({rendered})")
+                } else {
+                    "lilscript_symbol(NULL)".to_string()
                 }
             }
             ControlFlowOp::Intrinsic {
@@ -1531,20 +1697,57 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                 ..
             } => format!("v{}->len", receiver.0),
             ControlFlowOp::Intrinsic {
-                intrinsic: Intrinsic::Uint8ArrayLength | Intrinsic::Uint8ArrayByteLength,
+                intrinsic,
                 receiver: Some(receiver),
                 ..
-            } => format!("v{}->len", receiver.0),
+            } if matches!(
+                classify_typed_array_intrinsic(*intrinsic),
+                Some((_, TypedArrayIntrinsic::Length))
+            ) =>
+            {
+                format!("v{}->len", receiver.0)
+            }
             ControlFlowOp::Intrinsic {
-                intrinsic: Intrinsic::Uint8ArrayByteOffset,
+                intrinsic,
                 receiver: Some(receiver),
                 ..
-            } => format!("v{}->offset", receiver.0),
+            } if matches!(
+                classify_typed_array_intrinsic(*intrinsic),
+                Some((_, TypedArrayIntrinsic::ByteLength))
+            ) =>
+            {
+                let Some((kind, _)) = classify_typed_array_intrinsic(*intrinsic) else {
+                    unreachable!()
+                };
+                let bpe = kind.bytes_per_element();
+                if bpe == 1 {
+                    format!("v{}->len", receiver.0)
+                } else {
+                    format!("v{}->len*{bpe}", receiver.0)
+                }
+            }
             ControlFlowOp::Intrinsic {
-                intrinsic: Intrinsic::Uint8ArrayBuffer,
+                intrinsic,
                 receiver: Some(receiver),
                 ..
-            } => format!("(LilScriptValue){{.tag=6,.p=v{}->buffer}}", receiver.0),
+            } if matches!(
+                classify_typed_array_intrinsic(*intrinsic),
+                Some((_, TypedArrayIntrinsic::ByteOffset))
+            ) =>
+            {
+                format!("v{}->offset", receiver.0)
+            }
+            ControlFlowOp::Intrinsic {
+                intrinsic,
+                receiver: Some(receiver),
+                ..
+            } if matches!(
+                classify_typed_array_intrinsic(*intrinsic),
+                Some((_, TypedArrayIntrinsic::Buffer))
+            ) =>
+            {
+                format!("(LilScriptValue){{.tag=6,.p=v{}->buffer}}", receiver.0)
+            }
             ControlFlowOp::Intrinsic {
                 intrinsic:
                     intrinsic @ (Intrinsic::MapGet | Intrinsic::MapHas | Intrinsic::MapDelete),
@@ -1650,22 +1853,36 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                 )
             }
             ControlFlowOp::Intrinsic {
-                intrinsic: intrinsic @ (Intrinsic::Uint8ArraySlice | Intrinsic::Uint8ArraySubarray),
+                intrinsic,
                 receiver: Some(receiver),
                 args,
-            } => {
+            } if matches!(
+                classify_typed_array_intrinsic(*intrinsic),
+                Some((
+                    _,
+                    TypedArrayIntrinsic::Slice | TypedArrayIntrinsic::Subarray
+                ))
+            ) =>
+            {
+                let Some((kind, op)) = classify_typed_array_intrinsic(*intrinsic) else {
+                    unreachable!()
+                };
                 let [start, end] = args.as_slice() else {
                     return Err(CodegenError::new(
                         instruction.span,
-                        "Uint8Array range operation requires start and end offsets",
+                        format!(
+                            "{} range operation requires start and end offsets",
+                            kind.name()
+                        ),
                     ));
                 };
-                let function = if matches!(intrinsic, Intrinsic::Uint8ArraySlice) {
-                    "lilscript_u8_slice"
+                let bpe = kind.bytes_per_element();
+                let function = if matches!(op, TypedArrayIntrinsic::Slice) {
+                    "lilscript_ta_slice"
                 } else {
-                    "lilscript_u8_subarray"
+                    "lilscript_ta_subarray"
                 };
-                format!("{function}(v{},v{},v{})", receiver.0, start.0, end.0)
+                format!("{function}(v{},v{},v{},{bpe})", receiver.0, start.0, end.0)
             }
             ControlFlowOp::Intrinsic {
                 intrinsic: Intrinsic::UnwrapNullable | Intrinsic::UnwrapUnion,
@@ -1683,17 +1900,41 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                 intrinsic: Intrinsic::ArrayLength,
                 receiver: Some(receiver),
                 ..
-            } => format!("v{}->len", receiver.0),
+            } => {
+                if types
+                    .get(receiver)
+                    .is_some_and(|ty| is_float_vector_union(ty))
+                {
+                    format!("lilscript_float_union_len(v{})", receiver.0)
+                } else {
+                    format!("v{}->len", receiver.0)
+                }
+            }
             ControlFlowOp::Intrinsic {
                 intrinsic: Intrinsic::StringLength,
                 receiver: Some(receiver),
                 ..
             } => format!("lilscript_utf16_len(v{})", receiver.0),
             ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::FloatToInt,
+                receiver: Some(receiver),
+                ..
+            } => format!("lilscript_to_i32(v{})", receiver.0),
+            ControlFlowOp::Intrinsic {
                 intrinsic:
                     Intrinsic::FloatAbs
                     | Intrinsic::FloatFloor
                     | Intrinsic::FloatCeil
+                    | Intrinsic::FloatRound
+                    | Intrinsic::FloatSqrt
+                    | Intrinsic::FloatSin
+                    | Intrinsic::FloatCos
+                    | Intrinsic::FloatAcos
+                    | Intrinsic::FloatExp
+                    | Intrinsic::FloatLog
+                    | Intrinsic::FloatTan
+                    | Intrinsic::FloatAtan2
+                    | Intrinsic::FloatHypot
                     | Intrinsic::FloatMin
                     | Intrinsic::FloatMax,
                 receiver: Some(receiver),
@@ -1712,6 +1953,46 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                         intrinsic: Intrinsic::FloatCeil,
                         ..
                     } => "ceil",
+                    ControlFlowOp::Intrinsic {
+                        intrinsic: Intrinsic::FloatRound,
+                        ..
+                    } => "lilscript_round",
+                    ControlFlowOp::Intrinsic {
+                        intrinsic: Intrinsic::FloatSqrt,
+                        ..
+                    } => "sqrt",
+                    ControlFlowOp::Intrinsic {
+                        intrinsic: Intrinsic::FloatSin,
+                        ..
+                    } => "sin",
+                    ControlFlowOp::Intrinsic {
+                        intrinsic: Intrinsic::FloatCos,
+                        ..
+                    } => "cos",
+                    ControlFlowOp::Intrinsic {
+                        intrinsic: Intrinsic::FloatAcos,
+                        ..
+                    } => "acos",
+                    ControlFlowOp::Intrinsic {
+                        intrinsic: Intrinsic::FloatExp,
+                        ..
+                    } => "exp",
+                    ControlFlowOp::Intrinsic {
+                        intrinsic: Intrinsic::FloatLog,
+                        ..
+                    } => "log",
+                    ControlFlowOp::Intrinsic {
+                        intrinsic: Intrinsic::FloatTan,
+                        ..
+                    } => "tan",
+                    ControlFlowOp::Intrinsic {
+                        intrinsic: Intrinsic::FloatAtan2,
+                        ..
+                    } => "atan2",
+                    ControlFlowOp::Intrinsic {
+                        intrinsic: Intrinsic::FloatHypot,
+                        ..
+                    } => "hypot",
                     ControlFlowOp::Intrinsic {
                         intrinsic: Intrinsic::FloatMin,
                         ..
@@ -1737,6 +2018,16 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                     CodegenError::new(instruction.span, "charCodeAt requires an index")
                 })?;
                 format!("lilscript_char_code_at(v{},v{})", receiver.0, index.0)
+            }
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::StringCharAt,
+                receiver: Some(receiver),
+                args,
+            } => {
+                let index = args.first().ok_or_else(|| {
+                    CodegenError::new(instruction.span, "charAt requires an index")
+                })?;
+                format!("lilscript_char_at(v{},v{})", receiver.0, index.0)
             }
             ControlFlowOp::Intrinsic {
                 intrinsic:
@@ -1963,6 +2254,15 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                 | Type::ArrayBuffer
                 | Type::SharedArrayBuffer
                 | Type::Uint8Array
+                | Type::Int8Array
+                | Type::Uint8ClampedArray
+                | Type::Int16Array
+                | Type::Uint16Array
+                | Type::Int32Array
+                | Type::Uint32Array
+                | Type::Float32Array
+                | Type::Float64Array
+                | Type::Symbol
                 | Type::Class(_)
                 | Type::ClassInstance { .. }
                 | Type::Task(_)
@@ -2007,6 +2307,15 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                 | Type::ArrayBuffer
                 | Type::SharedArrayBuffer
                 | Type::Uint8Array
+                | Type::Int8Array
+                | Type::Uint8ClampedArray
+                | Type::Int16Array
+                | Type::Uint16Array
+                | Type::Int32Array
+                | Type::Uint32Array
+                | Type::Float32Array
+                | Type::Float64Array
+                | Type::Symbol
                 | Type::Class(_)
                 | Type::ClassInstance { .. }
                 | Type::Task(_)
@@ -2408,6 +2717,30 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
     }
 }
 
+fn contains_js_value(ty: &Type<'_>) -> bool {
+    match ty {
+        Type::TypeParameter("$js") => true,
+        Type::Array(element)
+        | Type::Set(element)
+        | Type::Task(element)
+        | Type::Nullable(element) => contains_js_value(element),
+        Type::Map(key, value) => contains_js_value(key) || contains_js_value(value),
+        Type::Union(members) => members.iter().any(contains_js_value),
+        Type::StructInstance { args, .. } | Type::ClassInstance { args, .. } => {
+            args.iter().any(contains_js_value)
+        }
+        Type::Function(signature) => {
+            signature.params.iter().any(contains_js_value)
+                || contains_js_value(&signature.return_type)
+        }
+        Type::GenericFunction(function) => {
+            function.signature.params.iter().any(contains_js_value)
+                || contains_js_value(&function.signature.return_type)
+        }
+        _ => false,
+    }
+}
+
 fn allocation_is_function_bounded(
     module: &ControlFlowModule<'_>,
     function: &ControlFlowFunction<'_>,
@@ -2508,19 +2841,23 @@ fn direct_call_retains_value(
 }
 
 fn intrinsic_retains_receiver(operation: &ControlFlowOp<'_>) -> bool {
-    matches!(
-        operation,
+    match operation {
         ControlFlowOp::Intrinsic {
-            intrinsic: Intrinsic::ArrayPush
-                | Intrinsic::MapSet
-                | Intrinsic::SetAdd
-                | Intrinsic::BufferSlice
-                | Intrinsic::Uint8ArrayBuffer
-                | Intrinsic::Uint8ArraySlice
-                | Intrinsic::Uint8ArraySubarray,
+            intrinsic:
+                Intrinsic::ArrayPush | Intrinsic::MapSet | Intrinsic::SetAdd | Intrinsic::BufferSlice,
             ..
-        }
-    )
+        } => true,
+        ControlFlowOp::Intrinsic { intrinsic, .. } => matches!(
+            classify_typed_array_intrinsic(*intrinsic),
+            Some((
+                _,
+                TypedArrayIntrinsic::Buffer
+                    | TypedArrayIntrinsic::Slice
+                    | TypedArrayIntrinsic::Subarray
+            ))
+        ),
+        _ => false,
+    }
 }
 
 fn array_capacity_is_fixed(function: &ControlFlowFunction<'_>, value: ValueId) -> bool {
@@ -2637,18 +2974,32 @@ fn generic_value_tag(ty: &Type<'_>) -> u8 {
         | Type::Set(_)
         | Type::ArrayBuffer
         | Type::SharedArrayBuffer
-        | Type::Uint8Array
         | Type::Task(_)
         | Type::ModuleNamespace(_)
         | Type::ModuleLoadError
         | Type::Class(_)
         | Type::ClassInstance { .. } => 6,
+        Type::Symbol => 9,
         Type::Struct(_) | Type::StructInstance { .. } | Type::Null | Type::Nullable(_) => 7,
         Type::TypeParameter(_) | Type::Union(_) | Type::Void => 0,
+        Type::Int8Array
+        | Type::Uint8Array
+        | Type::Uint8ClampedArray
+        | Type::Int16Array
+        | Type::Uint16Array
+        | Type::Int32Array
+        | Type::Uint32Array
+        | Type::Float32Array
+        | Type::Float64Array => TypedArrayKind::from_type(ty)
+            .expect("typed array")
+            .generic_value_tag(),
     }
 }
 
 fn c_type(ty: &Type<'_>) -> String {
+    if let Some(kind) = TypedArrayKind::from_type(ty) {
+        return kind.native_ctype_alias().to_string();
+    }
     match ty {
         Type::Int => "int32_t".to_string(),
         Type::Float => "double".to_string(),
@@ -2659,7 +3010,16 @@ fn c_type(ty: &Type<'_>) -> String {
         Type::Map(_, _) => "LilScriptMap".to_string(),
         Type::Set(_) => "LilScriptSet".to_string(),
         Type::ArrayBuffer | Type::SharedArrayBuffer => "LilScriptBuffer".to_string(),
-        Type::Uint8Array => "LilScriptUint8Array".to_string(),
+        Type::Int8Array
+        | Type::Uint8Array
+        | Type::Uint8ClampedArray
+        | Type::Int16Array
+        | Type::Uint16Array
+        | Type::Int32Array
+        | Type::Uint32Array
+        | Type::Float32Array
+        | Type::Float64Array => unreachable!("typed arrays handled above"),
+        Type::Symbol => "LilScriptSymbol".to_string(),
         Type::Struct(name) => aggregate_type_name("Struct", name),
         Type::Class(name) => aggregate_type_name("Class", name),
         Type::StructInstance { name, .. } => aggregate_type_name("Struct", name),
@@ -2675,7 +3035,23 @@ fn is_erased_type(ty: &Type<'_>) -> bool {
     matches!(ty, Type::TypeParameter(_) | Type::Union(_))
 }
 
+fn is_float_vector_union(ty: &Type<'_>) -> bool {
+    match ty {
+        Type::Union(members) => !members.is_empty() && members.iter().all(|member| {
+            matches!(member, Type::Float32Array)
+                || matches!(member, Type::Array(element) if matches!(element.as_ref(), Type::Float))
+        }),
+        _ => false,
+    }
+}
+
 fn native_default_value(ty: &Type<'_>) -> Result<String, CodegenError> {
+    if let Some(kind) = TypedArrayKind::from_type(ty) {
+        return Ok(format!(
+            "lilscript_ta_length(0,{})",
+            kind.bytes_per_element()
+        ));
+    }
     Ok(match ty {
         Type::Int => "(int32_t)0".to_string(),
         Type::Float => "0.0".to_string(),
@@ -2687,7 +3063,16 @@ fn native_default_value(ty: &Type<'_>) -> Result<String, CodegenError> {
         Type::Set(_) => "lilscript_set()".to_string(),
         Type::ArrayBuffer => "lilscript_buffer(0,false)".to_string(),
         Type::SharedArrayBuffer => "lilscript_buffer(0,true)".to_string(),
-        Type::Uint8Array => "lilscript_u8_length(0)".to_string(),
+        Type::Int8Array
+        | Type::Uint8Array
+        | Type::Uint8ClampedArray
+        | Type::Int16Array
+        | Type::Uint16Array
+        | Type::Int32Array
+        | Type::Uint32Array
+        | Type::Float32Array
+        | Type::Float64Array => unreachable!("typed arrays handled above"),
+        Type::Symbol => "lilscript_symbol(NULL)".to_string(),
         Type::Struct(_) | Type::StructInstance { .. } => format!("({}){{0}}", c_type(ty)),
         Type::Class(_) | Type::ClassInstance { .. } => "NULL".to_string(),
         Type::TypeParameter(_) => "(LilScriptValue){0}".to_string(),
@@ -2767,6 +3152,21 @@ mod tests {
         assert!(c.contains("switch(s)"));
         assert!(c.contains("printf(\"%d\\n\""));
         assert!(!c.contains("StoreLocal"));
+    }
+
+    #[test]
+    fn rejects_javascript_values_at_the_native_boundary() {
+        let arena = Bump::new();
+        let program =
+            parse_source(&arena, "export string inspect(JsValue value){return \"\";}").unwrap();
+        let error = compile_to_c(&program).unwrap_err();
+
+        assert!(
+            error
+                .to_string()
+                .contains("JsValue is only available for JavaScript targets"),
+            "{error}"
+        );
     }
 
     #[test]
@@ -2859,5 +3259,21 @@ mod tests {
         .unwrap();
         assert!(c.contains("=lilscript_region_alloc(&r,sizeof*v"), "{c}");
         assert!(c.contains("lilscript_region_dispose(&r)"), "{c}");
+    }
+
+    #[test]
+    fn heap_allocates_closures_retained_in_class_fields() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "class Counter{int value;init(){this.value=0;}void increment(){this.value+=1;}}class Task{func()->void callback;init(func()->void callback){this.callback=callback;}void run(){func()->void callback=this.callback;callback();}}Task makeTask(Counter counter){return new Task(()=>counter.increment());}Counter counter=new Counter();Task task=makeTask(counter);task.run();print(counter.value);",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+        optimize_control_flow(&mut ir).unwrap();
+        let c = emit_native_c(&ir).unwrap();
+        assert!(!c.contains("_storage;"), "{c}");
+        assert!(c.contains("=malloc(sizeof(E"), "{c}");
     }
 }

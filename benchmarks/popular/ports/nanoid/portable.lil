@@ -1,0 +1,47 @@
+extern Uint8Array r(float size);
+
+export string urlAlphabet =
+  "useandom-26T198340PX75pxJACKVERYMINDBUSHWOLF_GQZbfghjklqvwyzrict";
+
+export Uint8Array random(float bytes) {
+  return r(bytes);
+}
+
+export func(float)->string customRandom(
+  string alphabet,
+  float defaultSize,
+  func(float)->Uint8Array getRandom
+) {
+  int mask =
+    (2 << (((alphabet.length - 1.0).log() / 0.6931471805599453).toInt())) - 1;
+  float step = ((1.6 * mask * defaultSize) / alphabet.length).toInt() + 1.0;
+  return (float size = defaultSize) => {
+    string id = "";
+    while (true) {
+      Uint8Array bytes = getRandom(step);
+      int j = step.toInt();
+      while (j > 0) {
+        j--;
+        id += alphabet[bytes[j] & mask];
+        if (id.length >= size) {
+          return id;
+        }
+      }
+    }
+    return id;
+  };
+}
+
+export func(float)->string customAlphabet(string alphabet, float size = 21.0) {
+  return customRandom(alphabet, size.toInt(), r);
+}
+
+export string nanoid(int size = 21) {
+  string id = "";
+  Uint8Array bytes = r(size);
+  while (size > 0) {
+    size--;
+    id += urlAlphabet.charAt(bytes[size] & 63);
+  }
+  return id;
+}

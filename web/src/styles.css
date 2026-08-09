@@ -420,6 +420,39 @@ pre,
   letter-spacing: 0;
 }
 
+.comparison-method h3 {
+  margin: 34px 0 0;
+  font-size: 17px;
+}
+
+.table-note {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.popular-matrix {
+  min-width: 1760px;
+}
+
+.popular-matrix th:first-child {
+  min-width: 190px;
+}
+
+.popular-matrix th:last-child,
+.popular-matrix td:last-child {
+  min-width: 360px;
+  white-space: normal;
+}
+
+.popular-matrix td:not(:last-child) {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
 .benchmark-project header > p:not(.eyebrow),
 .comparison-method p {
   max-width: 780px;
@@ -1071,5 +1104,325 @@ tbody tr:last-child td {
   th,
   td {
     padding: 11px 12px;
+  }
+}
+
+.explorer-main,
+.roadmap-main,
+.detail-main {
+  padding-bottom: 76px;
+}
+
+.catalog-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  margin: -24px 0 32px;
+  border: 1px solid var(--line);
+  background: var(--line);
+}
+
+.catalog-summary article {
+  display: flex;
+  min-height: 112px;
+  flex-direction: column;
+  justify-content: center;
+  padding: 20px;
+  background: var(--paper);
+}
+
+.catalog-summary strong {
+  color: var(--green-dark);
+  font-size: 29px;
+}
+
+.catalog-summary span {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.explorer-controls {
+  display: grid;
+  grid-template-columns: 1.5fr repeat(5, minmax(125px, 0.7fr)) auto;
+  gap: 10px;
+  align-items: end;
+  padding: 18px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+}
+
+.explorer-controls label {
+  min-width: 0;
+}
+
+.explorer-controls label span {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.explorer-controls input,
+.explorer-controls select,
+.secondary-button {
+  width: 100%;
+  min-height: 39px;
+  padding: 0 10px;
+  border: 1px solid #cbd3cf;
+  border-radius: 4px;
+  background: #fff;
+  color: var(--ink);
+}
+
+.secondary-button {
+  width: auto;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.table-result-count {
+  margin: 15px 0 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.explorer-table-wrap {
+  max-height: 68vh;
+  border: 1px solid var(--line);
+  background: var(--paper);
+}
+
+.explorer-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.explorer-table th,
+.explorer-table td {
+  white-space: nowrap;
+}
+
+.explorer-table th:first-child {
+  min-width: 245px;
+  white-space: normal;
+}
+
+.explorer-table th small,
+.detail-main table th small {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.project-link,
+.package-links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--blue);
+  text-decoration: none;
+}
+
+.project-link svg,
+.package-links svg {
+  width: 13px;
+  height: 13px;
+}
+
+.numeric {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.status-badge,
+.detail-badges span {
+  display: inline-flex;
+  width: fit-content;
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: var(--soft);
+  color: #4b5952;
+  font-size: 10px;
+  font-weight: 760;
+  text-transform: uppercase;
+}
+
+.status-badge.eligible,
+.status-badge.verified {
+  background: #e1f1e9;
+  color: var(--green-dark);
+}
+
+.status-badge.blocked,
+.status-badge.partial {
+  background: #fff1d4;
+  color: #805900;
+}
+
+.empty-table {
+  padding: 50px !important;
+  color: var(--muted);
+  text-align: center;
+}
+
+.definition-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.definition-grid article {
+  padding: 17px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+}
+
+.definition-grid h3 {
+  margin: 0 0 7px;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 13px;
+}
+
+.definition-grid p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.detail-hero {
+  padding-bottom: 52px;
+}
+
+.detail-badges,
+.package-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.package-links a {
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--paper);
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 12px;
+}
+
+.source-section {
+  margin-top: 72px;
+}
+
+.source-card {
+  margin-top: 24px;
+  overflow: hidden;
+  border: 1px solid var(--code-line);
+  border-radius: 5px;
+  background: var(--code);
+  color: #e9f0ec;
+}
+
+.source-card header {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: center;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--code-line);
+}
+
+.source-card h2 {
+  margin: 0 0 6px;
+  font-size: 17px;
+}
+
+.source-card header code {
+  color: #9eaca5;
+  font-size: 11px;
+}
+
+.source-card pre {
+  max-height: 560px;
+  overflow: auto;
+  margin: 0;
+  padding: 20px;
+  font-size: 12px;
+  line-height: 1.62;
+  tab-size: 2;
+}
+
+.roadmap-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 72px;
+}
+
+.roadmap-column {
+  padding: 25px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+}
+
+.roadmap-column.shipped { border-top: 3px solid var(--green); }
+.roadmap-column.current { border-top: 3px solid var(--yellow); }
+.roadmap-column.next { border-top: 3px solid var(--blue); }
+
+.roadmap-column h2 {
+  margin: 0 0 20px;
+  font-size: 23px;
+}
+
+.roadmap-column ul,
+.roadmap-column ol {
+  margin: 0;
+  padding-left: 20px;
+  color: #46534c;
+}
+
+.roadmap-column li {
+  margin: 0 0 14px;
+  line-height: 1.55;
+}
+
+@media (max-width: 1060px) {
+  .explorer-controls {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .explorer-controls .wide-control {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 760px) {
+  .catalog-summary,
+  .definition-grid,
+  .roadmap-grid {
+    grid-template-columns: 1fr;
+  }
+  .catalog-summary {
+    margin-top: 0;
+  }
+  .catalog-summary article {
+    min-height: 84px;
+  }
+  .explorer-controls {
+    grid-template-columns: 1fr 1fr;
+  }
+  .explorer-controls .wide-control {
+    grid-column: 1 / -1;
+  }
+  .source-card header {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }

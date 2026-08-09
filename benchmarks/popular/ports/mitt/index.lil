@@ -1,0 +1,59 @@
+struct Emitter {
+  Map<Symbol|string, ((func(string)->void) | (func(Symbol|string, string)->void))[]> all;
+  func(Symbol|string, (func(string)->void) | (func(Symbol|string, string)->void))->void on;
+  func(Symbol|string, ((func(string)->void) | (func(Symbol|string, string)->void))?)->void off;
+  func(Symbol|string, string)->void emit;
+}
+
+export Emitter mitt(
+  (Map<Symbol|string, ((func(string)->void) | (func(Symbol|string, string)->void))[]>)? all
+) {
+  if (all == null) {
+    return mitt(
+      new Map<
+        Symbol|string,
+        ((func(string)->void) | (func(Symbol|string, string)->void))[]
+      >()
+    );
+  }
+  func(Symbol|string, (func(string)->void) | (func(Symbol|string, string)->void))->void on = (
+    Symbol|string type,
+    (func(string)->void) | (func(Symbol|string, string)->void) handler
+  ) => {
+    ((func(string)->void) | (func(Symbol|string, string)->void))[]? cur = all.get(type);
+    if (cur != null) {
+      cur.push(handler);
+    } else {
+      all.set(type, [handler]);
+    }
+  };
+  func(Symbol|string, ((func(string)->void) | (func(Symbol|string, string)->void))?)->void off = (
+    Symbol|string type,
+    ((func(string)->void) | (func(Symbol|string, string)->void))? handler
+  ) => {
+    ((func(string)->void) | (func(Symbol|string, string)->void))[]? cur = all.get(type);
+    if (cur != null) {
+      if (handler != null) {
+        cur.splice(cur.indexOf(handler) >>> 0, 1);
+      } else {
+        all.set(type, []);
+      }
+    }
+  };
+  func(Symbol|string, string)->void emit = (Symbol|string type, string event) => {
+    ((func(string)->void) | (func(Symbol|string, string)->void))[]? cur = all.get(type);
+    if (cur != null) {
+      cur.slice().map(
+        ((func(string)->void) | (func(Symbol|string, string)->void) handler) => handler(event)
+      );
+    }
+    cur = all.get("*");
+    if (cur != null) {
+      cur.slice().map(
+        ((func(string)->void) | (func(Symbol|string, string)->void) handler) =>
+          handler(type, event)
+      );
+    }
+  };
+  return Emitter{all, on, off, emit};
+}

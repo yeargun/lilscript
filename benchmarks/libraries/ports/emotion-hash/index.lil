@@ -1,5 +1,5 @@
 pure int multiplyMurmur(int value) {
-  return Math.imul(value, 1540483477);
+  return (value & 65535) * 1540483477 + ((value >>> 16) * 59797 << 16);
 }
 
 export pure string emotionHash(string value) {

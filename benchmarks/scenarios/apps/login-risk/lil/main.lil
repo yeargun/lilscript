@@ -1,0 +1,30 @@
+import { emotionHash } from "../../../../libraries/ports/emotion-hash/index";
+import { clamp } from "../../../../libraries/ports/micro-math/clamp";
+import { levenshtein } from "../../../../libraries/ports/js-levenshtein/index";
+import { stringHash } from "../../../../libraries/ports/string-hash/index";
+
+struct Audit {
+  float _riskScore;
+  string _fingerprint;
+}
+
+pure float modulo(float value, float divisor) {
+  return value - (value / divisor).floor() * divisor;
+}
+
+string[] emails = ["ada@example.test", "grace@example.test", "linus@example.test", "margaret@example.test"];
+string[] passwords = ["compile!42", "navy-cobol", "penguin-kernel", "apollo-guidance"];
+string[] previous = ["compiler!24", "navy-cobalt", "kernel-penguin", "apollo-guide"];
+Audit[] audits = [];
+float digest = 0.0;
+for (int round = 0; round < 750; round++) {
+  for (int index = 0; index < emails.length; index++) {
+    int distance = levenshtein(passwords[index], previous[index]);
+    float risk = clamp(distance * 13.0 + modulo(stringHash(emails[index]), 31.0), 0.0, 100.0);
+    string fingerprint = emotionHash(`${emails[index]}:${passwords[index]}`);
+    audits.push(Audit{risk, fingerprint});
+    digest = modulo(digest + risk * 17.0 + fingerprint.length * 29.0, 2147483647.0);
+  }
+}
+Audit last = audits[audits.length - 1];
+print(`login-risk:${audits.length}:${digest}:${last._riskScore}:${last._fingerprint}`);

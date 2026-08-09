@@ -5,6 +5,11 @@
 /benchmarks/libraries/build/
 /benchmarks/libraries/node_modules/
 /benchmarks/paired/build/
+/benchmarks/popular/build/
+/benchmarks/popular/node_modules/
+/benchmarks/popular/apps/*/*/build/
+/benchmarks/scenarios/build/
+/benchmarks/scenarios/node_modules/
 /benchmarks/browser/node_modules/
 /web/node_modules/
 /web/dist/

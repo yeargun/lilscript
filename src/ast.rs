@@ -233,6 +233,13 @@ pub enum Stmt<'ast, 'src> {
         body: &'ast Stmt<'ast, 'src>,
         span: Span,
     },
+    ForIn {
+        key_type: TypeRef<'ast, 'src>,
+        key: Ident<'src>,
+        object: Expr<'ast, 'src>,
+        body: &'ast Stmt<'ast, 'src>,
+        span: Span,
+    },
     Break(Span),
     Continue(Span),
 }
@@ -253,6 +260,7 @@ impl<'ast, 'src> Stmt<'ast, 'src> {
             | Self::If { span, .. }
             | Self::While { span, .. }
             | Self::For { span, .. }
+            | Self::ForIn { span, .. }
             | Self::Break(span)
             | Self::Continue(span) => *span,
         }

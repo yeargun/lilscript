@@ -31,6 +31,7 @@ pub struct OptimizationOptions {
     pub scalar_replacement: bool,
     pub dead_store_elimination: bool,
     pub dead_code_elimination: bool,
+    pub constant_parameter_specialization: bool,
     pub specialize_tagged_constants: bool,
     pub call_site_specialization: bool,
     pub capture_signature_cloning: bool,
@@ -54,6 +55,7 @@ impl Default for OptimizationOptions {
             scalar_replacement: true,
             dead_store_elimination: true,
             dead_code_elimination: true,
+            constant_parameter_specialization: true,
             specialize_tagged_constants: false,
             call_site_specialization: true,
             capture_signature_cloning: true,
@@ -79,6 +81,7 @@ impl OptimizationOptions {
             scalar_replacement: false,
             dead_store_elimination: false,
             dead_code_elimination: false,
+            constant_parameter_specialization: false,
             specialize_tagged_constants: false,
             call_site_specialization: false,
             capture_signature_cloning: false,
@@ -217,11 +220,13 @@ fn optimize_control_flow_inner(
     }
     reports.push(devirtualize_methods(module));
     reports.push(devirtualize_known_closure_calls(module));
-    reports.push(specialize_constant_parameters(
-        module,
-        options.specialize_tagged_constants,
-        options.finite_value_propagation,
-    ));
+    if options.constant_parameter_specialization {
+        reports.push(specialize_constant_parameters(
+            module,
+            options.specialize_tagged_constants,
+            options.finite_value_propagation,
+        ));
+    }
     if options.call_site_specialization {
         reports.push(specialize_profiled_call_sites(
             module,
@@ -248,11 +253,13 @@ fn optimize_control_flow_inner(
                 break;
             }
         }
-        reports.push(specialize_constant_parameters(
-            module,
-            options.specialize_tagged_constants,
-            options.finite_value_propagation,
-        ));
+        if options.constant_parameter_specialization {
+            reports.push(specialize_constant_parameters(
+                module,
+                options.specialize_tagged_constants,
+                options.finite_value_propagation,
+            ));
+        }
         if options.capture_signature_cloning {
             reports.push(clone_constant_capture_signatures(module, guidance));
             reports.push(devirtualize_known_closure_calls(module));
@@ -278,6 +285,9 @@ fn optimize_control_flow_inner(
     }
 
     optimize_scalar_fixed_point(module, options, &mut reports);
+    if options.algebraic_simplification {
+        reports.push(collapse_single_use_byte_array_buffers(module));
+    }
     if options.dead_code_elimination {
         reports.push(eliminate_dead_control_flow_instructions(module));
     }
@@ -294,6 +304,70 @@ fn optimize_control_flow_inner(
         reports.push(eliminate_dead_functions(module));
     }
     Ok(reports)
+}
+
+/// `new Int8Array(new ArrayBuffer(n))` and the other byte-wide typed-array
+/// forms allocate an indistinguishable backing store when the intermediate
+/// buffer has no other observer. Reusing `n` avoids a redundant constructor in
+/// JavaScript and lets the following SSA DCE remove the buffer allocation.
+fn collapse_single_use_byte_array_buffers(
+    module: &mut ControlFlowModule<'_>,
+) -> OptimizationReport {
+    let mut changed = false;
+    for function in &mut module.functions {
+        let uses = control_flow_use_counts(function);
+        let buffers = function
+            .blocks
+            .iter()
+            .flat_map(|block| &block.instructions)
+            .filter_map(|instruction| match (instruction.out, &instruction.op) {
+                (
+                    Some(out),
+                    ControlFlowOp::Intrinsic {
+                        intrinsic: Intrinsic::ArrayBufferNew,
+                        receiver: None,
+                        args,
+                    },
+                ) if args.len() == 1 && uses.get(&out).copied() == Some(1) => Some((out, args[0])),
+                _ => None,
+            })
+            .collect::<AHashMap<_, _>>();
+        if buffers.is_empty() {
+            continue;
+        }
+        for instruction in function
+            .blocks
+            .iter_mut()
+            .flat_map(|block| &mut block.instructions)
+        {
+            let ControlFlowOp::Intrinsic {
+                intrinsic,
+                receiver: None,
+                args,
+            } = &mut instruction.op
+            else {
+                continue;
+            };
+            let byte_wide_constructor = crate::typed_array::classify_typed_array_intrinsic(
+                *intrinsic,
+            )
+            .is_some_and(|(kind, operation)| {
+                operation == crate::typed_array::TypedArrayIntrinsic::New
+                    && kind.bytes_per_element() == 1
+            });
+            if !byte_wide_constructor || args.len() != 1 {
+                continue;
+            }
+            if let Some(length) = buffers.get(&args[0]).copied() {
+                args[0] = length;
+                changed = true;
+            }
+        }
+    }
+    OptimizationReport {
+        pass_name: "byte-array-buffer-collapsing",
+        changed,
+    }
 }
 
 fn optimize_scalar_fixed_point(
@@ -592,7 +666,10 @@ fn simplify_algebraic_expressions(module: &mut ControlFlowModule<'_>) -> Optimiz
                     }
                     ControlFlowOp::TypeCheck { value, ref target } => {
                         if let Some(source) = value_types.get(&value) {
-                            if !matches!(source, Type::Union(_) | Type::Nullable(_)) {
+                            if !matches!(
+                                source,
+                                Type::Union(_) | Type::Nullable(_) | Type::TypeParameter(_)
+                            ) {
                                 replacement = Some(ConstValue::Bool(source == target));
                             }
                         }
@@ -1332,6 +1409,14 @@ fn clone_function_with_specialization<'src>(
         let out = ValueId(clone.value_count);
         clone.value_count += 1;
         clone.value_escapes.push(EscapeState::LocalOnly);
+        clone.value_local_hints.push(
+            clone
+                .value_local_hints
+                .get(parameter.value.0 as usize)
+                .copied()
+                .flatten()
+                .or(Some(parameter.name)),
+        );
         replacements.insert(parameter.value, out);
         let operation = match value {
             SpecializationValue::Constant(value) => ControlFlowOp::Const(value.to_value()),
@@ -1543,6 +1628,14 @@ fn specialize_constant_parameters(
                 let out = ValueId(function.value_count);
                 function.value_count += 1;
                 function.value_escapes.push(EscapeState::LocalOnly);
+                function.value_local_hints.push(
+                    function
+                        .value_local_hints
+                        .get(parameter.value.0 as usize)
+                        .copied()
+                        .flatten()
+                        .or(Some(parameter.name)),
+                );
                 replacements.insert(parameter.value, out);
                 constants.push(ControlFlowInstruction {
                     out: Some(out),
@@ -1702,6 +1795,14 @@ fn fold_and_propagate_control_flow(
     let array_argument_retention_barriers = array_argument_retention_barriers(module);
     let parameter_array_lengths = analyze_array_parameter_lengths(module, &effect_summaries);
     for function in &mut module.functions {
+        let loop_bodies = function
+            .shapes
+            .iter()
+            .filter_map(|shape| match shape {
+                crate::ir::ControlShape::Loop { header, body, .. } => Some((*header, *body)),
+                _ => None,
+            })
+            .collect::<AHashMap<_, _>>();
         let mut constants = finite_values
             .as_ref()
             .into_iter()
@@ -1714,6 +1815,7 @@ fn fold_and_propagate_control_flow(
             &effect_summaries,
             &array_argument_retention_barriers,
         );
+        let typed_array_lengths = fixed_typed_array_lengths(function);
         let mut local_change = true;
         while local_change {
             local_change = false;
@@ -1786,6 +1888,23 @@ fn fold_and_propagate_control_flow(
                             }
                         }
                         ControlFlowOp::Intrinsic {
+                            intrinsic,
+                            receiver: Some(receiver),
+                            ..
+                        } if matches!(
+                            crate::typed_array::classify_typed_array_intrinsic(*intrinsic),
+                            Some((_, crate::typed_array::TypedArrayIntrinsic::Length))
+                        ) =>
+                        {
+                            if let Some(length) = typed_array_lengths.get(receiver).copied() {
+                                let folded = ConstValue::Int(length as i64);
+                                instruction.op = ControlFlowOp::Const(folded.clone());
+                                constants.insert(out, folded);
+                                changed = true;
+                                local_change = true;
+                            }
+                        }
+                        ControlFlowOp::Intrinsic {
                             intrinsic: Intrinsic::IntImul,
                             receiver: None,
                             args,
@@ -1843,10 +1962,33 @@ fn fold_and_propagate_control_flow(
                             }
                         }
                         ControlFlowOp::Intrinsic {
+                            intrinsic: Intrinsic::FloatToInt,
+                            receiver: Some(receiver),
+                            ..
+                        } => {
+                            if let Some(ConstValue::Float(value)) = constants.get(receiver) {
+                                let folded = ConstValue::Int(i64::from(js_to_i32(*value)));
+                                instruction.op = ControlFlowOp::Const(folded.clone());
+                                constants.insert(out, folded);
+                                changed = true;
+                                local_change = true;
+                            }
+                        }
+                        ControlFlowOp::Intrinsic {
                             intrinsic:
                                 intrinsic @ (Intrinsic::FloatAbs
                                 | Intrinsic::FloatFloor
                                 | Intrinsic::FloatCeil
+                                | Intrinsic::FloatRound
+                                | Intrinsic::FloatSqrt
+                                | Intrinsic::FloatSin
+                                | Intrinsic::FloatCos
+                                | Intrinsic::FloatAcos
+                                | Intrinsic::FloatExp
+                                | Intrinsic::FloatLog
+                                | Intrinsic::FloatTan
+                                | Intrinsic::FloatAtan2
+                                | Intrinsic::FloatHypot
                                 | Intrinsic::FloatMin
                                 | Intrinsic::FloatMax),
                             receiver: Some(receiver),
@@ -1868,6 +2010,16 @@ fn fold_and_propagate_control_flow(
                                     Intrinsic::FloatAbs => value.abs(),
                                     Intrinsic::FloatFloor => value.floor(),
                                     Intrinsic::FloatCeil => value.ceil(),
+                                    Intrinsic::FloatRound => js_round(*value),
+                                    Intrinsic::FloatSqrt => value.sqrt(),
+                                    Intrinsic::FloatSin => value.sin(),
+                                    Intrinsic::FloatCos => value.cos(),
+                                    Intrinsic::FloatAcos => value.acos(),
+                                    Intrinsic::FloatExp => value.exp(),
+                                    Intrinsic::FloatLog => value.ln(),
+                                    Intrinsic::FloatTan => value.tan(),
+                                    Intrinsic::FloatAtan2 => value.atan2(argument()?),
+                                    Intrinsic::FloatHypot => value.hypot(argument()?),
                                     Intrinsic::FloatMin => js_min(*value, argument()?),
                                     Intrinsic::FloatMax => js_max(*value, argument()?),
                                     _ => unreachable!(),
@@ -1888,6 +2040,7 @@ fn fold_and_propagate_control_flow(
                             intrinsic,
                             Intrinsic::StringLength
                                 | Intrinsic::StringCharCodeAt
+                                | Intrinsic::StringCharAt
                                 | Intrinsic::StringIncludes
                                 | Intrinsic::StringStartsWith
                                 | Intrinsic::StringEndsWith
@@ -1957,11 +2110,14 @@ fn fold_and_propagate_control_flow(
                 }) = block.terminator.clone()
                 {
                     if let Some(ConstValue::Bool(condition)) = constants.get(&condition) {
-                        block.terminator = Some(Terminator::Jump(if *condition {
-                            then_block
-                        } else {
-                            else_block
-                        }));
+                        let selected = if *condition { then_block } else { else_block };
+                        // Keep a proven-infinite structured loop as a branch. Removing its
+                        // exit edge also removes the loop shape, forcing JavaScript emission
+                        // into a CFG state machine for an ordinary `while (true)` loop.
+                        if loop_bodies.get(&block.id) == Some(&selected) {
+                            continue;
+                        }
+                        block.terminator = Some(Terminator::Jump(selected));
                         changed = true;
                         local_change = true;
                     }
@@ -1973,6 +2129,94 @@ fn fold_and_propagate_control_flow(
         pass_name: "constant-propagation",
         changed,
     }
+}
+
+/// Lengths of typed arrays backed by buffers created inside typed code are
+/// immutable: writes change elements, not the view extent. Values crossing an
+/// untyped boundary are excluded because host code could detach their buffer.
+pub(crate) fn fixed_typed_array_lengths(
+    function: &ControlFlowFunction<'_>,
+) -> AHashMap<ValueId, usize> {
+    let definitions = function
+        .blocks
+        .iter()
+        .flat_map(|block| &block.instructions)
+        .filter_map(|instruction| instruction.out.map(|out| (out, &instruction.op)))
+        .collect::<AHashMap<_, _>>();
+    let int_constant = |value: ValueId| match definitions.get(&value) {
+        Some(ControlFlowOp::Const(ConstValue::Int(value))) => usize::try_from(*value).ok(),
+        _ => None,
+    };
+    let mut buffer_lengths = AHashMap::<ValueId, usize>::new();
+    let mut typed_lengths = AHashMap::<ValueId, usize>::new();
+    loop {
+        let mut changed = false;
+        for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
+            let Some(out) = instruction.out else {
+                continue;
+            };
+            if function.value_escapes.get(out.0 as usize)
+                == Some(&EscapeState::EscapesToUntypedBoundary)
+            {
+                continue;
+            }
+            let ControlFlowOp::Intrinsic {
+                intrinsic,
+                receiver,
+                args,
+            } = &instruction.op
+            else {
+                continue;
+            };
+            if matches!(
+                intrinsic,
+                Intrinsic::ArrayBufferNew | Intrinsic::SharedArrayBufferNew
+            ) && args.len() == 1
+            {
+                if let Some(length) = int_constant(args[0]) {
+                    changed |= buffer_lengths.insert(out, length).is_none();
+                }
+                continue;
+            }
+            let Some((kind, operation)) =
+                crate::typed_array::classify_typed_array_intrinsic(*intrinsic)
+            else {
+                continue;
+            };
+            let length = match operation {
+                crate::typed_array::TypedArrayIntrinsic::New if args.len() == 1 => {
+                    int_constant(args[0]).or_else(|| {
+                        buffer_lengths
+                            .get(&args[0])
+                            .copied()
+                            .filter(|bytes| bytes % kind.bytes_per_element() as usize == 0)
+                            .map(|bytes| bytes / kind.bytes_per_element() as usize)
+                    })
+                }
+                crate::typed_array::TypedArrayIntrinsic::Subarray => {
+                    let receiver = receiver.and_then(|value| typed_lengths.get(&value).copied());
+                    receiver.and_then(|receiver_length| {
+                        let start = args.first().and_then(|value| int_constant(*value))?;
+                        let end = args
+                            .get(1)
+                            .and_then(|value| int_constant(*value))
+                            .unwrap_or(receiver_length);
+                        let start = start.min(receiver_length);
+                        let end = end.min(receiver_length);
+                        Some(end.saturating_sub(start))
+                    })
+                }
+                _ => None,
+            };
+            if let Some(length) = length {
+                changed |= typed_lengths.insert(out, length).is_none();
+            }
+        }
+        if !changed {
+            break;
+        }
+    }
+    typed_lengths
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -2244,7 +2488,10 @@ fn stable_array_lengths(
                 } => {
                     if matches!(
                         intrinsic,
-                        Intrinsic::Print | Intrinsic::ArrayPush | Intrinsic::ArrayPop
+                        Intrinsic::Print
+                            | Intrinsic::ArrayPush
+                            | Intrinsic::ArrayPop
+                            | Intrinsic::ArraySplice
                     ) {
                         if let Some(receiver) = receiver {
                             invalidate(*receiver, &mut invalid);
@@ -2324,6 +2571,15 @@ fn type_can_carry_reference(ty: &Type<'_>) -> bool {
         | Type::ArrayBuffer
         | Type::SharedArrayBuffer
         | Type::Uint8Array
+        | Type::Int8Array
+        | Type::Uint8ClampedArray
+        | Type::Int16Array
+        | Type::Uint16Array
+        | Type::Int32Array
+        | Type::Uint32Array
+        | Type::Float32Array
+        | Type::Float64Array
+        | Type::Symbol
         | Type::Task(_)
         | Type::ModuleNamespace(_)
         | Type::ModuleLoadError
@@ -2420,6 +2676,19 @@ fn remove_unreachable_control_flow(module: &mut ControlFlowModule<'_>) -> Optimi
                 *header = new_header;
                 *body = new_body;
                 *update = new_update;
+                *exit = new_exit;
+                true
+            }
+            crate::ir::ControlShape::ForIn {
+                header, body, exit, ..
+            } => {
+                let [Some(new_header), Some(new_body), Some(new_exit)] =
+                    [*header, *body, *exit].map(|block| mapping[block.0 as usize])
+                else {
+                    return false;
+                };
+                *header = new_header;
+                *body = new_body;
                 *exit = new_exit;
                 true
             }
@@ -2575,6 +2844,13 @@ fn inline_small_functions(
                                 .copied()
                                 .unwrap_or(EscapeState::LocalOnly);
                             caller.value_escapes.push(escape);
+                            caller.value_local_hints.push(
+                                callee
+                                    .value_local_hints
+                                    .get(old_out.0 as usize)
+                                    .copied()
+                                    .flatten(),
+                            );
                             mapping.insert(old_out, new_out);
                             cloned.out = Some(new_out);
                         }
@@ -2621,6 +2897,13 @@ fn inline_small_functions(
                             .copied()
                             .unwrap_or(EscapeState::LocalOnly);
                         caller.value_escapes.push(escape);
+                        caller.value_local_hints.push(
+                            callee
+                                .value_local_hints
+                                .get(old_out.0 as usize)
+                                .copied()
+                                .flatten(),
+                        );
                         mapping.insert(old_out, new_out);
                         cloned.out = Some(new_out);
                     }
@@ -2684,6 +2967,7 @@ fn inline_single_use_control_flow_function(
                 && !recursive.contains(&function.id)
                 && !exported.contains(&function.id)
                 && !address_taken.contains(&function.id)
+                && !function_has_structured_early_return(function)
                 && call_counts.get(&function.id) == Some(&1)
                 && function
                     .blocks
@@ -2914,6 +3198,19 @@ fn inline_control_flow_call<'src>(
                 update: update.map(|block| block_mapping[&block]),
                 exit: block_mapping[exit],
             },
+            crate::ir::ControlShape::ForIn {
+                header,
+                body,
+                exit,
+                object,
+                key,
+            } => crate::ir::ControlShape::ForIn {
+                header: block_mapping[header],
+                body: block_mapping[body],
+                exit: block_mapping[exit],
+                object: mapped_value(*object, &value_mapping),
+                key: mapped_value(*key, &value_mapping),
+            },
         });
     }
 
@@ -2936,6 +3233,32 @@ fn inline_control_flow_call<'src>(
         terminator: original_terminator,
         span: original_span,
     });
+
+    let continuation_successors = match caller
+        .blocks
+        .last()
+        .and_then(|block| block.terminator.as_ref())
+    {
+        Some(Terminator::Jump(target)) => vec![*target],
+        Some(Terminator::Branch {
+            then_block,
+            else_block,
+            ..
+        }) => vec![*then_block, *else_block],
+        _ => Vec::new(),
+    };
+    for successor in continuation_successors {
+        let Some(block) = caller.blocks.iter_mut().find(|block| block.id == successor) else {
+            continue;
+        };
+        for phi in &mut block.phis {
+            for (predecessor, _) in &mut phi.incoming {
+                if *predecessor == insertion_block {
+                    *predecessor = continuation;
+                }
+            }
+        }
+    }
 }
 
 fn structured_interior_blocks(function: &ControlFlowFunction<'_>) -> AHashSet<BlockId> {
@@ -2959,14 +3282,24 @@ fn structured_interior_blocks(function: &ControlFlowFunction<'_>) -> AHashSet<Bl
                 blocks.extend([*header, *body]);
                 blocks.extend(update);
             }
+            crate::ir::ControlShape::ForIn { header, body, .. } => {
+                blocks.extend([*header, *body]);
+            }
         }
     }
     blocks
 }
 
-fn allocate_inlined_value(
-    caller: &mut ControlFlowFunction<'_>,
-    callee: &ControlFlowFunction<'_>,
+fn function_has_structured_early_return(function: &ControlFlowFunction<'_>) -> bool {
+    let interiors = structured_interior_blocks(function);
+    function.blocks.iter().any(|block| {
+        interiors.contains(&block.id) && matches!(block.terminator, Some(Terminator::Return(_)))
+    })
+}
+
+fn allocate_inlined_value<'src>(
+    caller: &mut ControlFlowFunction<'src>,
+    callee: &ControlFlowFunction<'src>,
     old: ValueId,
     mapping: &mut AHashMap<ValueId, ValueId>,
 ) {
@@ -2981,6 +3314,13 @@ fn allocate_inlined_value(
             .get(old.0 as usize)
             .copied()
             .unwrap_or(EscapeState::LocalOnly),
+    );
+    caller.value_local_hints.push(
+        callee
+            .value_local_hints
+            .get(old.0 as usize)
+            .copied()
+            .flatten(),
     );
     mapping.insert(old, new);
 }
@@ -3124,6 +3464,7 @@ fn scalar_replace_linear_classes(module: &mut ControlFlowModule<'_>) -> Optimiza
                             let out = ValueId(function.value_count);
                             function.value_count += 1;
                             function.value_escapes.push(EscapeState::LocalOnly);
+                            function.value_local_hints.push(None);
                             rewritten.push(ControlFlowInstruction {
                                 out: Some(out),
                                 ty: Some(ty.clone()),
@@ -3316,6 +3657,13 @@ fn analyze_escapes(module: &mut ControlFlowModule<'_>) -> OptimizationReport {
                                 EscapeState::EscapesToUntypedBoundary,
                             );
                         }
+                    }
+                    ControlFlowOp::FieldSet { object, value, .. } => {
+                        // A stored value lives at least as long as its owning object. Keep
+                        // their escape states connected so native allocation cannot place a
+                        // closure environment on the caller's stack when the object retains
+                        // that closure beyond the call.
+                        add_escape_edge(&mut edges, value_node(*object), value_node(*value));
                     }
                     ControlFlowOp::HostCall { receiver, args, .. } => {
                         mark_escape_node(
@@ -3735,6 +4083,7 @@ fn unobserved_local_mutables(
                     intrinsic:
                         intrinsic @ (Intrinsic::ArrayPush
                         | Intrinsic::ArrayPop
+                        | Intrinsic::ArraySplice
                         | Intrinsic::MapSet
                         | Intrinsic::MapDelete
                         | Intrinsic::MapClear
@@ -3871,10 +4220,16 @@ fn is_local_mutable_allocation(op: &ControlFlowOp<'_>) -> bool {
                 intrinsic: Intrinsic::MapNew
                     | Intrinsic::SetNew
                     | Intrinsic::ArrayBufferNew
-                    | Intrinsic::SharedArrayBufferNew
-                    | Intrinsic::Uint8ArrayNew,
+                    | Intrinsic::SharedArrayBufferNew,
                 ..
             }
+    ) || matches!(
+        op,
+        ControlFlowOp::Intrinsic { intrinsic, .. }
+            if matches!(
+                crate::typed_array::classify_typed_array_intrinsic(*intrinsic),
+                Some((_, crate::typed_array::TypedArrayIntrinsic::New))
+            )
     )
 }
 
@@ -3895,6 +4250,7 @@ fn mutation_receiver(op: &ControlFlowOp<'_>) -> Option<ValueId> {
             intrinsic:
                 Intrinsic::ArrayPush
                 | Intrinsic::ArrayPop
+                | Intrinsic::ArraySplice
                 | Intrinsic::MapSet
                 | Intrinsic::MapDelete
                 | Intrinsic::MapClear
@@ -4291,6 +4647,9 @@ fn apply_private_function_subsumption<'src>(
         caller
             .value_escapes
             .extend(std::iter::repeat_n(EscapeState::LocalOnly, added_values));
+        caller
+            .value_local_hints
+            .extend(std::iter::repeat_n(None, added_values));
     }
     module.functions[candidate.source.0 as usize].live = false;
 }
@@ -4657,9 +5016,27 @@ fn normalize_private_function<'src>(
                 }
                 *exit = block_ids[exit];
             }
+            crate::ir::ControlShape::ForIn {
+                header,
+                body,
+                exit,
+                object,
+                key,
+            } => {
+                *header = block_ids[header];
+                *body = block_ids[body];
+                *exit = block_ids[exit];
+                *object = value_ids[object];
+                *key = value_ids[key];
+            }
         }
     }
     normalized.value_count = next_value;
+    // Source-local affinity only guides final identifier spelling. It is not
+    // semantic function structure and must not prevent identical folding or
+    // specialized-function subsumption when two CFGs otherwise normalize to
+    // the same body.
+    normalized.value_local_hints = vec![None; next_value as usize];
     normalized
 }
 
@@ -5033,6 +5410,7 @@ fn summarize_function_effects(
                 intrinsic:
                     Intrinsic::ArrayPush
                     | Intrinsic::ArrayPop
+                    | Intrinsic::ArraySplice
                     | Intrinsic::MapSet
                     | Intrinsic::MapDelete
                     | Intrinsic::MapClear
@@ -5245,6 +5623,7 @@ fn control_flow_op_has_side_effects(
             Intrinsic::Print
                 | Intrinsic::ArrayPush
                 | Intrinsic::ArrayPop
+                | Intrinsic::ArraySplice
                 | Intrinsic::MapSet
                 | Intrinsic::MapDelete
                 | Intrinsic::MapClear
@@ -5511,6 +5890,22 @@ fn fold_string_intrinsic(
                 receiver.encode_utf16().nth(index).unwrap_or(0),
             )))
         }
+        Intrinsic::StringCharAt => {
+            let index = args
+                .first()
+                .and_then(|value| constants.get(value))
+                .and_then(|value| match value {
+                    ConstValue::Int(value) => usize::try_from(*value).ok(),
+                    _ => None,
+                })?;
+            match receiver.encode_utf16().nth(index) {
+                None => Some(ConstValue::String(String::new())),
+                Some(unit) => char::decode_utf16([unit])
+                    .next()
+                    .and_then(Result::ok)
+                    .map(|value| ConstValue::String(value.to_string())),
+            }
+        }
         Intrinsic::StringIncludes => Some(ConstValue::Bool(receiver.contains(string_argument()?))),
         Intrinsic::StringStartsWith => {
             Some(ConstValue::Bool(receiver.starts_with(string_argument()?)))
@@ -5523,6 +5918,29 @@ fn fold_string_intrinsic(
             Some(ConstValue::String(receiver.to_ascii_lowercase()))
         }
         _ => None,
+    }
+}
+
+fn js_round(value: f64) -> f64 {
+    if value.is_sign_negative() && value >= -0.5 {
+        -0.0
+    } else {
+        (value + 0.5).floor()
+    }
+}
+
+fn js_to_i32(value: f64) -> i32 {
+    if !value.is_finite() || value == 0.0 {
+        return 0;
+    }
+    let mut normalized = value.trunc() % 4_294_967_296.0;
+    if normalized < 0.0 {
+        normalized += 4_294_967_296.0;
+    }
+    if normalized >= 2_147_483_648.0 {
+        (normalized - 4_294_967_296.0) as i32
+    } else {
+        normalized as i32
     }
 }
 
@@ -5767,6 +6185,9 @@ fn promote_function_locals(function: &mut ControlFlowFunction<'_>) -> Result<(),
         compute_dominance_frontiers(&predecessors, &immediate_dominators, &reachable);
 
     let local_count = function.locals.len();
+    let mut value_local_hints = function.value_local_hints.clone();
+    value_local_hints.resize(function.value_count as usize, None);
+    let mut conflicting_local_hints = AHashSet::new();
     let live_in = local_live_in(function, local_count);
     let mut def_blocks = vec![AHashSet::<usize>::new(); local_count];
     for (block_index, block) in function.blocks.iter().enumerate() {
@@ -5798,6 +6219,7 @@ fn promote_function_locals(function: &mut ControlFlowFunction<'_>) -> Result<(),
                 function.value_count += 1;
                 function.value_escapes.push(EscapeState::LocalOnly);
                 let local = &function.locals[local_index];
+                value_local_hints.push(Some(local.name));
                 let span = function.blocks[target].span;
                 function.blocks[target].phis.push(Phi {
                     out,
@@ -5835,10 +6257,13 @@ fn promote_function_locals(function: &mut ControlFlowFunction<'_>) -> Result<(),
         &dominator_children,
         &mut stacks,
         &mut aliases,
+        &mut value_local_hints,
+        &mut conflicting_local_hints,
     )?;
 
     eliminate_trivial_phis(function, &mut aliases);
     rewrite_control_flow_function(function, &aliases);
+    function.value_local_hints = value_local_hints;
 
     if function.blocks.iter().any(|block| {
         block.instructions.iter().any(|instruction| {
@@ -6040,12 +6465,14 @@ fn compute_dominance_frontiers(
     frontiers
 }
 
-fn rename_block(
+fn rename_block<'src>(
     block_index: usize,
-    function: &mut ControlFlowFunction<'_>,
+    function: &mut ControlFlowFunction<'src>,
     dominator_children: &[Vec<usize>],
     stacks: &mut [Vec<ValueId>],
     aliases: &mut AHashMap<ValueId, ValueId>,
+    value_local_hints: &mut Vec<Option<&'src str>>,
+    conflicting_local_hints: &mut AHashSet<ValueId>,
 ) -> Result<(), SsaError> {
     let mut pushes = vec![0usize; stacks.len()];
 
@@ -6080,6 +6507,12 @@ fn rename_block(
             }
             ControlFlowOp::StoreLocal { local, value } => {
                 let value = resolve_alias(value, aliases);
+                record_value_local_hint(
+                    value_local_hints,
+                    conflicting_local_hints,
+                    value,
+                    function.locals[local.0 as usize].name,
+                );
                 stacks[local.0 as usize].push(value);
                 pushes[local.0 as usize] += 1;
             }
@@ -6117,7 +6550,15 @@ fn rename_block(
     }
 
     for child in &dominator_children[block_index] {
-        rename_block(*child, function, dominator_children, stacks, aliases)?;
+        rename_block(
+            *child,
+            function,
+            dominator_children,
+            stacks,
+            aliases,
+            value_local_hints,
+            conflicting_local_hints,
+        )?;
     }
 
     for (local, count) in pushes.into_iter().enumerate() {
@@ -6125,6 +6566,28 @@ fn rename_block(
         stacks[local].truncate(len - count);
     }
     Ok(())
+}
+
+fn record_value_local_hint<'src>(
+    hints: &mut Vec<Option<&'src str>>,
+    conflicts: &mut AHashSet<ValueId>,
+    value: ValueId,
+    local: &'src str,
+) {
+    if conflicts.contains(&value) {
+        return;
+    }
+    if hints.len() <= value.0 as usize {
+        hints.resize(value.0 as usize + 1, None);
+    }
+    match hints[value.0 as usize] {
+        None => hints[value.0 as usize] = Some(local),
+        Some(previous) if previous != local => {
+            hints[value.0 as usize] = None;
+            conflicts.insert(value);
+        }
+        Some(_) => {}
+    }
 }
 
 fn eliminate_trivial_phis(
@@ -6171,6 +6634,12 @@ fn rewrite_control_flow_function(
         }
         if let Some(terminator) = &mut block.terminator {
             rewrite_terminator(terminator, aliases);
+        }
+    }
+    for shape in &mut function.shapes {
+        if let crate::ir::ControlShape::ForIn { object, key, .. } = shape {
+            *object = resolve_alias(*object, aliases);
+            *key = resolve_alias(*key, aliases);
         }
     }
 }

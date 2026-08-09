@@ -6,6 +6,15 @@ print(value.charCodeAt(2));
 print(value.charCodeAt(3));
 print(value.charCodeAt(-1));
 print(value.charCodeAt(9));
+print(value.charAt(0));
+print(value.charAt(1).charCodeAt(0));
+print(value.charAt(2).charCodeAt(0));
+print(value.charAt(3));
+print(value.charAt(9) == "");
+string restored = value.charAt(1) + value.charAt(2);
+print(restored.length);
+print(restored.charCodeAt(0));
+print(restored.charCodeAt(1));
 
 int bits = 5 ^ 3;
 print(bits);

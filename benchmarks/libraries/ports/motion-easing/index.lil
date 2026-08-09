@@ -10,7 +10,8 @@ pure float binarySubdivide(float target, float lower, float upper, float first, 
   float current = 0.0;
   float time = 0.0;
   int iteration = 0;
-  while (iteration < 12) {
+  bool subdividing = true;
+  while (subdividing) {
     time = lower + (upper - lower) / 2.0;
     current = calcBezier(time, first, second) - target;
     if (current > 0.0) {
@@ -18,10 +19,7 @@ pure float binarySubdivide(float target, float lower, float upper, float first, 
     } else {
       lower = time;
     }
-    iteration += 1;
-    if (current.abs() <= 0.0000001) {
-      return time;
-    }
+    subdividing = current.abs() > 0.0000001 && ++iteration < 12;
   }
   return time;
 }
@@ -52,8 +50,10 @@ export pure func(float)->float steps(int count, string direction = "end") {
     }
     float expanded = value * count;
     if (direction == "end") {
-      return clampUnit(expanded.floor() / count);
+      expanded = expanded.floor();
+    } else {
+      expanded = expanded.ceil();
     }
-    return clampUnit(expanded.ceil() / count);
+    return clampUnit(expanded / count);
   };
 }

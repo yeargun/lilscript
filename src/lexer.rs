@@ -37,6 +37,8 @@ pub enum TokenKind<'src> {
     While,
     #[token("for")]
     For,
+    #[token("in")]
+    In,
     #[token("break")]
     Break,
     #[token("continue")]

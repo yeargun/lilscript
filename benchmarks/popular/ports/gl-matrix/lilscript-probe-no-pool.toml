@@ -1,0 +1,12 @@
+[javascript]
+priority = "size-first"
+optimization_level = 15
+cost_model = "brotli"
+
+[mangle]
+identifiers = true
+properties = false
+pool_strings = false
+
+[bundle]
+mode = "preserve-modules"

@@ -98,8 +98,10 @@ The native target invokes `${CC:-clang}` with C11 and `-O3`.
 Compiler policy is configured in an auto-discovered `lilscript.toml`, or with
 `--config path/to/lilscript.toml`. Presets and per-pass overrides control
 folding, CSE, global optimization, inlining, scalar replacement, DCE, identifier
-and boundary-property mangling, public-export mangling, and string pooling. The
-default JavaScript-specific `priority = "size-first"` policy minimizes the
+and boundary-property mangling, public-export mangling, and string pooling.
+Internal aggregates lower to scalars or positional arrays; escaped values use
+their named boundary ABI, and `extern class` host names stay exact. The default
+JavaScript-specific `priority = "size-first"` policy minimizes the
 selected release transfer metric. Four profiles, numeric
 inline budgets, a JavaScript search-effort level from 0 to 15, exact
 `optimizations` and `compression` allowlists, and deterministic startup-cost
@@ -108,14 +110,18 @@ optimization.
 Production builds use an exact configurable raw, gzip-9, or Brotli-11 cost
 model to select among bounded pooling, literal-table packing, coercion-elision,
 boolean-literal, identifier-alphabet, quote-style, structured-closure, and
-declaration, conditional/comma, loop/update, switch-dispatch, mutation, and
-SSA-copy-layout candidates, plus configured, closure-factory-preserving,
-unspecialized, and fully outlined optimizer IRs. A parsed final peephole and
+standards-valid grammar-elision, declaration, conditional/comma, loop/update,
+switch-dispatch, mutation, and
+SSA-copy-layout candidates, including declaration orders aware of gzip's
+32-KiB and Brotli's configured 4-MiB history windows, plus configured,
+closure-factory-preserving, unspecialized, and fully outlined optimizer IRs. A
+parsed final peephole and
 syntax-derived parse/compile/memory guard run before selection. A separate
-typed-IR performance model scores deoptimization-sensitive control flow and
-runtime shapes, allocation pressure, unresolved indirect calls, and known
-monomorphic calls. Optional versioned profile counters weight hot functions
-and loops and drive bounded constant/callback specialization and
+optional generated-syntax nesting ceiling provides a hard cross-engine guard.
+The typed-IR performance model separately scores deoptimization-sensitive
+control flow and runtime shapes, allocation pressure, unresolved indirect
+calls, and known monomorphic calls. Optional versioned profile counters weight
+hot functions and loops and drive bounded constant/callback specialization and
 constant-capture closure cloning without source annotations;
 `--mode development` skips that compressor loop. `--explain human|json`
 reports optimizer passes, transfer/startup/performance metrics, candidate and
@@ -196,8 +202,11 @@ cargo run --release --bin lilscript-playground
 Open `http://127.0.0.1:4173`. The playground compiles LilScript on the Rust server,
 shows generated JavaScript and source diagnostics, and executes output in a
 sandboxed iframe. The same vanilla Vite project includes `/docs.html`,
-`/benchmarks.html`, `/libraries.html`, and `/about.html`; it contains plain
-HTML, CSS, and JavaScript with no Astro files.
+`/benchmarks.html`, `/libraries.html`, `/explorer.html`, `/roadmap.html`, and
+`/about.html`; it contains plain HTML, CSS, and JavaScript with no Astro files.
+The explorer is generated from checked benchmark JSON and real repository
+source files. It filters and sorts 32 projects / 147 artifact lanes, and each
+project opens a separate source, method, package, and artifact detail page.
 
 For Vite development with hot reload, run the compiler API and Vite in separate
 terminals:
@@ -258,8 +267,8 @@ extern Document document;
 ```
 
 `document.createElement(...)` emits as the same direct JavaScript operation.
-`ArrayBuffer`, `SharedArrayBuffer`, and `Uint8Array` are core types with direct
-JavaScript lowering and portable byte-storage lowering for C. Browser host-object
+`ArrayBuffer`, `SharedArrayBuffer`, `Uint8Array`, and `Float32Array` are core
+types with direct JavaScript lowering and portable storage lowering for C. Browser host-object
 access itself is rejected by native targets unless it is isolated behind an
 ordinary user-defined `extern` function ABI. The exact scope and deployment
 requirements are in [docs/web-platform.md](docs/web-platform.md).
@@ -306,22 +315,27 @@ npm --prefix benchmarks/apps ci
 npm --prefix benchmarks/apps run benchmark
 npm --prefix benchmarks/libraries ci
 npm --prefix benchmarks/libraries run benchmark
+npm --prefix benchmarks/popular ci
+npm --prefix benchmarks/popular run benchmark
 npm --prefix benchmarks/browser ci
 npm --prefix benchmarks/browser run install-browser
 npm --prefix benchmarks/browser run benchmark
+npm --prefix benchmarks/scenarios ci
+npm --prefix benchmarks/scenarios run benchmark
 node benchmarks/paired/run.mjs
 npm --prefix web run build
 npm --prefix vscode-extension run package
 ```
 
 `scripts/verify.sh` compares Node and native output for two conformance suites
-and links a generated aggregate ABI against a C host. It also runs 66 programs
+and links a generated aggregate ABI against a C host. It also runs 69 programs
 through JavaScript, emitted C, and native executables with maximum and disabled
-optional optimization, for 132 matrix executions, plus a framed LSP session
+optional optimization, for 138 matrix executions, plus a framed LSP session
 through diagnostics, completion, hover, symbols, semantic tokens, references,
 rename, formatting, quick fixes, and shutdown.
-The verification script also generates 64 deterministic typed programs and one
-binary-memory kernel, then requires an independent checked-AST Rust evaluator,
+The verification script also generates 64 deterministic typed programs and
+includes byte and Float32 binary-memory kernels, then requires an independent
+checked-AST Rust evaluator,
 optimized JavaScript, optimizer-disabled JavaScript, direct native output, and
 independently compiled emitted C to agree exactly. The evaluator scope and seed
 reproduction commands are in
@@ -365,8 +379,8 @@ gzip / 1,032 Brotli bytes versus Closure at 2,450 / 1,771 / 1,471. LilScript is
 smaller in all 30 measured cells. The separate application lab
 compares five readable JavaScript references with matching-scope LilScript,
 feeds those exact references to Closure `ADVANCED`, and keeps hand-specialized
-JavaScript as an oracle. Its checked-in run totals 1,815 raw / 1,256 gzip /
-1,110 Brotli bytes for LilScript versus 1,781 / 1,242 / 1,073 for Closure; the
+JavaScript as an oracle. Its checked-in run totals 1,794 raw / 1,283 gzip /
+1,088 Brotli bytes for LilScript versus 2,231 / 1,512 / 1,303 for Closure; the
 hand oracle remains smaller at 1,008 / 840 / 745. Real Alien Signals, mitt, and
 Motion applications are built separately by Vite and excluded from compiler
 totals. All 26 comparable/diagnostic JavaScript artifacts, three Vite package
@@ -377,29 +391,54 @@ compatibility. In the checked-in 25-sample module-evaluation run, LilScript is
 parity is not yet claimed. Compiler methodology and tables are in
 [docs/benchmark-results.md](docs/benchmark-results.md); the pass-by-pass
 responsibility mapping is in
-[docs/optimization-coverage.md](docs/optimization-coverage.md).
+[docs/optimization-coverage.md](docs/optimization-coverage.md), and the Vite
+8/Oxc versus Closure `ADVANCED` architecture audit is in
+[docs/vite-closure-minification-audit.md](docs/vite-closure-minification-audit.md).
 
 The complete-library lab measures installed npm packages against LilScript
 ports after translated upstream assertions, dense differential API checks, and
-JavaScript/C/native app contracts. LilScript produces the smaller Brotli
-artifact in five of six complete ports: 2.9% smaller than npm/Vite for
-`@motionone/easing`, 49.5% smaller for
-`clamp` + `lerp`, 45.8% smaller for `string-hash`, 19.7% smaller for
-`js-levenshtein`, and 25.4% smaller for `murmurhash-js`. It remains 6.0% larger
-for `@emotion/hash`. Those mixed results are published without a universal
+JavaScript/C/native app contracts. All seven currently selected complete
+entrypoints pass the raw/Brotli, throughput, and retained-memory publication
+gates against npm/Vite 8 and public-surface-preserving Closure ADVANCED. Their
+LilScript Brotli sizes are 272 bytes for `@motionone/easing`, 131 for `clamp` +
+`lerp`, 106 for `string-hash`, 408 for `js-levenshtein`, 234 for
+`@emotion/hash`, 414 for `murmurhash-js`, and 6,192 for the complete
+`robust-predicates` root. Those corpus results are published without a universal
 superiority claim in
 [benchmarks/libraries/RESULTS.md](benchmarks/libraries/RESULTS.md) and at
 `/libraries.html` in the Vite site.
 
-The separate [Solid client-runtime lab](https://github.com/yeargun/lilscript-solid-lab)
-contains 2,355 lines of LilScript and passes 109 adapted behaviors through
-optimized/unoptimized JavaScript, emitted C, and native execution (654 runs).
-The unchanged `solid-js@1.9.13` reference suite remains 469/469. Its current
-compiler artifact is 2,001 Brotli bytes versus 4,451 for the official Solid
-Vite app, but this is partial implementation evidence, not a claim of full
-Solid compatibility; missing stores, errors, promises, transitions, complete
-DOM reconciliation, Suspense, and hydration remain published beside the size
-table.
+The separate populated-package corpus only publishes complete selected
+entrypoints after algorithm, public-API, differential behavior, throughput,
+retained-memory, and raw/selected-codec size gates. Its current eligible rows
+beat or tie npm/Vite 8 and public-API-preserving Closure `ADVANCED` in Brotli:
+Nano ID is `408 / 409 / 414`, mitt is `300 / 300 / 311`, clsx is
+`481 / 493 / 499`, and gl-matrix is `14,056 / 14,330 / 14,328` bytes
+(LilScript / Vite / Closure). The clsx port preserves its raw recursive
+JavaScript-value algorithm without an allocation-changing conversion facade.
+Incomplete ports remain excluded from that claim; see
+[benchmarks/popular/RESULTS.md](benchmarks/popular/RESULTS.md) and
+[benchmarks/popular/PERFORMANCE.md](benchmarks/popular/PERFORMANCE.md).
+
+The [solidlil lab](labs/solid-client) is pinned under `labs/solid-client` as a
+Git submodule (its independent repository remains
+[lilscript-solid-lab](https://github.com/yeargun/lilscript-solid-lab)). It
+compares todolist apps with no framework-identifying UI strings. The primary
+lane is Solid JSX versus solidlil **LSX** (LilScript reactive + LilScript DOM):
+Brotli-11 is 32.1% smaller for solidlil (3,722 vs 5,479). Its 15-sample jsdom
+interaction median is 1.028× Solid and retained heap is 1.047×, within the lab's
+5% regression gate. A secondary lane keeps identical `babel-preset-solid` DOM
+compilation and swaps only the reactive core (Brotli −10.7%). Fairness gates and size tables live in the lab
+`artifacts/size-report.md`. This is partial implementation evidence, not full
+Solid compatibility.
+The real-application matrix in `benchmarks/scenarios` adds login-risk,
+animation-timeline, and geometry-hit-test workloads plus a property-boundary
+stress case. Each application compares Vite 8 unminified, Vite/Oxc, Vite with
+Terser private-property mangling, Closure ADVANCED, LilScript unmangled,
+LilScript public-safe, LilScript closed-world, and LilScript followed by Vite.
+All application lanes also match C/native output. The property stress case
+keeps objects alive behind a key-insensitive host boundary: LilScript property
+mangling changes `155/143/107` to `105/117/90` raw/gzip/Brotli bytes.
 The maintained implementation and research backlog is in
 [docs/roadmap.md](docs/roadmap.md).
 Motion's audited compatibility gate is in

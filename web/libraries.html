@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Complete LilScript ports compared with installed npm packages through Vite and Closure ADVANCED.">
+    <meta name="description" content="LilScript ports compared fairly with installed npm packages through Vite 8, Terser, and Closure Compiler.">
     <title>Library Lab | LilScript</title>
     <link rel="stylesheet" href="/src/styles.css">
   </head>
@@ -20,6 +20,8 @@
         <a href="/">Playground</a>
         <a href="/docs.html">Docs</a>
         <a class="active" href="/benchmarks.html">Benchmarks</a>
+        <a href="/explorer.html">Explorer</a>
+        <a href="/roadmap.html">Roadmap</a>
         <a href="/about.html">About</a>
       </nav>
     </header>
@@ -28,12 +30,24 @@
       <section class="comparison-intro">
         <p class="eyebrow">Ecosystem evidence</p>
         <h1>Real client code, checked end to end</h1>
-        <p class="lead">A substantial partial SolidJS client runtime and six complete package apps run through reproducible behavior gates. Vite 8 and Closure ADVANCED optimize the npm implementations; LilScript emits JavaScript, C, and native executables.</p>
+        <p class="lead">A Solid-like LSX app, seven complete package apps, and four exact populated-package entrypoints run through reproducible behavior, size, speed, and memory gates.</p>
         <p class="comparison-note" data-library-summary>Loading generated library results.</p>
-        <div class="benchmark-links"><a class="secondary-link" href="/benchmarks.html"><i data-lucide="arrow-right" aria-hidden="true"></i>Compiler corpus</a></div>
+        <div class="benchmark-links"><a class="secondary-link" href="/benchmarks.html"><i data-lucide="arrow-right" aria-hidden="true"></i>Compiler corpus</a><a class="secondary-link" href="/explorer.html"><i data-lucide="search" aria-hidden="true"></i>Filter every result</a></div>
       </section>
 
       <div data-client-runtime></div>
+
+      <section class="comparison-method" id="popular-library-matrix" aria-labelledby="popular-library-title">
+        <p class="eyebrow">Requested Vite 8 matrix</p>
+        <h2 id="popular-library-title">Exact published-entrypoint results only</h2>
+        <p data-popular-summary>Loading popular-library benchmark results.</p>
+        <p class="comparison-note">Eligibility requires the complete selected public entrypoint, counted adapter code, no material representative time or retained-memory regression, and a LilScript Vite 8 artifact no larger than both npm/Vite 8 and public-API-preserving Closure ADVANCED in raw and configured-codec bytes. Gzip-9 and Brotli-11 are both reported. Partial implementations are not shown as library comparisons.</p>
+        <h3>Passing exact entrypoints</h3>
+        <div class="benchmark-table-wrap" data-popular-eligible></div>
+        <h3>Exact entrypoints under investigation</h3>
+        <div class="benchmark-table-wrap" data-popular-blocked></div>
+        <p data-popular-method></p>
+      </section>
 
       <div data-library-results></div>
 

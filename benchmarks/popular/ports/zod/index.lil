@@ -1,0 +1,1002 @@
+export class JsonValue {
+  int kind;
+  bool boolVal;
+  float numVal;
+  string strVal;
+  JsonValue[] items;
+  Map<string, JsonValue> obj;
+  string[] keys;
+
+  init(int kind) {
+    this.kind = kind;
+    this.boolVal = false;
+    this.numVal = 0.0;
+    this.strVal = "";
+    this.items = [];
+    this.obj = new Map<string, JsonValue>();
+    this.keys = [];
+  }
+}
+
+export class ZodIssue {
+  string code;
+  string message;
+  (string | int)[] path;
+
+  init(string code, string message, (string | int)[] path) {
+    this.code = code;
+    this.message = message;
+    this.path = path;
+  }
+}
+
+export class ParseResult {
+  bool success;
+  JsonValue data;
+  ZodIssue[] issues;
+
+  init(bool success, JsonValue data, ZodIssue[] issues) {
+    this.success = success;
+    this.data = data;
+    this.issues = issues;
+  }
+}
+
+export class ZodType {
+  int kind;
+  int[] checkKinds;
+  float[] checkValues;
+  int literalKind;
+  string literalStr;
+  float literalNum;
+  bool literalBool;
+  ZodType? inner;
+  Map<string, ZodType> shape;
+  string[] shapeKeys;
+  ZodType[] options;
+  string[] enumValues;
+  JsonValue defaultVal;
+
+  init(int kind) {
+    this.kind = kind;
+    this.checkKinds = [];
+    this.checkValues = [];
+    this.literalKind = 0;
+    this.literalStr = "";
+    this.literalNum = 0.0;
+    this.literalBool = false;
+    this.inner = null;
+    this.shape = new Map<string, ZodType>();
+    this.shapeKeys = [];
+    this.options = [];
+    this.enumValues = [];
+    this.defaultVal = new JsonValue(0);
+  }
+}
+
+export JsonValue jsonUndefined() {
+  return new JsonValue(0);
+}
+
+export JsonValue jsonNull() {
+  return new JsonValue(1);
+}
+
+export JsonValue jsonBool(bool value) {
+  JsonValue node = new JsonValue(2);
+  node.boolVal = value;
+  return node;
+}
+
+export JsonValue jsonNumber(float value) {
+  JsonValue node = new JsonValue(3);
+  node.numVal = value;
+  return node;
+}
+
+export JsonValue jsonString(string value) {
+  JsonValue node = new JsonValue(4);
+  node.strVal = value;
+  return node;
+}
+
+export JsonValue jsonArray(JsonValue[] items) {
+  JsonValue node = new JsonValue(5);
+  node.items = items;
+  return node;
+}
+
+export JsonValue jsonObject(Map<string, JsonValue> obj, string[] keys) {
+  JsonValue node = new JsonValue(6);
+  node.obj = obj;
+  node.keys = keys;
+  return node;
+}
+
+export ZodType zodString() {
+  return new ZodType(0);
+}
+
+export ZodType zodNumber() {
+  return new ZodType(1);
+}
+
+export ZodType zodBoolean() {
+  return new ZodType(2);
+}
+
+export ZodType zodLiteralString(string value) {
+  ZodType schema = new ZodType(3);
+  schema.literalKind = 0;
+  schema.literalStr = value;
+  return schema;
+}
+
+export ZodType zodLiteralNumber(float value) {
+  ZodType schema = new ZodType(3);
+  schema.literalKind = 1;
+  schema.literalNum = value;
+  return schema;
+}
+
+export ZodType zodLiteralBool(bool value) {
+  ZodType schema = new ZodType(3);
+  schema.literalKind = 2;
+  schema.literalBool = value;
+  return schema;
+}
+
+export ZodType zodObject(Map<string, ZodType> shape, string[] keys) {
+  ZodType schema = new ZodType(4);
+  schema.shape = shape;
+  schema.shapeKeys = keys;
+  return schema;
+}
+
+export ZodType zodArray(ZodType element) {
+  ZodType schema = new ZodType(5);
+  schema.inner = element;
+  return schema;
+}
+
+export ZodType zodOptional(ZodType inner) {
+  ZodType schema = new ZodType(6);
+  schema.inner = inner;
+  return schema;
+}
+
+export ZodType zodNullable(ZodType inner) {
+  ZodType schema = new ZodType(7);
+  schema.inner = inner;
+  return schema;
+}
+
+export ZodType zodEnum(string[] values) {
+  ZodType schema = new ZodType(8);
+  schema.enumValues = values;
+  return schema;
+}
+
+export ZodType zodUnion(ZodType[] options) {
+  ZodType schema = new ZodType(9);
+  schema.options = options;
+  return schema;
+}
+
+export ZodType zodTuple(ZodType[] items) {
+  ZodType schema = new ZodType(10);
+  schema.options = items;
+  return schema;
+}
+
+export ZodType zodDefault(ZodType inner, JsonValue value) {
+  ZodType schema = new ZodType(11);
+  schema.inner = inner;
+  schema.defaultVal = value;
+  return schema;
+}
+
+export ZodType zodRecord(ZodType valueType) {
+  ZodType schema = new ZodType(12);
+  schema.inner = valueType;
+  return schema;
+}
+
+export ZodType zodDiscriminatedUnion(
+  string key,
+  ZodType[] options,
+  string[] values
+) {
+  ZodType schema = new ZodType(13);
+  schema.literalStr = key;
+  schema.options = options;
+  schema.enumValues = values;
+  return schema;
+}
+
+export ZodType stringMin(ZodType schema, int minimum) {
+  ZodType next = cloneSchema(schema);
+  next.checkKinds.push(0);
+  next.checkValues.push(0.0 + minimum);
+  return next;
+}
+
+export ZodType stringMax(ZodType schema, int maximum) {
+  ZodType next = cloneSchema(schema);
+  next.checkKinds.push(1);
+  next.checkValues.push(0.0 + maximum);
+  return next;
+}
+
+export ZodType stringEmail(ZodType schema) {
+  ZodType next = cloneSchema(schema);
+  next.checkKinds.push(2);
+  next.checkValues.push(0.0);
+  return next;
+}
+
+export ZodType numberMin(ZodType schema, float minimum) {
+  ZodType next = cloneSchema(schema);
+  next.checkKinds.push(3);
+  next.checkValues.push(minimum);
+  return next;
+}
+
+export ZodType numberMax(ZodType schema, float maximum) {
+  ZodType next = cloneSchema(schema);
+  next.checkKinds.push(4);
+  next.checkValues.push(maximum);
+  return next;
+}
+
+export ParseResult safeParse(ZodType schema, JsonValue input) {
+  (string | int)[] path = [];
+  ZodIssue[] issues = [];
+  JsonValue[] slot = [];
+  slot.push(jsonUndefined());
+  runParse(schema, input, path, issues, slot);
+  if (issues.length == 0) {
+    return new ParseResult(true, slot[0], issues);
+  }
+  return new ParseResult(false, jsonUndefined(), issues);
+}
+
+ZodType cloneSchema(ZodType schema) {
+  ZodType next = new ZodType(schema.kind);
+  int[] kinds = schema.checkKinds;
+  float[] values = schema.checkValues;
+  for (int i = 0; i < kinds.length; i = i + 1) {
+    next.checkKinds.push(kinds[i]);
+    next.checkValues.push(values[i]);
+  }
+  next.literalKind = schema.literalKind;
+  next.literalStr = schema.literalStr;
+  next.literalNum = schema.literalNum;
+  next.literalBool = schema.literalBool;
+  next.inner = schema.inner;
+  next.shape = schema.shape;
+  next.shapeKeys = schema.shapeKeys;
+  next.options = schema.options;
+  next.enumValues = schema.enumValues;
+  next.defaultVal = schema.defaultVal;
+  return next;
+}
+
+void runParse(
+  ZodType schema,
+  JsonValue input,
+  (string | int)[] path,
+  ZodIssue[] issues,
+  JsonValue[] slot
+) {
+  int kind = schema.kind;
+  if (kind == 6) {
+    if (input.kind == 0) {
+      slot[0] = jsonUndefined();
+      return;
+    }
+    ZodType? innerOpt = schema.inner;
+    if (innerOpt != null) {
+      runParse(innerOpt, input, path, issues, slot);
+    }
+    return;
+  }
+  if (kind == 7) {
+    if (input.kind == 1) {
+      slot[0] = jsonNull();
+      return;
+    }
+    if (input.kind == 0) {
+      pushIssue(issues, "invalid_type", "Required", path);
+      return;
+    }
+    ZodType? innerNul = schema.inner;
+    if (innerNul != null) {
+      runParse(innerNul, input, path, issues, slot);
+    }
+    return;
+  }
+  if (kind == 11) {
+    if (input.kind == 0) {
+      slot[0] = schema.defaultVal;
+      return;
+    }
+    ZodType? innerDef = schema.inner;
+    if (innerDef != null) {
+      runParse(innerDef, input, path, issues, slot);
+    }
+    return;
+  }
+  if (kind == 0) {
+    parseString(schema, input, path, issues, slot);
+    return;
+  }
+  if (kind == 1) {
+    parseNumber(schema, input, path, issues, slot);
+    return;
+  }
+  if (kind == 2) {
+    parseBoolean(input, path, issues, slot);
+    return;
+  }
+  if (kind == 3) {
+    parseLiteral(schema, input, path, issues, slot);
+    return;
+  }
+  if (kind == 4) {
+    parseObject(schema, input, path, issues, slot);
+    return;
+  }
+  if (kind == 5) {
+    parseArray(schema, input, path, issues, slot);
+    return;
+  }
+  if (kind == 8) {
+    parseEnum(schema, input, path, issues, slot);
+    return;
+  }
+  if (kind == 9) {
+    parseUnion(schema, input, path, issues, slot);
+    return;
+  }
+  if (kind == 10) {
+    parseTuple(schema, input, path, issues, slot);
+    return;
+  }
+  if (kind == 12) {
+    parseRecord(schema, input, path, issues, slot);
+    return;
+  }
+  if (kind == 13) {
+    parseDiscriminatedUnion(schema, input, path, issues, slot);
+  }
+}
+
+void parseString(
+  ZodType schema,
+  JsonValue input,
+  (string | int)[] path,
+  ZodIssue[] issues,
+  JsonValue[] slot
+) {
+  if (input.kind == 0) {
+    pushIssue(issues, "invalid_type", "Required", path);
+    return;
+  }
+  if (input.kind != 4) {
+    pushIssue(
+      issues,
+      "invalid_type",
+      "Expected string, received " + typeName(input),
+      path
+    );
+    return;
+  }
+  string text = input.strVal;
+  int[] kinds = schema.checkKinds;
+  float[] values = schema.checkValues;
+  bool ok = true;
+  for (int i = 0; i < kinds.length; i = i + 1) {
+    int check = kinds[i];
+    if (check == 0) {
+      int minimum = values[i].toInt();
+      if (text.length < minimum) {
+        pushIssue(
+          issues,
+          "too_small",
+          "String must contain at least " + minimum + " character(s)",
+          path
+        );
+        ok = false;
+      }
+    } else if (check == 1) {
+      int maximum = values[i].toInt();
+      if (text.length > maximum) {
+        pushIssue(
+          issues,
+          "too_big",
+          "String must contain at most " + maximum + " character(s)",
+          path
+        );
+        ok = false;
+      }
+    } else if (check == 2) {
+      string email = text.toLowerCase();
+      bool valid = true;
+      if (email.length == 0) {
+        valid = false;
+      }
+      if (valid && (email.startsWith(".") || email.startsWith("@"))) {
+        valid = false;
+      }
+      if (valid && (email.endsWith(".") || email.endsWith("@"))) {
+        valid = false;
+      }
+      if (valid && email.includes("..")) {
+        valid = false;
+      }
+      if (valid && !email.includes("@")) {
+        valid = false;
+      }
+      int at = -1;
+      if (valid) {
+        for (int e = 0; e < email.length; e = e + 1) {
+          if (email.charAt(e) == "@") {
+            if (at >= 0) {
+              valid = false;
+            }
+            at = e;
+          }
+        }
+      }
+      if (valid && at < 1) {
+        valid = false;
+      }
+      if (valid && at >= email.length - 1) {
+        valid = false;
+      }
+      if (valid && email.charCodeAt(at - 1) == 46) {
+        valid = false;
+      }
+      int lastDot = -1;
+      if (valid) {
+        for (int e = at + 1; e < email.length; e = e + 1) {
+          if (email.charAt(e) == ".") {
+            lastDot = e;
+          }
+        }
+        if (lastDot <= at) {
+          valid = false;
+        }
+      }
+      if (valid && email.length - (lastDot + 1) < 2) {
+        valid = false;
+      }
+      if (valid) {
+        for (int e = lastDot + 1; e < email.length; e = e + 1) {
+          int code = email.charCodeAt(e);
+          if (code < 97 || code > 122) {
+            valid = false;
+          }
+        }
+      }
+      int domainStartCode = 0;
+      if (valid) {
+        domainStartCode = email.charCodeAt(at + 1);
+        if (domainStartCode < 48 || domainStartCode > 122 || (domainStartCode > 57 && domainStartCode < 97)) {
+          valid = false;
+        }
+      }
+      if (!valid) {
+        pushIssue(issues, "invalid_string", "Invalid email", path);
+        ok = false;
+      }
+    }
+  }
+  if (ok) {
+    slot[0] = jsonString(text);
+  }
+}
+
+void parseNumber(
+  ZodType schema,
+  JsonValue input,
+  (string | int)[] path,
+  ZodIssue[] issues,
+  JsonValue[] slot
+) {
+  if (input.kind == 0) {
+    pushIssue(issues, "invalid_type", "Required", path);
+    return;
+  }
+  if (input.kind != 3) {
+    pushIssue(
+      issues,
+      "invalid_type",
+      "Expected number, received " + typeName(input),
+      path
+    );
+    return;
+  }
+  float value = input.numVal;
+  if (value != value) {
+    pushIssue(issues, "invalid_type", "Expected number, received nan", path);
+    return;
+  }
+  int[] kinds = schema.checkKinds;
+  float[] values = schema.checkValues;
+  bool ok = true;
+  for (int i = 0; i < kinds.length; i = i + 1) {
+    int check = kinds[i];
+    if (check == 3) {
+      float minimum = values[i];
+      if (value < minimum) {
+        pushIssue(
+          issues,
+          "too_small",
+          "Number must be greater than or equal to " + numberText(minimum),
+          path
+        );
+        ok = false;
+      }
+    } else if (check == 4) {
+      float maximum = values[i];
+      if (value > maximum) {
+        pushIssue(
+          issues,
+          "too_big",
+          "Number must be less than or equal to " + numberText(maximum),
+          path
+        );
+        ok = false;
+      }
+    }
+  }
+  if (ok) {
+    slot[0] = jsonNumber(value);
+  }
+}
+
+void parseBoolean(
+  JsonValue input,
+  (string | int)[] path,
+  ZodIssue[] issues,
+  JsonValue[] slot
+) {
+  if (input.kind == 0) {
+    pushIssue(issues, "invalid_type", "Required", path);
+    return;
+  }
+  if (input.kind != 2) {
+    pushIssue(
+      issues,
+      "invalid_type",
+      "Expected boolean, received " + typeName(input),
+      path
+    );
+    return;
+  }
+  slot[0] = jsonBool(input.boolVal);
+}
+
+void parseLiteral(
+  ZodType schema,
+  JsonValue input,
+  (string | int)[] path,
+  ZodIssue[] issues,
+  JsonValue[] slot
+) {
+  if (schema.literalKind == 0) {
+    if (input.kind == 4 && input.strVal == schema.literalStr) {
+      slot[0] = jsonString(input.strVal);
+      return;
+    }
+    pushIssue(
+      issues,
+      "invalid_literal",
+      "Invalid literal value, expected \"" + schema.literalStr + "\"",
+      path
+    );
+    return;
+  }
+  if (schema.literalKind == 1) {
+    if (input.kind == 3 && input.numVal == schema.literalNum) {
+      slot[0] = jsonNumber(input.numVal);
+      return;
+    }
+    pushIssue(
+      issues,
+      "invalid_literal",
+      "Invalid literal value, expected " + numberText(schema.literalNum),
+      path
+    );
+    return;
+  }
+  if (input.kind == 2 && input.boolVal == schema.literalBool) {
+    slot[0] = jsonBool(input.boolVal);
+    return;
+  }
+  string expected = "false";
+  if (schema.literalBool) {
+    expected = "true";
+  }
+  pushIssue(
+    issues,
+    "invalid_literal",
+    "Invalid literal value, expected " + expected,
+    path
+  );
+}
+
+void parseObject(
+  ZodType schema,
+  JsonValue input,
+  (string | int)[] path,
+  ZodIssue[] issues,
+  JsonValue[] slot
+) {
+  if (input.kind == 0) {
+    pushIssue(issues, "invalid_type", "Required", path);
+    return;
+  }
+  if (input.kind != 6) {
+    pushIssue(
+      issues,
+      "invalid_type",
+      "Expected object, received " + typeName(input),
+      path
+    );
+    return;
+  }
+  Map<string, JsonValue> out = new Map<string, JsonValue>();
+  string[] outKeys = [];
+  string[] keys = schema.shapeKeys;
+  int issueStart = issues.length;
+  for (int i = 0; i < keys.length; i = i + 1) {
+    string key = keys[i];
+    ZodType? fieldSchema = schema.shape.get(key);
+    if (fieldSchema != null) {
+      ZodType field = fieldSchema;
+      JsonValue? raw = input.obj.get(key);
+      JsonValue childInput = jsonUndefined();
+      if (raw != null) {
+        childInput = raw;
+      }
+      (string | int)[] childPath = copyPath(path);
+      childPath.push(key);
+      JsonValue[] childSlot = [];
+      childSlot.push(jsonUndefined());
+      runParse(field, childInput, childPath, issues, childSlot);
+      JsonValue value = childSlot[0];
+      if (value.kind != 0) {
+        out.set(key, value);
+        outKeys.push(key);
+      }
+    }
+  }
+  if (issues.length == issueStart) {
+    slot[0] = jsonObject(out, outKeys);
+  }
+}
+
+void parseArray(
+  ZodType schema,
+  JsonValue input,
+  (string | int)[] path,
+  ZodIssue[] issues,
+  JsonValue[] slot
+) {
+  if (input.kind == 0) {
+    pushIssue(issues, "invalid_type", "Required", path);
+    return;
+  }
+  if (input.kind != 5) {
+    pushIssue(
+      issues,
+      "invalid_type",
+      "Expected array, received " + typeName(input),
+      path
+    );
+    return;
+  }
+  ZodType? elementOpt = schema.inner;
+  if (elementOpt == null) {
+    return;
+  }
+  ZodType element = elementOpt;
+  JsonValue[] items = input.items;
+  JsonValue[] out = [];
+  int issueStart = issues.length;
+  for (int i = 0; i < items.length; i = i + 1) {
+    (string | int)[] childPath = copyPath(path);
+    childPath.push(i);
+    JsonValue[] childSlot = [];
+    childSlot.push(jsonUndefined());
+    runParse(element, items[i], childPath, issues, childSlot);
+    out.push(childSlot[0]);
+  }
+  if (issues.length == issueStart) {
+    slot[0] = jsonArray(out);
+  }
+}
+
+void parseEnum(
+  ZodType schema,
+  JsonValue input,
+  (string | int)[] path,
+  ZodIssue[] issues,
+  JsonValue[] slot
+) {
+  string[] values = schema.enumValues;
+  string expected = enumOptionsText(values);
+  if (input.kind == 0) {
+    pushIssue(issues, "invalid_type", "Required", path);
+    return;
+  }
+  if (input.kind != 4) {
+    pushIssue(
+      issues,
+      "invalid_type",
+      "Expected " + expected + ", received " + typeName(input),
+      path
+    );
+    return;
+  }
+  string text = input.strVal;
+  for (int i = 0; i < values.length; i = i + 1) {
+    if (values[i] == text) {
+      slot[0] = jsonString(text);
+      return;
+    }
+  }
+  pushIssue(
+    issues,
+    "invalid_enum_value",
+    "Invalid enum value. Expected " + expected + ", received '" + text + "'",
+    path
+  );
+}
+
+void parseUnion(
+  ZodType schema,
+  JsonValue input,
+  (string | int)[] path,
+  ZodIssue[] issues,
+  JsonValue[] slot
+) {
+  ZodType[] options = schema.options;
+  for (int i = 0; i < options.length; i = i + 1) {
+    ZodIssue[] local = [];
+    JsonValue[] childSlot = [];
+    childSlot.push(jsonUndefined());
+    runParse(options[i], input, path, local, childSlot);
+    if (local.length == 0) {
+      slot[0] = childSlot[0];
+      return;
+    }
+  }
+  pushIssue(issues, "invalid_union", "Invalid input", path);
+}
+
+void parseTuple(
+  ZodType schema,
+  JsonValue input,
+  (string | int)[] path,
+  ZodIssue[] issues,
+  JsonValue[] slot
+) {
+  if (input.kind == 0) {
+    pushIssue(issues, "invalid_type", "Required", path);
+    return;
+  }
+  if (input.kind != 5) {
+    pushIssue(
+      issues,
+      "invalid_type",
+      "Expected array, received " + typeName(input),
+      path
+    );
+    return;
+  }
+  ZodType[] items = schema.options;
+  JsonValue[] values = input.items;
+  int expected = items.length;
+  if (values.length < expected) {
+    pushIssue(
+      issues,
+      "too_small",
+      "Array must contain at least " + expected + " element(s)",
+      path
+    );
+    return;
+  }
+  if (values.length > expected) {
+    pushIssue(
+      issues,
+      "too_big",
+      "Array must contain at most " + expected + " element(s)",
+      path
+    );
+    return;
+  }
+  JsonValue[] out = [];
+  int issueStart = issues.length;
+  for (int i = 0; i < expected; i = i + 1) {
+    (string | int)[] childPath = copyPath(path);
+    childPath.push(i);
+    JsonValue[] childSlot = [];
+    childSlot.push(jsonUndefined());
+    runParse(items[i], values[i], childPath, issues, childSlot);
+    out.push(childSlot[0]);
+  }
+  if (issues.length == issueStart) {
+    slot[0] = jsonArray(out);
+  }
+}
+
+void parseRecord(
+  ZodType schema,
+  JsonValue input,
+  (string | int)[] path,
+  ZodIssue[] issues,
+  JsonValue[] slot
+) {
+  if (input.kind == 0) {
+    pushIssue(issues, "invalid_type", "Required", path);
+    return;
+  }
+  if (input.kind != 6) {
+    pushIssue(
+      issues,
+      "invalid_type",
+      "Expected object, received " + typeName(input),
+      path
+    );
+    return;
+  }
+  ZodType? valueOpt = schema.inner;
+  if (valueOpt == null) {
+    return;
+  }
+  ZodType valueType = valueOpt;
+  Map<string, JsonValue> out = new Map<string, JsonValue>();
+  string[] outKeys = [];
+  string[] keys = input.keys;
+  int issueStart = issues.length;
+  for (int i = 0; i < keys.length; i = i + 1) {
+    string key = keys[i];
+    JsonValue? raw = input.obj.get(key);
+    JsonValue childInput = jsonUndefined();
+    if (raw != null) {
+      childInput = raw;
+    }
+    (string | int)[] childPath = copyPath(path);
+    childPath.push(key);
+    JsonValue[] childSlot = [];
+    childSlot.push(jsonUndefined());
+    runParse(valueType, childInput, childPath, issues, childSlot);
+    JsonValue value = childSlot[0];
+    if (value.kind != 0) {
+      out.set(key, value);
+      outKeys.push(key);
+    }
+  }
+  if (issues.length == issueStart) {
+    slot[0] = jsonObject(out, outKeys);
+  }
+}
+
+void parseDiscriminatedUnion(
+  ZodType schema,
+  JsonValue input,
+  (string | int)[] path,
+  ZodIssue[] issues,
+  JsonValue[] slot
+) {
+  if (input.kind == 0) {
+    pushIssue(issues, "invalid_type", "Required", path);
+    return;
+  }
+  if (input.kind != 6) {
+    pushIssue(
+      issues,
+      "invalid_type",
+      "Expected object, received " + typeName(input),
+      path
+    );
+    return;
+  }
+  string key = schema.literalStr;
+  ZodType[] options = schema.options;
+  string[] values = schema.enumValues;
+  string expected = enumOptionsText(values);
+  JsonValue childInput = jsonUndefined();
+  JsonValue? raw = input.obj.get(key);
+  if (raw != null) {
+    childInput = raw;
+  }
+  ZodType? matched = null;
+  for (int i = 0; i < values.length; i = i + 1) {
+    ZodIssue[] local = [];
+    JsonValue[] childSlot = [];
+    childSlot.push(jsonUndefined());
+    runParse(zodLiteralString(values[i]), childInput, path, local, childSlot);
+    if (local.length == 0) {
+      matched = options[i];
+    }
+  }
+  if (matched == null) {
+    (string | int)[] discPath = copyPath(path);
+    discPath.push(key);
+    pushIssue(
+      issues,
+      "invalid_union_discriminator",
+      "Invalid discriminator value. Expected " + expected,
+      discPath
+    );
+    return;
+  }
+  ZodType chosen = matched;
+  runParse(chosen, input, path, issues, slot);
+}
+
+string enumOptionsText(string[] values) {
+  string out = "";
+  for (int i = 0; i < values.length; i = i + 1) {
+    if (i > 0) {
+      out = out + " | ";
+    }
+    out = out + "'" + values[i] + "'";
+  }
+  return out;
+}
+
+void pushIssue(
+  ZodIssue[] issues,
+  string code,
+  string message,
+  (string | int)[] path
+) {
+  issues.push(new ZodIssue(code, message, copyPath(path)));
+}
+
+(string | int)[] copyPath((string | int)[] path) {
+  (string | int)[] next = [];
+  for (int i = 0; i < path.length; i = i + 1) {
+    next.push(path[i]);
+  }
+  return next;
+}
+
+string typeName(JsonValue value) {
+  if (value.kind == 0) {
+    return "undefined";
+  }
+  if (value.kind == 1) {
+    return "null";
+  }
+  if (value.kind == 2) {
+    return "boolean";
+  }
+  if (value.kind == 3) {
+    if (value.numVal != value.numVal) {
+      return "nan";
+    }
+    return "number";
+  }
+  if (value.kind == 4) {
+    return "string";
+  }
+  if (value.kind == 5) {
+    return "array";
+  }
+  return "object";
+}
+
+string numberText(float value) {
+  int asInt = value.toInt();
+  if (0.0 + asInt == value) {
+    return "" + asInt;
+  }
+  return "" + value;
+}

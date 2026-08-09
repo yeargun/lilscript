@@ -10,8 +10,8 @@ use lilscript::package::write_lockfile;
 use lilscript::{
     compile_path_all_configured, compile_path_configured, compile_path_explained_configured,
     compile_path_to_c_configured, compile_path_to_js_bundle_configured,
-    compile_path_to_js_module_configured, profile_template_path_configured,
-    render_module_diagnostic, JavaScriptBundle,
+    compile_path_to_js_module_configured, compile_path_to_js_module_explained_configured,
+    profile_template_path_configured, render_module_diagnostic, JavaScriptBundle,
 };
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -117,15 +117,33 @@ fn run() -> Result<(), String> {
                     write_or_print(args.output.as_deref(), &js)?;
                 }
             } else {
+                if args.explain.is_some() {
+                    return Err("--explain currently requires bundle.mode=\"single\"".to_string());
+                }
                 write_configured_bundle(&args.input, args.output.as_deref(), &loaded.config)?;
             }
         }
         Target::JsModule => {
             if loaded.config.bundle.mode == BundleMode::Single {
-                let js = compile_path_to_js_module_configured(&args.input, &loaded.config)
-                    .map_err(|error| render_module_diagnostic(&error))?;
-                write_or_print(args.output.as_deref(), &js)?;
+                if let Some(format) = args.explain {
+                    let compilation =
+                        compile_path_to_js_module_explained_configured(&args.input, &loaded.config)
+                            .map_err(|error| render_module_diagnostic(&error))?;
+                    print_explanation(
+                        format,
+                        &compilation.optimization_reports,
+                        &compilation.selection_metrics,
+                    )?;
+                    write_or_print(args.output.as_deref(), &compilation.javascript)?;
+                } else {
+                    let js = compile_path_to_js_module_configured(&args.input, &loaded.config)
+                        .map_err(|error| render_module_diagnostic(&error))?;
+                    write_or_print(args.output.as_deref(), &js)?;
+                }
             } else {
+                if args.explain.is_some() {
+                    return Err("--explain currently requires bundle.mode=\"single\"".to_string());
+                }
                 write_configured_bundle(&args.input, args.output.as_deref(), &loaded.config)?;
             }
         }

@@ -1,0 +1,190 @@
+export float epsilon = 0.00000000000000011102230246251565;
+export float splitter = 134217729.0;
+export float resulterrbound = (3.0 + 8.0 * epsilon) * epsilon;
+
+export int expansionSum(
+  int elen,
+  Float64Array e,
+  int flen,
+  Float64Array f,
+  Float64Array h
+) {
+  float q = 0.0;
+  float qnew = 0.0;
+  float hh = 0.0;
+  float bvirt = 0.0;
+  float enow = e[0];
+  float fnow = f[0];
+  int eindex = 0;
+  int findex = 0;
+  if ((fnow > enow) == (fnow > -enow)) {
+    q = enow;
+    eindex += 1;
+    enow = e[eindex];
+  } else {
+    q = fnow;
+    findex += 1;
+    fnow = f[findex];
+  }
+  int hindex = 0;
+  if (eindex < elen && findex < flen) {
+    if ((fnow > enow) == (fnow > -enow)) {
+      qnew = enow + q;
+      hh = q - (qnew - enow);
+      eindex += 1;
+      enow = e[eindex];
+    } else {
+      qnew = fnow + q;
+      hh = q - (qnew - fnow);
+      findex += 1;
+      fnow = f[findex];
+    }
+    q = qnew;
+    if (hh != 0.0) {
+      h[hindex] = hh;
+      hindex += 1;
+    }
+    while (eindex < elen && findex < flen) {
+      if ((fnow > enow) == (fnow > -enow)) {
+        qnew = q + enow;
+        bvirt = qnew - q;
+        hh = q - (qnew - bvirt) + (enow - bvirt);
+        eindex += 1;
+        enow = e[eindex];
+      } else {
+        qnew = q + fnow;
+        bvirt = qnew - q;
+        hh = q - (qnew - bvirt) + (fnow - bvirt);
+        findex += 1;
+        fnow = f[findex];
+      }
+      q = qnew;
+      if (hh != 0.0) {
+        h[hindex] = hh;
+        hindex += 1;
+      }
+    }
+  }
+  while (eindex < elen) {
+    qnew = q + enow;
+    bvirt = qnew - q;
+    hh = q - (qnew - bvirt) + (enow - bvirt);
+    eindex += 1;
+    enow = e[eindex];
+    q = qnew;
+    if (hh != 0.0) {
+      h[hindex] = hh;
+      hindex += 1;
+    }
+  }
+  while (findex < flen) {
+    qnew = q + fnow;
+    bvirt = qnew - q;
+    hh = q - (qnew - bvirt) + (fnow - bvirt);
+    findex += 1;
+    fnow = f[findex];
+    q = qnew;
+    if (hh != 0.0) {
+      h[hindex] = hh;
+      hindex += 1;
+    }
+  }
+  if (q != 0.0 || hindex == 0) {
+    h[hindex] = q;
+    hindex += 1;
+  }
+  return hindex;
+}
+
+export int expansionSumThree(
+  int alen,
+  Float64Array a,
+  int blen,
+  Float64Array b,
+  int clen,
+  Float64Array c,
+  Float64Array temporary,
+  Float64Array out
+) {
+  int firstLength = expansionSum(alen, a, blen, b, temporary);
+  return expansionSum(firstLength, temporary, clen, c, out);
+}
+
+export int expansionScale(
+  int elen,
+  Float64Array e,
+  float factor,
+  Float64Array h
+) {
+  float q = 0.0;
+  float total = 0.0;
+  float hh = 0.0;
+  float product1 = 0.0;
+  float product0 = 0.0;
+  float bvirt = 0.0;
+  float split = splitter * factor;
+  float bhi = split - (split - factor);
+  float blo = factor - bhi;
+  float enow = e[0];
+  q = enow * factor;
+  split = splitter * enow;
+  float ahi = split - (split - enow);
+  float alo = enow - ahi;
+  hh = alo * blo - (q - ahi * bhi - alo * bhi - ahi * blo);
+  int hindex = 0;
+  if (hh != 0.0) {
+    h[hindex] = hh;
+    hindex += 1;
+  }
+  int index = 1;
+  while (index < elen) {
+    enow = e[index];
+    product1 = enow * factor;
+    split = splitter * enow;
+    ahi = split - (split - enow);
+    alo = enow - ahi;
+    product0 = alo * blo - (product1 - ahi * bhi - alo * bhi - ahi * blo);
+    total = q + product0;
+    bvirt = total - q;
+    hh = q - (total - bvirt) + (product0 - bvirt);
+    if (hh != 0.0) {
+      h[hindex] = hh;
+      hindex += 1;
+    }
+    q = product1 + total;
+    hh = total - (q - product1);
+    if (hh != 0.0) {
+      h[hindex] = hh;
+      hindex += 1;
+    }
+    index += 1;
+  }
+  if (q != 0.0 || hindex == 0) {
+    h[hindex] = q;
+    hindex += 1;
+  }
+  return hindex;
+}
+
+export int expansionNegate(int length, Float64Array values) {
+  int index = 0;
+  while (index < length) {
+    values[index] = -values[index];
+    index += 1;
+  }
+  return length;
+}
+
+export float expansionEstimate(int length, Float64Array values) {
+  float estimate = values[0];
+  int index = 1;
+  while (index < length) {
+    estimate += values[index];
+    index += 1;
+  }
+  return estimate;
+}
+
+export Float64Array expansionVector(int length) {
+  return new Float64Array(length);
+}

@@ -11,13 +11,81 @@ pure float staggerDelay(float step, float start, int index) {
   return start + step * index;
 }
 
+class SpringState {
+  bool done;
+  float value;
+
+  init(float origin) {
+    this.done = false;
+    this.value = origin;
+  }
+}
+
+void springNext(
+  SpringState state,
+  float time,
+  float target,
+  float dampingRatio,
+  float undampedAngularFreq,
+  float angularFreq,
+  float amplitude,
+  float initialDelta,
+  float sinCoeff,
+  float cosCoeff
+) {
+  float envelope = (-dampingRatio * undampedAngularFreq * time).exp();
+  float sin = (angularFreq * time).sin();
+  float cos = (angularFreq * time).cos();
+  float current = target - envelope * (amplitude * sin + initialDelta * cos);
+  float currentVelocity = 1000.0 * envelope * (sinCoeff * sin + cosCoeff * cos);
+  state.done = currentVelocity.abs() <= 2.0 && (target - current).abs() <= 0.5;
+  if (state.done) {
+    state.value = target;
+  } else {
+    state.value = current;
+  }
+}
+
 float position = 0.0;
 int phase = 0;
 float schedule = 0.0;
+float springDigest = 0.0;
 for (int index = 0; index < 160000; index++) {
   int lane = index % 8;
   position += mixValue(-120.0, 360.0, lane / 8.0);
   phase += wrapValue(0, 360, index * 47);
   schedule += staggerDelay(0.125, 0.25, lane) * 8.0;
 }
-print(`motion:${position}:${phase}:${schedule}`);
+
+float stiffness = 170.0;
+float damping = 26.0;
+float mass = 1.0;
+float origin = 0.0;
+float target = 100.0;
+float initialVelocity = 0.0;
+float dampingRatio = damping / (2.0 * (stiffness * mass).sqrt());
+float initialDelta = target - origin;
+float undampedAngularFreq = (stiffness / mass).sqrt() / 1000.0;
+float angularFreq = undampedAngularFreq * (1.0 - dampingRatio * dampingRatio).sqrt();
+float amplitude =
+  (initialVelocity + dampingRatio * undampedAngularFreq * initialDelta) / angularFreq;
+float sinCoeff = dampingRatio * undampedAngularFreq * amplitude + initialDelta * angularFreq;
+float cosCoeff = dampingRatio * undampedAngularFreq * initialDelta - amplitude * angularFreq;
+SpringState spring = new SpringState(origin);
+for (int time = 0; time <= 1024; time += 16) {
+  springNext(
+    spring,
+    time,
+    target,
+    dampingRatio,
+    undampedAngularFreq,
+    angularFreq,
+    amplitude,
+    initialDelta,
+    sinCoeff,
+    cosCoeff
+  );
+  springDigest += (spring.value * 1000.0).round();
+}
+
+print(`motion:${position}:${phase}:${schedule}:${springDigest}`);

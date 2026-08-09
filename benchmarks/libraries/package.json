@@ -7,8 +7,9 @@
     "node": "^20.19.0 || >=22.12.0"
   },
   "scripts": {
-    "benchmark": "node run.mjs && node --test test/*.test.mjs",
-    "verify": "node run.mjs --verify-only && node --test test/*.test.mjs"
+    "audit:exclusions": "node audit-exclusions.mjs",
+    "benchmark": "node audit-exclusions.mjs && node run.mjs && node --test test/*.test.mjs",
+    "verify": "node audit-exclusions.mjs && node run.mjs --verify-only && node --test test/*.test.mjs"
   },
   "dependencies": {
     "@emotion/hash": "0.9.2",
@@ -17,11 +18,14 @@
     "js-levenshtein": "1.1.6",
     "lerp": "1.0.3",
     "murmurhash-js": "1.0.0",
-    "string-hash": "1.1.3"
+    "nanoid": "6.0.1",
+    "robust-predicates": "3.0.3",
+    "string-hash": "1.1.3",
+    "yocto-queue": "1.2.2"
   },
   "devDependencies": {
     "esbuild": "0.28.1",
-    "google-closure-compiler": "20260803.0.0",
-    "vite": "8.2.0"
+    "google-closure-compiler": "20260804.0.0",
+    "vite": "8.2.1"
   }
 }

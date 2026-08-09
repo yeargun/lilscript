@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { copyFile, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
-import { arch, homedir, platform, release } from "node:os";
+import { arch, cpus, homedir, platform, release } from "node:os";
 import { dirname, extname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { brotliCompressSync, constants, gzipSync } from "node:zlib";
@@ -13,7 +13,9 @@ const repoRoot = resolve(labRoot, "../..");
 const buildRoot = join(labRoot, "build");
 const compiler = join(repoRoot, "target/release/lilscript");
 const timingRunner = join(labRoot, "timing-runner.mjs");
+const workloadRunner = join(labRoot, "workload-runner.mjs");
 const compatibilityPath = join(labRoot, "compatibility/libraries.json");
+const surfaceConfig = join(labRoot, "surface-size.toml");
 const webResults = join(repoRoot, "web/src/library-results.json");
 const cargo = process.env.CARGO ?? join(homedir(), ".cargo/bin/cargo");
 const closure = join(
@@ -24,6 +26,8 @@ const closure = join(
 const verifyOnly = process.argv.includes("--verify-only");
 const warmups = verifyOnly ? 0 : Number(process.env.BENCH_WARMUPS ?? 5);
 const samples = verifyOnly ? 1 : Number(process.env.BENCH_SAMPLES ?? 25);
+const workloadRounds = verifyOnly ? 5 : Number(process.env.BENCH_WORKLOAD_ROUNDS ?? 9);
+const materialRegressionLimit = 1.05;
 
 const cases = [
   {
@@ -35,6 +39,8 @@ const cases = [
     lilEntry: "apps/motion-easing/lil/main.lil",
     expected: "apps/motion-easing/expected.txt",
     portRoots: ["ports/motion-easing"],
+    surfaceExports: ["cubicBezier", "steps"],
+    surfacePortFiles: ["motion-easing.mjs"],
   },
   {
     id: "micro-math",
@@ -45,6 +51,8 @@ const cases = [
     lilEntry: "apps/micro-math/lil/main.lil",
     expected: "apps/micro-math/expected.txt",
     portRoots: ["ports/micro-math"],
+    surfaceExports: ["clamp", "lerp"],
+    surfacePortFiles: ["clamp.mjs", "lerp.mjs"],
   },
   {
     id: "string-hash",
@@ -55,6 +63,8 @@ const cases = [
     lilEntry: "apps/string-hash/lil/main.lil",
     expected: "apps/string-hash/expected.txt",
     portRoots: ["ports/string-hash"],
+    surfaceExports: ["stringHash"],
+    surfacePortFiles: ["string-hash.mjs"],
   },
   {
     id: "js-levenshtein",
@@ -65,6 +75,8 @@ const cases = [
     lilEntry: "apps/js-levenshtein/lil/main.lil",
     expected: "apps/js-levenshtein/expected.txt",
     portRoots: ["ports/js-levenshtein"],
+    surfaceExports: ["levenshtein"],
+    surfacePortFiles: ["js-levenshtein.mjs"],
   },
   {
     id: "emotion-hash",
@@ -75,6 +87,8 @@ const cases = [
     lilEntry: "apps/emotion-hash/lil/main.lil",
     expected: "apps/emotion-hash/expected.txt",
     portRoots: ["ports/emotion-hash"],
+    surfaceExports: ["emotionHash"],
+    surfacePortFiles: ["emotion-hash.mjs"],
   },
   {
     id: "murmurhash-js",
@@ -85,6 +99,29 @@ const cases = [
     lilEntry: "apps/murmurhash-js/lil/main.lil",
     expected: "apps/murmurhash-js/expected.txt",
     portRoots: ["ports/murmurhash-js"],
+    surfaceExports: ["murmur", "murmur2", "murmur3"],
+    surfacePortFiles: ["murmurhash-js.mjs"],
+  },
+  {
+    id: "robust-predicates",
+    title: "Robust geometric predicates",
+    scope: "Complete robust-predicates root entrypoint",
+    packages: ["robust-predicates"],
+    jsRoot: "apps/robust-predicates/js",
+    lilEntry: "apps/robust-predicates/lil/main.lil",
+    expected: "apps/robust-predicates/expected.txt",
+    portRoots: ["ports/robust-predicates"],
+    surfaceExports: [
+      "incircle",
+      "incirclefast",
+      "insphere",
+      "inspherefast",
+      "orient2d",
+      "orient2dfast",
+      "orient3d",
+      "orient3dfast",
+    ],
+    surfacePortFiles: ["robust-predicates.mjs"],
   },
 ];
 
@@ -203,6 +240,25 @@ async function viteBundle(root, outDir) {
   };
 }
 
+async function viteLibraryBundle(entry, outDir) {
+  await viteBuild({
+    configFile: false,
+    logLevel: "silent",
+    build: {
+      lib: { entry, formats: ["es"], fileName: "library" },
+      outDir,
+      emptyOutDir: true,
+      minify: true,
+      target: "baseline-widely-available",
+    },
+  });
+  const files = (await filesUnder(outDir)).filter((file) => [".js", ".mjs"].includes(extname(file)));
+  return {
+    files: files.map((file) => relative(outDir, file)),
+    ...await metricsForFiles(files),
+  };
+}
+
 async function referenceBundle(entry) {
   const result = await esbuild({
     absWorkingDir: labRoot,
@@ -241,6 +297,66 @@ function median(values) {
   return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
 }
 
+function workloadSample(library, implementation, mode) {
+  return JSON.parse(command(process.execPath, [
+    "--expose-gc",
+    workloadRunner,
+    library,
+    implementation,
+    mode,
+  ], { cwd: labRoot }));
+}
+
+function measureWorkload(library) {
+  const modes = ["performance", "memory"];
+  const implementations = ["npm", "lilscript"];
+  const sampled = Object.fromEntries(modes.map((mode) => [mode, { npm: [], lilscript: [] }]));
+  for (const mode of modes) {
+    for (let round = 0; round < workloadRounds; round += 1) {
+      const order = round % 2 === 0 ? implementations : [...implementations].reverse();
+      for (const implementation of order) {
+        sampled[mode][implementation].push(workloadSample(library, implementation, mode));
+      }
+    }
+    const npmChecksums = sampled[mode].npm.map(({ checksum }) => checksum);
+    const lilChecksums = sampled[mode].lilscript.map(({ checksum }) => checksum);
+    if (JSON.stringify(npmChecksums) !== JSON.stringify(lilChecksums)) {
+      throw new Error(`${library}/${mode} workload checksums differ`);
+    }
+  }
+  const npmMs = median(sampled.performance.npm.map(({ milliseconds }) => milliseconds));
+  const lilscriptMs = median(sampled.performance.lilscript.map(({ milliseconds }) => milliseconds));
+  const npmBytes = median(sampled.memory.npm.map(({ bytes }) => bytes));
+  const lilscriptBytes = median(sampled.memory.lilscript.map(({ bytes }) => bytes));
+  return {
+    performance: { npmMs, lilscriptMs, ratio: lilscriptMs / npmMs },
+    retainedMemory: { npmBytes, lilscriptBytes, ratio: lilscriptBytes / npmBytes },
+    samples: sampled,
+  };
+}
+
+function evaluateEligibility(artifacts, workload, selectedCodec) {
+  const vite = artifacts.find((artifact) => artifact.id === "vite");
+  const closureArtifact = artifacts.find((artifact) => artifact.id === "closure");
+  const lilscript = artifacts.find((artifact) => artifact.id === "lilscript");
+  const blockers = [];
+  for (const baseline of [vite, closureArtifact]) {
+    if (lilscript.raw > baseline.raw) {
+      blockers.push(`raw ${lilscript.raw} B exceeds ${baseline.id} ${baseline.raw} B`);
+    }
+    if (lilscript[selectedCodec] > baseline[selectedCodec]) {
+      blockers.push(`${selectedCodec} ${lilscript[selectedCodec]} B exceeds ${baseline.id} ${baseline[selectedCodec]} B`);
+    }
+  }
+  if (workload.performance.ratio > materialRegressionLimit) {
+    blockers.push(`throughput ratio ${workload.performance.ratio.toFixed(3)} exceeds ${materialRegressionLimit.toFixed(2)}`);
+  }
+  if (workload.retainedMemory.ratio > materialRegressionLimit) {
+    blockers.push(`retained-memory ratio ${workload.retainedMemory.ratio.toFixed(3)} exceeds ${materialRegressionLimit.toFixed(2)}`);
+  }
+  return { eligible: blockers.length === 0, blockers };
+}
+
 function packageVersion(name) {
   const path = join(labRoot, "node_modules", ...name.split("/"), "package.json");
   return JSON.parse(readFileSync(path, "utf8")).version;
@@ -253,17 +369,21 @@ function percent(value, baseline) {
 
 function renderReport(report) {
   const lines = [
-    "# Complete library compatibility results",
+    "# Complete library compatibility diagnostics",
     "",
     `Generated ${report.metadata.generatedAt} from LilScript \`${report.metadata.compilerRevision}\` with Node \`${report.metadata.node}\`, Vite \`${report.metadata.vite}\`, esbuild \`${report.metadata.esbuild}\`, and Closure Compiler \`${report.metadata.closure}\`.`,
     "",
-    "Each row executes the same checked app contract. The npm rows use the installed package, not a hand-specialized substitute. Closure receives an unminified esbuild bundle of that npm app because Closure does not install or resolve the package itself in this lab. LilScript also emits C and a native executable, and both must match before measurements are published.",
+    "Each row executes the same checked app contract, but size eligibility is measured on the reusable selected root API so whole-program constant specialization cannot remove the library implementation. The npm rows use the installed package, not a hand-specialized substitute. Closure receives an unminified esbuild bundle that exposes the same named public surface. LilScript also emits C and a native executable, and both must match before measurements are considered.",
+    "",
+    `Publication gate: raw and ${report.metadata.selectedCodec} JavaScript must be no larger than both npm/Vite and public-contract-preserving Closure ADVANCED; median library-workload time and retained memory must each be at most ${report.metadata.materialRegressionLimit.toFixed(2)}× npm. Eligible: **${report.results.length}/${report.diagnostics.length}**. Blocked rows remain below strictly as compiler diagnostics.`,
   ];
-  for (const result of report.results) {
-    const vite = result.artifacts.find((artifact) => artifact.id === "vite");
+  for (const result of report.diagnostics) {
+    const vite = result.surfaceArtifacts.find((artifact) => artifact.id === "vite");
     lines.push(
       "",
       `## ${result.title}`,
+      "",
+      `Status: **${result.eligible ? "eligible" : "blocked"}**${result.blockers.length ? ` — ${result.blockers.join("; ")}.` : "."}`,
       "",
       `Scope: **${result.scope}** using ${result.packages.map((item) => `\`${item.name}@${item.version}\``).join(" and ")}.`,
       "",
@@ -271,19 +391,26 @@ function renderReport(report) {
       "",
       `Translated upstream assertions: **${result.translatedAssertions}**. Added package-contract assertions: **${result.additionalAssertions}**. Monthly downloads at selection time: **${result.monthlyDownloads.toLocaleString("en-US")}**.`,
       "",
-      "| Deployable JavaScript | Raw | Gzip-9 | Brotli-11 | vs npm/Vite Brotli | Median ms |",
-      "| --- | ---: | ---: | ---: | ---: | ---: |",
+      "| Reusable selected API | Raw | Gzip-9 | Brotli-11 | vs npm/Vite Brotli |",
+      "| --- | ---: | ---: | ---: | ---: |",
     );
-    for (const artifact of result.artifacts) {
-      lines.push(`| ${artifact.label} | ${artifact.raw} | ${artifact.gzip} | ${artifact.brotli} | ${percent(artifact.brotli, vite.brotli)} | ${artifact.medianMs.toFixed(2)} |`);
+    for (const artifact of result.surfaceArtifacts) {
+      lines.push(`| ${artifact.label} | ${artifact.raw} | ${artifact.gzip} | ${artifact.brotli} | ${percent(artifact.brotli, vite.brotli)} |`);
     }
     lines.push(
       "",
-      "| Full deploy (HTML + JS) | Raw | Gzip-9 | Brotli-11 |",
-      "| --- | ---: | ---: | ---: |",
+      "| Isolated API workload | npm | LilScript | Ratio | Gate |",
+      "| --- | ---: | ---: | ---: | ---: |",
+      `| Median time (ms) | ${result.workload.performance.npmMs.toFixed(3)} | ${result.workload.performance.lilscriptMs.toFixed(3)} | ${result.workload.performance.ratio.toFixed(3)} | ≤${report.metadata.materialRegressionLimit.toFixed(2)} |`,
+      `| Retained heap + ArrayBuffer (B) | ${result.workload.retainedMemory.npmBytes} | ${result.workload.retainedMemory.lilscriptBytes} | ${result.workload.retainedMemory.ratio.toFixed(3)} | ≤${report.metadata.materialRegressionLimit.toFixed(2)} |`,
+    );
+    lines.push(
+      "",
+      "| Checked demo app | Raw JS | Gzip-9 | Brotli-11 | Median load + execution ms |",
+      "| --- | ---: | ---: | ---: | ---: |",
     );
     for (const artifact of result.artifacts) {
-      lines.push(`| ${artifact.label} | ${artifact.deploy.raw} | ${artifact.deploy.gzip} | ${artifact.deploy.brotli} |`);
+      lines.push(`| ${artifact.label} | ${artifact.raw} | ${artifact.gzip} | ${artifact.brotli} | ${artifact.medianMs.toFixed(2)} |`);
     }
   }
   lines.push(
@@ -293,7 +420,8 @@ function renderReport(report) {
     "- Complete means the documented callable root-entrypoint API for the statically typed input domain, not every accidental JavaScript coercion.",
     "- @motionone/easing is a complete published Motion ecosystem package; it is not motion@13 or its DOM engine.",
     "- Runtime measures cache-busted Node module parsing and deterministic app execution. It is not a browser rendering benchmark.",
-    "- Transfer sizes sum independently compressed HTTP files. Source bytes are not used as shipping-size evidence.",
+    `- API throughput and retained memory use medians from ${report.metadata.workloadRounds} isolated Node processes per implementation and mode, with alternating order, identical workloads and checksums, forced GC, and equivalent retained results. The memory lane performs one complete unretained workload before its baseline GC so JIT tier-up is outside the retained delta.`,
+    "- Reusable-surface transfer sizes sum independently compressed module files. Demo-app bytes remain diagnostics and cannot hide or establish full-library eligibility.",
     "- A passing translated upstream suite and differential workload are strong regression evidence, not a mathematical proof over every input.",
     "",
   );
@@ -315,8 +443,14 @@ for (const [source, output] of [
   ["ports/js-levenshtein/index.lil", "js-levenshtein.mjs"],
   ["ports/emotion-hash/index.lil", "emotion-hash.mjs"],
   ["ports/murmurhash-js/index.lil", "murmurhash-js.mjs"],
+  ["ports/robust-predicates/index.lil", "robust-predicates.mjs"],
 ]) {
-  command(compiler, [join(labRoot, source), "--target", "js-module", "-o", join(portModuleRoot, output)]);
+  command(compiler, [
+    join(labRoot, source),
+    "--target", "js-module",
+    "--config", surfaceConfig,
+    "-o", join(portModuleRoot, output),
+  ]);
 }
 
 const compatibility = JSON.parse(await readFile(compatibilityPath, "utf8"));
@@ -343,6 +477,52 @@ for (const benchmark of cases) {
     "--rewrite_polyfills=false",
   ]);
   const closureDeploy = await makeDeploy(join(directory, "closure-deploy"), closureOutput);
+
+  const surfaceEntry = join(jsRoot, "library.js");
+  const viteSurface = await viteLibraryBundle(surfaceEntry, join(directory, "vite-library"));
+  const closureSurfaceEntry = join(directory, "closure-library-entry.js");
+  const importedSurface = benchmark.surfaceExports.join(",");
+  const exposedSurface = benchmark.surfaceExports
+    .map((name) => `${JSON.stringify(name)}:${name}`)
+    .join(",");
+  await writeFile(
+    closureSurfaceEntry,
+    `import{${importedSurface}}from ${JSON.stringify(surfaceEntry)};globalThis["LilScriptLibrary"]={${exposedSurface}};\n`,
+  );
+  const closureSurfaceInput = join(directory, "closure-library-input.js");
+  const closureSurfaceOutput = join(directory, "closure-library.js");
+  await writeFile(closureSurfaceInput, await referenceBundle(closureSurfaceEntry));
+  command(closure, [
+    "--js", closureSurfaceInput,
+    "--js_output_file", closureSurfaceOutput,
+    "--compilation_level", "ADVANCED",
+    "--language_in", "ECMASCRIPT_2021",
+    "--language_out", "ECMASCRIPT_2021",
+    "--warning_level", "QUIET",
+    "--emit_use_strict=false",
+    "--rewrite_polyfills=false",
+  ]);
+  const surfaceArtifacts = [
+    {
+      id: "vite",
+      label: "Installed npm package + Vite library mode",
+      ...viteSurface,
+    },
+    {
+      id: "closure",
+      label: "Installed npm package + Closure ADVANCED public surface",
+      ...metrics(await readFile(closureSurfaceOutput)),
+      files: [relative(directory, closureSurfaceOutput)],
+    },
+    {
+      id: "lilscript",
+      label: "LilScript reusable module",
+      ...await metricsForFiles(
+        benchmark.surfacePortFiles.map((file) => join(portModuleRoot, file)),
+      ),
+      files: benchmark.surfacePortFiles,
+    },
+  ];
 
   const lilBase = join(directory, "lilscript");
   command(compiler, [join(labRoot, benchmark.lilEntry), "--target", "all", "-o", lilBase]);
@@ -398,6 +578,8 @@ for (const benchmark of cases) {
       cEmitted: existsSync(`${lilBase}.c`),
     },
   ];
+  const workload = measureWorkload(benchmark.id);
+  const eligibility = evaluateEligibility(surfaceArtifacts, workload, compatibility.selectedCodec ?? "brotli");
   results.push({
     id: benchmark.id,
     title: benchmark.title,
@@ -415,6 +597,9 @@ for (const benchmark of cases) {
       ], ".lil"),
     },
     artifacts,
+    surfaceArtifacts,
+    workload,
+    ...eligibility,
   });
 }
 
@@ -430,10 +615,15 @@ const report = {
     system: `${platform()} ${release()} ${arch()}`,
     warmups,
     samples,
+    workloadRounds,
+    selectedCodec: compatibility.selectedCodec ?? "brotli",
+    materialRegressionLimit,
+    cpu: cpus()[0]?.model ?? "unknown",
     downloadWindow: compatibility.downloadWindow,
   },
   eligibilityRule: compatibility.eligibilityRule,
-  results,
+  results: results.filter((result) => result.eligible),
+  diagnostics: results,
   auditedButIneligible: compatibility.auditedButIneligible,
 };
 
@@ -442,4 +632,4 @@ if (!verifyOnly) {
   await writeFile(join(labRoot, "RESULTS.md"), `${renderReport(report)}\n`);
   await writeFile(webResults, `${JSON.stringify(report, null, 2)}\n`);
 }
-console.log(`Verified ${results.length} complete library apps across npm/Vite, npm/Closure, LilScript JS, C, and native.`);
+console.log(`Verified ${results.length} complete library apps; ${report.results.length} pass size, throughput, and retained-memory publication gates.`);

@@ -674,6 +674,21 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         } else if self.looks_like_typed_binding() {
             let ty = self.parse_type()?;
             let name = self.expect_ident("expected variable name")?;
+            if self.match_kind(|kind| matches!(kind, TokenKind::In)) {
+                let object = self.parse_expression()?;
+                self.expect(
+                    |kind| matches!(kind, TokenKind::RParen),
+                    "expected `)` after for-in object",
+                )?;
+                let body = self.arena.alloc(self.parse_statement()?);
+                return Ok(Stmt::ForIn {
+                    key_type: ty,
+                    key: name,
+                    object,
+                    span: start.merge(body.span()),
+                    body,
+                });
+            }
             Some(ForInitializer::VarDecl(
                 self.parse_var_decl_after_name(ty, name)?,
             ))

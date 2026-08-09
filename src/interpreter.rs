@@ -10,6 +10,7 @@ use crate::ast::{
 };
 use crate::semantic::{SemanticModel, SymbolId, Type};
 use crate::span::Span;
+use crate::typed_array::TypedArrayKind;
 
 const DEFAULT_STEP_LIMIT: u64 = 10_000_000;
 const DEFAULT_RECURSION_LIMIT: usize = 256;
@@ -53,7 +54,8 @@ enum Value {
     Bool(bool),
     Array(Rc<RefCell<Vec<Value>>>),
     Buffer(Rc<BufferValue>),
-    Uint8Array(Rc<Uint8ArrayValue>),
+    TypedArray(Rc<TypedArrayValue>),
+    Symbol(Rc<SymbolValue>),
     Callable(Callable),
     Null,
     Void,
@@ -72,10 +74,21 @@ struct BufferValue {
 }
 
 #[derive(Debug)]
-struct Uint8ArrayValue {
+struct TypedArrayValue {
+    kind: TypedArrayKind,
     buffer: Rc<BufferValue>,
     offset: usize,
     length: usize,
+}
+
+#[derive(Debug)]
+struct SymbolValue {
+    #[allow(dead_code)]
+    description: Option<String>,
+}
+
+fn new_symbol(description: Option<String>) -> Rc<SymbolValue> {
+    Rc::new(SymbolValue { description })
 }
 
 #[derive(Debug, Clone)]
@@ -92,8 +105,8 @@ enum RuntimePlace {
         array: Rc<RefCell<Vec<Value>>>,
         index: usize,
     },
-    Uint8Element {
-        view: Rc<Uint8ArrayValue>,
+    TypedArrayElement {
+        view: Rc<TypedArrayValue>,
         index: usize,
     },
 }
@@ -116,9 +129,13 @@ impl Value {
                 span,
                 "buffer value cannot be printed directly",
             )),
-            Self::Uint8Array(_) => Err(InterpretError::new(
+            Self::TypedArray(view) => Err(InterpretError::new(
                 span,
-                "Uint8Array value cannot be printed directly",
+                format!("{} value cannot be printed directly", view.kind.name()),
+            )),
+            Self::Symbol(_) => Err(InterpretError::new(
+                span,
+                "Symbol value cannot be printed directly",
             )),
             Self::Callable(_) => Err(InterpretError::new(
                 span,
@@ -334,6 +351,10 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 }
                 Ok(Flow::Next)
             }
+            Stmt::ForIn { span, .. } => Err(InterpretError::new(
+                *span,
+                "for-in over JsValue is only available for JavaScript targets",
+            )),
             Stmt::Break(_) => Ok(Flow::Break),
             Stmt::Continue(_) => Ok(Flow::Continue),
         }
@@ -507,6 +528,27 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
         args: &'ast [Expr<'ast, 'src>],
         span: Span,
     ) -> Result<Value, InterpretError> {
+        if name == "Symbol" {
+            if args.len() > 1 {
+                return Err(InterpretError::new(
+                    span,
+                    "Symbol constructor expects 0 or 1 arguments",
+                ));
+            }
+            let description = match args.first() {
+                None => None,
+                Some(argument) => match self.evaluate(argument)? {
+                    Value::String(value) => Some(value),
+                    _ => {
+                        return Err(InterpretError::new(
+                            span,
+                            "Symbol description must be a string",
+                        ));
+                    }
+                },
+            };
+            return Ok(Value::Symbol(new_symbol(description)));
+        }
         let [argument] = args else {
             return Err(InterpretError::new(
                 span,
@@ -521,22 +563,8 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
             ("SharedArrayBuffer", Value::Int(length)) => {
                 Ok(Value::Buffer(new_buffer(length, true, span)?))
             }
-            ("Uint8Array", Value::Int(length)) => {
-                let buffer = new_buffer(length, false, span)?;
-                let length = buffer.bytes.borrow().len();
-                Ok(Value::Uint8Array(Rc::new(Uint8ArrayValue {
-                    length,
-                    buffer,
-                    offset: 0,
-                })))
-            }
-            ("Uint8Array", Value::Buffer(buffer)) => {
-                let length = buffer.bytes.borrow().len();
-                Ok(Value::Uint8Array(Rc::new(Uint8ArrayValue {
-                    length,
-                    buffer,
-                    offset: 0,
-                })))
+            (name, argument) if let Some(kind) = TypedArrayKind::from_name(name) => {
+                Ok(Value::TypedArray(new_typed_array(kind, argument, span)?))
             }
             _ => Err(InterpretError::new(
                 span,
@@ -561,17 +589,40 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                     InterpretError::new(span, "buffer length exceeds the i32 range")
                 })?,
             )),
-            (Value::Uint8Array(view), "length" | "byteLength") => {
+            (Value::TypedArray(view), "length") => {
                 Ok(Value::Int(i32::try_from(view.length).map_err(|_| {
-                    InterpretError::new(span, "Uint8Array length exceeds the i32 range")
+                    InterpretError::new(
+                        span,
+                        format!("{} length exceeds the i32 range", view.kind.name()),
+                    )
                 })?))
             }
-            (Value::Uint8Array(view), "byteOffset") => {
+            (Value::TypedArray(view), "byteLength") => {
+                let byte_length = view
+                    .length
+                    .checked_mul(view.kind.bytes_per_element() as usize)
+                    .ok_or_else(|| {
+                        InterpretError::new(
+                            span,
+                            format!("{} byteLength exceeds the i32 range", view.kind.name()),
+                        )
+                    })?;
+                Ok(Value::Int(i32::try_from(byte_length).map_err(|_| {
+                    InterpretError::new(
+                        span,
+                        format!("{} byteLength exceeds the i32 range", view.kind.name()),
+                    )
+                })?))
+            }
+            (Value::TypedArray(view), "byteOffset") => {
                 Ok(Value::Int(i32::try_from(view.offset).map_err(|_| {
-                    InterpretError::new(span, "Uint8Array offset exceeds the i32 range")
+                    InterpretError::new(
+                        span,
+                        format!("{} offset exceeds the i32 range", view.kind.name()),
+                    )
                 })?))
             }
-            (Value::Uint8Array(view), "buffer") => Ok(Value::Buffer(view.buffer.clone())),
+            (Value::TypedArray(view), "buffer") => Ok(Value::Buffer(view.buffer.clone())),
             _ => Err(InterpretError::new(
                 span,
                 "reference interpreter does not support this member expression",
@@ -814,8 +865,49 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
         for argument in args {
             arguments.push(self.evaluate(argument)?);
         }
-        if matches!(receiver, Value::Buffer(_) | Value::Uint8Array(_)) {
+        if matches!(receiver, Value::Buffer(_) | Value::TypedArray(_)) {
             return self.evaluate_binary_method(receiver, method, &arguments, span);
+        }
+        if let Value::Float(value) = &receiver {
+            let value = *value;
+            if method == "toInt" {
+                return Ok(Value::Int(js_to_i32(value)));
+            }
+            let argument = || match arguments.first() {
+                Some(Value::Float(argument)) => Ok(*argument),
+                Some(Value::Int(argument)) => Ok(f64::from(*argument)),
+                _ => Err(InterpretError::new(
+                    span,
+                    "float method argument must be numeric",
+                )),
+            };
+            let result = match method {
+                "abs" => value.abs(),
+                "floor" => value.floor(),
+                "ceil" => value.ceil(),
+                "round" => js_round(value),
+                "sqrt" => value.sqrt(),
+                "sin" => value.sin(),
+                "cos" => value.cos(),
+                "acos" => value.acos(),
+                "exp" => value.exp(),
+                "log" => value.ln(),
+                "tan" => value.tan(),
+                "atan2" => value.atan2(argument()?),
+                "hypot" => value.hypot(argument()?),
+                "min" => js_min(value, argument()?),
+                "max" => js_max(value, argument()?),
+                _ => {
+                    return Err(InterpretError::new(
+                        span,
+                        format!("unsupported float method `{method}`"),
+                    ));
+                }
+            };
+            return Ok(Value::Float(result));
+        }
+        if let Value::String(receiver) = &receiver {
+            return self.evaluate_string_method(receiver, method, &arguments, span);
         }
         let Value::Array(array) = receiver else {
             return Err(InterpretError::new(
@@ -844,6 +936,69 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                     .pop()
                     .ok_or_else(|| InterpretError::new(span, "cannot pop an empty typed array"))?;
                 Ok(value)
+            }
+            "indexOf" => {
+                let [needle] = arguments.as_slice() else {
+                    return Err(InterpretError::new(
+                        span,
+                        "array indexOf requires one value",
+                    ));
+                };
+                let array = array.borrow();
+                let index = array
+                    .iter()
+                    .position(|value| values_equal(value, needle))
+                    .map_or(-1, |index| index as i32);
+                Ok(Value::Int(index))
+            }
+            "slice" => {
+                let (start, end) = match arguments.as_slice() {
+                    [] => (0, i32::MAX),
+                    [Value::Int(start)] => (*start, i32::MAX),
+                    [Value::Int(start), Value::Int(end)] => (*start, *end),
+                    [_, ..] => {
+                        return Err(InterpretError::new(
+                            span,
+                            "array slice expects zero, one, or two int arguments",
+                        ));
+                    }
+                };
+                let array = array.borrow();
+                let start = normalize_slice_index(start, array.len());
+                let end = normalize_slice_index(end, array.len()).max(start);
+                Ok(Value::Array(Rc::new(RefCell::new(
+                    array[start..end].to_vec(),
+                ))))
+            }
+            "splice" => {
+                let [start, delete_count] = arguments.as_slice() else {
+                    return Err(InterpretError::new(
+                        span,
+                        "array splice requires start and deleteCount",
+                    ));
+                };
+                let Value::Int(start) = start else {
+                    return Err(InterpretError::new(
+                        span,
+                        "array splice start must be an int",
+                    ));
+                };
+                let Value::Int(delete_count) = delete_count else {
+                    return Err(InterpretError::new(
+                        span,
+                        "array splice deleteCount must be an int",
+                    ));
+                };
+                let mut array = array.borrow_mut();
+                let start = (*start).max(0) as usize;
+                let delete_count = (*delete_count).max(0) as usize;
+                let removed = if start >= array.len() {
+                    Vec::new()
+                } else {
+                    let end = (start + delete_count).min(array.len());
+                    array.drain(start..end).collect::<Vec<_>>()
+                };
+                Ok(Value::Array(Rc::new(RefCell::new(removed))))
             }
             "map" => {
                 let [callback] = arguments.as_slice() else {
@@ -956,27 +1111,31 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                     shared: buffer.shared,
                 })))
             }
-            (Value::Uint8Array(view), "slice") => {
+            (Value::TypedArray(view), "slice") => {
                 let (start, end) = slice_range(arguments, view.length, span)?;
-                let absolute_start = view.offset + start;
-                let absolute_end = view.offset + end;
+                let bpe = view.kind.bytes_per_element() as usize;
+                let absolute_start = view.offset + start * bpe;
+                let absolute_end = view.offset + end * bpe;
                 let bytes = view.buffer.bytes.borrow()[absolute_start..absolute_end].to_vec();
-                let length = bytes.len();
+                let length = bytes.len() / bpe;
                 let buffer = Rc::new(BufferValue {
                     bytes: RefCell::new(bytes),
                     shared: false,
                 });
-                Ok(Value::Uint8Array(Rc::new(Uint8ArrayValue {
+                Ok(Value::TypedArray(Rc::new(TypedArrayValue {
+                    kind: view.kind,
                     buffer,
                     offset: 0,
                     length,
                 })))
             }
-            (Value::Uint8Array(view), "subarray") => {
+            (Value::TypedArray(view), "subarray") => {
                 let (start, end) = slice_range(arguments, view.length, span)?;
-                Ok(Value::Uint8Array(Rc::new(Uint8ArrayValue {
+                let bpe = view.kind.bytes_per_element() as usize;
+                Ok(Value::TypedArray(Rc::new(TypedArrayValue {
+                    kind: view.kind,
                     buffer: view.buffer.clone(),
-                    offset: view.offset + start,
+                    offset: view.offset + start * bpe,
                     length: end - start,
                 })))
             }
@@ -1050,18 +1209,18 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                         }
                         Ok(RuntimePlace::ArrayElement { array, index })
                     }
-                    Value::Uint8Array(view) => {
+                    Value::TypedArray(view) => {
                         if index >= view.length {
                             return Err(InterpretError::new(
                                 *span,
-                                "Uint8Array index is out of bounds",
+                                format!("{} index is out of bounds", view.kind.name()),
                             ));
                         }
-                        Ok(RuntimePlace::Uint8Element { view, index })
+                        Ok(RuntimePlace::TypedArrayElement { view, index })
                     }
                     _ => Err(InterpretError::new(
                         *span,
-                        "reference interpreter only supports array and Uint8Array indexing",
+                        "reference interpreter only supports array and typed array indexing",
                     )),
                 }
             }
@@ -1080,14 +1239,7 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 .get(*index)
                 .cloned()
                 .ok_or_else(|| InterpretError::new(span, "array index is out of bounds")),
-            RuntimePlace::Uint8Element { view, index } => view
-                .buffer
-                .bytes
-                .borrow()
-                .get(view.offset + *index)
-                .copied()
-                .map(|value| Value::Int(i32::from(value)))
-                .ok_or_else(|| InterpretError::new(span, "Uint8Array index is out of bounds")),
+            RuntimePlace::TypedArrayElement { view, index } => typed_array_get(view, *index, span),
         }
     }
 
@@ -1107,19 +1259,8 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 *target = value;
                 Ok(())
             }
-            RuntimePlace::Uint8Element { view, index } => {
-                let Value::Int(value) = value else {
-                    return Err(InterpretError::new(
-                        span,
-                        "Uint8Array assignment value is not int",
-                    ));
-                };
-                let mut bytes = view.buffer.bytes.borrow_mut();
-                let target = bytes.get_mut(view.offset + *index).ok_or_else(|| {
-                    InterpretError::new(span, "Uint8Array index is out of bounds")
-                })?;
-                *target = value as u8;
-                Ok(())
+            RuntimePlace::TypedArrayElement { view, index } => {
+                typed_array_set(view, *index, value, span)
             }
         }
     }
@@ -1194,7 +1335,8 @@ fn values_equal(lhs: &Value, rhs: &Value) -> bool {
         (Value::Bool(lhs), Value::Bool(rhs)) => lhs == rhs,
         (Value::Array(lhs), Value::Array(rhs)) => Rc::ptr_eq(lhs, rhs),
         (Value::Buffer(lhs), Value::Buffer(rhs)) => Rc::ptr_eq(lhs, rhs),
-        (Value::Uint8Array(lhs), Value::Uint8Array(rhs)) => Rc::ptr_eq(lhs, rhs),
+        (Value::TypedArray(lhs), Value::TypedArray(rhs)) => Rc::ptr_eq(lhs, rhs),
+        (Value::Symbol(lhs), Value::Symbol(rhs)) => Rc::ptr_eq(lhs, rhs),
         (Value::Null, Value::Null) => true,
         _ => false,
     }
@@ -1220,9 +1362,10 @@ fn value_matches_type(value: &Value, target: TypeKind<'_, '_>) -> Option<bool> {
             name: "SharedArrayBuffer",
             ..
         } => Some(matches!(value, Value::Buffer(buffer) if buffer.shared)),
-        TypeKind::Named {
-            name: "Uint8Array", ..
-        } => Some(matches!(value, Value::Uint8Array(_))),
+        TypeKind::Named { name, .. } if let Some(kind) = TypedArrayKind::from_name(name) => {
+            Some(matches!(value, Value::TypedArray(view) if view.kind == kind))
+        }
+        TypeKind::Named { name: "Symbol", .. } => Some(matches!(value, Value::Symbol(_))),
         TypeKind::Nullable(_) if matches!(value, Value::Null) => Some(true),
         TypeKind::Nullable(inner) => value_matches_type(value, inner.kind),
         TypeKind::Union(members) => {
@@ -1243,6 +1386,158 @@ fn new_buffer(length: i32, shared: bool, span: Span) -> Result<Rc<BufferValue>, 
         bytes: RefCell::new(vec![0; length]),
         shared,
     }))
+}
+
+fn new_typed_array(
+    kind: TypedArrayKind,
+    argument: Value,
+    span: Span,
+) -> Result<Rc<TypedArrayValue>, InterpretError> {
+    let bpe = kind.bytes_per_element() as usize;
+    match argument {
+        Value::Int(length) => {
+            let byte_length = (length as i64)
+                .checked_mul(bpe as i64)
+                .and_then(|value| i32::try_from(value).ok())
+                .ok_or_else(|| {
+                    InterpretError::new(
+                        span,
+                        format!("{} length exceeds the i32 range", kind.name()),
+                    )
+                })?;
+            let buffer = new_buffer(byte_length, false, span)?;
+            Ok(Rc::new(TypedArrayValue {
+                kind,
+                length: usize::try_from(length).map_err(|_| {
+                    InterpretError::new(span, format!("{} length cannot be negative", kind.name()))
+                })?,
+                buffer,
+                offset: 0,
+            }))
+        }
+        Value::Buffer(buffer) => {
+            let byte_length = buffer.bytes.borrow().len();
+            if byte_length % bpe != 0 {
+                return Err(InterpretError::new(
+                    span,
+                    format!("{} buffer length must be divisible by {}", kind.name(), bpe),
+                ));
+            }
+            Ok(Rc::new(TypedArrayValue {
+                kind,
+                length: byte_length / bpe,
+                buffer,
+                offset: 0,
+            }))
+        }
+        _ => Err(InterpretError::new(
+            span,
+            format!(
+                "{} expects an int, ArrayBuffer, or SharedArrayBuffer",
+                kind.name()
+            ),
+        )),
+    }
+}
+
+fn typed_array_get(
+    view: &TypedArrayValue,
+    index: usize,
+    span: Span,
+) -> Result<Value, InterpretError> {
+    let bpe = view.kind.bytes_per_element() as usize;
+    let start = view.offset + index * bpe;
+    let bytes = view.buffer.bytes.borrow();
+    let slice = bytes.get(start..start + bpe).ok_or_else(|| {
+        InterpretError::new(span, format!("{} index is out of bounds", view.kind.name()))
+    })?;
+    Ok(match view.kind {
+        TypedArrayKind::Int8 => Value::Int(i32::from(slice[0] as i8)),
+        TypedArrayKind::Uint8 | TypedArrayKind::Uint8Clamped => Value::Int(i32::from(slice[0])),
+        TypedArrayKind::Int16 => {
+            let mut raw = [0u8; 2];
+            raw.copy_from_slice(slice);
+            Value::Int(i32::from(i16::from_le_bytes(raw)))
+        }
+        TypedArrayKind::Uint16 => {
+            let mut raw = [0u8; 2];
+            raw.copy_from_slice(slice);
+            Value::Int(i32::from(u16::from_le_bytes(raw)))
+        }
+        TypedArrayKind::Int32 | TypedArrayKind::Uint32 => {
+            let mut raw = [0u8; 4];
+            raw.copy_from_slice(slice);
+            Value::Int(i32::from_le_bytes(raw))
+        }
+        TypedArrayKind::Float32 => {
+            let mut raw = [0u8; 4];
+            raw.copy_from_slice(slice);
+            Value::Float(f64::from(f32::from_le_bytes(raw)))
+        }
+        TypedArrayKind::Float64 => {
+            let mut raw = [0u8; 8];
+            raw.copy_from_slice(slice);
+            Value::Float(f64::from_le_bytes(raw))
+        }
+    })
+}
+
+fn typed_array_set(
+    view: &TypedArrayValue,
+    index: usize,
+    value: Value,
+    span: Span,
+) -> Result<(), InterpretError> {
+    let bpe = view.kind.bytes_per_element() as usize;
+    let start = view.offset + index * bpe;
+    let mut bytes = view.buffer.bytes.borrow_mut();
+    let target = bytes.get_mut(start..start + bpe).ok_or_else(|| {
+        InterpretError::new(span, format!("{} index is out of bounds", view.kind.name()))
+    })?;
+    if view.kind.element_is_float() {
+        let float = match value {
+            Value::Float(value) => value,
+            Value::Int(value) => f64::from(value),
+            _ => {
+                return Err(InterpretError::new(
+                    span,
+                    format!("{} assignment value is not float", view.kind.name()),
+                ));
+            }
+        };
+        match view.kind {
+            TypedArrayKind::Float32 => target.copy_from_slice(&(float as f32).to_le_bytes()),
+            TypedArrayKind::Float64 => target.copy_from_slice(&float.to_le_bytes()),
+            _ => unreachable!(),
+        }
+        return Ok(());
+    }
+    let Value::Int(value) = value else {
+        return Err(InterpretError::new(
+            span,
+            format!("{} assignment value is not int", view.kind.name()),
+        ));
+    };
+    match view.kind {
+        TypedArrayKind::Int8 => target[0] = value as i8 as u8,
+        TypedArrayKind::Uint8 => target[0] = value as u8,
+        TypedArrayKind::Uint8Clamped => {
+            target[0] = if value < 0 {
+                0
+            } else if value > 255 {
+                255
+            } else {
+                value as u8
+            };
+        }
+        TypedArrayKind::Int16 => target.copy_from_slice(&(value as i16).to_le_bytes()),
+        TypedArrayKind::Uint16 => target.copy_from_slice(&(value as u16).to_le_bytes()),
+        TypedArrayKind::Int32 | TypedArrayKind::Uint32 => {
+            target.copy_from_slice(&value.to_le_bytes());
+        }
+        TypedArrayKind::Float32 | TypedArrayKind::Float64 => unreachable!(),
+    }
+    Ok(())
 }
 
 fn slice_range(
@@ -1274,6 +1569,120 @@ fn normalize_slice_index(index: i32, length: usize) -> usize {
         (length as i64 + i64::from(index)).clamp(0, length as i64) as usize
     } else {
         usize::try_from(index).unwrap_or(usize::MAX).min(length)
+    }
+}
+
+fn js_round(value: f64) -> f64 {
+    if value.is_sign_negative() && value >= -0.5 {
+        -0.0
+    } else {
+        (value + 0.5).floor()
+    }
+}
+
+fn js_to_i32(value: f64) -> i32 {
+    if !value.is_finite() || value == 0.0 {
+        return 0;
+    }
+    let mut normalized = value.trunc() % 4_294_967_296.0;
+    if normalized < 0.0 {
+        normalized += 4_294_967_296.0;
+    }
+    if normalized >= 2_147_483_648.0 {
+        (normalized - 4_294_967_296.0) as i32
+    } else {
+        normalized as i32
+    }
+}
+
+fn js_min(left: f64, right: f64) -> f64 {
+    if left.is_nan() || right.is_nan() {
+        f64::NAN
+    } else if left == 0.0 && right == 0.0 {
+        if left.is_sign_negative() || right.is_sign_negative() {
+            -0.0
+        } else {
+            0.0
+        }
+    } else if left < right {
+        left
+    } else {
+        right
+    }
+}
+
+fn js_max(left: f64, right: f64) -> f64 {
+    if left.is_nan() || right.is_nan() {
+        f64::NAN
+    } else if left == 0.0 && right == 0.0 {
+        if left.is_sign_negative() && right.is_sign_negative() {
+            -0.0
+        } else {
+            0.0
+        }
+    } else if left > right {
+        left
+    } else {
+        right
+    }
+}
+
+impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
+    fn evaluate_string_method(
+        &self,
+        receiver: &str,
+        method: &str,
+        arguments: &[Value],
+        span: Span,
+    ) -> Result<Value, InterpretError> {
+        match method {
+            "charCodeAt" => {
+                let Value::Int(index) = arguments.first().cloned().unwrap_or(Value::Int(0)) else {
+                    return Err(InterpretError::new(
+                        span,
+                        "charCodeAt requires an int index",
+                    ));
+                };
+                let code = if index < 0 {
+                    0
+                } else {
+                    receiver
+                        .encode_utf16()
+                        .nth(usize::try_from(index).unwrap_or(usize::MAX))
+                        .unwrap_or(0)
+                };
+                Ok(Value::Int(i32::from(code)))
+            }
+            "charAt" => {
+                let Value::Int(index) = arguments.first().cloned().unwrap_or(Value::Int(0)) else {
+                    return Err(InterpretError::new(span, "charAt requires an int index"));
+                };
+                let unit = if index < 0 {
+                    None
+                } else {
+                    receiver
+                        .encode_utf16()
+                        .nth(usize::try_from(index).unwrap_or(usize::MAX))
+                };
+                Ok(Value::String(match unit {
+                    None => String::new(),
+                    Some(unit) => char::decode_utf16([unit])
+                        .next()
+                        .and_then(Result::ok)
+                        .map(|value| value.to_string())
+                        .unwrap_or_default(),
+                }))
+            }
+            "length" => Ok(Value::Int(
+                i32::try_from(receiver.encode_utf16().count()).map_err(|_| {
+                    InterpretError::new(span, "string length exceeds the i32 range")
+                })?,
+            )),
+            _ => Err(InterpretError::new(
+                span,
+                format!("unsupported interpreted string method `{method}`"),
+            )),
+        }
     }
 }
 
@@ -1376,6 +1785,29 @@ mod tests {
                     print(mapped[1]);
                 "#,),
             "3\n2\n4\n"
+        );
+    }
+
+    #[test]
+    fn copies_array_slices_with_javascript_index_normalization() {
+        assert_eq!(
+            run(r#"
+                    int[] values=[1,2,3,4];
+                    int[] copied=values.slice();
+                    copied[0]=9;
+                    int[] middle=values.slice(1,-1);
+                    int[] tail=values.slice(-2);
+                    int[] empty=values.slice(3,1);
+                    print(values[0]);
+                    print(copied[0]);
+                    print(middle.length);
+                    print(middle[0]);
+                    print(middle[1]);
+                    print(tail[0]);
+                    print(tail[1]);
+                    print(empty.length);
+                "#),
+            "1\n9\n2\n2\n3\n3\n4\n0\n"
         );
     }
 

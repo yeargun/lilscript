@@ -488,6 +488,20 @@ impl<'src> JsEmitter<'src> {
                 self.pop_scope();
                 Ok(())
             }
+            Stmt::ForIn {
+                key, object, body, ..
+            } => {
+                self.push_scope();
+                let key = self.declare_name(*key)?;
+                out.push_str("for(let ");
+                out.push_str(&key);
+                out.push_str(" in ");
+                self.emit_expr(object, out)?;
+                out.push(')');
+                self.emit_control_body(body, out)?;
+                self.pop_scope();
+                Ok(())
+            }
             Stmt::Break(_) => {
                 out.push_str("break;");
                 Ok(())

@@ -1,0 +1,41 @@
+import { on, off, emit } from "../../../ports/mitt/index";
+
+Map<Symbol|string, (func(Symbol|string, string)->void)[]> all =
+  new Map<Symbol|string, (func(Symbol|string, string)->void)[]>();
+int calls = 0;
+string last = "";
+
+func(Symbol|string, string)->void onFoo = (Symbol|string type, string event) => {
+  calls = calls + 1;
+  last = event;
+};
+func(Symbol|string, string)->void onAny = (Symbol|string type, string event) => {
+  calls = calls + 1;
+  last = event;
+};
+
+on(all, "foo", onFoo);
+on(all, "*", onAny);
+
+emit(all, "foo", "bar");
+emit(all, "baz", "qux");
+
+off(all, "foo", onFoo);
+
+emit(all, "foo", "nope");
+
+Symbol CUSTOM = new Symbol("custom");
+on(all, CUSTOM, onFoo);
+emit(all, CUSTOM, "sym");
+
+int passed = 0;
+if (calls == 6) {
+  passed = passed + 1;
+}
+if (last == "sym") {
+  passed = passed + 1;
+}
+if (all.size == 3) {
+  passed = passed + 1;
+}
+print(`mitt:${passed}:${calls}`);

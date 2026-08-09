@@ -1,0 +1,28 @@
+import { cubicBezier, steps } from "../../../../libraries/ports/motion-easing/index";
+import { clamp } from "../../../../libraries/ports/micro-math/clamp";
+import { lerp } from "../../../../libraries/ports/micro-math/lerp";
+
+struct Frame {
+  float _position;
+  float _opacity;
+}
+
+pure float modulo(float value, float divisor) {
+  return value - (value / divisor).floor() * divisor;
+}
+
+func(float)->float ease = cubicBezier(0.22, 0.61, 0.36, 1.0);
+func(float)->float snap = steps(8, "end");
+Frame[] frames = [];
+float digest = 0.0;
+for (int cycle = 0; cycle < 600; cycle++) {
+  for (int frame = 0; frame <= 120; frame++) {
+    float progress = clamp(frame / 120.0, 0.0, 1.0);
+    float position = lerp(-24.0, 320.0, ease(progress));
+    float opacity = lerp(0.15, 1.0, snap(progress));
+    frames.push(Frame{position, opacity});
+    digest = modulo(digest + (position * 10.0).round() + (opacity * 100.0).round(), 2147483647.0);
+  }
+}
+Frame last = frames[frames.length - 1];
+print(`animation-timeline:${frames.length}:${digest}:${(last._position * 100000.0).round()}:${(last._opacity * 100000.0).round()}`);

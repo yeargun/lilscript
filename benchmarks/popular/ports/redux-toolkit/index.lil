@@ -1,0 +1,155 @@
+import {
+  ImmValue,
+  Slot,
+  immNull,
+  immBool,
+  immNumber,
+  immString,
+  immArray,
+  immObject,
+  createDraft,
+  isArrayDraft,
+  isObjectDraft,
+  draftModified,
+  originalOf,
+  currentOf,
+  draftLength,
+  draftGetProp,
+  draftGetIndex,
+  draftSetProp,
+  draftSetIndex,
+  draftDeleteProp,
+  draftPush,
+  draftPop,
+  finishDraft
+} from "../immer/index";
+
+export {
+  ImmValue,
+  Slot,
+  immNull,
+  immBool,
+  immNumber,
+  immString,
+  immArray,
+  immObject,
+  createDraft,
+  isArrayDraft,
+  isObjectDraft,
+  draftModified,
+  originalOf,
+  currentOf,
+  draftLength,
+  draftGetProp,
+  draftGetIndex,
+  draftSetProp,
+  draftSetIndex,
+  draftDeleteProp,
+  draftPush,
+  draftPop,
+  finishDraft
+};
+
+export class Action {
+  string type;
+  ImmValue payload;
+  bool hasPayload;
+
+  init(string type, ImmValue payload, bool hasPayload) {
+    this.type = type;
+    this.payload = payload;
+    this.hasPayload = hasPayload;
+  }
+}
+
+export class Store {
+  ImmValue state;
+
+  init(ImmValue state) {
+    this.state = state;
+  }
+}
+
+export Action makeAction(string type, ImmValue payload, bool hasPayload) {
+  return new Action(type, payload, hasPayload);
+}
+
+export string makeActionType(string sliceName, string reducerName) {
+  return `${sliceName}/${reducerName}`;
+}
+
+export Store createStore(ImmValue preloadedState) {
+  return new Store(preloadedState);
+}
+
+export ImmValue getState(Store store) {
+  return store.state;
+}
+
+export ImmValue dispatch(
+  Store store,
+  Action action,
+  func(ImmValue, Action)->ImmValue reducer
+) {
+  store.state = reducer(store.state, action);
+  return store.state;
+}
+
+export ImmValue buildInitialState(string[] keys, ImmValue[] initials) {
+  Map<string, ImmValue> fields = new Map<string, ImmValue>();
+  string[] outKeys = [];
+  for (int i = 0; i < keys.length; i = i + 1) {
+    outKeys.push(keys[i]);
+    fields.set(keys[i], initials[i]);
+  }
+  return immObject(fields, outKeys);
+}
+
+export ImmValue combineReduce(
+  ImmValue state,
+  Action action,
+  string[] keys,
+  ImmValue[] initials,
+  (func(ImmValue, Action)->ImmValue)[] reduces
+) {
+  Map<string, ImmValue> fields = new Map<string, ImmValue>();
+  string[] outKeys = [];
+  bool changed = false;
+  for (int i = 0; i < keys.length; i = i + 1) {
+    string key = keys[i];
+    outKeys.push(key);
+    ImmValue prev = initials[i];
+    ImmValue? found = state.fields.get(key);
+    if (found != null) {
+      prev = found;
+    }
+    func(ImmValue, Action)->ImmValue reduce = reduces[i];
+    ImmValue next = reduce(prev, action);
+    fields.set(key, next);
+    if (next != prev) {
+      changed = true;
+    }
+  }
+  if (!changed) {
+    return state;
+  }
+  return immObject(fields, outKeys);
+}
+
+export ImmValue applyCaseReducer(
+  ImmValue state,
+  Action action,
+  func(ImmValue, Action)->void reduce
+) {
+  ImmValue draft = createDraft(state);
+  reduce(draft, action);
+  ImmValue finished = finishDraft(draft);
+  if (!draftModified(draft)) {
+    return state;
+  }
+  return finished;
+}
+
+export Store configureStoreState(string[] keys, ImmValue[] initials) {
+  return createStore(buildInitialState(keys, initials));
+}

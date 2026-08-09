@@ -1,0 +1,1 @@
+preact:<div class="app" id="root"><span data-doubled="0" id="count">0</span><span id="memo">0</span><ul><li>a</li><li>b</li></ul><div class="badge" data-n="0">0</div></div>|<div class="app" id="root"><span data-doubled="2" id="count">1</span><span id="memo">2</span><ul><li>a</li><li>b</li><li>c</li></ul><div class="badge" data-n="1">1</div></div>

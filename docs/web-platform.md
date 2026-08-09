@@ -71,22 +71,41 @@ reject it with a source diagnostic because browser object identity and behavior 
 not have a portable C ABI. Ordinary `extern` functions remain the explicit route
 for a user-defined C host ABI.
 
+For APIs whose documented JavaScript boundary is intentionally dynamic,
+`JsValue` preserves the raw host value rather than requiring an allocation-heavy
+conversion tree. The available truthiness, category tests, dynamic indexing,
+numeric `length`, and direct string-key `for-in` operations are specified in
+[language-v0.1.md](language-v0.1.md). This remains a JavaScript-only ABI; native
+targets reject it explicitly.
+
 ## Binary Memory
 
-`ArrayBuffer`, `SharedArrayBuffer`, and `Uint8Array` are optimizer-known core
-types, not host wrappers. JavaScript emission uses the native ECMAScript built-ins;
-C emission uses LilScript's byte-buffer and view representation.
+`ArrayBuffer`, `SharedArrayBuffer`, and the nine core typed arrays
+(`Int8Array`, `Uint8Array`, `Uint8ClampedArray`, `Int16Array`, `Uint16Array`,
+`Int32Array`, `Uint32Array`, `Float32Array`, `Float64Array`) are
+optimizer-known core types, not host wrappers. JavaScript emission uses the
+native ECMAScript built-ins; C emission uses LilScript's shared byte-buffer and
+typed-array view representation.
 
 ```lilscript
 SharedArrayBuffer storage = new SharedArrayBuffer(4096);
 Uint8Array bytes = new Uint8Array(storage);
 bytes[0] = 42;
 Uint8Array header = bytes.subarray(0, 16);
+Float32Array values = new Float32Array(16);
+values[0] = 1.5;
+Int32Array ints = new Int32Array(4);
+Uint8ClampedArray clamped = new Uint8ClampedArray(2);
+clamped[0] = 300;
 ```
 
-The current contract supports fixed-length buffers, byte views, indexed byte
-access, `slice`, and `subarray`. It does not yet include `Atomics`, `DataView`,
-additional typed arrays, resizable `ArrayBuffer`, or growable `SharedArrayBuffer`.
+The current contract supports fixed-length buffers, the nine typed-array views
+above, indexed access, `slice`, and `subarray`. Integer views wrap; clamped
+bytes saturate into `0..255`. It also supports shared indexing and `length`
+for `float[]|Float32Array`, with tagged native dispatch for configurable
+numeric kernels. It does not yet include `Atomics`, `DataView`,
+`BigInt64Array`/`BigUint64Array` (no `BigInt` yet), resizable `ArrayBuffer`, or
+growable `SharedArrayBuffer`.
 Native `SharedArrayBuffer` preserves shared view identity within one process but
 does not yet provide concurrent or atomic semantics.
 

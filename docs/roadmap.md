@@ -95,6 +95,11 @@ A capability is complete only when:
   documentation.
 - Closure ADVANCED corpus, paired sources, package/library lanes, browser gates,
   native differential execution, and deterministic typed-program fuzzing.
+- A generated filter/sort benchmark catalog with project drill-down pages,
+  package links, real source previews, explicit mangling lanes, and a published
+  progress/limits page.
+- Integrated `labs/solid-client` source submodule plus a portable main-repository
+  evidence snapshot; no sibling absolute path is required to build the site.
 
 Detailed measurements live in [benchmark-results.md](benchmark-results.md), and
 pass boundaries live in [optimization-coverage.md](optimization-coverage.md).
@@ -139,6 +144,13 @@ property, variable, and late peephole phases rather than relying on one pass
   deterministic syntax proxies remain selection tools, not browser claims.
 
 ### P1: highest-probability bundle wins
+
+- [ ] **Escape-owned property mangling.** Derive the non-escaping aggregate
+  field set across modules and mangle only proven-owned properties without
+  requiring `mangle.exports=true`. Preserve dynamic keys, extern classes, ESM
+  public aggregates, reflection, and host ABI names. The checked
+  `property-ledger` boundary shows the available delta: `155/143/107` to
+  `105/117/90` raw/gzip/Brotli.
 
 - [x] **Bound private-function subsumption.** Reuse an existing broader
   direct-call implementation when typed scalar or known-function bindings prove
@@ -185,6 +197,14 @@ property, variable, and late peephole phases rather than relying on one pass
 
 ### P2: compiler throughput and runtime quality
 
+- [ ] Publish compile time, peak compiler memory, candidates emitted, and
+  dominated-candidate counts beside output bytes. The complete robust-predicate
+  topology demonstrates that a transfer win can still carry an unacceptable
+  search-time cost.
+- [ ] Cache equivalent optimizer IR hashes across mangling/output-policy lanes
+  and stop codec search when a candidate is structurally dominated under every
+  requested transport metric.
+
 - [ ] Add incremental module analysis, content-addressed IR/pass caches, and
   dependency-aware invalidation for the LSP and repeated builds.
 - [ ] Parallelize independent module analysis and expensive candidate emission while
@@ -213,7 +233,9 @@ These ideas are plausible, not commitments:
 
 - [ ] Cross-function substring dictionaries and suffix/prefix factoring.
 - [ ] Constant/function-operand merging that must synthesize a new shared body.
-- [ ] Compressor-window-aware ordering across large chunks and lazy boundaries.
+- [ ] Extend codec-window-aware function ordering within each emitted file to
+  cross-module function placement inside large shared chunks; independently
+  compressed lazy files remain hard history boundaries.
 - [ ] Multi-result calling conventions and tuple-return dissolution.
 - [ ] Route/island-aware progressive-enhancement entry graphs.
 - [ ] Profile-trained candidate priors that change search order but never semantic

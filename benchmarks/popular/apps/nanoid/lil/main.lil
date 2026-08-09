@@ -1,0 +1,49 @@
+import {
+  customAlphabet,
+  customRandom,
+  nanoid,
+  random,
+  urlAlphabet
+} from "../../../ports/nanoid/index";
+
+int passed = 0;
+if (urlAlphabet.length == 64) {
+  passed = passed + 1;
+}
+if (nanoid().length == 21) {
+  passed = passed + 1;
+}
+if (nanoid(21).length == 21) {
+  passed = passed + 1;
+}
+if (nanoid(10).length == 10) {
+  passed = passed + 1;
+}
+func(float)->string abc = customAlphabet("abcdefghijklmnopqrstuvwxyz", 5);
+if (abc(5).length == 5) {
+  passed = passed + 1;
+}
+if (abc(7).length == 7) {
+  passed = passed + 1;
+}
+func(float)->string fixed = customRandom(
+  "ab",
+  4,
+  (float size) => {
+    int length = size.toInt();
+    Uint8Array bytes = new Uint8Array(length);
+    for (int index = 0; index < length; index = index + 1) {
+      bytes[index] = 1;
+    }
+    return bytes;
+  }
+);
+string sample = fixed(8);
+if (sample.length == 8) {
+  passed = passed + 1;
+}
+Uint8Array bytes = random(3);
+if (bytes.length == 3) {
+  passed = passed + 1;
+}
+print(`nanoid:${passed}:${urlAlphabet.length}`);

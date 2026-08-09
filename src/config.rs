@@ -5,12 +5,20 @@ use std::path::{Path, PathBuf};
 use serde::Deserialize;
 
 use crate::codegen_ir_js::{
-    ControlFlowSpelling, FunctionLayout, IdentifierAlphabet, IrJsOptions, LoopSpelling,
-    MutationSpelling, PhiAffinityMode, StateMachineSpelling, StringQuote,
+    ControlFlowSpelling, FunctionLayout, FunctionSpelling, IdentifierAlphabet, IrJsOptions,
+    LoopSpelling, MutationSpelling, PhiAffinityMode, StateMachineSpelling, StringQuote,
 };
 use crate::codegen_native::NativeOptions;
 use crate::optimizer::OptimizationOptions;
 use crate::profile::{JavaScriptPerformanceWeights, OptimizationProfile};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum PublicAggregateAbi {
+    #[default]
+    Named,
+    Positional,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize)]
 #[serde(default, deny_unknown_fields)]
@@ -50,7 +58,10 @@ impl ProjectConfig {
 
     pub fn js_optimizer_options(&self) -> OptimizationOptions {
         let mut options = self.optimization.resolve();
-        options.specialize_tagged_constants = true;
+        options.specialize_tagged_constants = self
+            .optimization
+            .specialize_tagged_constants
+            .unwrap_or(true);
         options.call_site_specialization &= self
             .javascript
             .optimization_enabled(JavaScriptOptimization::CallSiteSpecialization, None);
@@ -163,19 +174,35 @@ impl ProjectConfig {
                 self.javascript
                     .compression_enabled(CompressionDecision::ExportMangling)
             }),
+            public_aggregate_fields: matches!(
+                self.javascript.public_aggregate_abi,
+                PublicAggregateAbi::Named
+            ),
             pool_strings: self.mangle.pool_strings.unwrap_or_else(|| {
                 self.javascript
                     .compression_enabled(CompressionDecision::StringPooling)
             }),
+            pool_numeric_literals: self.javascript.pool_numeric_literals,
             elide_safe_integer_coercions: self
                 .javascript
                 .compression_enabled(CompressionDecision::SafeIntegerCoercionElision),
             compact_boolean_literals: self
                 .javascript
                 .compression_enabled(CompressionDecision::CompactBooleanLiterals),
+            elide_block_terminal_semicolons: self
+                .javascript
+                .compression_enabled(CompressionDecision::StandardGrammarElision),
+            elide_new_parentheses: self
+                .javascript
+                .compression_enabled(CompressionDecision::StandardGrammarElision),
+            elide_call_chain_parentheses: self
+                .javascript
+                .compression_enabled(CompressionDecision::StandardGrammarElision),
             inline_structured_closures: self
                 .javascript
                 .compression_enabled(CompressionDecision::StructuredClosureInlining),
+            struct_method_shorthand: true,
+            truthy_nullable_checks: true,
             pack_string_arrays: self
                 .javascript
                 .compression_enabled(CompressionDecision::StringArrayPacking),
@@ -200,10 +227,21 @@ impl ProjectConfig {
             cross_scope_name_reuse: self
                 .javascript
                 .optimization_enabled(JavaScriptOptimization::EntropyCrossScopeReuse, None),
+            local_name_reserve: self.javascript.local_name_reserve,
+            stable_local_names: self.javascript.stable_local_names,
             entropy_property_names: self
                 .javascript
                 .optimization_enabled(JavaScriptOptimization::EntropyPropertyAssignment, None),
             function_layout: FunctionLayout::Source,
+            function_layout_exact_limit: self.javascript.function_layout_exact_limit,
+            function_spelling: self
+                .javascript
+                .function_spelling
+                .unwrap_or(FunctionSpelling::Arrow),
+            public_function_arrows: matches!(
+                self.javascript.function_spelling,
+                Some(FunctionSpelling::Arrow)
+            ),
             loop_spelling: LoopSpelling::Auto,
             mutation_spelling: MutationSpelling::Assignment,
             identifier_alphabet: IdentifierAlphabet::canonical(),
@@ -234,6 +272,14 @@ impl ProjectConfig {
             && self.javascript.optimization_enabled(
                 JavaScriptOptimization::IrClosureFactoryVariants,
                 Some(CompressionDecision::IrClosureFactoryVariants),
+            )
+    }
+
+    pub fn ir_phase_ordering_variants_enabled(&self) -> bool {
+        self.javascript.candidate_search_enabled()
+            && self.javascript.optimization_enabled(
+                JavaScriptOptimization::IrPhaseOrderingVariants,
+                Some(CompressionDecision::IrPhaseOrderingVariants),
             )
     }
 
@@ -332,6 +378,26 @@ impl ProjectConfig {
         }
         if self.javascript.candidate_limit == 0 {
             return Err("`javascript.candidate_limit` must be greater than zero".to_string());
+        }
+        if self.javascript.candidate_byte_budget == 0 {
+            return Err("`javascript.candidate_byte_budget` must be greater than zero".to_string());
+        }
+        if self.javascript.candidate_beam_width == 0 {
+            return Err("`javascript.candidate_beam_width` must be greater than zero".to_string());
+        }
+        if self.javascript.max_candidate_raw_growth_percent > 1000 {
+            return Err(
+                "`javascript.max_candidate_raw_growth_percent` must be at most 1000".to_string(),
+            );
+        }
+        if self.javascript.function_layout_exact_limit > 18 {
+            return Err("`javascript.function_layout_exact_limit` must be at most 18".to_string());
+        }
+        if self.javascript.local_name_reserve > 256 {
+            return Err("`javascript.local_name_reserve` must be at most 256".to_string());
+        }
+        if self.javascript.startup.max_nesting == Some(0) {
+            return Err("`javascript.startup.max_nesting` must be greater than zero".to_string());
         }
         if self.javascript.optimization_level > 15 {
             return Err("`javascript.optimization_level` must be between 0 and 15".to_string());
@@ -509,6 +575,7 @@ impl JavaScriptPriority {
                 !matches!(self, Self::PerformanceFirst)
             }
             CompressionDecision::CompactBooleanLiterals => !matches!(self, Self::PerformanceFirst),
+            CompressionDecision::StandardGrammarElision => true,
             CompressionDecision::StructuredClosureInlining => {
                 !matches!(self, Self::PerformanceFirst)
             }
@@ -517,6 +584,7 @@ impl JavaScriptPriority {
             CompressionDecision::PhiAffinityCoalescing => true,
             CompressionDecision::IrInliningVariants => matches!(self, Self::SizeFirst),
             CompressionDecision::IrClosureFactoryVariants => matches!(self, Self::SizeFirst),
+            CompressionDecision::IrPhaseOrderingVariants => matches!(self, Self::SizeFirst),
             CompressionDecision::LoopSpellingSelection => matches!(self, Self::SizeFirst),
             CompressionDecision::MutationSpellingSelection => matches!(self, Self::SizeFirst),
             CompressionDecision::PropertyMangling | CompressionDecision::ExportMangling => false,
@@ -557,12 +625,14 @@ pub enum CompressionDecision {
     SizeAwareInlining,
     SafeIntegerCoercionElision,
     CompactBooleanLiterals,
+    StandardGrammarElision,
     StructuredClosureInlining,
     StringArrayPacking,
     ScalarPhiCopies,
     PhiAffinityCoalescing,
     IrInliningVariants,
     IrClosureFactoryVariants,
+    IrPhaseOrderingVariants,
     LoopSpellingSelection,
     MutationSpellingSelection,
 }
@@ -579,12 +649,14 @@ impl CompressionDecision {
             Self::SizeAwareInlining => "size-aware-inlining",
             Self::SafeIntegerCoercionElision => "safe-integer-coercion-elision",
             Self::CompactBooleanLiterals => "compact-boolean-literals",
+            Self::StandardGrammarElision => "standard-grammar-elision",
             Self::StructuredClosureInlining => "structured-closure-inlining",
             Self::StringArrayPacking => "string-array-packing",
             Self::ScalarPhiCopies => "scalar-phi-copies",
             Self::PhiAffinityCoalescing => "phi-affinity-coalescing",
             Self::IrInliningVariants => "ir-inlining-variants",
             Self::IrClosureFactoryVariants => "ir-closure-factory-variants",
+            Self::IrPhaseOrderingVariants => "ir-phase-ordering-variants",
             Self::LoopSpellingSelection => "loop-spelling-selection",
             Self::MutationSpellingSelection => "mutation-spelling-selection",
         }
@@ -598,12 +670,21 @@ pub struct JavaScriptConfig {
     pub optimization_level: u8,
     pub optimizations: Option<Vec<JavaScriptOptimization>>,
     pub compression: Option<Vec<CompressionDecision>>,
+    pub pool_numeric_literals: bool,
     pub inline_instruction_limit: Option<usize>,
     pub inline_control_flow_limit: Option<usize>,
     pub max_inline_growth: Option<usize>,
     pub cost_model: CompressionCostModel,
     pub candidate_search: CandidateSearch,
     pub candidate_limit: usize,
+    pub candidate_byte_budget: usize,
+    pub candidate_beam_width: usize,
+    pub max_candidate_raw_growth_percent: u16,
+    pub function_layout_exact_limit: usize,
+    pub local_name_reserve: usize,
+    pub stable_local_names: bool,
+    pub function_spelling: Option<FunctionSpelling>,
+    pub public_aggregate_abi: PublicAggregateAbi,
     pub startup: StartupCostConfig,
     pub performance: JavaScriptPerformanceConfig,
 }
@@ -615,12 +696,21 @@ impl Default for JavaScriptConfig {
             optimization_level: 15,
             optimizations: None,
             compression: None,
+            pool_numeric_literals: true,
             inline_instruction_limit: None,
             inline_control_flow_limit: None,
             max_inline_growth: None,
             cost_model: CompressionCostModel::Brotli,
             candidate_search: CandidateSearch::Production,
             candidate_limit: 1536,
+            candidate_byte_budget: 1024 * 1024,
+            candidate_beam_width: 12,
+            max_candidate_raw_growth_percent: 0,
+            function_layout_exact_limit: 13,
+            local_name_reserve: 16,
+            stable_local_names: true,
+            function_spelling: None,
+            public_aggregate_abi: PublicAggregateAbi::Named,
             startup: StartupCostConfig::default(),
             performance: JavaScriptPerformanceConfig::default(),
         }
@@ -632,6 +722,7 @@ impl Default for JavaScriptConfig {
 pub enum JavaScriptOptimization {
     IrInliningVariants,
     IrClosureFactoryVariants,
+    IrPhaseOrderingVariants,
     IrFunctionSubsumptionVariants,
     IrSpecializationVariants,
     StructuralControlFlowVariants,
@@ -660,6 +751,7 @@ impl JavaScriptOptimization {
         match self {
             Self::IrInliningVariants => "ir-inlining-variants",
             Self::IrClosureFactoryVariants => "ir-closure-factory-variants",
+            Self::IrPhaseOrderingVariants => "ir-phase-ordering-variants",
             Self::IrFunctionSubsumptionVariants => "ir-function-subsumption-variants",
             Self::IrSpecializationVariants => "ir-specialization-variants",
             Self::StructuralControlFlowVariants => "structural-control-flow-variants",
@@ -703,7 +795,7 @@ impl JavaScriptOptimization {
             Self::CaptureSignatureCloning => 12,
             Self::IdenticalFunctionFolding => 13,
             Self::FunctionLayoutVariants => 13,
-            Self::IrFunctionSubsumptionVariants => 14,
+            Self::IrFunctionSubsumptionVariants | Self::IrPhaseOrderingVariants => 14,
         }
     }
 }
@@ -780,6 +872,7 @@ pub struct StartupCostConfig {
     pub parse_weight: u32,
     pub compile_weight: u32,
     pub memory_weight: u32,
+    pub max_nesting: Option<usize>,
     pub parse_overhead_limit_percent: u32,
     pub compile_overhead_limit_percent: u32,
     pub memory_overhead_limit_percent: u32,
@@ -791,6 +884,7 @@ impl Default for StartupCostConfig {
             parse_weight: 1,
             compile_weight: 1,
             memory_weight: 1,
+            max_nesting: None,
             parse_overhead_limit_percent: 30,
             compile_overhead_limit_percent: 30,
             memory_overhead_limit_percent: 35,
@@ -914,20 +1008,26 @@ impl JavaScriptConfig {
     }
 
     pub fn effective_candidate_limit(&self) -> usize {
-        if self.optimizations.is_some() {
-            return self.candidate_limit;
-        }
-        let level_limit = match self.optimization_level {
-            0..=2 => 1,
-            3..=4 => 16,
-            5..=6 => 64,
-            7..=8 => 192,
-            9..=10 => 384,
-            11..=12 => 768,
-            13..=14 => 1_024,
-            _ => usize::MAX,
+        let level_limit = if self.optimizations.is_some() {
+            usize::MAX
+        } else {
+            match self.optimization_level {
+                0..=2 => 1,
+                3..=4 => 16,
+                5..=6 => 64,
+                7..=8 => 192,
+                9..=10 => 384,
+                11..=12 => 768,
+                13..=14 => 1_024,
+                _ => usize::MAX,
+            }
         };
-        self.candidate_limit.min(level_limit)
+        let search_limit = match self.candidate_search {
+            CandidateSearch::Off => 1,
+            CandidateSearch::Production => 384,
+            CandidateSearch::Always => usize::MAX,
+        };
+        self.candidate_limit.min(level_limit).min(search_limit)
     }
 }
 
@@ -950,6 +1050,8 @@ pub struct OptimizationConfig {
     pub global_optimization: Option<bool>,
     pub inlining: Option<bool>,
     pub inline_closure_factories: Option<bool>,
+    pub constant_parameter_specialization: Option<bool>,
+    pub specialize_tagged_constants: Option<bool>,
     pub scalar_replacement: Option<bool>,
     pub dead_store_elimination: Option<bool>,
     pub dead_code_elimination: Option<bool>,
@@ -971,6 +1073,8 @@ impl Default for OptimizationConfig {
             global_optimization: None,
             inlining: None,
             inline_closure_factories: None,
+            constant_parameter_specialization: None,
+            specialize_tagged_constants: None,
             scalar_replacement: None,
             dead_store_elimination: None,
             dead_code_elimination: None,
@@ -1012,7 +1116,12 @@ impl OptimizationConfig {
             dead_code_elimination: self
                 .dead_code_elimination
                 .unwrap_or(base.dead_code_elimination),
-            specialize_tagged_constants: base.specialize_tagged_constants,
+            constant_parameter_specialization: self
+                .constant_parameter_specialization
+                .unwrap_or(base.constant_parameter_specialization),
+            specialize_tagged_constants: self
+                .specialize_tagged_constants
+                .unwrap_or(base.specialize_tagged_constants),
             call_site_specialization: self
                 .call_site_specialization
                 .unwrap_or(base.call_site_specialization),
@@ -1280,6 +1389,7 @@ shared_min_imports = 3
         assert!(size.js_options().scalar_phi_copies);
         assert!(size.ir_inlining_variants_enabled());
         assert!(size.ir_closure_factory_variants_enabled());
+        assert!(size.ir_phase_ordering_variants_enabled());
         assert!(size.loop_spelling_selection_enabled());
         assert!(size.mutation_spelling_selection_enabled());
         assert_eq!(
@@ -1293,8 +1403,10 @@ shared_min_imports = 3
 
         assert!(!performance.entropy_aware_mangling_enabled());
         assert!(!performance.js_options().compact_boolean_literals);
+        assert!(performance.js_options().elide_block_terminal_semicolons);
         assert!(!performance.ir_inlining_variants_enabled());
         assert!(!performance.ir_closure_factory_variants_enabled());
+        assert!(!performance.ir_phase_ordering_variants_enabled());
         assert!(!performance.loop_spelling_selection_enabled());
         assert!(!performance.mutation_spelling_selection_enabled());
 
@@ -1334,8 +1446,12 @@ max_inline_growth = 3
         assert!(!codegen.mangle_exports);
         assert!(codegen.pool_strings);
         assert!(!codegen.elide_safe_integer_coercions);
+        assert!(!codegen.elide_block_terminal_semicolons);
+        assert!(!codegen.elide_new_parentheses);
+        assert!(!codegen.elide_call_chain_parentheses);
         assert!(!custom.ir_inlining_variants_enabled());
         assert!(!custom.ir_closure_factory_variants_enabled());
+        assert!(!custom.ir_phase_ordering_variants_enabled());
         assert!(!custom.loop_spelling_selection_enabled());
         assert!(!custom.mutation_spelling_selection_enabled());
 
@@ -1348,6 +1464,9 @@ max_inline_growth = 3
         assert!(!none_codegen.pool_strings);
         assert!(!none_codegen.elide_safe_integer_coercions);
         assert!(!none_codegen.compact_boolean_literals);
+        assert!(!none_codegen.elide_block_terminal_semicolons);
+        assert!(!none_codegen.elide_new_parentheses);
+        assert!(!none_codegen.elide_call_chain_parentheses);
         assert!(!none_codegen.pack_string_arrays);
         assert!(!none_codegen.scalar_phi_copies);
         assert_eq!(
@@ -1369,6 +1488,12 @@ max_inline_growth = 3
         let disabled: ProjectConfig =
             toml::from_str("[javascript]\noptimization_level=0\ncandidate_limit=1536\n").unwrap();
         disabled.validate().unwrap();
+        assert_eq!(disabled.javascript.candidate_beam_width, 12);
+        assert_eq!(disabled.javascript.candidate_byte_budget, 1024 * 1024);
+        assert_eq!(disabled.javascript.max_candidate_raw_growth_percent, 0);
+        assert_eq!(disabled.javascript.function_layout_exact_limit, 13);
+        assert_eq!(disabled.javascript.local_name_reserve, 16);
+        assert!(disabled.javascript.stable_local_names);
         assert_eq!(disabled.javascript.effective_candidate_limit(), 1);
         assert!(!disabled.javascript_optimization_configured(
             JavaScriptOptimization::ConditionalExpressionVariants
@@ -1414,7 +1539,7 @@ optimizations = ["parsed-peephole", "do-loop-variants", "function-layout-variant
         )
         .unwrap();
         exact.validate().unwrap();
-        assert_eq!(exact.javascript.effective_candidate_limit(), 1536);
+        assert_eq!(exact.javascript.effective_candidate_limit(), 384);
         assert!(exact.javascript_optimization_configured(JavaScriptOptimization::ParsedPeephole));
         assert!(exact.javascript_optimization_configured(JavaScriptOptimization::DoLoopVariants));
         assert!(exact
@@ -1425,6 +1550,31 @@ optimizations = ["parsed-peephole", "do-loop-variants", "function-layout-variant
         assert!(!exact.javascript_optimization_configured(
             JavaScriptOptimization::ConditionalExpressionVariants
         ));
+
+        let mut exact_always = exact.clone();
+        exact_always.javascript.candidate_search = CandidateSearch::Always;
+        assert_eq!(exact_always.javascript.effective_candidate_limit(), 1536);
+
+        let constructible: ProjectConfig =
+            toml::from_str("[javascript]\nfunction_spelling='function'\n").unwrap();
+        assert_eq!(
+            constructible.js_options().function_spelling,
+            FunctionSpelling::Function
+        );
+
+        let opaque_handles: ProjectConfig =
+            toml::from_str("[javascript]\npublic_aggregate_abi='positional'\n").unwrap();
+        assert!(!opaque_handles.js_options().public_aggregate_fields);
+        assert!(
+            ProjectConfig::default()
+                .js_options()
+                .public_aggregate_fields
+        );
+
+        let exact_layout: ProjectConfig =
+            toml::from_str("[javascript]\nfunction_layout_exact_limit=18\n").unwrap();
+        exact_layout.validate().unwrap();
+        assert_eq!(exact_layout.js_options().function_layout_exact_limit, 18);
 
         let balanced: ProjectConfig =
             toml::from_str("[javascript]\npriority='balanced'\noptimization_level=15\n").unwrap();
@@ -1456,6 +1606,39 @@ optimizations = ["parsed-peephole", "do-loop-variants", "function-layout-variant
             .validate()
             .unwrap_err()
             .contains("between 0 and 15"));
+        let zero_beam: ProjectConfig =
+            toml::from_str("[javascript]\ncandidate_beam_width=0\n").unwrap();
+        assert!(zero_beam
+            .validate()
+            .unwrap_err()
+            .contains("candidate_beam_width"));
+        let zero_byte_budget: ProjectConfig =
+            toml::from_str("[javascript]\ncandidate_byte_budget=0\n").unwrap();
+        assert!(zero_byte_budget
+            .validate()
+            .unwrap_err()
+            .contains("candidate_byte_budget"));
+        let excessive_raw_growth: ProjectConfig =
+            toml::from_str("[javascript]\nmax_candidate_raw_growth_percent=1001\n").unwrap();
+        assert!(excessive_raw_growth
+            .validate()
+            .unwrap_err()
+            .contains("max_candidate_raw_growth_percent"));
+        let excessive_layout_search: ProjectConfig =
+            toml::from_str("[javascript]\nfunction_layout_exact_limit=19\n").unwrap();
+        assert!(excessive_layout_search
+            .validate()
+            .unwrap_err()
+            .contains("function_layout_exact_limit"));
+        let excessive_local_reserve: ProjectConfig =
+            toml::from_str("[javascript]\nlocal_name_reserve=257\n").unwrap();
+        assert!(excessive_local_reserve
+            .validate()
+            .unwrap_err()
+            .contains("local_name_reserve"));
+        let zero_nesting: ProjectConfig =
+            toml::from_str("[javascript.startup]\nmax_nesting=0\n").unwrap();
+        assert!(zero_nesting.validate().unwrap_err().contains("max_nesting"));
         let duplicate_optimization: ProjectConfig =
             toml::from_str("[javascript]\noptimizations=['parsed-peephole','parsed-peephole']\n")
                 .unwrap();
@@ -1559,6 +1742,8 @@ providers = ["correctness", "web"]
 preset = "maximum"
 call_site_specialization = false
 capture_signature_cloning = false
+constant_parameter_specialization = false
+specialize_tagged_constants = false
 profile_guided = false
 
 [javascript]
@@ -1569,6 +1754,8 @@ optimization_level = 15
         let options = config.js_optimizer_options();
         assert!(!options.call_site_specialization);
         assert!(!options.capture_signature_cloning);
+        assert!(!options.constant_parameter_specialization);
+        assert!(!options.specialize_tagged_constants);
         assert!(!config.js_profile_guided_optimization());
         assert!(!config.native_profile_guided_optimization());
     }

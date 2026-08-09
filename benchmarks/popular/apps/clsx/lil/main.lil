@@ -1,0 +1,8 @@
+import { clsx } from "../../../ports/clsx/index";
+
+string actual = clsx();
+if (actual == "") {
+  print("clsx-lil-entry:1");
+} else {
+  print("clsx-lil-entry:0");
+}

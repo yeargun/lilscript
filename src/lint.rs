@@ -775,9 +775,20 @@ fn intrinsic_allocation_kind(intrinsic: Intrinsic) -> Option<&'static str> {
         Intrinsic::ArrayBufferNew | Intrinsic::SharedArrayBufferNew | Intrinsic::BufferSlice => {
             Some("buffer")
         }
-        Intrinsic::Uint8ArrayNew | Intrinsic::Uint8ArraySlice | Intrinsic::Uint8ArraySubarray => {
+        other
+            if matches!(
+                crate::typed_array::classify_typed_array_intrinsic(other),
+                Some((
+                    _,
+                    crate::typed_array::TypedArrayIntrinsic::New
+                        | crate::typed_array::TypedArrayIntrinsic::Slice
+                        | crate::typed_array::TypedArrayIntrinsic::Subarray
+                ))
+            ) =>
+        {
             Some("typed array view")
         }
+        Intrinsic::SymbolNew => Some("symbol"),
         _ => None,
     }
 }
@@ -1134,6 +1145,13 @@ fn walk_statement_idents(statement: &Stmt<'_, '_>, visitor: &mut impl FnMut(Span
             if let Some(update) = update {
                 walk_expr_idents(update, visitor);
             }
+            walk_statement_idents(body, visitor);
+        }
+        Stmt::ForIn {
+            key, object, body, ..
+        } => {
+            visitor(key.span);
+            walk_expr_idents(object, visitor);
             walk_statement_idents(body, visitor);
         }
         Stmt::Break(_) | Stmt::Continue(_) => {}

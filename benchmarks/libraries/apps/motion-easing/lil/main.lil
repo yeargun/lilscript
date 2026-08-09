@@ -4,7 +4,7 @@ pure bool close(float actual, float expected, float tolerance = 0.0) {
   return (actual - expected).abs() <= tolerance;
 }
 
-int passed = 0;
+float passed = 0.0;
 void check(bool condition) {
   if (condition) {
     passed += 1;
@@ -38,8 +38,8 @@ for (int index = 0; index < startValues.length; index++) {
   check(stepStart(startValues[index]) == startExpected[index]);
 }
 
-int curveDigest = 0;
-int stepDigest = 0;
+float curveDigest = 0.0;
+float stepDigest = 0.0;
 for (int index = 0; index < 120000; index++) {
   float progress = (index % 101) / 100.0;
   if (curve(progress) > 0.5) { curveDigest += index % 17; }

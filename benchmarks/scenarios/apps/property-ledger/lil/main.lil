@@ -1,0 +1,13 @@
+struct LedgerEntry {
+  int _descriptiveCount;
+  int _descriptiveWeight;
+  int _descriptiveOffset;
+}
+
+extern int consume(LedgerEntry entry);
+
+int digest = 0;
+for (int index = 0; index < 5000; index++) {
+  digest += consume(LedgerEntry{index % 17, index % 13, index % 7});
+}
+print(`property-ledger:${digest}`);

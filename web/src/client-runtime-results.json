@@ -3,8 +3,8 @@
   "title": "SolidJS client runtime",
   "status": "partial",
   "sourceRepository": "https://github.com/yeargun/lilscript-solid-lab",
-  "sourceRevision": "de766cc3710460379ff29164b3e81100eca3a6a9",
-  "compilerRevision": "e7386e1b63ed2a14aec499d61ea6841ce00fe338",
+  "sourceRevision": "de766cc-dirty",
+  "compilerRevision": "85ef5bc-dirty",
   "upstream": {
     "package": "solid-js",
     "version": "1.9.13",
@@ -18,23 +18,67 @@
     "adaptedCasesPassed": 109,
     "adaptedCasesTotal": 469,
     "executions": 654,
-    "modes": ["maximum", "none"],
-    "backends": ["JavaScript", "emitted C", "native"]
+    "modes": [
+      "maximum",
+      "none"
+    ],
+    "backends": [
+      "JavaScript",
+      "emitted C",
+      "native"
+    ]
   },
   "sizes": [
-    { "id": "solid-vite", "label": "Official Solid + Vite", "raw": 12487, "gzip": 4922, "brotli": 4451 },
-    { "id": "solid-closure", "label": "Official Solid + Closure ADVANCED", "raw": 11237, "gzip": 4804, "brotli": 4307 },
-    { "id": "lilscript-vite", "label": "Partial LilScript runtime + Vite", "raw": 7909, "gzip": 3245, "brotli": 2901 },
-    { "id": "lilscript-closure", "label": "Partial LilScript runtime + Closure ADVANCED", "raw": 7523, "gzip": 3199, "brotli": 2850 },
-    { "id": "lilscript-compiler", "label": "Partial LilScript runtime + compiler", "raw": 5609, "gzip": 2265, "brotli": 2001 }
+    {
+      "id": "solid-todolist",
+      "label": "Official Solid JSX todolist + Vite 8",
+      "raw": 15456,
+      "gzip": 6077,
+      "brotli": 5479
+    },
+    {
+      "id": "solidlil-lsx",
+      "label": "solidlil LSX todolist + Vite 8",
+      "raw": 10590,
+      "gzip": 4226,
+      "brotli": 3722
+    },
+    {
+      "id": "solidlil-babel",
+      "label": "Identical-JSX solidlil todolist + Vite 8",
+      "raw": 13636,
+      "gzip": 5474,
+      "brotli": 4894
+    },
+    {
+      "id": "solid-core",
+      "label": "Official Solid used core surface",
+      "raw": 8616,
+      "gzip": 3494,
+      "brotli": 3201
+    },
+    {
+      "id": "solidlil-core",
+      "label": "solidlil used core surface",
+      "raw": 8483,
+      "gzip": 3393,
+      "brotli": 3082
+    }
   ],
   "runtime": {
-    "environment": "Node v24.11.1, jsdom, 4000 DOM interactions per sample",
-    "samples": 9,
-    "solidViteMedianMs": 40.851209,
-    "lilscriptViteMedianMs": 36.548291,
-    "solidClosureMedianMs": 39.738209,
-    "lilscriptClosureMedianMs": 35.461458
+    "environment": "Node v24.11.1, isolated jsdom processes, 60 inserts and 12 filter cycles",
+    "samples": 15,
+    "memorySamples": 9,
+    "solidMedianMs": 89.02104200000002,
+    "lsxMedianMs": 91.55449999999999,
+    "babelMedianMs": 89.29000000000002,
+    "lsxTimeRatio": 1.028459091727998,
+    "babelTimeRatio": 1.0030212856865908,
+    "solidRetainedBytes": 5130144,
+    "lsxRetainedBytes": 5372184,
+    "babelRetainedBytes": 5270192,
+    "lsxMemoryRatio": 1.0471799621998914,
+    "babelMemoryRatio": 1.0272990387794183
   },
   "notPorted": [
     "stores and mutable proxies",

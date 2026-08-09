@@ -13,6 +13,7 @@ use crate::ir::{
 };
 use crate::semantic::{DefaultValue, EscapeState, FunctionType, SemanticModel, SymbolId, Type};
 use crate::span::Span;
+use crate::typed_array::{is_typed_array_range_intrinsic, TypedArrayKind};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LowerError {
@@ -266,6 +267,7 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
         for (params, body, span) in arrows {
             let id = FunctionId(lowerer.plans.len() as u32);
             let captures = collect_arrow_captures(
+                params,
                 body,
                 span,
                 semantics,
@@ -461,6 +463,7 @@ struct FunctionBuilder<'model, 'maps, 'src> {
     capture_count: usize,
     locals: Vec<IrLocal<'src>>,
     local_by_symbol: AHashMap<SymbolId, LocalId>,
+    direct_value_by_symbol: AHashMap<SymbolId, ValueId>,
     blocks: Vec<ControlFlowBlock<'src>>,
     shapes: Vec<ControlShape>,
     current: BlockId,
@@ -502,6 +505,7 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
             capture_count: 0,
             locals: Vec::new(),
             local_by_symbol: AHashMap::new(),
+            direct_value_by_symbol: AHashMap::new(),
             blocks: vec![ControlFlowBlock {
                 id: BlockId(0),
                 phis: Vec::new(),
@@ -529,7 +533,7 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
             .get(symbol.0 as usize)
             .map(|symbol| symbol.ty.clone())
             .ok_or_else(|| LowerError::new(span, "missing `this` type"))?;
-        self.add_param(symbol, "this", ty, span)
+        self.add_param(symbol, "this", ty, None, span)
     }
 
     fn add_params<'ast>(&mut self, params: &[Param<'ast, 'src>]) -> Result<(), LowerError> {
@@ -540,9 +544,38 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                 .binding_type(param.name.span)
                 .cloned()
                 .ok_or_else(|| LowerError::new(param.span, "missing parameter type"))?;
-            self.add_param(symbol, param.name.name, ty, param.span)?;
+            self.add_param(
+                symbol,
+                param.name.name,
+                ty,
+                self.resolve_parameter_default(param.default.as_ref())?,
+                param.span,
+            )?;
         }
         Ok(())
+    }
+
+    fn resolve_parameter_default<'ast>(
+        &self,
+        expression: Option<&Expr<'ast, 'src>>,
+    ) -> Result<Option<crate::ir::IrParamDefault<'src>>, LowerError> {
+        let Some(expression) = expression else {
+            return Ok(None);
+        };
+        if let Some(value) = scalar_parameter_default(expression) {
+            return Ok(Some(crate::ir::IrParamDefault::Const(value)));
+        }
+        let Expr::Ident(identifier) = expression else {
+            return Ok(None);
+        };
+        if let Some(parameter) = self
+            .params
+            .iter()
+            .find(|parameter| parameter.name == identifier.name)
+        {
+            return Ok(Some(crate::ir::IrParamDefault::Value(parameter.value)));
+        }
+        Ok(Some(crate::ir::IrParamDefault::Name(identifier.name)))
     }
 
     fn add_captures(&mut self, captures: &[SymbolId]) -> Result<(), LowerError> {
@@ -552,7 +585,13 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                 .symbols()
                 .get(symbol.0 as usize)
                 .ok_or_else(|| LowerError::new(self.span, "missing captured symbol"))?;
-            self.add_param(capture.id, capture.name, capture.ty.clone(), capture.span)?;
+            self.add_param(
+                capture.id,
+                capture.name,
+                capture.ty.clone(),
+                None,
+                capture.span,
+            )?;
             self.capture_count += 1;
         }
         Ok(())
@@ -563,6 +602,7 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
         symbol: SymbolId,
         name: &'src str,
         ty: Type<'src>,
+        default: Option<crate::ir::IrParamDefault<'src>>,
         span: Span,
     ) -> Result<(), LowerError> {
         let local = self.add_local(symbol, name, ty.clone(), span);
@@ -573,6 +613,7 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
             value,
             name,
             ty,
+            default,
             span,
         });
         self.emit_effect(ControlFlowOp::StoreLocal { local, value }, span)
@@ -630,6 +671,13 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                 body,
                 *span,
             ),
+            Stmt::ForIn {
+                key,
+                object,
+                body,
+                span,
+                ..
+            } => self.lower_for_in(*key, object, body, *span),
             Stmt::Break(span) => {
                 let (_, break_target) = self.loop_targets.last().copied().ok_or_else(|| {
                     LowerError::new(*span, "`break` reached lowering outside a loop")
@@ -800,6 +848,63 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
         Ok(())
     }
 
+    fn lower_for_in<'ast>(
+        &mut self,
+        key: Ident<'src>,
+        object: &Expr<'ast, 'src>,
+        body: &Stmt<'ast, 'src>,
+        span: Span,
+    ) -> Result<(), LowerError> {
+        let object = self.lower_expr(object)?;
+        let header = self.add_block(span);
+        let body_block = self.add_block(body.span());
+        let exit = self.add_block(span);
+        self.terminate(Terminator::Jump(header))?;
+
+        self.current = header;
+        let key_value = self.emit_value(
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::JsForInKey,
+                receiver: Some(object),
+                args: Vec::new(),
+            },
+            Type::String,
+            key.span,
+        )?;
+        let condition = self.emit_value(
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::JsForInHasNext,
+                receiver: Some(object),
+                args: vec![key_value],
+            },
+            Type::Bool,
+            span,
+        )?;
+        self.shapes.push(ControlShape::ForIn {
+            header,
+            body: body_block,
+            exit,
+            object,
+            key: key_value,
+        });
+        self.terminate(Terminator::Branch {
+            condition,
+            then_block: body_block,
+            else_block: exit,
+        })?;
+
+        let symbol = self.symbol(key)?;
+        self.direct_value_by_symbol.insert(symbol, key_value);
+        self.loop_targets.push((header, exit));
+        self.current = body_block;
+        self.lower_stmt(body)?;
+        self.jump_if_open(header)?;
+        self.loop_targets.pop();
+        self.direct_value_by_symbol.remove(&symbol);
+        self.current = exit;
+        Ok(())
+    }
+
     fn lower_expr<'ast>(&mut self, expression: &Expr<'ast, 'src>) -> Result<ValueId, LowerError> {
         let ty = self.expression_type(expression)?;
         match expression {
@@ -855,7 +960,10 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                     Type::Set(_) => Some(Intrinsic::SetNew),
                     Type::ArrayBuffer => Some(Intrinsic::ArrayBufferNew),
                     Type::SharedArrayBuffer => Some(Intrinsic::SharedArrayBufferNew),
-                    Type::Uint8Array => Some(Intrinsic::Uint8ArrayNew),
+                    Type::Symbol => Some(Intrinsic::SymbolNew),
+                    ty if let Some(kind) = TypedArrayKind::from_type(ty) => {
+                        Some(kind.new_intrinsic())
+                    }
                     _ => None,
                 };
                 if let Some(intrinsic) = builtin {
@@ -1059,6 +1167,9 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
             .get(symbol.0 as usize)
             .map(|symbol| symbol.ty.clone())
             .ok_or_else(|| LowerError::new(span, "missing symbol type"))?;
+        if let Some(value) = self.direct_value_by_symbol.get(&symbol).copied() {
+            return Ok(value);
+        }
         if let Some(local) = self.local_by_symbol.get(&symbol).copied() {
             return self.emit_value(ControlFlowOp::LoadLocal(local), ty, span);
         }
@@ -1159,6 +1270,15 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                 ty,
                 span,
             ),
+            Type::TypeParameter("$js") if property.name == "length" => self.emit_value(
+                ControlFlowOp::Intrinsic {
+                    intrinsic: Intrinsic::ArrayLength,
+                    receiver: Some(object_value),
+                    args: Vec::new(),
+                },
+                ty,
+                span,
+            ),
             Type::Map(_, _) if property.name == "size" => self.emit_value(
                 ControlFlowOp::Intrinsic {
                     intrinsic: Intrinsic::MapSize,
@@ -1187,22 +1307,30 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                     ty,
                     span,
                 ),
-            Type::Uint8Array => {
-                let intrinsic = match property.name {
-                    "length" => Intrinsic::Uint8ArrayLength,
-                    "byteLength" => Intrinsic::Uint8ArrayByteLength,
-                    "byteOffset" => Intrinsic::Uint8ArrayByteOffset,
-                    "buffer" => Intrinsic::Uint8ArrayBuffer,
-                    _ => {
-                        return Err(LowerError::new(
-                            span,
-                            format!("member `{}` must be called in this context", property.name),
-                        ));
-                    }
-                };
+            object_ty if let Some(kind) = TypedArrayKind::from_type(&object_ty) => {
+                let intrinsic = kind.property_intrinsic(property.name).ok_or_else(|| {
+                    LowerError::new(
+                        span,
+                        format!("member `{}` must be called in this context", property.name),
+                    )
+                })?;
                 self.emit_value(
                     ControlFlowOp::Intrinsic {
                         intrinsic,
+                        receiver: Some(object_value),
+                        args: Vec::new(),
+                    },
+                    ty,
+                    span,
+                )
+            }
+            Type::Union(members)
+                if property.name == "length"
+                    && members.iter().all(indexed_collection_has_length) =>
+            {
+                self.emit_value(
+                    ControlFlowOp::Intrinsic {
+                        intrinsic: Intrinsic::ArrayLength,
                         receiver: Some(object_value),
                         args: Vec::new(),
                     },
@@ -1297,12 +1425,9 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
             }
             if let Some(intrinsic) = member_intrinsic(&receiver_type, property.name) {
                 let receiver = self.lower_expr(object)?;
-                let args = if matches!(
-                    intrinsic,
-                    Intrinsic::BufferSlice
-                        | Intrinsic::Uint8ArraySlice
-                        | Intrinsic::Uint8ArraySubarray
-                ) {
+                let args = if matches!(intrinsic, Intrinsic::BufferSlice)
+                    || is_typed_array_range_intrinsic(intrinsic)
+                {
                     let callee_type = self.expression_type(callee)?;
                     let signature = match &callee_type {
                         Type::Function(signature) => Some(signature.clone()),
@@ -1539,12 +1664,28 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                 span,
             );
         }
+        if let DefaultValue::Ident(name) = default {
+            if let Some(parameter) = self.params.iter().find(|parameter| parameter.name == *name) {
+                return Ok(parameter.value);
+            }
+            let symbol = self
+                .semantics
+                .symbols()
+                .iter()
+                .find(|symbol| symbol.name == *name)
+                .map(|symbol| symbol.id)
+                .ok_or_else(|| {
+                    LowerError::new(span, format!("default identifier `{name}` is not in scope"))
+                })?;
+            return self.lower_symbol_value(symbol, span);
+        }
         let value = match default {
             DefaultValue::Int(value) => ConstValue::Int(*value),
             DefaultValue::Float(bits) => ConstValue::Float(f64::from_bits(*bits)),
             DefaultValue::String(value) => ConstValue::String((*value).to_string()),
             DefaultValue::Bool(value) => ConstValue::Bool(*value),
             DefaultValue::Null => ConstValue::Null,
+            DefaultValue::Ident(_) => unreachable!(),
             DefaultValue::Array(_)
             | DefaultValue::Arrow(_)
             | DefaultValue::Struct { .. }
@@ -1973,6 +2114,10 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                 block.terminator = Some(Terminator::Unreachable);
             }
         }
+        let mut value_local_hints = vec![None; self.next_value as usize];
+        for parameter in &self.params {
+            value_local_hints[parameter.value.0 as usize] = Some(parameter.name);
+        }
         Ok(ControlFlowFunction {
             id: self.id,
             name: self.name,
@@ -1986,11 +2131,32 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
             shapes: self.shapes,
             entry: BlockId(0),
             value_count: self.next_value,
+            value_local_hints,
             value_escapes: self.value_escapes,
             locals_promoted: false,
             live: true,
             span: self.span,
         })
+    }
+}
+
+fn scalar_parameter_default(expression: &Expr<'_, '_>) -> Option<ConstValue> {
+    match expression {
+        Expr::Int(value, _) => Some(ConstValue::Int(*value)),
+        Expr::Float(value, _) => Some(ConstValue::Float(*value)),
+        Expr::String(value, _) => Some(ConstValue::String((*value).to_string())),
+        Expr::Bool(value, _) => Some(ConstValue::Bool(*value)),
+        Expr::Null(_) => Some(ConstValue::Null),
+        Expr::Unary {
+            op: UnaryOp::Neg,
+            expr,
+            ..
+        } => match scalar_parameter_default(expr)? {
+            ConstValue::Int(value) => Some(ConstValue::Int(-value)),
+            ConstValue::Float(value) => Some(ConstValue::Float(-value)),
+            _ => None,
+        },
+        _ => None,
     }
 }
 
@@ -2000,6 +2166,15 @@ fn default_array_element_type<'ty, 'src>(ty: &'ty Type<'src>) -> Option<&'ty Typ
         Type::Nullable(inner) => default_array_element_type(inner),
         Type::Union(members) => members.iter().find_map(default_array_element_type),
         _ => None,
+    }
+}
+
+fn indexed_collection_has_length(ty: &Type<'_>) -> bool {
+    match ty {
+        Type::Array(_) | Type::String => true,
+        ty if TypedArrayKind::from_type(ty).is_some() => true,
+        Type::Union(members) => members.iter().all(indexed_collection_has_length),
+        _ => false,
     }
 }
 
@@ -2130,12 +2305,18 @@ fn lower_assignment_op(op: AssignmentOp) -> IrBinaryOp {
 
 fn member_intrinsic(receiver: &Type<'_>, property: &str) -> Option<Intrinsic> {
     match (receiver, property) {
+        (Type::TypeParameter("$js"), "truthy") => Some(Intrinsic::JsTruthy),
+        (Type::TypeParameter("$js"), "isArray") => Some(Intrinsic::JsIsArray),
+        (Type::TypeParameter("$js"), "isObject") => Some(Intrinsic::JsIsObject),
         (Type::Array(_), "map") => Some(Intrinsic::ArrayMap),
         (Type::Array(_), "filter") => Some(Intrinsic::ArrayFilter),
         (Type::Array(_), "reduce") => Some(Intrinsic::ArrayReduce),
         (Type::Array(_), "forEach") => Some(Intrinsic::ArrayForEach),
         (Type::Array(_), "push") => Some(Intrinsic::ArrayPush),
         (Type::Array(_), "pop") => Some(Intrinsic::ArrayPop),
+        (Type::Array(_), "indexOf") => Some(Intrinsic::ArrayIndexOf),
+        (Type::Array(_), "slice") => Some(Intrinsic::ArraySlice),
+        (Type::Array(_), "splice") => Some(Intrinsic::ArraySplice),
         (Type::Map(_, _), "get") => Some(Intrinsic::MapGet),
         (Type::Map(_, _), "set") => Some(Intrinsic::MapSet),
         (Type::Map(_, _), "has") => Some(Intrinsic::MapHas),
@@ -2146,21 +2327,35 @@ fn member_intrinsic(receiver: &Type<'_>, property: &str) -> Option<Intrinsic> {
         (Type::Set(_), "delete") => Some(Intrinsic::SetDelete),
         (Type::Set(_), "clear") => Some(Intrinsic::SetClear),
         (Type::ArrayBuffer | Type::SharedArrayBuffer, "slice") => Some(Intrinsic::BufferSlice),
-        (Type::Uint8Array, "slice") => Some(Intrinsic::Uint8ArraySlice),
-        (Type::Uint8Array, "subarray") => Some(Intrinsic::Uint8ArraySubarray),
+        (ty, method) if let Some(kind) = TypedArrayKind::from_type(ty) => {
+            kind.method_intrinsic(method)
+        }
         (Type::Float, "abs") => Some(Intrinsic::FloatAbs),
         (Type::Float, "floor") => Some(Intrinsic::FloatFloor),
         (Type::Float, "ceil") => Some(Intrinsic::FloatCeil),
+        (Type::Float, "round") => Some(Intrinsic::FloatRound),
+        (Type::Float, "sqrt") => Some(Intrinsic::FloatSqrt),
+        (Type::Float, "sin") => Some(Intrinsic::FloatSin),
+        (Type::Float, "cos") => Some(Intrinsic::FloatCos),
+        (Type::Float, "acos") => Some(Intrinsic::FloatAcos),
+        (Type::Float, "exp") => Some(Intrinsic::FloatExp),
+        (Type::Float, "log") => Some(Intrinsic::FloatLog),
+        (Type::Float, "tan") => Some(Intrinsic::FloatTan),
+        (Type::Float, "atan2") => Some(Intrinsic::FloatAtan2),
+        (Type::Float, "hypot") => Some(Intrinsic::FloatHypot),
         (Type::Float, "min") => Some(Intrinsic::FloatMin),
         (Type::Float, "max") => Some(Intrinsic::FloatMax),
+        (Type::Float, "toInt") => Some(Intrinsic::FloatToInt),
         (Type::Int, "toString") => Some(Intrinsic::IntToString),
         (Type::Int, "toUnsignedString") => Some(Intrinsic::IntToUnsignedString),
         (Type::String, "includes") => Some(Intrinsic::StringIncludes),
         (Type::String, "charCodeAt") => Some(Intrinsic::StringCharCodeAt),
+        (Type::String, "charAt") => Some(Intrinsic::StringCharAt),
         (Type::String, "startsWith") => Some(Intrinsic::StringStartsWith),
         (Type::String, "endsWith") => Some(Intrinsic::StringEndsWith),
         (Type::String, "toUpperCase") => Some(Intrinsic::StringToUpperCase),
         (Type::String, "toLowerCase") => Some(Intrinsic::StringToLowerCase),
+        (Type::String, "truthy") => Some(Intrinsic::JsTruthy),
         _ => None,
     }
 }
@@ -2168,6 +2363,7 @@ fn member_intrinsic(receiver: &Type<'_>, property: &str) -> Option<Intrinsic> {
 type ArrowRef<'ast, 'src> = (&'ast [Param<'ast, 'src>], &'ast ArrowBody<'ast, 'src>, Span);
 
 fn collect_arrow_captures<'ast, 'src>(
+    params: &[Param<'ast, 'src>],
     body: &ArrowBody<'ast, 'src>,
     arrow_span: Span,
     semantics: &SemanticModel<'src>,
@@ -2175,6 +2371,11 @@ fn collect_arrow_captures<'ast, 'src>(
     functions: &AHashMap<SymbolId, FunctionId>,
 ) -> Vec<SymbolId> {
     let mut used = AHashSet::new();
+    for param in params {
+        if let Some(default) = &param.default {
+            collect_expr_symbols(default, semantics, &mut used);
+        }
+    }
     match body {
         ArrowBody::Expr(expression) => collect_expr_symbols(expression, semantics, &mut used),
         ArrowBody::Block(statements) => collect_stmt_symbols(statements, semantics, &mut used),
@@ -2257,6 +2458,10 @@ fn collect_stmt_symbols<'ast, 'src>(
                 if let Some(update) = update {
                     collect_expr_symbols(update, semantics, out);
                 }
+                collect_stmt_symbols(std::slice::from_ref(*body), semantics, out);
+            }
+            Stmt::ForIn { object, body, .. } => {
+                collect_expr_symbols(object, semantics, out);
                 collect_stmt_symbols(std::slice::from_ref(*body), semantics, out);
             }
             Stmt::Break(_) | Stmt::Continue(_) => {}
@@ -2445,6 +2650,10 @@ fn collect_one_stmt_arrows<'ast, 'src>(
             if let Some(update) = update {
                 collect_expr_arrows(update, out);
             }
+            collect_one_stmt_arrows(body, out);
+        }
+        Stmt::ForIn { object, body, .. } => {
+            collect_expr_arrows(object, out);
             collect_one_stmt_arrows(body, out);
         }
         Stmt::Break(_) | Stmt::Continue(_) => {}

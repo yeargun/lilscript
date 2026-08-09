@@ -1,0 +1,590 @@
+{
+  "schemaVersion": 1,
+  "measuredAt": "2026-08-08",
+  "downloadWindow": "last-month",
+  "eligibilityRule": "Every documented runtime export in the explicitly selected published entrypoint is implemented over the same JavaScript input domain and with the same algorithmic work; upstream-derived assertions, dense differential vectors, and identical app contracts pass; every adapter byte is measured; the LilScript Vite 8 artifact is no larger than either npm Vite 8 or public-API-preserving Closure ADVANCED in raw bytes or the explicitly selected transport codec; and representative throughput and retained-memory workloads show no material regression. Alternate gzip-9 and Brotli-11 sizes are always reported because optimizing one codec is not a promise about another. Partial, adapter-algorithm, and subset implementations are implementation backlog only and are not published as library comparisons. C/native checks are additional portability evidence where the selected API can be represented natively, not a substitute for JavaScript compatibility.",
+  "targets": [
+    {
+      "id": "nanoid",
+      "packages": [
+        "nanoid"
+      ],
+      "versions": [
+        "5.1.5"
+      ],
+      "status": "exact-browser-entrypoint",
+      "publicRuntimeApi": [
+        "nanoid",
+        "customAlphabet",
+        "customRandom",
+        "random",
+        "urlAlphabet"
+      ],
+      "entrypoint": "index.browser.js",
+      "notes": "All five exports of index.browser.js are ported and exposed with the same ESM names. Differential checks cover defaults and coercions, deterministic customRandom vectors, randomness/distribution, Uint8Array output, export keys, and the Number-valued 2147483648 callback step. The separately portable algorithm also passes a linked native C smoke contract. This claim intentionally excludes Nano ID's distinct pooled Node entrypoint."
+    },
+    {
+      "id": "mitt",
+      "packages": [
+        "mitt"
+      ],
+      "versions": [
+        "3.0.1"
+      ],
+      "status": "exact-root-entrypoint",
+      "notes": "The default export's exact {all,on,off,emit} object surface is preserved, including supplied Map identity, string and Symbol keys, first-only removal of duplicate handlers, snapshot behavior when listeners mutate registration during emit, omitted payload undefined, and direct-before-wildcard dispatch. The tiny measured JavaScript boundary only exposes the compiled function; all of its bytes are counted."
+    },
+    {
+      "id": "clsx",
+      "packages": [
+        "clsx"
+      ],
+      "versions": [
+        "2.1.1"
+      ],
+      "status": "exact-root-entrypoint",
+      "publicRuntimeApi": [
+        "clsx"
+      ],
+      "entrypoint": "dist/clsx.mjs",
+      "notes": "Default/named export identity and 10,000 deterministic recursive differential inputs match clsx 2.1.1, including inherited enumerable keys and ignored bigint/Symbol/function values. JsValue, direct dynamic indexing, raw truthiness, and for-in lowering preserve the upstream recursive algorithm without an intermediate conversion tree."
+    },
+    {
+      "id": "acorn",
+      "packages": [
+        "acorn"
+      ],
+      "versions": [
+        "8.15.0"
+      ],
+      "status": "candidate-parser-subset",
+      "publicRuntimeApi": [
+        "parse"
+      ],
+      "notes": "Subset of acorn.parse for a fixed 25-program suite under ecmaVersion 2020 (script): Program, VariableDeclaration (incl. Array/ObjectPattern destructuring), FunctionDeclaration (incl. async + pattern params), ExpressionStatement, Binary/Logical (incl. ??)/Unary/Update/Assignment/Conditional/Sequence/Call/Member/New/Literal/Identifier/ArrowFunction, TemplateLiteral/TemplateElement, Spread/Rest, ClassDeclaration/ClassBody/MethodDefinition/FunctionExpression/Super, Try/Catch/Throw, For/ForIn/While/Break/Continue, Switch/SwitchCase, ChainExpression + optional Member/Call, AwaitExpression, If/Return/Block, Object/Array Expression. Contract fingerprints AST shape (no loc/range/start/end/raw). Still out: full grammar, Yield/generators, import/export module sourceType, tokenizer/TokenType API, locations, plugins, assignment operators beyond `=`, and many comparison/binary ops.",
+      "runtimeAudit": {
+        "auditedAt": "2026-08-09",
+        "installedVersion": "8.15.0",
+        "packageRuntimeExportKeys": [
+          "."
+        ],
+        "selectedSubsetPaths": [
+          "parse"
+        ],
+        "auditedEntrypoints": [
+          {
+            "specifier": "acorn",
+            "runtimeExports": 22,
+            "exportNameSha256": "bff6126770683b2e1b6d038c90aea0e79c7dd24fc0ba76ab2fcade400bd1228e",
+            "runtimeExportNames": [
+              "Node",
+              "Parser",
+              "Position",
+              "SourceLocation",
+              "TokContext",
+              "Token",
+              "TokenType",
+              "defaultOptions",
+              "getLineInfo",
+              "isIdentifierChar",
+              "isIdentifierStart",
+              "isNewLine",
+              "keywordTypes",
+              "lineBreak",
+              "lineBreakG",
+              "nonASCIIwhitespace",
+              "parse",
+              "parseExpressionAt",
+              "tokContexts",
+              "tokTypes",
+              "tokenizer",
+              "version"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "preact",
+      "packages": [
+        "preact"
+      ],
+      "versions": [
+        "10.26.9"
+      ],
+      "status": "candidate-core-subset",
+      "publicRuntimeApi": [
+        "h",
+        "Fragment",
+        "Component",
+        "render",
+        "createRoot",
+        "useState",
+        "useRef",
+        "useMemo",
+        "useCallback",
+        "useLayoutEffect",
+        "useEffect"
+      ],
+      "notes": "Preact 10 core subset: h, Fragments, function components, class-component instances (LilScript Component + renderFn / npm extends Component), hooks (useState/useRef/useMemo/useCallback/useLayoutEffect), and list keys. Both npm and LilScript apps mount into the same shared apps/preact/shared DOM stub + canon serializer. LilScript uses a remounting DOM renderer rather than Preact's keyed diff. Context, Suspense, full keyed reconciliation, and the rest of Preact 10 remain out of scope. npm Closure Advanced mangles the class prop, so the measured Closure lane uses SIMPLE.",
+      "runtimeAudit": {
+        "auditedAt": "2026-08-09",
+        "installedVersion": "10.26.9",
+        "packageRuntimeExportKeys": [
+          ".",
+          "./compat",
+          "./debug",
+          "./devtools",
+          "./hooks",
+          "./test-utils",
+          "./compat/test-utils",
+          "./jsx-runtime",
+          "./jsx-dev-runtime",
+          "./compat/client",
+          "./compat/server",
+          "./compat/jsx-runtime",
+          "./compat/jsx-dev-runtime",
+          "./compat/scheduler"
+        ],
+        "selectedSubsetPaths": [
+          "h",
+          "Fragment",
+          "Component",
+          "render",
+          "createRoot",
+          "useState",
+          "useRef",
+          "useMemo",
+          "useCallback",
+          "useLayoutEffect",
+          "useEffect"
+        ],
+        "auditedEntrypoints": [
+          {
+            "specifier": "preact",
+            "runtimeExports": 12,
+            "exportNameSha256": "d75fa55b0f8bb76a3950038e0e4292251a03bb287331df626f2f2dc1617ff54c",
+            "runtimeExportNames": [
+              "Component",
+              "Fragment",
+              "cloneElement",
+              "createContext",
+              "createElement",
+              "createRef",
+              "h",
+              "hydrate",
+              "isValidElement",
+              "options",
+              "render",
+              "toChildArray"
+            ]
+          },
+          {
+            "specifier": "preact/hooks",
+            "runtimeExports": 12,
+            "exportNameSha256": "a4598713215012edb20d93a6cbb88be437d18e3684728bd134123fb9ad84b8a5",
+            "runtimeExportNames": [
+              "useCallback",
+              "useContext",
+              "useDebugValue",
+              "useEffect",
+              "useErrorBoundary",
+              "useId",
+              "useImperativeHandle",
+              "useLayoutEffect",
+              "useMemo",
+              "useReducer",
+              "useRef",
+              "useState"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "solid-js",
+      "packages": [
+        "solid-js"
+      ],
+      "versions": [
+        "1.9.13"
+      ],
+      "status": "partial-external",
+      "notes": "Measured in lilscript-solid-lab and not a complete Solid replacement. The publisher refreshes app, identical-JSX, used-core, runtime, and retained-memory evidence directly from that lab's current reports."
+    },
+    {
+      "id": "redux-toolkit",
+      "packages": [
+        "@reduxjs/toolkit"
+      ],
+      "versions": [
+        "2.8.2"
+      ],
+      "status": "candidate-core-subset",
+      "publicRuntimeApi": [
+        "createSlice",
+        "configureStore",
+        "store.dispatch",
+        "store.getState"
+      ],
+      "notes": "RTK core subset: createSlice with immer-style draft reducers (via ports/immer COW + JS Proxy facade), configureStore/combineReduce over ImmValue, dispatch and getState. App contract covers counter inc/dec and todos add/remove/toggle. Blocked from complete: no middleware/thunks/DevTools, no RTK Query, no createAsyncThunk, no listeners, no entity adapters, no selectors/reselect integration. npm Closure Advanced is incompatible with RTK's dynamic action/reducer keys; the size row uses Closure SIMPLE.",
+      "runtimeAudit": {
+        "auditedAt": "2026-08-09",
+        "installedVersion": "2.8.2",
+        "packageRuntimeExportKeys": [
+          ".",
+          "./react",
+          "./query",
+          "./query/react"
+        ],
+        "selectedSubsetPaths": [
+          "createSlice",
+          "configureStore",
+          "store.dispatch",
+          "store.getState"
+        ],
+        "auditedEntrypoints": [
+          {
+            "specifier": "@reduxjs/toolkit",
+            "runtimeExports": 59,
+            "exportNameSha256": "3bbacdb013ba9f5fa9cc27e8765ca81ac6b03dbbd03979078ae7bf24fde7c1af",
+            "runtimeExportNames": [
+              "ReducerType",
+              "SHOULD_AUTOBATCH",
+              "TaskAbortError",
+              "Tuple",
+              "__DO_NOT_USE__ActionTypes",
+              "addListener",
+              "applyMiddleware",
+              "asyncThunkCreator",
+              "autoBatchEnhancer",
+              "bindActionCreators",
+              "buildCreateSlice",
+              "clearAllListeners",
+              "combineReducers",
+              "combineSlices",
+              "compose",
+              "configureStore",
+              "createAction",
+              "createActionCreatorInvariantMiddleware",
+              "createAsyncThunk",
+              "createDraftSafeSelector",
+              "createDraftSafeSelectorCreator",
+              "createDynamicMiddleware",
+              "createEntityAdapter",
+              "createImmutableStateInvariantMiddleware",
+              "createListenerMiddleware",
+              "createNextState",
+              "createReducer",
+              "createSelector",
+              "createSelectorCreator",
+              "createSerializableStateInvariantMiddleware",
+              "createSlice",
+              "createStore",
+              "current",
+              "findNonSerializableValue",
+              "formatProdErrorMessage",
+              "freeze",
+              "isAction",
+              "isActionCreator",
+              "isAllOf",
+              "isAnyOf",
+              "isAsyncThunkAction",
+              "isDraft",
+              "isFluxStandardAction",
+              "isFulfilled",
+              "isImmutableDefault",
+              "isPending",
+              "isPlain",
+              "isPlainObject",
+              "isRejected",
+              "isRejectedWithValue",
+              "legacy_createStore",
+              "lruMemoize",
+              "miniSerializeError",
+              "nanoid",
+              "original",
+              "prepareAutoBatched",
+              "removeListener",
+              "unwrapResult",
+              "weakMapMemoize"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "immer",
+      "packages": [
+        "immer"
+      ],
+      "versions": [
+        "10.1.1"
+      ],
+      "status": "candidate",
+      "publicRuntimeApi": [
+        "produce",
+        "current",
+        "original",
+        "enablePatches",
+        "produceWithPatches",
+        "applyPatches"
+      ],
+      "notes": "Copy-on-write ImmValue draft tree lives in LilScript (no Proxies in-language). A measured JavaScript facade restores immer-like produce/current/original mutation syntax and enablePatches/produceWithPatches/applyPatches. Patch generation (assigned-key object patches + array length/index patches + replacement patches) runs in LilScript; applyPatches is restored in the facade over plain deep-cloned values (matching immer's JSON-patch ops for the contract). Covers nested object/array drafts, push/pop, property assign/delete, recipe return replacement, same-reference when unchanged, and patch round-trips. Blocked from complete: no Map/Set/Date/class/immerable drafts, no freeze/manual createDraft/finishDraft public API, and Proxy traps remain a JS-facade necessity because LilScript cannot express them.",
+      "runtimeAudit": {
+        "auditedAt": "2026-08-09",
+        "installedVersion": "10.1.1",
+        "packageRuntimeExportKeys": [
+          "."
+        ],
+        "selectedSubsetPaths": [
+          "produce",
+          "current",
+          "original",
+          "enablePatches",
+          "produceWithPatches",
+          "applyPatches"
+        ],
+        "auditedEntrypoints": [
+          {
+            "specifier": "immer",
+            "runtimeExports": 19,
+            "exportNameSha256": "02b6fdb981643d13b3cd0297c93fe001b91ae7137110279b39b98f6a80c5853b",
+            "runtimeExportNames": [
+              "Immer",
+              "applyPatches",
+              "castDraft",
+              "castImmutable",
+              "createDraft",
+              "current",
+              "enableMapSet",
+              "enablePatches",
+              "finishDraft",
+              "freeze",
+              "immerable",
+              "isDraft",
+              "isDraftable",
+              "nothing",
+              "original",
+              "produce",
+              "produceWithPatches",
+              "setAutoFreeze",
+              "setUseStrictShallowCopy"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "gl-matrix",
+      "packages": [
+        "gl-matrix"
+      ],
+      "versions": [
+        "3.4.3"
+      ],
+      "status": "exact-root-entrypoint",
+      "entrypoint": "esm/index.js",
+      "publicRuntimeApi": [
+        "glMatrix",
+        "mat2",
+        "mat2d",
+        "mat3",
+        "mat4",
+        "quat",
+        "quat2",
+        "vec2",
+        "vec3",
+        "vec4"
+      ],
+      "notes": "The complete ESM root namespace is measured: glMatrix common utilities plus every export and alias in vec2, vec3, vec4, mat2, mat2d, mat3, mat4, quat, and quat2. Namespace export keys are differentially checked against gl-matrix 3.4.3. ARRAY_TYPE is a live binding; setMatrixArrayType switches subsequent allocations between Float32Array, Array, or another supplied constructor. The shared behavioral contract invokes every module export in the default Float32Array mode and also verifies Array mode. The measured state/common adapter provides the constructor-valued host binding and all of its bytes are included. Native C remains an additional vec2+mat2+mat2d smoke contract, not part of the JavaScript compatibility claim."
+    },
+    {
+      "id": "zod",
+      "packages": [
+        "zod"
+      ],
+      "versions": [
+        "3.25.76"
+      ],
+      "status": "candidate-core-subset",
+      "publicRuntimeApi": [
+        "z.string",
+        "z.number",
+        "z.boolean",
+        "z.literal",
+        "z.object",
+        "z.array",
+        "z.enum",
+        "z.union",
+        "z.discriminatedUnion",
+        "z.tuple",
+        "z.record",
+        "parse",
+        "safeParse",
+        "optional",
+        "nullable",
+        "default",
+        "transform",
+        "min",
+        "max",
+        "email"
+      ],
+      "notes": "Zod 3 core subset: string/number/boolean/literal/object/array/enum/union/discriminatedUnion/tuple/record with min/max/email, optional/nullable/default, parse/safeParse. Inputs are modeled as an explicit JsonValue kind tree; the JS facade converts values and restores a chainable z API. .transform() runs in the facade after LilScript parse (JS callback). Email uses a portable character-class approximation of Zod 3's regex (no RegExp intrinsic). Full Zod (refinements, coerce, effects, pipe, Zod 4, etc.) remains out of scope.",
+      "runtimeAudit": {
+        "auditedAt": "2026-08-09",
+        "installedVersion": "3.25.76",
+        "packageRuntimeExportKeys": [
+          ".",
+          "./v3",
+          "./v4",
+          "./v4-mini",
+          "./v4/mini",
+          "./v4/core",
+          "./v4/locales",
+          "./v4/locales/*"
+        ],
+        "selectedSubsetPaths": [
+          "z.string",
+          "z.number",
+          "z.boolean",
+          "z.literal",
+          "z.object",
+          "z.array",
+          "z.enum",
+          "z.union",
+          "z.discriminatedUnion",
+          "z.tuple",
+          "z.record",
+          "parse",
+          "safeParse",
+          "optional",
+          "nullable",
+          "default",
+          "transform",
+          "min",
+          "max",
+          "email"
+        ],
+        "auditedEntrypoints": [
+          {
+            "specifier": "zod",
+            "runtimeExports": 109,
+            "exportNameSha256": "3372e5b834e490265abe1a61e76224a75825604cb99554206f37090306f6cec7",
+            "runtimeExportNames": [
+              "BRAND",
+              "DIRTY",
+              "EMPTY_PATH",
+              "INVALID",
+              "NEVER",
+              "OK",
+              "ParseStatus",
+              "Schema",
+              "ZodAny",
+              "ZodArray",
+              "ZodBigInt",
+              "ZodBoolean",
+              "ZodBranded",
+              "ZodCatch",
+              "ZodDate",
+              "ZodDefault",
+              "ZodDiscriminatedUnion",
+              "ZodEffects",
+              "ZodEnum",
+              "ZodError",
+              "ZodFirstPartyTypeKind",
+              "ZodFunction",
+              "ZodIntersection",
+              "ZodIssueCode",
+              "ZodLazy",
+              "ZodLiteral",
+              "ZodMap",
+              "ZodNaN",
+              "ZodNativeEnum",
+              "ZodNever",
+              "ZodNull",
+              "ZodNullable",
+              "ZodNumber",
+              "ZodObject",
+              "ZodOptional",
+              "ZodParsedType",
+              "ZodPipeline",
+              "ZodPromise",
+              "ZodReadonly",
+              "ZodRecord",
+              "ZodSchema",
+              "ZodSet",
+              "ZodString",
+              "ZodSymbol",
+              "ZodTransformer",
+              "ZodTuple",
+              "ZodType",
+              "ZodUndefined",
+              "ZodUnion",
+              "ZodUnknown",
+              "ZodVoid",
+              "addIssueToContext",
+              "any",
+              "array",
+              "bigint",
+              "boolean",
+              "coerce",
+              "custom",
+              "date",
+              "datetimeRegex",
+              "default",
+              "defaultErrorMap",
+              "discriminatedUnion",
+              "effect",
+              "enum",
+              "function",
+              "getErrorMap",
+              "getParsedType",
+              "instanceof",
+              "intersection",
+              "isAborted",
+              "isAsync",
+              "isDirty",
+              "isValid",
+              "late",
+              "lazy",
+              "literal",
+              "makeIssue",
+              "map",
+              "nan",
+              "nativeEnum",
+              "never",
+              "null",
+              "nullable",
+              "number",
+              "object",
+              "objectUtil",
+              "oboolean",
+              "onumber",
+              "optional",
+              "ostring",
+              "pipeline",
+              "preprocess",
+              "promise",
+              "quotelessJson",
+              "record",
+              "set",
+              "setErrorMap",
+              "strictObject",
+              "string",
+              "symbol",
+              "transformer",
+              "tuple",
+              "undefined",
+              "union",
+              "unknown",
+              "util",
+              "void",
+              "z"
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

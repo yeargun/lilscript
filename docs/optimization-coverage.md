@@ -2,10 +2,10 @@
 
 This document maps Google Closure Compiler `ADVANCED` optimization
 responsibilities to LilScript. The reference is Closure Compiler
-`v20260803`, including the optimization factories in its
-[`DefaultPassConfig.java`](https://github.com/google/closure-compiler/blob/v20260803/src/com/google/javascript/jscomp/DefaultPassConfig.java).
+`v20260804`, including the optimization factories in its
+[`DefaultPassConfig.java`](https://github.com/google/closure-compiler/blob/v20260804/src/com/google/javascript/jscomp/DefaultPassConfig.java).
 Variable ordering is compared against Closure's
-[`RenameVars.java`](https://github.com/google/closure-compiler/blob/v20260803/src/com/google/javascript/jscomp/RenameVars.java),
+[`RenameVars.java`](https://github.com/google/closure-compiler/blob/v20260804/src/com/google/javascript/jscomp/RenameVars.java),
 and emitted-character ranking against Terser's documented
 [`nth_identifier`](https://github.com/terser/terser#minify-options) frequency
 analysis. Compressor-aware decisions use actual codec output because Brotli's
@@ -22,13 +22,13 @@ JavaScript and native C backends.
 
 | Closure responsibility | LilScript implementation |
 | --- | --- |
-| Early/late peephole optimization | Constant folding, algebraic identities, boolean simplification, branch inversion, nested literal-capture branch folding, precedence-carrying unary/binary/conditional/call/member/integer-normalization expressions, token-safe negative operands, precedence-safe parenthesis removal, compact literals/loops/returns/declarations, and a complete-artifact lexer plus Pratt-parsed compound-assignment superoptimizer |
-| Numeric representation lowering | Signed-i32 range analysis propagates bounded loop induction values, direct-call arguments and returns, and owned nominal fields; it removes coercions only for proven-safe operations. Ordinary multiplication emits `x*y|0` when normalization is required, while source-written `Math.imul` remains an explicit exact operation |
+| Early/late peephole optimization | Constant folding, algebraic identities, boolean simplification, branch inversion, redundant condition-only double-negation removal, effect-only nested branch lowering to conditional/logical expressions, nested literal-capture branch folding, boundary-aware nullable canonicalization (including checked `Map.get` values), precedence-carrying unary/binary/conditional/call/member/integer-normalization expressions, token-safe negative operands, codec-scored standards-valid call-chain/zero-argument-`new`/block-terminal-semicolon elision, compact literals/loops/returns/declarations, parsed dead-binding removal and adjacent-declaration fusion, recursive conditional-expression guard-return ladders, expression-only `if`/`else` sequence folding, proven synthetic-flag loop rotation, and a complete-artifact lexer plus Pratt-parsed compound-assignment superoptimizer; untouched and rewritten final artifacts compete under the exact selected codec |
+| Numeric representation lowering | Signed-i32 range analysis propagates bounded loop induction values, direct-call arguments and returns, and owned nominal fields; it removes coercions only for proven-safe operations, including remainder results whose nonzero divisor was pooled behind a numeric alias. Ordinary multiplication emits `x*y|0` when normalization is required, source-written `Math.imul` remains an explicit exact operation, and int-to-float unit increments may use overflow-correct JavaScript-number `-~x` without changing signed-int results |
 | Inline variables and constants | mem2reg SSA, constant propagation, single-assignment global propagation, constant rematerialization, one-use expression fusion, exact array-parameter lengths, and bounded boolean/string/null argument and return sets across closed stable direct-call sets |
 | Inline functions and simple methods | Fixed-point expression inlining plus single-use multi-block CFG inlining; size-first single-file/ESM builds compare that IR with a fully outlined IR under the exact selected codec |
 | Inline/collapse properties | Nominal field resolution, positional field indexes, struct/class scalar replacement, and owned-field range/finite-constant summaries invalidated at untyped boundaries |
-| Collapse object literals | Non-escaping structs dissolve into SSA scalars; remaining typed aggregates use positional arrays in JavaScript |
-| Disambiguate/ambiguate/rename properties | Nominal owner types and field indexes remove internal property names entirely; boundary names remain ABI-stable |
+| Collapse object literals | Non-escaping structs dissolve into SSA scalars; remaining internal typed aggregates use positional arrays, while boundary structs codec-select callable fields between arrow-valued properties and compact object-method shorthand |
+| Disambiguate/ambiguate/rename properties | Nominal owner types and field indexes remove internal property names entirely; LilScript-owned aggregates emit positional array slots in JavaScript, while `extern class` host names stay stable |
 | Devirtualize methods | Class calls become direct typed function calls before inlining |
 | Optimize calls and constructors | Direct-call lowering, recursive-call protection, constant-parameter specialization, optional profile-weighted constant and higher-order call cloning, constant-capture closure cloning, known-closure devirtualization, unused parameter/return removal, constructor inlining, allocation removal, and effect summaries |
 | Mark pure functions | Interprocedural fixed-point summaries separate inherent effects from mutations of specific parameters across direct calls and known closure captures; local scratch-allocation mutation filtering, checked `pure` contracts, and trusted `pure extern` declarations share that model |
@@ -36,11 +36,11 @@ JavaScript and native C backends.
 | Dead property assignment elimination | Overwritten typed field stores are removed between observation barriers |
 | Remove unused code | Unread globals, unreachable blocks, unused pure calls, unused allocations and mutation graphs, instructions, and call-graph-unreachable functions are removed; residual identical private direct-call functions fold after inlining while observable identities remain distinct |
 | Flow-sensitive inline variables | SSA def-use counts, side-effect-aware deferred expression emission, and one-use boolean merge phis fused into immediately following structured branches |
-| Coalesce variable names | CFG liveness, interference graph coloring, direct-phi affinity across conservative deferred-expression barriers, contracted non-interfering phi groups, codec selection across all three layouts, and reuse of dead locals as parallel-copy temporaries |
+| Coalesce variable names | CFG liveness, interference graph coloring, direct-phi affinity across conservative deferred-expression barriers, sibling-phi parallel-copy hazard guards, contracted non-interfering phi groups, codec selection across all three layouts and adaptive 0/8/16/32/configured local-name reservations, and reuse of dead locals as parallel-copy temporaries |
 | Collapse variable declarations | Adjacent bindings and first phi assignments are combined by the JS backend; cyclic phi copies compare tuple and scalar schedules under the configured codec |
-| Rewrite/collapse anonymous functions | Small typed closures become expression or structured block arrows; capturing closures pass explicit environments; literal captures expose dead branches during final emission |
-| Alias strings | Repeated constants are value-numbered and profitable long strings receive shared short bindings; size-first also considers delimiter-packed immutable string tables; final pooling, packing, quote, and coercion variants are selected against exact raw/gzip/Brotli cost |
-| Rename variables and globals | Use-frequency-ranked base-54/base-64 identifiers with extern names reserved, cross-scope reuse of unreachable top-level colors, loop-weighted owned-property assignment, plus exact-compressor selection of emitted-character-ranked alphabets and similarity-clustered declaration order |
+| Rewrite/collapse anonymous functions | Small typed closures become expression or structured block arrows; capturing closures pass explicit environments; literal captures expose dead branches during final emission, and constant structured branches emit only the selected arm so discarded speculative paths cannot consume function-scoped declarations |
+| Alias strings and numbers | Repeated constants are value-numbered; profitable long strings and numeric literals receive shared short bindings, including explicitly declared/imported pools in split ESM chunks. Size-first also considers delimiter-packed immutable string tables; final pooling, packing, quote, and coercion variants are selected against exact raw/gzip/Brotli cost |
+| Rename variables and globals | Use-frequency-ranked base-54/base-64 identifiers with extern names reserved, cross-scope reuse of unreachable top-level colors, loop-weighted owned-property assignment, plus exact-compressor selection of emitted-character-ranked and bounded permutation-searched alphabets and adjacency- or codec-window-clustered declaration order |
 | Rescope globals | Entry-only globals become locals; immutable shared globals become constants |
 | Rewrite modules and tree shake exports | Relative module graphs are linked into private symbol namespaces; executable exports remain shakeable, while `js-module` roots runtime exports and emits mangled ESM aliases |
 | Cross-chunk code/method motion | Whole-program optimization runs before deterministic ESM partitioning; preserve-module, measured shared chunks, and typed lazy imports emit explicit dependencies, live exports, and a content-addressed manifest |
@@ -78,18 +78,23 @@ The current schedule is:
 9. effect-aware SSA DCE, late identical-private-function folding, and
    whole-program function DCE;
 10. codec selection among configured inlining, closure-factory-preserving
-    partial inlining, fully outlined, and unspecialized optimizer IRs,
+    partial inlining, fully outlined, unspecialized optimizer IRs, and bounded
+    aggressive-inlining/early-CSE phase-order probes,
     followed by module-level integer argument/return/field range analysis,
     liveness-based name coalescing, structured boolean-phi deferral,
     dependency-ordered phi copies,
     liveness-reused cycle temporaries, codec-selected conservative/direct-phi
     affinity/group and scalar/tuple copy layouts, induction ranges, shortest
     numeric literals, precedence-carrying expression nodes, structured closure
-    selection, conditional/comma forms, structured/state-machine dispatch,
+    selection, conditional/comma forms including effect-order-preserving loop
+    statement sequences and initializer clauses, structured/state-machine dispatch,
     `while`/`for`/`do` and update-clause layouts, range-proven prefix/postfix/
     compound mutation spelling, string-table packing, entropy-aware cross-scope
-    names and properties, a parsed final peephole, deterministic startup guards,
-    similarity-clustered declaration layout, typed-IR
+    names and properties plus adaptive local-name reservation, a parsed final
+    peephole, deterministic relative
+    startup guards plus an optional absolute nesting ceiling,
+    adjacency- and 32-KiB-gzip/4-MiB-Brotli-window-clustered declaration
+    layout, a configurable cross-dimension candidate beam, typed-IR
     deoptimization/allocation/indirect-call/monomorphism scoring with
     optional hot function and loop weights, and compressor-aware candidate
     selection;
@@ -109,7 +114,7 @@ emitted C independently and requires the JavaScript, direct native executable,
 independently compiled C executable, and checked-in expected output to match.
 The corpus includes collection mutation/identity/nullable lookup and binary
 memory copy/view/coercion behavior under both maximum and disabled optional
-optimization, for 132 backend-mode executions. This includes regressions for
+optimization, for 138 backend-mode executions. This includes regressions for
 interprocedural integer ranges, finite values/fields, exact array lengths,
 entry-length snapshots across all array callback methods, unobserved collection
 mutation removal, multi-use conditional-return values, and
@@ -134,8 +139,9 @@ without lowering them to CFG/SSA. The fixed 64-case release batch exercises all
 integer operators, overflow, zero divisors, shifts, direct calls, mutation,
 short-circuit effects, branches, bounded loops, loop control, shadowing, array
 identity and indexed mutation, push/pop, captured arrows, and callback-time
-array growth. A fixed binary-memory kernel additionally covers byte coercion,
-copying and aliasing views, shared storage, and negative slice indices. It
+array growth. Fixed binary-memory kernels additionally cover byte coercion,
+Float32 storage rounding, copying and aliasing views, shared storage, byte
+offsets, and negative slice indices. They
 requires exact agreement from optimized JavaScript,
 optimizer-disabled JavaScript, the direct native executable, and emitted C
 compiled in a separate compiler invocation. The generated source and expected

@@ -17,11 +17,13 @@ separate. It answers three separate questions:
 | `event-pipeline` | Compares equivalent typed event dispatchers; separately builds a mitt app with Vite. |
 | `binary-telemetry` | Exercises `ArrayBuffer`, `SharedArrayBuffer`, `Uint8Array`, loops, and integer semantics without a dependency. |
 | `module-pricing` | Exercises relative imports, required module side effects, unused exports, structs/classes, and whole-program DCE. |
-| `motion-values` | Compares an animation-value kernel; separately builds real Motion `mix`/`wrap`/`stagger` and deterministic `spring` APIs with Vite. |
+| `motion-values` | Compares the numeric algorithms used by Motion `mix`, `wrap`, `stagger`, and the selected underdamped `spring`; separately builds those real APIs with Vite. |
 
 The Vite package builds are context only. They are excluded from compiler
 deltas and corpus totals because their implementation scope differs. In
-particular, the LilScript animation-value kernel is not a Motion port. Full
+particular, the LilScript animation-value kernel now matches the selected
+numeric algorithms and spring sample digest, but it is not a Motion package
+port or a substitute for Motion's dynamic overloads and generator API. Full
 Motion compatibility is tracked in
 [`../../docs/motion-compatibility.md`](../../docs/motion-compatibility.md), with
 machine-enforced status in [`compatibility/motion-v13.json`](compatibility/motion-v13.json).

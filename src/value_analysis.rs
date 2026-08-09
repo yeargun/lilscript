@@ -104,6 +104,10 @@ impl FunctionIntegerFacts {
         self.ranges.get(&value).copied()
     }
 
+    pub fn ranges(&self) -> &AHashMap<ValueId, I32Range> {
+        &self.ranges
+    }
+
     pub fn can_elide_coercion(&self, value: ValueId) -> bool {
         self.elidable_coercions.contains(&value)
     }
@@ -579,7 +583,7 @@ fn analyze_finite_function(
             })
             .fold(FiniteSummary::Bottom, |summary, value| {
                 summary.join(&value.map_or(FiniteSummary::Unknown, |value| {
-                    finite_value_summary(&values, value)
+                    observed_finite_summary(&values, value)
                 }))
             })
     } else {
@@ -1035,6 +1039,13 @@ fn evaluate_integer_instruction(
                 IrBinaryOp::Sub => lhs.sub(rhs),
                 IrBinaryOp::Mul => lhs.mul(rhs),
                 IrBinaryOp::Mod => lhs.modulo(rhs),
+                IrBinaryOp::BitAnd if rhs.min >= 0 => (
+                    I32Range {
+                        min: 0,
+                        max: rhs.max,
+                    },
+                    true,
+                ),
                 IrBinaryOp::BitAnd
                 | IrBinaryOp::BitOr
                 | IrBinaryOp::Xor
@@ -1066,9 +1077,6 @@ fn evaluate_integer_instruction(
             | Intrinsic::MapSize
             | Intrinsic::SetSize
             | Intrinsic::BufferByteLength
-            | Intrinsic::Uint8ArrayLength
-            | Intrinsic::Uint8ArrayByteLength
-            | Intrinsic::Uint8ArrayByteOffset
             | Intrinsic::StringLength => (
                 Some(I32Range {
                     min: 0,
@@ -1076,6 +1084,25 @@ fn evaluate_integer_instruction(
                 }),
                 false,
             ),
+            other
+                if matches!(
+                    crate::typed_array::classify_typed_array_intrinsic(*other),
+                    Some((
+                        _,
+                        crate::typed_array::TypedArrayIntrinsic::Length
+                            | crate::typed_array::TypedArrayIntrinsic::ByteLength
+                            | crate::typed_array::TypedArrayIntrinsic::ByteOffset
+                    ))
+                ) =>
+            {
+                (
+                    Some(I32Range {
+                        min: 0,
+                        max: i64::from(i32::MAX),
+                    }),
+                    false,
+                )
+            }
             Intrinsic::StringCharCodeAt => (
                 Some(I32Range {
                     min: 0,
@@ -1294,6 +1321,15 @@ fn collect_aggregate_owners(ty: &Type<'_>, owners: &mut AHashSet<String>) {
         | Type::ArrayBuffer
         | Type::SharedArrayBuffer
         | Type::Uint8Array
+        | Type::Int8Array
+        | Type::Uint8ClampedArray
+        | Type::Int16Array
+        | Type::Uint16Array
+        | Type::Int32Array
+        | Type::Uint32Array
+        | Type::Float32Array
+        | Type::Float64Array
+        | Type::Symbol
         | Type::ModuleNamespace(_)
         | Type::ModuleLoadError
         | Type::TypeParameter(_) => {}
@@ -1409,7 +1445,15 @@ fn seed_induction_ranges(
         let Some(phi) = block.phis.iter().find(|phi| phi.out == phi_value) else {
             continue;
         };
-        let Some(initial) = phi.incoming.iter().find_map(|(_, value)| constant(*value)) else {
+        let initial = phi
+            .incoming
+            .iter()
+            .find_map(|(_, value)| constant(*value))
+            .or_else(|| {
+                (!ascending && bound >= i64::from(i32::MIN) && bound <= i64::from(i32::MAX))
+                    .then_some(i64::from(i32::MAX))
+            });
+        let Some(initial) = initial else {
             continue;
         };
         let candidate = if ascending && initial <= bound {
@@ -1710,6 +1754,27 @@ mod tests {
         let program = parse_source(
             &arena,
             "T? maybe<T>(bool present,T value){if(present){return value;}return null;}print(maybe(true,7)!=null);",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+        crate::optimizer::promote_locals_to_ssa(&mut ir).unwrap();
+        let analysis = analyze_finite_values(&ir);
+        let maybe = ir
+            .functions
+            .iter()
+            .find(|function| function.name == Some("maybe"))
+            .unwrap();
+
+        assert_eq!(analysis.function(maybe.id).return_values(), None);
+    }
+
+    #[test]
+    fn does_not_treat_class_values_as_absent_nullable_returns() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "class Handle{int id;init(int id){this.id=id;}}Handle? maybe(bool present){if(present){return new Handle(1);}return null;}print(maybe(true)!=null);",
         )
         .unwrap();
         let semantics = analyze(&program).unwrap();

@@ -1,0 +1,17 @@
+extern class MathHost {
+  float PI;
+}
+
+extern MathHost Math;
+
+export float toRadian(float value) {
+  return value * (Math.PI / 180.0);
+}
+
+export float tau() {
+  return 2.0 * Math.PI;
+}
+
+export float halfToRadian() {
+  return Math.PI / 360.0;
+}

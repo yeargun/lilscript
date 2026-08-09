@@ -1,0 +1,742 @@
+export class ImmValue {
+  int kind;
+  bool flag;
+  float num;
+  string text;
+  ImmValue[] items;
+  Map<string, ImmValue> fields;
+  string[] keys;
+  bool isDraft;
+  ImmValue? origin;
+  ImmValue? cow;
+  bool modified;
+  ImmValue? parent;
+  int parentKind;
+  string parentKey;
+  int parentIndex;
+  Map<string, ImmValue> childProps;
+  Map<int, ImmValue> childIndices;
+  Map<string, bool> assignedProps;
+  Map<int, bool> assignedIndices;
+  string[] assignedPropKeys;
+  int[] assignedIndexKeys;
+
+  init(int kind) {
+    this.kind = kind;
+    this.flag = false;
+    this.num = 0.0;
+    this.text = "";
+    this.items = [];
+    this.fields = new Map<string, ImmValue>();
+    this.keys = [];
+    this.isDraft = false;
+    this.origin = null;
+    this.cow = null;
+    this.modified = false;
+    this.parent = null;
+    this.parentKind = 0;
+    this.parentKey = "";
+    this.parentIndex = 0;
+    this.childProps = new Map<string, ImmValue>();
+    this.childIndices = new Map<int, ImmValue>();
+    this.assignedProps = new Map<string, bool>();
+    this.assignedIndices = new Map<int, bool>();
+    this.assignedPropKeys = [];
+    this.assignedIndexKeys = [];
+  }
+}
+
+export class Slot {
+  int tag;
+  ImmValue value;
+
+  init(int tag, ImmValue value) {
+    this.tag = tag;
+    this.value = value;
+  }
+}
+
+export class PatchPathElem {
+  bool isIndex;
+  string key;
+  int index;
+
+  init(bool isIndex, string key, int index) {
+    this.isIndex = isIndex;
+    this.key = key;
+    this.index = index;
+  }
+}
+
+export class ImmPatch {
+  string op;
+  PatchPathElem[] path;
+  ImmValue value;
+  bool hasValue;
+
+  init(string op, PatchPathElem[] path, ImmValue value, bool hasValue) {
+    this.op = op;
+    this.path = path;
+    this.value = value;
+    this.hasValue = hasValue;
+  }
+}
+
+export class PatchesResult {
+  ImmValue value;
+  ImmPatch[] patches;
+  ImmPatch[] inversePatches;
+
+  init(ImmValue value, ImmPatch[] patches, ImmPatch[] inversePatches) {
+    this.value = value;
+    this.patches = patches;
+    this.inversePatches = inversePatches;
+  }
+}
+
+export class PatchCollector {
+  ImmPatch[] patches;
+  ImmPatch[] inversePatches;
+  bool active;
+
+  init() {
+    this.patches = [];
+    this.inversePatches = [];
+    this.active = true;
+  }
+}
+
+export ImmValue immNull() {
+  return new ImmValue(0);
+}
+
+export ImmValue immBool(bool flag) {
+  ImmValue value = new ImmValue(1);
+  value.flag = flag;
+  return value;
+}
+
+export ImmValue immNumber(float num) {
+  ImmValue value = new ImmValue(2);
+  value.num = num;
+  return value;
+}
+
+export ImmValue immString(string text) {
+  ImmValue value = new ImmValue(3);
+  value.text = text;
+  return value;
+}
+
+export ImmValue immArray(ImmValue[] items) {
+  ImmValue value = new ImmValue(4);
+  value.items = items;
+  return value;
+}
+
+export ImmValue immObject(Map<string, ImmValue> fields, string[] keys) {
+  ImmValue value = new ImmValue(5);
+  value.fields = fields;
+  value.keys = keys;
+  return value;
+}
+
+export PatchPathElem pathKey(string key) {
+  return new PatchPathElem(false, key, 0);
+}
+
+export PatchPathElem pathIndex(int index) {
+  return new PatchPathElem(true, "", index);
+}
+
+export ImmPatch makePatch(string op, PatchPathElem[] path, ImmValue value, bool hasValue) {
+  return new ImmPatch(op, path, value, hasValue);
+}
+
+export Slot makeSlot(int tag, ImmValue value) {
+  return new Slot(tag, value);
+}
+
+export ImmValue createDraft(ImmValue base) {
+  ImmValue draft = new ImmValue(base.kind);
+  draft.isDraft = true;
+  draft.origin = base;
+  return draft;
+}
+
+export bool isArrayDraft(ImmValue draft) {
+  return sourceOf(draft).kind == 4;
+}
+
+export bool isObjectDraft(ImmValue draft) {
+  return sourceOf(draft).kind == 5;
+}
+
+export bool draftModified(ImmValue draft) {
+  return draft.modified;
+}
+
+export ImmValue originalOf(ImmValue draft) {
+  ImmValue? origin = draft.origin;
+  if (origin != null) {
+    return origin;
+  }
+  return draft;
+}
+
+export ImmValue currentOf(ImmValue draft) {
+  return snapshot(sourceOf(draft), draft);
+}
+
+export int draftLength(ImmValue draft) {
+  return sourceOf(draft).items.length;
+}
+
+export ImmValue? draftGetProp(ImmValue draft, string key) {
+  ImmValue source = sourceOf(draft);
+  if (source.kind != 5) {
+    return null;
+  }
+  ImmValue? existing = draft.childProps.get(key);
+  if (existing != null) {
+    return existing;
+  }
+  ImmValue? found = source.fields.get(key);
+  if (found == null) {
+    return null;
+  }
+  ImmValue child = found;
+  if (child.kind == 4 || child.kind == 5) {
+    return nestProp(draft, key, child);
+  }
+  return child;
+}
+
+export ImmValue? draftGetIndex(ImmValue draft, int index) {
+  ImmValue source = sourceOf(draft);
+  if (source.kind != 4) {
+    return null;
+  }
+  if (index < 0 || index >= source.items.length) {
+    return null;
+  }
+  ImmValue? existing = draft.childIndices.get(index);
+  if (existing != null) {
+    return existing;
+  }
+  ImmValue child = source.items[index];
+  if (child.kind == 4 || child.kind == 5) {
+    return nestIndex(draft, index, child);
+  }
+  return child;
+}
+
+export void draftSetProp(ImmValue draft, string key, ImmValue value) {
+  ImmValue copy = requireCopy(draft);
+  ImmValue? prior = copy.fields.get(key);
+  if (prior == null) {
+    copy.keys.push(key);
+  }
+  copy.fields.set(key, value);
+  draft.childProps.delete(key);
+  markAssignedProp(draft, key, true);
+}
+
+export void draftSetIndex(ImmValue draft, int index, ImmValue value) {
+  ImmValue copy = requireCopy(draft);
+  while (copy.items.length <= index) {
+    copy.items.push(immNull());
+  }
+  copy.items[index] = value;
+  draft.childIndices.delete(index);
+  markAssignedIndex(draft, index, true);
+}
+
+export void draftDeleteProp(ImmValue draft, string key) {
+  ImmValue base = originalOf(draft);
+  bool hadBase = keyIn(base.keys, key);
+  ImmValue copy = requireCopy(draft);
+  if (copy.fields.delete(key)) {
+    removeKey(copy.keys, key);
+  }
+  draft.childProps.delete(key);
+  if (hadBase) {
+    markAssignedProp(draft, key, false);
+  } else {
+    draft.assignedProps.delete(key);
+  }
+}
+
+export int draftPush(ImmValue draft, ImmValue value) {
+  ImmValue copy = requireCopy(draft);
+  copy.items.push(value);
+  int index = copy.items.length - 1;
+  markAssignedIndex(draft, index, true);
+  return copy.items.length;
+}
+
+export ImmValue draftPop(ImmValue draft) {
+  ImmValue copy = requireCopy(draft);
+  if (copy.items.length == 0) {
+    return immNull();
+  }
+  int last = copy.items.length - 1;
+  draft.childIndices.delete(last);
+  markAssignedIndex(draft, last, false);
+  return copy.items.pop();
+}
+
+export ImmValue finishDraft(ImmValue draft) {
+  PatchCollector collector = new PatchCollector();
+  collector.active = false;
+  return finishDraftPath(draft, collector, []).value;
+}
+
+export PatchesResult finishDraftWithPatches(ImmValue draft) {
+  PatchCollector collector = new PatchCollector();
+  return finishDraftPath(draft, collector, []);
+}
+
+export PatchesResult replacementPatches(ImmValue base, ImmValue replacement) {
+  ImmPatch[] patches = [];
+  ImmPatch[] inverse = [];
+  patches.push(makePatch("replace", [], cloneTree(replacement), true));
+  inverse.push(makePatch("replace", [], cloneTree(base), true));
+  return new PatchesResult(replacement, patches, inverse);
+}
+
+PatchesResult finishDraftPath(ImmValue draft, PatchCollector collector, PatchPathElem[] path) {
+  finalizeChildren(draft, collector, path);
+  if (!draft.modified) {
+    ImmPatch[] empty = [];
+    return new PatchesResult(originalOf(draft), empty, empty);
+  }
+  if (collector.active) {
+    generatePatches(draft, path, collector);
+  }
+  ImmValue? copy = draft.cow;
+  ImmPatch[] emptyPatches = [];
+  ImmPatch[] emptyInverse = [];
+  if (copy != null) {
+    if (collector.active) {
+      return new PatchesResult(copy, collector.patches, collector.inversePatches);
+    }
+    return new PatchesResult(copy, emptyPatches, emptyInverse);
+  }
+  if (collector.active) {
+    return new PatchesResult(originalOf(draft), collector.patches, collector.inversePatches);
+  }
+  return new PatchesResult(originalOf(draft), emptyPatches, emptyInverse);
+}
+
+ImmValue sourceOf(ImmValue draft) {
+  ImmValue? copy = draft.cow;
+  if (copy != null) {
+    return copy;
+  }
+  return originalOf(draft);
+}
+
+ImmValue nestProp(ImmValue parent, string key, ImmValue base) {
+  ImmValue child = createDraft(base);
+  child.parent = parent;
+  child.parentKind = 1;
+  child.parentKey = key;
+  parent.childProps.set(key, child);
+  return child;
+}
+
+ImmValue nestIndex(ImmValue parent, int index, ImmValue base) {
+  ImmValue child = createDraft(base);
+  child.parent = parent;
+  child.parentKind = 2;
+  child.parentIndex = index;
+  parent.childIndices.set(index, child);
+  return child;
+}
+
+void ensureCopy(ImmValue draft) {
+  if (draft.cow != null) {
+    draft.modified = true;
+    return;
+  }
+  draft.cow = shallowClone(originalOf(draft));
+  draft.modified = true;
+  markParent(draft);
+}
+
+void markParent(ImmValue draft) {
+  ImmValue? parent = draft.parent;
+  if (parent == null) {
+    return;
+  }
+  ImmValue owner = parent;
+  ImmValue into = requireCopy(owner);
+  ImmValue child = requireCopy(draft);
+  writeParentChild(into, draft, child);
+}
+
+void writeParentChild(ImmValue into, ImmValue draft, ImmValue child) {
+  if (draft.parentKind == 1) {
+    into.fields.set(draft.parentKey, child);
+    return;
+  }
+  if (draft.parentKind == 2) {
+    into.items[draft.parentIndex] = child;
+  }
+}
+
+ImmValue requireCopy(ImmValue draft) {
+  ensureCopy(draft);
+  ImmValue? copy = draft.cow;
+  if (copy != null) {
+    return copy;
+  }
+  return originalOf(draft);
+}
+
+ImmValue shallowClone(ImmValue value) {
+  if (value.kind == 4) {
+    ImmValue[] items = [];
+    ImmValue[] source = value.items;
+    for (int i = 0; i < source.length; i = i + 1) {
+      items.push(source[i]);
+    }
+    return immArray(items);
+  }
+  if (value.kind == 5) {
+    Map<string, ImmValue> fields = new Map<string, ImmValue>();
+    string[] keys = [];
+    string[] sourceKeys = value.keys;
+    for (int i = 0; i < sourceKeys.length; i = i + 1) {
+      string key = sourceKeys[i];
+      ImmValue? found = value.fields.get(key);
+      if (found != null) {
+        keys.push(key);
+        fields.set(key, found);
+      }
+    }
+    return immObject(fields, keys);
+  }
+  return value;
+}
+
+void finalizeChildren(ImmValue draft, PatchCollector collector, PatchPathElem[] path) {
+  ImmValue source = sourceOf(draft);
+  if (source.kind == 5) {
+    string[] keys = source.keys;
+    for (int i = 0; i < keys.length; i = i + 1) {
+      string key = keys[i];
+      ImmValue? child = draft.childProps.get(key);
+      if (child != null) {
+        ImmValue nested = child;
+        bool assigned = draft.assignedProps.get(key) != null;
+        PatchPathElem[] childPath = path;
+        if (collector.active && !assigned) {
+          childPath = appendKey(path, key);
+        }
+        PatchCollector childCollector = collector;
+        if (!collector.active || assigned) {
+          childCollector = new PatchCollector();
+          childCollector.active = false;
+        }
+        PatchesResult finished = finishDraftPath(nested, childCollector, childPath);
+        if (nested.modified) {
+          ImmValue copy = requireCopy(draft);
+          copy.fields.set(key, finished.value);
+        }
+      }
+    }
+  }
+  if (source.kind == 4) {
+    ImmValue[] items = source.items;
+    for (int i = 0; i < items.length; i = i + 1) {
+      ImmValue? child = draft.childIndices.get(i);
+      if (child != null) {
+        ImmValue nested = child;
+        bool assigned = draft.assignedIndices.get(i) != null;
+        PatchPathElem[] childPath = path;
+        if (collector.active && !assigned) {
+          childPath = appendIndex(path, i);
+        }
+        PatchCollector childCollector = collector;
+        if (!collector.active || assigned) {
+          childCollector = new PatchCollector();
+          childCollector.active = false;
+        }
+        PatchesResult finished = finishDraftPath(nested, childCollector, childPath);
+        if (nested.modified) {
+          ImmValue copy = requireCopy(draft);
+          copy.items[i] = finished.value;
+        }
+      }
+    }
+  }
+}
+
+void generatePatches(ImmValue draft, PatchPathElem[] basePath, PatchCollector collector) {
+  ImmValue source = sourceOf(draft);
+  if (source.kind == 5) {
+    generateObjectPatches(draft, basePath, collector);
+    return;
+  }
+  if (source.kind == 4) {
+    generateArrayPatches(draft, basePath, collector);
+  }
+}
+
+void markAssignedProp(ImmValue draft, string key, bool assigned) {
+  if (draft.assignedProps.get(key) == null) {
+    draft.assignedPropKeys.push(key);
+  }
+  draft.assignedProps.set(key, assigned);
+}
+
+void markAssignedIndex(ImmValue draft, int index, bool assigned) {
+  if (draft.assignedIndices.get(index) == null) {
+    draft.assignedIndexKeys.push(index);
+  }
+  draft.assignedIndices.set(index, assigned);
+}
+
+void generateObjectPatches(ImmValue draft, PatchPathElem[] basePath, PatchCollector collector) {
+  ImmValue base = originalOf(draft);
+  ImmValue copy = sourceOf(draft);
+  string[] keys = draft.assignedPropKeys;
+  for (int i = 0; i < keys.length; i = i + 1) {
+    string key = keys[i];
+    bool? assignedValue = draft.assignedProps.get(key);
+    if (assignedValue == null) {
+      continue;
+    }
+    bool assigned = false;
+    if (assignedValue != null) {
+      assigned = assignedValue;
+    }
+    ImmValue? origValue = base.fields.get(key);
+    ImmValue? value = copy.fields.get(key);
+    string op = "add";
+    if (!assigned) {
+      op = "remove";
+    } else if (origValue != null || keyIn(base.keys, key)) {
+      op = "replace";
+    }
+    if (op == "replace") {
+      if (origValue != null) {
+        ImmValue left = origValue;
+        if (value != null) {
+          ImmValue right = value;
+          if (sameImm(left, right)) {
+            continue;
+          }
+        }
+      }
+    }
+    PatchPathElem[] path = appendKey(basePath, key);
+    if (op == "remove") {
+      collector.patches.push(makePatch("remove", path, immNull(), false));
+      if (origValue != null) {
+        collector.inversePatches.push(makePatch("add", path, cloneTree(origValue), true));
+      } else {
+        collector.inversePatches.push(makePatch("add", path, immNull(), true));
+      }
+    } else if (op == "add") {
+      ImmValue patchValue = immNull();
+      if (value != null) {
+        patchValue = cloneTree(value);
+      }
+      collector.patches.push(makePatch("add", path, patchValue, true));
+      collector.inversePatches.push(makePatch("remove", path, immNull(), false));
+    } else {
+      ImmValue patchValue = immNull();
+      if (value != null) {
+        patchValue = cloneTree(value);
+      }
+      collector.patches.push(makePatch("replace", path, patchValue, true));
+      ImmValue invValue = immNull();
+      if (origValue != null) {
+        invValue = cloneTree(origValue);
+      }
+      collector.inversePatches.push(makePatch("replace", path, invValue, true));
+    }
+  }
+}
+
+void generateArrayPatches(ImmValue draft, PatchPathElem[] basePath, PatchCollector collector) {
+  ImmValue base = originalOf(draft);
+  ImmValue copy = sourceOf(draft);
+  if (copy.items.length < base.items.length) {
+    emitArrayGrowthPatches(draft, basePath, copy, base, collector.inversePatches, collector.patches);
+    return;
+  }
+  emitArrayGrowthPatches(draft, basePath, base, copy, collector.patches, collector.inversePatches);
+}
+
+void emitArrayGrowthPatches(
+  ImmValue draft,
+  PatchPathElem[] basePath,
+  ImmValue shorter,
+  ImmValue longer,
+  ImmPatch[] forward,
+  ImmPatch[] backward
+) {
+  for (int i = 0; i < shorter.items.length; i = i + 1) {
+    bool? assignedValue = draft.assignedIndices.get(i);
+    bool assigned = false;
+    if (assignedValue != null) {
+      assigned = assignedValue;
+    }
+    if (assigned) {
+      if (!sameImm(longer.items[i], shorter.items[i])) {
+        PatchPathElem[] path = appendIndex(basePath, i);
+        forward.push(makePatch("replace", path, cloneTree(longer.items[i]), true));
+        backward.push(makePatch("replace", path, cloneTree(shorter.items[i]), true));
+      }
+    }
+  }
+  for (int i = shorter.items.length; i < longer.items.length; i = i + 1) {
+    PatchPathElem[] path = appendIndex(basePath, i);
+    forward.push(makePatch("add", path, cloneTree(longer.items[i]), true));
+  }
+  for (int i = longer.items.length - 1; i >= shorter.items.length; i = i - 1) {
+    PatchPathElem[] path = appendIndex(basePath, i);
+    backward.push(makePatch("remove", path, immNull(), false));
+  }
+}
+
+PatchPathElem[] appendKey(PatchPathElem[] path, string key) {
+  PatchPathElem[] next = [];
+  for (int i = 0; i < path.length; i = i + 1) {
+    next.push(path[i]);
+  }
+  next.push(pathKey(key));
+  return next;
+}
+
+PatchPathElem[] appendIndex(PatchPathElem[] path, int index) {
+  PatchPathElem[] next = [];
+  for (int i = 0; i < path.length; i = i + 1) {
+    next.push(path[i]);
+  }
+  next.push(pathIndex(index));
+  return next;
+}
+
+bool keyIn(string[] keys, string key) {
+  for (int i = 0; i < keys.length; i = i + 1) {
+    if (keys[i] == key) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool sameImm(ImmValue a, ImmValue b) {
+  if (a == b) {
+    return true;
+  }
+  if (a.kind != b.kind) {
+    return false;
+  }
+  if (a.kind == 0) {
+    return true;
+  }
+  if (a.kind == 1) {
+    return a.flag == b.flag;
+  }
+  if (a.kind == 2) {
+    return a.num == b.num;
+  }
+  if (a.kind == 3) {
+    return a.text == b.text;
+  }
+  return false;
+}
+
+ImmValue snapshot(ImmValue value, ImmValue draft) {
+  if (value.kind == 4) {
+    ImmValue[] items = [];
+    ImmValue[] source = value.items;
+    for (int i = 0; i < source.length; i = i + 1) {
+      ImmValue? child = draft.childIndices.get(i);
+      if (child != null) {
+        items.push(currentOf(child));
+      } else {
+        items.push(cloneTree(source[i]));
+      }
+    }
+    return immArray(items);
+  }
+  if (value.kind == 5) {
+    Map<string, ImmValue> fields = new Map<string, ImmValue>();
+    string[] keys = [];
+    string[] sourceKeys = value.keys;
+    for (int i = 0; i < sourceKeys.length; i = i + 1) {
+      string key = sourceKeys[i];
+      keys.push(key);
+      ImmValue? child = draft.childProps.get(key);
+      if (child != null) {
+        fields.set(key, currentOf(child));
+      } else {
+        ImmValue? found = value.fields.get(key);
+        if (found != null) {
+          fields.set(key, cloneTree(found));
+        }
+      }
+    }
+    return immObject(fields, keys);
+  }
+  return cloneTree(value);
+}
+
+ImmValue cloneTree(ImmValue value) {
+  if (value.kind == 4) {
+    ImmValue[] items = [];
+    ImmValue[] source = value.items;
+    for (int i = 0; i < source.length; i = i + 1) {
+      items.push(cloneTree(source[i]));
+    }
+    return immArray(items);
+  }
+  if (value.kind == 5) {
+    Map<string, ImmValue> fields = new Map<string, ImmValue>();
+    string[] keys = [];
+    string[] sourceKeys = value.keys;
+    for (int i = 0; i < sourceKeys.length; i = i + 1) {
+      string key = sourceKeys[i];
+      ImmValue? found = value.fields.get(key);
+      if (found != null) {
+        keys.push(key);
+        fields.set(key, cloneTree(found));
+      }
+    }
+    return immObject(fields, keys);
+  }
+  if (value.kind == 1) {
+    return immBool(value.flag);
+  }
+  if (value.kind == 2) {
+    return immNumber(value.num);
+  }
+  if (value.kind == 3) {
+    return immString(value.text);
+  }
+  return immNull();
+}
+
+void removeKey(string[] keys, string key) {
+  int index = -1;
+  for (int i = 0; i < keys.length; i = i + 1) {
+    if (keys[i] == key) {
+      index = i;
+      break;
+    }
+  }
+  if (index < 0) {
+    return;
+  }
+  for (int i = index; i < keys.length - 1; i = i + 1) {
+    keys[i] = keys[i + 1];
+  }
+  keys.pop();
+}

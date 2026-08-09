@@ -1,0 +1,493 @@
+{
+  "metadata": {
+    "generatedAt": "2026-08-09T10:20:53.647Z",
+    "compilerRevision": "85ef5bc",
+    "node": "v24.11.1",
+    "vite": "8.2.1",
+    "terser": "5.43.1",
+    "closure": "20260804.0.0",
+    "system": "darwin 24.6.0 arm64",
+    "cpu": "Apple M3 Pro",
+    "codecs": {
+      "gzip": 9,
+      "brotli": 11
+    }
+  },
+  "fairness": "Same npm versions, selected APIs, source-level workload, closed-world boundary, expected stdout, JavaScript target, and codec settings. Property-mangled lanes may rename only fields that never cross the printed app contract.",
+  "results": [
+    {
+      "id": "login-risk",
+      "title": "Login risk scoring",
+      "summary": "A login audit combines edit distance, two production hash algorithms, clamping, private result records, and deterministic batching.",
+      "packages": [
+        "js-levenshtein",
+        "string-hash",
+        "@emotion/hash",
+        "clamp"
+      ],
+      "expected": "login-risk:3000:3876750:51:15kjg8z",
+      "category": "real-app",
+      "verification": {
+        "lanes": 9,
+        "native": true,
+        "cEmitted": true
+      },
+      "source": {
+        "javascript": "benchmarks/scenarios/apps/login-risk/js/main.js",
+        "lilscript": "benchmarks/scenarios/apps/login-risk/lil/main.lil"
+      },
+      "artifacts": [
+        {
+          "id": "vite-unminified",
+          "label": "Vite 8 / Rolldown, minify false",
+          "tool": "Vite 8",
+          "mode": "unmangled",
+          "identifierMangling": false,
+          "propertyMangling": "off",
+          "output": "benchmarks/scenarios/build/login-risk/vite-unminified/app.js",
+          "raw": 5639,
+          "gzip": 1983,
+          "brotli": 1787
+        },
+        {
+          "id": "vite-oxc",
+          "label": "Vite 8 / Oxc default",
+          "tool": "Vite 8",
+          "mode": "identifier",
+          "identifierMangling": true,
+          "propertyMangling": "off",
+          "output": "benchmarks/scenarios/build/login-risk/vite-oxc/app.js",
+          "raw": 3871,
+          "gzip": 1577,
+          "brotli": 1412
+        },
+        {
+          "id": "vite-terser-properties",
+          "label": "Vite 8 / Terser, `_` properties",
+          "tool": "Vite 8",
+          "mode": "property",
+          "identifierMangling": true,
+          "propertyMangling": "private-prefix",
+          "output": "benchmarks/scenarios/build/login-risk/vite-terser-properties/app.js",
+          "raw": 2704,
+          "gzip": 1264,
+          "brotli": 1156
+        },
+        {
+          "id": "closure-advanced",
+          "label": "Closure Compiler ADVANCED / closed app",
+          "tool": "Closure Compiler",
+          "mode": "property",
+          "identifierMangling": true,
+          "propertyMangling": "closed-world",
+          "output": "benchmarks/scenarios/build/login-risk/closure-advanced.mjs",
+          "raw": 2707,
+          "gzip": 1325,
+          "brotli": 1208
+        },
+        {
+          "id": "lilscript-unmangled",
+          "label": "LilScript / optimization and mangling off",
+          "tool": "LilScript",
+          "mode": "unmangled",
+          "identifierMangling": false,
+          "propertyMangling": "off",
+          "output": "benchmarks/scenarios/build/login-risk/lilscript-unmangled.mjs",
+          "raw": 4048,
+          "gzip": 1641,
+          "brotli": 1428
+        },
+        {
+          "id": "lilscript-public-safe",
+          "label": "LilScript / public-safe identifiers",
+          "tool": "LilScript",
+          "mode": "identifier",
+          "identifierMangling": true,
+          "propertyMangling": "off",
+          "output": "benchmarks/scenarios/build/login-risk/lilscript-public-safe.mjs",
+          "raw": 1987,
+          "gzip": 995,
+          "brotli": 902
+        },
+        {
+          "id": "lilscript-closed-world",
+          "label": "LilScript / closed-world properties",
+          "tool": "LilScript",
+          "mode": "property",
+          "identifierMangling": true,
+          "propertyMangling": "closed-world",
+          "output": "benchmarks/scenarios/build/login-risk/lilscript-closed-world.mjs",
+          "raw": 1987,
+          "gzip": 995,
+          "brotli": 902
+        },
+        {
+          "id": "lilscript-vite-oxc",
+          "label": "LilScript closed world + Vite 8 / Oxc",
+          "tool": "LilScript + Vite 8",
+          "mode": "property",
+          "identifierMangling": true,
+          "propertyMangling": "closed-world",
+          "output": "benchmarks/scenarios/build/login-risk/lilscript-vite-oxc/app.js",
+          "raw": 2678,
+          "gzip": 1100,
+          "brotli": 990
+        }
+      ]
+    },
+    {
+      "id": "animation-timeline",
+      "title": "Animation timeline",
+      "summary": "A frame scheduler combines cubic-bezier easing, steps, interpolation, clamping, and private frame records.",
+      "packages": [
+        "@motionone/easing",
+        "clamp",
+        "lerp"
+      ],
+      "expected": "animation-timeline:72600:173275200:32000000:89375",
+      "category": "real-app",
+      "verification": {
+        "lanes": 9,
+        "native": true,
+        "cEmitted": true
+      },
+      "source": {
+        "javascript": "benchmarks/scenarios/apps/animation-timeline/js/main.js",
+        "lilscript": "benchmarks/scenarios/apps/animation-timeline/lil/main.lil"
+      },
+      "artifacts": [
+        {
+          "id": "vite-unminified",
+          "label": "Vite 8 / Rolldown, minify false",
+          "tool": "Vite 8",
+          "mode": "unmangled",
+          "identifierMangling": false,
+          "propertyMangling": "off",
+          "output": "benchmarks/scenarios/build/animation-timeline/vite-unminified/app.js",
+          "raw": 4014,
+          "gzip": 1564,
+          "brotli": 1411
+        },
+        {
+          "id": "vite-oxc",
+          "label": "Vite 8 / Oxc default",
+          "tool": "Vite 8",
+          "mode": "identifier",
+          "identifierMangling": true,
+          "propertyMangling": "off",
+          "output": "benchmarks/scenarios/build/animation-timeline/vite-oxc/app.js",
+          "raw": 2301,
+          "gzip": 1118,
+          "brotli": 1026
+        },
+        {
+          "id": "vite-terser-properties",
+          "label": "Vite 8 / Terser, `_` properties",
+          "tool": "Vite 8",
+          "mode": "property",
+          "identifierMangling": true,
+          "propertyMangling": "private-prefix",
+          "output": "benchmarks/scenarios/build/animation-timeline/vite-terser-properties/app.js",
+          "raw": 1483,
+          "gzip": 818,
+          "brotli": 740
+        },
+        {
+          "id": "closure-advanced",
+          "label": "Closure Compiler ADVANCED / closed app",
+          "tool": "Closure Compiler",
+          "mode": "property",
+          "identifierMangling": true,
+          "propertyMangling": "closed-world",
+          "output": "benchmarks/scenarios/build/animation-timeline/closure-advanced.mjs",
+          "raw": 1512,
+          "gzip": 869,
+          "brotli": 772
+        },
+        {
+          "id": "lilscript-unmangled",
+          "label": "LilScript / optimization and mangling off",
+          "tool": "LilScript",
+          "mode": "unmangled",
+          "identifierMangling": false,
+          "propertyMangling": "off",
+          "output": "benchmarks/scenarios/build/animation-timeline/lilscript-unmangled.mjs",
+          "raw": 1996,
+          "gzip": 914,
+          "brotli": 820
+        },
+        {
+          "id": "lilscript-public-safe",
+          "label": "LilScript / public-safe identifiers",
+          "tool": "LilScript",
+          "mode": "identifier",
+          "identifierMangling": true,
+          "propertyMangling": "off",
+          "output": "benchmarks/scenarios/build/animation-timeline/lilscript-public-safe.mjs",
+          "raw": 677,
+          "gzip": 454,
+          "brotli": 419
+        },
+        {
+          "id": "lilscript-closed-world",
+          "label": "LilScript / closed-world properties",
+          "tool": "LilScript",
+          "mode": "property",
+          "identifierMangling": true,
+          "propertyMangling": "closed-world",
+          "output": "benchmarks/scenarios/build/animation-timeline/lilscript-closed-world.mjs",
+          "raw": 677,
+          "gzip": 454,
+          "brotli": 419
+        },
+        {
+          "id": "lilscript-vite-oxc",
+          "label": "LilScript closed world + Vite 8 / Oxc",
+          "tool": "LilScript + Vite 8",
+          "mode": "property",
+          "identifierMangling": true,
+          "propertyMangling": "closed-world",
+          "output": "benchmarks/scenarios/build/animation-timeline/lilscript-vite-oxc/app.js",
+          "raw": 936,
+          "gzip": 526,
+          "brotli": 510
+        }
+      ]
+    },
+    {
+      "id": "geometry-hit-test",
+      "title": "Geometry hit testing",
+      "summary": "A drawing-style hit-test batch combines adaptive robust predicates, confidence clamping, and private hit records.",
+      "packages": [
+        "robust-predicates",
+        "clamp"
+      ],
+      "expected": "geometry-hit-test:40800:43767221:1000000:true",
+      "category": "real-app",
+      "verification": {
+        "lanes": 9,
+        "native": true,
+        "cEmitted": true
+      },
+      "source": {
+        "javascript": "benchmarks/scenarios/apps/geometry-hit-test/js/main.js",
+        "lilscript": "benchmarks/scenarios/apps/geometry-hit-test/lil/main.lil"
+      },
+      "artifacts": [
+        {
+          "id": "vite-unminified",
+          "label": "Vite 8 / Rolldown, minify false",
+          "tool": "Vite 8",
+          "mode": "unmangled",
+          "identifierMangling": false,
+          "propertyMangling": "off",
+          "output": "benchmarks/scenarios/build/geometry-hit-test/vite-unminified/app.js",
+          "raw": 4265,
+          "gzip": 1509,
+          "brotli": 1360
+        },
+        {
+          "id": "vite-oxc",
+          "label": "Vite 8 / Oxc default",
+          "tool": "Vite 8",
+          "mode": "identifier",
+          "identifierMangling": true,
+          "propertyMangling": "off",
+          "output": "benchmarks/scenarios/build/geometry-hit-test/vite-oxc/app.js",
+          "raw": 2870,
+          "gzip": 1208,
+          "brotli": 1071
+        },
+        {
+          "id": "vite-terser-properties",
+          "label": "Vite 8 / Terser, `_` properties",
+          "tool": "Vite 8",
+          "mode": "property",
+          "identifierMangling": true,
+          "propertyMangling": "private-prefix",
+          "output": "benchmarks/scenarios/build/geometry-hit-test/vite-terser-properties/app.js",
+          "raw": 1814,
+          "gzip": 856,
+          "brotli": 764
+        },
+        {
+          "id": "closure-advanced",
+          "label": "Closure Compiler ADVANCED / closed app",
+          "tool": "Closure Compiler",
+          "mode": "property",
+          "identifierMangling": true,
+          "propertyMangling": "closed-world",
+          "output": "benchmarks/scenarios/build/geometry-hit-test/closure-advanced.mjs",
+          "raw": 1712,
+          "gzip": 848,
+          "brotli": 743
+        },
+        {
+          "id": "lilscript-unmangled",
+          "label": "LilScript / optimization and mangling off",
+          "tool": "LilScript",
+          "mode": "unmangled",
+          "identifierMangling": false,
+          "propertyMangling": "off",
+          "output": "benchmarks/scenarios/build/geometry-hit-test/lilscript-unmangled.mjs",
+          "raw": 68658,
+          "gzip": 22816,
+          "brotli": 16760
+        },
+        {
+          "id": "lilscript-public-safe",
+          "label": "LilScript / public-safe identifiers",
+          "tool": "LilScript",
+          "mode": "identifier",
+          "identifierMangling": true,
+          "propertyMangling": "off",
+          "output": "benchmarks/scenarios/build/geometry-hit-test/lilscript-public-safe.mjs",
+          "raw": 1553,
+          "gzip": 760,
+          "brotli": 642
+        },
+        {
+          "id": "lilscript-closed-world",
+          "label": "LilScript / closed-world properties",
+          "tool": "LilScript",
+          "mode": "property",
+          "identifierMangling": true,
+          "propertyMangling": "closed-world",
+          "output": "benchmarks/scenarios/build/geometry-hit-test/lilscript-closed-world.mjs",
+          "raw": 1553,
+          "gzip": 760,
+          "brotli": 642
+        },
+        {
+          "id": "lilscript-vite-oxc",
+          "label": "LilScript closed world + Vite 8 / Oxc",
+          "tool": "LilScript + Vite 8",
+          "mode": "property",
+          "identifierMangling": true,
+          "propertyMangling": "closed-world",
+          "output": "benchmarks/scenarios/build/geometry-hit-test/lilscript-vite-oxc/app.js",
+          "raw": 1698,
+          "gzip": 660,
+          "brotli": 604
+        }
+      ]
+    },
+    {
+      "id": "property-ledger",
+      "title": "Closed property ledger",
+      "summary": "A focused host-boundary contract keeps aggregate objects alive while declaring their field names unobservable, making private-property mangling measurable instead of optimized away.",
+      "packages": [],
+      "category": "mangling",
+      "host": "apps/property-ledger/host.mjs",
+      "native": false,
+      "expected": "property-ledger:84960",
+      "verification": {
+        "lanes": 8,
+        "native": false,
+        "cEmitted": false
+      },
+      "source": {
+        "javascript": "benchmarks/scenarios/apps/property-ledger/js/main.js",
+        "lilscript": "benchmarks/scenarios/apps/property-ledger/lil/main.lil"
+      },
+      "artifacts": [
+        {
+          "id": "vite-unminified",
+          "label": "Vite 8 / Rolldown, minify false",
+          "tool": "Vite 8",
+          "mode": "unmangled",
+          "identifierMangling": false,
+          "propertyMangling": "off",
+          "output": "benchmarks/scenarios/build/property-ledger/vite-unminified/app.js",
+          "raw": 289,
+          "gzip": 205,
+          "brotli": 158
+        },
+        {
+          "id": "vite-oxc",
+          "label": "Vite 8 / Oxc default",
+          "tool": "Vite 8",
+          "mode": "identifier",
+          "identifierMangling": true,
+          "propertyMangling": "off",
+          "output": "benchmarks/scenarios/build/property-ledger/vite-oxc/app.js",
+          "raw": 250,
+          "gzip": 194,
+          "brotli": 150
+        },
+        {
+          "id": "vite-terser-properties",
+          "label": "Vite 8 / Terser, `_` properties",
+          "tool": "Vite 8",
+          "mode": "property",
+          "identifierMangling": true,
+          "propertyMangling": "private-prefix",
+          "output": "benchmarks/scenarios/build/property-ledger/vite-terser-properties/app.js",
+          "raw": 112,
+          "gzip": 125,
+          "brotli": 97
+        },
+        {
+          "id": "closure-advanced",
+          "label": "Closure Compiler ADVANCED / closed app",
+          "tool": "Closure Compiler",
+          "mode": "property",
+          "identifierMangling": true,
+          "propertyMangling": "closed-world",
+          "output": "benchmarks/scenarios/build/property-ledger/closure-advanced.mjs",
+          "raw": 113,
+          "gzip": 128,
+          "brotli": 100
+        },
+        {
+          "id": "lilscript-unmangled",
+          "label": "LilScript / optimization and mangling off",
+          "tool": "LilScript",
+          "mode": "unmangled",
+          "identifierMangling": false,
+          "propertyMangling": "off",
+          "output": "benchmarks/scenarios/build/property-ledger/lilscript-unmangled.mjs",
+          "raw": 206,
+          "gzip": 170,
+          "brotli": 141
+        },
+        {
+          "id": "lilscript-public-safe",
+          "label": "LilScript / public-safe identifiers",
+          "tool": "LilScript",
+          "mode": "identifier",
+          "identifierMangling": true,
+          "propertyMangling": "off",
+          "output": "benchmarks/scenarios/build/property-ledger/lilscript-public-safe.mjs",
+          "raw": 155,
+          "gzip": 143,
+          "brotli": 107
+        },
+        {
+          "id": "lilscript-closed-world",
+          "label": "LilScript / closed-world properties",
+          "tool": "LilScript",
+          "mode": "property",
+          "identifierMangling": true,
+          "propertyMangling": "closed-world",
+          "output": "benchmarks/scenarios/build/property-ledger/lilscript-closed-world.mjs",
+          "raw": 105,
+          "gzip": 117,
+          "brotli": 90
+        },
+        {
+          "id": "lilscript-vite-oxc",
+          "label": "LilScript closed world + Vite 8 / Oxc",
+          "tool": "LilScript + Vite 8",
+          "mode": "property",
+          "identifierMangling": true,
+          "propertyMangling": "closed-world",
+          "output": "benchmarks/scenarios/build/property-ledger/lilscript-vite-oxc/app.js",
+          "raw": 147,
+          "gzip": 141,
+          "brotli": 115
+        }
+      ]
+    }
+  ]
+}

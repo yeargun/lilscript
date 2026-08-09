@@ -1,0 +1,18 @@
+int[] values = [1, 2, 3, 4];
+int[] copied = values.slice();
+copied[0] = 9;
+print(values[0]);
+print(copied[0]);
+
+int[] middle = values.slice(1, -1);
+print(middle.length);
+print(middle[0]);
+print(middle[1]);
+
+int[] tail = values.slice(-2);
+print(tail.length);
+print(tail[0]);
+print(tail[1]);
+
+int[] empty = values.slice(3, 1);
+print(empty.length);

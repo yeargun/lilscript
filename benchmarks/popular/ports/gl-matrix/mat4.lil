@@ -1,0 +1,1552 @@
+import {
+  EPSILON,
+  createArray,
+  equalsN,
+  exactEqualsN,
+  hypot3,
+  hypotN
+} from "./common";
+import {toRadian} from "./angle";
+
+export struct FieldOfView {
+  float upDegrees;
+  float downDegrees;
+  float leftDegrees;
+  float rightDegrees;
+}
+
+export (float[]|Float32Array) create() {
+  (float[]|Float32Array) out = createArray(16);
+  out[0] = 1.0;
+  out[5] = 1.0;
+  out[10] = 1.0;
+  out[15] = 1.0;
+  return out;
+}
+
+export (float[]|Float32Array) clone(float[]|Float32Array a) {
+  (float[]|Float32Array) out = createArray(16);
+  int index = 0;
+  while (index < 16) {
+    out[index] = a[index];
+    index = index + 1;
+  }
+  return out;
+}
+
+export (float[]|Float32Array) copy(
+  float[]|Float32Array out,
+  float[]|Float32Array a
+) {
+  int index = 0;
+  while (index < 16) {
+    out[index] = a[index];
+    index = index + 1;
+  }
+  return out;
+}
+
+export (float[]|Float32Array) fromValues(
+  float m00,
+  float m01,
+  float m02,
+  float m03,
+  float m10,
+  float m11,
+  float m12,
+  float m13,
+  float m20,
+  float m21,
+  float m22,
+  float m23,
+  float m30,
+  float m31,
+  float m32,
+  float m33
+) {
+  (float[]|Float32Array) out = createArray(16);
+  out[0] = m00;
+  out[1] = m01;
+  out[2] = m02;
+  out[3] = m03;
+  out[4] = m10;
+  out[5] = m11;
+  out[6] = m12;
+  out[7] = m13;
+  out[8] = m20;
+  out[9] = m21;
+  out[10] = m22;
+  out[11] = m23;
+  out[12] = m30;
+  out[13] = m31;
+  out[14] = m32;
+  out[15] = m33;
+  return out;
+}
+
+export (float[]|Float32Array) set(
+  float[]|Float32Array out,
+  float m00,
+  float m01,
+  float m02,
+  float m03,
+  float m10,
+  float m11,
+  float m12,
+  float m13,
+  float m20,
+  float m21,
+  float m22,
+  float m23,
+  float m30,
+  float m31,
+  float m32,
+  float m33
+) {
+  out[0] = m00;
+  out[1] = m01;
+  out[2] = m02;
+  out[3] = m03;
+  out[4] = m10;
+  out[5] = m11;
+  out[6] = m12;
+  out[7] = m13;
+  out[8] = m20;
+  out[9] = m21;
+  out[10] = m22;
+  out[11] = m23;
+  out[12] = m30;
+  out[13] = m31;
+  out[14] = m32;
+  out[15] = m33;
+  return out;
+}
+
+export (float[]|Float32Array) identity(float[]|Float32Array out) {
+  out[0] = 1.0;
+  out[1] = 0.0;
+  out[2] = 0.0;
+  out[3] = 0.0;
+  out[4] = 0.0;
+  out[5] = 1.0;
+  out[6] = 0.0;
+  out[7] = 0.0;
+  out[8] = 0.0;
+  out[9] = 0.0;
+  out[10] = 1.0;
+  out[11] = 0.0;
+  out[12] = 0.0;
+  out[13] = 0.0;
+  out[14] = 0.0;
+  out[15] = 1.0;
+  return out;
+}
+
+export (float[]|Float32Array) transpose(
+  float[]|Float32Array out,
+  float[]|Float32Array a
+) {
+  if (out == a) {
+    float a01 = a[1];
+    float a02 = a[2];
+    float a03 = a[3];
+    float a12 = a[6];
+    float a13 = a[7];
+    float a23 = a[11];
+    out[1] = a[4];
+    out[2] = a[8];
+    out[3] = a[12];
+    out[4] = a01;
+    out[6] = a[9];
+    out[7] = a[13];
+    out[8] = a02;
+    out[9] = a12;
+    out[11] = a[14];
+    out[12] = a03;
+    out[13] = a13;
+    out[14] = a23;
+  } else {
+    out[0] = a[0];
+    out[1] = a[4];
+    out[2] = a[8];
+    out[3] = a[12];
+    out[4] = a[1];
+    out[5] = a[5];
+    out[6] = a[9];
+    out[7] = a[13];
+    out[8] = a[2];
+    out[9] = a[6];
+    out[10] = a[10];
+    out[11] = a[14];
+    out[12] = a[3];
+    out[13] = a[7];
+    out[14] = a[11];
+    out[15] = a[15];
+  }
+  return out;
+}
+
+export (float[]|Float32Array)? invert(
+  float[]|Float32Array out,
+  float[]|Float32Array a
+) {
+  float a00 = a[0];
+  float a01 = a[1];
+  float a02 = a[2];
+  float a03 = a[3];
+  float a10 = a[4];
+  float a11 = a[5];
+  float a12 = a[6];
+  float a13 = a[7];
+  float a20 = a[8];
+  float a21 = a[9];
+  float a22 = a[10];
+  float a23 = a[11];
+  float a30 = a[12];
+  float a31 = a[13];
+  float a32 = a[14];
+  float a33 = a[15];
+  float b00 = a00 * a11 - a01 * a10;
+  float b01 = a00 * a12 - a02 * a10;
+  float b02 = a00 * a13 - a03 * a10;
+  float b03 = a01 * a12 - a02 * a11;
+  float b04 = a01 * a13 - a03 * a11;
+  float b05 = a02 * a13 - a03 * a12;
+  float b06 = a20 * a31 - a21 * a30;
+  float b07 = a20 * a32 - a22 * a30;
+  float b08 = a20 * a33 - a23 * a30;
+  float b09 = a21 * a32 - a22 * a31;
+  float b10 = a21 * a33 - a23 * a31;
+  float b11 = a22 * a33 - a23 * a32;
+  float det =
+    b00 * b11 -
+    b01 * b10 +
+    b02 * b09 +
+    b03 * b08 -
+    b04 * b07 +
+    b05 * b06;
+  if (det == 0.0) {
+    return null;
+  }
+  det = 1.0 / det;
+  out[0] = (a11 * b11 - a12 * b10 + a13 * b09) * det;
+  out[1] = (a02 * b10 - a01 * b11 - a03 * b09) * det;
+  out[2] = (a31 * b05 - a32 * b04 + a33 * b03) * det;
+  out[3] = (a22 * b04 - a21 * b05 - a23 * b03) * det;
+  out[4] = (a12 * b08 - a10 * b11 - a13 * b07) * det;
+  out[5] = (a00 * b11 - a02 * b08 + a03 * b07) * det;
+  out[6] = (a32 * b02 - a30 * b05 - a33 * b01) * det;
+  out[7] = (a20 * b05 - a22 * b02 + a23 * b01) * det;
+  out[8] = (a10 * b10 - a11 * b08 + a13 * b06) * det;
+  out[9] = (a01 * b08 - a00 * b10 - a03 * b06) * det;
+  out[10] = (a30 * b04 - a31 * b02 + a33 * b00) * det;
+  out[11] = (a21 * b02 - a20 * b04 - a23 * b00) * det;
+  out[12] = (a11 * b07 - a10 * b09 - a12 * b06) * det;
+  out[13] = (a00 * b09 - a01 * b07 + a02 * b06) * det;
+  out[14] = (a31 * b01 - a30 * b03 - a32 * b00) * det;
+  out[15] = (a20 * b03 - a21 * b01 + a22 * b00) * det;
+  return out;
+}
+
+export (float[]|Float32Array) adjoint(
+  float[]|Float32Array out,
+  float[]|Float32Array a
+) {
+  float a00 = a[0];
+  float a01 = a[1];
+  float a02 = a[2];
+  float a03 = a[3];
+  float a10 = a[4];
+  float a11 = a[5];
+  float a12 = a[6];
+  float a13 = a[7];
+  float a20 = a[8];
+  float a21 = a[9];
+  float a22 = a[10];
+  float a23 = a[11];
+  float a30 = a[12];
+  float a31 = a[13];
+  float a32 = a[14];
+  float a33 = a[15];
+  out[0] =
+    a11 * (a22 * a33 - a23 * a32) -
+    a21 * (a12 * a33 - a13 * a32) +
+    a31 * (a12 * a23 - a13 * a22);
+  out[1] = -(
+    a01 * (a22 * a33 - a23 * a32) -
+    a21 * (a02 * a33 - a03 * a32) +
+    a31 * (a02 * a23 - a03 * a22)
+  );
+  out[2] =
+    a01 * (a12 * a33 - a13 * a32) -
+    a11 * (a02 * a33 - a03 * a32) +
+    a31 * (a02 * a13 - a03 * a12);
+  out[3] = -(
+    a01 * (a12 * a23 - a13 * a22) -
+    a11 * (a02 * a23 - a03 * a22) +
+    a21 * (a02 * a13 - a03 * a12)
+  );
+  out[4] = -(
+    a10 * (a22 * a33 - a23 * a32) -
+    a20 * (a12 * a33 - a13 * a32) +
+    a30 * (a12 * a23 - a13 * a22)
+  );
+  out[5] =
+    a00 * (a22 * a33 - a23 * a32) -
+    a20 * (a02 * a33 - a03 * a32) +
+    a30 * (a02 * a23 - a03 * a22);
+  out[6] = -(
+    a00 * (a12 * a33 - a13 * a32) -
+    a10 * (a02 * a33 - a03 * a32) +
+    a30 * (a02 * a13 - a03 * a12)
+  );
+  out[7] =
+    a00 * (a12 * a23 - a13 * a22) -
+    a10 * (a02 * a23 - a03 * a22) +
+    a20 * (a02 * a13 - a03 * a12);
+  out[8] =
+    a10 * (a21 * a33 - a23 * a31) -
+    a20 * (a11 * a33 - a13 * a31) +
+    a30 * (a11 * a23 - a13 * a21);
+  out[9] = -(
+    a00 * (a21 * a33 - a23 * a31) -
+    a20 * (a01 * a33 - a03 * a31) +
+    a30 * (a01 * a23 - a03 * a21)
+  );
+  out[10] =
+    a00 * (a11 * a33 - a13 * a31) -
+    a10 * (a01 * a33 - a03 * a31) +
+    a30 * (a01 * a13 - a03 * a11);
+  out[11] = -(
+    a00 * (a11 * a23 - a13 * a21) -
+    a10 * (a01 * a23 - a03 * a21) +
+    a20 * (a01 * a13 - a03 * a11)
+  );
+  out[12] = -(
+    a10 * (a21 * a32 - a22 * a31) -
+    a20 * (a11 * a32 - a12 * a31) +
+    a30 * (a11 * a22 - a12 * a21)
+  );
+  out[13] =
+    a00 * (a21 * a32 - a22 * a31) -
+    a20 * (a01 * a32 - a02 * a31) +
+    a30 * (a01 * a22 - a02 * a21);
+  out[14] = -(
+    a00 * (a11 * a32 - a12 * a31) -
+    a10 * (a01 * a32 - a02 * a31) +
+    a30 * (a01 * a12 - a02 * a11)
+  );
+  out[15] =
+    a00 * (a11 * a22 - a12 * a21) -
+    a10 * (a01 * a22 - a02 * a21) +
+    a20 * (a01 * a12 - a02 * a11);
+  return out;
+}
+
+export float determinant(float[]|Float32Array a) {
+  float a00 = a[0];
+  float a01 = a[1];
+  float a02 = a[2];
+  float a03 = a[3];
+  float a10 = a[4];
+  float a11 = a[5];
+  float a12 = a[6];
+  float a13 = a[7];
+  float a20 = a[8];
+  float a21 = a[9];
+  float a22 = a[10];
+  float a23 = a[11];
+  float a30 = a[12];
+  float a31 = a[13];
+  float a32 = a[14];
+  float a33 = a[15];
+  float b00 = a00 * a11 - a01 * a10;
+  float b01 = a00 * a12 - a02 * a10;
+  float b02 = a00 * a13 - a03 * a10;
+  float b03 = a01 * a12 - a02 * a11;
+  float b04 = a01 * a13 - a03 * a11;
+  float b05 = a02 * a13 - a03 * a12;
+  float b06 = a20 * a31 - a21 * a30;
+  float b07 = a20 * a32 - a22 * a30;
+  float b08 = a20 * a33 - a23 * a30;
+  float b09 = a21 * a32 - a22 * a31;
+  float b10 = a21 * a33 - a23 * a31;
+  float b11 = a22 * a33 - a23 * a32;
+  return
+    b00 * b11 -
+    b01 * b10 +
+    b02 * b09 +
+    b03 * b08 -
+    b04 * b07 +
+    b05 * b06;
+}
+
+export (float[]|Float32Array) multiply(
+  float[]|Float32Array out,
+  float[]|Float32Array a,
+  float[]|Float32Array b
+) {
+  float a00 = a[0];
+  float a01 = a[1];
+  float a02 = a[2];
+  float a03 = a[3];
+  float a10 = a[4];
+  float a11 = a[5];
+  float a12 = a[6];
+  float a13 = a[7];
+  float a20 = a[8];
+  float a21 = a[9];
+  float a22 = a[10];
+  float a23 = a[11];
+  float a30 = a[12];
+  float a31 = a[13];
+  float a32 = a[14];
+  float a33 = a[15];
+  float b0 = b[0];
+  float b1 = b[1];
+  float b2 = b[2];
+  float b3 = b[3];
+  out[0] = b0 * a00 + b1 * a10 + b2 * a20 + b3 * a30;
+  out[1] = b0 * a01 + b1 * a11 + b2 * a21 + b3 * a31;
+  out[2] = b0 * a02 + b1 * a12 + b2 * a22 + b3 * a32;
+  out[3] = b0 * a03 + b1 * a13 + b2 * a23 + b3 * a33;
+  b0 = b[4];
+  b1 = b[5];
+  b2 = b[6];
+  b3 = b[7];
+  out[4] = b0 * a00 + b1 * a10 + b2 * a20 + b3 * a30;
+  out[5] = b0 * a01 + b1 * a11 + b2 * a21 + b3 * a31;
+  out[6] = b0 * a02 + b1 * a12 + b2 * a22 + b3 * a32;
+  out[7] = b0 * a03 + b1 * a13 + b2 * a23 + b3 * a33;
+  b0 = b[8];
+  b1 = b[9];
+  b2 = b[10];
+  b3 = b[11];
+  out[8] = b0 * a00 + b1 * a10 + b2 * a20 + b3 * a30;
+  out[9] = b0 * a01 + b1 * a11 + b2 * a21 + b3 * a31;
+  out[10] = b0 * a02 + b1 * a12 + b2 * a22 + b3 * a32;
+  out[11] = b0 * a03 + b1 * a13 + b2 * a23 + b3 * a33;
+  b0 = b[12];
+  b1 = b[13];
+  b2 = b[14];
+  b3 = b[15];
+  out[12] = b0 * a00 + b1 * a10 + b2 * a20 + b3 * a30;
+  out[13] = b0 * a01 + b1 * a11 + b2 * a21 + b3 * a31;
+  out[14] = b0 * a02 + b1 * a12 + b2 * a22 + b3 * a32;
+  out[15] = b0 * a03 + b1 * a13 + b2 * a23 + b3 * a33;
+  return out;
+}
+
+export (float[]|Float32Array) translate(
+  float[]|Float32Array out,
+  float[]|Float32Array a,
+  float[]|Float32Array vector
+) {
+  float x = vector[0];
+  float y = vector[1];
+  float z = vector[2];
+  float a00 = a[0];
+  float a01 = a[1];
+  float a02 = a[2];
+  float a03 = a[3];
+  float a10 = a[4];
+  float a11 = a[5];
+  float a12 = a[6];
+  float a13 = a[7];
+  float a20 = a[8];
+  float a21 = a[9];
+  float a22 = a[10];
+  float a23 = a[11];
+  float a30 = a[12];
+  float a31 = a[13];
+  float a32 = a[14];
+  float a33 = a[15];
+  out[0] = a00;
+  out[1] = a01;
+  out[2] = a02;
+  out[3] = a03;
+  out[4] = a10;
+  out[5] = a11;
+  out[6] = a12;
+  out[7] = a13;
+  out[8] = a20;
+  out[9] = a21;
+  out[10] = a22;
+  out[11] = a23;
+  out[12] = a00 * x + a10 * y + a20 * z + a30;
+  out[13] = a01 * x + a11 * y + a21 * z + a31;
+  out[14] = a02 * x + a12 * y + a22 * z + a32;
+  out[15] = a03 * x + a13 * y + a23 * z + a33;
+  return out;
+}
+
+export (float[]|Float32Array) scale(
+  float[]|Float32Array out,
+  float[]|Float32Array a,
+  float[]|Float32Array vector
+) {
+  float x = vector[0];
+  float y = vector[1];
+  float z = vector[2];
+  float a0 = a[0];
+  float a1 = a[1];
+  float a2 = a[2];
+  float a3 = a[3];
+  float a4 = a[4];
+  float a5 = a[5];
+  float a6 = a[6];
+  float a7 = a[7];
+  float a8 = a[8];
+  float a9 = a[9];
+  float a10 = a[10];
+  float a11 = a[11];
+  float a12 = a[12];
+  float a13 = a[13];
+  float a14 = a[14];
+  float a15 = a[15];
+  out[0] = a0 * x;
+  out[1] = a1 * x;
+  out[2] = a2 * x;
+  out[3] = a3 * x;
+  out[4] = a4 * y;
+  out[5] = a5 * y;
+  out[6] = a6 * y;
+  out[7] = a7 * y;
+  out[8] = a8 * z;
+  out[9] = a9 * z;
+  out[10] = a10 * z;
+  out[11] = a11 * z;
+  out[12] = a12;
+  out[13] = a13;
+  out[14] = a14;
+  out[15] = a15;
+  return out;
+}
+
+export (float[]|Float32Array)? rotate(
+  float[]|Float32Array out,
+  float[]|Float32Array a,
+  float radians,
+  float[]|Float32Array axis
+) {
+  float x = axis[0];
+  float y = axis[1];
+  float z = axis[2];
+  float length = hypot3(x, y, z);
+  if (length < EPSILON) {
+    return null;
+  }
+  length = 1.0 / length;
+  x = x * length;
+  y = y * length;
+  z = z * length;
+  float sine = radians.sin();
+  float cosine = radians.cos();
+  float t = 1.0 - cosine;
+  float a00 = a[0];
+  float a01 = a[1];
+  float a02 = a[2];
+  float a03 = a[3];
+  float a10 = a[4];
+  float a11 = a[5];
+  float a12 = a[6];
+  float a13 = a[7];
+  float a20 = a[8];
+  float a21 = a[9];
+  float a22 = a[10];
+  float a23 = a[11];
+  float a30 = a[12];
+  float a31 = a[13];
+  float a32 = a[14];
+  float a33 = a[15];
+  float b00 = x * x * t + cosine;
+  float b01 = y * x * t + z * sine;
+  float b02 = z * x * t - y * sine;
+  float b10 = x * y * t - z * sine;
+  float b11 = y * y * t + cosine;
+  float b12 = z * y * t + x * sine;
+  float b20 = x * z * t + y * sine;
+  float b21 = y * z * t - x * sine;
+  float b22 = z * z * t + cosine;
+  out[0] = a00 * b00 + a10 * b01 + a20 * b02;
+  out[1] = a01 * b00 + a11 * b01 + a21 * b02;
+  out[2] = a02 * b00 + a12 * b01 + a22 * b02;
+  out[3] = a03 * b00 + a13 * b01 + a23 * b02;
+  out[4] = a00 * b10 + a10 * b11 + a20 * b12;
+  out[5] = a01 * b10 + a11 * b11 + a21 * b12;
+  out[6] = a02 * b10 + a12 * b11 + a22 * b12;
+  out[7] = a03 * b10 + a13 * b11 + a23 * b12;
+  out[8] = a00 * b20 + a10 * b21 + a20 * b22;
+  out[9] = a01 * b20 + a11 * b21 + a21 * b22;
+  out[10] = a02 * b20 + a12 * b21 + a22 * b22;
+  out[11] = a03 * b20 + a13 * b21 + a23 * b22;
+  out[12] = a30;
+  out[13] = a31;
+  out[14] = a32;
+  out[15] = a33;
+  return out;
+}
+
+export (float[]|Float32Array) rotateX(
+  float[]|Float32Array out,
+  float[]|Float32Array a,
+  float radians
+) {
+  float sine = radians.sin();
+  float cosine = radians.cos();
+  float a10 = a[4];
+  float a11 = a[5];
+  float a12 = a[6];
+  float a13 = a[7];
+  float a20 = a[8];
+  float a21 = a[9];
+  float a22 = a[10];
+  float a23 = a[11];
+  float a0 = a[0];
+  float a1 = a[1];
+  float a2 = a[2];
+  float a3 = a[3];
+  float a30 = a[12];
+  float a31 = a[13];
+  float a32 = a[14];
+  float a33 = a[15];
+  out[0] = a0;
+  out[1] = a1;
+  out[2] = a2;
+  out[3] = a3;
+  out[4] = a10 * cosine + a20 * sine;
+  out[5] = a11 * cosine + a21 * sine;
+  out[6] = a12 * cosine + a22 * sine;
+  out[7] = a13 * cosine + a23 * sine;
+  out[8] = a20 * cosine - a10 * sine;
+  out[9] = a21 * cosine - a11 * sine;
+  out[10] = a22 * cosine - a12 * sine;
+  out[11] = a23 * cosine - a13 * sine;
+  out[12] = a30;
+  out[13] = a31;
+  out[14] = a32;
+  out[15] = a33;
+  return out;
+}
+
+export (float[]|Float32Array) rotateY(
+  float[]|Float32Array out,
+  float[]|Float32Array a,
+  float radians
+) {
+  float sine = radians.sin();
+  float cosine = radians.cos();
+  float a00 = a[0];
+  float a01 = a[1];
+  float a02 = a[2];
+  float a03 = a[3];
+  float a20 = a[8];
+  float a21 = a[9];
+  float a22 = a[10];
+  float a23 = a[11];
+  float a10 = a[4];
+  float a11 = a[5];
+  float a12 = a[6];
+  float a13 = a[7];
+  float a30 = a[12];
+  float a31 = a[13];
+  float a32 = a[14];
+  float a33 = a[15];
+  out[0] = a00 * cosine - a20 * sine;
+  out[1] = a01 * cosine - a21 * sine;
+  out[2] = a02 * cosine - a22 * sine;
+  out[3] = a03 * cosine - a23 * sine;
+  out[4] = a10;
+  out[5] = a11;
+  out[6] = a12;
+  out[7] = a13;
+  out[8] = a00 * sine + a20 * cosine;
+  out[9] = a01 * sine + a21 * cosine;
+  out[10] = a02 * sine + a22 * cosine;
+  out[11] = a03 * sine + a23 * cosine;
+  out[12] = a30;
+  out[13] = a31;
+  out[14] = a32;
+  out[15] = a33;
+  return out;
+}
+
+export (float[]|Float32Array) rotateZ(
+  float[]|Float32Array out,
+  float[]|Float32Array a,
+  float radians
+) {
+  float sine = radians.sin();
+  float cosine = radians.cos();
+  float a00 = a[0];
+  float a01 = a[1];
+  float a02 = a[2];
+  float a03 = a[3];
+  float a10 = a[4];
+  float a11 = a[5];
+  float a12 = a[6];
+  float a13 = a[7];
+  float a20 = a[8];
+  float a21 = a[9];
+  float a22 = a[10];
+  float a23 = a[11];
+  float a30 = a[12];
+  float a31 = a[13];
+  float a32 = a[14];
+  float a33 = a[15];
+  out[0] = a00 * cosine + a10 * sine;
+  out[1] = a01 * cosine + a11 * sine;
+  out[2] = a02 * cosine + a12 * sine;
+  out[3] = a03 * cosine + a13 * sine;
+  out[4] = a10 * cosine - a00 * sine;
+  out[5] = a11 * cosine - a01 * sine;
+  out[6] = a12 * cosine - a02 * sine;
+  out[7] = a13 * cosine - a03 * sine;
+  out[8] = a20;
+  out[9] = a21;
+  out[10] = a22;
+  out[11] = a23;
+  out[12] = a30;
+  out[13] = a31;
+  out[14] = a32;
+  out[15] = a33;
+  return out;
+}
+
+export (float[]|Float32Array) fromTranslation(
+  float[]|Float32Array out,
+  float[]|Float32Array vector
+) {
+  identity(out);
+  out[12] = vector[0];
+  out[13] = vector[1];
+  out[14] = vector[2];
+  return out;
+}
+
+export (float[]|Float32Array) fromScaling(
+  float[]|Float32Array out,
+  float[]|Float32Array vector
+) {
+  out[0] = vector[0];
+  out[1] = 0.0;
+  out[2] = 0.0;
+  out[3] = 0.0;
+  out[4] = 0.0;
+  out[5] = vector[1];
+  out[6] = 0.0;
+  out[7] = 0.0;
+  out[8] = 0.0;
+  out[9] = 0.0;
+  out[10] = vector[2];
+  out[11] = 0.0;
+  out[12] = 0.0;
+  out[13] = 0.0;
+  out[14] = 0.0;
+  out[15] = 1.0;
+  return out;
+}
+
+export (float[]|Float32Array)? fromRotation(
+  float[]|Float32Array out,
+  float radians,
+  float[]|Float32Array axis
+) {
+  float x = axis[0];
+  float y = axis[1];
+  float z = axis[2];
+  float length = hypot3(x, y, z);
+  if (length < EPSILON) {
+    return null;
+  }
+  length = 1.0 / length;
+  x = x * length;
+  y = y * length;
+  z = z * length;
+  float sine = radians.sin();
+  float cosine = radians.cos();
+  float t = 1.0 - cosine;
+  out[0] = x * x * t + cosine;
+  out[1] = y * x * t + z * sine;
+  out[2] = z * x * t - y * sine;
+  out[3] = 0.0;
+  out[4] = x * y * t - z * sine;
+  out[5] = y * y * t + cosine;
+  out[6] = z * y * t + x * sine;
+  out[7] = 0.0;
+  out[8] = x * z * t + y * sine;
+  out[9] = y * z * t - x * sine;
+  out[10] = z * z * t + cosine;
+  out[11] = 0.0;
+  out[12] = 0.0;
+  out[13] = 0.0;
+  out[14] = 0.0;
+  out[15] = 1.0;
+  return out;
+}
+
+export (float[]|Float32Array) fromXRotation(
+  float[]|Float32Array out,
+  float radians
+) {
+  float sine = radians.sin();
+  float cosine = radians.cos();
+  out[0] = 1.0;
+  out[1] = 0.0;
+  out[2] = 0.0;
+  out[3] = 0.0;
+  out[4] = 0.0;
+  out[5] = cosine;
+  out[6] = sine;
+  out[7] = 0.0;
+  out[8] = 0.0;
+  out[9] = -sine;
+  out[10] = cosine;
+  out[11] = 0.0;
+  out[12] = 0.0;
+  out[13] = 0.0;
+  out[14] = 0.0;
+  out[15] = 1.0;
+  return out;
+}
+
+export (float[]|Float32Array) fromYRotation(
+  float[]|Float32Array out,
+  float radians
+) {
+  float sine = radians.sin();
+  float cosine = radians.cos();
+  out[0] = cosine;
+  out[1] = 0.0;
+  out[2] = -sine;
+  out[3] = 0.0;
+  out[4] = 0.0;
+  out[5] = 1.0;
+  out[6] = 0.0;
+  out[7] = 0.0;
+  out[8] = sine;
+  out[9] = 0.0;
+  out[10] = cosine;
+  out[11] = 0.0;
+  out[12] = 0.0;
+  out[13] = 0.0;
+  out[14] = 0.0;
+  out[15] = 1.0;
+  return out;
+}
+
+export (float[]|Float32Array) fromZRotation(
+  float[]|Float32Array out,
+  float radians
+) {
+  float sine = radians.sin();
+  float cosine = radians.cos();
+  out[0] = cosine;
+  out[1] = sine;
+  out[2] = 0.0;
+  out[3] = 0.0;
+  out[4] = -sine;
+  out[5] = cosine;
+  out[6] = 0.0;
+  out[7] = 0.0;
+  out[8] = 0.0;
+  out[9] = 0.0;
+  out[10] = 1.0;
+  out[11] = 0.0;
+  out[12] = 0.0;
+  out[13] = 0.0;
+  out[14] = 0.0;
+  out[15] = 1.0;
+  return out;
+}
+
+export (float[]|Float32Array) fromRotationTranslation(
+  float[]|Float32Array out,
+  float[]|Float32Array quaternion,
+  float[]|Float32Array vector
+) {
+  float x = quaternion[0];
+  float y = quaternion[1];
+  float z = quaternion[2];
+  float w = quaternion[3];
+  float x2 = x + x;
+  float y2 = y + y;
+  float z2 = z + z;
+  float xx = x * x2;
+  float xy = x * y2;
+  float xz = x * z2;
+  float yy = y * y2;
+  float yz = y * z2;
+  float zz = z * z2;
+  float wx = w * x2;
+  float wy = w * y2;
+  float wz = w * z2;
+  out[0] = 1.0 - (yy + zz);
+  out[1] = xy + wz;
+  out[2] = xz - wy;
+  out[3] = 0.0;
+  out[4] = xy - wz;
+  out[5] = 1.0 - (xx + zz);
+  out[6] = yz + wx;
+  out[7] = 0.0;
+  out[8] = xz + wy;
+  out[9] = yz - wx;
+  out[10] = 1.0 - (xx + yy);
+  out[11] = 0.0;
+  out[12] = vector[0];
+  out[13] = vector[1];
+  out[14] = vector[2];
+  out[15] = 1.0;
+  return out;
+}
+
+export (float[]|Float32Array) fromQuat2(
+  float[]|Float32Array out,
+  float[]|Float32Array a
+) {
+  (float[]|Float32Array) translation = createArray(3);
+  float bx = -a[0];
+  float by = -a[1];
+  float bz = -a[2];
+  float bw = a[3];
+  float ax = a[4];
+  float ay = a[5];
+  float az = a[6];
+  float aw = a[7];
+  float magnitude = bx * bx + by * by + bz * bz + bw * bw;
+  if (magnitude > 0.0) {
+    translation[0] =
+      (ax * bw + aw * bx + ay * bz - az * by) * 2.0 / magnitude;
+    translation[1] =
+      (ay * bw + aw * by + az * bx - ax * bz) * 2.0 / magnitude;
+    translation[2] =
+      (az * bw + aw * bz + ax * by - ay * bx) * 2.0 / magnitude;
+  } else {
+    translation[0] = (ax * bw + aw * bx + ay * bz - az * by) * 2.0;
+    translation[1] = (ay * bw + aw * by + az * bx - ax * bz) * 2.0;
+    translation[2] = (az * bw + aw * bz + ax * by - ay * bx) * 2.0;
+  }
+  return fromRotationTranslation(out, a, translation);
+}
+
+export (float[]|Float32Array) getTranslation(
+  float[]|Float32Array out,
+  float[]|Float32Array matrix
+) {
+  out[0] = matrix[12];
+  out[1] = matrix[13];
+  out[2] = matrix[14];
+  return out;
+}
+
+export (float[]|Float32Array) getScaling(
+  float[]|Float32Array out,
+  float[]|Float32Array matrix
+) {
+  out[0] = hypot3(matrix[0], matrix[1], matrix[2]);
+  out[1] = hypot3(matrix[4], matrix[5], matrix[6]);
+  out[2] = hypot3(matrix[8], matrix[9], matrix[10]);
+  return out;
+}
+
+export (float[]|Float32Array) getRotation(
+  float[]|Float32Array out,
+  float[]|Float32Array matrix
+) {
+  (float[]|Float32Array) scaling = createArray(3);
+  getScaling(scaling, matrix);
+  float is1 = 1.0 / scaling[0];
+  float is2 = 1.0 / scaling[1];
+  float is3 = 1.0 / scaling[2];
+  float sm11 = matrix[0] * is1;
+  float sm12 = matrix[1] * is2;
+  float sm13 = matrix[2] * is3;
+  float sm21 = matrix[4] * is1;
+  float sm22 = matrix[5] * is2;
+  float sm23 = matrix[6] * is3;
+  float sm31 = matrix[8] * is1;
+  float sm32 = matrix[9] * is2;
+  float sm33 = matrix[10] * is3;
+  float trace = sm11 + sm22 + sm33;
+  float size = 0.0;
+  if (trace > 0.0) {
+    size = (trace + 1.0).sqrt() * 2.0;
+    out[3] = 0.25 * size;
+    out[0] = (sm23 - sm32) / size;
+    out[1] = (sm31 - sm13) / size;
+    out[2] = (sm12 - sm21) / size;
+  } else if (sm11 > sm22 && sm11 > sm33) {
+    size = (1.0 + sm11 - sm22 - sm33).sqrt() * 2.0;
+    out[3] = (sm23 - sm32) / size;
+    out[0] = 0.25 * size;
+    out[1] = (sm12 + sm21) / size;
+    out[2] = (sm31 + sm13) / size;
+  } else if (sm22 > sm33) {
+    size = (1.0 + sm22 - sm11 - sm33).sqrt() * 2.0;
+    out[3] = (sm31 - sm13) / size;
+    out[0] = (sm12 + sm21) / size;
+    out[1] = 0.25 * size;
+    out[2] = (sm23 + sm32) / size;
+  } else {
+    size = (1.0 + sm33 - sm11 - sm22).sqrt() * 2.0;
+    out[3] = (sm12 - sm21) / size;
+    out[0] = (sm31 + sm13) / size;
+    out[1] = (sm23 + sm32) / size;
+    out[2] = 0.25 * size;
+  }
+  return out;
+}
+
+export (float[]|Float32Array) fromRotationTranslationScale(
+  float[]|Float32Array out,
+  float[]|Float32Array quaternion,
+  float[]|Float32Array vector,
+  float[]|Float32Array scaling
+) {
+  float x = quaternion[0];
+  float y = quaternion[1];
+  float z = quaternion[2];
+  float w = quaternion[3];
+  float x2 = x + x;
+  float y2 = y + y;
+  float z2 = z + z;
+  float xx = x * x2;
+  float xy = x * y2;
+  float xz = x * z2;
+  float yy = y * y2;
+  float yz = y * z2;
+  float zz = z * z2;
+  float wx = w * x2;
+  float wy = w * y2;
+  float wz = w * z2;
+  float sx = scaling[0];
+  float sy = scaling[1];
+  float sz = scaling[2];
+  out[0] = (1.0 - (yy + zz)) * sx;
+  out[1] = (xy + wz) * sx;
+  out[2] = (xz - wy) * sx;
+  out[3] = 0.0;
+  out[4] = (xy - wz) * sy;
+  out[5] = (1.0 - (xx + zz)) * sy;
+  out[6] = (yz + wx) * sy;
+  out[7] = 0.0;
+  out[8] = (xz + wy) * sz;
+  out[9] = (yz - wx) * sz;
+  out[10] = (1.0 - (xx + yy)) * sz;
+  out[11] = 0.0;
+  out[12] = vector[0];
+  out[13] = vector[1];
+  out[14] = vector[2];
+  out[15] = 1.0;
+  return out;
+}
+
+export (float[]|Float32Array) fromRotationTranslationScaleOrigin(
+  float[]|Float32Array out,
+  float[]|Float32Array quaternion,
+  float[]|Float32Array vector,
+  float[]|Float32Array scaling,
+  float[]|Float32Array origin
+) {
+  float x = quaternion[0];
+  float y = quaternion[1];
+  float z = quaternion[2];
+  float w = quaternion[3];
+  float x2 = x + x;
+  float y2 = y + y;
+  float z2 = z + z;
+  float xx = x * x2;
+  float xy = x * y2;
+  float xz = x * z2;
+  float yy = y * y2;
+  float yz = y * z2;
+  float zz = z * z2;
+  float wx = w * x2;
+  float wy = w * y2;
+  float wz = w * z2;
+  float sx = scaling[0];
+  float sy = scaling[1];
+  float sz = scaling[2];
+  float ox = origin[0];
+  float oy = origin[1];
+  float oz = origin[2];
+  float out0 = (1.0 - (yy + zz)) * sx;
+  float out1 = (xy + wz) * sx;
+  float out2 = (xz - wy) * sx;
+  float out4 = (xy - wz) * sy;
+  float out5 = (1.0 - (xx + zz)) * sy;
+  float out6 = (yz + wx) * sy;
+  float out8 = (xz + wy) * sz;
+  float out9 = (yz - wx) * sz;
+  float out10 = (1.0 - (xx + yy)) * sz;
+  out[0] = out0;
+  out[1] = out1;
+  out[2] = out2;
+  out[3] = 0.0;
+  out[4] = out4;
+  out[5] = out5;
+  out[6] = out6;
+  out[7] = 0.0;
+  out[8] = out8;
+  out[9] = out9;
+  out[10] = out10;
+  out[11] = 0.0;
+  out[12] = vector[0] + ox - (out0 * ox + out4 * oy + out8 * oz);
+  out[13] = vector[1] + oy - (out1 * ox + out5 * oy + out9 * oz);
+  out[14] = vector[2] + oz - (out2 * ox + out6 * oy + out10 * oz);
+  out[15] = 1.0;
+  return out;
+}
+
+export (float[]|Float32Array) fromQuat(
+  float[]|Float32Array out,
+  float[]|Float32Array quaternion
+) {
+  float x = quaternion[0];
+  float y = quaternion[1];
+  float z = quaternion[2];
+  float w = quaternion[3];
+  float x2 = x + x;
+  float y2 = y + y;
+  float z2 = z + z;
+  float xx = x * x2;
+  float yx = y * x2;
+  float yy = y * y2;
+  float zx = z * x2;
+  float zy = z * y2;
+  float zz = z * z2;
+  float wx = w * x2;
+  float wy = w * y2;
+  float wz = w * z2;
+  out[0] = 1.0 - yy - zz;
+  out[1] = yx + wz;
+  out[2] = zx - wy;
+  out[3] = 0.0;
+  out[4] = yx - wz;
+  out[5] = 1.0 - xx - zz;
+  out[6] = zy + wx;
+  out[7] = 0.0;
+  out[8] = zx + wy;
+  out[9] = zy - wx;
+  out[10] = 1.0 - xx - yy;
+  out[11] = 0.0;
+  out[12] = 0.0;
+  out[13] = 0.0;
+  out[14] = 0.0;
+  out[15] = 1.0;
+  return out;
+}
+
+export (float[]|Float32Array) frustum(
+  float[]|Float32Array out,
+  float left,
+  float right,
+  float bottom,
+  float top,
+  float near,
+  float far
+) {
+  float rl = 1.0 / (right - left);
+  float tb = 1.0 / (top - bottom);
+  float nf = 1.0 / (near - far);
+  out[0] = near * 2.0 * rl;
+  out[1] = 0.0;
+  out[2] = 0.0;
+  out[3] = 0.0;
+  out[4] = 0.0;
+  out[5] = near * 2.0 * tb;
+  out[6] = 0.0;
+  out[7] = 0.0;
+  out[8] = (right + left) * rl;
+  out[9] = (top + bottom) * tb;
+  out[10] = (far + near) * nf;
+  out[11] = -1.0;
+  out[12] = 0.0;
+  out[13] = 0.0;
+  out[14] = far * near * 2.0 * nf;
+  out[15] = 0.0;
+  return out;
+}
+
+export (float[]|Float32Array) perspectiveNO(
+  float[]|Float32Array out,
+  float fovy,
+  float aspect,
+  float near,
+  float? far
+) {
+  float f = 1.0 / (fovy / 2.0).tan();
+  out[0] = f / aspect;
+  out[1] = 0.0;
+  out[2] = 0.0;
+  out[3] = 0.0;
+  out[4] = 0.0;
+  out[5] = f;
+  out[6] = 0.0;
+  out[7] = 0.0;
+  out[8] = 0.0;
+  out[9] = 0.0;
+  out[11] = -1.0;
+  out[12] = 0.0;
+  out[13] = 0.0;
+  out[15] = 0.0;
+  float infinity = 1.0 / 0.0;
+  if (far == null) {
+    out[10] = -1.0;
+    out[14] = -2.0 * near;
+  } else {
+    float finiteFar = far;
+    if (finiteFar == infinity) {
+      out[10] = -1.0;
+      out[14] = -2.0 * near;
+    } else {
+      float nf = 1.0 / (near - finiteFar);
+      out[10] = (finiteFar + near) * nf;
+      out[14] = 2.0 * finiteFar * near * nf;
+    }
+  }
+  return out;
+}
+
+export (float[]|Float32Array) perspectiveZO(
+  float[]|Float32Array out,
+  float fovy,
+  float aspect,
+  float near,
+  float? far
+) {
+  float f = 1.0 / (fovy / 2.0).tan();
+  out[0] = f / aspect;
+  out[1] = 0.0;
+  out[2] = 0.0;
+  out[3] = 0.0;
+  out[4] = 0.0;
+  out[5] = f;
+  out[6] = 0.0;
+  out[7] = 0.0;
+  out[8] = 0.0;
+  out[9] = 0.0;
+  out[11] = -1.0;
+  out[12] = 0.0;
+  out[13] = 0.0;
+  out[15] = 0.0;
+  float infinity = 1.0 / 0.0;
+  if (far == null) {
+    out[10] = -1.0;
+    out[14] = -near;
+  } else {
+    float finiteFar = far;
+    if (finiteFar == infinity) {
+      out[10] = -1.0;
+      out[14] = -near;
+    } else {
+      float nf = 1.0 / (near - finiteFar);
+      out[10] = finiteFar * nf;
+      out[14] = finiteFar * near * nf;
+    }
+  }
+  return out;
+}
+
+export (float[]|Float32Array) perspectiveFromFieldOfView(
+  float[]|Float32Array out,
+  FieldOfView fov,
+  float near,
+  float far
+) {
+  float radians = toRadian(1.0);
+  float upTan = (fov.upDegrees * radians).tan();
+  float downTan = (fov.downDegrees * radians).tan();
+  float leftTan = (fov.leftDegrees * radians).tan();
+  float rightTan = (fov.rightDegrees * radians).tan();
+  float xScale = 2.0 / (leftTan + rightTan);
+  float yScale = 2.0 / (upTan + downTan);
+  out[0] = xScale;
+  out[1] = 0.0;
+  out[2] = 0.0;
+  out[3] = 0.0;
+  out[4] = 0.0;
+  out[5] = yScale;
+  out[6] = 0.0;
+  out[7] = 0.0;
+  out[8] = -((leftTan - rightTan) * xScale * 0.5);
+  out[9] = (upTan - downTan) * yScale * 0.5;
+  out[10] = far / (near - far);
+  out[11] = -1.0;
+  out[12] = 0.0;
+  out[13] = 0.0;
+  out[14] = far * near / (near - far);
+  out[15] = 0.0;
+  return out;
+}
+
+export (float[]|Float32Array) orthoNO(
+  float[]|Float32Array out,
+  float left,
+  float right,
+  float bottom,
+  float top,
+  float near,
+  float far
+) {
+  float lr = 1.0 / (left - right);
+  float bt = 1.0 / (bottom - top);
+  float nf = 1.0 / (near - far);
+  out[0] = -2.0 * lr;
+  out[1] = 0.0;
+  out[2] = 0.0;
+  out[3] = 0.0;
+  out[4] = 0.0;
+  out[5] = -2.0 * bt;
+  out[6] = 0.0;
+  out[7] = 0.0;
+  out[8] = 0.0;
+  out[9] = 0.0;
+  out[10] = 2.0 * nf;
+  out[11] = 0.0;
+  out[12] = (left + right) * lr;
+  out[13] = (top + bottom) * bt;
+  out[14] = (far + near) * nf;
+  out[15] = 1.0;
+  return out;
+}
+
+export (float[]|Float32Array) orthoZO(
+  float[]|Float32Array out,
+  float left,
+  float right,
+  float bottom,
+  float top,
+  float near,
+  float far
+) {
+  float lr = 1.0 / (left - right);
+  float bt = 1.0 / (bottom - top);
+  float nf = 1.0 / (near - far);
+  out[0] = -2.0 * lr;
+  out[1] = 0.0;
+  out[2] = 0.0;
+  out[3] = 0.0;
+  out[4] = 0.0;
+  out[5] = -2.0 * bt;
+  out[6] = 0.0;
+  out[7] = 0.0;
+  out[8] = 0.0;
+  out[9] = 0.0;
+  out[10] = nf;
+  out[11] = 0.0;
+  out[12] = (left + right) * lr;
+  out[13] = (top + bottom) * bt;
+  out[14] = near * nf;
+  out[15] = 1.0;
+  return out;
+}
+
+export (float[]|Float32Array) lookAt(
+  float[]|Float32Array out,
+  float[]|Float32Array eye,
+  float[]|Float32Array center,
+  float[]|Float32Array up
+) {
+  float eyex = eye[0];
+  float eyey = eye[1];
+  float eyez = eye[2];
+  float centerx = center[0];
+  float centery = center[1];
+  float centerz = center[2];
+  if (
+    (eyex - centerx).abs() < EPSILON &&
+    (eyey - centery).abs() < EPSILON &&
+    (eyez - centerz).abs() < EPSILON
+  ) {
+    return identity(out);
+  }
+  float z0 = eyex - centerx;
+  float z1 = eyey - centery;
+  float z2 = eyez - centerz;
+  float length = 1.0 / hypot3(z0, z1, z2);
+  z0 = z0 * length;
+  z1 = z1 * length;
+  z2 = z2 * length;
+  float upx = up[0];
+  float upy = up[1];
+  float upz = up[2];
+  float x0 = upy * z2 - upz * z1;
+  float x1 = upz * z0 - upx * z2;
+  float x2 = upx * z1 - upy * z0;
+  length = hypot3(x0, x1, x2);
+  if (length == 0.0) {
+    x0 = 0.0;
+    x1 = 0.0;
+    x2 = 0.0;
+  } else {
+    length = 1.0 / length;
+    x0 = x0 * length;
+    x1 = x1 * length;
+    x2 = x2 * length;
+  }
+  float y0 = z1 * x2 - z2 * x1;
+  float y1 = z2 * x0 - z0 * x2;
+  float y2 = z0 * x1 - z1 * x0;
+  length = hypot3(y0, y1, y2);
+  if (length == 0.0) {
+    y0 = 0.0;
+    y1 = 0.0;
+    y2 = 0.0;
+  } else {
+    length = 1.0 / length;
+    y0 = y0 * length;
+    y1 = y1 * length;
+    y2 = y2 * length;
+  }
+  out[0] = x0;
+  out[1] = y0;
+  out[2] = z0;
+  out[3] = 0.0;
+  out[4] = x1;
+  out[5] = y1;
+  out[6] = z1;
+  out[7] = 0.0;
+  out[8] = x2;
+  out[9] = y2;
+  out[10] = z2;
+  out[11] = 0.0;
+  out[12] = -(x0 * eyex + x1 * eyey + x2 * eyez);
+  out[13] = -(y0 * eyex + y1 * eyey + y2 * eyez);
+  out[14] = -(z0 * eyex + z1 * eyey + z2 * eyez);
+  out[15] = 1.0;
+  return out;
+}
+
+export (float[]|Float32Array) targetTo(
+  float[]|Float32Array out,
+  float[]|Float32Array eye,
+  float[]|Float32Array target,
+  float[]|Float32Array up
+) {
+  float eyex = eye[0];
+  float eyey = eye[1];
+  float eyez = eye[2];
+  float upx = up[0];
+  float upy = up[1];
+  float upz = up[2];
+  float z0 = eyex - target[0];
+  float z1 = eyey - target[1];
+  float z2 = eyez - target[2];
+  float length = z0 * z0 + z1 * z1 + z2 * z2;
+  if (length > 0.0) {
+    length = 1.0 / length.sqrt();
+    z0 = z0 * length;
+    z1 = z1 * length;
+    z2 = z2 * length;
+  }
+  float x0 = upy * z2 - upz * z1;
+  float x1 = upz * z0 - upx * z2;
+  float x2 = upx * z1 - upy * z0;
+  length = x0 * x0 + x1 * x1 + x2 * x2;
+  if (length > 0.0) {
+    length = 1.0 / length.sqrt();
+    x0 = x0 * length;
+    x1 = x1 * length;
+    x2 = x2 * length;
+  }
+  out[0] = x0;
+  out[1] = x1;
+  out[2] = x2;
+  out[3] = 0.0;
+  out[4] = z1 * x2 - z2 * x1;
+  out[5] = z2 * x0 - z0 * x2;
+  out[6] = z0 * x1 - z1 * x0;
+  out[7] = 0.0;
+  out[8] = z0;
+  out[9] = z1;
+  out[10] = z2;
+  out[11] = 0.0;
+  out[12] = eyex;
+  out[13] = eyey;
+  out[14] = eyez;
+  out[15] = 1.0;
+  return out;
+}
+
+export string str(float[]|Float32Array a) {
+  string result = "mat4(" + a[0];
+  int index = 1;
+  while (index < 16) {
+    result = result + ", " + a[index];
+    index = index + 1;
+  }
+  return result + ")";
+}
+
+export float frob(float[]|Float32Array a) {
+  return hypotN(a, 16);
+}
+
+export (float[]|Float32Array) add(
+  float[]|Float32Array out,
+  float[]|Float32Array a,
+  float[]|Float32Array b
+) {
+  int index = 0;
+  while (index < 16) {
+    out[index] = a[index] + b[index];
+    index = index + 1;
+  }
+  return out;
+}
+
+export (float[]|Float32Array) subtract(
+  float[]|Float32Array out,
+  float[]|Float32Array a,
+  float[]|Float32Array b
+) {
+  int index = 0;
+  while (index < 16) {
+    out[index] = a[index] - b[index];
+    index = index + 1;
+  }
+  return out;
+}
+
+export (float[]|Float32Array) multiplyScalar(
+  float[]|Float32Array out,
+  float[]|Float32Array a,
+  float amount
+) {
+  int index = 0;
+  while (index < 16) {
+    out[index] = a[index] * amount;
+    index = index + 1;
+  }
+  return out;
+}
+
+export (float[]|Float32Array) multiplyScalarAndAdd(
+  float[]|Float32Array out,
+  float[]|Float32Array a,
+  float[]|Float32Array b,
+  float amount
+) {
+  int index = 0;
+  while (index < 16) {
+    out[index] = a[index] + b[index] * amount;
+    index = index + 1;
+  }
+  return out;
+}
+
+export bool exactEquals(float[]|Float32Array a, float[]|Float32Array b) {
+  return exactEqualsN(a, b, 16);
+}
+
+export bool equals(float[]|Float32Array a, float[]|Float32Array b) {
+  return equalsN(a, b, 16);
+}
+
+export {
+  perspectiveNO as perspective,
+  orthoNO as ortho,
+  multiply as mul,
+  subtract as sub
+};

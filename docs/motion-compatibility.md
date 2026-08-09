@@ -4,8 +4,11 @@
 
 LilScript does **not** currently implement Motion. Installing `motion` in the
 benchmark workspace provides a JavaScript ecosystem reference only. The
-LilScript `motion-values` program is an animation-value compiler workload; it
-does not provide Motion's public package, DOM engine, or React integrations.
+LilScript `motion-values` program is an animation-value compiler workload. It
+implements the same numeric `mix`, `wrap`, indexed `stagger`, and underdamped
+spring equations for the app's pinned options and must match Motion's sampled
+spring digest, but it does not provide Motion's public package, dynamic
+overloads/generator object, DOM engine, or React integrations.
 
 This distinction is enforced in the benchmark harness: real Motion output is a
 context-only Vite production build and is excluded from Closure/LilScript
@@ -25,10 +28,24 @@ A source audit on 2026-08-06 found:
 | `framer-motion` | 306 | 34,444 | 99 |
 | **Total** | **683** | **63,961** | **185** |
 
-The installed `motion` root exposes 312 runtime exports. Its package manifest
-also publishes root, debug, mini, React, React client, React `m`, and React mini
-entry points. The upstream repository contains 196 test files overall and a
-separate Playwright command.
+The installed package was also imported through every published runtime entry
+point under React 19.1.1 / React DOM 19.1.1 peers:
+
+| Entrypoint | Runtime exports | Implemented by LilScript |
+| --- | ---: | ---: |
+| `motion` | 312 | 0 |
+| `motion/debug` | 1 | 0 |
+| `motion/mini` | 2 | 0 |
+| `motion/react` | 383 | 0 |
+| `motion/react-client` | 164 | 0 |
+| `motion/react-m` | 165 | 0 |
+| `motion/react-mini` | 1 | 0 |
+
+That is 1,028 entrypoint bindings and 546 unique export names (names overlap
+between entrypoints). `benchmarks/apps/audit-motion.mjs` records every sorted
+name and its SHA-256 digest in the compatibility manifest; the methodology test
+re-imports all seven entrypoints and rejects drift. The upstream repository
+contains 196 test files overall and a separate Playwright command.
 
 These counts are inventory, not a progress percentage: exports differ greatly
 in complexity and some behavior is browser- or scheduler-dependent.
@@ -90,6 +107,9 @@ These are compiler/language features, not syntax aliases for TypeScript.
 Each stage must keep the JavaScript implementation as the behavioral oracle,
 record unsupported tests explicitly, and reject compatibility claims while any
 required test is skipped.
+
+Run `npm run audit:motion` in `benchmarks/apps` after changing the pinned Motion
+or React peer versions.
 
 ## Benchmark rules
 

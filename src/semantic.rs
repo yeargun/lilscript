@@ -33,7 +33,16 @@ pub enum Type<'src> {
     Set(Box<Type<'src>>),
     ArrayBuffer,
     SharedArrayBuffer,
+    Int8Array,
     Uint8Array,
+    Uint8ClampedArray,
+    Int16Array,
+    Uint16Array,
+    Int32Array,
+    Uint32Array,
+    Float32Array,
+    Float64Array,
+    Symbol,
     Task(Box<Type<'src>>),
     ModuleNamespace(u32),
     ModuleLoadError,
@@ -81,7 +90,16 @@ impl fmt::Display for Type<'_> {
             Self::Set(element) => write!(f, "Set<{element}>"),
             Self::ArrayBuffer => f.write_str("ArrayBuffer"),
             Self::SharedArrayBuffer => f.write_str("SharedArrayBuffer"),
+            Self::Int8Array => f.write_str("Int8Array"),
             Self::Uint8Array => f.write_str("Uint8Array"),
+            Self::Uint8ClampedArray => f.write_str("Uint8ClampedArray"),
+            Self::Int16Array => f.write_str("Int16Array"),
+            Self::Uint16Array => f.write_str("Uint16Array"),
+            Self::Int32Array => f.write_str("Int32Array"),
+            Self::Uint32Array => f.write_str("Uint32Array"),
+            Self::Float32Array => f.write_str("Float32Array"),
+            Self::Float64Array => f.write_str("Float64Array"),
+            Self::Symbol => f.write_str("Symbol"),
             Self::Task(value) => write!(f, "Task<{value}>"),
             Self::ModuleNamespace(module) => write!(f, "module#{module}"),
             Self::ModuleLoadError => f.write_str("ModuleLoadError"),
@@ -109,6 +127,7 @@ impl fmt::Display for Type<'_> {
                 }
                 f.write_str(">")
             }
+            Self::TypeParameter("$js") => f.write_str("JsValue"),
             Self::TypeParameter(name) => f.write_str(name),
             Self::Function(signature) => {
                 f.write_str("function(")?;
@@ -161,6 +180,7 @@ pub enum DefaultValue<'src> {
     String(&'src str),
     Bool(bool),
     Null,
+    Ident(&'src str),
     Array(Vec<DefaultValue<'src>>),
     Arrow(Span),
     Struct {
@@ -1062,6 +1082,35 @@ impl<'src> Analyzer<'src> {
                 self.pop_scope();
                 Ok(())
             }
+            Stmt::ForIn {
+                key_type,
+                key,
+                object,
+                body,
+                ..
+            } => {
+                self.push_scope();
+                let key_ty = self.resolve_value_type(*key_type, "for-in key")?;
+                if key_ty != Type::String {
+                    return Err(SemanticError::new(
+                        key_type.span,
+                        format!("for-in keys must have type `string`, found `{key_ty}`"),
+                    ));
+                }
+                let object_ty = self.analyze_expr(object, None)?;
+                if !is_js_value(&object_ty) {
+                    return Err(SemanticError::new(
+                        object.span(),
+                        format!("for-in requires a `JsValue` object, found `{object_ty}`"),
+                    ));
+                }
+                self.declare(*key, Type::String)?;
+                self.loop_depth += 1;
+                self.analyze_stmt(body)?;
+                self.loop_depth -= 1;
+                self.pop_scope();
+                Ok(())
+            }
             Stmt::Break(span) | Stmt::Continue(span) => {
                 if self.loop_depth == 0 {
                     Err(SemanticError::new(
@@ -1475,19 +1524,26 @@ impl<'src> Analyzer<'src> {
                 span,
             } => {
                 let object_type = self.analyze_expr(object, None)?;
-                let index_type = self.analyze_expr(index, Some(&Type::Int))?;
-                self.require_assignable(&Type::Int, &index_type, index.span())?;
-                match object_type {
-                    Type::Array(element) => *element,
-                    Type::String => Type::String,
-                    Type::Uint8Array => Type::Int,
-                    other => {
+                if is_js_value(&object_type) {
+                    let index_type = self.analyze_expr(index, None)?;
+                    if !matches!(index_type, Type::Int | Type::Float | Type::String) {
                         return Err(SemanticError::new(
-                            *span,
-                            format!("cannot index a value of type `{other}`"),
+                            index.span(),
+                            format!(
+                                "a `JsValue` index must be numeric or `string`, found `{index_type}`"
+                            ),
                         ));
                     }
+                } else {
+                    let index_type = self.analyze_expr(index, Some(&Type::Int))?;
+                    self.require_assignable(&Type::Int, &index_type, index.span())?;
                 }
+                index_value_type(&object_type, false).ok_or_else(|| {
+                    SemanticError::new(
+                        *span,
+                        format!("cannot index a value of type `{object_type}`"),
+                    )
+                })?
             }
             Expr::Assignment {
                 op,
@@ -1583,16 +1639,12 @@ impl<'src> Analyzer<'src> {
                 let object_type = self.analyze_expr(object, None)?;
                 let index_type = self.analyze_expr(index, Some(&Type::Int))?;
                 self.require_assignable(&Type::Int, &index_type, index.span())?;
-                match object_type {
-                    Type::Array(element) => *element,
-                    Type::Uint8Array => Type::Int,
-                    other => {
-                        return Err(SemanticError::new(
-                            *span,
-                            format!("cannot assign through an index on `{other}`"),
-                        ));
-                    }
-                }
+                index_value_type(&object_type, true).ok_or_else(|| {
+                    SemanticError::new(
+                        *span,
+                        format!("cannot assign through an index on `{object_type}`"),
+                    )
+                })?
             }
             _ => {
                 return Err(SemanticError::new(
@@ -1614,6 +1666,13 @@ impl<'src> Analyzer<'src> {
         span: Span,
     ) -> Result<Type<'src>, SemanticError> {
         let object_type = self.analyze_expr(object, None)?;
+        if property.name == "length" {
+            if let Type::Union(members) = &object_type {
+                if members.iter().all(indexed_collection_has_length) {
+                    return Ok(Type::Int);
+                }
+            }
+        }
         match object_type {
             Type::Struct(name) => self
                 .model
@@ -1680,17 +1739,33 @@ impl<'src> Analyzer<'src> {
                 ))
             }
             Type::Array(_) | Type::String if property.name == "length" => Ok(Type::Int),
+            Type::TypeParameter("$js") => match property.name {
+                "length" => Ok(Type::Float),
+                "truthy" | "isArray" | "isObject" => Ok(Type::Function(FunctionType {
+                    params: Vec::new(),
+                    defaults: Vec::new(),
+                    return_type: Box::new(Type::Bool),
+                })),
+                _ => Err(SemanticError::new(
+                    span,
+                    format!("JsValue has no member `{}`", property.name),
+                )),
+            },
             Type::Map(_, _) | Type::Set(_) if property.name == "size" => Ok(Type::Int),
             Type::ArrayBuffer | Type::SharedArrayBuffer if property.name == "byteLength" => {
                 Ok(Type::Int)
             }
-            Type::Uint8Array if matches!(property.name, "length" | "byteLength" | "byteOffset") => {
+            ty if crate::typed_array::is_typed_array_type(&ty)
+                && matches!(property.name, "length" | "byteLength" | "byteOffset") =>
+            {
                 Ok(Type::Int)
             }
-            Type::Uint8Array if property.name == "buffer" => Ok(normalize_union(vec![
-                Type::ArrayBuffer,
-                Type::SharedArrayBuffer,
-            ])),
+            ty if crate::typed_array::is_typed_array_type(&ty) && property.name == "buffer" => {
+                Ok(normalize_union(vec![
+                    Type::ArrayBuffer,
+                    Type::SharedArrayBuffer,
+                ]))
+            }
             Type::ModuleNamespace(module) => {
                 let binding = self
                     .model
@@ -1728,15 +1803,21 @@ impl<'src> Analyzer<'src> {
                 Ok(Type::String)
             }
             Type::Float => match property.name {
-                "abs" | "floor" | "ceil" => Ok(Type::Function(FunctionType {
+                "abs" | "floor" | "ceil" | "round" | "sqrt" | "sin" | "cos" | "acos" | "exp"
+                | "log" | "tan" => Ok(Type::Function(FunctionType {
                     params: Vec::new(),
                     defaults: Vec::new(),
                     return_type: Box::new(Type::Float),
                 })),
-                "min" | "max" => Ok(Type::Function(FunctionType {
+                "min" | "max" | "atan2" | "hypot" => Ok(Type::Function(FunctionType {
                     params: vec![Type::Float],
                     defaults: vec![None],
                     return_type: Box::new(Type::Float),
+                })),
+                "toInt" => Ok(Type::Function(FunctionType {
+                    params: Vec::new(),
+                    defaults: Vec::new(),
+                    return_type: Box::new(Type::Int),
                 })),
                 _ => Err(SemanticError::new(
                     span,
@@ -1768,6 +1849,24 @@ impl<'src> Analyzer<'src> {
                     params: Vec::new(),
                     defaults: Vec::new(),
                     return_type: element,
+                })),
+                "indexOf" => Ok(Type::Function(FunctionType {
+                    params: vec![*element],
+                    defaults: vec![None],
+                    return_type: Box::new(Type::Int),
+                })),
+                "slice" => Ok(Type::Function(FunctionType {
+                    params: vec![Type::Int, Type::Int],
+                    defaults: vec![
+                        Some(DefaultValue::Int(0)),
+                        Some(DefaultValue::Int(i32::MAX as i64)),
+                    ],
+                    return_type: Box::new(Type::Array(element)),
+                })),
+                "splice" => Ok(Type::Function(FunctionType {
+                    params: vec![Type::Int, Type::Int],
+                    defaults: vec![None, None],
+                    return_type: Box::new(Type::Array(element)),
                 })),
                 _ => Err(SemanticError::new(
                     span,
@@ -1823,15 +1922,15 @@ impl<'src> Analyzer<'src> {
             },
             Type::ArrayBuffer => buffer_member(property, span, Type::ArrayBuffer),
             Type::SharedArrayBuffer => buffer_member(property, span, Type::SharedArrayBuffer),
-            Type::Uint8Array => match property.name {
+            ty if crate::typed_array::is_typed_array_type(&ty) => match property.name {
                 "slice" | "subarray" => Ok(Type::Function(FunctionType {
                     params: vec![Type::Int, Type::Int],
                     defaults: vec![None, Some(DefaultValue::Int(i32::MAX as i64))],
-                    return_type: Box::new(Type::Uint8Array),
+                    return_type: Box::new(ty),
                 })),
                 _ => Err(SemanticError::new(
                     span,
-                    format!("Uint8Array has no member `{}`", property.name),
+                    format!("{ty} has no member `{}`", property.name),
                 )),
             },
             Type::String => match property.name {
@@ -1839,6 +1938,11 @@ impl<'src> Analyzer<'src> {
                     params: vec![Type::Int],
                     defaults: vec![None],
                     return_type: Box::new(Type::Int),
+                })),
+                "charAt" => Ok(Type::Function(FunctionType {
+                    params: vec![Type::Int],
+                    defaults: vec![None],
+                    return_type: Box::new(Type::String),
                 })),
                 "includes" | "startsWith" | "endsWith" => Ok(Type::Function(FunctionType {
                     params: vec![Type::String],
@@ -1849,6 +1953,11 @@ impl<'src> Analyzer<'src> {
                     params: Vec::new(),
                     defaults: Vec::new(),
                     return_type: Box::new(Type::String),
+                })),
+                "truthy" => Ok(Type::Function(FunctionType {
+                    params: Vec::new(),
+                    defaults: Vec::new(),
+                    return_type: Box::new(Type::Bool),
                 })),
                 _ => Err(SemanticError::new(
                     span,
@@ -1912,12 +2021,6 @@ impl<'src> Analyzer<'src> {
                         .map(ToString::to_string)
                         .unwrap_or_else(|| "no parameter".to_string())
                 ),
-            ));
-        }
-        if signature.return_type.is_void() {
-            return Err(SemanticError::new(
-                args[0].span(),
-                "array `map` callback must return a value",
             ));
         }
         Ok(Type::Array(signature.return_type))
@@ -2064,6 +2167,42 @@ impl<'src> Analyzer<'src> {
     ) -> Result<Type<'src>, SemanticError> {
         if let Type::GenericFunction(function) = callee {
             return self.analyze_generic_call(function, args, span, expected_return);
+        }
+        if let Type::Union(members) = callee {
+            let mut signatures = Vec::new();
+            for member in members {
+                let Type::Function(signature) = member else {
+                    return Err(SemanticError::new(
+                        span,
+                        format!("cannot call a value of type `{callee}`"),
+                    ));
+                };
+                signatures.push(signature);
+            }
+            let matching = signatures
+                .iter()
+                .filter(|signature| signature.accepts_arity(args.len()))
+                .collect::<Vec<_>>();
+            if matching.is_empty() {
+                return Err(SemanticError::new(
+                    span,
+                    format!(
+                        "cannot call a value of type `{callee}` with {} arguments",
+                        args.len()
+                    ),
+                ));
+            }
+            for signature in &matching {
+                for (arg, expected) in args.iter().zip(&signature.params) {
+                    let actual = self.analyze_expr(arg, Some(expected))?;
+                    self.require_assignable(expected, &actual, arg.span())?;
+                }
+            }
+            let returns = matching
+                .iter()
+                .map(|signature| (*signature.return_type).clone())
+                .collect::<Vec<_>>();
+            return Ok(normalize_union(returns));
         }
         let Type::Function(signature) = callee else {
             return Err(SemanticError::new(
@@ -2282,6 +2421,7 @@ impl<'src> Analyzer<'src> {
                 }
             }
         };
+        self.analyze_parameter_defaults(params, &parameter_types)?;
         self.capture_barriers.pop();
         self.pop_scope();
 
@@ -2424,13 +2564,16 @@ impl<'src> Analyzer<'src> {
                     Type::SharedArrayBuffer
                 }
             }
-            "Uint8Array" => {
+            name if crate::typed_array::TypedArrayKind::from_name(name).is_some() => {
+                let kind = crate::typed_array::TypedArrayKind::from_name(name)
+                    .expect("typed array constructor name");
                 self.resolve_type_arguments(class.name, type_args, &[], span)?;
                 if args.len() != 1 {
                     return Err(SemanticError::new(
                         span,
                         format!(
-                            "`Uint8Array` constructor expects 1 argument, found {}",
+                            "`{}` constructor expects 1 argument, found {}",
+                            class.name,
                             args.len()
                         ),
                     ));
@@ -2443,11 +2586,29 @@ impl<'src> Analyzer<'src> {
                     return Err(SemanticError::new(
                         args[0].span(),
                         format!(
-                            "`Uint8Array` expects an `int`, `ArrayBuffer`, or `SharedArrayBuffer`, found `{actual}`"
+                            "`{}` expects an `int`, `ArrayBuffer`, or `SharedArrayBuffer`, found `{actual}`",
+                            class.name
                         ),
                     ));
                 }
-                Type::Uint8Array
+                kind.as_type()
+            }
+            "Symbol" => {
+                self.resolve_type_arguments(class.name, type_args, &[], span)?;
+                if args.len() > 1 {
+                    return Err(SemanticError::new(
+                        span,
+                        format!(
+                            "`Symbol` constructor expects 0 or 1 arguments, found {}",
+                            args.len()
+                        ),
+                    ));
+                }
+                if let Some(argument) = args.first() {
+                    let actual = self.analyze_expr(argument, Some(&Type::String))?;
+                    self.require_assignable(&Type::String, &actual, argument.span())?;
+                }
+                Type::Symbol
             }
             _ => return Ok(None),
         };
@@ -2523,12 +2684,25 @@ impl<'src> Analyzer<'src> {
                 self.resolve_type_arguments("SharedArrayBuffer", args, &[], ty.span)?;
                 Ok(Type::SharedArrayBuffer)
             }
+            TypeKind::Named { name, args }
+                if let Some(kind) = crate::typed_array::TypedArrayKind::from_name(name) =>
+            {
+                self.resolve_type_arguments(name, args, &[], ty.span)?;
+                Ok(kind.as_type())
+            }
             TypeKind::Named {
-                name: "Uint8Array",
+                name: "Symbol",
                 args,
             } => {
-                self.resolve_type_arguments("Uint8Array", args, &[], ty.span)?;
-                Ok(Type::Uint8Array)
+                self.resolve_type_arguments("Symbol", args, &[], ty.span)?;
+                Ok(Type::Symbol)
+            }
+            TypeKind::Named {
+                name: "JsValue",
+                args,
+            } => {
+                self.resolve_type_arguments("JsValue", args, &[], ty.span)?;
+                Ok(Type::TypeParameter("$js"))
             }
             TypeKind::Named { name, args } if self.model.structs.contains_key(name) => {
                 let parameters = self.model.structs[name].type_params.clone();
@@ -2853,6 +3027,9 @@ fn resolve_parameter_defaults<'ast, 'src>(
             let Some(expression) = &param.default else {
                 return Ok(None);
             };
+            if let Expr::Ident(identifier) = expression {
+                return Ok(Some(DefaultValue::Ident(identifier.name)));
+            }
             if let Some((_, actual)) = scalar_default_value(expression) {
                 if !is_type_assignable(ty, &actual) {
                     return Err(SemanticError::new(
@@ -3271,6 +3448,7 @@ pub(crate) fn is_type_assignable(expected: &Type<'_>, actual: &Type<'_>) -> bool
         return true;
     }
     match (expected, actual) {
+        (Type::TypeParameter("$js"), _) => !actual.is_void(),
         (Type::Float, Type::Int) => true,
         (Type::Array(expected), Type::Array(actual)) => is_type_assignable(expected, actual),
         (Type::Map(expected_key, expected_value), Type::Map(actual_key, actual_value)) => {
@@ -3359,7 +3537,7 @@ fn statement_contains_break(statement: &Stmt<'_, '_>) -> bool {
             statement_contains_break(then_branch)
                 || else_branch.is_some_and(statement_contains_break)
         }
-        Stmt::While { .. } | Stmt::For { .. } => false,
+        Stmt::While { .. } | Stmt::For { .. } | Stmt::ForIn { .. } => false,
         _ => false,
     }
 }
@@ -3511,6 +3689,10 @@ fn runtime_type_category(ty: &Type<'_>) -> Option<RuntimeTypeCategory> {
     }
 }
 
+fn is_js_value(ty: &Type<'_>) -> bool {
+    matches!(ty, Type::TypeParameter("$js"))
+}
+
 fn validate_type_guard(
     value: &Type<'_>,
     target: &Type<'_>,
@@ -3528,6 +3710,18 @@ fn validate_type_guard(
             format!("type `{target}` has no portable runtime type guard"),
         )
     })?;
+    if is_js_value(value) {
+        return if matches!(target, Type::Float | Type::String | Type::Bool) {
+            Ok(())
+        } else {
+            Err(SemanticError::new(
+                span,
+                format!(
+                    "a `JsValue` cannot be soundly narrowed to `{target}`; use `float` for JavaScript numbers, `.isArray()` for untyped arrays, or `.truthy()`/`.isObject()` without narrowing"
+                ),
+            ))
+        };
+    }
     let members = runtime_guard_members(value);
     if !members.iter().any(|member| member == target) {
         return Err(SemanticError::new(
@@ -3612,17 +3806,50 @@ fn equality_type_supported(ty: &Type<'_>) -> bool {
         Type::Null
         | Type::Struct(_)
         | Type::StructInstance { .. }
-        | Type::Function(_)
         | Type::GenericFunction(_)
         | Type::Void => false,
+        Type::Function(_) => true,
         _ => true,
+    }
+}
+
+fn index_value_type<'src>(ty: &Type<'src>, writable: bool) -> Option<Type<'src>> {
+    match ty {
+        Type::TypeParameter("$js") => Some(Type::TypeParameter("$js")),
+        Type::Array(element) => Some(element.as_ref().clone()),
+        Type::String if !writable => Some(Type::String),
+        ty if crate::typed_array::is_typed_array_type(ty) => Some(
+            crate::typed_array::TypedArrayKind::from_type(ty)
+                .expect("typed array type")
+                .index_value_type(),
+        ),
+        Type::Union(members) => {
+            let values = members
+                .iter()
+                .map(|member| index_value_type(member, writable))
+                .collect::<Option<Vec<_>>>()?;
+            Some(normalize_union(values))
+        }
+        _ => None,
+    }
+}
+
+fn indexed_collection_has_length(ty: &Type<'_>) -> bool {
+    match ty {
+        Type::Array(_) | Type::String => true,
+        ty if crate::typed_array::is_typed_array_type(ty) => true,
+        Type::Union(members) => members.iter().all(indexed_collection_has_length),
+        _ => false,
     }
 }
 
 fn is_stringable(ty: &Type<'_>) -> bool {
     match ty {
         Type::Union(members) => members.iter().all(is_stringable),
-        _ => matches!(ty, Type::String | Type::Int | Type::Float | Type::Bool),
+        _ => matches!(
+            ty,
+            Type::String | Type::Int | Type::Float | Type::Bool | Type::TypeParameter("$js")
+        ),
     }
 }
 
@@ -3676,6 +3903,7 @@ mod tests {
     #[test]
     fn infers_auto_and_checks_array_map() {
         check("int[] values=[1,2,3]; auto doubled=values.map((int value)=>value*2);").unwrap();
+        check("int[] values=[1,2,3];values.map((int value)=>print(value));").unwrap();
     }
 
     #[test]
@@ -3794,6 +4022,25 @@ mod tests {
         );
         let absent = check("bool test(string|int value){return value is bool;}").unwrap_err();
         assert!(absent.message.contains("is not a member"), "{absent}");
+    }
+
+    #[test]
+    fn narrows_javascript_values_only_when_the_runtime_check_proves_the_type() {
+        check(
+            "bool inspect(JsValue value){if(value is string){print(value);}else if(value is float){print(value);}else if(value is bool){print(value);}return value.isArray()||value.isObject()||value.truthy();}",
+        )
+        .unwrap();
+
+        for target in ["int", "string[]", "func(int)->int"] {
+            let error = check(&format!(
+                "bool inspect(JsValue value){{return value is {target};}}"
+            ))
+            .unwrap_err();
+            assert!(
+                error.message.contains("cannot be soundly narrowed"),
+                "{error}"
+            );
+        }
     }
 
     #[test]
@@ -3956,17 +4203,14 @@ mod tests {
     }
 
     #[test]
-    fn rejects_unimplemented_struct_and_function_equality() {
+    fn rejects_unimplemented_struct_equality_and_allows_function_equality() {
         let struct_error = check(
             "struct Pair{int left;int right;}Pair a=Pair{1,2};Pair b=Pair{1,2};bool same=a==b;",
         )
         .unwrap_err();
         assert!(struct_error.message.contains("cannot be applied"));
 
-        let function_error =
-            check("auto a=(int value)=>value;auto b=(int value)=>value;bool same=a==b;")
-                .unwrap_err();
-        assert!(function_error.message.contains("cannot be applied"));
+        check("auto a=(int value)=>value;auto b=(int value)=>value;bool same=a==b;").unwrap();
     }
 
     #[test]

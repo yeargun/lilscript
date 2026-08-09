@@ -1,0 +1,1715 @@
+export class AstNode {
+  string type;
+  string name;
+  string litText;
+  bool prefix;
+  bool computed;
+  bool expression;
+  bool generator;
+  bool async;
+  bool method;
+  bool shorthand;
+  bool optional;
+  bool isStatic;
+  bool tail;
+  AstNode? a;
+  AstNode? b;
+  AstNode? c;
+  AstNode? d;
+  AstNode[] items;
+  AstNode[] more;
+
+  init(string type) {
+    this.type = type;
+    this.name = "";
+    this.litText = "";
+    this.prefix = false;
+    this.computed = false;
+    this.expression = false;
+    this.generator = false;
+    this.async = false;
+    this.method = false;
+    this.shorthand = false;
+    this.optional = false;
+    this.isStatic = false;
+    this.tail = false;
+    this.a = null;
+    this.b = null;
+    this.c = null;
+    this.d = null;
+    this.items = [];
+    this.more = [];
+  }
+}
+
+int TK_EOF = 0;
+int TK_IDENT = 1;
+int TK_NUM = 2;
+int TK_STR = 3;
+int TK_TRUE = 4;
+int TK_FALSE = 5;
+int TK_TEMPLATE = 6;
+int TK_LPAREN = 10;
+int TK_RPAREN = 11;
+int TK_LBRACK = 12;
+int TK_RBRACK = 13;
+int TK_LBRACE = 14;
+int TK_RBRACE = 15;
+int TK_DOT = 16;
+int TK_COMMA = 17;
+int TK_COLON = 18;
+int TK_SEMI = 19;
+int TK_ARROW = 20;
+int TK_ASSIGN = 21;
+int TK_QMARK = 22;
+int TK_QQ = 23;
+int TK_QDOT = 24;
+int TK_ELLIPSIS = 25;
+int TK_LT = 26;
+int TK_INC = 27;
+int TK_DEC = 28;
+int TK_PLUS = 30;
+int TK_MINUS = 31;
+int TK_STAR = 32;
+int TK_SLASH = 33;
+int TK_PERCENT = 34;
+int TK_BANG = 35;
+int TK_ANDAND = 36;
+int TK_OROR = 37;
+int TK_VAR = 50;
+int TK_LET = 51;
+int TK_CONST = 52;
+int TK_FUNCTION = 53;
+int TK_RETURN = 54;
+int TK_IF = 55;
+int TK_ELSE = 56;
+int TK_CLASS = 57;
+int TK_EXTENDS = 58;
+int TK_SUPER = 59;
+int TK_TRY = 60;
+int TK_CATCH = 61;
+int TK_FINALLY = 62;
+int TK_THROW = 63;
+int TK_FOR = 64;
+int TK_WHILE = 65;
+int TK_BREAK = 66;
+int TK_CONTINUE = 67;
+int TK_SWITCH = 68;
+int TK_CASE = 69;
+int TK_DEFAULT = 70;
+int TK_NEW = 71;
+int TK_ASYNC = 72;
+int TK_AWAIT = 73;
+int TK_IN = 74;
+
+int keywordTok(string s) {
+  if (s == "var") {
+    return TK_VAR;
+  }
+  if (s == "let") {
+    return TK_LET;
+  }
+  if (s == "const") {
+    return TK_CONST;
+  }
+  if (s == "function") {
+    return TK_FUNCTION;
+  }
+  if (s == "return") {
+    return TK_RETURN;
+  }
+  if (s == "if") {
+    return TK_IF;
+  }
+  if (s == "else") {
+    return TK_ELSE;
+  }
+  if (s == "true") {
+    return TK_TRUE;
+  }
+  if (s == "false") {
+    return TK_FALSE;
+  }
+  if (s == "class") {
+    return TK_CLASS;
+  }
+  if (s == "extends") {
+    return TK_EXTENDS;
+  }
+  if (s == "super") {
+    return TK_SUPER;
+  }
+  if (s == "try") {
+    return TK_TRY;
+  }
+  if (s == "catch") {
+    return TK_CATCH;
+  }
+  if (s == "finally") {
+    return TK_FINALLY;
+  }
+  if (s == "throw") {
+    return TK_THROW;
+  }
+  if (s == "for") {
+    return TK_FOR;
+  }
+  if (s == "while") {
+    return TK_WHILE;
+  }
+  if (s == "break") {
+    return TK_BREAK;
+  }
+  if (s == "continue") {
+    return TK_CONTINUE;
+  }
+  if (s == "switch") {
+    return TK_SWITCH;
+  }
+  if (s == "case") {
+    return TK_CASE;
+  }
+  if (s == "default") {
+    return TK_DEFAULT;
+  }
+  if (s == "new") {
+    return TK_NEW;
+  }
+  if (s == "async") {
+    return TK_ASYNC;
+  }
+  if (s == "await") {
+    return TK_AWAIT;
+  }
+  if (s == "in") {
+    return TK_IN;
+  }
+  return -1;
+}
+
+bool isIdStart(int c) {
+  if (c >= 65) {
+    if (c <= 90) {
+      return true;
+    }
+  }
+  if (c >= 97) {
+    if (c <= 122) {
+      return true;
+    }
+  }
+  if (c == 95) {
+    return true;
+  }
+  if (c == 36) {
+    return true;
+  }
+  return false;
+}
+
+bool isIdCont(int c) {
+  if (isIdStart(c)) {
+    return true;
+  }
+  if (c >= 48) {
+    if (c <= 57) {
+      return true;
+    }
+  }
+  return false;
+}
+
+export class Parser {
+  string input;
+  int len;
+  int pos;
+  int tok;
+  string str;
+  float num;
+  bool failed;
+  bool inTemplate;
+
+  init(string input) {
+    this.input = input;
+    this.len = input.length;
+    this.pos = 0;
+    this.tok = TK_EOF;
+    this.str = "";
+    this.num = 0.0;
+    this.failed = false;
+    this.inTemplate = false;
+    this.next();
+  }
+
+  int peeki() {
+    if (this.pos < this.len) {
+      return this.input.charCodeAt(this.pos);
+    }
+    return 0;
+  }
+
+  void advance() {
+    if (this.pos < this.len) {
+      this.pos = this.pos + 1;
+    }
+  }
+
+  void skipWs() {
+    while (this.pos < this.len) {
+      int c = this.peeki();
+      if (c == 32) {
+        this.advance();
+      } else {
+        if (c == 9) {
+          this.advance();
+        } else {
+          if (c == 10) {
+            this.advance();
+          } else {
+            if (c == 13) {
+              this.advance();
+            } else {
+              break;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  void fail() {
+    this.failed = true;
+    this.tok = TK_EOF;
+  }
+
+  void next() {
+    this.skipWs();
+    if (this.pos >= this.len) {
+      this.tok = TK_EOF;
+      return;
+    }
+    int c = this.peeki();
+    if (isIdStart(c)) {
+      string s = "";
+      while (isIdCont(this.peeki())) {
+        s = s + this.input.charAt(this.pos);
+        this.advance();
+      }
+      int kw = keywordTok(s);
+      if (kw >= 0) {
+        this.tok = kw;
+        this.str = s;
+      } else {
+        this.tok = TK_IDENT;
+        this.str = s;
+      }
+      return;
+    }
+    if (c >= 48) {
+      if (c <= 57) {
+        string s = "";
+        while (this.peeki() >= 48) {
+          if (this.peeki() <= 57) {
+            s = s + this.input.charAt(this.pos);
+            this.advance();
+          } else {
+            break;
+          }
+        }
+        this.tok = TK_NUM;
+        this.str = s;
+        this.num = 0.0;
+        return;
+      }
+    }
+    if (c == 34) {
+      this.advance();
+      string s = "";
+      while (this.pos < this.len) {
+        if (this.peeki() == 34) {
+          break;
+        }
+        s = s + this.input.charAt(this.pos);
+        this.advance();
+      }
+      this.advance();
+      this.tok = TK_STR;
+      this.str = s;
+      return;
+    }
+    if (c == 96) {
+      this.advance();
+      string s = "";
+      bool moreTpl = true;
+      while (moreTpl) {
+        if (this.pos >= this.len) {
+          moreTpl = false;
+        } else {
+          int tc = this.peeki();
+          if (tc == 96) {
+            this.advance();
+            this.tok = TK_TEMPLATE;
+            this.str = s;
+            this.num = 1.0;
+            return;
+          }
+          if (tc == 36) {
+            if (this.pos + 1 < this.len) {
+              if (this.input.charCodeAt(this.pos + 1) == 123) {
+                this.advance();
+                this.advance();
+                this.tok = TK_TEMPLATE;
+                this.str = s;
+                this.num = 0.0;
+                return;
+              }
+            }
+          }
+          s = s + this.input.charAt(this.pos);
+          this.advance();
+        }
+      }
+      this.fail();
+      return;
+    }
+    if (c == 46) {
+      if (this.pos + 2 < this.len) {
+        if (this.input.charCodeAt(this.pos + 1) == 46) {
+          if (this.input.charCodeAt(this.pos + 2) == 46) {
+            this.advance();
+            this.advance();
+            this.advance();
+            this.tok = TK_ELLIPSIS;
+            return;
+          }
+        }
+      }
+    }
+    if (c == 63) {
+      if (this.pos + 1 < this.len) {
+        int n1 = this.input.charCodeAt(this.pos + 1);
+        if (n1 == 63) {
+          this.advance();
+          this.advance();
+          this.tok = TK_QQ;
+          return;
+        }
+        if (n1 == 46) {
+          this.advance();
+          this.advance();
+          this.tok = TK_QDOT;
+          return;
+        }
+      }
+      this.advance();
+      this.tok = TK_QMARK;
+      return;
+    }
+    if (c == 61) {
+      if (this.pos + 1 < this.len) {
+        if (this.input.charCodeAt(this.pos + 1) == 62) {
+          this.advance();
+          this.advance();
+          this.tok = TK_ARROW;
+          return;
+        }
+      }
+    }
+    if (c == 38) {
+      if (this.pos + 1 < this.len) {
+        if (this.input.charCodeAt(this.pos + 1) == 38) {
+          this.advance();
+          this.advance();
+          this.tok = TK_ANDAND;
+          return;
+        }
+      }
+    }
+    if (c == 124) {
+      if (this.pos + 1 < this.len) {
+        if (this.input.charCodeAt(this.pos + 1) == 124) {
+          this.advance();
+          this.advance();
+          this.tok = TK_OROR;
+          return;
+        }
+      }
+    }
+    if (c == 43) {
+      if (this.pos + 1 < this.len) {
+        if (this.input.charCodeAt(this.pos + 1) == 43) {
+          this.advance();
+          this.advance();
+          this.tok = TK_INC;
+          return;
+        }
+      }
+    }
+    if (c == 45) {
+      if (this.pos + 1 < this.len) {
+        if (this.input.charCodeAt(this.pos + 1) == 45) {
+          this.advance();
+          this.advance();
+          this.tok = TK_DEC;
+          return;
+        }
+      }
+    }
+    this.advance();
+    if (c == 40) {
+      this.tok = TK_LPAREN;
+      return;
+    }
+    if (c == 41) {
+      this.tok = TK_RPAREN;
+      return;
+    }
+    if (c == 91) {
+      this.tok = TK_LBRACK;
+      return;
+    }
+    if (c == 93) {
+      this.tok = TK_RBRACK;
+      return;
+    }
+    if (c == 123) {
+      this.tok = TK_LBRACE;
+      return;
+    }
+    if (c == 125) {
+      this.tok = TK_RBRACE;
+      return;
+    }
+    if (c == 46) {
+      this.tok = TK_DOT;
+      return;
+    }
+    if (c == 44) {
+      this.tok = TK_COMMA;
+      return;
+    }
+    if (c == 58) {
+      this.tok = TK_COLON;
+      return;
+    }
+    if (c == 59) {
+      this.tok = TK_SEMI;
+      return;
+    }
+    if (c == 61) {
+      this.tok = TK_ASSIGN;
+      return;
+    }
+    if (c == 60) {
+      this.tok = TK_LT;
+      return;
+    }
+    if (c == 43) {
+      this.tok = TK_PLUS;
+      return;
+    }
+    if (c == 45) {
+      this.tok = TK_MINUS;
+      return;
+    }
+    if (c == 42) {
+      this.tok = TK_STAR;
+      return;
+    }
+    if (c == 47) {
+      this.tok = TK_SLASH;
+      return;
+    }
+    if (c == 37) {
+      this.tok = TK_PERCENT;
+      return;
+    }
+    if (c == 33) {
+      this.tok = TK_BANG;
+      return;
+    }
+    this.fail();
+  }
+
+  bool check(int t) {
+    return this.tok == t;
+  }
+
+  void eat(int t) {
+    if (this.tok != t) {
+      this.fail();
+      return;
+    }
+    this.next();
+  }
+
+  AstNode dummy() {
+    return new AstNode("Identifier");
+  }
+
+  AstNode parseProgram() {
+    AstNode program = new AstNode("Program");
+    program.name = "script";
+    AstNode[] body = [];
+    while (this.check(TK_EOF) == false) {
+      if (this.failed) {
+        break;
+      }
+      body.push(this.parseStatement());
+    }
+    program.items = body;
+    return program;
+  }
+
+  AstNode parseStatement() {
+    if (this.check(TK_LBRACE)) {
+      return this.parseBlock();
+    }
+    if (this.check(TK_ASYNC)) {
+      return this.parseAsyncFunctionDecl();
+    }
+    if (this.check(TK_FUNCTION)) {
+      return this.parseFunctionDecl(false);
+    }
+    if (this.check(TK_CLASS)) {
+      return this.parseClassDecl();
+    }
+    if (this.check(TK_VAR)) {
+      return this.parseVarDecl(true);
+    }
+    if (this.check(TK_LET)) {
+      return this.parseVarDecl(true);
+    }
+    if (this.check(TK_CONST)) {
+      return this.parseVarDecl(true);
+    }
+    if (this.check(TK_RETURN)) {
+      return this.parseReturn();
+    }
+    if (this.check(TK_IF)) {
+      return this.parseIf();
+    }
+    if (this.check(TK_TRY)) {
+      return this.parseTry();
+    }
+    if (this.check(TK_THROW)) {
+      return this.parseThrow();
+    }
+    if (this.check(TK_FOR)) {
+      return this.parseFor();
+    }
+    if (this.check(TK_WHILE)) {
+      return this.parseWhile();
+    }
+    if (this.check(TK_BREAK)) {
+      return this.parseBreak();
+    }
+    if (this.check(TK_CONTINUE)) {
+      return this.parseContinue();
+    }
+    if (this.check(TK_SWITCH)) {
+      return this.parseSwitch();
+    }
+    AstNode expr = this.parseExpression();
+    this.eat(TK_SEMI);
+    AstNode stmt = new AstNode("ExpressionStatement");
+    stmt.a = expr;
+    return stmt;
+  }
+
+  AstNode parseBlock() {
+    this.eat(TK_LBRACE);
+    AstNode[] body = [];
+    while (this.check(TK_RBRACE) == false) {
+      if (this.check(TK_EOF)) {
+        break;
+      }
+      if (this.failed) {
+        break;
+      }
+      body.push(this.parseStatement());
+    }
+    this.eat(TK_RBRACE);
+    AstNode block = new AstNode("BlockStatement");
+    block.items = body;
+    return block;
+  }
+
+  AstNode parseBinding() {
+    if (this.check(TK_LBRACK)) {
+      return this.parseArrayPattern();
+    }
+    if (this.check(TK_LBRACE)) {
+      return this.parseObjectPattern();
+    }
+    return this.parseIdentNode();
+  }
+
+  AstNode parseArrayPattern() {
+    this.eat(TK_LBRACK);
+    AstNode[] elements = [];
+    if (this.check(TK_RBRACK) == false) {
+      bool moreElems = true;
+      while (moreElems) {
+        if (this.check(TK_ELLIPSIS)) {
+          this.next();
+          AstNode rest = new AstNode("RestElement");
+          rest.a = this.parseBinding();
+          elements.push(rest);
+          moreElems = false;
+        } else {
+          elements.push(this.parseBinding());
+          if (this.check(TK_COMMA)) {
+            this.next();
+          } else {
+            moreElems = false;
+          }
+        }
+      }
+    }
+    this.eat(TK_RBRACK);
+    AstNode node = new AstNode("ArrayPattern");
+    node.items = elements;
+    return node;
+  }
+
+  AstNode parseObjectPattern() {
+    this.eat(TK_LBRACE);
+    AstNode[] properties = [];
+    bool moreProps = true;
+    while (moreProps) {
+      if (this.check(TK_RBRACE)) {
+        moreProps = false;
+      } else {
+        AstNode key = this.parseIdentNode();
+        AstNode value = key;
+        bool shorthand = true;
+        if (this.check(TK_COLON)) {
+          this.next();
+          value = this.parseBinding();
+          shorthand = false;
+        }
+        AstNode prop = new AstNode("Property");
+        prop.a = key;
+        prop.b = value;
+        prop.name = "init";
+        prop.method = false;
+        prop.shorthand = shorthand;
+        prop.computed = false;
+        properties.push(prop);
+        if (this.check(TK_COMMA)) {
+          this.next();
+        } else {
+          moreProps = false;
+        }
+      }
+    }
+    this.eat(TK_RBRACE);
+    AstNode node = new AstNode("ObjectPattern");
+    node.items = properties;
+    return node;
+  }
+
+  AstNode parseVarDecl(bool eatSemi) {
+    string kind = "var";
+    if (this.check(TK_LET)) {
+      kind = "let";
+    } else {
+      if (this.check(TK_CONST)) {
+        kind = "const";
+      }
+    }
+    this.next();
+    AstNode[] declarations = [];
+    bool moreDecls = true;
+    while (moreDecls) {
+      AstNode id = this.parseBinding();
+      AstNode? initializer = null;
+      if (this.check(TK_ASSIGN)) {
+        this.next();
+        initializer = this.parseAssign();
+      }
+      AstNode decl = new AstNode("VariableDeclarator");
+      decl.a = id;
+      decl.b = initializer;
+      declarations.push(decl);
+      if (this.check(TK_COMMA)) {
+        this.next();
+      } else {
+        moreDecls = false;
+      }
+    }
+    if (eatSemi) {
+      this.eat(TK_SEMI);
+    }
+    AstNode node = new AstNode("VariableDeclaration");
+    node.name = kind;
+    node.items = declarations;
+    return node;
+  }
+
+  AstNode parseAsyncFunctionDecl() {
+    this.eat(TK_ASYNC);
+    return this.parseFunctionDecl(true);
+  }
+
+  AstNode parseFunctionDecl(bool isAsync) {
+    this.eat(TK_FUNCTION);
+    AstNode id = this.parseIdentNode();
+    this.eat(TK_LPAREN);
+    AstNode[] params = this.parseParamList();
+    this.eat(TK_RPAREN);
+    AstNode body = this.parseBlock();
+    AstNode node = new AstNode("FunctionDeclaration");
+    node.a = id;
+    node.items = params;
+    node.b = body;
+    node.expression = false;
+    node.generator = false;
+    node.async = isAsync;
+    return node;
+  }
+
+  AstNode[] parseParamList() {
+    AstNode[] params = [];
+    if (this.check(TK_RPAREN) == false) {
+      bool moreParams = true;
+      while (moreParams) {
+        params.push(this.parseBinding());
+        if (this.check(TK_COMMA)) {
+          this.next();
+        } else {
+          moreParams = false;
+        }
+      }
+    }
+    return params;
+  }
+
+  AstNode parseClassDecl() {
+    this.eat(TK_CLASS);
+    AstNode id = this.parseIdentNode();
+    AstNode? superClass = null;
+    if (this.check(TK_EXTENDS)) {
+      this.next();
+      superClass = this.parseIdentNode();
+    }
+    this.eat(TK_LBRACE);
+    AstNode[] methods = [];
+    while (this.check(TK_RBRACE) == false) {
+      if (this.check(TK_EOF)) {
+        break;
+      }
+      if (this.failed) {
+        break;
+      }
+      methods.push(this.parseMethodDefinition());
+    }
+    this.eat(TK_RBRACE);
+    AstNode body = new AstNode("ClassBody");
+    body.items = methods;
+    AstNode node = new AstNode("ClassDeclaration");
+    node.a = id;
+    node.b = superClass;
+    node.c = body;
+    return node;
+  }
+
+  AstNode parseMethodDefinition() {
+    AstNode key = this.parseIdentNode();
+    string kind = "method";
+    if (key.name == "constructor") {
+      kind = "constructor";
+    }
+    this.eat(TK_LPAREN);
+    AstNode[] params = this.parseParamList();
+    this.eat(TK_RPAREN);
+    AstNode fnBody = this.parseBlock();
+    AstNode fn = new AstNode("FunctionExpression");
+    fn.a = null;
+    fn.items = params;
+    fn.b = fnBody;
+    fn.expression = false;
+    fn.generator = false;
+    fn.async = false;
+    AstNode node = new AstNode("MethodDefinition");
+    node.a = key;
+    node.b = fn;
+    node.name = kind;
+    node.computed = false;
+    node.isStatic = false;
+    return node;
+  }
+
+  AstNode parseReturn() {
+    this.eat(TK_RETURN);
+    AstNode? argument = null;
+    if (this.check(TK_SEMI) == false) {
+      if (this.check(TK_RBRACE) == false) {
+        argument = this.parseExpression();
+      }
+    }
+    this.eat(TK_SEMI);
+    AstNode node = new AstNode("ReturnStatement");
+    node.a = argument;
+    return node;
+  }
+
+  AstNode parseIf() {
+    this.eat(TK_IF);
+    this.eat(TK_LPAREN);
+    AstNode test = this.parseExpression();
+    this.eat(TK_RPAREN);
+    AstNode consequent = this.parseStatement();
+    AstNode? alternate = null;
+    if (this.check(TK_ELSE)) {
+      this.next();
+      alternate = this.parseStatement();
+    }
+    AstNode node = new AstNode("IfStatement");
+    node.a = test;
+    node.b = consequent;
+    node.c = alternate;
+    return node;
+  }
+
+  AstNode parseTry() {
+    this.eat(TK_TRY);
+    AstNode block = this.parseBlock();
+    AstNode? handler = null;
+    if (this.check(TK_CATCH)) {
+      this.next();
+      this.eat(TK_LPAREN);
+      AstNode param = this.parseIdentNode();
+      this.eat(TK_RPAREN);
+      AstNode catchBody = this.parseBlock();
+      AstNode clause = new AstNode("CatchClause");
+      clause.a = param;
+      clause.b = catchBody;
+      handler = clause;
+    }
+    AstNode? finalizer = null;
+    if (this.check(TK_FINALLY)) {
+      this.next();
+      finalizer = this.parseBlock();
+    }
+    AstNode node = new AstNode("TryStatement");
+    node.a = block;
+    node.b = handler;
+    node.c = finalizer;
+    return node;
+  }
+
+  AstNode parseThrow() {
+    this.eat(TK_THROW);
+    AstNode argument = this.parseExpression();
+    this.eat(TK_SEMI);
+    AstNode node = new AstNode("ThrowStatement");
+    node.a = argument;
+    return node;
+  }
+
+  AstNode parseFor() {
+    this.eat(TK_FOR);
+    this.eat(TK_LPAREN);
+    AstNode? forInit = null;
+    if (this.check(TK_SEMI) == false) {
+      if (this.check(TK_VAR)) {
+        forInit = this.parseVarDecl(false);
+      } else {
+        if (this.check(TK_LET)) {
+          forInit = this.parseVarDecl(false);
+        } else {
+          if (this.check(TK_CONST)) {
+            forInit = this.parseVarDecl(false);
+          } else {
+            forInit = this.parseExpression();
+          }
+        }
+      }
+    }
+    if (this.check(TK_IN)) {
+      this.next();
+      AstNode right = this.parseExpression();
+      this.eat(TK_RPAREN);
+      AstNode body = this.parseStatement();
+      AstNode node = new AstNode("ForInStatement");
+      node.a = forInit;
+      node.b = right;
+      node.c = body;
+      return node;
+    }
+    this.eat(TK_SEMI);
+    AstNode? test = null;
+    if (this.check(TK_SEMI) == false) {
+      test = this.parseExpression();
+    }
+    this.eat(TK_SEMI);
+    AstNode? update = null;
+    if (this.check(TK_RPAREN) == false) {
+      update = this.parseExpression();
+    }
+    this.eat(TK_RPAREN);
+    AstNode forBody = this.parseStatement();
+    AstNode forNode = new AstNode("ForStatement");
+    forNode.a = forInit;
+    forNode.b = test;
+    forNode.c = update;
+    forNode.d = forBody;
+    return forNode;
+  }
+
+  AstNode parseWhile() {
+    this.eat(TK_WHILE);
+    this.eat(TK_LPAREN);
+    AstNode test = this.parseExpression();
+    this.eat(TK_RPAREN);
+    AstNode body = this.parseStatement();
+    AstNode node = new AstNode("WhileStatement");
+    node.a = test;
+    node.b = body;
+    return node;
+  }
+
+  AstNode parseBreak() {
+    this.eat(TK_BREAK);
+    this.eat(TK_SEMI);
+    AstNode node = new AstNode("BreakStatement");
+    node.a = null;
+    return node;
+  }
+
+  AstNode parseContinue() {
+    this.eat(TK_CONTINUE);
+    this.eat(TK_SEMI);
+    AstNode node = new AstNode("ContinueStatement");
+    node.a = null;
+    return node;
+  }
+
+  AstNode parseSwitch() {
+    this.eat(TK_SWITCH);
+    this.eat(TK_LPAREN);
+    AstNode discriminant = this.parseExpression();
+    this.eat(TK_RPAREN);
+    this.eat(TK_LBRACE);
+    AstNode[] cases = [];
+    while (this.check(TK_RBRACE) == false) {
+      if (this.check(TK_EOF)) {
+        break;
+      }
+      if (this.failed) {
+        break;
+      }
+      AstNode? test = null;
+      if (this.check(TK_CASE)) {
+        this.next();
+        test = this.parseExpression();
+        this.eat(TK_COLON);
+      } else {
+        if (this.check(TK_DEFAULT)) {
+          this.next();
+          this.eat(TK_COLON);
+        } else {
+          this.fail();
+          break;
+        }
+      }
+      AstNode[] consequent = [];
+      bool moreCons = true;
+      while (moreCons) {
+        if (this.check(TK_RBRACE)) {
+          moreCons = false;
+        } else {
+          if (this.check(TK_CASE)) {
+            moreCons = false;
+          } else {
+            if (this.check(TK_DEFAULT)) {
+              moreCons = false;
+            } else {
+              if (this.check(TK_EOF)) {
+                moreCons = false;
+              } else {
+                if (this.failed) {
+                  moreCons = false;
+                } else {
+                  consequent.push(this.parseStatement());
+                }
+              }
+            }
+          }
+        }
+      }
+      AstNode cse = new AstNode("SwitchCase");
+      cse.a = test;
+      cse.items = consequent;
+      cases.push(cse);
+    }
+    this.eat(TK_RBRACE);
+    AstNode node = new AstNode("SwitchStatement");
+    node.a = discriminant;
+    node.items = cases;
+    return node;
+  }
+
+  AstNode parseIdentNode() {
+    if (this.check(TK_IDENT) == false) {
+      this.fail();
+      return this.dummy();
+    }
+    AstNode node = new AstNode("Identifier");
+    node.name = this.str;
+    this.next();
+    return node;
+  }
+
+  AstNode parseExpression() {
+    AstNode left = this.parseAssign();
+    if (this.check(TK_COMMA) == false) {
+      return left;
+    }
+    AstNode[] exprs = [];
+    exprs.push(left);
+    while (this.check(TK_COMMA)) {
+      this.next();
+      exprs.push(this.parseAssign());
+    }
+    AstNode node = new AstNode("SequenceExpression");
+    node.items = exprs;
+    return node;
+  }
+
+  AstNode parseAssign() {
+    AstNode left = this.parseConditional();
+    if (this.check(TK_ASSIGN)) {
+      this.next();
+      AstNode right = this.parseAssign();
+      AstNode node = new AstNode("AssignmentExpression");
+      node.name = "=";
+      node.a = left;
+      node.b = right;
+      return node;
+    }
+    return left;
+  }
+
+  AstNode parseConditional() {
+    AstNode test = this.parseNullish();
+    if (this.check(TK_QMARK)) {
+      this.next();
+      AstNode consequent = this.parseAssign();
+      this.eat(TK_COLON);
+      AstNode alternate = this.parseAssign();
+      AstNode node = new AstNode("ConditionalExpression");
+      node.a = test;
+      node.b = consequent;
+      node.c = alternate;
+      return node;
+    }
+    return test;
+  }
+
+  AstNode parseNullish() {
+    AstNode left = this.parseOr();
+    while (this.check(TK_QQ)) {
+      this.next();
+      AstNode right = this.parseOr();
+      AstNode node = new AstNode("LogicalExpression");
+      node.name = "??";
+      node.a = left;
+      node.b = right;
+      left = node;
+    }
+    return left;
+  }
+
+  AstNode parseOr() {
+    AstNode left = this.parseAnd();
+    while (this.check(TK_OROR)) {
+      this.next();
+      AstNode right = this.parseAnd();
+      AstNode node = new AstNode("LogicalExpression");
+      node.name = "||";
+      node.a = left;
+      node.b = right;
+      left = node;
+    }
+    return left;
+  }
+
+  AstNode parseAnd() {
+    AstNode left = this.parseCompare();
+    while (this.check(TK_ANDAND)) {
+      this.next();
+      AstNode right = this.parseCompare();
+      AstNode node = new AstNode("LogicalExpression");
+      node.name = "&&";
+      node.a = left;
+      node.b = right;
+      left = node;
+    }
+    return left;
+  }
+
+  AstNode parseCompare() {
+    AstNode left = this.parseAdd();
+    while (this.check(TK_LT)) {
+      this.next();
+      AstNode right = this.parseAdd();
+      AstNode node = new AstNode("BinaryExpression");
+      node.name = "<";
+      node.a = left;
+      node.b = right;
+      left = node;
+    }
+    return left;
+  }
+
+  AstNode parseAdd() {
+    AstNode left = this.parseMul();
+    bool moreAdd = true;
+    while (moreAdd) {
+      if (this.check(TK_PLUS)) {
+        this.next();
+        AstNode right = this.parseMul();
+        AstNode node = new AstNode("BinaryExpression");
+        node.name = "+";
+        node.a = left;
+        node.b = right;
+        left = node;
+      } else {
+        if (this.check(TK_MINUS)) {
+          this.next();
+          AstNode right = this.parseMul();
+          AstNode node = new AstNode("BinaryExpression");
+          node.name = "-";
+          node.a = left;
+          node.b = right;
+          left = node;
+        } else {
+          moreAdd = false;
+        }
+      }
+    }
+    return left;
+  }
+
+  AstNode parseMul() {
+    AstNode left = this.parseUnary();
+    bool moreMul = true;
+    while (moreMul) {
+      if (this.check(TK_STAR)) {
+        this.next();
+        AstNode right = this.parseUnary();
+        AstNode node = new AstNode("BinaryExpression");
+        node.name = "*";
+        node.a = left;
+        node.b = right;
+        left = node;
+      } else {
+        if (this.check(TK_SLASH)) {
+          this.next();
+          AstNode right = this.parseUnary();
+          AstNode node = new AstNode("BinaryExpression");
+          node.name = "/";
+          node.a = left;
+          node.b = right;
+          left = node;
+        } else {
+          if (this.check(TK_PERCENT)) {
+            this.next();
+            AstNode right = this.parseUnary();
+            AstNode node = new AstNode("BinaryExpression");
+            node.name = "%";
+            node.a = left;
+            node.b = right;
+            left = node;
+          } else {
+            moreMul = false;
+          }
+        }
+      }
+    }
+    return left;
+  }
+
+  AstNode parseUnary() {
+    if (this.check(TK_BANG)) {
+      this.next();
+      AstNode node = new AstNode("UnaryExpression");
+      node.name = "!";
+      node.prefix = true;
+      node.a = this.parseUnary();
+      return node;
+    }
+    if (this.check(TK_MINUS)) {
+      this.next();
+      AstNode node = new AstNode("UnaryExpression");
+      node.name = "-";
+      node.prefix = true;
+      node.a = this.parseUnary();
+      return node;
+    }
+    if (this.check(TK_PLUS)) {
+      this.next();
+      AstNode node = new AstNode("UnaryExpression");
+      node.name = "+";
+      node.prefix = true;
+      node.a = this.parseUnary();
+      return node;
+    }
+    if (this.check(TK_INC)) {
+      this.next();
+      AstNode node = new AstNode("UpdateExpression");
+      node.name = "++";
+      node.prefix = true;
+      node.a = this.parseUnary();
+      return node;
+    }
+    if (this.check(TK_DEC)) {
+      this.next();
+      AstNode node = new AstNode("UpdateExpression");
+      node.name = "--";
+      node.prefix = true;
+      node.a = this.parseUnary();
+      return node;
+    }
+    if (this.check(TK_AWAIT)) {
+      this.next();
+      AstNode node = new AstNode("AwaitExpression");
+      node.a = this.parseUnary();
+      return node;
+    }
+    return this.parsePostfix();
+  }
+
+  AstNode parsePostfix() {
+    AstNode expr = this.parsePrimary();
+    bool sawOptional = false;
+    bool morePost = true;
+    while (morePost) {
+      if (this.check(TK_QDOT)) {
+        this.next();
+        sawOptional = true;
+        if (this.check(TK_LPAREN)) {
+          this.next();
+          AstNode[] args = this.parseArgList();
+          this.eat(TK_RPAREN);
+          AstNode call = new AstNode("CallExpression");
+          call.a = expr;
+          call.items = args;
+          call.optional = true;
+          expr = call;
+        } else {
+          if (this.check(TK_IDENT) == false) {
+            this.fail();
+            morePost = false;
+          } else {
+            AstNode prop = new AstNode("Identifier");
+            prop.name = this.str;
+            this.next();
+            AstNode mem = new AstNode("MemberExpression");
+            mem.a = expr;
+            mem.b = prop;
+            mem.computed = false;
+            mem.optional = true;
+            expr = mem;
+          }
+        }
+      } else {
+        if (this.check(TK_DOT)) {
+          this.next();
+          if (this.check(TK_IDENT) == false) {
+            this.fail();
+            morePost = false;
+          } else {
+            AstNode prop = new AstNode("Identifier");
+            prop.name = this.str;
+            this.next();
+            AstNode node = new AstNode("MemberExpression");
+            node.a = expr;
+            node.b = prop;
+            node.computed = false;
+            node.optional = false;
+            expr = node;
+          }
+        } else {
+          if (this.check(TK_LBRACK)) {
+            this.next();
+            AstNode prop = this.parseExpression();
+            this.eat(TK_RBRACK);
+            AstNode node = new AstNode("MemberExpression");
+            node.a = expr;
+            node.b = prop;
+            node.computed = true;
+            node.optional = false;
+            expr = node;
+          } else {
+            if (this.check(TK_LPAREN)) {
+              this.next();
+              AstNode[] args = this.parseArgList();
+              this.eat(TK_RPAREN);
+              AstNode node = new AstNode("CallExpression");
+              node.a = expr;
+              node.items = args;
+              node.optional = false;
+              expr = node;
+            } else {
+              if (this.check(TK_INC)) {
+                this.next();
+                AstNode node = new AstNode("UpdateExpression");
+                node.name = "++";
+                node.prefix = false;
+                node.a = expr;
+                expr = node;
+                morePost = false;
+              } else {
+                if (this.check(TK_DEC)) {
+                  this.next();
+                  AstNode node = new AstNode("UpdateExpression");
+                  node.name = "--";
+                  node.prefix = false;
+                  node.a = expr;
+                  expr = node;
+                  morePost = false;
+                } else {
+                  morePost = false;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    if (sawOptional) {
+      AstNode chain = new AstNode("ChainExpression");
+      chain.a = expr;
+      return chain;
+    }
+    return expr;
+  }
+
+  AstNode[] parseArgList() {
+    AstNode[] args = [];
+    if (this.check(TK_RPAREN) == false) {
+      bool moreArgs = true;
+      while (moreArgs) {
+        if (this.check(TK_ELLIPSIS)) {
+          this.next();
+          AstNode spread = new AstNode("SpreadElement");
+          spread.a = this.parseAssign();
+          args.push(spread);
+        } else {
+          args.push(this.parseAssign());
+        }
+        if (this.check(TK_COMMA)) {
+          this.next();
+        } else {
+          moreArgs = false;
+        }
+      }
+    }
+    return args;
+  }
+
+  AstNode parsePrimary() {
+    if (this.check(TK_NUM)) {
+      AstNode node = new AstNode("Literal");
+      node.litText = this.str;
+      this.next();
+      return node;
+    }
+    if (this.check(TK_STR)) {
+      AstNode node = new AstNode("Literal");
+      node.litText = "\"" + this.str + "\"";
+      this.next();
+      return node;
+    }
+    if (this.check(TK_TRUE)) {
+      this.next();
+      AstNode node = new AstNode("Literal");
+      node.litText = "true";
+      return node;
+    }
+    if (this.check(TK_FALSE)) {
+      this.next();
+      AstNode node = new AstNode("Literal");
+      node.litText = "false";
+      return node;
+    }
+    if (this.check(TK_TEMPLATE)) {
+      return this.parseTemplate();
+    }
+    if (this.check(TK_SUPER)) {
+      this.next();
+      AstNode node = new AstNode("Super");
+      return node;
+    }
+    if (this.check(TK_NEW)) {
+      return this.parseNew();
+    }
+    if (this.check(TK_IDENT)) {
+      string name = this.str;
+      this.next();
+      if (this.check(TK_ARROW)) {
+        this.next();
+        AstNode param = new AstNode("Identifier");
+        param.name = name;
+        AstNode[] params = [];
+        params.push(param);
+        return this.finishArrow(params);
+      }
+      AstNode node = new AstNode("Identifier");
+      node.name = name;
+      return node;
+    }
+    if (this.check(TK_LPAREN)) {
+      return this.parseParenOrArrow();
+    }
+    if (this.check(TK_LBRACE)) {
+      return this.parseObject();
+    }
+    if (this.check(TK_LBRACK)) {
+      return this.parseArray();
+    }
+    this.fail();
+    return this.dummy();
+  }
+
+  AstNode parseTemplate() {
+    AstNode[] quasis = [];
+    AstNode[] expressions = [];
+    bool moreTpl = true;
+    while (moreTpl) {
+      if (this.check(TK_TEMPLATE) == false) {
+        this.fail();
+        moreTpl = false;
+      } else {
+        string cooked = this.str;
+        bool isTail = this.num == 1.0;
+        AstNode elem = new AstNode("TemplateElement");
+        elem.litText = "\"" + cooked + "\"";
+        elem.name = "\"" + cooked + "\"";
+        elem.tail = isTail;
+        quasis.push(elem);
+        this.next();
+        if (isTail) {
+          moreTpl = false;
+        } else {
+          expressions.push(this.parseExpression());
+          if (this.check(TK_RBRACE) == false) {
+            this.fail();
+            moreTpl = false;
+          } else {
+            this.pos = this.pos;
+            string s = "";
+            bool scan = true;
+            while (scan) {
+              if (this.pos >= this.len) {
+                this.fail();
+                scan = false;
+                moreTpl = false;
+              } else {
+                int tc = this.input.charCodeAt(this.pos);
+                if (tc == 96) {
+                  this.advance();
+                  this.tok = TK_TEMPLATE;
+                  this.str = s;
+                  this.num = 1.0;
+                  scan = false;
+                } else {
+                  if (tc == 36) {
+                    if (this.pos + 1 < this.len) {
+                      if (this.input.charCodeAt(this.pos + 1) == 123) {
+                        this.advance();
+                        this.advance();
+                        this.tok = TK_TEMPLATE;
+                        this.str = s;
+                        this.num = 0.0;
+                        scan = false;
+                      } else {
+                        s = s + this.input.charAt(this.pos);
+                        this.advance();
+                      }
+                    } else {
+                      s = s + this.input.charAt(this.pos);
+                      this.advance();
+                    }
+                  } else {
+                    s = s + this.input.charAt(this.pos);
+                    this.advance();
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    AstNode node = new AstNode("TemplateLiteral");
+    node.items = quasis;
+    node.more = expressions;
+    return node;
+  }
+
+  AstNode parseNew() {
+    this.eat(TK_NEW);
+    AstNode callee = this.parseIdentNode();
+    AstNode[] args = [];
+    if (this.check(TK_LPAREN)) {
+      this.next();
+      args = this.parseArgList();
+      this.eat(TK_RPAREN);
+    }
+    AstNode node = new AstNode("NewExpression");
+    node.a = callee;
+    node.items = args;
+    return node;
+  }
+
+  AstNode finishArrow(AstNode[] params) {
+    AstNode body = this.dummy();
+    bool expression = false;
+    if (this.check(TK_LBRACE)) {
+      body = this.parseBlock();
+      expression = false;
+    } else {
+      body = this.parseAssign();
+      expression = true;
+    }
+    AstNode node = new AstNode("ArrowFunctionExpression");
+    node.items = params;
+    node.a = body;
+    node.expression = expression;
+    node.generator = false;
+    node.async = false;
+    return node;
+  }
+
+  AstNode parseParenOrArrow() {
+    this.eat(TK_LPAREN);
+    if (this.check(TK_RPAREN)) {
+      this.next();
+      this.eat(TK_ARROW);
+      AstNode[] empty = [];
+      return this.finishArrow(empty);
+    }
+    if (this.check(TK_IDENT)) {
+      int savePos = this.pos;
+      int saveTok = this.tok;
+      string saveStr = this.str;
+      float saveNum = this.num;
+      AstNode[] params = [];
+      bool ok = true;
+      bool moreArrowParams = true;
+      while (moreArrowParams) {
+        if (this.check(TK_IDENT) == false) {
+          ok = false;
+          moreArrowParams = false;
+        } else {
+          AstNode p = new AstNode("Identifier");
+          p.name = this.str;
+          params.push(p);
+          this.next();
+          if (this.check(TK_COMMA)) {
+            this.next();
+          } else {
+            moreArrowParams = false;
+          }
+        }
+      }
+      if (ok) {
+        if (this.check(TK_RPAREN)) {
+          this.next();
+          if (this.check(TK_ARROW)) {
+            this.next();
+            return this.finishArrow(params);
+          }
+        }
+      }
+      this.pos = savePos;
+      this.tok = saveTok;
+      this.str = saveStr;
+      this.num = saveNum;
+    }
+    AstNode first = this.parseAssign();
+    if (this.check(TK_COMMA)) {
+      AstNode[] exprs = [];
+      exprs.push(first);
+      while (this.check(TK_COMMA)) {
+        this.next();
+        exprs.push(this.parseAssign());
+      }
+      this.eat(TK_RPAREN);
+      AstNode seq = new AstNode("SequenceExpression");
+      seq.items = exprs;
+      return seq;
+    }
+    this.eat(TK_RPAREN);
+    return first;
+  }
+
+  AstNode parseObject() {
+    this.eat(TK_LBRACE);
+    AstNode[] properties = [];
+    bool moreProps = true;
+    while (moreProps) {
+      if (this.check(TK_RBRACE)) {
+        moreProps = false;
+      } else {
+        AstNode key = this.parseIdentNode();
+        this.eat(TK_COLON);
+        AstNode value = this.parseAssign();
+        AstNode prop = new AstNode("Property");
+        prop.a = key;
+        prop.b = value;
+        prop.name = "init";
+        prop.method = false;
+        prop.shorthand = false;
+        prop.computed = false;
+        properties.push(prop);
+        if (this.check(TK_COMMA)) {
+          this.next();
+        } else {
+          moreProps = false;
+        }
+      }
+    }
+    this.eat(TK_RBRACE);
+    AstNode node = new AstNode("ObjectExpression");
+    node.items = properties;
+    return node;
+  }
+
+  AstNode parseArray() {
+    this.eat(TK_LBRACK);
+    AstNode[] elements = [];
+    if (this.check(TK_RBRACK) == false) {
+      bool moreElems = true;
+      while (moreElems) {
+        if (this.check(TK_ELLIPSIS)) {
+          this.next();
+          AstNode spread = new AstNode("SpreadElement");
+          spread.a = this.parseAssign();
+          elements.push(spread);
+        } else {
+          elements.push(this.parseAssign());
+        }
+        if (this.check(TK_COMMA)) {
+          this.next();
+        } else {
+          moreElems = false;
+        }
+      }
+    }
+    this.eat(TK_RBRACK);
+    AstNode node = new AstNode("ArrayExpression");
+    node.items = elements;
+    return node;
+  }
+}
+
+export AstNode parse(string source) {
+  Parser parser = new Parser(source);
+  return parser.parseProgram();
+}

@@ -1,49 +1,81 @@
-# Solid Client-Runtime Evidence
+# solidlil Client-Runtime Evidence
 
 The separate
 [`lilscript-solid-lab`](https://github.com/yeargun/lilscript-solid-lab)
-measures a real LilScript client runtime against pinned, unchanged
-`solid-js@1.9.13`. It is a behavioral port, not a TypeScript compatibility
-layer and not a source-to-source rewrite.
+hosts **solidlil**. The primary todolist lane uses **LSX** (`.lilx`) — LilScript's
+JSX-shaped UI syntax — compiled through LilScript reactive + LilScript DOM, with
+a Solid-like API (`createSignal`, `For`, `Show`, …). A secondary lane keeps one
+shared JSX source and the same `babel-preset-solid` DOM path as SolidJS so the
+reactive core can be isolated.
+
+App UI and HTML carry **no framework-identifying strings** (no eyebrow, no
+`data-runtime`, identical `<title>`), so size deltas are runtime and compiler
+output.
 
 ## Current verified scope
 
-- 2,355 lines of LilScript across reactive, flow, component, web, and app
-  modules;
-- 109 adapted runtime behaviors, each executed with maximum and disabled
-  optional optimization through JavaScript, emitted C, and native backends;
-- 654 successful LilScript compiler/runtime executions;
-- 469/469 unchanged official Solid reference tests across 26 files;
-- optimized Vite, Closure ADVANCED, and direct LilScript compiler artifacts all
-  pass the interactive client contract before measurement.
+- LilScript reactive core + Solid API facade + Solid web DOM module;
+- LSX app path (`.lilx` → LilScript modules → Vite);
+- adapted runtime behaviors executed through JavaScript, emitted C, and native
+  backends;
+- unchanged official Solid reference suite remains green upstream;
+- Vite todolist builds and core-probe bundles pass fairness gates before size
+  publication;
+- Solid, LSX, and identical-JSX bundles pass the same interaction-state
+  contract. A separate jsdom benchmark is retained as a regression proxy, not
+  as a browser-performance claim.
 
-The checked size snapshot is:
+The executable LilScript compatibility slice currently passes 109 adapted
+behaviors in each of maximum/disabled optimization × JavaScript/emitted-C/native
+(654 executions). The unchanged upstream baseline passes 469/469 tests across
+26 files. These counts are separate inventories, not a 109/469 compatibility
+percentage: the adapted cases are selected behavior ports and the remaining
+Solid surface is not implemented.
 
-| Client artifact | Raw | Gzip-9 | Brotli-11 |
+Checked snapshot from `lilscript-solid-lab/artifacts/size-report.md`:
+
+### Primary: Solid JSX vs solidlil LSX (full served app)
+
+| Artifact | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
-| Official Solid + Vite | 12,487 | 4,922 | 4,451 |
-| Official Solid + Closure ADVANCED | 11,237 | 4,804 | 4,307 |
-| Partial LilScript runtime + Vite | 7,909 | 3,245 | 2,901 |
-| Partial LilScript runtime + Closure ADVANCED | 7,523 | 3,199 | 2,850 |
-| Partial LilScript runtime + compiler | 5,609 | 2,265 | 2,001 |
+| Solid todolist | 15,456 | 6,077 | 5,479 |
+| solidlil LSX todolist | 10,590 | 4,226 | 3,722 |
 
-These rows are useful implementation evidence, but they are not a compatible
-library comparison yet. Only 109 of the 469 target behaviors have LilScript
-ports. Stores, errors and guaranteed cleanup, promises/resources, transitions,
-time-sliced scheduling, complete DOM insertion/reconciliation, Suspense,
-hydration, and SSR remain out of scope.
+solidlil LSX vs Solid: raw −31.5%, gzip −30.5%, brotli −32.1%.
+
+### Secondary: identical JSX + Solid DOM (reactive swap)
+
+| Artifact | Raw | Gzip-9 | Brotli-11 |
+| --- | ---: | ---: | ---: |
+| Solid todolist | 15,456 | 6,077 | 5,479 |
+| solidlil babel todolist | 13,636 | 5,474 | 4,894 |
+
+DOM/CSSOM: `solid-js/web` vs `solidlil/web` body identical (26,839 normalized
+chars). Babel-lane DOM call counts identical.
+
+### Core runtime (minified used Solid API surface)
+
+| Artifact | Raw | Gzip-9 | Brotli-11 |
+| --- | ---: | ---: | ---: |
+| Solid core | 8,616 | 3,494 | 3,201 |
+| solidlil core | 8,483 | 3,393 | 3,082 |
+
+The 15-sample jsdom interaction median is 1.028× Solid and the median retained
+heap across 9 isolated processes is 1.047× Solid. Both are within the lab's 5% material
+regression gate; these are Node regression proxies, not browser-performance claims.
+
+These rows are useful implementation evidence, but they are not a claim of full
+Solid compatibility. Stores, errors and guaranteed cleanup, promises/resources,
+transitions, Suspense, hydration, and SSR remain out of scope.
 
 ## Reproduction
-
-With this repository and `lilscript-solid-lab` as sibling directories:
 
 ```sh
 cd ../lilscript-solid-lab
 npm ci
 npm run setup
-npm run check
+npm run build
 ```
 
-`npm run check` lints, runs the adapted and official suites, builds all five
-artifacts, verifies behavior, and regenerates size and runtime reports. A size
-or speed result is not publishable when any behavior gate fails.
+`npm run build` rebuilds the reactive module, Solid/LSX/babel Vite apps,
+core-probe bundles, checks fairness gates, and writes `artifacts/size-report.md`.

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
@@ -19,6 +20,31 @@ test("compiler totals have one fixed comparable scope", () => {
     assert.equal(
       result.artifacts.some((artifact) => artifact.id === "ecosystem"),
       false,
+    );
+  }
+});
+
+test("LilScript never exceeds Closure size on a comparable workload", () => {
+  for (const result of report.results) {
+    const closure = result.artifacts.find((artifact) => artifact.id === "closure");
+    const lilscript = result.artifacts.find((artifact) => artifact.id === "lilscript");
+    for (const metric of ["raw", "gzip", "brotli"]) {
+      assert.ok(
+        lilscript[metric] <= closure[metric],
+        `${result.name} ${metric}: LilScript ${lilscript[metric]} > Closure ${closure[metric]}`,
+      );
+    }
+  }
+});
+
+test("LilScript full-sample runtime stays within five percent of Closure", () => {
+  if (report.metadata.samples < 20) return;
+  for (const result of report.results) {
+    const closure = result.artifacts.find((artifact) => artifact.id === "closure");
+    const lilscript = result.artifacts.find((artifact) => artifact.id === "lilscript");
+    assert.ok(
+      lilscript.medianMs / closure.medianMs <= 1.05,
+      `${result.name} runtime ratio ${(lilscript.medianMs / closure.medianMs).toFixed(3)} > 1.05`,
     );
   }
 });
@@ -73,4 +99,19 @@ test("Motion compatibility inventory matches the pinned package", async () => {
   const motion = await import("motion");
   assert.equal(motionPackage.version, motionCompatibility.version);
   assert.equal(Object.keys(motion).length, motionCompatibility.rootRuntimeExports);
+
+  let publishedBindings = 0;
+  const uniqueNames = new Set();
+  for (const entrypoint of motionCompatibility.publishedEntrypoints) {
+    const runtime = await import(entrypoint.specifier);
+    const names = Object.keys(runtime).sort();
+    const sha256 = createHash("sha256").update(names.join("\n")).digest("hex");
+    assert.deepEqual(names, entrypoint.runtimeExportNames, entrypoint.specifier);
+    assert.equal(sha256, entrypoint.exportNameSha256, entrypoint.specifier);
+    assert.equal(entrypoint.implementedRuntimeExports, 0, entrypoint.specifier);
+    publishedBindings += names.length;
+    for (const name of names) uniqueNames.add(name);
+  }
+  assert.equal(publishedBindings, motionCompatibility.publishedRuntimeBindings);
+  assert.equal(uniqueNames.size, motionCompatibility.uniqueRuntimeExportNames);
 });

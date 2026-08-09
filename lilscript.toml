@@ -9,8 +9,20 @@ identical_function_folding = true
 priority = "size-first"
 optimization_level = 15
 cost_model = "brotli"
+pool_numeric_literals = true
 candidate_search = "production"
 candidate_limit = 1536
+# Approximate aggregate bytes of whole-artifact candidates retained and scored.
+candidate_byte_budget = 1048576
+candidate_beam_width = 12
+# Never trade raw bytes for codec bytes unless a project explicitly opts in.
+max_candidate_raw_growth_percent = 0
+# Exact Held-Karp declaration ordering cutoff (0 = always use bounded heuristic, max 18).
+function_layout_exact_limit = 13
+# Keep a consistent short-name prefix available inside every function scope.
+local_name_reserve = 48
+stable_local_names = true
+# function_spelling = "arrow" # explicit public-ABI override; arrow | function
 # Omit this exact allowlist to use optimization_level.
 # optimizations = ["parsed-peephole", "startup-cost-guard"]
 compression = [
@@ -21,12 +33,14 @@ compression = [
   "size-aware-inlining",
   "safe-integer-coercion-elision",
   "compact-boolean-literals",
+  "standard-grammar-elision",
   "structured-closure-inlining",
   "string-array-packing",
   "scalar-phi-copies",
   "phi-affinity-coalescing",
   "ir-inlining-variants",
   "ir-closure-factory-variants",
+  "ir-phase-ordering-variants",
   "loop-spelling-selection",
   "mutation-spelling-selection",
 ]
@@ -35,6 +49,7 @@ compression = [
 parse_weight = 1
 compile_weight = 1
 memory_weight = 1
+# max_nesting = 128
 parse_overhead_limit_percent = 30
 compile_overhead_limit_percent = 30
 memory_overhead_limit_percent = 35

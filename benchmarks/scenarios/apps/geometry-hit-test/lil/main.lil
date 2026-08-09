@@ -1,0 +1,32 @@
+import { clamp } from "../../../../libraries/ports/micro-math/clamp";
+import { incirclefast, orient2dfast } from "../../../../libraries/ports/robust-predicates/index";
+
+struct Hit {
+  float _confidence;
+  bool _inside;
+}
+
+pure float modulo(float value, float divisor) {
+  return value - (value / divisor).floor() * divisor;
+}
+
+Hit[] hits = [];
+float digest = 0.0;
+for (int batch = 0; batch < 850; batch++) {
+  for (int index = 0; index < 48; index++) {
+    float x = ((index * 37 + batch * 11) % 101) / 100.0;
+    float y = ((index * 19 + batch * 7) % 103) / 102.0;
+    float side = orient2dfast(0.0, 0.0, 1.0, 0.0, x, y);
+    float circle = incirclefast(0.0, 0.0, 1.0, 0.0, 0.0, 1.0, x, y);
+    float confidence = clamp(circle.abs() * 4.0 + side.abs(), 0.0, 1.0);
+    bool inside = side <= 0.0 && circle >= 0.0;
+    hits.push(Hit{confidence, inside});
+    float marker = 13.0;
+    if (inside) {
+      marker = 97.0;
+    }
+    digest = modulo(digest + (confidence * 1000.0).round() + marker, 2147483647.0);
+  }
+}
+Hit last = hits[hits.length - 1];
+print(`geometry-hit-test:${hits.length}:${digest}:${(last._confidence * 1000000.0).round()}:${last._inside}`);

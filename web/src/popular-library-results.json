@@ -1,0 +1,733 @@
+{
+  "metadata": {
+    "generatedAt": "2026-08-09T09:38:31.768Z",
+    "compilerRevision": "85ef5bc-dirty",
+    "node": "v20.12.0",
+    "vite": "8.2.1",
+    "esbuild": "0.28.1",
+    "terser": "5.43.1",
+    "closure": "20260804.0.0",
+    "performanceRounds": 5,
+    "materialRegressionLimit": 1.05
+  },
+  "eligibilityRule": "Every documented runtime export in the explicitly selected published entrypoint is implemented over the same JavaScript input domain and with the same algorithmic work; upstream-derived assertions, dense differential vectors, and identical app contracts pass; every adapter byte is measured; the LilScript Vite 8 artifact is no larger than either npm Vite 8 or public-API-preserving Closure ADVANCED in raw bytes or the explicitly selected transport codec; and representative throughput and retained-memory workloads show no material regression. Alternate gzip-9 and Brotli-11 sizes are always reported because optimizing one codec is not a promise about another. Partial, adapter-algorithm, and subset implementations are implementation backlog only and are not published as library comparisons. C/native checks are additional portability evidence where the selected API can be represented natively, not a substitute for JavaScript compatibility.",
+  "results": [
+    {
+      "id": "nanoid",
+      "project": "Nano ID",
+      "eligibility": "exact-browser-entrypoint",
+      "blockers": [
+        "This is the published browser entrypoint, not Nano ID's distinct pooled Node entrypoint."
+      ],
+      "verification": {
+        "differential": "nanoid-upstream:2",
+        "selectedEntrypoint": "nanoid/index.browser.js"
+      },
+      "closureLevel": "ADVANCED",
+      "costModel": "brotli",
+      "rawJs": {
+        "raw": 1564,
+        "gzip": 684,
+        "brotli": 603
+      },
+      "terser": {
+        "raw": 719,
+        "gzip": 445,
+        "brotli": 408
+      },
+      "closure": {
+        "raw": 750,
+        "gzip": 461,
+        "brotli": 414
+      },
+      "vite": {
+        "raw": 732,
+        "gzip": 455,
+        "brotli": 409
+      },
+      "lilscript": {
+        "raw": 1211,
+        "gzip": 617,
+        "brotli": 549
+      },
+      "lilscriptVite": {
+        "raw": 729,
+        "gzip": 456,
+        "brotli": 408
+      },
+      "expected": "nanoid:8:64",
+      "status": "exact-browser-entrypoint",
+      "packages": [
+        {
+          "name": "nanoid",
+          "version": "5.1.5"
+        }
+      ],
+      "entrypoint": "index.browser.js",
+      "publicRuntimeApi": [
+        "nanoid",
+        "customAlphabet",
+        "customRandom",
+        "random",
+        "urlAlphabet"
+      ],
+      "compatibilityNotes": "All five exports of index.browser.js are ported and exposed with the same ESM names. Differential checks cover defaults and coercions, deterministic customRandom vectors, randomness/distribution, Uint8Array output, export keys, and the Number-valued 2147483648 callback step. The separately portable algorithm also passes a linked native C smoke contract. This claim intentionally excludes Nano ID's distinct pooled Node entrypoint.",
+      "performance": {
+        "performance": {
+          "npmMs": 7.88575,
+          "lilscriptMs": 7.957875000000001,
+          "ratio": 1.009146244808674
+        },
+        "retainedMemory": {
+          "npmBytes": 664296,
+          "lilscriptBytes": 669472,
+          "ratio": 1.0077917073111986
+        }
+      },
+      "exactSurface": true,
+      "performanceGate": true,
+      "sizeGate": true,
+      "eligible": true
+    },
+    {
+      "id": "mitt",
+      "project": "mitt",
+      "eligibility": "exact-root-entrypoint",
+      "blockers": [],
+      "verification": {
+        "differential": "mitt-upstream:2:10",
+        "selectedEntrypoint": "mitt"
+      },
+      "closureLevel": "ADVANCED",
+      "costModel": "brotli",
+      "rawJs": {
+        "raw": 1125,
+        "gzip": 504,
+        "brotli": 452
+      },
+      "terser": {
+        "raw": 511,
+        "gzip": 314,
+        "brotli": 284
+      },
+      "closure": {
+        "raw": 595,
+        "gzip": 339,
+        "brotli": 311
+      },
+      "vite": {
+        "raw": 595,
+        "gzip": 331,
+        "brotli": 300
+      },
+      "lilscript": {
+        "raw": 1061,
+        "gzip": 481,
+        "brotli": 432
+      },
+      "lilscriptVite": {
+        "raw": 595,
+        "gzip": 329,
+        "brotli": 300
+      },
+      "expected": "mitt:3:6",
+      "status": "exact-root-entrypoint",
+      "packages": [
+        {
+          "name": "mitt",
+          "version": "3.0.1"
+        }
+      ],
+      "entrypoint": null,
+      "publicRuntimeApi": [],
+      "compatibilityNotes": "The default export's exact {all,on,off,emit} object surface is preserved, including supplied Map identity, string and Symbol keys, first-only removal of duplicate handlers, snapshot behavior when listeners mutate registration during emit, omitted payload undefined, and direct-before-wildcard dispatch. The tiny measured JavaScript boundary only exposes the compiled function; all of its bytes are counted.",
+      "performance": {
+        "performance": {
+          "npmMs": 7.630749999999999,
+          "lilscriptMs": 7.744457999999998,
+          "ratio": 1.0149012875536478
+        },
+        "retainedMemory": {
+          "npmBytes": 2093120,
+          "lilscriptBytes": 2094168,
+          "ratio": 1.0005006879682006
+        }
+      },
+      "exactSurface": true,
+      "performanceGate": true,
+      "sizeGate": true,
+      "eligible": true
+    },
+    {
+      "id": "clsx",
+      "project": "clsx",
+      "eligibility": "exact-root-entrypoint",
+      "blockers": [],
+      "verification": {
+        "differential": "clsx-differential:10000",
+        "selectedEntrypoint": "clsx"
+      },
+      "closureLevel": "ADVANCED",
+      "costModel": "brotli",
+      "rawJs": {
+        "raw": 1906,
+        "gzip": 732,
+        "brotli": 665
+      },
+      "terser": {
+        "raw": 1158,
+        "gzip": 544,
+        "brotli": 490
+      },
+      "closure": {
+        "raw": 1158,
+        "gzip": 555,
+        "brotli": 499
+      },
+      "vite": {
+        "raw": 1156,
+        "gzip": 541,
+        "brotli": 493
+      },
+      "lilscript": {
+        "raw": 2012,
+        "gzip": 741,
+        "brotli": 662
+      },
+      "lilscriptVite": {
+        "raw": 1153,
+        "gzip": 538,
+        "brotli": 481
+      },
+      "expected": "clsx:13:foo bar baz||1 2|foo baz|foo --foobar|foo bar|foo bar baz hello there|foo bar hello world cya|foo foo foo foo|hello world push|1 a 12||",
+      "status": "exact-root-entrypoint",
+      "packages": [
+        {
+          "name": "clsx",
+          "version": "2.1.1"
+        }
+      ],
+      "entrypoint": "dist/clsx.mjs",
+      "publicRuntimeApi": [
+        "clsx"
+      ],
+      "compatibilityNotes": "Default/named export identity and 10,000 deterministic recursive differential inputs match clsx 2.1.1, including inherited enumerable keys and ignored bigint/Symbol/function values. JsValue, direct dynamic indexing, raw truthiness, and for-in lowering preserve the upstream recursive algorithm without an intermediate conversion tree.",
+      "performance": {
+        "performance": {
+          "npmMs": 9.691125000000001,
+          "lilscriptMs": 9.630625,
+          "ratio": 0.9937571747346153
+        },
+        "retainedMemory": {
+          "npmBytes": 1789928,
+          "lilscriptBytes": 1791000,
+          "ratio": 1.000598906771669
+        }
+      },
+      "exactSurface": true,
+      "performanceGate": true,
+      "sizeGate": true,
+      "eligible": true
+    },
+    {
+      "id": "immer",
+      "project": "immer",
+      "eligibility": "candidate",
+      "blockers": [
+        "LilScript has no Proxies; the measured JS facade restores produce/current/original mutation syntax over an explicit ImmValue COW draft tree.",
+        "Patch generation lives in LilScript; applyPatches is restored in the measured JS facade over plain clones. Map/Set/Date/class/immerable drafts, freeze, and manual createDraft/finishDraft remain out of this subset."
+      ],
+      "verification": null,
+      "closureLevel": "ADVANCED",
+      "costModel": "brotli",
+      "rawJs": {
+        "raw": 30927,
+        "gzip": 8160,
+        "brotli": 7237
+      },
+      "terser": {
+        "raw": 13507,
+        "gzip": 5119,
+        "brotli": 4648
+      },
+      "closure": {
+        "raw": 11747,
+        "gzip": 4926,
+        "brotli": 4428
+      },
+      "vite": {
+        "raw": 11847,
+        "gzip": 4454,
+        "brotli": 4133
+      },
+      "lilscript": {
+        "raw": 25882,
+        "gzip": 5400,
+        "brotli": 4885
+      },
+      "lilscriptVite": {
+        "raw": 14607,
+        "gzip": 4221,
+        "brotli": 3825
+      },
+      "expected": "immer:33:111111111111111111111111111111111",
+      "status": "candidate",
+      "packages": [
+        {
+          "name": "immer",
+          "version": "10.1.1"
+        }
+      ],
+      "entrypoint": null,
+      "publicRuntimeApi": [
+        "produce",
+        "current",
+        "original",
+        "enablePatches",
+        "produceWithPatches",
+        "applyPatches"
+      ],
+      "compatibilityNotes": "Copy-on-write ImmValue draft tree lives in LilScript (no Proxies in-language). A measured JavaScript facade restores immer-like produce/current/original mutation syntax and enablePatches/produceWithPatches/applyPatches. Patch generation (assigned-key object patches + array length/index patches + replacement patches) runs in LilScript; applyPatches is restored in the facade over plain deep-cloned values (matching immer's JSON-patch ops for the contract). Covers nested object/array drafts, push/pop, property assign/delete, recipe return replacement, same-reference when unchanged, and patch round-trips. Blocked from complete: no Map/Set/Date/class/immerable drafts, no freeze/manual createDraft/finishDraft public API, and Proxy traps remain a JS-facade necessity because LilScript cannot express them.",
+      "performance": null,
+      "exactSurface": false,
+      "performanceGate": null,
+      "sizeGate": false,
+      "eligible": false
+    },
+    {
+      "id": "redux-toolkit",
+      "project": "Redux Toolkit core subset",
+      "eligibility": "candidate",
+      "blockers": [
+        "createSlice draft reducers reuse ports/immer COW; the measured JS facade restores RTK-shaped createSlice/configureStore and Proxy mutation syntax.",
+        "No middleware, thunks, DevTools, RTK Query, createAsyncThunk, listener middleware, entity adapters, or reselect integration.",
+        "npm Closure Advanced breaks RTK's dynamic action/reducer property model; this row uses Closure SIMPLE after an es2020 transpile."
+      ],
+      "verification": null,
+      "closureLevel": "SIMPLE",
+      "costModel": "brotli",
+      "rawJs": {
+        "raw": 78119,
+        "gzip": 19140,
+        "brotli": 16836
+      },
+      "terser": {
+        "raw": 31643,
+        "gzip": 11214,
+        "brotli": 10051
+      },
+      "closure": {
+        "raw": 40082,
+        "gzip": 13553,
+        "brotli": 12193
+      },
+      "vite": {
+        "raw": 18045,
+        "gzip": 6733,
+        "brotli": 6212
+      },
+      "lilscript": {
+        "raw": 24402,
+        "gzip": 5107,
+        "brotli": 4645
+      },
+      "lilscriptVite": {
+        "raw": 13695,
+        "gzip": 4026,
+        "brotli": 3651
+      },
+      "expected": "rtk:5:11111:1:1",
+      "status": "candidate-core-subset",
+      "packages": [
+        {
+          "name": "@reduxjs/toolkit",
+          "version": "2.8.2"
+        }
+      ],
+      "entrypoint": null,
+      "publicRuntimeApi": [
+        "createSlice",
+        "configureStore",
+        "store.dispatch",
+        "store.getState"
+      ],
+      "compatibilityNotes": "RTK core subset: createSlice with immer-style draft reducers (via ports/immer COW + JS Proxy facade), configureStore/combineReduce over ImmValue, dispatch and getState. App contract covers counter inc/dec and todos add/remove/toggle. Blocked from complete: no middleware/thunks/DevTools, no RTK Query, no createAsyncThunk, no listeners, no entity adapters, no selectors/reselect integration. npm Closure Advanced is incompatible with RTK's dynamic action/reducer keys; the size row uses Closure SIMPLE.",
+      "performance": null,
+      "exactSurface": false,
+      "performanceGate": null,
+      "sizeGate": true,
+      "eligible": false
+    },
+    {
+      "id": "zod",
+      "project": "Zod 3 core subset",
+      "eligibility": "candidate",
+      "blockers": [
+        "Inputs use an explicit JsonValue kind tree; the JS facade restores the chainable z API.",
+        "Email is a portable character-class approximation of Zod 3's regex because LilScript has no RegExp intrinsic.",
+        ".transform() is applied in the JS facade after LilScript parse; refinements, coerce, effects, pipe, and Zod 4 remain unported.",
+        "npm Closure Advanced mangles Zod issue codes and object shape keys; this row uses Closure SIMPLE."
+      ],
+      "verification": null,
+      "closureLevel": "SIMPLE",
+      "costModel": "brotli",
+      "rawJs": {
+        "raw": 130408,
+        "gzip": 21383,
+        "brotli": 18421
+      },
+      "terser": {
+        "raw": 65573,
+        "gzip": 15306,
+        "brotli": 13549
+      },
+      "closure": {
+        "raw": 77956,
+        "gzip": 16609,
+        "brotli": 14703
+      },
+      "vite": {
+        "raw": 61494,
+        "gzip": 14086,
+        "brotli": 12518
+      },
+      "lilscript": {
+        "raw": 29933,
+        "gzip": 5503,
+        "brotli": 4912
+      },
+      "lilscriptVite": {
+        "raw": 19265,
+        "gzip": 4745,
+        "brotli": 4255
+      },
+      "expected": "zod:52:ok:\"hi\"|err:invalid_type@:Expected string, received number|err:too_small@:String must contain at least 3 character(s)|err:too_big@:String must contain at most 2 character(s)|ok:\"ab@c.com\"|err:invalid_string@:Invalid email|err:invalid_string@:Invalid email|err:invalid_string@:Invalid email;too_small@:String must contain at least 5 character(s)|ok:1.5|err:invalid_type@:Expected number, received string|err:too_small@:Number must be greater than or equal to 0|err:too_big@:Number must be less than or equal to 10|ok:true|err:invalid_type@:Expected boolean, received number|ok:\"admin\"|err:invalid_literal@:Invalid literal value, expected \"admin\"|ok:1|ok:true|ok:[\"a\",\"b\"]|err:too_small@1:Number must be greater than or equal to 0|err:invalid_type@:Expected array, received string|ok:undefined|err:invalid_type@:Expected string, received null|ok:null|err:invalid_type@:Required|ok:{\"email\":\"a@b.co\",\"age\":20,\"admin\":false,\"role\":\"owner\",\"bio\":null}|ok:{\"email\":\"test@example.com\",\"age\":0,\"admin\":true,\"role\":\"owner\",\"tags\":[\"x\"],\"bio\":\"hi\"}|err:invalid_string@email:Invalid email;too_small@email:String must contain at least 5 character(s);too_big@age:Number must be less than or equal to 150;invalid_type@admin:Expected boolean, received string;invalid_literal@role:Invalid literal value, expected \"owner\";too_small@tags/0:String must contain at least 1 character(s);invalid_type@bio:Expected string, received number|err:invalid_type@email:Required;invalid_type@age:Required;invalid_type@admin:Required;invalid_literal@role:Invalid literal value, expected \"owner\";invalid_type@bio:Required|ok:{\"a\":\"x\"}|parse:ok@ex.com:9|throw:1|ok:\"red\"|err:invalid_enum_value@:Invalid enum value. Expected 'red' | 'green', received 'blue'|err:invalid_type@:Expected 'red' | 'green', received number|ok:\"a\"|ok:1|err:invalid_union@:Invalid input|ok:{\"type\":\"a\",\"v\":\"x\"}|err:invalid_union_discriminator@type:Invalid discriminator value. Expected 'a' | 'b'|err:invalid_type@v:Expected string, received number|ok:[\"a\",1]|err:too_small@:Array must contain at least 2 element(s)|err:too_big@:Array must contain at most 2 element(s)|err:invalid_type@1:Expected number, received string|ok:\"hi\"|ok:\"x\"|ok:3|err:invalid_type@:Expected string, received number|ok:{\"a\":1,\"b\":2}|err:invalid_type@a:Expected number, received string|err:invalid_type@:Expected object, received string",
+      "status": "candidate-core-subset",
+      "packages": [
+        {
+          "name": "zod",
+          "version": "3.25.76"
+        }
+      ],
+      "entrypoint": null,
+      "publicRuntimeApi": [
+        "z.string",
+        "z.number",
+        "z.boolean",
+        "z.literal",
+        "z.object",
+        "z.array",
+        "z.enum",
+        "z.union",
+        "z.discriminatedUnion",
+        "z.tuple",
+        "z.record",
+        "parse",
+        "safeParse",
+        "optional",
+        "nullable",
+        "default",
+        "transform",
+        "min",
+        "max",
+        "email"
+      ],
+      "compatibilityNotes": "Zod 3 core subset: string/number/boolean/literal/object/array/enum/union/discriminatedUnion/tuple/record with min/max/email, optional/nullable/default, parse/safeParse. Inputs are modeled as an explicit JsonValue kind tree; the JS facade converts values and restores a chainable z API. .transform() runs in the facade after LilScript parse (JS callback). Email uses a portable character-class approximation of Zod 3's regex (no RegExp intrinsic). Full Zod (refinements, coerce, effects, pipe, Zod 4, etc.) remains out of scope.",
+      "performance": null,
+      "exactSurface": false,
+      "performanceGate": null,
+      "sizeGate": true,
+      "eligible": false
+    },
+    {
+      "id": "acorn",
+      "project": "Acorn 8 parse subset",
+      "eligibility": "candidate",
+      "blockers": [
+        "Fixed 25-program ecmaVersion 2020 script subset; fingerprints AST shape without loc/range/start/end/raw.",
+        "Yield/generators, import/export modules, tokenizer/TokenType API, plugins, locations, and remaining operators/grammar remain unported."
+      ],
+      "verification": null,
+      "closureLevel": "ADVANCED",
+      "costModel": "brotli",
+      "rawJs": {
+        "raw": 206243,
+        "gzip": 45439,
+        "brotli": 37082
+      },
+      "terser": {
+        "raw": 120484,
+        "gzip": 35647,
+        "brotli": 29264
+      },
+      "closure": {
+        "raw": 115461,
+        "gzip": 31894,
+        "brotli": 26490
+      },
+      "vite": {
+        "raw": 120547,
+        "gzip": 35723,
+        "brotli": 29529
+      },
+      "lilscript": {
+        "raw": 50308,
+        "gzip": 6161,
+        "brotli": 5139
+      },
+      "lilscriptVite": {
+        "raw": 30569,
+        "gzip": 5108,
+        "brotli": 4520
+      },
+      "expected": "acorn:25:Program(script,[VariableDeclaration(const,[VariableDeclarator(Identifier(x),BinaryExpression(Literal(1),+,Literal(2)))])])|Program(script,[VariableDeclaration(let,[VariableDeclarator(Identifier(a),UnaryExpression(-,true,Literal(3)))]),VariableDeclaration(var,[VariableDeclarator(Identifier(b),UnaryExpression(!,true,Literal(true)))])])|Program(script,[FunctionDeclaration(Identifier(f),[Identifier(a),Identifier(b)],BlockStatement([ReturnStatement(BinaryExpression(Identifier(a),*,Identifier(b)))]),false,false,false)])|Program(script,[VariableDeclaration(const,[VariableDeclarator(Identifier(g),ArrowFunctionExpression([Identifier(x)],BinaryExpression(Identifier(x),+,Literal(1)),true,false,false))])])|Program(script,[FunctionDeclaration(Identifier(h),[Identifier(x)],BlockStatement([IfStatement(Identifier(x),BlockStatement([ReturnStatement(Identifier(y))]),#)]),false,false,false)])|Program(script,[ExpressionStatement(MemberExpression(Identifier(obj),Identifier(prop),false,false)),ExpressionStatement(MemberExpression(Identifier(arr),Literal(0),true,false)),ExpressionStatement(CallExpression(Identifier(fn),[Literal(1),Literal(2)],false))])|Program(script,[VariableDeclaration(const,[VariableDeclarator(Identifier(o),ObjectExpression([Property(Identifier(a),Literal(1),init,false,false,false),Property(Identifier(b),Literal(\"hi\"),init,false,false,false)]))]),VariableDeclaration(const,[VariableDeclarator(Identifier(arr),ArrayExpression([Literal(1),Literal(2),Literal(3)]))])])|Program(script,[VariableDeclaration(const,[VariableDeclarator(Identifier(z),ArrowFunctionExpression([Identifier(a),Identifier(b)],BlockStatement([ReturnStatement(LogicalExpression(LogicalExpression(Identifier(a),&&,Identifier(b)),||,Identifier(c)))]),false,false,false))])])|Program(script,[ExpressionStatement(MemberExpression(CallExpression(MemberExpression(Identifier(foo),Identifier(bar),false,false),[Identifier(baz)],false),Identifier(qux),false,false))])|Program(script,[VariableDeclaration(const,[VariableDeclarator(Identifier(add),ArrowFunctionExpression([Identifier(a),Identifier(b)],BinaryExpression(Identifier(a),+,Identifier(b)),true,false,false))]),ExpressionStatement(CallExpression(Identifier(add),[Literal(1),Literal(2)],false))])|Program(script,[IfStatement(Identifier(a),ExpressionStatement(Identifier(b)),ExpressionStatement(Identifier(c)))])|Program(script,[FunctionDeclaration(Identifier(id),[Identifier(x)],BlockStatement([ReturnStatement(Identifier(x))]),false,false,false)])|Program(script,[VariableDeclaration(const,[VariableDeclarator(Identifier(t),TemplateLiteral([TemplateElement(\"a\",\"a\",false),TemplateElement(\"b\",\"b\",true)],[Identifier(x)]))])])|Program(script,[VariableDeclaration(const,[VariableDeclarator(Identifier(a),ArrayExpression([SpreadElement(Identifier(xs))]))]),ExpressionStatement(CallExpression(Identifier(f),[SpreadElement(Identifier(ys))],false))])|Program(script,[VariableDeclaration(const,[VariableDeclarator(ArrayPattern([Identifier(a),Identifier(b)]),Identifier(xs))]),VariableDeclaration(const,[VariableDeclarator(ObjectPattern([Property(Identifier(c),Identifier(c),init,false,true,false),Property(Identifier(d),Identifier(d),init,false,true,false)]),Identifier(obj))])])|Program(script,[FunctionDeclaration(Identifier(f),[ArrayPattern([Identifier(a),RestElement(Identifier(rest))]),ObjectPattern([Property(Identifier(b),Identifier(b),init,false,true,false)])],BlockStatement([ReturnStatement(Identifier(a))]),false,false,false)])|Program(script,[ClassDeclaration(Identifier(C),Identifier(B),ClassBody([MethodDefinition(Identifier(constructor),FunctionExpression(#,[],BlockStatement([ExpressionStatement(CallExpression(Super(),[],false))]),false,false,false),constructor,false,false),MethodDefinition(Identifier(m),FunctionExpression(#,[],BlockStatement([ReturnStatement(Literal(1))]),false,false,false),method,false,false)]))])|Program(script,[TryStatement(BlockStatement([ThrowStatement(Identifier(e))]),CatchClause(Identifier(err),BlockStatement([ExpressionStatement(CallExpression(Identifier(f),[Identifier(err)],false))])),BlockStatement([ExpressionStatement(CallExpression(Identifier(g),[],false))]))])|Program(script,[ForStatement(VariableDeclaration(let,[VariableDeclarator(Identifier(i),Literal(0))]),BinaryExpression(Identifier(i),<,Identifier(n)),UpdateExpression(++,false,Identifier(i)),BlockStatement([BreakStatement(#)])),WhileStatement(Identifier(x),BlockStatement([ContinueStatement(#)]))])|Program(script,[ForInStatement(VariableDeclaration(const,[VariableDeclarator(Identifier(k),#)]),Identifier(obj),BlockStatement([ExpressionStatement(CallExpression(Identifier(f),[Identifier(k)],false))]))])|Program(script,[SwitchStatement(Identifier(x),[SwitchCase(Literal(1),[BreakStatement(#)]),SwitchCase(#,[ExpressionStatement(Identifier(y))])])])|Program(script,[VariableDeclaration(const,[VariableDeclarator(Identifier(y),NewExpression(Identifier(Foo),[Literal(1)]))]),VariableDeclaration(const,[VariableDeclarator(Identifier(z),ConditionalExpression(Identifier(a),Identifier(b),Identifier(c)))]),ExpressionStatement(AssignmentExpression(=,Identifier(x),Literal(1))),ExpressionStatement(UpdateExpression(++,false,Identifier(i)))])|Program(script,[VariableDeclaration(const,[VariableDeclarator(Identifier(s),SequenceExpression([Identifier(a),Identifier(b),Identifier(c)]))])])|Program(script,[VariableDeclaration(const,[VariableDeclarator(Identifier(v),ChainExpression(CallExpression(MemberExpression(Identifier(a),Identifier(b),false,true),[],true)))]),VariableDeclaration(const,[VariableDeclarator(Identifier(w),LogicalExpression(Identifier(x),??,Identifier(y)))])])|Program(script,[FunctionDeclaration(Identifier(af),[],BlockStatement([ReturnStatement(AwaitExpression(Identifier(p)))]),false,false,true)])",
+      "status": "candidate-parser-subset",
+      "packages": [
+        {
+          "name": "acorn",
+          "version": "8.15.0"
+        }
+      ],
+      "entrypoint": null,
+      "publicRuntimeApi": [
+        "parse"
+      ],
+      "compatibilityNotes": "Subset of acorn.parse for a fixed 25-program suite under ecmaVersion 2020 (script): Program, VariableDeclaration (incl. Array/ObjectPattern destructuring), FunctionDeclaration (incl. async + pattern params), ExpressionStatement, Binary/Logical (incl. ??)/Unary/Update/Assignment/Conditional/Sequence/Call/Member/New/Literal/Identifier/ArrowFunction, TemplateLiteral/TemplateElement, Spread/Rest, ClassDeclaration/ClassBody/MethodDefinition/FunctionExpression/Super, Try/Catch/Throw, For/ForIn/While/Break/Continue, Switch/SwitchCase, ChainExpression + optional Member/Call, AwaitExpression, If/Return/Block, Object/Array Expression. Contract fingerprints AST shape (no loc/range/start/end/raw). Still out: full grammar, Yield/generators, import/export module sourceType, tokenizer/TokenType API, locations, plugins, assignment operators beyond `=`, and many comparison/binary ops.",
+      "performance": null,
+      "exactSurface": false,
+      "performanceGate": null,
+      "sizeGate": true,
+      "eligible": false
+    },
+    {
+      "id": "preact",
+      "project": "Preact 10 core subset",
+      "eligibility": "candidate",
+      "blockers": [
+        "Port covers h, Fragments, function/class components, useState/useRef/useMemo/useCallback/useLayoutEffect, list keys, and shared-stub DOM mount — not Preact's keyed reconciler, context, or Suspense.",
+        "Both lanes mount into apps/preact/shared DOM stub + canon serializer; LilScript remounts on update (effects re-flushed) rather than in-place keyed diff.",
+        "LilScript has no class extends, so class components use Component + renderFn / hClass versus npm extends Component.",
+        "npm Closure Advanced mangles the class prop string; this row uses Closure SIMPLE."
+      ],
+      "verification": null,
+      "closureLevel": "SIMPLE",
+      "costModel": "brotli",
+      "rawJs": {
+        "raw": 25999,
+        "gzip": 8089,
+        "brotli": 7289
+      },
+      "terser": {
+        "raw": 16490,
+        "gzip": 6490,
+        "brotli": 5951
+      },
+      "closure": {
+        "raw": 17119,
+        "gzip": 6899,
+        "brotli": 6231
+      },
+      "vite": {
+        "raw": 16558,
+        "gzip": 6533,
+        "brotli": 5988
+      },
+      "lilscript": {
+        "raw": 16106,
+        "gzip": 3880,
+        "brotli": 3486
+      },
+      "lilscriptVite": {
+        "raw": 10030,
+        "gzip": 3203,
+        "brotli": 2883
+      },
+      "expected": "preact:<div class=\"app\" id=\"root\"><span data-doubled=\"0\" id=\"count\">0</span><span id=\"memo\">0</span><ul><li>a</li><li>b</li></ul><div class=\"badge\" data-n=\"0\">0</div></div>|<div class=\"app\" id=\"root\"><span data-doubled=\"2\" id=\"count\">1</span><span id=\"memo\">2</span><ul><li>a</li><li>b</li><li>c</li></ul><div class=\"badge\" data-n=\"1\">1</div></div>",
+      "status": "candidate-core-subset",
+      "packages": [
+        {
+          "name": "preact",
+          "version": "10.26.9"
+        }
+      ],
+      "entrypoint": null,
+      "publicRuntimeApi": [
+        "h",
+        "Fragment",
+        "Component",
+        "render",
+        "createRoot",
+        "useState",
+        "useRef",
+        "useMemo",
+        "useCallback",
+        "useLayoutEffect",
+        "useEffect"
+      ],
+      "compatibilityNotes": "Preact 10 core subset: h, Fragments, function components, class-component instances (LilScript Component + renderFn / npm extends Component), hooks (useState/useRef/useMemo/useCallback/useLayoutEffect), and list keys. Both npm and LilScript apps mount into the same shared apps/preact/shared DOM stub + canon serializer. LilScript uses a remounting DOM renderer rather than Preact's keyed diff. Context, Suspense, full keyed reconciliation, and the rest of Preact 10 remain out of scope. npm Closure Advanced mangles the class prop, so the measured Closure lane uses SIMPLE.",
+      "performance": null,
+      "exactSurface": false,
+      "performanceGate": null,
+      "sizeGate": true,
+      "eligible": false
+    },
+    {
+      "id": "solid-js",
+      "project": "Solid / solidlil LSX todolist",
+      "eligibility": "partial-external",
+      "blockers": [
+        "Measured in the integrated Solid client lab (Solid JSX vs solidlil LSX todolist), not inside this runner.",
+        "Same todo interaction contract; Vite/oxc-minified full app JS. Not a complete Solid replacement."
+      ],
+      "external": true,
+      "costModel": "brotli",
+      "source": "benchmarks/popular/apps/solid/size-report.json",
+      "rawJs": {
+        "raw": "—",
+        "gzip": "—",
+        "brotli": "—"
+      },
+      "terser": {
+        "raw": "—",
+        "gzip": "—",
+        "brotli": "—"
+      },
+      "closure": {
+        "raw": "—",
+        "gzip": "—",
+        "brotli": "—"
+      },
+      "vite": {
+        "raw": 15456,
+        "gzip": 6077,
+        "brotli": 5479
+      },
+      "lilscript": {
+        "raw": "—",
+        "gzip": "—",
+        "brotli": "—"
+      },
+      "lilscriptVite": {
+        "raw": 10590,
+        "gzip": 4226,
+        "brotli": 3722
+      },
+      "comparisons": {
+        "raw": -4866,
+        "gzip9": -1851,
+        "brotli11": -1757,
+        "rawPct": -31.482919254658388,
+        "gzipPct": -30.459108112555537,
+        "brotliPct": -32.067895601387114
+      },
+      "expected": "external:solid-lab-todolist-contract",
+      "status": "partial-external",
+      "packages": [
+        {
+          "name": "solid-js",
+          "version": "1.9.13"
+        }
+      ],
+      "entrypoint": null,
+      "publicRuntimeApi": [],
+      "compatibilityNotes": "Measured in lilscript-solid-lab; this is not a complete Solid replacement. Fresh Vite/oxc app JS: Solid 15456 raw / 5479 brotli, solidlil LSX 10590 / 3722, and identical-JSX reactive-swap 13636 / 4894. Isolated ratios: LSX time 1.028 and retained heap 1.047; identical-JSX time 1.003 and retained heap 1.027. Used-core bundle: Solid 8616 / 3201, solidlil 8483 / 3082; all three measured surfaces pass their strict gates.",
+      "performance": {
+        "performance": {
+          "npmMs": 89.02104200000002,
+          "lilscriptMs": 91.55449999999999,
+          "ratio": 1.028459091727998
+        },
+        "retainedMemory": {
+          "npmBytes": 5130144,
+          "lilscriptBytes": 5372184,
+          "ratio": 1.0471799621998914
+        }
+      },
+      "exactSurface": false,
+      "performanceGate": true,
+      "sizeGate": false,
+      "eligible": false
+    },
+    {
+      "id": "gl-matrix",
+      "project": "gl-matrix",
+      "eligibility": "exact-root-entrypoint",
+      "blockers": [],
+      "verification": {
+        "differential": "gl-matrix-upstream:10:352",
+        "selectedEntrypoint": "gl-matrix"
+      },
+      "closureLevel": "ADVANCED",
+      "costModel": "brotli",
+      "rawJs": {
+        "raw": 142374,
+        "gzip": 22769,
+        "brotli": 17791
+      },
+      "terser": {
+        "raw": 73693,
+        "gzip": 17853,
+        "brotli": 14277
+      },
+      "closure": {
+        "raw": 73296,
+        "gzip": 17863,
+        "brotli": 14328
+      },
+      "vite": {
+        "raw": 73505,
+        "gzip": 17722,
+        "brotli": 14330
+      },
+      "lilscript": {
+        "raw": 118078,
+        "gzip": 21307,
+        "brotli": 17259
+      },
+      "lilscriptVite": {
+        "raw": 68534,
+        "gzip": 17168,
+        "brotli": 14056
+      },
+      "expected": "gl-matrix-root:1\ngl-matrix-common:10\ngl-matrix-vec2:37\ngl-matrix-vec3:42\ngl-matrix-vec4:34\ngl-matrix-mat2:26\ngl-matrix-mat2d:24\ngl-matrix-mat3:33\ngl-matrix-mat4:56\ngl-matrix-quat:37\ngl-matrix-quat2:35",
+      "nativeExpected": "5\n4\n6\n10\n-2",
+      "status": "exact-root-entrypoint",
+      "packages": [
+        {
+          "name": "gl-matrix",
+          "version": "3.4.3"
+        }
+      ],
+      "entrypoint": "esm/index.js",
+      "publicRuntimeApi": [
+        "glMatrix",
+        "mat2",
+        "mat2d",
+        "mat3",
+        "mat4",
+        "quat",
+        "quat2",
+        "vec2",
+        "vec3",
+        "vec4"
+      ],
+      "compatibilityNotes": "The complete ESM root namespace is measured: glMatrix common utilities plus every export and alias in vec2, vec3, vec4, mat2, mat2d, mat3, mat4, quat, and quat2. Namespace export keys are differentially checked against gl-matrix 3.4.3. ARRAY_TYPE is a live binding; setMatrixArrayType switches subsequent allocations between Float32Array, Array, or another supplied constructor. The shared behavioral contract invokes every module export in the default Float32Array mode and also verifies Array mode. The measured state/common adapter provides the constructor-valued host binding and all of its bytes are included. Native C remains an additional vec2+mat2+mat2d smoke contract, not part of the JavaScript compatibility claim.",
+      "performance": {
+        "performance": {
+          "npmMs": 1.2182500000000012,
+          "lilscriptMs": 1.2425420000000003,
+          "ratio": 1.0199400779807093
+        },
+        "retainedMemory": {
+          "npmBytes": 1942368,
+          "lilscriptBytes": 1947192,
+          "ratio": 1.0024835664508476
+        }
+      },
+      "exactSurface": true,
+      "performanceGate": true,
+      "sizeGate": true,
+      "eligible": true
+    }
+  ]
+}

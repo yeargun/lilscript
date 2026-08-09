@@ -1,0 +1,15 @@
+(float[]|Float32Array) createValues(bool typed) {
+  if (typed) {
+    return new Float32Array(2);
+  }
+  return [0.0, 0.0];
+}
+
+void exercise(float[]|Float32Array values) {
+  values[0] = 1.25;
+  print(values[0]);
+  print(values.length);
+}
+
+exercise(createValues(true));
+exercise(createValues(false));

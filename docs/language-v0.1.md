@@ -41,7 +41,17 @@ SSA optimization; they are not JavaScript wrappers in the generated bundle.
 | `Set<T>` | mutable insertion-ordered unique-value collection | native `Set` | tagged-value set handle |
 | `ArrayBuffer` | fixed-length byte storage | native `ArrayBuffer` | owned byte-buffer handle |
 | `SharedArrayBuffer` | fixed-length storage shared by views | native `SharedArrayBuffer` | shared-designated byte-buffer handle |
-| `Uint8Array` | unsigned byte view | native `Uint8Array` | byte-buffer view handle |
+| `Int8Array` | signed 8-bit view | native `Int8Array` | typed-array view handle |
+| `Uint8Array` | unsigned byte view | native `Uint8Array` | typed-array view handle |
+| `Uint8ClampedArray` | clamped unsigned byte view | native `Uint8ClampedArray` | typed-array view handle |
+| `Int16Array` | signed 16-bit view | native `Int16Array` | typed-array view handle |
+| `Uint16Array` | unsigned 16-bit view | native `Uint16Array` | typed-array view handle |
+| `Int32Array` | signed 32-bit view | native `Int32Array` | typed-array view handle |
+| `Uint32Array` | unsigned 32-bit view (`int` bit pattern) | native `Uint32Array` | typed-array view handle |
+| `Float32Array` | IEEE-754 single-precision view | native `Float32Array` | typed-array view handle |
+| `Float64Array` | IEEE-754 double-precision view | native `Float64Array` | typed-array view handle |
+| `Symbol` | unique opaque identity value | native `Symbol` | unique symbol handle |
+| `JsValue` | raw dynamically typed JavaScript boundary value | unchanged host value | unsupported |
 | `T?` | either a `T` value or `null` | `T` or raw `null` | tagged `LilScriptOptional` |
 | `A \| B` | value belonging to either member type | raw member value | tagged `LilScriptValue` at union boundaries |
 | `struct S` | positional value aggregate | scalars, tuple, or boundary object | positional C value record |
@@ -68,19 +78,32 @@ linear lookup; this is a correctness baseline that a later representation pass
 may specialize without changing source semantics.
 
 `ArrayBuffer` and `SharedArrayBuffer` accept one `int` byte length.
-`Uint8Array` accepts a byte length or either buffer type, supports indexed reads
-and writes, and exposes `length`, `byteLength`, `byteOffset`, and `buffer`.
-`slice(start, end)` copies; `subarray(start, end)` creates a zero-copy view. The
-`end` argument defaults to the view or buffer end. Indexed stores coerce modulo
-256. Assignment and prefix-update expressions still evaluate to the numeric
-value before storage coercion, matching JavaScript typed-array behavior. This
-increment deliberately
-does not expose resizable/growable options, `DataView`, other typed arrays, or
-`Atomics`. JavaScript `SharedArrayBuffer` availability remains a host concern;
-the ECMAScript host may omit its global constructor, and sharing it across web
+The nine core typed-array views (`Int8Array`, `Uint8Array`,
+`Uint8ClampedArray`, `Int16Array`, `Uint16Array`, `Int32Array`, `Uint32Array`,
+`Float32Array`, `Float64Array`) accept an element length or either buffer type,
+support indexed reads and writes, and expose `length`, `byteLength`,
+`byteOffset`, and `buffer`. `slice(start, end)` copies; `subarray(start, end)`
+creates a zero-copy view. The `end` argument defaults to the view or buffer end.
+Integer views wrap on store; `Uint8ClampedArray` clamps into `0..255`.
+`Uint32Array` elements are still typed as `int` and use ToInt32 bit-pattern
+semantics on read and write. Float views convert through IEEE-754 binary32 or
+binary64. Assignment and prefix-update expressions still evaluate to the
+numeric value before storage coercion, matching JavaScript typed-array behavior.
+This increment deliberately does not expose resizable/growable options,
+`DataView`, `BigInt64Array`/`BigUint64Array` (no `BigInt` yet), or `Atomics`.
+JavaScript `SharedArrayBuffer` availability remains a host concern; the
+ECMAScript host may omit its global constructor, and sharing it across web
 agents requires the browser's isolation policy. Native lowering preserves
 shared view identity in one process but does not yet claim concurrent or atomic
 memory semantics.
+
+`float[]|Float32Array` values support shared indexed reads, writes, and
+`length`, allowing configurable numeric kernels to keep one source path while
+native code dispatches between boxed arrays and binary32 views.
+
+`Symbol` is constructed with `new Symbol()` or `new Symbol(description)`. Each
+value has unique identity; `==` compares references, not descriptions. `Symbol`
+and `string` keys may coexist in the same `Map` or `Set`.
 
 Browser object interfaces are declared rather than built into the parser:
 
@@ -99,6 +122,27 @@ effectful unless a method has a trusted `pure` contract. The C and native target
 reject host-object access because the Web platform has no portable C ABI. See
 [web-platform.md](web-platform.md) for the complete implemented boundary and
 current Web IDL limitations.
+
+`JsValue` is the narrow escape hatch for JavaScript APIs whose public input
+domain is genuinely dynamic. It may cross an `extern` or exported boundary and
+accepts any non-`void` LilScript value, but it does not enable arbitrary member
+dispatch. Its implemented operations are deliberately explicit:
+
+- `value.truthy()` applies JavaScript truthiness;
+- `value.isArray()` applies `Array.isArray(value)` without claiming an element type;
+- `value.isObject()` applies `typeof value == "object"` (and therefore includes `null`);
+- `value.length` returns the raw JavaScript numeric length as `float`;
+- `value[index]`, for a numeric or string index, remains `JsValue`;
+- `for (string key in value)` emits direct JavaScript `for-in`, including inherited enumerable string keys and without allocating `Object.keys(...)`;
+- `value is string`, `value is float`, and `value is bool` are sound narrowing guards. JavaScript numbers must use `float`; array and function signatures cannot be proven by `typeof` and are rejected as narrowing targets.
+
+String concatenation may consume a guarded `JsValue` and uses JavaScript's
+ordinary coercion. An unguarded Symbol therefore throws exactly as it would in
+JavaScript. A declared `extern JsValue arguments;` refers to the current
+function's JavaScript `arguments` object; the emitter forces that function to
+ordinary-function syntax even when public arrows are requested. Every
+`JsValue` operation is rejected by the C/native backend rather than receiving a
+different approximation.
 
 Postfix `?` makes a value type nullable. `null` is assignable only to a nullable
 type, and `auto value = null;` is rejected because it has no concrete value type
@@ -347,6 +391,10 @@ declaration-scoped: they may read globals but cannot capture caller locals or
 narrow it before invocation. Required parameters cannot follow defaulted
 parameters.
 
+Exported JavaScript functions retain declared parameters and scalar defaults in
+their public signature, preserving omitted-call behavior and `Function.length`
+across the ESM boundary.
+
 Parentheses disambiguate compound callable types. For example, the following
 declares an array of callbacks rather than a callback returning an array:
 
@@ -387,6 +435,7 @@ The v0.1 statement set is:
 - `if` / `else`;
 - `while`;
 - C-style `for`;
+- JavaScript-only `for (string key in JsValue)` enumeration;
 - `break` and `continue`;
 - `return`.
 
@@ -404,14 +453,19 @@ assigned value.
 
 ## Standard library surface
 
-Arrays provide typed `length`, `map`, `filter`, `reduce`, `forEach`, `push`, and
-`pop`. Callback methods snapshot the receiver length when the call begins, so
+Arrays provide typed `length`, `map`, `filter`, `reduce`, `forEach`, `push`,
+`pop`, `indexOf`, `slice`, and `splice`. Callback methods snapshot the receiver length when the call begins, so
 elements appended by a callback are not visited by that call. Reads of existing
 future elements remain live, matching JavaScript's dense-array iteration
-behavior. Strings provide UTF-16 code-unit `length` and `charCodeAt`, plus
+behavior. `indexOf` returns the first matching index or `-1`. `slice(start = 0, end = length)`
+returns a shallow copy and accepts negative indices. `splice(start, deleteCount)`
+removes `deleteCount` elements beginning at `start` (negative `start` counts from the end)
+and returns an array of the removed elements. Strings provide UTF-16 code-unit `length`, `charCodeAt`, and `charAt`, plus
 `includes`, `startsWith`, `endsWith`, `toUpperCase`, and `toLowerCase`. This
-matches JavaScript string indexing while native storage remains UTF-8.
-`charCodeAt` returns `0` for an out-of-range index. Calls are statically checked
+matches JavaScript string indexing while native storage uses UTF-8 plus WTF-8
+for lone surrogate code units produced by `charAt`.
+`charCodeAt` returns `0` for an out-of-range index. `charAt` returns an empty
+string out of range, otherwise a one-code-unit string. Calls are statically checked
 and are intrinsic optimization candidates; they are not untyped JavaScript
 dispatch.
 
@@ -419,9 +473,11 @@ Integers provide `toString(radix = 10)` for signed output and
 `toUnsignedString(radix = 10)` for the unsigned 32-bit bit pattern. Radices from
 2 through 36 are supported identically by JavaScript and native targets.
 
-Floats provide optimizer-known `abs()`, `floor()`, `ceil()`, `min(other)`, and
-`max(other)` methods. They lower to the corresponding `Math` operations in
-JavaScript and equivalent C math operations in native output.
+Floats provide optimizer-known `abs()`, `floor()`, `ceil()`, `round()`,
+`sqrt()`, `sin()`, `cos()`, `acos()`, `exp()`, `log()`, `tan()`,
+`atan2(other)`, `hypot(other)`, `min(other)`, and `max(other)` methods.
+`toInt()` applies JavaScript `ToInt32` conversion. These lower to compact
+JavaScript operators or `Math` operations and equivalent native C operations.
 
 Maps provide `size`, `get`, `set`, `has`, `delete`, and `clear`. Sets provide
 `size`, `add`, `has`, `delete`, and `clear`. `set` and `add` return their

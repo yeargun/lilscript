@@ -1,17 +1,21 @@
 {
   "metadata": {
-    "generatedAt": "2026-08-06T23:34:57.630Z",
-    "compilerRevision": "b069356",
+    "generatedAt": "2026-08-09T09:38:12.119Z",
+    "compilerRevision": "85ef5bc",
     "node": "v24.11.1",
-    "vite": "8.2.0",
+    "vite": "8.2.1",
     "esbuild": "0.28.1",
-    "closure": "20260803.0.0",
+    "closure": "20260804.0.0",
     "system": "darwin 24.6.0 arm64",
-    "warmups": 5,
-    "samples": 25,
+    "warmups": 0,
+    "samples": 1,
+    "workloadRounds": 9,
+    "selectedCodec": "brotli",
+    "materialRegressionLimit": 1.05,
+    "cpu": "Apple M3 Pro",
     "downloadWindow": "last-month"
   },
-  "eligibilityRule": "Every documented callable in the selected published root entrypoint is implemented for its typed input domain, all available upstream assertions plus added package-contract vectors pass, npm and LilScript app contracts match, and the LilScript port compiles to JavaScript, C, and a native executable.",
+  "eligibilityRule": "Every documented callable in the selected published root entrypoint is implemented for its typed input domain with the same algorithmic work; all available upstream assertions plus added package-contract vectors pass; npm and LilScript app and isolated-workload checksums match; the LilScript port compiles to JavaScript, C, and a native executable; LilScript JavaScript is no larger than both npm/Vite and public-contract-preserving Closure ADVANCED in raw bytes or the selected Brotli-11 codec; and median isolated-workload throughput and retained memory are each no worse than 1.05x npm. Gzip-9 is reported as an alternate codec, not silently substituted into the configured gate.",
   "results": [
     {
       "id": "motion-easing",
@@ -28,8 +32,8 @@
       "additionalAssertions": 0,
       "expected": "motion-easing:27:560673:541722",
       "source": {
-        "npmApp": 1567,
-        "lilscriptAppAndPort": 3232
+        "npmApp": 1623,
+        "lilscriptAppAndPort": 3275
       },
       "artifacts": [
         {
@@ -47,7 +51,7 @@
             "assets/index-BdTNmHk3.js",
             "index.html"
           ],
-          "medianMs": 5.122417000000013
+          "medianMs": 6.115458000000002
         },
         {
           "id": "closure",
@@ -64,28 +68,232 @@
             "app.js",
             "index.html"
           ],
-          "medianMs": 4.061542000000003
+          "medianMs": 4.527542
         },
         {
           "id": "lilscript",
           "label": "LilScript port",
-          "raw": 1140,
-          "gzip": 609,
-          "brotli": 551,
+          "raw": 996,
+          "gzip": 559,
+          "brotli": 507,
           "deploy": {
-            "raw": 1326,
-            "gzip": 768,
-            "brotli": 637
+            "raw": 1182,
+            "gzip": 718,
+            "brotli": 593
           },
           "files": [
             "app.js",
             "index.html"
           ],
-          "medianMs": 4.443166999999988,
+          "medianMs": 5.453374999999998,
           "nativeVerified": true,
           "cEmitted": true
         }
-      ]
+      ],
+      "surfaceArtifacts": [
+        {
+          "id": "vite",
+          "label": "Installed npm package + Vite library mode",
+          "files": [
+            "library.js"
+          ],
+          "raw": 840,
+          "gzip": 458,
+          "brotli": 431
+        },
+        {
+          "id": "closure",
+          "label": "Installed npm package + Closure ADVANCED public surface",
+          "raw": 445,
+          "gzip": 326,
+          "brotli": 286,
+          "files": [
+            "closure-library.js"
+          ]
+        },
+        {
+          "id": "lilscript",
+          "label": "LilScript reusable module",
+          "raw": 438,
+          "gzip": 310,
+          "brotli": 280,
+          "files": [
+            "motion-easing.mjs"
+          ]
+        }
+      ],
+      "workload": {
+        "performance": {
+          "npmMs": 14.201125000000001,
+          "lilscriptMs": 14.427917,
+          "ratio": 1.0159700023765723
+        },
+        "retainedMemory": {
+          "npmBytes": 3830208,
+          "lilscriptBytes": 3215896,
+          "ratio": 0.8396139321937608
+        },
+        "samples": {
+          "performance": {
+            "npm": [
+              {
+                "milliseconds": 15.011958,
+                "checksum": 124895.75778888176
+              },
+              {
+                "milliseconds": 14.599041999999997,
+                "checksum": 124895.75778888176
+              },
+              {
+                "milliseconds": 14.169790999999996,
+                "checksum": 124895.75778888176
+              },
+              {
+                "milliseconds": 14.166125000000001,
+                "checksum": 124895.75778888176
+              },
+              {
+                "milliseconds": 14.559542000000004,
+                "checksum": 124895.75778888176
+              },
+              {
+                "milliseconds": 14.201125000000001,
+                "checksum": 124895.75778888176
+              },
+              {
+                "milliseconds": 14.603916999999996,
+                "checksum": 124895.75778888176
+              },
+              {
+                "milliseconds": 14.050417000000003,
+                "checksum": 124895.75778888176
+              },
+              {
+                "milliseconds": 14.197208000000003,
+                "checksum": 124895.75778888176
+              }
+            ],
+            "lilscript": [
+              {
+                "milliseconds": 15.020916,
+                "checksum": 124895.75778888176
+              },
+              {
+                "milliseconds": 14.731416000000001,
+                "checksum": 124895.75778888176
+              },
+              {
+                "milliseconds": 14.427917,
+                "checksum": 124895.75778888176
+              },
+              {
+                "milliseconds": 14.619,
+                "checksum": 124895.75778888176
+              },
+              {
+                "milliseconds": 14.055209,
+                "checksum": 124895.75778888176
+              },
+              {
+                "milliseconds": 14.060417000000001,
+                "checksum": 124895.75778888176
+              },
+              {
+                "milliseconds": 14.411667,
+                "checksum": 124895.75778888176
+              },
+              {
+                "milliseconds": 13.95325,
+                "checksum": 124895.75778888176
+              },
+              {
+                "milliseconds": 14.674291,
+                "checksum": 124895.75778888176
+              }
+            ]
+          },
+          "memory": {
+            "npm": [
+              {
+                "bytes": 3830208,
+                "checksum": 10570.047179277088
+              },
+              {
+                "bytes": 3830208,
+                "checksum": 10570.047179277088
+              },
+              {
+                "bytes": 3830208,
+                "checksum": 10570.047179277088
+              },
+              {
+                "bytes": 3830208,
+                "checksum": 10570.047179277088
+              },
+              {
+                "bytes": 3830208,
+                "checksum": 10570.047179277088
+              },
+              {
+                "bytes": 3830208,
+                "checksum": 10570.047179277088
+              },
+              {
+                "bytes": 3830208,
+                "checksum": 10570.047179277088
+              },
+              {
+                "bytes": 3830208,
+                "checksum": 10570.047179277088
+              },
+              {
+                "bytes": 3830208,
+                "checksum": 10570.047179277088
+              }
+            ],
+            "lilscript": [
+              {
+                "bytes": 3215896,
+                "checksum": 10570.047179277088
+              },
+              {
+                "bytes": 3215896,
+                "checksum": 10570.047179277088
+              },
+              {
+                "bytes": 3215896,
+                "checksum": 10570.047179277088
+              },
+              {
+                "bytes": 3215896,
+                "checksum": 10570.047179277088
+              },
+              {
+                "bytes": 3215896,
+                "checksum": 10570.047179277088
+              },
+              {
+                "bytes": 3215896,
+                "checksum": 10570.047179277088
+              },
+              {
+                "bytes": 3215896,
+                "checksum": 10570.047179277088
+              },
+              {
+                "bytes": 3215896,
+                "checksum": 10570.047179277088
+              },
+              {
+                "bytes": 3215896,
+                "checksum": 10570.047179277088
+              }
+            ]
+          }
+        }
+      },
+      "eligible": true,
+      "blockers": []
     },
     {
       "id": "micro-math",
@@ -106,7 +314,7 @@
       "additionalAssertions": 0,
       "expected": "micro-math:10:1800000:86076",
       "source": {
-        "npmApp": 711,
+        "npmApp": 793,
         "lilscriptAppAndPort": 1328
       },
       "artifacts": [
@@ -125,7 +333,7 @@
             "assets/index-B6IEu8zq.js",
             "index.html"
           ],
-          "medianMs": 2.4274169999999913
+          "medianMs": 2.2163749999999993
         },
         {
           "id": "closure",
@@ -142,28 +350,233 @@
             "app.js",
             "index.html"
           ],
-          "medianMs": 2.436875000000015
+          "medianMs": 2.969000000000001
         },
         {
           "id": "lilscript",
           "label": "LilScript port",
-          "raw": 525,
-          "gzip": 320,
-          "brotli": 275,
+          "raw": 319,
+          "gzip": 224,
+          "brotli": 201,
           "deploy": {
-            "raw": 711,
-            "gzip": 479,
-            "brotli": 361
+            "raw": 505,
+            "gzip": 383,
+            "brotli": 287
           },
           "files": [
             "app.js",
             "index.html"
           ],
-          "medianMs": 1.0195000000000078,
+          "medianMs": 1.0813340000000018,
           "nativeVerified": true,
           "cEmitted": true
         }
-      ]
+      ],
+      "surfaceArtifacts": [
+        {
+          "id": "vite",
+          "label": "Installed npm package + Vite library mode",
+          "files": [
+            "library.js"
+          ],
+          "raw": 1137,
+          "gzip": 578,
+          "brotli": 519
+        },
+        {
+          "id": "closure",
+          "label": "Installed npm package + Closure ADVANCED public surface",
+          "raw": 833,
+          "gzip": 484,
+          "brotli": 414,
+          "files": [
+            "closure-library.js"
+          ]
+        },
+        {
+          "id": "lilscript",
+          "label": "LilScript reusable module",
+          "raw": 109,
+          "gzip": 142,
+          "brotli": 113,
+          "files": [
+            "clamp.mjs",
+            "lerp.mjs"
+          ]
+        }
+      ],
+      "workload": {
+        "performance": {
+          "npmMs": 8.2925,
+          "lilscriptMs": 8.206834,
+          "ratio": 0.9896694603557432
+        },
+        "retainedMemory": {
+          "npmBytes": 318272,
+          "lilscriptBytes": 318256,
+          "ratio": 0.999949728534084
+        },
+        "samples": {
+          "performance": {
+            "npm": [
+              {
+                "milliseconds": 8.633708000000002,
+                "checksum": 24139028.50000736
+              },
+              {
+                "milliseconds": 8.2925,
+                "checksum": 24139028.50000736
+              },
+              {
+                "milliseconds": 8.4695,
+                "checksum": 24139028.50000736
+              },
+              {
+                "milliseconds": 8.543833,
+                "checksum": 24139028.50000736
+              },
+              {
+                "milliseconds": 8.968125,
+                "checksum": 24139028.50000736
+              },
+              {
+                "milliseconds": 7.964500000000001,
+                "checksum": 24139028.50000736
+              },
+              {
+                "milliseconds": 8.025792000000001,
+                "checksum": 24139028.50000736
+              },
+              {
+                "milliseconds": 7.971457999999998,
+                "checksum": 24139028.50000736
+              },
+              {
+                "milliseconds": 7.967167000000002,
+                "checksum": 24139028.50000736
+              }
+            ],
+            "lilscript": [
+              {
+                "milliseconds": 8.206834,
+                "checksum": 24139028.50000736
+              },
+              {
+                "milliseconds": 8.318999999999999,
+                "checksum": 24139028.50000736
+              },
+              {
+                "milliseconds": 8.233667,
+                "checksum": 24139028.50000736
+              },
+              {
+                "milliseconds": 8.367542,
+                "checksum": 24139028.50000736
+              },
+              {
+                "milliseconds": 8.310125,
+                "checksum": 24139028.50000736
+              },
+              {
+                "milliseconds": 7.946125000000002,
+                "checksum": 24139028.50000736
+              },
+              {
+                "milliseconds": 8.167666999999998,
+                "checksum": 24139028.50000736
+              },
+              {
+                "milliseconds": 7.911374999999998,
+                "checksum": 24139028.50000736
+              },
+              {
+                "milliseconds": 7.95425,
+                "checksum": 24139028.50000736
+              }
+            ]
+          },
+          "memory": {
+            "npm": [
+              {
+                "bytes": 318272,
+                "checksum": 964300.6774193604
+              },
+              {
+                "bytes": 318272,
+                "checksum": 964300.6774193604
+              },
+              {
+                "bytes": 318272,
+                "checksum": 964300.6774193604
+              },
+              {
+                "bytes": 318272,
+                "checksum": 964300.6774193604
+              },
+              {
+                "bytes": 318272,
+                "checksum": 964300.6774193604
+              },
+              {
+                "bytes": 318272,
+                "checksum": 964300.6774193604
+              },
+              {
+                "bytes": 318272,
+                "checksum": 964300.6774193604
+              },
+              {
+                "bytes": 318272,
+                "checksum": 964300.6774193604
+              },
+              {
+                "bytes": 318272,
+                "checksum": 964300.6774193604
+              }
+            ],
+            "lilscript": [
+              {
+                "bytes": 318256,
+                "checksum": 964300.6774193604
+              },
+              {
+                "bytes": 318256,
+                "checksum": 964300.6774193604
+              },
+              {
+                "bytes": 318256,
+                "checksum": 964300.6774193604
+              },
+              {
+                "bytes": 318256,
+                "checksum": 964300.6774193604
+              },
+              {
+                "bytes": 319416,
+                "checksum": 964300.6774193604
+              },
+              {
+                "bytes": 318256,
+                "checksum": 964300.6774193604
+              },
+              {
+                "bytes": 318256,
+                "checksum": 964300.6774193604
+              },
+              {
+                "bytes": 317856,
+                "checksum": 964300.6774193604
+              },
+              {
+                "bytes": 318256,
+                "checksum": 964300.6774193604
+              }
+            ]
+          }
+        }
+      },
+      "eligible": true,
+      "blockers": []
     },
     {
       "id": "string-hash",
@@ -180,7 +593,7 @@
       "additionalAssertions": 2,
       "expected": "string-hash:4:1670934855",
       "source": {
-        "npmApp": 581,
+        "npmApp": 634,
         "lilscriptAppAndPort": 949
       },
       "artifacts": [
@@ -199,7 +612,7 @@
             "assets/index-Bf76Xsi8.js",
             "index.html"
           ],
-          "medianMs": 3.3305840000000018
+          "medianMs": 4.028333
         },
         {
           "id": "closure",
@@ -216,28 +629,232 @@
             "app.js",
             "index.html"
           ],
-          "medianMs": 3.3569589999999607
+          "medianMs": 3.8055840000000014
         },
         {
           "id": "lilscript",
           "label": "LilScript port",
-          "raw": 483,
-          "gzip": 356,
-          "brotli": 309,
+          "raw": 433,
+          "gzip": 345,
+          "brotli": 299,
           "deploy": {
-            "raw": 669,
-            "gzip": 515,
-            "brotli": 395
+            "raw": 619,
+            "gzip": 504,
+            "brotli": 385
           },
           "files": [
             "app.js",
             "index.html"
           ],
-          "medianMs": 2.7864580000000103,
+          "medianMs": 3.528624999999998,
           "nativeVerified": true,
           "cEmitted": true
         }
-      ]
+      ],
+      "surfaceArtifacts": [
+        {
+          "id": "vite",
+          "label": "Installed npm package + Vite library mode",
+          "files": [
+            "library.js"
+          ],
+          "raw": 969,
+          "gzip": 558,
+          "brotli": 502
+        },
+        {
+          "id": "closure",
+          "label": "Installed npm package + Closure ADVANCED public surface",
+          "raw": 744,
+          "gzip": 480,
+          "brotli": 403,
+          "files": [
+            "closure-library.js"
+          ]
+        },
+        {
+          "id": "lilscript",
+          "label": "LilScript reusable module",
+          "raw": 121,
+          "gzip": 134,
+          "brotli": 106,
+          "files": [
+            "string-hash.mjs"
+          ]
+        }
+      ],
+      "workload": {
+        "performance": {
+          "npmMs": 15.826249999999998,
+          "lilscriptMs": 16.405958,
+          "ratio": 1.0366295237343022
+        },
+        "retainedMemory": {
+          "npmBytes": 317704,
+          "lilscriptBytes": 318344,
+          "ratio": 1.0020144537053357
+        },
+        "samples": {
+          "performance": {
+            "npm": [
+              {
+                "milliseconds": 17.020125,
+                "checksum": 288797689264664
+              },
+              {
+                "milliseconds": 16.952417,
+                "checksum": 288797689264664
+              },
+              {
+                "milliseconds": 16.179791,
+                "checksum": 288797689264664
+              },
+              {
+                "milliseconds": 15.826249999999998,
+                "checksum": 288797689264664
+              },
+              {
+                "milliseconds": 15.819875000000003,
+                "checksum": 288797689264664
+              },
+              {
+                "milliseconds": 15.821666000000004,
+                "checksum": 288797689264664
+              },
+              {
+                "milliseconds": 15.814625000000003,
+                "checksum": 288797689264664
+              },
+              {
+                "milliseconds": 16.112457999999997,
+                "checksum": 288797689264664
+              },
+              {
+                "milliseconds": 15.817291999999995,
+                "checksum": 288797689264664
+              }
+            ],
+            "lilscript": [
+              {
+                "milliseconds": 18.207792,
+                "checksum": 288797689264664
+              },
+              {
+                "milliseconds": 17.639750000000003,
+                "checksum": 288797689264664
+              },
+              {
+                "milliseconds": 16.821417000000004,
+                "checksum": 288797689264664
+              },
+              {
+                "milliseconds": 16.405958,
+                "checksum": 288797689264664
+              },
+              {
+                "milliseconds": 16.032334,
+                "checksum": 288797689264664
+              },
+              {
+                "milliseconds": 16.179457999999997,
+                "checksum": 288797689264664
+              },
+              {
+                "milliseconds": 16.308083000000003,
+                "checksum": 288797689264664
+              },
+              {
+                "milliseconds": 15.791417,
+                "checksum": 288797689264664
+              },
+              {
+                "milliseconds": 16.593708,
+                "checksum": 288797689264664
+              }
+            ]
+          },
+          "memory": {
+            "npm": [
+              {
+                "bytes": 317704,
+                "checksum": 77022498530984
+              },
+              {
+                "bytes": 317704,
+                "checksum": 77022498530984
+              },
+              {
+                "bytes": 317704,
+                "checksum": 77022498530984
+              },
+              {
+                "bytes": 317704,
+                "checksum": 77022498530984
+              },
+              {
+                "bytes": 317704,
+                "checksum": 77022498530984
+              },
+              {
+                "bytes": 317704,
+                "checksum": 77022498530984
+              },
+              {
+                "bytes": 317704,
+                "checksum": 77022498530984
+              },
+              {
+                "bytes": 317704,
+                "checksum": 77022498530984
+              },
+              {
+                "bytes": 317704,
+                "checksum": 77022498530984
+              }
+            ],
+            "lilscript": [
+              {
+                "bytes": 318344,
+                "checksum": 77022498530984
+              },
+              {
+                "bytes": 318344,
+                "checksum": 77022498530984
+              },
+              {
+                "bytes": 318344,
+                "checksum": 77022498530984
+              },
+              {
+                "bytes": 318344,
+                "checksum": 77022498530984
+              },
+              {
+                "bytes": 318344,
+                "checksum": 77022498530984
+              },
+              {
+                "bytes": 318344,
+                "checksum": 77022498530984
+              },
+              {
+                "bytes": 318344,
+                "checksum": 77022498530984
+              },
+              {
+                "bytes": 318344,
+                "checksum": 77022498530984
+              },
+              {
+                "bytes": 318344,
+                "checksum": 77022498530984
+              }
+            ]
+          }
+        }
+      },
+      "eligible": true,
+      "blockers": []
     },
     {
       "id": "js-levenshtein",
@@ -254,7 +871,7 @@
       "additionalAssertions": 0,
       "expected": "js-levenshtein:14:2049950",
       "source": {
-        "npmApp": 980,
+        "npmApp": 1037,
         "lilscriptAppAndPort": 3746
       },
       "artifacts": [
@@ -273,7 +890,7 @@
             "assets/index-B4X7I0S2.js",
             "index.html"
           ],
-          "medianMs": 6.054417000000001
+          "medianMs": 6.585290999999998
         },
         {
           "id": "closure",
@@ -290,28 +907,232 @@
             "app.js",
             "index.html"
           ],
-          "medianMs": 6.0427910000000224
+          "medianMs": 6.473958
         },
         {
           "id": "lilscript",
           "label": "LilScript port",
-          "raw": 1576,
-          "gzip": 896,
-          "brotli": 773,
+          "raw": 1450,
+          "gzip": 814,
+          "brotli": 697,
           "deploy": {
-            "raw": 1762,
-            "gzip": 1055,
-            "brotli": 859
+            "raw": 1636,
+            "gzip": 973,
+            "brotli": 783
           },
           "files": [
             "app.js",
             "index.html"
           ],
-          "medianMs": 6.1183750000000146,
+          "medianMs": 6.983459,
           "nativeVerified": true,
           "cEmitted": true
         }
-      ]
+      ],
+      "surfaceArtifacts": [
+        {
+          "id": "vite",
+          "label": "Installed npm package + Vite library mode",
+          "files": [
+            "library.js"
+          ],
+          "raw": 1984,
+          "gzip": 908,
+          "brotli": 825
+        },
+        {
+          "id": "closure",
+          "label": "Installed npm package + Closure ADVANCED public surface",
+          "raw": 1453,
+          "gzip": 795,
+          "brotli": 714,
+          "files": [
+            "closure-library.js"
+          ]
+        },
+        {
+          "id": "lilscript",
+          "label": "LilScript reusable module",
+          "raw": 924,
+          "gzip": 456,
+          "brotli": 408,
+          "files": [
+            "js-levenshtein.mjs"
+          ]
+        }
+      ],
+      "workload": {
+        "performance": {
+          "npmMs": 34.547375,
+          "lilscriptMs": 34.199042000000006,
+          "ratio": 0.9899172368378206
+        },
+        "retainedMemory": {
+          "npmBytes": 310816,
+          "lilscriptBytes": 308776,
+          "ratio": 0.9934366313188511
+        },
+        "samples": {
+          "performance": {
+            "npm": [
+              {
+                "milliseconds": 36.41875,
+                "checksum": 8972679
+              },
+              {
+                "milliseconds": 36.133875,
+                "checksum": 8972679
+              },
+              {
+                "milliseconds": 35.636708,
+                "checksum": 8972679
+              },
+              {
+                "milliseconds": 33.663375,
+                "checksum": 8972679
+              },
+              {
+                "milliseconds": 33.556625,
+                "checksum": 8972679
+              },
+              {
+                "milliseconds": 33.478125,
+                "checksum": 8972679
+              },
+              {
+                "milliseconds": 34.547375,
+                "checksum": 8972679
+              },
+              {
+                "milliseconds": 35.348749999999995,
+                "checksum": 8972679
+              },
+              {
+                "milliseconds": 32.907083,
+                "checksum": 8972679
+              }
+            ],
+            "lilscript": [
+              {
+                "milliseconds": 34.19004100000001,
+                "checksum": 8972679
+              },
+              {
+                "milliseconds": 34.840917000000005,
+                "checksum": 8972679
+              },
+              {
+                "milliseconds": 34.199042000000006,
+                "checksum": 8972679
+              },
+              {
+                "milliseconds": 34.65991699999999,
+                "checksum": 8972679
+              },
+              {
+                "milliseconds": 34.084959,
+                "checksum": 8972679
+              },
+              {
+                "milliseconds": 32.583,
+                "checksum": 8972679
+              },
+              {
+                "milliseconds": 34.787791,
+                "checksum": 8972679
+              },
+              {
+                "milliseconds": 34.59370799999999,
+                "checksum": 8972679
+              },
+              {
+                "milliseconds": 33.118583,
+                "checksum": 8972679
+              }
+            ]
+          },
+          "memory": {
+            "npm": [
+              {
+                "bytes": 310816,
+                "checksum": 1196400
+              },
+              {
+                "bytes": 310816,
+                "checksum": 1196400
+              },
+              {
+                "bytes": 310816,
+                "checksum": 1196400
+              },
+              {
+                "bytes": 310816,
+                "checksum": 1196400
+              },
+              {
+                "bytes": 310816,
+                "checksum": 1196400
+              },
+              {
+                "bytes": 310816,
+                "checksum": 1196400
+              },
+              {
+                "bytes": 310816,
+                "checksum": 1196400
+              },
+              {
+                "bytes": 310816,
+                "checksum": 1196400
+              },
+              {
+                "bytes": 310816,
+                "checksum": 1196400
+              }
+            ],
+            "lilscript": [
+              {
+                "bytes": 308776,
+                "checksum": 1196400
+              },
+              {
+                "bytes": 308776,
+                "checksum": 1196400
+              },
+              {
+                "bytes": 308776,
+                "checksum": 1196400
+              },
+              {
+                "bytes": 308776,
+                "checksum": 1196400
+              },
+              {
+                "bytes": 308776,
+                "checksum": 1196400
+              },
+              {
+                "bytes": 308776,
+                "checksum": 1196400
+              },
+              {
+                "bytes": 308776,
+                "checksum": 1196400
+              },
+              {
+                "bytes": 308776,
+                "checksum": 1196400
+              },
+              {
+                "bytes": 308776,
+                "checksum": 1196400
+              }
+            ]
+          }
+        }
+      },
+      "eligible": true,
+      "blockers": []
     },
     {
       "id": "emotion-hash",
@@ -328,8 +1149,8 @@
       "additionalAssertions": 7,
       "expected": "emotion-hash:8:30831534",
       "source": {
-        "npmApp": 658,
-        "lilscriptAppAndPort": 1652
+        "npmApp": 714,
+        "lilscriptAppAndPort": 1685
       },
       "artifacts": [
         {
@@ -347,7 +1168,7 @@
             "assets/index-DHXm0Jix.js",
             "index.html"
           ],
-          "medianMs": 11.45820900000001
+          "medianMs": 12.7335
         },
         {
           "id": "closure",
@@ -364,28 +1185,232 @@
             "app.js",
             "index.html"
           ],
-          "medianMs": 11.508791999999971
+          "medianMs": 12.572875
         },
         {
           "id": "lilscript",
           "label": "LilScript port",
-          "raw": 816,
-          "gzip": 532,
-          "brotli": 452,
+          "raw": 759,
+          "gzip": 502,
+          "brotli": 431,
           "deploy": {
-            "raw": 1002,
-            "gzip": 691,
-            "brotli": 538
+            "raw": 945,
+            "gzip": 661,
+            "brotli": 517
           },
           "files": [
             "app.js",
             "index.html"
           ],
-          "medianMs": 11.128000000000043,
+          "medianMs": 12.634042,
           "nativeVerified": true,
           "cEmitted": true
         }
-      ]
+      ],
+      "surfaceArtifacts": [
+        {
+          "id": "vite",
+          "label": "Installed npm package + Vite library mode",
+          "files": [
+            "library.js"
+          ],
+          "raw": 833,
+          "gzip": 347,
+          "brotli": 330
+        },
+        {
+          "id": "closure",
+          "label": "Installed npm package + Closure ADVANCED public surface",
+          "raw": 594,
+          "gzip": 288,
+          "brotli": 240,
+          "files": [
+            "closure-library.js"
+          ]
+        },
+        {
+          "id": "lilscript",
+          "label": "LilScript reusable module",
+          "raw": 434,
+          "gzip": 271,
+          "brotli": 234,
+          "files": [
+            "emotion-hash.mjs"
+          ]
+        }
+      ],
+      "workload": {
+        "performance": {
+          "npmMs": 34.1115,
+          "lilscriptMs": 33.10229199999999,
+          "ratio": 0.9704144350145842
+        },
+        "retainedMemory": {
+          "npmBytes": 637488,
+          "lilscriptBytes": 638168,
+          "ratio": 1.001066686745476
+        },
+        "samples": {
+          "performance": {
+            "npm": [
+              {
+                "milliseconds": 34.584042,
+                "checksum": 11846355
+              },
+              {
+                "milliseconds": 33.373625000000004,
+                "checksum": 11846355
+              },
+              {
+                "milliseconds": 34.1115,
+                "checksum": 11846355
+              },
+              {
+                "milliseconds": 33.290915999999996,
+                "checksum": 11846355
+              },
+              {
+                "milliseconds": 33.192792,
+                "checksum": 11846355
+              },
+              {
+                "milliseconds": 33.07,
+                "checksum": 11846355
+              },
+              {
+                "milliseconds": 35.197167,
+                "checksum": 11846355
+              },
+              {
+                "milliseconds": 37.818625,
+                "checksum": 11846355
+              },
+              {
+                "milliseconds": 35.884166,
+                "checksum": 11846355
+              }
+            ],
+            "lilscript": [
+              {
+                "milliseconds": 33.10229199999999,
+                "checksum": 11846355
+              },
+              {
+                "milliseconds": 32.242875,
+                "checksum": 11846355
+              },
+              {
+                "milliseconds": 33.367875,
+                "checksum": 11846355
+              },
+              {
+                "milliseconds": 31.757249999999996,
+                "checksum": 11846355
+              },
+              {
+                "milliseconds": 32.473333,
+                "checksum": 11846355
+              },
+              {
+                "milliseconds": 32.033125,
+                "checksum": 11846355
+              },
+              {
+                "milliseconds": 36.131917,
+                "checksum": 11846355
+              },
+              {
+                "milliseconds": 36.383750000000006,
+                "checksum": 11846355
+              },
+              {
+                "milliseconds": 37.040167,
+                "checksum": 11846355
+              }
+            ]
+          },
+          "memory": {
+            "npm": [
+              {
+                "bytes": 637488,
+                "checksum": 1579031
+              },
+              {
+                "bytes": 637488,
+                "checksum": 1579031
+              },
+              {
+                "bytes": 637488,
+                "checksum": 1579031
+              },
+              {
+                "bytes": 637488,
+                "checksum": 1579031
+              },
+              {
+                "bytes": 637488,
+                "checksum": 1579031
+              },
+              {
+                "bytes": 637488,
+                "checksum": 1579031
+              },
+              {
+                "bytes": 637488,
+                "checksum": 1579031
+              },
+              {
+                "bytes": 637488,
+                "checksum": 1579031
+              },
+              {
+                "bytes": 637488,
+                "checksum": 1579031
+              }
+            ],
+            "lilscript": [
+              {
+                "bytes": 638168,
+                "checksum": 1579031
+              },
+              {
+                "bytes": 638168,
+                "checksum": 1579031
+              },
+              {
+                "bytes": 638168,
+                "checksum": 1579031
+              },
+              {
+                "bytes": 638168,
+                "checksum": 1579031
+              },
+              {
+                "bytes": 638168,
+                "checksum": 1579031
+              },
+              {
+                "bytes": 638168,
+                "checksum": 1579031
+              },
+              {
+                "bytes": 638168,
+                "checksum": 1579031
+              },
+              {
+                "bytes": 638168,
+                "checksum": 1579031
+              },
+              {
+                "bytes": 638168,
+                "checksum": 1579031
+              }
+            ]
+          }
+        }
+      },
+      "eligible": true,
+      "blockers": []
     },
     {
       "id": "murmurhash-js",
@@ -402,7 +1427,7 @@
       "additionalAssertions": 18,
       "expected": "murmurhash-js:18:855861453",
       "source": {
-        "npmApp": 1030,
+        "npmApp": 1164,
         "lilscriptAppAndPort": 3711
       },
       "artifacts": [
@@ -421,7 +1446,7 @@
             "assets/index-B9SN9_CL.js",
             "index.html"
           ],
-          "medianMs": 5.11345799999998
+          "medianMs": 5.595208000000001
         },
         {
           "id": "closure",
@@ -438,60 +1463,2531 @@
             "app.js",
             "index.html"
           ],
-          "medianMs": 5.113792000000018
+          "medianMs": 5.457916999999998
         },
         {
           "id": "lilscript",
           "label": "LilScript port",
-          "raw": 1734,
-          "gzip": 831,
-          "brotli": 733,
+          "raw": 1520,
+          "gzip": 719,
+          "brotli": 641,
           "deploy": {
-            "raw": 1920,
-            "gzip": 990,
-            "brotli": 819
+            "raw": 1706,
+            "gzip": 878,
+            "brotli": 727
           },
           "files": [
             "app.js",
             "index.html"
           ],
-          "medianMs": 4.324333999999993,
+          "medianMs": 5.041375000000002,
           "nativeVerified": true,
           "cEmitted": true
         }
-      ]
+      ],
+      "surfaceArtifacts": [
+        {
+          "id": "vite",
+          "label": "Installed npm package + Vite library mode",
+          "files": [
+            "library.js"
+          ],
+          "raw": 3131,
+          "gzip": 1027,
+          "brotli": 902
+        },
+        {
+          "id": "closure",
+          "label": "Installed npm package + Closure ADVANCED public surface",
+          "raw": 2446,
+          "gzip": 957,
+          "brotli": 833,
+          "files": [
+            "closure-library.js"
+          ]
+        },
+        {
+          "id": "lilscript",
+          "label": "LilScript reusable module",
+          "raw": 1015,
+          "gzip": 461,
+          "brotli": 414,
+          "files": [
+            "murmurhash-js.mjs"
+          ]
+        }
+      ],
+      "workload": {
+        "performance": {
+          "npmMs": 21.092042,
+          "lilscriptMs": 18.572457999999997,
+          "ratio": 0.8805433821912548
+        },
+        "retainedMemory": {
+          "npmBytes": 317640,
+          "lilscriptBytes": 291648,
+          "ratio": 0.9181715149225539
+        },
+        "samples": {
+          "performance": {
+            "npm": [
+              {
+                "milliseconds": 21.359541,
+                "checksum": 515948007836551
+              },
+              {
+                "milliseconds": 21.597917,
+                "checksum": 515948007836551
+              },
+              {
+                "milliseconds": 21.057,
+                "checksum": 515948007836551
+              },
+              {
+                "milliseconds": 21.559959,
+                "checksum": 515948007836551
+              },
+              {
+                "milliseconds": 22.085917,
+                "checksum": 515948007836551
+              },
+              {
+                "milliseconds": 21.073415999999998,
+                "checksum": 515948007836551
+              },
+              {
+                "milliseconds": 21.092042,
+                "checksum": 515948007836551
+              },
+              {
+                "milliseconds": 20.942040999999996,
+                "checksum": 515948007836551
+              },
+              {
+                "milliseconds": 21.013417,
+                "checksum": 515948007836551
+              }
+            ],
+            "lilscript": [
+              {
+                "milliseconds": 19.056124999999998,
+                "checksum": 515948007836551
+              },
+              {
+                "milliseconds": 19.059374999999996,
+                "checksum": 515948007836551
+              },
+              {
+                "milliseconds": 18.715834000000005,
+                "checksum": 515948007836551
+              },
+              {
+                "milliseconds": 19.158541,
+                "checksum": 515948007836551
+              },
+              {
+                "milliseconds": 18.453875,
+                "checksum": 515948007836551
+              },
+              {
+                "milliseconds": 18.572457999999997,
+                "checksum": 515948007836551
+              },
+              {
+                "milliseconds": 18.307916999999996,
+                "checksum": 515948007836551
+              },
+              {
+                "milliseconds": 18.567,
+                "checksum": 515948007836551
+              },
+              {
+                "milliseconds": 18.498542,
+                "checksum": 515948007836551
+              }
+            ]
+          },
+          "memory": {
+            "npm": [
+              {
+                "bytes": 317640,
+                "checksum": 86025209636231
+              },
+              {
+                "bytes": 317640,
+                "checksum": 86025209636231
+              },
+              {
+                "bytes": 317640,
+                "checksum": 86025209636231
+              },
+              {
+                "bytes": 317640,
+                "checksum": 86025209636231
+              },
+              {
+                "bytes": 317640,
+                "checksum": 86025209636231
+              },
+              {
+                "bytes": 317640,
+                "checksum": 86025209636231
+              },
+              {
+                "bytes": 317640,
+                "checksum": 86025209636231
+              },
+              {
+                "bytes": 317640,
+                "checksum": 86025209636231
+              },
+              {
+                "bytes": 317640,
+                "checksum": 86025209636231
+              }
+            ],
+            "lilscript": [
+              {
+                "bytes": 290792,
+                "checksum": 86025209636231
+              },
+              {
+                "bytes": 290792,
+                "checksum": 86025209636231
+              },
+              {
+                "bytes": 291648,
+                "checksum": 86025209636231
+              },
+              {
+                "bytes": 291648,
+                "checksum": 86025209636231
+              },
+              {
+                "bytes": 291400,
+                "checksum": 86025209636231
+              },
+              {
+                "bytes": 290792,
+                "checksum": 86025209636231
+              },
+              {
+                "bytes": 291648,
+                "checksum": 86025209636231
+              },
+              {
+                "bytes": 304208,
+                "checksum": 86025209636231
+              },
+              {
+                "bytes": 304456,
+                "checksum": 86025209636231
+              }
+            ]
+          }
+        }
+      },
+      "eligible": true,
+      "blockers": []
+    },
+    {
+      "id": "robust-predicates",
+      "title": "Robust geometric predicates",
+      "scope": "Complete robust-predicates root entrypoint",
+      "packages": [
+        {
+          "name": "robust-predicates",
+          "version": "3.0.3"
+        }
+      ],
+      "monthlyDownloads": 101525533,
+      "translatedAssertions": 23798,
+      "additionalAssertions": 320016,
+      "expected": "robust-predicates:8",
+      "source": {
+        "npmApp": 919,
+        "lilscriptAppAndPort": 80021
+      },
+      "artifacts": [
+        {
+          "id": "vite",
+          "label": "Installed npm package + Vite",
+          "raw": 24227,
+          "gzip": 7463,
+          "brotli": 5960,
+          "deploy": {
+            "raw": 24347,
+            "gzip": 7584,
+            "brotli": 6037
+          },
+          "files": [
+            "assets/index-DEXxA7Qh.js",
+            "index.html"
+          ],
+          "medianMs": 0.9417909999999985
+        },
+        {
+          "id": "closure",
+          "label": "Installed npm package + Closure ADVANCED",
+          "raw": 25369,
+          "gzip": 7920,
+          "brotli": 6230,
+          "deploy": {
+            "raw": 25555,
+            "gzip": 8079,
+            "brotli": 6316
+          },
+          "files": [
+            "app.js",
+            "index.html"
+          ],
+          "medianMs": 1.1677089999999986
+        },
+        {
+          "id": "lilscript",
+          "label": "LilScript port",
+          "raw": 1213,
+          "gzip": 495,
+          "brotli": 411,
+          "deploy": {
+            "raw": 1399,
+            "gzip": 654,
+            "brotli": 497
+          },
+          "files": [
+            "app.js",
+            "index.html"
+          ],
+          "medianMs": 0.23537500000000122,
+          "nativeVerified": true,
+          "cEmitted": true
+        }
+      ],
+      "surfaceArtifacts": [
+        {
+          "id": "vite",
+          "label": "Installed npm package + Vite library mode",
+          "files": [
+            "library.js"
+          ],
+          "raw": 38722,
+          "gzip": 8365,
+          "brotli": 6456
+        },
+        {
+          "id": "closure",
+          "label": "Installed npm package + Closure ADVANCED public surface",
+          "raw": 25208,
+          "gzip": 7933,
+          "brotli": 6228,
+          "files": [
+            "closure-library.js"
+          ]
+        },
+        {
+          "id": "lilscript",
+          "label": "LilScript reusable module",
+          "raw": 22347,
+          "gzip": 8045,
+          "brotli": 6192,
+          "files": [
+            "robust-predicates.mjs"
+          ]
+        }
+      ],
+      "workload": {
+        "performance": {
+          "npmMs": 7.988416999999998,
+          "lilscriptMs": 7.9361250000000005,
+          "ratio": 0.9934540222424546
+        },
+        "retainedMemory": {
+          "npmBytes": 253552,
+          "lilscriptBytes": 253648,
+          "ratio": 1.0003786205590963
+        },
+        "samples": {
+          "performance": {
+            "npm": [
+              {
+                "milliseconds": 7.988416999999998,
+                "checksum": -1.5396175464704752e+201
+              },
+              {
+                "milliseconds": 8.330082999999998,
+                "checksum": -1.5396175464704752e+201
+              },
+              {
+                "milliseconds": 8.180041,
+                "checksum": -1.5396175464704752e+201
+              },
+              {
+                "milliseconds": 7.678708,
+                "checksum": -1.5396175464704752e+201
+              },
+              {
+                "milliseconds": 7.8942499999999995,
+                "checksum": -1.5396175464704752e+201
+              },
+              {
+                "milliseconds": 8.041250000000002,
+                "checksum": -1.5396175464704752e+201
+              },
+              {
+                "milliseconds": 8.299917,
+                "checksum": -1.5396175464704752e+201
+              },
+              {
+                "milliseconds": 7.758875000000003,
+                "checksum": -1.5396175464704752e+201
+              },
+              {
+                "milliseconds": 7.885124999999999,
+                "checksum": -1.5396175464704752e+201
+              }
+            ],
+            "lilscript": [
+              {
+                "milliseconds": 7.665333999999998,
+                "checksum": -1.5396175464704752e+201
+              },
+              {
+                "milliseconds": 9.369458000000002,
+                "checksum": -1.5396175464704752e+201
+              },
+              {
+                "milliseconds": 8.055125,
+                "checksum": -1.5396175464704752e+201
+              },
+              {
+                "milliseconds": 7.540792,
+                "checksum": -1.5396175464704752e+201
+              },
+              {
+                "milliseconds": 7.927875,
+                "checksum": -1.5396175464704752e+201
+              },
+              {
+                "milliseconds": 7.8707910000000005,
+                "checksum": -1.5396175464704752e+201
+              },
+              {
+                "milliseconds": 7.9361250000000005,
+                "checksum": -1.5396175464704752e+201
+              },
+              {
+                "milliseconds": 8.254541999999997,
+                "checksum": -1.5396175464704752e+201
+              },
+              {
+                "milliseconds": 8.114916000000001,
+                "checksum": -1.5396175464704752e+201
+              }
+            ]
+          },
+          "memory": {
+            "npm": [
+              {
+                "bytes": 253552,
+                "checksum": -4.855849401386642e+200
+              },
+              {
+                "bytes": 253552,
+                "checksum": -4.855849401386642e+200
+              },
+              {
+                "bytes": 253552,
+                "checksum": -4.855849401386642e+200
+              },
+              {
+                "bytes": 253552,
+                "checksum": -4.855849401386642e+200
+              },
+              {
+                "bytes": 253552,
+                "checksum": -4.855849401386642e+200
+              },
+              {
+                "bytes": 253552,
+                "checksum": -4.855849401386642e+200
+              },
+              {
+                "bytes": 253552,
+                "checksum": -4.855849401386642e+200
+              },
+              {
+                "bytes": 253552,
+                "checksum": -4.855849401386642e+200
+              },
+              {
+                "bytes": 253552,
+                "checksum": -4.855849401386642e+200
+              }
+            ],
+            "lilscript": [
+              {
+                "bytes": 253648,
+                "checksum": -4.855849401386642e+200
+              },
+              {
+                "bytes": 253648,
+                "checksum": -4.855849401386642e+200
+              },
+              {
+                "bytes": 253648,
+                "checksum": -4.855849401386642e+200
+              },
+              {
+                "bytes": 253648,
+                "checksum": -4.855849401386642e+200
+              },
+              {
+                "bytes": 253648,
+                "checksum": -4.855849401386642e+200
+              },
+              {
+                "bytes": 253648,
+                "checksum": -4.855849401386642e+200
+              },
+              {
+                "bytes": 253648,
+                "checksum": -4.855849401386642e+200
+              },
+              {
+                "bytes": 253648,
+                "checksum": -4.855849401386642e+200
+              },
+              {
+                "bytes": 253648,
+                "checksum": -4.855849401386642e+200
+              }
+            ]
+          }
+        }
+      },
+      "eligible": true,
+      "blockers": []
+    }
+  ],
+  "diagnostics": [
+    {
+      "id": "motion-easing",
+      "title": "Motion easing",
+      "scope": "Complete @motionone/easing root entrypoint",
+      "packages": [
+        {
+          "name": "@motionone/easing",
+          "version": "10.18.0"
+        }
+      ],
+      "monthlyDownloads": 9574633,
+      "translatedAssertions": 27,
+      "additionalAssertions": 0,
+      "expected": "motion-easing:27:560673:541722",
+      "source": {
+        "npmApp": 1623,
+        "lilscriptAppAndPort": 3275
+      },
+      "artifacts": [
+        {
+          "id": "vite",
+          "label": "Installed npm package + Vite",
+          "raw": 1107,
+          "gzip": 608,
+          "brotli": 579,
+          "deploy": {
+            "raw": 1387,
+            "gzip": 829,
+            "brotli": 712
+          },
+          "files": [
+            "assets/index-BdTNmHk3.js",
+            "index.html"
+          ],
+          "medianMs": 6.115458000000002
+        },
+        {
+          "id": "closure",
+          "label": "Installed npm package + Closure ADVANCED",
+          "raw": 1024,
+          "gzip": 583,
+          "brotli": 530,
+          "deploy": {
+            "raw": 1210,
+            "gzip": 742,
+            "brotli": 616
+          },
+          "files": [
+            "app.js",
+            "index.html"
+          ],
+          "medianMs": 4.527542
+        },
+        {
+          "id": "lilscript",
+          "label": "LilScript port",
+          "raw": 996,
+          "gzip": 559,
+          "brotli": 507,
+          "deploy": {
+            "raw": 1182,
+            "gzip": 718,
+            "brotli": 593
+          },
+          "files": [
+            "app.js",
+            "index.html"
+          ],
+          "medianMs": 5.453374999999998,
+          "nativeVerified": true,
+          "cEmitted": true
+        }
+      ],
+      "surfaceArtifacts": [
+        {
+          "id": "vite",
+          "label": "Installed npm package + Vite library mode",
+          "files": [
+            "library.js"
+          ],
+          "raw": 840,
+          "gzip": 458,
+          "brotli": 431
+        },
+        {
+          "id": "closure",
+          "label": "Installed npm package + Closure ADVANCED public surface",
+          "raw": 445,
+          "gzip": 326,
+          "brotli": 286,
+          "files": [
+            "closure-library.js"
+          ]
+        },
+        {
+          "id": "lilscript",
+          "label": "LilScript reusable module",
+          "raw": 438,
+          "gzip": 310,
+          "brotli": 280,
+          "files": [
+            "motion-easing.mjs"
+          ]
+        }
+      ],
+      "workload": {
+        "performance": {
+          "npmMs": 14.201125000000001,
+          "lilscriptMs": 14.427917,
+          "ratio": 1.0159700023765723
+        },
+        "retainedMemory": {
+          "npmBytes": 3830208,
+          "lilscriptBytes": 3215896,
+          "ratio": 0.8396139321937608
+        },
+        "samples": {
+          "performance": {
+            "npm": [
+              {
+                "milliseconds": 15.011958,
+                "checksum": 124895.75778888176
+              },
+              {
+                "milliseconds": 14.599041999999997,
+                "checksum": 124895.75778888176
+              },
+              {
+                "milliseconds": 14.169790999999996,
+                "checksum": 124895.75778888176
+              },
+              {
+                "milliseconds": 14.166125000000001,
+                "checksum": 124895.75778888176
+              },
+              {
+                "milliseconds": 14.559542000000004,
+                "checksum": 124895.75778888176
+              },
+              {
+                "milliseconds": 14.201125000000001,
+                "checksum": 124895.75778888176
+              },
+              {
+                "milliseconds": 14.603916999999996,
+                "checksum": 124895.75778888176
+              },
+              {
+                "milliseconds": 14.050417000000003,
+                "checksum": 124895.75778888176
+              },
+              {
+                "milliseconds": 14.197208000000003,
+                "checksum": 124895.75778888176
+              }
+            ],
+            "lilscript": [
+              {
+                "milliseconds": 15.020916,
+                "checksum": 124895.75778888176
+              },
+              {
+                "milliseconds": 14.731416000000001,
+                "checksum": 124895.75778888176
+              },
+              {
+                "milliseconds": 14.427917,
+                "checksum": 124895.75778888176
+              },
+              {
+                "milliseconds": 14.619,
+                "checksum": 124895.75778888176
+              },
+              {
+                "milliseconds": 14.055209,
+                "checksum": 124895.75778888176
+              },
+              {
+                "milliseconds": 14.060417000000001,
+                "checksum": 124895.75778888176
+              },
+              {
+                "milliseconds": 14.411667,
+                "checksum": 124895.75778888176
+              },
+              {
+                "milliseconds": 13.95325,
+                "checksum": 124895.75778888176
+              },
+              {
+                "milliseconds": 14.674291,
+                "checksum": 124895.75778888176
+              }
+            ]
+          },
+          "memory": {
+            "npm": [
+              {
+                "bytes": 3830208,
+                "checksum": 10570.047179277088
+              },
+              {
+                "bytes": 3830208,
+                "checksum": 10570.047179277088
+              },
+              {
+                "bytes": 3830208,
+                "checksum": 10570.047179277088
+              },
+              {
+                "bytes": 3830208,
+                "checksum": 10570.047179277088
+              },
+              {
+                "bytes": 3830208,
+                "checksum": 10570.047179277088
+              },
+              {
+                "bytes": 3830208,
+                "checksum": 10570.047179277088
+              },
+              {
+                "bytes": 3830208,
+                "checksum": 10570.047179277088
+              },
+              {
+                "bytes": 3830208,
+                "checksum": 10570.047179277088
+              },
+              {
+                "bytes": 3830208,
+                "checksum": 10570.047179277088
+              }
+            ],
+            "lilscript": [
+              {
+                "bytes": 3215896,
+                "checksum": 10570.047179277088
+              },
+              {
+                "bytes": 3215896,
+                "checksum": 10570.047179277088
+              },
+              {
+                "bytes": 3215896,
+                "checksum": 10570.047179277088
+              },
+              {
+                "bytes": 3215896,
+                "checksum": 10570.047179277088
+              },
+              {
+                "bytes": 3215896,
+                "checksum": 10570.047179277088
+              },
+              {
+                "bytes": 3215896,
+                "checksum": 10570.047179277088
+              },
+              {
+                "bytes": 3215896,
+                "checksum": 10570.047179277088
+              },
+              {
+                "bytes": 3215896,
+                "checksum": 10570.047179277088
+              },
+              {
+                "bytes": 3215896,
+                "checksum": 10570.047179277088
+              }
+            ]
+          }
+        }
+      },
+      "eligible": true,
+      "blockers": []
+    },
+    {
+      "id": "micro-math",
+      "title": "Clamp and lerp",
+      "scope": "Complete clamp and lerp root entrypoints",
+      "packages": [
+        {
+          "name": "clamp",
+          "version": "1.0.1"
+        },
+        {
+          "name": "lerp",
+          "version": "1.0.3"
+        }
+      ],
+      "monthlyDownloads": 4609993,
+      "translatedAssertions": 10,
+      "additionalAssertions": 0,
+      "expected": "micro-math:10:1800000:86076",
+      "source": {
+        "npmApp": 793,
+        "lilscriptAppAndPort": 1328
+      },
+      "artifacts": [
+        {
+          "id": "vite",
+          "label": "Installed npm package + Vite",
+          "raw": 1134,
+          "gzip": 607,
+          "brotli": 554,
+          "deploy": {
+            "raw": 1411,
+            "gzip": 828,
+            "brotli": 687
+          },
+          "files": [
+            "assets/index-B6IEu8zq.js",
+            "index.html"
+          ],
+          "medianMs": 2.2163749999999993
+        },
+        {
+          "id": "closure",
+          "label": "Installed npm package + Closure ADVANCED",
+          "raw": 1169,
+          "gzip": 630,
+          "brotli": 562,
+          "deploy": {
+            "raw": 1355,
+            "gzip": 789,
+            "brotli": 648
+          },
+          "files": [
+            "app.js",
+            "index.html"
+          ],
+          "medianMs": 2.969000000000001
+        },
+        {
+          "id": "lilscript",
+          "label": "LilScript port",
+          "raw": 319,
+          "gzip": 224,
+          "brotli": 201,
+          "deploy": {
+            "raw": 505,
+            "gzip": 383,
+            "brotli": 287
+          },
+          "files": [
+            "app.js",
+            "index.html"
+          ],
+          "medianMs": 1.0813340000000018,
+          "nativeVerified": true,
+          "cEmitted": true
+        }
+      ],
+      "surfaceArtifacts": [
+        {
+          "id": "vite",
+          "label": "Installed npm package + Vite library mode",
+          "files": [
+            "library.js"
+          ],
+          "raw": 1137,
+          "gzip": 578,
+          "brotli": 519
+        },
+        {
+          "id": "closure",
+          "label": "Installed npm package + Closure ADVANCED public surface",
+          "raw": 833,
+          "gzip": 484,
+          "brotli": 414,
+          "files": [
+            "closure-library.js"
+          ]
+        },
+        {
+          "id": "lilscript",
+          "label": "LilScript reusable module",
+          "raw": 109,
+          "gzip": 142,
+          "brotli": 113,
+          "files": [
+            "clamp.mjs",
+            "lerp.mjs"
+          ]
+        }
+      ],
+      "workload": {
+        "performance": {
+          "npmMs": 8.2925,
+          "lilscriptMs": 8.206834,
+          "ratio": 0.9896694603557432
+        },
+        "retainedMemory": {
+          "npmBytes": 318272,
+          "lilscriptBytes": 318256,
+          "ratio": 0.999949728534084
+        },
+        "samples": {
+          "performance": {
+            "npm": [
+              {
+                "milliseconds": 8.633708000000002,
+                "checksum": 24139028.50000736
+              },
+              {
+                "milliseconds": 8.2925,
+                "checksum": 24139028.50000736
+              },
+              {
+                "milliseconds": 8.4695,
+                "checksum": 24139028.50000736
+              },
+              {
+                "milliseconds": 8.543833,
+                "checksum": 24139028.50000736
+              },
+              {
+                "milliseconds": 8.968125,
+                "checksum": 24139028.50000736
+              },
+              {
+                "milliseconds": 7.964500000000001,
+                "checksum": 24139028.50000736
+              },
+              {
+                "milliseconds": 8.025792000000001,
+                "checksum": 24139028.50000736
+              },
+              {
+                "milliseconds": 7.971457999999998,
+                "checksum": 24139028.50000736
+              },
+              {
+                "milliseconds": 7.967167000000002,
+                "checksum": 24139028.50000736
+              }
+            ],
+            "lilscript": [
+              {
+                "milliseconds": 8.206834,
+                "checksum": 24139028.50000736
+              },
+              {
+                "milliseconds": 8.318999999999999,
+                "checksum": 24139028.50000736
+              },
+              {
+                "milliseconds": 8.233667,
+                "checksum": 24139028.50000736
+              },
+              {
+                "milliseconds": 8.367542,
+                "checksum": 24139028.50000736
+              },
+              {
+                "milliseconds": 8.310125,
+                "checksum": 24139028.50000736
+              },
+              {
+                "milliseconds": 7.946125000000002,
+                "checksum": 24139028.50000736
+              },
+              {
+                "milliseconds": 8.167666999999998,
+                "checksum": 24139028.50000736
+              },
+              {
+                "milliseconds": 7.911374999999998,
+                "checksum": 24139028.50000736
+              },
+              {
+                "milliseconds": 7.95425,
+                "checksum": 24139028.50000736
+              }
+            ]
+          },
+          "memory": {
+            "npm": [
+              {
+                "bytes": 318272,
+                "checksum": 964300.6774193604
+              },
+              {
+                "bytes": 318272,
+                "checksum": 964300.6774193604
+              },
+              {
+                "bytes": 318272,
+                "checksum": 964300.6774193604
+              },
+              {
+                "bytes": 318272,
+                "checksum": 964300.6774193604
+              },
+              {
+                "bytes": 318272,
+                "checksum": 964300.6774193604
+              },
+              {
+                "bytes": 318272,
+                "checksum": 964300.6774193604
+              },
+              {
+                "bytes": 318272,
+                "checksum": 964300.6774193604
+              },
+              {
+                "bytes": 318272,
+                "checksum": 964300.6774193604
+              },
+              {
+                "bytes": 318272,
+                "checksum": 964300.6774193604
+              }
+            ],
+            "lilscript": [
+              {
+                "bytes": 318256,
+                "checksum": 964300.6774193604
+              },
+              {
+                "bytes": 318256,
+                "checksum": 964300.6774193604
+              },
+              {
+                "bytes": 318256,
+                "checksum": 964300.6774193604
+              },
+              {
+                "bytes": 318256,
+                "checksum": 964300.6774193604
+              },
+              {
+                "bytes": 319416,
+                "checksum": 964300.6774193604
+              },
+              {
+                "bytes": 318256,
+                "checksum": 964300.6774193604
+              },
+              {
+                "bytes": 318256,
+                "checksum": 964300.6774193604
+              },
+              {
+                "bytes": 317856,
+                "checksum": 964300.6774193604
+              },
+              {
+                "bytes": 318256,
+                "checksum": 964300.6774193604
+              }
+            ]
+          }
+        }
+      },
+      "eligible": true,
+      "blockers": []
+    },
+    {
+      "id": "string-hash",
+      "title": "String hash",
+      "scope": "Complete string-hash root entrypoint",
+      "packages": [
+        {
+          "name": "string-hash",
+          "version": "1.1.3"
+        }
+      ],
+      "monthlyDownloads": 19930081,
+      "translatedAssertions": 2,
+      "additionalAssertions": 2,
+      "expected": "string-hash:4:1670934855",
+      "source": {
+        "npmApp": 634,
+        "lilscriptAppAndPort": 949
+      },
+      "artifacts": [
+        {
+          "id": "vite",
+          "label": "Installed npm package + Vite",
+          "raw": 1076,
+          "gzip": 637,
+          "brotli": 568,
+          "deploy": {
+            "raw": 1354,
+            "gzip": 857,
+            "brotli": 698
+          },
+          "files": [
+            "assets/index-Bf76Xsi8.js",
+            "index.html"
+          ],
+          "medianMs": 4.028333
+        },
+        {
+          "id": "closure",
+          "label": "Installed npm package + Closure ADVANCED",
+          "raw": 1113,
+          "gzip": 656,
+          "brotli": 581,
+          "deploy": {
+            "raw": 1299,
+            "gzip": 815,
+            "brotli": 667
+          },
+          "files": [
+            "app.js",
+            "index.html"
+          ],
+          "medianMs": 3.8055840000000014
+        },
+        {
+          "id": "lilscript",
+          "label": "LilScript port",
+          "raw": 433,
+          "gzip": 345,
+          "brotli": 299,
+          "deploy": {
+            "raw": 619,
+            "gzip": 504,
+            "brotli": 385
+          },
+          "files": [
+            "app.js",
+            "index.html"
+          ],
+          "medianMs": 3.528624999999998,
+          "nativeVerified": true,
+          "cEmitted": true
+        }
+      ],
+      "surfaceArtifacts": [
+        {
+          "id": "vite",
+          "label": "Installed npm package + Vite library mode",
+          "files": [
+            "library.js"
+          ],
+          "raw": 969,
+          "gzip": 558,
+          "brotli": 502
+        },
+        {
+          "id": "closure",
+          "label": "Installed npm package + Closure ADVANCED public surface",
+          "raw": 744,
+          "gzip": 480,
+          "brotli": 403,
+          "files": [
+            "closure-library.js"
+          ]
+        },
+        {
+          "id": "lilscript",
+          "label": "LilScript reusable module",
+          "raw": 121,
+          "gzip": 134,
+          "brotli": 106,
+          "files": [
+            "string-hash.mjs"
+          ]
+        }
+      ],
+      "workload": {
+        "performance": {
+          "npmMs": 15.826249999999998,
+          "lilscriptMs": 16.405958,
+          "ratio": 1.0366295237343022
+        },
+        "retainedMemory": {
+          "npmBytes": 317704,
+          "lilscriptBytes": 318344,
+          "ratio": 1.0020144537053357
+        },
+        "samples": {
+          "performance": {
+            "npm": [
+              {
+                "milliseconds": 17.020125,
+                "checksum": 288797689264664
+              },
+              {
+                "milliseconds": 16.952417,
+                "checksum": 288797689264664
+              },
+              {
+                "milliseconds": 16.179791,
+                "checksum": 288797689264664
+              },
+              {
+                "milliseconds": 15.826249999999998,
+                "checksum": 288797689264664
+              },
+              {
+                "milliseconds": 15.819875000000003,
+                "checksum": 288797689264664
+              },
+              {
+                "milliseconds": 15.821666000000004,
+                "checksum": 288797689264664
+              },
+              {
+                "milliseconds": 15.814625000000003,
+                "checksum": 288797689264664
+              },
+              {
+                "milliseconds": 16.112457999999997,
+                "checksum": 288797689264664
+              },
+              {
+                "milliseconds": 15.817291999999995,
+                "checksum": 288797689264664
+              }
+            ],
+            "lilscript": [
+              {
+                "milliseconds": 18.207792,
+                "checksum": 288797689264664
+              },
+              {
+                "milliseconds": 17.639750000000003,
+                "checksum": 288797689264664
+              },
+              {
+                "milliseconds": 16.821417000000004,
+                "checksum": 288797689264664
+              },
+              {
+                "milliseconds": 16.405958,
+                "checksum": 288797689264664
+              },
+              {
+                "milliseconds": 16.032334,
+                "checksum": 288797689264664
+              },
+              {
+                "milliseconds": 16.179457999999997,
+                "checksum": 288797689264664
+              },
+              {
+                "milliseconds": 16.308083000000003,
+                "checksum": 288797689264664
+              },
+              {
+                "milliseconds": 15.791417,
+                "checksum": 288797689264664
+              },
+              {
+                "milliseconds": 16.593708,
+                "checksum": 288797689264664
+              }
+            ]
+          },
+          "memory": {
+            "npm": [
+              {
+                "bytes": 317704,
+                "checksum": 77022498530984
+              },
+              {
+                "bytes": 317704,
+                "checksum": 77022498530984
+              },
+              {
+                "bytes": 317704,
+                "checksum": 77022498530984
+              },
+              {
+                "bytes": 317704,
+                "checksum": 77022498530984
+              },
+              {
+                "bytes": 317704,
+                "checksum": 77022498530984
+              },
+              {
+                "bytes": 317704,
+                "checksum": 77022498530984
+              },
+              {
+                "bytes": 317704,
+                "checksum": 77022498530984
+              },
+              {
+                "bytes": 317704,
+                "checksum": 77022498530984
+              },
+              {
+                "bytes": 317704,
+                "checksum": 77022498530984
+              }
+            ],
+            "lilscript": [
+              {
+                "bytes": 318344,
+                "checksum": 77022498530984
+              },
+              {
+                "bytes": 318344,
+                "checksum": 77022498530984
+              },
+              {
+                "bytes": 318344,
+                "checksum": 77022498530984
+              },
+              {
+                "bytes": 318344,
+                "checksum": 77022498530984
+              },
+              {
+                "bytes": 318344,
+                "checksum": 77022498530984
+              },
+              {
+                "bytes": 318344,
+                "checksum": 77022498530984
+              },
+              {
+                "bytes": 318344,
+                "checksum": 77022498530984
+              },
+              {
+                "bytes": 318344,
+                "checksum": 77022498530984
+              },
+              {
+                "bytes": 318344,
+                "checksum": 77022498530984
+              }
+            ]
+          }
+        }
+      },
+      "eligible": true,
+      "blockers": []
+    },
+    {
+      "id": "js-levenshtein",
+      "title": "Levenshtein distance",
+      "scope": "Complete js-levenshtein root entrypoint",
+      "packages": [
+        {
+          "name": "js-levenshtein",
+          "version": "1.1.6"
+        }
+      ],
+      "monthlyDownloads": 41652021,
+      "translatedAssertions": 14,
+      "additionalAssertions": 0,
+      "expected": "js-levenshtein:14:2049950",
+      "source": {
+        "npmApp": 1037,
+        "lilscriptAppAndPort": 3746
+      },
+      "artifacts": [
+        {
+          "id": "vite",
+          "label": "Installed npm package + Vite",
+          "raw": 1970,
+          "gzip": 1077,
+          "brotli": 969,
+          "deploy": {
+            "raw": 2251,
+            "gzip": 1300,
+            "brotli": 1099
+          },
+          "files": [
+            "assets/index-B4X7I0S2.js",
+            "index.html"
+          ],
+          "medianMs": 6.585290999999998
+        },
+        {
+          "id": "closure",
+          "label": "Installed npm package + Closure ADVANCED",
+          "raw": 2030,
+          "gzip": 1099,
+          "brotli": 996,
+          "deploy": {
+            "raw": 2216,
+            "gzip": 1258,
+            "brotli": 1082
+          },
+          "files": [
+            "app.js",
+            "index.html"
+          ],
+          "medianMs": 6.473958
+        },
+        {
+          "id": "lilscript",
+          "label": "LilScript port",
+          "raw": 1450,
+          "gzip": 814,
+          "brotli": 697,
+          "deploy": {
+            "raw": 1636,
+            "gzip": 973,
+            "brotli": 783
+          },
+          "files": [
+            "app.js",
+            "index.html"
+          ],
+          "medianMs": 6.983459,
+          "nativeVerified": true,
+          "cEmitted": true
+        }
+      ],
+      "surfaceArtifacts": [
+        {
+          "id": "vite",
+          "label": "Installed npm package + Vite library mode",
+          "files": [
+            "library.js"
+          ],
+          "raw": 1984,
+          "gzip": 908,
+          "brotli": 825
+        },
+        {
+          "id": "closure",
+          "label": "Installed npm package + Closure ADVANCED public surface",
+          "raw": 1453,
+          "gzip": 795,
+          "brotli": 714,
+          "files": [
+            "closure-library.js"
+          ]
+        },
+        {
+          "id": "lilscript",
+          "label": "LilScript reusable module",
+          "raw": 924,
+          "gzip": 456,
+          "brotli": 408,
+          "files": [
+            "js-levenshtein.mjs"
+          ]
+        }
+      ],
+      "workload": {
+        "performance": {
+          "npmMs": 34.547375,
+          "lilscriptMs": 34.199042000000006,
+          "ratio": 0.9899172368378206
+        },
+        "retainedMemory": {
+          "npmBytes": 310816,
+          "lilscriptBytes": 308776,
+          "ratio": 0.9934366313188511
+        },
+        "samples": {
+          "performance": {
+            "npm": [
+              {
+                "milliseconds": 36.41875,
+                "checksum": 8972679
+              },
+              {
+                "milliseconds": 36.133875,
+                "checksum": 8972679
+              },
+              {
+                "milliseconds": 35.636708,
+                "checksum": 8972679
+              },
+              {
+                "milliseconds": 33.663375,
+                "checksum": 8972679
+              },
+              {
+                "milliseconds": 33.556625,
+                "checksum": 8972679
+              },
+              {
+                "milliseconds": 33.478125,
+                "checksum": 8972679
+              },
+              {
+                "milliseconds": 34.547375,
+                "checksum": 8972679
+              },
+              {
+                "milliseconds": 35.348749999999995,
+                "checksum": 8972679
+              },
+              {
+                "milliseconds": 32.907083,
+                "checksum": 8972679
+              }
+            ],
+            "lilscript": [
+              {
+                "milliseconds": 34.19004100000001,
+                "checksum": 8972679
+              },
+              {
+                "milliseconds": 34.840917000000005,
+                "checksum": 8972679
+              },
+              {
+                "milliseconds": 34.199042000000006,
+                "checksum": 8972679
+              },
+              {
+                "milliseconds": 34.65991699999999,
+                "checksum": 8972679
+              },
+              {
+                "milliseconds": 34.084959,
+                "checksum": 8972679
+              },
+              {
+                "milliseconds": 32.583,
+                "checksum": 8972679
+              },
+              {
+                "milliseconds": 34.787791,
+                "checksum": 8972679
+              },
+              {
+                "milliseconds": 34.59370799999999,
+                "checksum": 8972679
+              },
+              {
+                "milliseconds": 33.118583,
+                "checksum": 8972679
+              }
+            ]
+          },
+          "memory": {
+            "npm": [
+              {
+                "bytes": 310816,
+                "checksum": 1196400
+              },
+              {
+                "bytes": 310816,
+                "checksum": 1196400
+              },
+              {
+                "bytes": 310816,
+                "checksum": 1196400
+              },
+              {
+                "bytes": 310816,
+                "checksum": 1196400
+              },
+              {
+                "bytes": 310816,
+                "checksum": 1196400
+              },
+              {
+                "bytes": 310816,
+                "checksum": 1196400
+              },
+              {
+                "bytes": 310816,
+                "checksum": 1196400
+              },
+              {
+                "bytes": 310816,
+                "checksum": 1196400
+              },
+              {
+                "bytes": 310816,
+                "checksum": 1196400
+              }
+            ],
+            "lilscript": [
+              {
+                "bytes": 308776,
+                "checksum": 1196400
+              },
+              {
+                "bytes": 308776,
+                "checksum": 1196400
+              },
+              {
+                "bytes": 308776,
+                "checksum": 1196400
+              },
+              {
+                "bytes": 308776,
+                "checksum": 1196400
+              },
+              {
+                "bytes": 308776,
+                "checksum": 1196400
+              },
+              {
+                "bytes": 308776,
+                "checksum": 1196400
+              },
+              {
+                "bytes": 308776,
+                "checksum": 1196400
+              },
+              {
+                "bytes": 308776,
+                "checksum": 1196400
+              },
+              {
+                "bytes": 308776,
+                "checksum": 1196400
+              }
+            ]
+          }
+        }
+      },
+      "eligible": true,
+      "blockers": []
+    },
+    {
+      "id": "emotion-hash",
+      "title": "Emotion hash",
+      "scope": "Complete @emotion/hash root entrypoint",
+      "packages": [
+        {
+          "name": "@emotion/hash",
+          "version": "0.9.2"
+        }
+      ],
+      "monthlyDownloads": 122398176,
+      "translatedAssertions": 1,
+      "additionalAssertions": 7,
+      "expected": "emotion-hash:8:30831534",
+      "source": {
+        "npmApp": 714,
+        "lilscriptAppAndPort": 1685
+      },
+      "artifacts": [
+        {
+          "id": "vite",
+          "label": "Installed npm package + Vite",
+          "raw": 907,
+          "gzip": 498,
+          "brotli": 430,
+          "deploy": {
+            "raw": 1186,
+            "gzip": 716,
+            "brotli": 555
+          },
+          "files": [
+            "assets/index-DHXm0Jix.js",
+            "index.html"
+          ],
+          "medianMs": 12.7335
+        },
+        {
+          "id": "closure",
+          "label": "Installed npm package + Closure ADVANCED",
+          "raw": 924,
+          "gzip": 496,
+          "brotli": 434,
+          "deploy": {
+            "raw": 1110,
+            "gzip": 655,
+            "brotli": 520
+          },
+          "files": [
+            "app.js",
+            "index.html"
+          ],
+          "medianMs": 12.572875
+        },
+        {
+          "id": "lilscript",
+          "label": "LilScript port",
+          "raw": 759,
+          "gzip": 502,
+          "brotli": 431,
+          "deploy": {
+            "raw": 945,
+            "gzip": 661,
+            "brotli": 517
+          },
+          "files": [
+            "app.js",
+            "index.html"
+          ],
+          "medianMs": 12.634042,
+          "nativeVerified": true,
+          "cEmitted": true
+        }
+      ],
+      "surfaceArtifacts": [
+        {
+          "id": "vite",
+          "label": "Installed npm package + Vite library mode",
+          "files": [
+            "library.js"
+          ],
+          "raw": 833,
+          "gzip": 347,
+          "brotli": 330
+        },
+        {
+          "id": "closure",
+          "label": "Installed npm package + Closure ADVANCED public surface",
+          "raw": 594,
+          "gzip": 288,
+          "brotli": 240,
+          "files": [
+            "closure-library.js"
+          ]
+        },
+        {
+          "id": "lilscript",
+          "label": "LilScript reusable module",
+          "raw": 434,
+          "gzip": 271,
+          "brotli": 234,
+          "files": [
+            "emotion-hash.mjs"
+          ]
+        }
+      ],
+      "workload": {
+        "performance": {
+          "npmMs": 34.1115,
+          "lilscriptMs": 33.10229199999999,
+          "ratio": 0.9704144350145842
+        },
+        "retainedMemory": {
+          "npmBytes": 637488,
+          "lilscriptBytes": 638168,
+          "ratio": 1.001066686745476
+        },
+        "samples": {
+          "performance": {
+            "npm": [
+              {
+                "milliseconds": 34.584042,
+                "checksum": 11846355
+              },
+              {
+                "milliseconds": 33.373625000000004,
+                "checksum": 11846355
+              },
+              {
+                "milliseconds": 34.1115,
+                "checksum": 11846355
+              },
+              {
+                "milliseconds": 33.290915999999996,
+                "checksum": 11846355
+              },
+              {
+                "milliseconds": 33.192792,
+                "checksum": 11846355
+              },
+              {
+                "milliseconds": 33.07,
+                "checksum": 11846355
+              },
+              {
+                "milliseconds": 35.197167,
+                "checksum": 11846355
+              },
+              {
+                "milliseconds": 37.818625,
+                "checksum": 11846355
+              },
+              {
+                "milliseconds": 35.884166,
+                "checksum": 11846355
+              }
+            ],
+            "lilscript": [
+              {
+                "milliseconds": 33.10229199999999,
+                "checksum": 11846355
+              },
+              {
+                "milliseconds": 32.242875,
+                "checksum": 11846355
+              },
+              {
+                "milliseconds": 33.367875,
+                "checksum": 11846355
+              },
+              {
+                "milliseconds": 31.757249999999996,
+                "checksum": 11846355
+              },
+              {
+                "milliseconds": 32.473333,
+                "checksum": 11846355
+              },
+              {
+                "milliseconds": 32.033125,
+                "checksum": 11846355
+              },
+              {
+                "milliseconds": 36.131917,
+                "checksum": 11846355
+              },
+              {
+                "milliseconds": 36.383750000000006,
+                "checksum": 11846355
+              },
+              {
+                "milliseconds": 37.040167,
+                "checksum": 11846355
+              }
+            ]
+          },
+          "memory": {
+            "npm": [
+              {
+                "bytes": 637488,
+                "checksum": 1579031
+              },
+              {
+                "bytes": 637488,
+                "checksum": 1579031
+              },
+              {
+                "bytes": 637488,
+                "checksum": 1579031
+              },
+              {
+                "bytes": 637488,
+                "checksum": 1579031
+              },
+              {
+                "bytes": 637488,
+                "checksum": 1579031
+              },
+              {
+                "bytes": 637488,
+                "checksum": 1579031
+              },
+              {
+                "bytes": 637488,
+                "checksum": 1579031
+              },
+              {
+                "bytes": 637488,
+                "checksum": 1579031
+              },
+              {
+                "bytes": 637488,
+                "checksum": 1579031
+              }
+            ],
+            "lilscript": [
+              {
+                "bytes": 638168,
+                "checksum": 1579031
+              },
+              {
+                "bytes": 638168,
+                "checksum": 1579031
+              },
+              {
+                "bytes": 638168,
+                "checksum": 1579031
+              },
+              {
+                "bytes": 638168,
+                "checksum": 1579031
+              },
+              {
+                "bytes": 638168,
+                "checksum": 1579031
+              },
+              {
+                "bytes": 638168,
+                "checksum": 1579031
+              },
+              {
+                "bytes": 638168,
+                "checksum": 1579031
+              },
+              {
+                "bytes": 638168,
+                "checksum": 1579031
+              },
+              {
+                "bytes": 638168,
+                "checksum": 1579031
+              }
+            ]
+          }
+        }
+      },
+      "eligible": true,
+      "blockers": []
+    },
+    {
+      "id": "murmurhash-js",
+      "title": "MurmurHash 2 and 3",
+      "scope": "Complete murmurhash-js root entrypoint",
+      "packages": [
+        {
+          "name": "murmurhash-js",
+          "version": "1.0.0"
+        }
+      ],
+      "monthlyDownloads": 24364654,
+      "translatedAssertions": 0,
+      "additionalAssertions": 18,
+      "expected": "murmurhash-js:18:855861453",
+      "source": {
+        "npmApp": 1164,
+        "lilscriptAppAndPort": 3711
+      },
+      "artifacts": [
+        {
+          "id": "vite",
+          "label": "Installed npm package + Vite",
+          "raw": 2782,
+          "gzip": 1118,
+          "brotli": 992,
+          "deploy": {
+            "raw": 3062,
+            "gzip": 1340,
+            "brotli": 1131
+          },
+          "files": [
+            "assets/index-B9SN9_CL.js",
+            "index.html"
+          ],
+          "medianMs": 5.595208000000001
+        },
+        {
+          "id": "closure",
+          "label": "Installed npm package + Closure ADVANCED",
+          "raw": 2905,
+          "gzip": 1203,
+          "brotli": 1059,
+          "deploy": {
+            "raw": 3091,
+            "gzip": 1362,
+            "brotli": 1145
+          },
+          "files": [
+            "app.js",
+            "index.html"
+          ],
+          "medianMs": 5.457916999999998
+        },
+        {
+          "id": "lilscript",
+          "label": "LilScript port",
+          "raw": 1520,
+          "gzip": 719,
+          "brotli": 641,
+          "deploy": {
+            "raw": 1706,
+            "gzip": 878,
+            "brotli": 727
+          },
+          "files": [
+            "app.js",
+            "index.html"
+          ],
+          "medianMs": 5.041375000000002,
+          "nativeVerified": true,
+          "cEmitted": true
+        }
+      ],
+      "surfaceArtifacts": [
+        {
+          "id": "vite",
+          "label": "Installed npm package + Vite library mode",
+          "files": [
+            "library.js"
+          ],
+          "raw": 3131,
+          "gzip": 1027,
+          "brotli": 902
+        },
+        {
+          "id": "closure",
+          "label": "Installed npm package + Closure ADVANCED public surface",
+          "raw": 2446,
+          "gzip": 957,
+          "brotli": 833,
+          "files": [
+            "closure-library.js"
+          ]
+        },
+        {
+          "id": "lilscript",
+          "label": "LilScript reusable module",
+          "raw": 1015,
+          "gzip": 461,
+          "brotli": 414,
+          "files": [
+            "murmurhash-js.mjs"
+          ]
+        }
+      ],
+      "workload": {
+        "performance": {
+          "npmMs": 21.092042,
+          "lilscriptMs": 18.572457999999997,
+          "ratio": 0.8805433821912548
+        },
+        "retainedMemory": {
+          "npmBytes": 317640,
+          "lilscriptBytes": 291648,
+          "ratio": 0.9181715149225539
+        },
+        "samples": {
+          "performance": {
+            "npm": [
+              {
+                "milliseconds": 21.359541,
+                "checksum": 515948007836551
+              },
+              {
+                "milliseconds": 21.597917,
+                "checksum": 515948007836551
+              },
+              {
+                "milliseconds": 21.057,
+                "checksum": 515948007836551
+              },
+              {
+                "milliseconds": 21.559959,
+                "checksum": 515948007836551
+              },
+              {
+                "milliseconds": 22.085917,
+                "checksum": 515948007836551
+              },
+              {
+                "milliseconds": 21.073415999999998,
+                "checksum": 515948007836551
+              },
+              {
+                "milliseconds": 21.092042,
+                "checksum": 515948007836551
+              },
+              {
+                "milliseconds": 20.942040999999996,
+                "checksum": 515948007836551
+              },
+              {
+                "milliseconds": 21.013417,
+                "checksum": 515948007836551
+              }
+            ],
+            "lilscript": [
+              {
+                "milliseconds": 19.056124999999998,
+                "checksum": 515948007836551
+              },
+              {
+                "milliseconds": 19.059374999999996,
+                "checksum": 515948007836551
+              },
+              {
+                "milliseconds": 18.715834000000005,
+                "checksum": 515948007836551
+              },
+              {
+                "milliseconds": 19.158541,
+                "checksum": 515948007836551
+              },
+              {
+                "milliseconds": 18.453875,
+                "checksum": 515948007836551
+              },
+              {
+                "milliseconds": 18.572457999999997,
+                "checksum": 515948007836551
+              },
+              {
+                "milliseconds": 18.307916999999996,
+                "checksum": 515948007836551
+              },
+              {
+                "milliseconds": 18.567,
+                "checksum": 515948007836551
+              },
+              {
+                "milliseconds": 18.498542,
+                "checksum": 515948007836551
+              }
+            ]
+          },
+          "memory": {
+            "npm": [
+              {
+                "bytes": 317640,
+                "checksum": 86025209636231
+              },
+              {
+                "bytes": 317640,
+                "checksum": 86025209636231
+              },
+              {
+                "bytes": 317640,
+                "checksum": 86025209636231
+              },
+              {
+                "bytes": 317640,
+                "checksum": 86025209636231
+              },
+              {
+                "bytes": 317640,
+                "checksum": 86025209636231
+              },
+              {
+                "bytes": 317640,
+                "checksum": 86025209636231
+              },
+              {
+                "bytes": 317640,
+                "checksum": 86025209636231
+              },
+              {
+                "bytes": 317640,
+                "checksum": 86025209636231
+              },
+              {
+                "bytes": 317640,
+                "checksum": 86025209636231
+              }
+            ],
+            "lilscript": [
+              {
+                "bytes": 290792,
+                "checksum": 86025209636231
+              },
+              {
+                "bytes": 290792,
+                "checksum": 86025209636231
+              },
+              {
+                "bytes": 291648,
+                "checksum": 86025209636231
+              },
+              {
+                "bytes": 291648,
+                "checksum": 86025209636231
+              },
+              {
+                "bytes": 291400,
+                "checksum": 86025209636231
+              },
+              {
+                "bytes": 290792,
+                "checksum": 86025209636231
+              },
+              {
+                "bytes": 291648,
+                "checksum": 86025209636231
+              },
+              {
+                "bytes": 304208,
+                "checksum": 86025209636231
+              },
+              {
+                "bytes": 304456,
+                "checksum": 86025209636231
+              }
+            ]
+          }
+        }
+      },
+      "eligible": true,
+      "blockers": []
+    },
+    {
+      "id": "robust-predicates",
+      "title": "Robust geometric predicates",
+      "scope": "Complete robust-predicates root entrypoint",
+      "packages": [
+        {
+          "name": "robust-predicates",
+          "version": "3.0.3"
+        }
+      ],
+      "monthlyDownloads": 101525533,
+      "translatedAssertions": 23798,
+      "additionalAssertions": 320016,
+      "expected": "robust-predicates:8",
+      "source": {
+        "npmApp": 919,
+        "lilscriptAppAndPort": 80021
+      },
+      "artifacts": [
+        {
+          "id": "vite",
+          "label": "Installed npm package + Vite",
+          "raw": 24227,
+          "gzip": 7463,
+          "brotli": 5960,
+          "deploy": {
+            "raw": 24347,
+            "gzip": 7584,
+            "brotli": 6037
+          },
+          "files": [
+            "assets/index-DEXxA7Qh.js",
+            "index.html"
+          ],
+          "medianMs": 0.9417909999999985
+        },
+        {
+          "id": "closure",
+          "label": "Installed npm package + Closure ADVANCED",
+          "raw": 25369,
+          "gzip": 7920,
+          "brotli": 6230,
+          "deploy": {
+            "raw": 25555,
+            "gzip": 8079,
+            "brotli": 6316
+          },
+          "files": [
+            "app.js",
+            "index.html"
+          ],
+          "medianMs": 1.1677089999999986
+        },
+        {
+          "id": "lilscript",
+          "label": "LilScript port",
+          "raw": 1213,
+          "gzip": 495,
+          "brotli": 411,
+          "deploy": {
+            "raw": 1399,
+            "gzip": 654,
+            "brotli": 497
+          },
+          "files": [
+            "app.js",
+            "index.html"
+          ],
+          "medianMs": 0.23537500000000122,
+          "nativeVerified": true,
+          "cEmitted": true
+        }
+      ],
+      "surfaceArtifacts": [
+        {
+          "id": "vite",
+          "label": "Installed npm package + Vite library mode",
+          "files": [
+            "library.js"
+          ],
+          "raw": 38722,
+          "gzip": 8365,
+          "brotli": 6456
+        },
+        {
+          "id": "closure",
+          "label": "Installed npm package + Closure ADVANCED public surface",
+          "raw": 25208,
+          "gzip": 7933,
+          "brotli": 6228,
+          "files": [
+            "closure-library.js"
+          ]
+        },
+        {
+          "id": "lilscript",
+          "label": "LilScript reusable module",
+          "raw": 22347,
+          "gzip": 8045,
+          "brotli": 6192,
+          "files": [
+            "robust-predicates.mjs"
+          ]
+        }
+      ],
+      "workload": {
+        "performance": {
+          "npmMs": 7.988416999999998,
+          "lilscriptMs": 7.9361250000000005,
+          "ratio": 0.9934540222424546
+        },
+        "retainedMemory": {
+          "npmBytes": 253552,
+          "lilscriptBytes": 253648,
+          "ratio": 1.0003786205590963
+        },
+        "samples": {
+          "performance": {
+            "npm": [
+              {
+                "milliseconds": 7.988416999999998,
+                "checksum": -1.5396175464704752e+201
+              },
+              {
+                "milliseconds": 8.330082999999998,
+                "checksum": -1.5396175464704752e+201
+              },
+              {
+                "milliseconds": 8.180041,
+                "checksum": -1.5396175464704752e+201
+              },
+              {
+                "milliseconds": 7.678708,
+                "checksum": -1.5396175464704752e+201
+              },
+              {
+                "milliseconds": 7.8942499999999995,
+                "checksum": -1.5396175464704752e+201
+              },
+              {
+                "milliseconds": 8.041250000000002,
+                "checksum": -1.5396175464704752e+201
+              },
+              {
+                "milliseconds": 8.299917,
+                "checksum": -1.5396175464704752e+201
+              },
+              {
+                "milliseconds": 7.758875000000003,
+                "checksum": -1.5396175464704752e+201
+              },
+              {
+                "milliseconds": 7.885124999999999,
+                "checksum": -1.5396175464704752e+201
+              }
+            ],
+            "lilscript": [
+              {
+                "milliseconds": 7.665333999999998,
+                "checksum": -1.5396175464704752e+201
+              },
+              {
+                "milliseconds": 9.369458000000002,
+                "checksum": -1.5396175464704752e+201
+              },
+              {
+                "milliseconds": 8.055125,
+                "checksum": -1.5396175464704752e+201
+              },
+              {
+                "milliseconds": 7.540792,
+                "checksum": -1.5396175464704752e+201
+              },
+              {
+                "milliseconds": 7.927875,
+                "checksum": -1.5396175464704752e+201
+              },
+              {
+                "milliseconds": 7.8707910000000005,
+                "checksum": -1.5396175464704752e+201
+              },
+              {
+                "milliseconds": 7.9361250000000005,
+                "checksum": -1.5396175464704752e+201
+              },
+              {
+                "milliseconds": 8.254541999999997,
+                "checksum": -1.5396175464704752e+201
+              },
+              {
+                "milliseconds": 8.114916000000001,
+                "checksum": -1.5396175464704752e+201
+              }
+            ]
+          },
+          "memory": {
+            "npm": [
+              {
+                "bytes": 253552,
+                "checksum": -4.855849401386642e+200
+              },
+              {
+                "bytes": 253552,
+                "checksum": -4.855849401386642e+200
+              },
+              {
+                "bytes": 253552,
+                "checksum": -4.855849401386642e+200
+              },
+              {
+                "bytes": 253552,
+                "checksum": -4.855849401386642e+200
+              },
+              {
+                "bytes": 253552,
+                "checksum": -4.855849401386642e+200
+              },
+              {
+                "bytes": 253552,
+                "checksum": -4.855849401386642e+200
+              },
+              {
+                "bytes": 253552,
+                "checksum": -4.855849401386642e+200
+              },
+              {
+                "bytes": 253552,
+                "checksum": -4.855849401386642e+200
+              },
+              {
+                "bytes": 253552,
+                "checksum": -4.855849401386642e+200
+              }
+            ],
+            "lilscript": [
+              {
+                "bytes": 253648,
+                "checksum": -4.855849401386642e+200
+              },
+              {
+                "bytes": 253648,
+                "checksum": -4.855849401386642e+200
+              },
+              {
+                "bytes": 253648,
+                "checksum": -4.855849401386642e+200
+              },
+              {
+                "bytes": 253648,
+                "checksum": -4.855849401386642e+200
+              },
+              {
+                "bytes": 253648,
+                "checksum": -4.855849401386642e+200
+              },
+              {
+                "bytes": 253648,
+                "checksum": -4.855849401386642e+200
+              },
+              {
+                "bytes": 253648,
+                "checksum": -4.855849401386642e+200
+              },
+              {
+                "bytes": 253648,
+                "checksum": -4.855849401386642e+200
+              },
+              {
+                "bytes": 253648,
+                "checksum": -4.855849401386642e+200
+              }
+            ]
+          }
+        }
+      },
+      "eligible": true,
+      "blockers": []
     }
   ],
   "auditedButIneligible": [
     {
       "package": "motion",
       "version": "13.0.0",
-      "reason": "The 312-export root and DOM animation engine are not implemented; it remains context-only in the application lab."
-    },
-    {
-      "package": "mitt",
-      "version": "3.0.1",
-      "reason": "Exact compatibility requires symbol event keys, wildcard payload unions, and the public handler Map contract."
+      "reason": "None of the seven published runtime entrypoints are implemented (1,028 entrypoint bindings / 546 unique names, including the 312-export root, DOM engine, and React surfaces); it remains context-only in the application lab."
     },
     {
       "package": "nanoid",
       "version": "6.0.1",
-      "reason": "The complete package requires secure host randomness, custom random byte generators, CLI behavior, and string character extraction."
-    },
-    {
-      "package": "clsx",
-      "version": "2.1.1",
-      "reason": "Its API is recursive variadic unknown input over arrays and dynamic object keys."
+      "reason": "The 6.0.1 package's conditioned root (five runtime exports with the pooled Node/Buffer algorithm) and two-export non-secure entrypoint remain unimplemented. The separate popular-library lab has an exact eligible port of the distinct nanoid 5.1.5 index.browser.js entrypoint only.",
+      "runtimeAudit": {
+        "auditedAt": "2026-08-09",
+        "installedVersion": "6.0.1",
+        "packageRuntimeExportKeys": [
+          ".",
+          "./non-secure"
+        ],
+        "auditedEntrypoints": [
+          {
+            "specifier": "nanoid",
+            "runtimeExports": 5,
+            "implementedRuntimeExports": 0,
+            "exportNameSha256": "248a1b8e8b81a85ad06742fbc91d96e6a05ee26eadae8ca37761dcac6bee4da1",
+            "runtimeExportNames": [
+              "customAlphabet",
+              "customRandom",
+              "nanoid",
+              "random",
+              "urlAlphabet"
+            ]
+          },
+          {
+            "specifier": "nanoid/non-secure",
+            "runtimeExports": 2,
+            "implementedRuntimeExports": 0,
+            "exportNameSha256": "45384a5fd63404403d00f6ee5b546f7c8430507e350b15b40026fafd092bddeb",
+            "runtimeExportNames": [
+              "customAlphabet",
+              "nanoid"
+            ]
+          }
+        ]
+      }
     },
     {
       "package": "yocto-queue",
       "version": "1.2.2",
-      "reason": "Its public API includes getters and Symbol.iterator semantics."
-    },
-    {
-      "package": "robust-predicates",
-      "version": "3.0.3",
-      "reason": "Its eight-function robust geometry root is audited as a high-value next port, but the 2,300-line adaptive expansion implementation is not yet rewritten or compatibility-gated."
+      "reason": "Its default class must preserve arbitrary JavaScript values and undefined, private non-enumerable linked-node state, enqueue/dequeue/peek/clear, the size getter, a live Symbol.iterator generator, and destructive drain generator. LilScript lacks exported private-field ABI and generator/yield support; a wrapper would add a second queue object and change allocations, so no size row is eligible.",
+      "runtimeAudit": {
+        "auditedAt": "2026-08-09",
+        "installedVersion": "1.2.2",
+        "packageRuntimeExportKeys": [
+          "."
+        ],
+        "auditedEntrypoints": [
+          {
+            "specifier": "yocto-queue",
+            "runtimeExports": 1,
+            "implementedRuntimeExports": 0,
+            "exportNameSha256": "37a8eec1ce19687d132fe29051dca629d164e2c4958ba141d5f4133a33f0688f",
+            "runtimeExportNames": [
+              "default"
+            ]
+          }
+        ]
+      }
     }
   ]
 }
