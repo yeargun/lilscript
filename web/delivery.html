@@ -34,6 +34,7 @@
           <button id="strategy-static" class="strategy-tab active" type="button" role="tab" aria-selected="true" aria-controls="panel-static" data-strategy="static">Static dependency</button>
           <button id="strategy-phase" class="strategy-tab" type="button" role="tab" aria-selected="false" aria-controls="panel-phase" data-strategy="phase">Activation split</button>
           <button id="strategy-extract" class="strategy-tab" type="button" role="tab" aria-selected="false" aria-controls="panel-extract" data-strategy="extract">Critical extraction</button>
+          <button id="strategy-capsule" class="strategy-tab" type="button" role="tab" aria-selected="false" aria-controls="panel-capsule" data-strategy="capsule">Capsule runtime</button>
         </div>
 
         <div class="strategy-panel" id="panel-static" role="tabpanel" aria-labelledby="strategy-static" data-strategy-panel="static">
@@ -95,6 +96,61 @@
           <div class="strategy-verdict allowed-verdict"><strong>Best default for truly critical work.</strong><p>Extract Module 3 into a dependency-closed critical entry or inline bootstrap. A and B may preserve ordinary static ESM semantics while critical rendering or event capture proceeds independently.</p></div>
           <ol class="delivery-timeline"><li><span>1</span><p><b>HTML renders</b><small>Useful markup exists without application JS.</small></p></li><li><span>2</span><p><b>Critical entry runs</b><small>Module 3 has no later-phase dependency.</small></p></li><li><span>3</span><p><b>A and B load</b><small>The browser resolves their normal graph.</small></p></li><li><span>4</span><p><b>Enhancement attaches</b><small>Existing UI upgrades without replacement.</small></p></li></ol>
         </div>
+
+        <div class="strategy-panel" id="panel-capsule" role="tabpanel" aria-labelledby="strategy-capsule" data-strategy-panel="capsule" hidden>
+          <div class="chunk-graph capsule-graph">
+            <article class="chunk-card chunk-a">
+              <header><span>Fetched at t0</span><h3>Capsule A</h3></header>
+              <div class="module-chip deferred-module"><b>Module 1 factory</b><small>registered; waits for Module 5</small></div>
+              <div class="module-chip deferred-module"><b>Module 2 factory</b><small>registered; waits for Module 1</small></div>
+              <div class="module-chip critical-module"><b>Module 3 factory</b><small>registered and immediately runnable</small></div>
+            </article>
+            <div class="dependency-bridge allowed"><span>HTML plan starts both</span><b aria-hidden="true">⇉</b><small>no discovery waterfall</small></div>
+            <article class="chunk-card chunk-b">
+              <header><span>Fetched at t0</span><h3>Capsule B</h3></header>
+              <div class="module-chip dependency-module"><b>Module 5 factory</b><small>unlocks Module 1</small></div>
+              <div class="module-chip"><b>Module 7 factory</b><small>inert until activated</small></div>
+              <div class="module-chip"><b>Module 8 factory</b><small>inert until activated</small></div>
+            </article>
+          </div>
+          <div class="strategy-verdict capsule-verdict"><strong>This satisfies the desired flow—with a phase contract.</strong><p>Capsule A has no native static edge to B: evaluating its wrapper only registers inert factories. When LilScript can prove or was explicitly told that Module 3 may precede the other effects, the scheduler runs it while B is already in flight, then executes Module 5 → Module 1 → Module 2.</p></div>
+          <ol class="delivery-timeline"><li><span>1</span><p><b>Discover A + B</b><small>HTML starts both requests.</small></p></li><li><span>2</span><p><b>A registers</b><small>No source module effect runs yet.</small></p></li><li><span>3</span><p><b>Execute Module 3</b><small>Its closure is ready.</small></p></li><li><span>4</span><p><b>B registers; continue</b><small>Run the newly ready dependency chain.</small></p></li></ol>
+        </div>
+      </section>
+
+      <section class="delivery-section waterfall-section" aria-labelledby="waterfall-title">
+        <header class="delivery-section-header"><div><p class="eyebrow">Remove the lost round trip</p><h2 id="waterfall-title">Download early. Register safely. Execute by readiness.</h2></div><p>The extra latency is usually a discovery waterfall: B’s URL is learned only after A arrives and runs. Put the generated transfer plan in HTML so both requests begin at <code>t0</code>, without granting B permission to activate early.</p></header>
+        <div class="waterfall-comparison">
+          <article class="serial-flow"><span>Serial discovery</span><div class="flow-track"><b>HTML</b><i></i><b>fetch A</b><i></i><b>run A</b><i class="lost-rtt"></i><b>fetch B</b><i></i><b>continue</b></div><p>B begins one network round trip too late.</p></article>
+          <article class="parallel-flow"><span>Generated transfer plan</span><div class="flow-lanes"><div><b>A · high priority</b><i></i><em>register → run M3</em></div><div><b>B · warm in parallel</b><i></i><em>register → unlock M1</em></div></div><p>Transfer overlaps; semantic execution order remains gated.</p></article>
+        </div>
+        <div class="capsule-layout">
+          <div class="delivery-code-card capsule-code-card">
+            <header><span>generated in HTML</span><span>simplified</span></header>
+            <pre><code>&lt;link rel="modulepreload" href="/a.cap.js"&gt;
+&lt;link rel="modulepreload" href="/b.cap.js"&gt;
+
+&lt;script type="module"&gt;
+  const aReady = import("/a.cap.js");
+  const bReady = import("/b.cap.js");
+
+  const A = await aReady;
+  A.register(L);       // definitions only
+  await L.run(3);      // critical closure ready
+
+  const B = await bReady;
+  B.register(L);
+  await L.run([1, 2]); // M5 → M1 → M2
+&lt;/script&gt;</code></pre>
+          </div>
+          <div class="capsule-contracts">
+            <article><span>Transfer</span><h3>HTML exposes every known URL</h3><p>Direct <code>modulepreload</code> declarations remove dependency discovery RTT. A can receive high priority while B warms concurrently.</p></article>
+            <article><span>Registration</span><h3>Capsules are inert ESM wrappers</h3><p>No <code>eval</code>. Importing a capsule creates factory definitions and export cells, but user-visible module effects remain unexecuted.</p></article>
+            <article><span>Activation</span><h3>The scheduler runs ready closures</h3><p>Module 3 executes as soon as A registers. Modules 1–2 remain blocked until Module 5 exists and the required evaluation order is legal.</p></article>
+            <article><span>Policy</span><h3>Bytes versus latency stays explicit</h3><p>If B may never be needed, warming it spends bytes. LilScript can choose immediate, intent, visible, idle, or manual transfer separately from activation.</p></article>
+          </div>
+        </div>
+        <div class="capsule-warning"><strong>The cost is real—but bounded.</strong><p>The compiler must first prove that the reordered effects are independent or require an explicit phase declaration; it cannot silently change ordinary module ordering. The runtime must implement live-binding cells, once-only effects, cycle/SCC ordering, failure propagation, cancellation, and perhaps top-level-await state. Capsules should therefore be an opt-in browser delivery backend, with native ESM retained for ordinary graphs. The benchmark must include scheduler and registration-wrapper bytes.</p></div>
       </section>
 
       <section class="delivery-section" aria-labelledby="axes-title">
@@ -185,18 +241,19 @@
       </section>
 
       <section class="delivery-section" aria-labelledby="orchestrator-title">
-        <header class="delivery-section-header"><div><p class="eyebrow">Generated orchestrator</p><h2 id="orchestrator-title">A small coordinator, not a second module loader</h2></div><p>The browser should keep fetching, caching, linking, and evaluating ESM. LilScript’s runtime should only schedule activation and connect progressive HTML to typed features.</p></header>
+        <header class="delivery-section-header"><div><p class="eyebrow">Generated orchestrator</p><h2 id="orchestrator-title">A tiny phase linker can be worth its bytes</h2></div><p>The browser still fetches and caches ordinary ESM capsule files. Inside those files, LilScript can take responsibility for source-module registration and readiness-ordered execution when that removes a measured waterfall.</p></header>
         <div class="orchestrator-stack" aria-label="Proposed browser orchestration layers">
           <article class="stack-html"><span>Layer 0 · always</span><h3>Semantic HTML and CSS</h3><p>Content, forms, links, and essential actions work before enhancement. Build/server output owns critical markup and preload declarations.</p></article>
-          <article class="stack-core"><span>Layer 1 · generated</span><h3>Per-app activation core</h3><p>Event delegation, intent capture, dynamic import scheduling, cancellation, build-id checks, and normalized load failure signals. Tree-shaken to only used policies.</p></article>
-          <article class="stack-features"><span>Layer 2 · on demand</span><h3>Typed feature chunks</h3><p>Critical, interaction, visible, idle, and manual activation groups with exact dependency and capability manifests.</p></article>
+          <article class="stack-core"><span>Layer 1 · generated</span><h3>Per-app phase linker</h3><p>Factory registry, live-binding cells, dependency readiness, event delegation, import scheduling, cancellation, and failure signals. Tree-shaken to only used semantics.</p></article>
+          <article class="stack-features"><span>Layer 2 · on demand</span><h3>Typed capsule or ESM chunks</h3><p>Native ESM for simple graphs; inert registration capsules for critical, interaction, visible, idle, and manual activation groups.</p></article>
           <article class="stack-offline"><span>Layer 3 · optional</span><h3>Offline/cache worker</h3><p>Versioned Service Worker only when offline or background behavior is requested. It is not required for ordinary HTTP caching.</p></article>
         </div>
         <div class="tradeoff-grid">
           <article><h3>Inline core</h3><p><strong>Wins:</strong> immediate discovery and no request. <strong>Costs:</strong> repeated HTML bytes, CSP nonce/hash handling, and no independent cache.</p></article>
           <article><h3>External core</h3><p><strong>Wins:</strong> long-lived cache and shared pages. <strong>Costs:</strong> another discovery edge unless preloaded, plus version coordination.</p></article>
-          <article><h3>Generated hybrid</h3><p><strong>Recommendation:</strong> inline the minimal phase manifest or intent bridge; keep reusable scheduling machinery in a content-addressed module when measurement pays for it.</p></article>
+          <article><h3>Generated hybrid</h3><p><strong>Recommendation:</strong> inline the minimal transfer plan and critical scheduler; keep reusable live-binding and cycle machinery in a content-addressed module when the selected graph requires it.</p></article>
         </div>
+        <div class="backend-choice"><span>Per-build choice</span><p><strong>Native ESM backend:</strong> nearly zero runtime, best for ordinary static and dynamic graphs. <strong>Capsule backend:</strong> pays a small phase-linker cost to decouple response arrival from source-module execution and remove critical discovery waterfalls.</p></div>
       </section>
 
       <section class="delivery-section cache-section" aria-labelledby="cache-title">
@@ -232,7 +289,7 @@
           <li><span>01</span><div><h3>Model activation groups in IR</h3><p>Track critical, interactive, visible, idle, and manual closures independently from source folders and output chunks.</p></div></li>
           <li><span>02</span><div><h3>Generalize chunks to arbitrary ownership sets</h3><p>Permit several modules or selected functions per chunk, while carrying origin, side effects, identity, and cross-phase constraints.</p></div></li>
           <li><span>03</span><div><h3>Emit a delivery manifest for HTML/server use</h3><p>Critical modulepreloads should be discovered in HTML, not injected only after the entry script begins executing.</p></div></li>
-          <li><span>04</span><div><h3>Generate only the orchestration used</h3><p>No runtime for a static page; a small scheduler for deferred features; a Service Worker only for explicit offline requirements.</p></div></li>
+          <li><span>04</span><div><h3>Generate only the orchestration used</h3><p>No runtime for a static page; native ESM for ordinary graphs; a measured capsule linker for phase-critical graphs; a Service Worker only for explicit offline requirements.</p></div></li>
           <li><span>05</span><div><h3>Benchmark dependency conflicts</h3><p>Add this exact A→B scenario, route transitions, slow networks, cache-warm revisits, deployment churn, and failure recovery against Vite/Rolldown and Closure chunk output.</p></div></li>
         </ol>
         <div class="delivery-status">

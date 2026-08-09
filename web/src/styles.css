@@ -2034,6 +2034,11 @@ tbody tr:last-child td {
   background: #edf7f2;
 }
 
+.capsule-verdict {
+  border-color: var(--blue);
+  background: #edf5fa;
+}
+
 .delivery-timeline {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -2083,6 +2088,167 @@ tbody tr:last-child td {
 
 .delivery-timeline b { font-size: 11px; }
 .delivery-timeline small { margin-top: 4px; color: var(--muted); font-size: 9px; line-height: 1.4; }
+
+.waterfall-comparison {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 31px;
+}
+
+.waterfall-comparison > article {
+  min-width: 0;
+  padding: 21px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+}
+
+.waterfall-comparison > article > span {
+  color: var(--blue);
+  font-size: 10px;
+  font-weight: 780;
+  text-transform: uppercase;
+}
+
+.waterfall-comparison > article > p {
+  margin: 18px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.flow-track {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  margin-top: 25px;
+}
+
+.flow-track b {
+  flex: 0 0 auto;
+  padding: 7px 8px;
+  border-radius: 3px;
+  background: #e8edeb;
+  font-size: 9px;
+}
+
+.flow-track i {
+  min-width: 10px;
+  height: 2px;
+  flex: 1;
+  background: #aebbb5;
+}
+
+.flow-track i.lost-rtt {
+  height: 5px;
+  background: repeating-linear-gradient(90deg, var(--red) 0 5px, transparent 5px 9px);
+}
+
+.flow-lanes {
+  display: grid;
+  gap: 9px;
+  margin-top: 21px;
+}
+
+.flow-lanes > div {
+  display: grid;
+  grid-template-columns: 125px minmax(25px, 1fr) minmax(110px, auto);
+  gap: 8px;
+  align-items: center;
+}
+
+.flow-lanes b,
+.flow-lanes em {
+  font-size: 9px;
+  font-style: normal;
+}
+
+.flow-lanes i {
+  height: 5px;
+  border-radius: 4px;
+  background: var(--green);
+}
+
+.flow-lanes > div:last-child i {
+  background: #e2bd69;
+}
+
+.flow-lanes em {
+  color: var(--muted);
+}
+
+.capsule-layout {
+  display: grid;
+  grid-template-columns: minmax(390px, 0.92fr) minmax(0, 1.08fr);
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.capsule-contracts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.capsule-contracts article {
+  padding: 18px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+}
+
+.capsule-contracts article > span {
+  color: var(--blue);
+  font-size: 9px;
+  font-weight: 780;
+  text-transform: uppercase;
+}
+
+.capsule-contracts h3 {
+  margin: 26px 0 0;
+  font-size: 15px;
+}
+
+.capsule-contracts p {
+  margin: 9px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.capsule-warning,
+.backend-choice {
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  gap: 24px;
+  margin-top: 14px;
+  padding: 17px 19px;
+  border-left: 3px solid var(--yellow);
+  background: #fff8e8;
+}
+
+.capsule-warning strong,
+.backend-choice span {
+  color: #725111;
+  font-size: 12px;
+  font-weight: 780;
+}
+
+.capsule-warning p,
+.backend-choice p {
+  margin: 0;
+  color: #5c5c51;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.backend-choice {
+  border-color: var(--green);
+  background: #edf7f2;
+}
+
+.backend-choice span {
+  color: var(--green-dark);
+  text-transform: uppercase;
+}
 
 .delivery-axis-grid,
 .target-boundary-grid {
@@ -2620,7 +2786,10 @@ tbody tr:last-child td {
   .phase-rule,
   .injection-invariants,
   .primitive-layout,
-  .manual-layout {
+  .manual-layout,
+  .capsule-layout,
+  .capsule-warning,
+  .backend-choice {
     grid-template-columns: 1fr;
   }
 
@@ -2658,7 +2827,8 @@ tbody tr:last-child td {
   .target-boundary-grid,
   .tradeoff-grid,
   .manual-rules,
-  .delivery-status {
+  .delivery-status,
+  .waterfall-comparison {
     grid-template-columns: 1fr;
   }
 
@@ -2691,7 +2861,35 @@ tbody tr:last-child td {
   .cache-plan,
   .scenario-score-grid,
   .source-link-grid,
-  .manual-policy-grid {
+  .manual-policy-grid,
+  .capsule-contracts {
+    grid-template-columns: 1fr;
+  }
+
+  .flow-track {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .flow-track i {
+    width: 2px;
+    min-width: 0;
+    height: 13px;
+    margin-left: 18px;
+    flex: 0 0 auto;
+  }
+
+  .flow-track i.lost-rtt {
+    width: 5px;
+    height: 18px;
+    background: repeating-linear-gradient(180deg, var(--red) 0 5px, transparent 5px 9px);
+  }
+
+  .flow-track b {
+    align-self: flex-start;
+  }
+
+  .flow-lanes > div {
     grid-template-columns: 1fr;
   }
 

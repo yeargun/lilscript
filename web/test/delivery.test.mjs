@@ -12,6 +12,7 @@ test("delivery architecture is a production entry with accessible strategy panel
   assert.match(delivery, /data-strategy-panel="static"/);
   assert.match(delivery, /data-strategy-panel="phase"/);
   assert.match(delivery, /data-strategy-panel="extract"/);
+  assert.match(delivery, /data-strategy-panel="capsule"/);
   assert.match(delivery, /role="tablist"/);
   assert.match(script, /aria-selected/);
   assert.match(script, /ArrowLeft/);
@@ -29,6 +30,10 @@ test("delivery page states dependency, injection, cache, and multi-target bounda
   assert.match(delivery, /Folders are useful affinity/);
   assert.match(delivery, /Manual constraints are essential/);
   assert.match(delivery, /ActivationGraph → OwnershipPlan → TransferPlan → Emission/);
+  assert.match(delivery, /Download early\. Register safely\. Execute by readiness\./);
+  assert.match(delivery, /Capsule A has no native static edge to B/);
+  assert.match(delivery, /No <code>eval<\/code>/);
+  assert.match(delivery, /benchmark must include scheduler and registration-wrapper bytes/);
 });
 
 test("every primary page links to the delivery architecture", async () => {
