@@ -1,0 +1,25 @@
+import { isFunction } from "../var/isFunction";
+import { isWindow } from "../var/isWindow";
+import { toType } from "../core/toType";
+import { camelCase } from "../core/camelCase";
+import { nodeName } from "../core/nodeName";
+import { stripAndCollapse } from "../core/stripAndCollapse";
+import { class2type } from "../var/class2type";
+
+string[] typeNames = [
+  "Boolean",
+  "Number",
+  "String",
+  "Function",
+  "Array",
+  "Date",
+  "RegExp",
+  "Object",
+  "Error",
+  "Symbol"
+];
+typeNames.forEach((string n) => {
+  class2type["[object " + n + "]"] = n.toLowerCase();
+});
+
+export { isFunction, isWindow, toType, camelCase, nodeName, stripAndCollapse };

@@ -1,0 +1,38 @@
+[javascript]
+priority = "size-first"
+optimization_level = 15
+cost_model = "brotli"
+assume_pristine_builtins = true
+strip_console = true
+local_name_reserve = 8
+candidate_search = "off"
+compression = [
+  "identifier-mangling",
+  "entropy-aware-mangling",
+  "quote-style-selection",
+  "property-mangling",
+  "string-pooling",
+  "size-aware-inlining",
+  "safe-integer-coercion-elision",
+  "compact-boolean-literals",
+  "standard-grammar-elision",
+  "structured-closure-inlining",
+  "pure-helper-inlining",
+  "dense-string-return-tables",
+  "host-alias-spelling",
+  "string-array-packing",
+  "regex-literals",
+  "unused-catch-binding-elision",
+  "compact-generator-star",
+  "callee-default-arguments",
+  "scalar-phi-copies",
+  "phi-affinity-coalescing",
+  "loop-spelling-selection",
+  "mutation-spelling-selection",
+  "joint-representation-search",
+]
+
+[mangle]
+identifiers = true
+properties = true
+exports = false

@@ -39,6 +39,10 @@ state visible until the same generated report proves otherwise.
 6. **Scale behavior and runtime.** Run upstream-style selector/traversal/ajax/effects/
    global tests in a browser and add representative parse/startup, hot operations,
    allocation, and retained-memory non-inferiority gates.
+7. **Grow bottom-up layers.** Extract the matching jQuery 3.7.1 `src` files for one
+   dependency-closed slice, compile the LilScript entry for that slice, and refuse to
+   grow until compiler-selected Brotli is `<=` the best minified JS extract. Harness:
+   `benchmarks/popular/jquery-layers/`. Ladder starts at `utilities`.
 
 ## Exit criteria
 
