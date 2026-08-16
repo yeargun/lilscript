@@ -507,6 +507,7 @@ static inline LilScriptString lilscript_json_record(LilScriptMap m){LilScriptJso
                                 | Intrinsic::JsStringify
                                 | Intrinsic::JsNumber
                                 | Intrinsic::JsAdd
+                                | Intrinsic::JsMod
                                 | Intrinsic::JsLessThan
                                 | Intrinsic::JsLessThanOrEqual
                                 | Intrinsic::JsGreaterThan

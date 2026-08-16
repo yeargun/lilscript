@@ -8,6 +8,7 @@ Parent: [Language](README.md). Related: [types](types-not-glue.md), [escape](bou
 |---|---|---|---|
 | `struct` | Positional value | Field **indexes** in IR | Scalar-replace if `LocalOnly`; else positional array or boundary object |
 | `class` | Nominal reference, `init`, methods | Indexes internally | Devirtualize methods; dissolve if `LocalOnly`; no virtual dispatch |
+| `object` | Closed public singleton | **ABI keys**; bodies are private functions | Nest/anonymize/fold implementations; never mangle keys unless `mangle.exports` |
 | `Record<T>` | Open homogeneous map | **String keys are data** | Never mangled; reads are `T?` |
 | `extern class` | Host interface | Exact ABI names | Never mangled; never constructed |
 

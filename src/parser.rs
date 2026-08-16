@@ -318,7 +318,14 @@ impl<'arena, 'src> Parser<'arena, 'src> {
             if declared_pure || is_async || is_generator {
                 return Err(self.error_here("modifiers can only apply to functions"));
             }
-            return self.parse_class_after_keyword().map(Item::Class);
+            return self.parse_class_after_keyword(false).map(Item::Class);
+        }
+        if self.looks_like_object_declaration() {
+            if declared_pure || is_async || is_generator {
+                return Err(self.error_here("modifiers can only apply to functions"));
+            }
+            self.advance();
+            return self.parse_class_after_keyword(true).map(Item::Class);
         }
 
         if self.looks_like_typed_binding() {
@@ -836,11 +843,27 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         })
     }
 
-    fn parse_class_after_keyword(&mut self) -> Result<ClassDecl<'arena, 'src>, ParseError> {
+    fn parse_class_after_keyword(
+        &mut self,
+        object: bool,
+    ) -> Result<ClassDecl<'arena, 'src>, ParseError> {
         let keyword_span = self.previous_span();
-        let name = self.expect_ident("expected class name")?;
+        let name = self.expect_ident(if object {
+            "expected object name"
+        } else {
+            "expected class name"
+        })?;
         let type_params = self.parse_type_params()?;
+        if object && !type_params.is_empty() {
+            return Err(ParseError::new(
+                name.span,
+                "objects cannot declare type parameters",
+            ));
+        }
         let base = if self.match_kind(|kind| matches!(kind, TokenKind::Extends)) {
+            if object {
+                return Err(self.error_here("objects cannot extend a type"));
+            }
             Some(self.parse_type()?)
         } else {
             None
@@ -854,6 +877,9 @@ impl<'arena, 'src> Parser<'arena, 'src> {
             }
 
             if self.match_kind(|kind| matches!(kind, TokenKind::Init)) {
+                if object {
+                    return Err(self.error_here("objects cannot declare `init`"));
+                }
                 let start = self.previous_span();
                 self.expect(
                     |kind| matches!(kind, TokenKind::LParen),
@@ -911,6 +937,12 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                     ));
                 }
                 let field = self.parse_field_decl_after_name(ty, member_name)?;
+                if object {
+                    return Err(ParseError::new(
+                        field.span,
+                        "objects declare methods, not fields",
+                    ));
+                }
                 members.push(ClassMember::Field(field));
             }
         }
@@ -921,6 +953,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
             type_params,
             base,
             members: members.into_bump_slice(),
+            object,
             span: keyword_span.merge(close.span),
         })
     }
@@ -1973,6 +2006,15 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         Ok((args.into_bump_slice(), close.span))
     }
 
+    fn looks_like_object_declaration(&self) -> bool {
+        matches!(self.peek_kind(), Some(TokenKind::Ident("object")))
+            && self.check_next(|kind| matches!(kind, TokenKind::Ident(_) | TokenKind::From))
+            && matches!(
+                self.tokens.get(self.cursor + 2).map(|token| &token.kind),
+                Some(TokenKind::LBrace | TokenKind::Extends | TokenKind::Less)
+            )
+    }
+
     fn looks_like_typed_binding(&self) -> bool {
         let Some(type_end) = self.scan_type_end(self.cursor) else {
             return false;
@@ -2498,6 +2540,38 @@ mod tests {
 
         assert_eq!(program.items.len(), 2);
         assert!(matches!(&program.items[0], Item::Class(_)));
+    }
+
+    #[test]
+    fn parses_closed_object_methods() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "object Api{int add(int left,int right){return left+right;}}",
+        )
+        .unwrap();
+        let Item::Class(decl) = &program.items[0] else {
+            panic!("expected object declaration");
+        };
+        assert!(decl.object);
+        assert_eq!(decl.name.name, "Api");
+        assert_eq!(decl.members.len(), 1);
+        assert!(matches!(&decl.members[0], ClassMember::Method(_)));
+    }
+
+    #[test]
+    fn rejects_object_fields_and_constructors() {
+        let arena = Bump::new();
+        let field = parse_source(&arena, "object Api{int value;}").unwrap_err();
+        assert!(field
+            .message
+            .contains("objects declare methods, not fields"));
+        let init = parse_source(&arena, "object Api{init(){}}").unwrap_err();
+        assert!(init.message.contains("objects cannot declare `init`"));
+        let params = parse_source(&arena, "object Box<T>{int id(){return 1;}}").unwrap_err();
+        assert!(params
+            .message
+            .contains("objects cannot declare type parameters"));
     }
 
     #[test]

@@ -182,6 +182,7 @@ pub struct AggregateLayout<'src> {
     pub name: &'src str,
     pub base: Option<&'src str>,
     pub fields: Vec<AggregateField<'src>>,
+    pub object: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -752,6 +753,7 @@ pub enum Intrinsic {
     JsXMLHttpRequestNew,
     JsNumber,
     JsAdd,
+    JsMod,
     JsLessThan,
     JsLessThanOrEqual,
     JsGreaterThan,

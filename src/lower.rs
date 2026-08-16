@@ -131,6 +131,22 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
                 }
                 Item::Class(class) => {
                     type_names.insert(class.name.name);
+                    if class.object && !global_names.contains_key(class.name.name) {
+                        let symbol = lowerer.binding_symbol(class.name)?;
+                        let ty = semantics
+                            .binding_type(class.name.span)
+                            .cloned()
+                            .unwrap_or(Type::Class(class.name.name));
+                        lowerer.global_symbols.insert(symbol);
+                        global_names.insert(class.name.name, symbol);
+                        lowerer.globals.push(IrGlobal {
+                            symbol,
+                            name: class.name.name,
+                            ty,
+                            external: false,
+                            span: class.span,
+                        });
+                    }
                     for member in class.members {
                         let id = FunctionId(lowerer.plans.len() as u32);
                         match member {
@@ -380,6 +396,7 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
                 PlannedFunction::Entry => {
                     builder.kind = FunctionKind::Entry;
                     builder.return_type = Type::Void;
+                    builder.lower_object_singletons()?;
                     for item in program.items {
                         if let Item::Stmt(statement) = item {
                             builder.lower_stmt(statement)?;
@@ -499,6 +516,7 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
                         index: field.index,
                     })
                     .collect(),
+                object: false,
             })
             .collect::<Vec<_>>();
         structs.sort_unstable_by_key(|layout| layout.name);
@@ -521,6 +539,7 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
                         index: field.index,
                     })
                     .collect(),
+                object: info.object,
             })
             .collect::<Vec<_>>();
         classes.sort_unstable_by_key(|layout| layout.name);
@@ -658,6 +677,77 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
             .map(|symbol| symbol.ty.clone())
             .ok_or_else(|| LowerError::new(span, "missing `this` type"))?;
         self.add_param(symbol, "this", ty, None, span)
+    }
+
+    fn lower_object_singletons(&mut self) -> Result<(), LowerError> {
+        let objects = self
+            .semantics
+            .classes()
+            .filter(|info| info.object)
+            .cloned()
+            .collect::<Vec<_>>();
+        for info in objects {
+            let symbol = self
+                .semantics
+                .symbols()
+                .iter()
+                .find(|symbol| symbol.name == info.name)
+                .map(|symbol| symbol.id)
+                .ok_or_else(|| {
+                    LowerError::new(info.span, format!("missing object `{}`", info.name))
+                })?;
+            let mut method_values = Vec::with_capacity(info.fields.len());
+            for field in info.fields.values() {
+                let function = self
+                    .method_functions
+                    .get(&(info.name, field.name))
+                    .copied()
+                    .ok_or_else(|| {
+                        LowerError::new(
+                            info.span,
+                            format!("missing object method `{}`", field.name),
+                        )
+                    })?;
+                let value = self.emit_value(
+                    ControlFlowOp::Closure {
+                        function,
+                        captures: Vec::new(),
+                    },
+                    field.ty.clone(),
+                    info.span,
+                )?;
+                method_values.push((field.name, field.index, value));
+            }
+            let object = self.emit_value(
+                ControlFlowOp::NewClass {
+                    class: info.name,
+                    constructor: None,
+                    args: Vec::new(),
+                },
+                Type::Class(info.name),
+                info.span,
+            )?;
+            for (field, index, value) in method_values {
+                self.emit_effect(
+                    ControlFlowOp::FieldSet {
+                        object,
+                        owner: info.name,
+                        field,
+                        index,
+                        value,
+                    },
+                    info.span,
+                )?;
+            }
+            self.emit_effect(
+                ControlFlowOp::StoreGlobal {
+                    global: symbol,
+                    value: object,
+                },
+                info.span,
+            )?;
+        }
+        Ok(())
     }
 
     fn add_params<'ast>(&mut self, params: &[Param<'ast, 'src>]) -> Result<(), LowerError> {
@@ -947,6 +1037,13 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
             .binding_type(decl.name.span)
             .cloned()
             .ok_or_else(|| LowerError::new(decl.span, "missing variable type"))?;
+        let slot_first = !self.global_symbols.contains(&symbol)
+            && self.mutable_capture_symbols.contains(&symbol);
+        let local = if slot_first {
+            Some(self.add_local(symbol, decl.name.name, ty.clone(), decl.span))
+        } else {
+            None
+        };
         let value = decl
             .initializer
             .as_ref()
@@ -966,6 +1063,8 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                 },
                 decl.span,
             )
+        } else if let Some(local) = local {
+            self.emit_effect(ControlFlowOp::StoreLocal { local, value }, decl.span)
         } else {
             let local = self.add_local(symbol, decl.name.name, ty, decl.span);
             self.emit_effect(ControlFlowOp::StoreLocal { local, value }, decl.span)
@@ -2701,6 +2800,7 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
             JsString => Some(Intrinsic::JsStringify),
             JsNumber => Some(Intrinsic::JsNumber),
             JsAdd => Some(Intrinsic::JsAdd),
+            JsMod => Some(Intrinsic::JsMod),
             JsLessThan => Some(Intrinsic::JsLessThan),
             JsLessThanOrEqual => Some(Intrinsic::JsLessThanOrEqual),
             JsGreaterThan => Some(Intrinsic::JsGreaterThan),
@@ -4713,6 +4813,24 @@ mod tests {
             .blocks
             .iter()
             .any(|block| !block.phis.is_empty()));
+    }
+
+    #[test]
+    fn lowers_recursive_local_function_through_its_own_slot() {
+        let module = lower(
+            "int walk(int n){func(int)->int step=(int x)=>{if(x<=0){return 0;}return x+step(x-1);};return step(n);}print(walk(4));",
+        );
+        assert!(module
+            .functions
+            .iter()
+            .any(|function| function.kind == FunctionKind::Closure && function.capture_count >= 1));
+        assert!(module.functions.iter().any(|function| function
+            .blocks
+            .iter()
+            .any(|block| block.instructions.iter().any(|instruction| matches!(
+                instruction.op,
+                ControlFlowOp::CaptureLocal(_)
+            )))));
     }
 
     #[test]

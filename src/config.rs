@@ -246,6 +246,7 @@ impl ProjectConfig {
             elide_safe_integer_coercions: self
                 .javascript
                 .compression_enabled(CompressionDecision::SafeIntegerCoercionElision),
+            elide_length_tonumber: false,
             compact_boolean_literals: self
                 .javascript
                 .compression_enabled(CompressionDecision::CompactBooleanLiterals),
@@ -282,8 +283,8 @@ impl ProjectConfig {
             // development output and lets the exact transfer codec decide.
             inline_single_use_functions: false,
             inline_exclusive_closures: true,
-            iife_private_callee_clusters: true,
-            nested_once_run_helpers: false,
+            iife_private_callee_clusters: self.javascript.iife_private_callee_clusters,
+            nested_once_run_helpers: self.javascript.nested_once_run_helpers,
             batch_property_assigns: true,
             // Fresh-literal factory substitution changes complete-artifact
             // repetition history, so candidate search scores it separately.
@@ -984,6 +985,14 @@ pub struct JavaScriptConfig {
     pub function_layout_exact_limit: usize,
     pub local_name_reserve: usize,
     pub stable_local_names: bool,
+    /// Wrap exclusive callees of a named root in a once-run IIFE so those
+    /// helpers can reuse short names. Off only for oracles that need the
+    /// three-address helper spelling their fixture was written against.
+    pub iife_private_callee_clusters: bool,
+    /// Declare helpers whose every reference lives in one named host as nested
+    /// `function` bindings in that host. Off only for oracles that need the
+    /// module-scope helper spelling their fixture was written against.
+    pub nested_once_run_helpers: bool,
     /// Rebuild a nested expression when a run of single-use producers all feed
     /// one consumer that reads them in production order. Off only for oracles
     /// that need the three-address spelling their fixture was written against.
@@ -1023,6 +1032,8 @@ impl Default for JavaScriptConfig {
             function_layout_exact_limit: 13,
             local_name_reserve: 16,
             stable_local_names: true,
+            iife_private_callee_clusters: true,
+            nested_once_run_helpers: true,
             operand_order_fusion: true,
             function_spelling: None,
             public_aggregate_abi: PublicAggregateAbi::Named,

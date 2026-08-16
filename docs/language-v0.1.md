@@ -67,6 +67,7 @@ SSA optimization; they are not JavaScript wrappers in the generated bundle.
 | `enum E`            | one value from a closed named variant set                     | zero-based integer discriminant                   | `int32_t` discriminant                      |
 | `struct S`          | positional value aggregate                                    | scalars, tuple, or boundary object                | positional C value record                   |
 | `class C`           | nominal reference value with methods                          | dissolved record or class at an escaping boundary | pointer to a C record                       |
+| `object O`          | closed public object; ABI keys, private method bodies         | named object literal or clustered assigns         | unsupported                                 |
 | `extern class C`    | typed JavaScript host object interface                        | existing host object with exact member names      | unsupported without an explicit user ABI    |
 | `func(T...)->R`     | callable value                                                | function/closure                                  | function plus environment                   |
 | `C<T...>`           | applied generic class                                         | same nominal class layout                         | pointer with boxed polymorphic fields       |
@@ -528,7 +529,7 @@ export { Coordinate };
 export { internalHelper as publicHelper };
 ```
 
-Only explicitly exported top-level functions, variables, structs, classes, and
+Only explicitly exported top-level functions, variables, structs, classes, objects, and
 externs can be imported. Imported names may be aliased with `as`. Module-private
 bindings are namespaced by the linker, so equal private names in different files
 cannot collide.
@@ -648,6 +649,25 @@ Listing listing = new Listing(17, 4);
 Priced priced = listing;
 print(priced.total(2));
 ```
+
+A closed `object` is a singleton with ABI keys. Method bodies are ordinary
+private functions: they nest, mangle, and fold like other helpers. Keys stay
+stable unless `[mangle].exports` is enabled. Multiple files may contribute
+methods to the same exported object; the compiler owns one identity.
+
+```lilscript
+object Api {
+  int add(int left, int right) {
+    return left + right;
+  }
+}
+
+print(Api.add(1, 2));
+```
+
+`object` is distinct from `Record<T>` (open data keys), positional `struct`,
+and `extern class` (host names). Objects cannot declare type parameters, fields,
+`init`, or `extends`, and cannot be constructed with `new`.
 
 Base fields are flattened first and inherited methods call their original
 statically known function. Generic base applications such as

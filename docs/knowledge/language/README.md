@@ -11,6 +11,7 @@ Every surface construct is judged by whether it gives the compiler a **proof** i
 | Construct | Proof it gives the compiler |
 |---|---|
 | Nominal `struct` / `class` | Field indexes; scalar replacement; no property names internally |
+| Closed `object` | ABI keys on one identity; private method bodies nest/mangle |
 | `Record<T>` | Open string keys are **data**, never mangled |
 | Closed `enum` | Integer discriminant, no metadata object |
 | `extern` / `extern class` | Exact host ABI; everything else may dissolve |

@@ -199,28 +199,138 @@ pub fn optimize_generated_javascript(source: &str) -> Result<PeepholeResult, Jav
     let (code, removed_declarations) = remove_unused_standalone_vars(&code)?;
     let (code, merged_declarations) = merge_adjacent_declarations(&code)?;
     let (code, folded_assignment_guards) = fold_assignment_guards(&code)?;
+    let (code, folded_index_postfixes) = fold_index_postfix_updates(&code)?;
+    let (code, folded_singleton_arrays) = fold_conditional_singleton_arrays(&code)?;
+    let (code, folded_and_addends) = fold_guarded_and_addends(&code)?;
+    let (code, folded_unit_updates) = fold_unit_counter_updates(&code)?;
+    let mut folded_ident_copies = 0usize;
+    let mut code = code;
+    for _ in 0..8 {
+        let (next, count) = fold_identifier_copies(&code)?;
+        folded_ident_copies += count;
+        code = next;
+        if count == 0 {
+            break;
+        }
+    }
+    let (code, folded_cached_lengths) = fold_cached_length_conditions(&code)?;
+    let (code, folded_cached_members) = fold_cached_member_reads(&code)?;
+    let (code, stripped_copy_decls) = strip_unused_simple_declarators(&code)?;
+    let (code, folded_literal_aliases) = fold_single_use_literal_bindings(&code)?;
+    let (code, folded_proto_tostrings) = fold_prototype_tostring_aliases(&code)?;
+    let (code, folded_temp_keys) = fold_temp_index_keys(&code)?;
+    let (code, folded_or_returns) = fold_coalesced_or_returns(&code)?;
+    let (code, flattened_concats) = flatten_associative_string_concats(&code)?;
+    let (code, folded_for_breaks) = fold_for_false_breaks(&code)?;
+    let (code, folded_index_walks) = fold_nullish_index_walks(&code)?;
+    let (code, folded_trailing_incs) = fold_for_trailing_increments(&code)?;
+    let (code, stripped_for_inits) = strip_unused_for_init_vars(&code)?;
+    let (code, folded_ident_assigns) = fold_chained_identifier_assigns(&code)?;
+    let (code, folded_prefix_incs) = fold_prefix_increment_for_bounds(&code)?;
+    let (code, folded_infinite_incs) = fold_increment_infinite_for_bounds(&code)?;
+    let (code, folded_dead_inits) = fold_dead_initializer_reassigns(&code)?;
+    let (code, folded_void_reassigns) = fold_void_then_reassign(&code)?;
+    let (code, folded_index_temps) = fold_single_use_index_temps(&code)?;
+    let (code, folded_assigned_indexes) = fold_assigned_index_for_conditions(&code)?;
+    let (code, folded_index_scans) = fold_index_scan_for_headers(&code)?;
+    let (code, folded_or_assigns) = fold_statement_or_assigns(&code)?;
+    let (code, folded_negated_ors) = fold_statement_negated_ors(&code)?;
+    let (code, folded_comma_chains) = fold_chained_comma_assigns(&code)?;
+    let (code, mut folded_expr_stmts) = fold_adjacent_expression_statements(&code)?;
+    let mut folded_loop_braces = 0usize;
+    let mut code = code;
+    for _ in 0..4 {
+        let (next, count) = fold_redundant_loop_body_braces(&code)?;
+        folded_loop_braces += count;
+        code = next;
+        if count == 0 {
+            break;
+        }
+    }
+    let (code, folded_for_inits) = fold_prior_assign_into_for_init(&code)?;
+    let (code, folded_bool_nots) = fold_boolean_context_double_not(&code)?;
+    let (code, flipped_false_eq) = flip_false_equalities(&code)?;
+    let (code, folded_single_props) = fold_single_property_objects(&code)?;
+    let (code, folded_member_chains) = fold_repeated_member_assigns(&code)?;
     let (code, folded_expression_branches) = fold_expression_branches(&code)?;
+    let (code, folded_assigned_ors) = fold_assigned_truthy_ternaries(&code)?;
     let (code, folded_console_logs) = fold_console_log_conditionals(&code)?;
     let (code, folded_guard_returns) = fold_arrow_guard_returns(&code)?;
     let (code, folded_return_tails) = fold_conditional_return_tails(&code)?;
-    let (code, folded_arrow_bodies) = fold_single_return_arrow_bodies(&code)?;
+    let (code, folded_return_this) = fold_trailing_return_this(&code)?;
+    let (mut code, folded_arrow_bodies) = fold_single_return_arrow_bodies(&code)?;
+    let (next, count) = fold_adjacent_expression_statements(&code)?;
+    folded_expr_stmts += count;
+    code = next;
+    for _ in 0..4 {
+        let (next, count) = fold_redundant_loop_body_braces(&code)?;
+        folded_loop_braces += count;
+        code = next;
+        if count == 0 {
+            break;
+        }
+    }
+    let (next, count) = fold_adjacent_expression_statements(&code)?;
+    folded_expr_stmts += count;
+    code = next;
+    let (code, folded_void_prefix) = fold_void_prefix_updates(&code)?;
     let (code, folded_negated_equalities) = fold_negated_equalities(&code)?;
     let (code, reordered_var_declarators) = reorder_uninitialized_var_declarators(&code)?;
     let (code, canonicalized_leaf_syntax) = canonicalize_leaf_syntax(&code)?;
+    let (code, elided_keyword_spaces) = elide_separating_keyword_spaces(&code)?;
     let final_tokens = if rewrites.is_empty()
         && rotated_loops == 0
         && !reused_binding
         && removed_declarations == 0
         && merged_declarations == 0
         && folded_assignment_guards == 0
+        && folded_index_postfixes == 0
+        && folded_singleton_arrays == 0
+        && folded_and_addends == 0
+        && folded_unit_updates == 0
+        && folded_ident_copies == 0
+        && stripped_copy_decls == 0
+        && folded_literal_aliases == 0
+        && folded_proto_tostrings == 0
+        && folded_temp_keys == 0
+        && folded_or_returns == 0
+        && flattened_concats == 0
+        && folded_for_breaks == 0
+        && folded_index_walks == 0
+        && folded_cached_lengths == 0
+        && folded_cached_members == 0
+        && folded_trailing_incs == 0
+        && stripped_for_inits == 0
+        && folded_ident_assigns == 0
+        && folded_prefix_incs == 0
+        && folded_infinite_incs == 0
+        && folded_dead_inits == 0
+        && folded_void_reassigns == 0
+        && folded_index_temps == 0
+        && folded_assigned_indexes == 0
+        && folded_index_scans == 0
+        && folded_or_assigns == 0
+        && folded_void_prefix == 0
+        && folded_negated_ors == 0
+        && folded_comma_chains == 0
+        && folded_expr_stmts == 0
+        && folded_loop_braces == 0
+        && folded_for_inits == 0
+        && folded_bool_nots == 0
+        && flipped_false_eq == 0
+        && folded_single_props == 0
+        && folded_member_chains == 0
         && folded_expression_branches == 0
+        && folded_assigned_ors == 0
         && folded_console_logs == 0
         && folded_guard_returns == 0
         && folded_return_tails == 0
+        && folded_return_this == 0
         && folded_arrow_bodies == 0
         && folded_negated_equalities == 0
         && reordered_var_declarators == 0
         && canonicalized_leaf_syntax == 0
+        && elided_keyword_spaces == 0
     {
         tokens
     } else {
@@ -238,14 +348,53 @@ pub fn optimize_generated_javascript(source: &str) -> Result<PeepholeResult, Jav
             + removed_declarations
             + merged_declarations
             + folded_assignment_guards
+            + folded_index_postfixes
+            + folded_singleton_arrays
+            + folded_and_addends
+            + folded_unit_updates
+            + folded_ident_copies
+            + stripped_copy_decls
+            + folded_literal_aliases
+            + folded_proto_tostrings
+            + folded_temp_keys
+            + folded_or_returns
+            + flattened_concats
+            + folded_for_breaks
+            + folded_index_walks
+            + folded_cached_lengths
+            + folded_cached_members
+            + folded_trailing_incs
+            + stripped_for_inits
+            + folded_ident_assigns
+            + folded_prefix_incs
+            + folded_infinite_incs
+            + folded_dead_inits
+            + folded_void_reassigns
+            + folded_index_temps
+            + folded_assigned_indexes
+            + folded_index_scans
+            + folded_or_assigns
+            + folded_void_prefix
+            + folded_negated_ors
+            + folded_comma_chains
+            + folded_expr_stmts
+            + folded_loop_braces
+            + folded_for_inits
+            + folded_bool_nots
+            + flipped_false_eq
+            + folded_single_props
+            + folded_member_chains
             + folded_expression_branches
+            + folded_assigned_ors
             + folded_console_logs
             + folded_guard_returns
             + folded_return_tails
+            + folded_return_this
             + folded_arrow_bodies
             + folded_negated_equalities
             + reordered_var_declarators
-            + canonicalized_leaf_syntax,
+            + canonicalized_leaf_syntax
+            + elided_keyword_spaces,
     })
 }
 
@@ -462,9 +611,10 @@ fn function_header_precedes_parameters(tokens: &[Token<'_>], open_params: usize)
                     .checked_sub(1)
                     .filter(|function| tokens[*function].text == "function")
             } else {
-                None
+                Some(before_params)
             }
         })
+        .or(Some(before_params))
     } else {
         None
     };
@@ -1267,6 +1417,3889 @@ fn fold_assignment_guards(source: &str) -> Result<(String, usize), JavaScriptPar
     Ok((output, count))
 }
 
+fn paren_depth_at(tokens: &[Token<'_>]) -> Vec<i32> {
+    let mut depths = vec![0; tokens.len()];
+    let mut depth = 0i32;
+    for (index, token) in tokens.iter().enumerate() {
+        depths[index] = depth;
+        match token.text {
+            "(" => depth += 1,
+            ")" => depth -= 1,
+            _ => {}
+        }
+    }
+    depths
+}
+
+fn identifier_occurs(tokens: &[Token<'_>], start: usize, end: usize, name: &str) -> bool {
+    if start >= end || end > tokens.len() {
+        return false;
+    }
+    tokens[start..end]
+        .iter()
+        .any(|token| token.kind == TokenKind::Identifier && token.text == name)
+}
+
+fn top_level_stop(tokens: &[Token<'_>], start: usize, stops: &[&str]) -> Option<usize> {
+    let mut depth = 0i32;
+    for (index, token) in tokens.iter().enumerate().skip(start) {
+        if depth == 0 && stops.contains(&token.text) {
+            return Some(index);
+        }
+        match token.text {
+            "(" | "[" | "{" => depth += 1,
+            ")" | "]" | "}" => {
+                depth -= 1;
+                if depth < 0 {
+                    return None;
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+fn apply_token_rewrites(
+    source: &str,
+    mut replacements: Vec<(usize, usize, String)>,
+) -> (String, usize) {
+    if replacements.is_empty() {
+        return (source.to_string(), 0);
+    }
+    replacements.sort_unstable_by_key(|(start, end, _)| (*start, *end));
+    let mut retained = Vec::new();
+    let mut last_end = 0;
+    for replacement in replacements {
+        if replacement.0 >= last_end {
+            last_end = replacement.1;
+            retained.push(replacement);
+        }
+    }
+    let count = retained.len();
+    let mut output = source.to_string();
+    for (start, end, replacement) in retained.into_iter().rev() {
+        output.replace_range(start..end, &replacement);
+    }
+    (output, count)
+}
+
+fn fold_index_postfix_updates(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let depths = paren_depth_at(&tokens);
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut cursor = 0usize;
+    while cursor + 6 < tokens.len() {
+        if depths[cursor] != 0 || tokens[cursor].kind != TokenKind::Identifier {
+            cursor += 1;
+            continue;
+        }
+        if tokens.get(cursor + 1).map(|token| token.text) == Some("[")
+            && tokens.get(cursor + 2).is_some_and(|token| token.kind == TokenKind::Identifier)
+            && tokens.get(cursor + 3).map(|token| token.text) == Some("]")
+            && tokens.get(cursor + 4).map(|token| token.text) == Some("=")
+        {
+            let index = tokens[cursor + 2].text;
+            let Some(stop) = top_level_stop(&tokens, cursor + 5, &[",", ";"]) else {
+                cursor += 1;
+                continue;
+            };
+            if identifier_occurs(&tokens, cursor + 5, stop, index) {
+                cursor += 1;
+                continue;
+            }
+            if tokens.get(stop + 1).map(|token| token.text) == Some(index)
+                && tokens.get(stop + 2).map(|token| token.text) == Some("++")
+            {
+                let rhs = &source[tokens[cursor + 5].start..tokens[stop].start];
+                let end = tokens[stop + 2].end;
+                replacements.push((
+                    tokens[cursor].start,
+                    end,
+                    format!("{}[{index}++]={rhs}", tokens[cursor].text),
+                ));
+                cursor = stop + 3;
+                continue;
+            }
+        }
+        if tokens.get(cursor + 1).map(|token| token.text) == Some("=")
+            && tokens.get(cursor + 2).is_some_and(|token| {
+                token.kind == TokenKind::Identifier || token.kind == TokenKind::Number
+            })
+            && tokens.get(cursor + 3).map(|token| token.text) == Some("+")
+            && tokens.get(cursor + 4).map(|token| token.text) == Some("1")
+            && tokens.get(cursor + 5).map(|token| token.text) == Some(";")
+            && tokens.get(cursor + 2).map(|token| token.text)
+                != Some(tokens[cursor].text)
+        {
+            let temp = tokens[cursor].text;
+            let index = tokens[cursor + 2].text;
+            if tokens.get(cursor + 6).is_some_and(|token| token.kind == TokenKind::Identifier)
+                && tokens.get(cursor + 7).map(|token| token.text) == Some("[")
+                && tokens.get(cursor + 8).map(|token| token.text) == Some(index)
+                && tokens.get(cursor + 9).map(|token| token.text) == Some("]")
+                && tokens.get(cursor + 10).map(|token| token.text) == Some("=")
+            {
+                if let Some(stop) = top_level_stop(&tokens, cursor + 11, &[";"]) {
+                    if !identifier_occurs(&tokens, cursor + 11, stop, index)
+                        && !identifier_occurs(&tokens, cursor + 11, stop, temp)
+                    {
+                        let mut restore = stop + 1;
+                        if tokens.get(restore).is_some_and(|token| token.kind == TokenKind::Identifier)
+                            && tokens.get(restore).map(|token| token.text) != Some(index)
+                            && tokens.get(restore).map(|token| token.text) != Some(temp)
+                            && matches!(
+                                tokens.get(restore + 1).map(|token| token.text),
+                                Some("++") | Some("+=")
+                            )
+                        {
+                            restore = if tokens.get(restore + 1).map(|token| token.text) == Some("++")
+                            {
+                                restore + 3
+                            } else if tokens.get(restore + 2).map(|token| token.text) == Some("1")
+                                && tokens.get(restore + 3).map(|token| token.text) == Some(";")
+                            {
+                                restore + 4
+                            } else {
+                                restore
+                            };
+                        }
+                        if tokens.get(restore).map(|token| token.text) == Some(index)
+                            && tokens.get(restore + 1).map(|token| token.text) == Some("=")
+                            && tokens.get(restore + 2).map(|token| token.text) == Some(temp)
+                        {
+                            let object = tokens[cursor + 6].text;
+                            let rhs = &source[tokens[cursor + 11].start..tokens[stop].start];
+                            let between = if restore > stop + 1 {
+                                &source[tokens[stop + 1].start..tokens[restore].start]
+                            } else {
+                                ""
+                            };
+                            replacements.push((
+                                tokens[cursor].start,
+                                tokens[restore + 2].end,
+                                format!("{object}[{index}++]={rhs};{between}"),
+                            ));
+                            cursor = restore + 3;
+                            continue;
+                        }
+                    }
+                }
+            }
+        }
+        if tokens.get(cursor + 1).map(|token| token.text) == Some("=")
+            && tokens.get(cursor + 2).is_some_and(|token| token.kind == TokenKind::Identifier)
+            && tokens.get(cursor + 3).map(|token| token.text) == Some("[")
+            && tokens.get(cursor + 4).is_some_and(|token| token.kind == TokenKind::Identifier)
+            && tokens.get(cursor + 5).map(|token| token.text) == Some("]")
+        {
+            let index = tokens[cursor + 4].text;
+            let Some(stop) = top_level_stop(&tokens, cursor + 6, &[",", ";"]) else {
+                cursor += 1;
+                continue;
+            };
+            if stop != cursor + 6 {
+                cursor += 1;
+                continue;
+            }
+            if tokens.get(stop + 1).map(|token| token.text) == Some(index)
+                && tokens.get(stop + 2).map(|token| token.text) == Some("++")
+            {
+                let end = tokens[stop + 2].end;
+                replacements.push((
+                    tokens[cursor].start,
+                    end,
+                    format!(
+                        "{}={}[{index}++]",
+                        tokens[cursor].text, tokens[cursor + 2].text
+                    ),
+                ));
+                cursor = stop + 3;
+                continue;
+            }
+        }
+        cursor += 1;
+    }
+    let (output, count) = apply_token_rewrites(source, replacements);
+    Ok((output, count))
+}
+
+fn fold_conditional_singleton_arrays(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut cursor = 0usize;
+    while cursor + 12 < tokens.len() {
+        let binding_start = cursor;
+        let name_index = if matches!(tokens[cursor].text, "var" | "let" | "const") {
+            cursor + 1
+        } else {
+            cursor
+        };
+        if tokens.get(name_index).is_none_or(|token| token.kind != TokenKind::Identifier)
+            || tokens.get(name_index + 1).map(|token| token.text) != Some("=")
+            || tokens.get(name_index + 2).map(|token| token.text) != Some("[")
+            || tokens.get(name_index + 3).map(|token| token.text) != Some("]")
+            || tokens.get(name_index + 4).map(|token| token.text) != Some(";")
+        {
+            cursor += 1;
+            continue;
+        }
+        let name = tokens[name_index].text;
+        let comma_declarator = name_index
+            .checked_sub(1)
+            .is_some_and(|index| tokens[index].text == ",");
+        let cond_start = name_index + 5;
+        let Some(and) = tokens
+            .iter()
+            .enumerate()
+            .skip(cond_start)
+            .find_map(|(index, token)| {
+                (token.text == "&&"
+                    && tokens.get(index + 1).map(|next| next.text) == Some(name)
+                    && tokens.get(index + 2).map(|next| next.text) == Some(".")
+                    && tokens.get(index + 3).map(|next| next.text) == Some("push")
+                    && tokens.get(index + 4).map(|next| next.text) == Some("("))
+                .then_some(index)
+            })
+        else {
+            cursor += 1;
+            continue;
+        };
+        if identifier_occurs(&tokens, cond_start, and, name)
+            || tokens[cond_start..and]
+                .iter()
+                .any(|token| matches!(token.text, ";" | "{" | "}"))
+        {
+            cursor += 1;
+            continue;
+        }
+        let Some(push_close) = matching_close.get(and + 4).copied().flatten() else {
+            cursor += 1;
+            continue;
+        };
+        if tokens.get(push_close + 1).map(|token| token.text) != Some(";")
+            || tokens.get(push_close + 2).map(|token| token.text) != Some("return")
+        {
+            cursor += 1;
+            continue;
+        }
+        let elem = &source[tokens[and + 5].start..tokens[push_close].start];
+        if identifier_occurs(&tokens, and + 5, push_close, name) || elem.is_empty() {
+            cursor += 1;
+            continue;
+        }
+        let cond = &source[tokens[cond_start].start..tokens[and].start];
+        let return_at = push_close + 2;
+        let replace_from = if comma_declarator {
+            tokens[name_index - 1].start
+        } else {
+            tokens[binding_start].start
+        };
+        let prefix = if comma_declarator { ";" } else { "" };
+        let replacement = if tokens.get(return_at + 1).map(|token| token.text) == Some(name)
+            && matches!(
+                tokens.get(return_at + 2).map(|token| token.text),
+                Some(";") | Some("}") | None
+            )
+        {
+            let end = tokens
+                .get(return_at + 2)
+                .filter(|token| token.text == ";")
+                .map(|token| token.end)
+                .unwrap_or(tokens[return_at + 1].end);
+            (
+                replace_from,
+                end,
+                format!("{prefix}return {cond}?[{elem}]:[]"),
+            )
+        } else if tokens.get(return_at + 1).is_some_and(|token| {
+            token.kind == TokenKind::Identifier || token.text == "this"
+        }) && tokens.get(return_at + 2).map(|token| token.text) == Some(".")
+            && tokens
+                .get(return_at + 3)
+                .is_some_and(|token| token.kind == TokenKind::Identifier)
+            && tokens.get(return_at + 4).map(|token| token.text) == Some("(")
+            && tokens.get(return_at + 5).map(|token| token.text) == Some(name)
+            && tokens.get(return_at + 6).map(|token| token.text) == Some(")")
+        {
+            let end = tokens
+                .get(return_at + 7)
+                .filter(|token| token.text == ";")
+                .map(|token| token.end)
+                .unwrap_or(tokens[return_at + 6].end);
+            let callee = &source[tokens[return_at + 1].start..tokens[return_at + 4].start];
+            (
+                replace_from,
+                end,
+                format!("{prefix}return {callee}({cond}?[{elem}]:[])"),
+            )
+        } else {
+            cursor += 1;
+            continue;
+        };
+        replacements.push(replacement);
+        cursor = push_close + 3;
+    }
+    let (output, count) = apply_token_rewrites(source, replacements);
+    Ok((output, count))
+}
+
+fn fold_guarded_and_addends(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut cursor = 0usize;
+    while cursor + 12 < tokens.len() {
+        if tokens[cursor].text == "!"
+            && tokens
+                .get(cursor + 1)
+                .is_some_and(|token| token.kind == TokenKind::Identifier)
+            && tokens.get(cursor + 2).map(|token| token.text) == Some("||")
+            && tokens.get(cursor + 3).map(|token| token.text) == Some("(")
+            && tokens.get(cursor + 4).map(|token| token.text) == Some(tokens[cursor + 1].text)
+            && tokens.get(cursor + 5).map(|token| token.text) == Some("=")
+        {
+            let name = tokens[cursor + 1].text;
+            if let Some(assign_close) = top_level_stop(&tokens, cursor + 6, &[")"]) {
+                if tokens.get(assign_close + 1).map(|token| token.text) == Some(";")
+                    && tokens
+                        .get(assign_close + 2)
+                        .is_some_and(|token| token.kind == TokenKind::Identifier)
+                    && tokens.get(assign_close + 3).map(|token| token.text) == Some(".")
+                    && tokens
+                        .get(assign_close + 4)
+                        .is_some_and(|token| token.kind == TokenKind::Identifier)
+                    && tokens.get(assign_close + 5).map(|token| token.text) == Some("=")
+                    && tokens.get(assign_close + 6).map(|token| token.text) == Some(name)
+                {
+                    let value = &source[tokens[cursor + 6].start..tokens[assign_close].start];
+                    replacements.push((
+                        tokens[cursor].start,
+                        tokens[assign_close + 6].end,
+                        format!(
+                            "{}.{}={name}&&{value}",
+                            tokens[assign_close + 2].text, tokens[assign_close + 4].text
+                        ),
+                    ));
+                    cursor = assign_close + 7;
+                    continue;
+                }
+            }
+        }
+        let name_index = if matches!(tokens[cursor].text, "var" | "let") {
+            cursor + 1
+        } else {
+            cursor
+        };
+        if tokens.get(name_index).is_none_or(|token| token.kind != TokenKind::Identifier)
+            || tokens.get(name_index + 1).map(|token| token.text) != Some("=")
+        {
+            cursor += 1;
+            continue;
+        }
+        let name = tokens[name_index].text;
+        let Some(first_semi) = top_level_stop(&tokens, name_index + 2, &[";"]) else {
+            cursor += 1;
+            continue;
+        };
+        if tokens.get(first_semi + 1).map(|token| token.text) != Some("!")
+            || tokens.get(first_semi + 2).map(|token| token.text) != Some(name)
+            || tokens.get(first_semi + 3).map(|token| token.text) != Some("||")
+            || tokens.get(first_semi + 4).map(|token| token.text) != Some("(")
+            || tokens.get(first_semi + 5).map(|token| token.text) != Some(name)
+            || tokens.get(first_semi + 6).map(|token| token.text) != Some("=")
+        {
+            cursor += 1;
+            continue;
+        }
+        let Some(assign_close) = top_level_stop(&tokens, first_semi + 7, &[")"]) else {
+            cursor += 1;
+            continue;
+        };
+        if tokens.get(assign_close + 1).map(|token| token.text) != Some(";") {
+            cursor += 1;
+            continue;
+        }
+        let target_at = assign_close + 2;
+        let Some(target) = tokens
+            .get(target_at)
+            .filter(|token| token.kind == TokenKind::Identifier)
+            .map(|token| token.text)
+        else {
+            cursor += 1;
+            continue;
+        };
+        if target == name {
+            cursor += 1;
+            continue;
+        }
+        let cond = &source[tokens[name_index + 2].start..tokens[first_semi].start];
+        let value = &source[tokens[first_semi + 7].start..tokens[assign_close].start];
+        if identifier_occurs(&tokens, name_index + 2, first_semi, name)
+            || identifier_occurs(&tokens, first_semi + 7, assign_close, name)
+        {
+            cursor += 1;
+            continue;
+        }
+        let comma_declarator = name_index
+            .checked_sub(1)
+            .is_some_and(|index| tokens[index].text == ",");
+        let replace_from = if comma_declarator {
+            tokens[name_index - 1].start
+        } else {
+            tokens[cursor].start
+        };
+        let prefix = if comma_declarator { ";" } else { "" };
+        let replacement = if tokens.get(target_at + 1).map(|token| token.text) == Some("+=")
+            && tokens.get(target_at + 2).map(|token| token.text) == Some(name)
+        {
+            Some((
+                replace_from,
+                tokens[target_at + 2].end,
+                format!("{prefix}{target}+={cond}&&{value}"),
+            ))
+        } else if tokens.get(target_at + 1).map(|token| token.text) == Some(".")
+            && tokens
+                .get(target_at + 2)
+                .is_some_and(|token| token.kind == TokenKind::Identifier)
+            && tokens.get(target_at + 3).map(|token| token.text) == Some("=")
+            && tokens.get(target_at + 4).map(|token| token.text) == Some(name)
+        {
+            Some((
+                replace_from,
+                tokens[target_at + 4].end,
+                format!(
+                    "{prefix}{target}.{}={cond}&&{value}",
+                    tokens[target_at + 2].text
+                ),
+            ))
+        } else if tokens.get(target_at + 1).map(|token| token.text) == Some("=")
+            && tokens.get(target_at + 2).map(|token| token.text) == Some(target)
+            && tokens.get(target_at + 3).map(|token| token.text) == Some("+")
+            && tokens.get(target_at + 4).map(|token| token.text) == Some(name)
+        {
+            Some((
+                replace_from,
+                tokens[target_at + 4].end,
+                format!("{prefix}{target}={target}+({cond}&&{value})"),
+            ))
+        } else {
+            None
+        };
+        let Some(replacement) = replacement else {
+            cursor += 1;
+            continue;
+        };
+        replacements.push(replacement);
+        cursor = target_at + 3;
+    }
+    let (output, count) = apply_token_rewrites(source, replacements);
+    Ok((output, count))
+}
+
+fn fold_unit_counter_updates(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut cursor = 0usize;
+    while cursor + 3 < tokens.len() {
+        let statement_update = tokens[cursor].kind == TokenKind::Identifier
+            && matches!(
+                cursor
+                    .checked_sub(1)
+                    .map(|index| tokens[index].text)
+                    .unwrap_or(";"),
+                ";" | "{" | "}" | ")" | ","
+            )
+            && matches!(
+                tokens.get(cursor + 3).map(|token| token.text),
+                Some(";") | Some("}") | Some(")") | Some(",") | None
+            );
+        if statement_update
+            && tokens.get(cursor + 1).map(|token| token.text) == Some("+=")
+            && tokens.get(cursor + 2).map(|token| token.text) == Some("1")
+        {
+            replacements.push((
+                tokens[cursor].start,
+                tokens[cursor + 2].end,
+                format!("{}++", tokens[cursor].text),
+            ));
+            cursor += 3;
+            continue;
+        }
+        if statement_update
+            && tokens.get(cursor + 1).map(|token| token.text) == Some("-=")
+            && tokens.get(cursor + 2).map(|token| token.text) == Some("1")
+        {
+            replacements.push((
+                tokens[cursor].start,
+                tokens[cursor + 2].end,
+                format!("{}--", tokens[cursor].text),
+            ));
+            cursor += 3;
+            continue;
+        }
+        let self_update = tokens[cursor].kind == TokenKind::Identifier
+            && matches!(
+                cursor
+                    .checked_sub(1)
+                    .map(|index| tokens[index].text)
+                    .unwrap_or(";"),
+                ";" | "{" | "}" | ")" | ","
+            )
+            && tokens.get(cursor + 1).map(|token| token.text) == Some("=")
+            && tokens.get(cursor + 2).map(|token| token.text) == Some(tokens[cursor].text)
+            && matches!(tokens.get(cursor + 3).map(|token| token.text), Some("+") | Some("-"))
+            && tokens.get(cursor + 4).map(|token| token.text) == Some("1")
+            && matches!(
+                tokens.get(cursor + 5).map(|token| token.text),
+                Some(";") | Some("}") | Some(")") | Some(",") | None
+            );
+        if self_update {
+            let op = if tokens[cursor + 3].text == "+" { "++" } else { "--" };
+            replacements.push((
+                tokens[cursor].start,
+                tokens[cursor + 4].end,
+                format!("{}{op}", tokens[cursor].text),
+            ));
+            cursor += 5;
+            continue;
+        }
+        cursor += 1;
+    }
+    let (output, count) = apply_token_rewrites(source, replacements);
+    Ok((output, count))
+}
+
+fn fold_identifier_copies(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut cursor = 0usize;
+    while cursor + 3 < tokens.len() {
+        if tokens[cursor].kind != TokenKind::Identifier
+            || tokens.get(cursor + 1).map(|token| token.text) != Some("=")
+            || tokens
+                .get(cursor + 2)
+                .is_none_or(|token| token.kind != TokenKind::Identifier)
+            || !matches!(
+                cursor
+                    .checked_sub(1)
+                    .map(|index| tokens[index].text)
+                    .unwrap_or(";"),
+                ";" | "{" | "}" | "let" | "var" | "const" | ","
+            )
+        {
+            cursor += 1;
+            continue;
+        }
+        let name = tokens[cursor].text;
+        let (rhs, rhs_end) = if tokens.get(cursor + 3).map(|token| token.text) == Some(".")
+            && tokens
+                .get(cursor + 4)
+                .is_some_and(|token| token.kind == TokenKind::Identifier)
+            && matches!(
+                tokens.get(cursor + 5).map(|token| token.text),
+                Some(";") | Some(",") | Some("}") | None
+            )
+        {
+            (
+                source[tokens[cursor + 2].start..tokens[cursor + 4].end].to_string(),
+                cursor + 4,
+            )
+        } else if matches!(
+            tokens.get(cursor + 3).map(|token| token.text),
+            Some(";") | Some(",") | Some("}") | None
+        ) {
+            (tokens[cursor + 2].text.to_string(), cursor + 2)
+        } else {
+            cursor += 1;
+            continue;
+        };
+        if rhs == name {
+            cursor += 1;
+            continue;
+        }
+        let scope_end = enclosing_block_end(&matching_close, cursor).unwrap_or(tokens.len());
+        let mut reads = Vec::new();
+        let mut scan = rhs_end + 1;
+        if tokens.get(scan).map(|token| token.text) == Some(";")
+            || tokens.get(scan).map(|token| token.text) == Some(",")
+        {
+            scan += 1;
+        }
+        while scan < scope_end {
+            if let Some(close) = nested_function_end(&tokens, &matching_close, scan) {
+                scan = close + 1;
+                continue;
+            }
+            if tokens[scan].kind == TokenKind::Identifier && tokens[scan].text == name {
+                if tokens.get(scan + 1).map(|token| token.text) == Some("=")
+                    && tokens.get(scan + 2).map(|token| token.text) != Some("=")
+                {
+                    break;
+                }
+                if matches!(
+                    tokens.get(scan + 1).map(|token| token.text),
+                    Some("++") | Some("--")
+                ) || matches!(
+                    tokens.get(scan.wrapping_sub(1)).map(|token| token.text),
+                    Some("++") | Some("--") | Some("[")
+                ) {
+                    break;
+                }
+                reads.push(scan);
+            }
+            if rhs_end == cursor + 2
+                && tokens[scan].kind == TokenKind::Identifier
+                && tokens[scan].text == tokens[cursor + 2].text
+                && tokens.get(scan + 1).map(|token| token.text) == Some("=")
+                && tokens.get(scan + 2).map(|token| token.text) != Some("=")
+            {
+                break;
+            }
+            scan += 1;
+        }
+        if reads.is_empty() {
+            cursor += 1;
+            continue;
+        }
+        if rhs_end != cursor + 2 && reads.len() != 1 {
+            cursor += 1;
+            continue;
+        }
+        let prev = cursor
+            .checked_sub(1)
+            .map(|index| tokens[index].text)
+            .unwrap_or(";");
+        if matches!(prev, "let" | "var" | "const" | ",") {
+            for read in reads {
+                replacements.push((tokens[read].start, tokens[read].end, rhs.clone()));
+            }
+        } else {
+            let (from, to) = assignment_span_to_remove(&tokens, cursor, rhs_end);
+            replacements.push((from, to, String::new()));
+            for read in reads {
+                replacements.push((tokens[read].start, tokens[read].end, rhs.clone()));
+            }
+        }
+        cursor = rhs_end + 1;
+    }
+    let (output, count) = apply_token_rewrites(source, replacements);
+    Ok((output, count / 2 + count % 2))
+}
+
+fn nested_function_end(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    scan: usize,
+) -> Option<usize> {
+    if tokens[scan].text == "function" {
+        let mut index = scan + 1;
+        if tokens
+            .get(index)
+            .is_some_and(|token| token.kind == TokenKind::Identifier)
+        {
+            index += 1;
+        }
+        if tokens.get(index).map(|token| token.text) != Some("(") {
+            return None;
+        }
+        let close_paren = matching_close.get(index).copied().flatten()?;
+        if tokens.get(close_paren + 1).map(|token| token.text) != Some("{") {
+            return None;
+        }
+        return matching_close.get(close_paren + 1).copied().flatten();
+    }
+    if tokens[scan].text == "=>" && tokens.get(scan + 1).map(|token| token.text) == Some("{") {
+        return matching_close.get(scan + 1).copied().flatten();
+    }
+    if tokens[scan].kind == TokenKind::Identifier
+        && tokens.get(scan + 1).map(|token| token.text) == Some("(")
+    {
+        let close_paren = matching_close.get(scan + 1).copied().flatten()?;
+        if tokens.get(close_paren + 1).map(|token| token.text) == Some("{") {
+            return matching_close.get(close_paren + 1).copied().flatten();
+        }
+    }
+    None
+}
+
+fn enclosing_block_end(matching_close: &[Option<usize>], at: usize) -> Option<usize> {
+    matching_close
+        .iter()
+        .enumerate()
+        .filter_map(|(open, close)| {
+            let close = (*close)?;
+            (open < at && at < close).then_some(close)
+        })
+        .min()
+}
+
+fn enclosing_block_start(matching_close: &[Option<usize>], at: usize) -> Option<usize> {
+    matching_close
+        .iter()
+        .enumerate()
+        .filter_map(|(open, close)| {
+            let close = (*close)?;
+            (open < at && at < close).then_some(open)
+        })
+        .max()
+}
+
+fn name_is_used_in_scope(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    name_at: usize,
+    after: usize,
+    name: &str,
+) -> bool {
+    let scope_start = enclosing_block_start(matching_close, name_at)
+        .map(|open| open + 1)
+        .unwrap_or(0);
+    let scope_end = enclosing_block_end(matching_close, name_at).unwrap_or(tokens.len());
+    identifier_occurs(tokens, scope_start, name_at, name)
+        || identifier_occurs(tokens, after, scope_end, name)
+}
+
+fn assignment_span_to_remove(tokens: &[Token<'_>], name_at: usize, rhs_end: usize) -> (usize, usize) {
+    let after = rhs_end + 1;
+    let prev = name_at.checked_sub(1).map(|index| tokens[index].text);
+    if matches!(prev, Some("let") | Some("var") | Some("const")) {
+        if tokens.get(after).map(|token| token.text) == Some(",") {
+            return (tokens[name_at].start, tokens[after].end);
+        }
+        if tokens.get(after).map(|token| token.text) == Some(";") {
+            return (tokens[name_at - 1].start, tokens[after].end);
+        }
+    }
+    if prev == Some(",") && tokens.get(after).map(|token| token.text) == Some(",") {
+        return (tokens[name_at - 1].start, tokens[after].end);
+    }
+    if prev == Some(",") {
+        let end = if tokens.get(after).map(|token| token.text) == Some(";") {
+            tokens[after].end
+        } else {
+            tokens[rhs_end].end
+        };
+        return (tokens[name_at - 1].start, end);
+    }
+    let end = if tokens.get(after).map(|token| token.text) == Some(";") {
+        tokens[after].end
+    } else {
+        tokens[rhs_end].end
+    };
+    (tokens[name_at].start, end)
+}
+
+fn cheap_literal_end(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    rhs: usize,
+) -> Option<usize> {
+    if tokens.get(rhs).map(|token| token.kind) == Some(TokenKind::Regex) {
+        return Some(rhs);
+    }
+    if tokens.get(rhs).map(|token| token.text) == Some("(")
+        && tokens.get(rhs + 1).map(|token| token.text) == Some(")")
+        && tokens.get(rhs + 2).map(|token| token.text) == Some("=>")
+        && tokens.get(rhs + 3).map(|token| token.text) == Some("{")
+    {
+        let close = matching_close.get(rhs + 3).copied().flatten()?;
+        return (close == rhs + 4).then_some(close);
+    }
+    if tokens.get(rhs).map(|token| token.text) == Some("function")
+        && tokens.get(rhs + 1).map(|token| token.text) == Some("(")
+        && tokens.get(rhs + 2).map(|token| token.text) == Some(")")
+        && tokens.get(rhs + 3).map(|token| token.text) == Some("{")
+    {
+        let close = matching_close.get(rhs + 3).copied().flatten()?;
+        return (close == rhs + 4).then_some(close);
+    }
+    None
+}
+
+fn rematerialized_literal_needs_grouping(tokens: &[Token<'_>], use_at: usize, kind: TokenKind) -> bool {
+    if kind == TokenKind::Regex {
+        return false;
+    }
+    !matches!(
+        use_at
+            .checked_sub(1)
+            .map(|index| tokens[index].text)
+            .unwrap_or(";"),
+        "(" | "[" | "{" | "," | ";" | ":" | "=" | "return" | "throw" | "void" | "typeof"
+            | "delete" | "await" | "yield" | "!" | "~"
+    )
+}
+
+fn name_use_is_mutated(tokens: &[Token<'_>], use_at: usize) -> bool {
+    matches!(
+        tokens.get(use_at + 1).map(|token| token.text),
+        Some("=") | Some("++") | Some("--") | Some("+=") | Some("-=")
+    ) && tokens.get(use_at + 2).map(|token| token.text) != Some("=")
+        || matches!(
+            use_at
+                .checked_sub(1)
+                .map(|index| tokens[index].text),
+            Some("++") | Some("--") | Some("new")
+        )
+}
+
+fn collect_same_scope_name_uses(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    name: &str,
+    start: usize,
+    end: usize,
+    skip: usize,
+) -> (Vec<usize>, bool) {
+    let mut uses = Vec::new();
+    let mut nested_use = false;
+    let mut scan = start;
+    while scan < end {
+        if scan != skip {
+            if let Some(close) = nested_function_end(tokens, matching_close, scan) {
+                if identifier_occurs(tokens, scan, close + 1, name) {
+                    nested_use = true;
+                }
+                scan = close + 1;
+                continue;
+            }
+            if tokens[scan].text == "=>" && tokens.get(scan + 1).map(|token| token.text) != Some("{")
+            {
+                let body_end = top_level_stop(tokens, scan + 1, &[",", ";", ")", "]", "}"])
+                    .unwrap_or(end);
+                if identifier_occurs(tokens, scan + 1, body_end, name) {
+                    nested_use = true;
+                }
+                scan = body_end;
+                continue;
+            }
+        }
+        if scan != skip && tokens[scan].kind == TokenKind::Identifier && tokens[scan].text == name {
+            uses.push(scan);
+        }
+        scan += 1;
+    }
+    (uses, nested_use)
+}
+
+fn fold_single_use_literal_bindings(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut cursor = 0usize;
+    while cursor < tokens.len() {
+        if !matches!(tokens[cursor].text, "let" | "var" | "const") {
+            cursor += 1;
+            continue;
+        }
+        let mut name_at = cursor + 1;
+        loop {
+            if tokens
+                .get(name_at)
+                .is_none_or(|token| token.kind != TokenKind::Identifier)
+                || tokens.get(name_at + 1).map(|token| token.text) != Some("=")
+            {
+                break;
+            }
+            let Some(literal_end) = cheap_literal_end(&tokens, &matching_close, name_at + 2) else {
+                let Some(stop) = top_level_stop(&tokens, name_at, &[",", ";"]) else {
+                    break;
+                };
+                if tokens[stop].text == ";" {
+                    break;
+                }
+                name_at = stop + 1;
+                continue;
+            };
+            if !matches!(
+                tokens.get(literal_end + 1).map(|token| token.text),
+                Some(",") | Some(";")
+            ) {
+                let Some(stop) = top_level_stop(&tokens, name_at, &[",", ";"]) else {
+                    break;
+                };
+                if tokens[stop].text == ";" {
+                    break;
+                }
+                name_at = stop + 1;
+                continue;
+            }
+            let name = tokens[name_at].text;
+            let stop = literal_end + 1;
+            let scope_start = enclosing_block_start(&matching_close, name_at)
+                .map(|open| open + 1)
+                .unwrap_or(0);
+            let scope_end = enclosing_block_end(&matching_close, name_at).unwrap_or(tokens.len());
+            if identifier_occurs(&tokens, scope_start, name_at, name) {
+                if tokens[stop].text == ";" {
+                    break;
+                }
+                name_at = stop + 1;
+                continue;
+            }
+            let (uses, nested_use) = collect_same_scope_name_uses(
+                &tokens,
+                &matching_close,
+                name,
+                stop + 1,
+                scope_end,
+                name_at,
+            );
+            if !nested_use
+                && uses.len() == 1
+                && !name_use_is_mutated(&tokens, uses[0])
+            {
+                let use_at = uses[0];
+                let literal = &source[tokens[name_at + 2].start..tokens[literal_end].end];
+                let rendered = if rematerialized_literal_needs_grouping(
+                    &tokens,
+                    use_at,
+                    tokens[name_at + 2].kind,
+                ) {
+                    format!("({literal})")
+                } else {
+                    literal.to_string()
+                };
+                replacements.push((tokens[use_at].start, tokens[use_at].end, rendered));
+                let (from, to) = assignment_span_to_remove(&tokens, name_at, literal_end);
+                replacements.push((from, to, String::new()));
+            }
+            if tokens[stop].text == ";" {
+                break;
+            }
+            name_at = stop + 1;
+        }
+        cursor += 1;
+    }
+    Ok(apply_token_rewrites(source, replacements))
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum PrototypeToStringKind {
+    Object,
+    Function,
+}
+
+fn prototype_tostring_call(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    at: usize,
+) -> Option<(PrototypeToStringKind, usize)> {
+    let kind = match tokens.get(at).map(|token| token.text) {
+        Some("Object") => PrototypeToStringKind::Object,
+        Some("Function") => PrototypeToStringKind::Function,
+        _ => return None,
+    };
+    if tokens.get(at + 1).map(|token| token.text) != Some(".")
+        || tokens.get(at + 2).map(|token| token.text) != Some("prototype")
+        || tokens.get(at + 3).map(|token| token.text) != Some(".")
+        || tokens.get(at + 4).map(|token| token.text) != Some("toString")
+        || tokens.get(at + 5).map(|token| token.text) != Some(".")
+        || tokens.get(at + 6).map(|token| token.text) != Some("call")
+        || tokens.get(at + 7).map(|token| token.text) != Some("(")
+    {
+        return None;
+    }
+    let close = matching_close.get(at + 7).copied().flatten()?;
+    Some((kind, close))
+}
+
+fn collect_prototype_tostring_aliases<'src>(
+    tokens: &[Token<'src>],
+    matching_close: &[Option<usize>],
+) -> (Option<&'src str>, Option<&'src str>) {
+    let mut empty_objects = std::collections::HashSet::<&str>::new();
+    let mut functions = std::collections::HashSet::<&str>::new();
+    for index in 0..tokens.len() {
+        if tokens[index].kind != TokenKind::Identifier
+            || tokens.get(index + 1).map(|token| token.text) != Some("=")
+        {
+            continue;
+        }
+        if tokens.get(index + 2).map(|token| token.text) == Some("{")
+            && matching_close.get(index + 2).copied().flatten() == Some(index + 3)
+        {
+            empty_objects.insert(tokens[index].text);
+        }
+        if tokens.get(index + 2).is_some_and(|token| token.kind == TokenKind::Identifier)
+            && tokens.get(index + 3).map(|token| token.text) == Some(".")
+            && tokens.get(index + 4).map(|token| token.text) == Some("hasOwnProperty")
+            && matches!(
+                tokens.get(index + 5).map(|token| token.text),
+                Some(",") | Some(";") | None
+            )
+        {
+            functions.insert(tokens[index].text);
+        }
+    }
+    let mut object_alias = None;
+    let mut function_alias = None;
+    for index in 0..tokens.len() {
+        if tokens[index].kind != TokenKind::Identifier
+            || tokens.get(index + 1).map(|token| token.text) != Some("=")
+            || tokens
+                .get(index + 2)
+                .is_none_or(|token| token.kind != TokenKind::Identifier)
+            || tokens.get(index + 3).map(|token| token.text) != Some(".")
+            || tokens.get(index + 4).map(|token| token.text) != Some("toString")
+            || !matches!(
+                tokens.get(index + 5).map(|token| token.text),
+                Some(",") | Some(";") | None
+            )
+        {
+            continue;
+        }
+        let ident = tokens[index + 2].text;
+        let alias = tokens[index].text;
+        if empty_objects.contains(ident) {
+            object_alias = Some(alias);
+        }
+        if functions.contains(ident) {
+            function_alias = Some(alias);
+        }
+    }
+    (object_alias, function_alias)
+}
+
+fn fold_prototype_tostring_aliases(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let (object_alias, function_alias) =
+        collect_prototype_tostring_aliases(&tokens, &matching_close);
+    if object_alias.is_none() && function_alias.is_none() {
+        return Ok((source.to_string(), 0));
+    }
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut cursor = 0usize;
+    while cursor < tokens.len() {
+        let Some((kind, close)) = prototype_tostring_call(&tokens, &matching_close, cursor) else {
+            cursor += 1;
+            continue;
+        };
+        let alias = match kind {
+            PrototypeToStringKind::Object => object_alias,
+            PrototypeToStringKind::Function => function_alias,
+        };
+        let Some(alias) = alias else {
+            cursor += 1;
+            continue;
+        };
+        let args = &source[tokens[cursor + 8].start..tokens[close].start];
+        let rendered = format!("{alias}.call({args})");
+        if kind == PrototypeToStringKind::Function
+            && tokens.get(cursor.wrapping_sub(1)).map(|token| token.text) == Some("=")
+            && cursor >= 2
+            && tokens[cursor - 2].kind == TokenKind::Identifier
+            && matches!(
+                cursor
+                    .checked_sub(3)
+                    .map(|index| tokens[index].text)
+                    .unwrap_or(";"),
+                "let" | "var" | "const" | ","
+            )
+        {
+            let name_at = cursor - 2;
+            let name = tokens[name_at].text;
+            let uses = (0..tokens.len())
+                .filter(|&index| {
+                    index != name_at
+                        && tokens[index].kind == TokenKind::Identifier
+                        && tokens[index].text == name
+                })
+                .collect::<Vec<_>>();
+            if uses.len() == 1 && !name_use_is_mutated(&tokens, uses[0]) {
+                replacements.push((tokens[uses[0]].start, tokens[uses[0]].end, rendered));
+                let (from, to) = assignment_span_to_remove(&tokens, name_at, close);
+                replacements.push((from, to, String::new()));
+                cursor = close + 1;
+                continue;
+            }
+        }
+        replacements.push((tokens[cursor].start, tokens[close].end, rendered));
+        cursor = close + 1;
+    }
+    Ok(apply_token_rewrites(source, replacements))
+}
+
+fn strip_unused_simple_declarators(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut cursor = 0usize;
+    while cursor + 4 < tokens.len() {
+        if !matches!(tokens[cursor].text, "let" | "var") {
+            cursor += 1;
+            continue;
+        }
+        let mut name_at = cursor + 1;
+        let mut kept = Vec::<(usize, usize)>::new();
+        let mut any_removed = false;
+        loop {
+            if tokens.get(name_at).is_none_or(|token| token.kind != TokenKind::Identifier)
+                || tokens.get(name_at + 1).map(|token| token.text) != Some("=")
+                || tokens
+                    .get(name_at + 2)
+                    .is_none_or(|token| token.kind != TokenKind::Identifier)
+            {
+                let Some(stop) = top_level_stop(&tokens, name_at, &[",", ";"]) else {
+                    break;
+                };
+                kept.push((name_at, stop));
+                if tokens[stop].text == ";" {
+                    break;
+                }
+                name_at = stop + 1;
+                continue;
+            }
+            if tokens.get(name_at + 3).map(|token| token.text) == Some(".")
+                && tokens
+                    .get(name_at + 4)
+                    .is_some_and(|token| token.kind == TokenKind::Identifier)
+                && matches!(
+                    tokens.get(name_at + 5).map(|token| token.text),
+                    Some(",") | Some(";")
+                )
+            {
+                let name = tokens[name_at].text;
+                let stop = name_at + 5;
+                if name_is_used_in_scope(&tokens, &matching_close, name_at, stop + 1, name) {
+                    kept.push((name_at, stop));
+                } else {
+                    any_removed = true;
+                }
+                if tokens[stop].text == ";" {
+                    break;
+                }
+                name_at = stop + 1;
+                continue;
+            }
+            if tokens.get(name_at + 3).map(|token| token.text) == Some("[")
+                && tokens.get(name_at + 4).is_some_and(|token| {
+                    token.kind == TokenKind::Identifier || token.kind == TokenKind::Number
+                })
+                && tokens.get(name_at + 5).map(|token| token.text) == Some("]")
+                && matches!(
+                    tokens.get(name_at + 6).map(|token| token.text),
+                    Some(",") | Some(";")
+                )
+            {
+                let name = tokens[name_at].text;
+                let stop = name_at + 6;
+                if name_is_used_in_scope(&tokens, &matching_close, name_at, stop + 1, name) {
+                    kept.push((name_at, stop));
+                } else {
+                    any_removed = true;
+                }
+                if tokens[stop].text == ";" {
+                    break;
+                }
+                name_at = stop + 1;
+                continue;
+            }
+            if tokens.get(name_at + 3).map(|token| token.text) == Some(".") {
+                let Some(stop) = top_level_stop(&tokens, name_at, &[",", ";"]) else {
+                    break;
+                };
+                kept.push((name_at, stop));
+                if tokens[stop].text == ";" {
+                    break;
+                }
+                name_at = stop + 1;
+                continue;
+            }
+            let rhs_end = name_at + 2;
+            if !matches!(tokens.get(rhs_end + 1).map(|token| token.text), Some(",") | Some(";")) {
+                let Some(stop) = top_level_stop(&tokens, name_at, &[",", ";"]) else {
+                    break;
+                };
+                kept.push((name_at, stop));
+                if tokens[stop].text == ";" {
+                    break;
+                }
+                name_at = stop + 1;
+                continue;
+            }
+            let name = tokens[name_at].text;
+            let stop = rhs_end + 1;
+            if name_is_used_in_scope(&tokens, &matching_close, name_at, stop + 1, name) {
+                kept.push((name_at, stop));
+            } else {
+                any_removed = true;
+            }
+            if tokens[stop].text == ";" {
+                break;
+            }
+            name_at = stop + 1;
+        }
+        if any_removed {
+            let Some(semi) = tokens
+                .iter()
+                .enumerate()
+                .skip(cursor)
+                .find(|(_, token)| token.text == ";")
+                .map(|(index, _)| index)
+            else {
+                cursor += 1;
+                continue;
+            };
+            let replacement = if kept.is_empty() {
+                String::new()
+            } else {
+                let decls = kept
+                    .iter()
+                    .map(|(start, end)| source[tokens[*start].start..tokens[*end].start].to_string())
+                    .collect::<Vec<_>>()
+                    .join(",");
+                format!("{} {decls};", tokens[cursor].text)
+            };
+            replacements.push((tokens[cursor].start, tokens[semi].end, replacement));
+            cursor = semi + 1;
+            continue;
+        }
+        cursor += 1;
+    }
+    let (output, count) = apply_token_rewrites(source, replacements);
+    Ok((output, count))
+}
+
+fn fold_temp_index_keys(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut cursor = 0usize;
+    while cursor + 8 < tokens.len() {
+        let name_at = if matches!(tokens[cursor].text, "var" | "let") {
+            cursor + 1
+        } else {
+            cursor
+        };
+        if tokens.get(name_at).is_none_or(|token| token.kind != TokenKind::Identifier)
+            || tokens.get(name_at + 1).map(|token| token.text) != Some("=")
+        {
+            cursor += 1;
+            continue;
+        }
+        let Some(semi) = top_level_stop(&tokens, name_at + 2, &[";"]) else {
+            cursor += 1;
+            continue;
+        };
+        let name = tokens[name_at].text;
+        if tokens
+            .get(semi + 1)
+            .is_none_or(|token| token.kind != TokenKind::Identifier)
+            || tokens.get(semi + 2).map(|token| token.text) != Some("[")
+            || tokens.get(semi + 3).map(|token| token.text) != Some(name)
+            || tokens.get(semi + 4).map(|token| token.text) != Some("]")
+            || tokens.get(semi + 5).map(|token| token.text) != Some("=")
+        {
+            cursor += 1;
+            continue;
+        }
+        let Some(assign_end) = top_level_stop(&tokens, semi + 6, &[";", "}"]) else {
+            cursor += 1;
+            continue;
+        };
+        let scope_end = enclosing_block_end(&matching_closers(&tokens), name_at).unwrap_or(tokens.len());
+        if identifier_occurs(&tokens, name_at + 2, semi, name)
+            || identifier_occurs(&tokens, semi + 6, assign_end, name)
+            || identifier_occurs(&tokens, assign_end + 1, scope_end, name)
+        {
+            cursor += 1;
+            continue;
+        }
+        let key = &source[tokens[name_at + 2].start..tokens[semi].start];
+        let object = tokens[semi + 1].text;
+        let value = &source[tokens[semi + 6].start..tokens[assign_end].start];
+        let from = if name_at
+            .checked_sub(1)
+            .is_some_and(|index| tokens[index].text == ",")
+        {
+            tokens[name_at - 1].start
+        } else {
+            tokens[cursor].start
+        };
+        let replace_end = if tokens[assign_end].text == "}" {
+            tokens[assign_end].start
+        } else {
+            tokens[assign_end].end
+        };
+        replacements.push((
+            from,
+            replace_end,
+            format!("{object}[{key}]={value};"),
+        ));
+        cursor = assign_end + 1;
+    }
+    let (output, count) = apply_token_rewrites(source, replacements);
+    Ok((output, count))
+}
+
+fn fold_coalesced_or_returns(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut cursor = 0usize;
+    while cursor + 12 < tokens.len() {
+        let name_index = if matches!(tokens[cursor].text, "var" | "let") {
+            cursor + 1
+        } else {
+            cursor
+        };
+        if tokens.get(name_index).is_none_or(|token| token.kind != TokenKind::Identifier)
+            || tokens.get(name_index + 1).map(|token| token.text) != Some("=")
+        {
+            cursor += 1;
+            continue;
+        }
+        let name = tokens[name_index].text;
+        let Some(first_semi) = top_level_stop(&tokens, name_index + 2, &[";"]) else {
+            cursor += 1;
+            continue;
+        };
+        if tokens.get(first_semi + 1).map(|token| token.text) != Some("!")
+            || tokens.get(first_semi + 2).map(|token| token.text) != Some(name)
+            || tokens.get(first_semi + 3).map(|token| token.text) != Some("&&")
+            || tokens.get(first_semi + 4).map(|token| token.text) != Some("(")
+            || tokens.get(first_semi + 5).map(|token| token.text) != Some(name)
+            || tokens.get(first_semi + 6).map(|token| token.text) != Some("=")
+        {
+            cursor += 1;
+            continue;
+        }
+        let Some(assign_close) = top_level_stop(&tokens, first_semi + 7, &[")"]) else {
+            cursor += 1;
+            continue;
+        };
+        if tokens.get(assign_close + 1).map(|token| token.text) != Some(";")
+            || tokens.get(assign_close + 2).map(|token| token.text) != Some("return")
+        {
+            cursor += 1;
+            continue;
+        }
+        if identifier_occurs(&tokens, first_semi + 7, assign_close, name) {
+            cursor += 1;
+            continue;
+        }
+        let left = &source[tokens[name_index + 2].start..tokens[first_semi].start];
+        let right = &source[tokens[first_semi + 7].start..tokens[assign_close].start];
+        let value = format!("{left}||{right}");
+        let return_at = assign_close + 2;
+        let comma_declarator = name_index
+            .checked_sub(1)
+            .is_some_and(|index| tokens[index].text == ",");
+        let replace_from = if comma_declarator {
+            tokens[name_index - 1].start
+        } else {
+            tokens[cursor].start
+        };
+        let prefix = if comma_declarator { ";" } else { "" };
+        let replacement = if tokens.get(return_at + 1).map(|token| token.text) == Some(name) {
+            let after_name = return_at + 2;
+            if tokens.get(after_name).map(|token| token.text) == Some(".")
+                && tokens
+                    .get(after_name + 1)
+                    .is_some_and(|token| token.kind == TokenKind::Identifier)
+                && tokens.get(after_name + 2).map(|token| token.text) == Some("(")
+            {
+                let Some(call_close) = matching_close.get(after_name + 2).copied().flatten() else {
+                    cursor += 1;
+                    continue;
+                };
+                if identifier_occurs(&tokens, after_name + 3, call_close, name) {
+                    cursor += 1;
+                    continue;
+                }
+                let end = tokens
+                    .get(call_close + 1)
+                    .filter(|token| token.text == ";")
+                    .map(|token| token.end)
+                    .unwrap_or(tokens[call_close].end);
+                let suffix = &source[tokens[after_name].start..tokens[call_close].end];
+                (
+                    replace_from,
+                    end,
+                    format!("{prefix}return ({value}){suffix}"),
+                )
+            } else {
+                let end = tokens
+                    .get(after_name)
+                    .filter(|token| token.text == ";")
+                    .map(|token| token.end)
+                    .unwrap_or(tokens[return_at + 1].end);
+                (replace_from, end, format!("{prefix}return {value}"))
+            }
+        } else if tokens.get(return_at + 1).map(|token| token.text) == Some("!")
+            && tokens
+                .get(return_at + 2)
+                .is_some_and(|token| token.kind == TokenKind::Identifier)
+            && tokens.get(return_at + 3).map(|token| token.text) == Some(".")
+            && tokens.get(return_at + 4).map(|token| token.text) == Some("test")
+            && tokens.get(return_at + 5).map(|token| token.text) == Some("(")
+            && tokens.get(return_at + 6).map(|token| token.text) == Some(name)
+            && tokens.get(return_at + 7).map(|token| token.text) == Some(")")
+        {
+            let end = tokens
+                .get(return_at + 8)
+                .filter(|token| token.text == ";")
+                .map(|token| token.end)
+                .unwrap_or(tokens[return_at + 7].end);
+            (
+                replace_from,
+                end,
+                format!("{prefix}return!{}.test({value})", tokens[return_at + 2].text),
+            )
+        } else {
+            cursor += 1;
+            continue;
+        };
+        replacements.push(replacement);
+        cursor = return_at + 4;
+    }
+    let (output, count) = apply_token_rewrites(source, replacements);
+    Ok((output, count))
+}
+
+fn flatten_associative_string_concats(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut cursor = 0usize;
+    while cursor + 6 < tokens.len() {
+        if tokens[cursor].kind == TokenKind::String
+            && tokens.get(cursor + 1).map(|token| token.text) == Some("+")
+            && tokens.get(cursor + 2).map(|token| token.text) == Some("(")
+            && tokens
+                .get(cursor + 3)
+                .is_some_and(|token| token.kind == TokenKind::Identifier)
+            && tokens.get(cursor + 4).map(|token| token.text) == Some("+")
+            && tokens.get(cursor + 5).map(|token| token.kind) == Some(TokenKind::String)
+            && tokens.get(cursor + 6).map(|token| token.text) == Some(")")
+        {
+            replacements.push((
+                tokens[cursor].start,
+                tokens[cursor + 6].end,
+                format!(
+                    "{}+{}+{}",
+                    tokens[cursor].text, tokens[cursor + 3].text, tokens[cursor + 5].text
+                ),
+            ));
+            cursor += 7;
+            continue;
+        }
+        cursor += 1;
+    }
+    let (output, count) = apply_token_rewrites(source, replacements);
+    Ok((output, count))
+}
+
+fn fold_for_false_breaks(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    for for_at in 0..tokens.len() {
+        if tokens[for_at].text != "for" || tokens.get(for_at + 1).map(|token| token.text) != Some("(")
+        {
+            continue;
+        }
+        let Some(header_close) = matching_close.get(for_at + 1).copied().flatten() else {
+            continue;
+        };
+        let mut semis = Vec::new();
+        let mut depth = 0i32;
+        for (index, token) in tokens.iter().enumerate().take(header_close).skip(for_at + 2) {
+            match token.text {
+                "(" | "[" | "{" => depth += 1,
+                ")" | "]" | "}" => depth -= 1,
+                ";" if depth == 0 => semis.push(index),
+                _ => {}
+            }
+        }
+        if semis.len() != 2 {
+            continue;
+        }
+        let cond = &source[tokens[semis[0]].end..tokens[semis[1]].start];
+        let inc = &source[tokens[semis[1]].end..tokens[header_close].start];
+        let init = &source[tokens[for_at + 1].end..tokens[semis[0]].start];
+        let body_at = header_close + 1;
+        let (test_start, test_end, body_end) = if tokens.get(body_at).map(|token| token.text)
+            == Some("{")
+        {
+            let Some(body_close) = matching_close.get(body_at).copied().flatten() else {
+                continue;
+            };
+            let Some((test_start, test_end, after_break)) =
+                exclusive_if_break(&tokens, &matching_close, body_at + 1)
+            else {
+                continue;
+            };
+            if after_break != body_close {
+                continue;
+            }
+            (test_start, test_end, tokens[body_close].end)
+        } else {
+            let Some((test_start, test_end, after_break)) =
+                exclusive_if_break(&tokens, &matching_close, body_at)
+            else {
+                continue;
+            };
+            let end = tokens
+                .get(after_break)
+                .filter(|token| token.text == ";")
+                .map(|token| token.end)
+                .unwrap_or(tokens[after_break - 1].end);
+            (test_start, test_end, end)
+        };
+        let Some(cond_extra) = false_equality_condition(source, &tokens, test_start, test_end) else {
+            continue;
+        };
+        let new_cond = if cond.trim().is_empty() {
+            cond_extra
+        } else {
+            format!("{cond}&&{cond_extra}")
+        };
+        replacements.push((
+            tokens[for_at].start,
+            body_end,
+            format!("for({init};{new_cond};{inc});"),
+        ));
+    }
+    let (output, count) = apply_token_rewrites(source, replacements);
+    Ok((output, count))
+}
+
+fn exclusive_if_break(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    if_at: usize,
+) -> Option<(usize, usize, usize)> {
+    if tokens.get(if_at).map(|token| token.text) != Some("if")
+        || tokens.get(if_at + 1).map(|token| token.text) != Some("(")
+    {
+        return None;
+    }
+    let if_close = matching_close.get(if_at + 1).copied().flatten()?;
+    let after_break = if tokens.get(if_close + 1).map(|token| token.text) == Some("break") {
+        if tokens.get(if_close + 2).map(|token| token.text) == Some(";") {
+            if_close + 3
+        } else {
+            if_close + 2
+        }
+    } else if tokens.get(if_close + 1).map(|token| token.text) == Some("{") {
+        let block_close = matching_close.get(if_close + 1).copied().flatten()?;
+        if tokens.get(if_close + 2).map(|token| token.text) != Some("break") {
+            return None;
+        }
+        let after_inner = if tokens.get(if_close + 3).map(|token| token.text) == Some(";") {
+            if_close + 4
+        } else {
+            if_close + 3
+        };
+        if after_inner != block_close {
+            return None;
+        }
+        block_close + 1
+    } else {
+        return None;
+    };
+    Some((if_at + 2, if_close, after_break))
+}
+
+fn false_equality_condition(
+    source: &str,
+    tokens: &[Token<'_>],
+    test_open: usize,
+    test_close: usize,
+) -> Option<String> {
+    let test = &tokens[test_open..test_close];
+    let eq_at = if test.len() >= 3
+        && test[test.len() - 1].text == "1"
+        && test[test.len() - 2].text == "!"
+        && matches!(test[test.len() - 3].text, "===" | "==")
+    {
+        test.len() - 3
+    } else if test.len() >= 2
+        && matches!(test[test.len() - 1].text, "false" | "!1")
+        && matches!(test[test.len() - 2].text, "===" | "==")
+    {
+        test.len() - 2
+    } else {
+        return None;
+    };
+    let left = &source[test[0].start..test[eq_at].start];
+    Some(format!("!1!=={left}"))
+}
+
+fn fold_nullish_index_walks(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    for for_at in 0..tokens.len() {
+        if tokens[for_at].text != "for" || tokens.get(for_at + 1).map(|token| token.text) != Some("(")
+        {
+            continue;
+        }
+        let Some(header_close) = matching_close.get(for_at + 1).copied().flatten() else {
+            continue;
+        };
+        let header = &source[tokens[for_at + 1].end..tokens[header_close].start];
+        if header != ";!0;" && header != ";;" {
+            continue;
+        }
+        let body_open = header_close + 1;
+        if tokens.get(body_open).map(|token| token.text) != Some("{") {
+            continue;
+        }
+        let Some(body_close) = matching_close.get(body_open).copied().flatten() else {
+            continue;
+        };
+        if let Some(folded) =
+            fold_index_walk_from_tokens(source, &tokens, body_open, body_close)
+        {
+            replacements.push((tokens[for_at].start, tokens[body_close].end, folded));
+        }
+    }
+    let (output, count) = apply_token_rewrites(source, replacements);
+    Ok((output, count))
+}
+
+fn fold_index_walk_from_tokens(
+    source: &str,
+    tokens: &[Token<'_>],
+    body_open: usize,
+    body_close: usize,
+) -> Option<String> {
+    let start = body_open + 1;
+    if let Some(folded) = fold_postfix_index_walk(source, tokens, start, body_close) {
+        return Some(folded);
+    }
+    fold_temp_index_walk(source, tokens, start, body_close)
+}
+
+fn consume_falsy_break(tokens: &[Token<'_>], at: usize, name: &str) -> Option<usize> {
+    if tokens.get(at).map(|token| token.text) != Some("if")
+        || tokens.get(at + 1).map(|token| token.text) != Some("(")
+    {
+        return None;
+    }
+    let after_test = if tokens.get(at + 2).map(|token| token.text) == Some("!")
+        && tokens.get(at + 3).map(|token| token.text) == Some(name)
+        && tokens.get(at + 4).map(|token| token.text) == Some(")")
+    {
+        at + 5
+    } else if tokens.get(at + 2).map(|token| token.text) == Some(name)
+        && matches!(tokens.get(at + 3).map(|token| token.text), Some("==") | Some("==="))
+        && tokens.get(at + 4).map(|token| token.text) == Some("null")
+        && tokens.get(at + 5).map(|token| token.text) == Some(")")
+    {
+        at + 6
+    } else {
+        return None;
+    };
+    if tokens.get(after_test).map(|token| token.text) != Some("break") {
+        return None;
+    }
+    Some(if tokens.get(after_test + 1).map(|token| token.text) == Some(";") {
+        after_test + 2
+    } else {
+        after_test + 1
+    })
+}
+
+fn fold_postfix_index_walk(
+    source: &str,
+    tokens: &[Token<'_>],
+    start: usize,
+    body_close: usize,
+) -> Option<String> {
+    if tokens.get(start).is_none_or(|token| token.kind != TokenKind::Identifier)
+        || tokens.get(start + 1).map(|token| token.text) != Some("=")
+        || tokens
+            .get(start + 2)
+            .is_none_or(|token| token.kind != TokenKind::Identifier)
+        || tokens.get(start + 3).map(|token| token.text) != Some("[")
+        || tokens
+            .get(start + 4)
+            .is_none_or(|token| token.kind != TokenKind::Identifier)
+        || tokens.get(start + 5).map(|token| token.text) != Some("++")
+        || tokens.get(start + 6).map(|token| token.text) != Some("]")
+        || tokens.get(start + 7).map(|token| token.text) != Some(";")
+    {
+        return None;
+    }
+    let node = tokens[start].text;
+    let array = tokens[start + 2].text;
+    let index = tokens[start + 4].text;
+    let body_start = consume_falsy_break(tokens, start + 8, node)?;
+    if body_start >= body_close {
+        return None;
+    }
+    let body = source[tokens[body_start].start..tokens[body_close].start].trim_end_matches(';');
+    Some(format!("for(;{node}={array}[{index}++];){body};"))
+}
+
+fn fold_temp_index_walk(
+    source: &str,
+    tokens: &[Token<'_>],
+    start: usize,
+    body_close: usize,
+) -> Option<String> {
+    if tokens.get(start).is_none_or(|token| token.kind != TokenKind::Identifier)
+        || tokens.get(start + 1).map(|token| token.text) != Some("=")
+        || tokens
+            .get(start + 2)
+            .is_none_or(|token| token.kind != TokenKind::Identifier)
+        || tokens.get(start + 3).map(|token| token.text) != Some("+")
+        || tokens.get(start + 4).map(|token| token.text) != Some("1")
+        || tokens.get(start + 5).map(|token| token.text) != Some(";")
+    {
+        return None;
+    }
+    let temp = tokens[start].text;
+    let index = tokens[start + 2].text;
+    if temp == index {
+        return None;
+    }
+    let read_at = start + 6;
+    if tokens.get(read_at).is_none_or(|token| token.kind != TokenKind::Identifier)
+        || tokens.get(read_at + 1).map(|token| token.text) != Some("=")
+        || tokens
+            .get(read_at + 2)
+            .is_none_or(|token| token.kind != TokenKind::Identifier)
+        || tokens.get(read_at + 3).map(|token| token.text) != Some("[")
+        || tokens.get(read_at + 4).map(|token| token.text) != Some(index)
+        || tokens.get(read_at + 5).map(|token| token.text) != Some("]")
+        || tokens.get(read_at + 6).map(|token| token.text) != Some(";")
+    {
+        return None;
+    }
+    let node = tokens[read_at].text;
+    let array = tokens[read_at + 2].text;
+    let body_start = consume_falsy_break(tokens, read_at + 7, node)?;
+    if body_start >= body_close {
+        return None;
+    }
+    let restore_at = if tokens.get(body_close - 1).map(|token| token.text) == Some(";") {
+        body_close - 4
+    } else {
+        body_close - 3
+    };
+    if tokens.get(restore_at).map(|token| token.text) != Some(index)
+        || tokens.get(restore_at + 1).map(|token| token.text) != Some("=")
+        || tokens.get(restore_at + 2).map(|token| token.text) != Some(temp)
+    {
+        return None;
+    }
+    if identifier_occurs(tokens, body_start, restore_at, temp) {
+        return None;
+    }
+    if node == index {
+        let body = rewrite_identifier_span(source, tokens, body_start, restore_at, node, temp)
+            .trim_end_matches(';')
+            .to_string();
+        Some(format!("for(;{temp}={array}[{index}++];){body};"))
+    } else if identifier_occurs(tokens, body_start, restore_at, index) {
+        None
+    } else {
+        let body = source[tokens[body_start].start..tokens[restore_at].start].trim_end_matches(';');
+        Some(format!("for(;{node}={array}[{index}++];){body};"))
+    }
+}
+
+fn rewrite_identifier_span(
+    source: &str,
+    tokens: &[Token<'_>],
+    start: usize,
+    end: usize,
+    from: &str,
+    to: &str,
+) -> String {
+    if start >= end {
+        return String::new();
+    }
+    let mut output = String::new();
+    let mut cursor = tokens[start].start;
+    for token in &tokens[start..end] {
+        output.push_str(&source[cursor..token.start]);
+        if token.kind == TokenKind::Identifier && token.text == from {
+            output.push_str(to);
+        } else {
+            output.push_str(token.text);
+        }
+        cursor = token.end;
+    }
+    output
+}
+
+fn fold_assigned_truthy_ternaries(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    for open in 0..tokens.len() {
+        if tokens[open].text != "("
+            || tokens
+                .get(open + 1)
+                .is_none_or(|token| token.kind != TokenKind::Identifier)
+            || tokens.get(open + 2).map(|token| token.text) != Some("=")
+        {
+            continue;
+        }
+        let Some(close) = matching_close.get(open).copied().flatten() else {
+            continue;
+        };
+        let name = tokens[open + 1].text;
+        if tokens.get(close + 1).map(|token| token.text) != Some("?")
+            || tokens.get(close + 2).map(|token| token.text) != Some(name)
+            || tokens.get(close + 3).map(|token| token.text) != Some(":")
+        {
+            continue;
+        }
+        let fallback_at = close + 4;
+        let Some(fallback_end) = complete_primary_end(&tokens, fallback_at) else {
+            continue;
+        };
+        if identifier_occurs(&tokens, fallback_at, fallback_end + 1, name)
+            || name_is_read_after_statement(&tokens, fallback_end + 1, name)
+        {
+            continue;
+        }
+        let expr = &source[tokens[open + 3].start..tokens[close].start];
+        let fallback = &source[tokens[fallback_at].start..tokens[fallback_end].end];
+        replacements.push((
+            tokens[open].start,
+            tokens[fallback_end].end,
+            format!("{expr}||{fallback}"),
+        ));
+    }
+    let (output, count) = apply_token_rewrites(source, replacements);
+    Ok((output, count))
+}
+
+fn complete_primary_end(tokens: &[Token<'_>], start: usize) -> Option<usize> {
+    let token = tokens.get(start)?;
+    if matches!(
+        token.kind,
+        TokenKind::String | TokenKind::Number | TokenKind::Keyword | TokenKind::Identifier
+    ) {
+        return Some(start);
+    }
+    if token.text == "(" || token.text == "[" {
+        return matching_closers(tokens).get(start).copied().flatten();
+    }
+    None
+}
+
+fn name_is_read_after_statement(tokens: &[Token<'_>], start: usize, name: &str) -> bool {
+    let mut index = start;
+    while index < tokens.len() && matches!(tokens[index].text, ":" | ")" | "," | ";" | "?" | "&&" | "||")
+    {
+        if tokens[index].text == ";" {
+            index += 1;
+            break;
+        }
+        index += 1;
+    }
+    let mut depth = 0i32;
+    while index < tokens.len() {
+        match tokens[index].text {
+            "{" => depth += 1,
+            "}" if depth == 0 => return false,
+            "}" => depth -= 1,
+            "function" if depth == 0 => return false,
+            _ if tokens[index].kind == TokenKind::Identifier && tokens[index].text == name => {
+                return true;
+            }
+            _ => {}
+        }
+        index += 1;
+    }
+    false
+}
+
+fn is_object_name(token: &Token<'_>) -> bool {
+    token.kind == TokenKind::Identifier || token.text == "this"
+}
+
+fn length_binding<'a>(tokens: &[Token<'a>], name_at: usize) -> Option<(&'a str, &'a str, usize)> {
+    if tokens.get(name_at)?.kind != TokenKind::Identifier || tokens.get(name_at + 1)?.text != "=" {
+        return None;
+    }
+    let object_at = if tokens.get(name_at + 2)?.text == "+"
+        && is_object_name(tokens.get(name_at + 3)?)
+        && tokens.get(name_at + 4)?.text == "."
+        && tokens.get(name_at + 5)?.text == "length"
+    {
+        name_at + 3
+    } else if is_object_name(tokens.get(name_at + 2)?)
+        && tokens.get(name_at + 3)?.text == "."
+        && tokens.get(name_at + 4)?.text == "length"
+    {
+        name_at + 2
+    } else {
+        return None;
+    };
+    Some((tokens[name_at].text, tokens[object_at].text, object_at + 2))
+}
+
+fn collect_length_bindings<'a>(
+    tokens: &[Token<'a>],
+    start: usize,
+    end: usize,
+    out: &mut Vec<(&'a str, &'a str)>,
+) {
+    let mut index = start;
+    while index < end {
+        if matches!(tokens[index].text, "var" | "let" | "const" | ",") {
+            index += 1;
+            continue;
+        }
+        if let Some((name, object, length_at)) = length_binding(tokens, index) {
+            let after = length_at + 1;
+            if after < end && !matches!(tokens[after].text, ",") {
+                index += 1;
+                continue;
+            }
+            out.retain(|(existing, _)| *existing != name);
+            out.push((name, object));
+            index = after;
+            continue;
+        }
+        index += 1;
+    }
+}
+
+fn previous_statement_range(tokens: &[Token<'_>], for_at: usize) -> Option<(usize, usize)> {
+    let semi = for_at.checked_sub(1)?;
+    if tokens[semi].text != ";" {
+        return None;
+    }
+    let mut depth = 0i32;
+    let mut index = semi;
+    while index > 0 {
+        index -= 1;
+        match tokens[index].text {
+            ")" | "]" | "}" => depth += 1,
+            "(" | "[" | "{" => {
+                if depth == 0 {
+                    return Some((index + 1, semi));
+                }
+                depth -= 1;
+            }
+            ";" if depth == 0 => return Some((index + 1, semi)),
+            _ => {}
+        }
+    }
+    (depth == 0).then_some((0, semi))
+}
+
+fn fold_cached_length_conditions(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    for for_at in 0..tokens.len() {
+        if tokens[for_at].text != "for" || tokens.get(for_at + 1).map(|token| token.text) != Some("(")
+        {
+            continue;
+        }
+        let Some(header_close) = matching_close.get(for_at + 1).copied().flatten() else {
+            continue;
+        };
+        let mut semis = Vec::new();
+        let mut depth = 0i32;
+        for (index, token) in tokens.iter().enumerate().take(header_close).skip(for_at + 2) {
+            match token.text {
+                "(" | "[" | "{" => depth += 1,
+                ")" | "]" | "}" => depth -= 1,
+                ";" if depth == 0 => semis.push(index),
+                _ => {}
+            }
+        }
+        if semis.len() != 2 {
+            continue;
+        }
+        let mut bindings = Vec::<(&str, &str)>::new();
+        collect_length_bindings(&tokens, for_at + 2, semis[0], &mut bindings);
+        if let Some((start, end)) = previous_statement_range(&tokens, for_at) {
+            collect_length_bindings(&tokens, start, end, &mut bindings);
+        }
+        if bindings.is_empty() {
+            continue;
+        }
+        let mut index = semis[0] + 1;
+        while index + 2 < semis[1] {
+            if is_object_name(&tokens[index])
+                && tokens[index + 1].text == "."
+                && tokens[index + 2].text == "length"
+                && tokens.get(index + 3).map(|token| token.text) != Some("=")
+            {
+                let object = tokens[index].text;
+                if let Some((name, _)) = bindings.iter().rev().find(|(_, obj)| *obj == object) {
+                    replacements.push((
+                        tokens[index].start,
+                        tokens[index + 2].end,
+                        (*name).to_string(),
+                    ));
+                    index += 3;
+                    continue;
+                }
+            }
+            index += 1;
+        }
+    }
+    let (output, count) = apply_token_rewrites(source, replacements);
+    Ok((output, count))
+}
+
+fn fold_cached_member_reads(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut cursor = 0usize;
+    while cursor + 4 < tokens.len() {
+        let name_at = if matches!(tokens[cursor].text, "var" | "let") {
+            cursor + 1
+        } else {
+            cursor
+        };
+        if tokens.get(name_at).is_none_or(|token| token.kind != TokenKind::Identifier)
+            || tokens.get(name_at + 1).map(|token| token.text) != Some("=")
+            || !tokens.get(name_at + 2).is_some_and(is_object_name)
+            || tokens.get(name_at + 3).map(|token| token.text) != Some(".")
+            || tokens
+                .get(name_at + 4)
+                .is_none_or(|token| token.kind != TokenKind::Identifier)
+            || !matches!(
+                tokens.get(name_at + 5).map(|token| token.text),
+                Some(",") | Some(";") | Some("}") | None
+            )
+        {
+            cursor += 1;
+            continue;
+        }
+        let name = tokens[name_at].text;
+        let object = tokens[name_at + 2].text;
+        let prop = tokens[name_at + 4].text;
+        let scope_end = enclosing_block_end(&matching_close, name_at).unwrap_or(tokens.len());
+        let mut scan = name_at + 5;
+        if matches!(tokens.get(scan).map(|token| token.text), Some(",") | Some(";")) {
+            scan += 1;
+        }
+        while scan + 2 < scope_end {
+            if let Some(close) = nested_function_end(&tokens, &matching_close, scan) {
+                scan = close + 1;
+                continue;
+            }
+            if tokens[scan].kind == TokenKind::Identifier && tokens[scan].text == name {
+                if tokens.get(scan + 1).map(|token| token.text) == Some("=")
+                    && tokens.get(scan + 2).map(|token| token.text) != Some("=")
+                {
+                    break;
+                }
+            }
+            let prev = scan
+                .checked_sub(1)
+                .map(|index| tokens[index].text)
+                .unwrap_or(";");
+            if is_object_name(&tokens[scan])
+                && tokens[scan].text == object
+                && tokens.get(scan + 1).map(|token| token.text) == Some(".")
+                && tokens.get(scan + 2).map(|token| token.text) == Some(prop)
+                && tokens.get(scan + 3).map(|token| token.text) != Some("=")
+                && prev != ":"
+            {
+                replacements.push((tokens[scan].start, tokens[scan + 2].end, name.to_string()));
+                scan += 3;
+                continue;
+            }
+            scan += 1;
+        }
+        cursor = name_at + 1;
+    }
+    let (output, count) = apply_token_rewrites(source, replacements);
+    Ok((output, count))
+}
+
+fn fold_repeated_member_assigns(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut cursor = 0usize;
+    while cursor + 10 < tokens.len() {
+        let prev = cursor
+            .checked_sub(1)
+            .map(|index| tokens[index].text)
+            .unwrap_or(";");
+        if !matches!(prev, ";" | "{" | "}")
+            || !is_object_name(&tokens[cursor])
+            || tokens.get(cursor + 1).map(|token| token.text) != Some(".")
+            || tokens
+                .get(cursor + 2)
+                .is_none_or(|token| token.kind != TokenKind::Identifier)
+            || tokens.get(cursor + 3).map(|token| token.text) != Some("=")
+            || tokens
+                .get(cursor + 4)
+                .is_none_or(|token| token.kind != TokenKind::Identifier)
+            || tokens.get(cursor + 5).map(|token| token.text) != Some(";")
+            || tokens.get(cursor + 6).map(|token| token.text) != Some(tokens[cursor].text)
+            || tokens.get(cursor + 7).map(|token| token.text) != Some(".")
+            || tokens
+                .get(cursor + 8)
+                .is_none_or(|token| token.kind != TokenKind::Identifier)
+            || tokens[cursor + 8].text == tokens[cursor + 2].text
+            || tokens.get(cursor + 9).map(|token| token.text) != Some("=")
+            || tokens.get(cursor + 10).map(|token| token.text) != Some(tokens[cursor + 4].text)
+        {
+            cursor += 1;
+            continue;
+        }
+        replacements.push((
+            tokens[cursor].start,
+            tokens[cursor + 10].end,
+            format!(
+                "{}.{}={}.{}={}",
+                tokens[cursor].text,
+                tokens[cursor + 2].text,
+                tokens[cursor].text,
+                tokens[cursor + 8].text,
+                tokens[cursor + 4].text
+            ),
+        ));
+        cursor += 11;
+    }
+    let (output, count) = apply_token_rewrites(source, replacements);
+    Ok((output, count))
+}
+
+fn skip_nested_loop_or_function(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    scan: usize,
+) -> Option<usize> {
+    if let Some(close) = nested_function_end(tokens, matching_close, scan) {
+        return Some(close);
+    }
+    if matches!(tokens[scan].text, "for" | "while")
+        && tokens.get(scan + 1).map(|token| token.text) == Some("(")
+    {
+        let header_close = matching_close.get(scan + 1).copied().flatten()?;
+        let after = header_close + 1;
+        if tokens.get(after).map(|token| token.text) == Some("{") {
+            return matching_close.get(after).copied().flatten();
+        }
+        return top_level_stop(tokens, after, &[";"]);
+    }
+    if tokens[scan].text == "do" && tokens.get(scan + 1).map(|token| token.text) == Some("{") {
+        return matching_close.get(scan + 1).copied().flatten();
+    }
+    None
+}
+
+fn fold_for_trailing_increments(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    for for_at in 0..tokens.len() {
+        if tokens[for_at].text != "for" || tokens.get(for_at + 1).map(|token| token.text) != Some("(")
+        {
+            continue;
+        }
+        let Some(header_close) = matching_close.get(for_at + 1).copied().flatten() else {
+            continue;
+        };
+        let mut semis = Vec::new();
+        let mut depth = 0i32;
+        for (index, token) in tokens.iter().enumerate().take(header_close).skip(for_at + 2) {
+            match token.text {
+                "(" | "[" | "{" => depth += 1,
+                ")" | "]" | "}" => depth -= 1,
+                ";" if depth == 0 => semis.push(index),
+                _ => {}
+            }
+        }
+        if semis.len() != 2 || semis[1] + 1 != header_close {
+            continue;
+        }
+        let body_at = header_close + 1;
+        if tokens.get(body_at).map(|token| token.text) != Some("{") {
+            continue;
+        }
+        let Some(body_close) = matching_close.get(body_at).copied().flatten() else {
+            continue;
+        };
+        let last = if tokens.get(body_close - 1).map(|token| token.text) == Some(";")
+            && tokens.get(body_close - 2).map(|token| token.text) == Some("++")
+        {
+            body_close - 3
+        } else if tokens.get(body_close - 1).map(|token| token.text) == Some("++") {
+            body_close - 2
+        } else {
+            continue;
+        };
+        if last <= body_at + 1
+            || tokens.get(last).is_none_or(|token| token.kind != TokenKind::Identifier)
+        {
+            continue;
+        }
+        let name = tokens[last].text;
+        let mut scan = body_at + 1;
+        let mut same_level_continue = false;
+        while scan < last {
+            if let Some(close) = skip_nested_loop_or_function(&tokens, &matching_close, scan) {
+                scan = close + 1;
+                continue;
+            }
+            if tokens[scan].text == "continue" {
+                same_level_continue = true;
+                break;
+            }
+            scan += 1;
+        }
+        if same_level_continue {
+            continue;
+        }
+        let init = &source[tokens[for_at + 1].end..tokens[semis[0]].start];
+        let cond = &source[tokens[semis[0]].end..tokens[semis[1]].start];
+        let body = source[tokens[body_at + 1].start..tokens[last].start]
+            .trim_end_matches(';')
+            .trim();
+        let body = if body.is_empty() {
+            ";".to_string()
+        } else if body.contains(';') || body.contains('{') {
+            format!("{{{body};}}")
+        } else {
+            format!("{body};")
+        };
+        replacements.push((
+            tokens[for_at].start,
+            tokens[body_close].end,
+            format!("for({init};{cond};{name}++){body}"),
+        ));
+    }
+    let (output, count) = apply_token_rewrites(source, replacements);
+    Ok((output, count))
+}
+
+fn strip_unused_for_init_vars(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    for for_at in 0..tokens.len() {
+        if tokens[for_at].text != "for" || tokens.get(for_at + 1).map(|token| token.text) != Some("(")
+        {
+            continue;
+        }
+        if tokens.get(for_at + 2).map(|token| token.text) != Some("var")
+            && tokens.get(for_at + 2).map(|token| token.text) != Some("let")
+        {
+            continue;
+        }
+        if matching_close.get(for_at + 1).copied().flatten().is_none() {
+            continue;
+        }
+        if tokens.get(for_at + 3).is_none_or(|token| token.kind != TokenKind::Identifier)
+            || tokens.get(for_at + 4).map(|token| token.text) != Some(",")
+        {
+            continue;
+        }
+        let name = tokens[for_at + 3].text;
+        let scope_end = enclosing_block_end(&matching_close, for_at).unwrap_or(tokens.len());
+        if identifier_occurs(&tokens, for_at + 4, scope_end, name) {
+            continue;
+        }
+        replacements.push((tokens[for_at + 3].start, tokens[for_at + 4].end, String::new()));
+    }
+    let (output, count) = apply_token_rewrites(source, replacements);
+    Ok((output, count))
+}
+
+fn flip_false_equalities(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut cursor = 0usize;
+    while cursor + 3 < tokens.len() {
+        if tokens[cursor].text == "==="
+            && tokens.get(cursor + 1).map(|token| token.text) == Some("!")
+            && tokens.get(cursor + 2).map(|token| token.text) == Some("1")
+        {
+            let Some(left_start) = equality_left_start(&tokens, &matching_close, cursor) else {
+                cursor += 1;
+                continue;
+            };
+            let left = &source[tokens[left_start].start..tokens[cursor].start];
+            replacements.push((
+                tokens[left_start].start,
+                tokens[cursor + 2].end,
+                format!("!1==={left}"),
+            ));
+            cursor += 3;
+            continue;
+        }
+        cursor += 1;
+    }
+    let (output, count) = apply_token_rewrites(source, replacements);
+    Ok((output, count))
+}
+
+fn equality_left_start(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    eq_at: usize,
+) -> Option<usize> {
+    let prev = eq_at.checked_sub(1)?;
+    if tokens[prev].text == ")" {
+        let open = matching_close
+            .iter()
+            .enumerate()
+            .find_map(|(open, close)| (*close == Some(prev)).then_some(open))?;
+        let mut start = open;
+        if start == 0 || tokens[start - 1].kind != TokenKind::Identifier {
+            return None;
+        }
+        start -= 1;
+        loop {
+            if start >= 2
+                && tokens[start - 1].text == "."
+                && tokens[start - 2].kind == TokenKind::Identifier
+            {
+                start -= 2;
+                continue;
+            }
+            if start >= 2 && tokens[start - 1].text == "." && tokens[start - 2].text == "]" {
+                let close = start - 2;
+                let Some(open) = matching_close
+                    .iter()
+                    .enumerate()
+                    .find_map(|(open, end)| (*end == Some(close)).then_some(open))
+                else {
+                    break;
+                };
+                if open == 0 || tokens[open - 1].kind != TokenKind::Identifier {
+                    break;
+                }
+                start = open - 1;
+                continue;
+            }
+            break;
+        }
+        return Some(start);
+    }
+    (tokens[prev].kind == TokenKind::Identifier).then_some(prev)
+}
+
+fn fold_single_property_objects(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut cursor = 0usize;
+    while cursor + 10 < tokens.len() {
+        let name_at = if matches!(tokens[cursor].text, "var" | "let") {
+            cursor + 1
+        } else {
+            cursor
+        };
+        if tokens.get(name_at).is_none_or(|token| token.kind != TokenKind::Identifier)
+            || tokens.get(name_at + 1).map(|token| token.text) != Some("=")
+            || tokens.get(name_at + 2).map(|token| token.text) != Some("{")
+            || tokens.get(name_at + 3).map(|token| token.text) != Some("}")
+            || tokens.get(name_at + 4).map(|token| token.text) != Some(";")
+            || tokens.get(name_at + 5).map(|token| token.text) != Some(tokens[name_at].text)
+            || tokens.get(name_at + 6).map(|token| token.text) != Some(".")
+            || tokens
+                .get(name_at + 7)
+                .is_none_or(|token| token.kind != TokenKind::Identifier)
+            || tokens.get(name_at + 8).map(|token| token.text) != Some("=")
+        {
+            cursor += 1;
+            continue;
+        }
+        let name = tokens[name_at].text;
+        let Some(semi) = top_level_stop(&tokens, name_at + 9, &[";"]) else {
+            cursor += 1;
+            continue;
+        };
+        let prop = tokens[name_at + 7].text;
+        let value = &source[tokens[name_at + 9].start..tokens[semi].start];
+        let scope_end = enclosing_block_end(&matching_closers(&tokens), name_at).unwrap_or(tokens.len());
+        let uses = (semi + 1..scope_end)
+            .filter(|&index| tokens[index].kind == TokenKind::Identifier && tokens[index].text == name)
+            .collect::<Vec<_>>();
+        if uses.len() != 1 {
+            cursor += 1;
+            continue;
+        }
+        let use_at = uses[0];
+        replacements.push((
+            tokens[cursor].start,
+            tokens[semi].end,
+            String::new(),
+        ));
+        replacements.push((
+            tokens[use_at].start,
+            tokens[use_at].end,
+            format!("{{{prop}:{value}}}"),
+        ));
+        cursor = semi + 1;
+    }
+    let (output, count) = apply_token_rewrites(source, replacements);
+    Ok((output, count))
+}
+
+fn is_statement_boundary(tokens: &[Token<'_>], index: usize) -> bool {
+    matches!(
+        index
+            .checked_sub(1)
+            .map(|prev| tokens[prev].text)
+            .unwrap_or(";"),
+        ";" | "{" | "}"
+    )
+}
+
+fn for_header_semicolons(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    for_at: usize,
+) -> Option<(usize, usize, usize)> {
+    if tokens.get(for_at).map(|token| token.text) != Some("for")
+        || tokens.get(for_at + 1).map(|token| token.text) != Some("(")
+    {
+        return None;
+    }
+    let header_close = matching_close.get(for_at + 1).copied().flatten()?;
+    let mut semis = Vec::new();
+    let mut depth = 0i32;
+    for (index, token) in tokens.iter().enumerate().take(header_close).skip(for_at + 2) {
+        match token.text {
+            "(" | "[" | "{" => depth += 1,
+            ")" | "]" | "}" => depth -= 1,
+            ";" if depth == 0 => semis.push(index),
+            _ => {}
+        }
+    }
+    if semis.len() != 2 {
+        return None;
+    }
+    Some((header_close, semis[0], semis[1]))
+}
+
+fn is_unit_increment(tokens: &[Token<'_>], start: usize, end: usize, name: &str) -> bool {
+    let span = &tokens[start..end];
+    matches!(
+        span,
+        [name_tok, plusplus]
+            if name_tok.text == name && plusplus.text == "++"
+    ) || matches!(
+        span,
+        [plusplus, name_tok]
+            if plusplus.text == "++" && name_tok.text == name
+    )
+}
+
+fn cheap_literal_rhs(tokens: &[Token<'_>], start: usize, end: usize) -> bool {
+    let span = &tokens[start..end];
+    match span {
+        [bang, digit] if bang.text == "!" && matches!(digit.text, "0" | "1") => true,
+        [token]
+            if matches!(
+                token.text,
+                "0" | "1" | "true" | "false" | "null" | "undefined"
+            ) || token.kind == TokenKind::String =>
+        {
+            true
+        }
+        [open, close] if matches!((open.text, close.text), ("[", "]") | ("{", "}")) => true,
+        _ => false,
+    }
+}
+
+fn parse_bare_assign<'src>(
+    source: &'src str,
+    tokens: &[Token<'src>],
+    at: usize,
+) -> Option<(usize, &'src str, &'src str, usize)> {
+    if !is_statement_boundary(tokens, at) || tokens.get(at)?.kind != TokenKind::Identifier {
+        return None;
+    }
+    if tokens.get(at + 1).map(|token| token.text) != Some("=") {
+        return None;
+    }
+    let semi = top_level_stop(tokens, at + 2, &[";"])?;
+    Some((
+        at,
+        tokens[at].text,
+        &source[tokens[at + 2].start..tokens[semi].start],
+        semi + 1,
+    ))
+}
+
+fn fold_chained_identifier_assigns(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut cursor = 0usize;
+    while cursor + 6 < tokens.len() {
+        let Some((first_at, first_name, rhs, after_first)) =
+            parse_bare_assign(source, &tokens, cursor)
+        else {
+            cursor += 1;
+            continue;
+        };
+        if tokens.get(after_first).map(|token| token.kind) != Some(TokenKind::Identifier)
+            || tokens.get(after_first + 1).map(|token| token.text) != Some("=")
+            || tokens.get(after_first + 2).map(|token| token.text) != Some(first_name)
+        {
+            cursor += 1;
+            continue;
+        }
+        let second_name = tokens[after_first].text;
+        replacements.push((
+            tokens[first_at].start,
+            tokens[after_first + 2].end,
+            format!("{second_name}={first_name}={rhs}"),
+        ));
+        cursor = after_first + 3;
+    }
+    let (output, count) = apply_token_rewrites(source, replacements);
+    Ok((output, count))
+}
+
+fn fold_prefix_increment_for_bounds(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut cursor = 0usize;
+    while cursor + 8 < tokens.len() {
+        if !is_statement_boundary(&tokens, cursor) {
+            cursor += 1;
+            continue;
+        }
+        let (name, inc_end) = if tokens[cursor].kind == TokenKind::Identifier
+            && tokens.get(cursor + 1).map(|token| token.text) == Some("++")
+            && tokens.get(cursor + 2).map(|token| token.text) == Some(";")
+        {
+            (tokens[cursor].text, cursor + 3)
+        } else if tokens[cursor].text == "++"
+            && tokens
+                .get(cursor + 1)
+                .is_some_and(|token| token.kind == TokenKind::Identifier)
+            && tokens.get(cursor + 2).map(|token| token.text) == Some(";")
+        {
+            (tokens[cursor + 1].text, cursor + 3)
+        } else {
+            cursor += 1;
+            continue;
+        };
+        let for_at = inc_end;
+        let Some((header_close, first_semi, second_semi)) =
+            for_header_semicolons(&tokens, &matching_close, for_at)
+        else {
+            cursor += 1;
+            continue;
+        };
+        if first_semi != for_at + 2 {
+            cursor += 1;
+            continue;
+        }
+        if tokens.get(first_semi + 1).map(|token| token.text) != Some(name)
+            || tokens.get(first_semi + 2).map(|token| token.text) != Some("<")
+        {
+            cursor += 1;
+            continue;
+        }
+        if !is_unit_increment(&tokens, second_semi + 1, header_close, name) {
+            cursor += 1;
+            continue;
+        }
+        let bound = &source[tokens[first_semi + 3].start..tokens[second_semi].start];
+        let bound = if expression_has_top_level_token(&tokens[first_semi + 3..second_semi], "&&")
+            || expression_has_top_level_token(&tokens[first_semi + 3..second_semi], "||")
+            || expression_has_top_level_token(&tokens[first_semi + 3..second_semi], "?")
+            || expression_has_top_level_token(&tokens[first_semi + 3..second_semi], ",")
+            || expression_has_top_level_token(&tokens[first_semi + 3..second_semi], "=")
+        {
+            format!("({bound})")
+        } else {
+            bound.to_string()
+        };
+        replacements.push((
+            tokens[cursor].start,
+            tokens[header_close].end,
+            format!("for(;++{name}<{bound};)"),
+        ));
+        cursor = header_close + 1;
+    }
+    let (output, count) = apply_token_rewrites(source, replacements);
+    Ok((output, count))
+}
+
+fn fold_increment_infinite_for_bounds(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut cursor = 0usize;
+    while cursor + 8 < tokens.len() {
+        if !is_statement_boundary(&tokens, cursor) {
+            cursor += 1;
+            continue;
+        }
+        let (name, inc_end) = if tokens[cursor].kind == TokenKind::Identifier
+            && tokens.get(cursor + 1).map(|token| token.text) == Some("++")
+            && tokens.get(cursor + 2).map(|token| token.text) == Some(";")
+        {
+            (tokens[cursor].text, cursor + 3)
+        } else if tokens[cursor].text == "++"
+            && tokens
+                .get(cursor + 1)
+                .is_some_and(|token| token.kind == TokenKind::Identifier)
+            && tokens.get(cursor + 2).map(|token| token.text) == Some(";")
+        {
+            (tokens[cursor + 1].text, cursor + 3)
+        } else {
+            cursor += 1;
+            continue;
+        };
+        let for_at = inc_end;
+        let Some((header_close, first_semi, second_semi)) =
+            for_header_semicolons(&tokens, &matching_close, for_at)
+        else {
+            cursor += 1;
+            continue;
+        };
+        if first_semi != for_at + 2
+            || first_semi + 1 != second_semi
+            || !is_unit_increment(&tokens, second_semi + 1, header_close, name)
+        {
+            cursor += 1;
+            continue;
+        }
+        let body_at = header_close + 1;
+        if tokens.get(body_at).map(|token| token.text) != Some("{") {
+            cursor += 1;
+            continue;
+        }
+        let Some(body_close) = matching_close.get(body_at).copied().flatten() else {
+            cursor += 1;
+            continue;
+        };
+        let mut scan = body_at + 1;
+        let mut kept_prefix = "";
+        if tokens.get(scan).map(|token| token.text) == Some("var")
+            && tokens
+                .get(scan + 1)
+                .is_some_and(|token| token.kind == TokenKind::Identifier)
+            && tokens.get(scan + 2).map(|token| token.text) == Some("=")
+            && tokens.get(scan + 3).map(|token| token.text) == Some(name)
+            && tokens.get(scan + 4).map(|token| token.text) == Some(";")
+        {
+            kept_prefix = &source[tokens[scan].start..tokens[scan + 4].end];
+            scan += 5;
+        }
+        if tokens.get(scan).map(|token| token.text) != Some("if")
+            || tokens.get(scan + 1).map(|token| token.text) != Some("(")
+        {
+            cursor += 1;
+            continue;
+        }
+        let Some(if_close) = matching_close.get(scan + 1).copied().flatten() else {
+            cursor += 1;
+            continue;
+        };
+        let test = &tokens[scan + 2..if_close];
+        let bound = if matches!(
+            test,
+            [ident, op, ..] if ident.text == name && op.text == ">="
+        ) {
+            &source[tokens[scan + 4].start..tokens[if_close].start]
+        } else if test.len() >= 5
+            && test[0].text == "!"
+            && test[1].text == "("
+            && test[2].text == name
+            && test[3].text == "<"
+            && test.last().is_some_and(|token| token.text == ")")
+        {
+            &source[test[4].start..test[test.len() - 1].start]
+        } else {
+            cursor += 1;
+            continue;
+        };
+        let after_if = if tokens.get(if_close + 1).map(|token| token.text) == Some("break") {
+            if tokens.get(if_close + 2).map(|token| token.text) == Some(";") {
+                if_close + 3
+            } else {
+                if_close + 2
+            }
+        } else if tokens.get(if_close + 1).map(|token| token.text) == Some("{") {
+            let Some(block_close) = matching_close.get(if_close + 1).copied().flatten() else {
+                cursor += 1;
+                continue;
+            };
+            if tokens.get(if_close + 2).map(|token| token.text) != Some("break") {
+                cursor += 1;
+                continue;
+            }
+            let after_break = if tokens.get(if_close + 3).map(|token| token.text) == Some(";") {
+                if_close + 4
+            } else {
+                if_close + 3
+            };
+            if after_break != block_close {
+                cursor += 1;
+                continue;
+            }
+            block_close + 1
+        } else {
+            cursor += 1;
+            continue;
+        };
+        let rest = &source[tokens[after_if].start..tokens[body_close].start];
+        replacements.push((
+            tokens[cursor].start,
+            tokens[body_close].end,
+            format!("for(;++{name}<{bound};){{{kept_prefix}{rest}}}"),
+        ));
+        cursor = body_close + 1;
+    }
+    let (output, count) = apply_token_rewrites(source, replacements);
+    Ok((output, count))
+}
+
+fn expression_statement_texts<'src>(
+    source: &'src str,
+    tokens: &[Token<'src>],
+    start: usize,
+    end: usize,
+) -> Option<Vec<String>> {
+    let mut index = start;
+    let mut exprs = Vec::new();
+    while index < end {
+        if tokens[index].text == ";" {
+            index += 1;
+            continue;
+        }
+        if matches!(
+            tokens[index].text,
+            "if" | "for"
+                | "while"
+                | "var"
+                | "let"
+                | "const"
+                | "function"
+                | "return"
+                | "switch"
+                | "try"
+                | "throw"
+                | "class"
+                | "do"
+                | "break"
+                | "continue"
+                | "debugger"
+        ) {
+            return None;
+        }
+        let stop = top_level_stop(tokens, index, &[";"])
+            .filter(|stop| *stop < end)
+            .unwrap_or(end);
+        if stop == index {
+            return None;
+        }
+        let expr = source[tokens[index].start..tokens[stop].start].trim();
+        if expr.is_empty() {
+            return None;
+        }
+        exprs.push(expr.to_string());
+        index = if stop < end { stop + 1 } else { end };
+    }
+    (!exprs.is_empty()).then_some(exprs)
+}
+
+fn fold_trailing_return_this(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    for open in 1..tokens.len() {
+        if tokens[open].text != "{"
+            || !matches!(tokens[open - 1].text, ")" | "=>")
+        {
+            continue;
+        }
+        let Some(close) = matching_close.get(open).copied().flatten() else {
+            continue;
+        };
+        let mut end = close;
+        if tokens.get(close - 1).map(|token| token.text) == Some(";") {
+            end = close - 1;
+        }
+        if end < open + 3
+            || tokens.get(end - 1).map(|token| token.text) != Some("this")
+            || tokens.get(end - 2).map(|token| token.text) != Some("return")
+        {
+            continue;
+        }
+        let stmts_end = end - 2;
+        if stmts_end == open + 1 {
+            continue;
+        }
+        let prefix = if tokens.get(open + 1).map(|token| token.text) == Some("if")
+            && tokens.get(open + 2).map(|token| token.text) == Some("(")
+        {
+            let Some(cond_close) = matching_close.get(open + 2).copied().flatten() else {
+                continue;
+            };
+            let cond = &source[tokens[open + 3].start..tokens[cond_close].start];
+            let (body_start, body_end) = if tokens.get(cond_close + 1).map(|token| token.text)
+                == Some("{")
+            {
+                let Some(body_close) = matching_close.get(cond_close + 1).copied().flatten() else {
+                    continue;
+                };
+                if body_close + 1 != stmts_end
+                    && !(body_close + 2 == stmts_end
+                        && tokens.get(body_close + 1).map(|token| token.text) == Some(";"))
+                {
+                    continue;
+                }
+                (cond_close + 2, body_close)
+            } else {
+                let Some(stop) = top_level_stop(&tokens, cond_close + 1, &[";"]) else {
+                    continue;
+                };
+                if stop + 1 != stmts_end {
+                    continue;
+                }
+                (cond_close + 1, stop)
+            };
+            let Some(exprs) = expression_statement_texts(source, &tokens, body_start, body_end)
+            else {
+                continue;
+            };
+            format!("{cond}&&({})", exprs.join(","))
+        } else {
+            let Some(exprs) = expression_statement_texts(source, &tokens, open + 1, stmts_end) else {
+                continue;
+            };
+            if exprs.len() == 1 {
+                exprs[0].clone()
+            } else {
+                exprs.join(",")
+            }
+        };
+        replacements.push((
+            tokens[open].start,
+            tokens[close].end,
+            format!("{{return {prefix},this}}"),
+        ));
+    }
+    let (output, count) = apply_token_rewrites(source, replacements);
+    Ok((output, count))
+}
+
+fn fold_dead_initializer_reassigns(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut cursor = 0usize;
+    while cursor + 8 < tokens.len() {
+        let decl = if matches!(tokens[cursor].text, "var" | "let")
+            && tokens
+                .get(cursor + 1)
+                .is_some_and(|token| token.kind == TokenKind::Identifier)
+        {
+            Some((tokens[cursor].text, cursor + 1))
+        } else {
+            None
+        };
+        let Some((kind, name_at)) = decl else {
+            cursor += 1;
+            continue;
+        };
+        if tokens.get(name_at + 1).map(|token| token.text) != Some("=")
+            || tokens
+                .get(name_at + 2)
+                .is_none_or(|token| token.kind != TokenKind::Identifier)
+            || tokens.get(name_at + 3).map(|token| token.text) != Some(";")
+        {
+            cursor += 1;
+            continue;
+        }
+        let name = tokens[name_at].text;
+        if tokens.get(name_at + 4).map(|token| token.text) != Some(name)
+            || tokens.get(name_at + 5).map(|token| token.text) != Some("=")
+        {
+            cursor += 1;
+            continue;
+        }
+        let Some(semi) = top_level_stop(&tokens, name_at + 6, &[";"]) else {
+            cursor += 1;
+            continue;
+        };
+        if identifier_occurs(&tokens, name_at + 6, semi, name) {
+            cursor += 1;
+            continue;
+        }
+        let rhs = &source[tokens[name_at + 6].start..tokens[semi].start];
+        replacements.push((
+            tokens[cursor].start,
+            tokens[semi].end,
+            format!("{kind} {name}={rhs};"),
+        ));
+        cursor = semi + 1;
+    }
+    let (output, count) = apply_token_rewrites(source, replacements);
+    Ok((output, count))
+}
+
+fn fold_void_then_reassign(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut cursor = 0usize;
+    while cursor + 8 < tokens.len() {
+        if !(is_statement_boundary(&tokens, cursor)
+            || tokens
+                .get(cursor.wrapping_sub(1))
+                .is_some_and(|token| token.text == ","))
+            || tokens[cursor].kind != TokenKind::Identifier
+            || tokens.get(cursor + 1).map(|token| token.text) != Some("=")
+            || tokens.get(cursor + 2).map(|token| token.text) != Some("void")
+            || tokens.get(cursor + 3).map(|token| token.text) != Some("0")
+            || tokens.get(cursor + 4).map(|token| token.text) != Some(";")
+            || tokens.get(cursor + 5).map(|token| token.text) != Some(tokens[cursor].text)
+            || tokens.get(cursor + 6).map(|token| token.text) != Some("=")
+        {
+            cursor += 1;
+            continue;
+        }
+        replacements.push((tokens[cursor + 1].start, tokens[cursor + 6].start, String::new()));
+        cursor += 7;
+    }
+    let (output, count) = apply_token_rewrites(source, replacements);
+    Ok((output, count))
+}
+
+fn fold_single_use_index_temps(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut cursor = 0usize;
+    while cursor + 6 < tokens.len() {
+        if tokens[cursor].kind != TokenKind::Identifier
+            || tokens.get(cursor + 1).map(|token| token.text) != Some("=")
+            || tokens
+                .get(cursor + 2)
+                .is_none_or(|token| token.kind != TokenKind::Identifier)
+            || tokens.get(cursor + 3).map(|token| token.text) != Some("[")
+            || tokens.get(cursor + 4).is_none_or(|token| {
+                token.kind != TokenKind::Identifier && token.kind != TokenKind::Number
+            })
+            || tokens.get(cursor + 5).map(|token| token.text) != Some("]")
+            || !matches!(
+                tokens.get(cursor + 6).map(|token| token.text),
+                Some(";") | Some(",") | Some("}") | None
+            )
+            || !matches!(
+                cursor
+                    .checked_sub(1)
+                    .map(|index| tokens[index].text)
+                    .unwrap_or(";"),
+                ";" | "{" | "}" | "let" | "var" | "const" | ","
+            )
+        {
+            cursor += 1;
+            continue;
+        }
+        let name = tokens[cursor].text;
+        let rhs = source[tokens[cursor + 2].start..tokens[cursor + 5].end].to_string();
+        let rhs_end = cursor + 5;
+        let object = tokens[cursor + 2].text;
+        let scope_end = enclosing_block_end(&matching_close, cursor).unwrap_or(tokens.len());
+        let mut reads = Vec::new();
+        let mut scan = rhs_end + 1;
+        if matches!(
+            tokens.get(scan).map(|token| token.text),
+            Some(";") | Some(",")
+        ) {
+            scan += 1;
+        }
+        let mut safe = true;
+        while scan < scope_end {
+            if let Some(close) = nested_function_end(&tokens, &matching_close, scan) {
+                scan = close + 1;
+                continue;
+            }
+            if tokens[scan].kind == TokenKind::Identifier && tokens[scan].text == name {
+                if tokens.get(scan + 1).map(|token| token.text) == Some("=")
+                    && tokens.get(scan + 2).map(|token| token.text) != Some("=")
+                    || matches!(
+                        tokens.get(scan + 1).map(|token| token.text),
+                        Some("++") | Some("--")
+                    )
+                    || matches!(
+                        tokens.get(scan.wrapping_sub(1)).map(|token| token.text),
+                        Some("++") | Some("--") | Some("[")
+                    )
+                {
+                    safe = false;
+                    break;
+                }
+                reads.push(scan);
+            }
+            if tokens[scan].kind == TokenKind::Identifier
+                && tokens[scan].text == object
+                && tokens.get(scan + 1).map(|token| token.text) == Some("=")
+                && tokens.get(scan + 2).map(|token| token.text) != Some("=")
+            {
+                safe = false;
+                break;
+            }
+            scan += 1;
+        }
+        if !safe || reads.len() != 1 {
+            cursor += 1;
+            continue;
+        }
+        let (from, to) = assignment_span_to_remove(&tokens, cursor, rhs_end);
+        replacements.push((from, to, String::new()));
+        replacements.push((tokens[reads[0]].start, tokens[reads[0]].end, rhs));
+        cursor = rhs_end + 1;
+    }
+    let (output, count) = apply_token_rewrites(source, replacements);
+    Ok((output, count / 2 + count % 2))
+}
+
+fn fold_assigned_index_for_conditions(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    for for_at in 0..tokens.len() {
+        let Some((header_close, first_semi, second_semi)) =
+            for_header_semicolons(&tokens, &matching_close, for_at)
+        else {
+            continue;
+        };
+        let cond = &tokens[first_semi + 1..second_semi];
+        let always = matches!(cond, [bang, zero] if bang.text == "!" && zero.text == "0")
+            || matches!(cond, [token] if token.text == "true");
+        if !always {
+            continue;
+        }
+        let body_at = header_close + 1;
+        if tokens.get(body_at).map(|token| token.text) != Some("{") {
+            continue;
+        }
+        let Some(body_close) = matching_close.get(body_at).copied().flatten() else {
+            continue;
+        };
+        if tokens.get(body_at + 1).map(|token| token.kind) != Some(TokenKind::Identifier)
+            || tokens.get(body_at + 2).map(|token| token.text) != Some("=")
+        {
+            continue;
+        }
+        let name = tokens[body_at + 1].text;
+        let Some(assign_semi) = top_level_stop(&tokens, body_at + 3, &[";"]) else {
+            continue;
+        };
+        let if_at = assign_semi + 1;
+        if tokens.get(if_at).map(|token| token.text) != Some("if")
+            || tokens.get(if_at + 1).map(|token| token.text) != Some("(")
+        {
+            continue;
+        }
+        let Some(if_close) = matching_close.get(if_at + 1).copied().flatten() else {
+            continue;
+        };
+        let test = &tokens[if_at + 2..if_close];
+        let new_cond = if matches!(
+            test,
+            [ident, lt, zero]
+                if ident.text == name && lt.text == "<" && zero.text == "0"
+        ) || matches!(
+            test,
+            [bang, open, ident, gt, minus, one, close]
+                if bang.text == "!"
+                    && open.text == "("
+                    && ident.text == name
+                    && gt.text == ">"
+                    && minus.text == "-"
+                    && one.text == "1"
+                    && close.text == ")"
+        ) {
+            format!(
+                "({name}={})>-1",
+                &source[tokens[body_at + 3].start..tokens[assign_semi].start]
+            )
+        } else {
+            continue;
+        };
+        let after_if = if tokens.get(if_close + 1).map(|token| token.text) == Some("break") {
+            if tokens.get(if_close + 2).map(|token| token.text) == Some(";") {
+                if_close + 3
+            } else {
+                if_close + 2
+            }
+        } else if tokens.get(if_close + 1).map(|token| token.text) == Some("{") {
+            let Some(block_close) = matching_close.get(if_close + 1).copied().flatten() else {
+                continue;
+            };
+            if tokens.get(if_close + 2).map(|token| token.text) != Some("break") {
+                continue;
+            }
+            let after_break = if tokens.get(if_close + 3).map(|token| token.text) == Some(";") {
+                if_close + 4
+            } else {
+                if_close + 3
+            };
+            if after_break != block_close {
+                continue;
+            }
+            block_close + 1
+        } else {
+            continue;
+        };
+        let init = elide_zero_for_init(
+            &source[tokens[for_at + 2].start..tokens[first_semi].start],
+            name,
+        );
+        let inc = &source[tokens[second_semi].end..tokens[header_close].start];
+        let rest = &source[tokens[after_if].start..tokens[body_close].start];
+        replacements.push((
+            tokens[for_at].start,
+            tokens[body_close].end,
+            format!("for({init};{new_cond};{inc}){{{rest}}}"),
+        ));
+    }
+    let (output, count) = apply_token_rewrites(source, replacements);
+    Ok((output, count))
+}
+
+fn elide_zero_for_init(init: &str, name: &str) -> String {
+    let trimmed = init.trim();
+    for decl in ["var ", "let "] {
+        if let Some(rest) = trimmed.strip_prefix(decl) {
+            if rest == format!("{name}=0") || rest == format!("{name}=0.0") {
+                return format!("{decl}{name}");
+            }
+        }
+    }
+    if trimmed == format!("{name}=0") || trimmed == format!("{name}=0.0") {
+        return String::new();
+    }
+    init.to_string()
+}
+
+fn fold_index_scan_for_headers(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    for for_at in 0..tokens.len() {
+        let Some((header_close, first_semi, second_semi)) =
+            for_header_semicolons(&tokens, &matching_close, for_at)
+        else {
+            continue;
+        };
+        let init = &tokens[for_at + 2..first_semi];
+        let (decl, name, zero_init) = match init {
+            [decl, ident, eq, zero]
+                if matches!(decl.text, "var" | "let")
+                    && ident.kind == TokenKind::Identifier
+                    && eq.text == "="
+                    && zero.text == "0" =>
+            {
+                (decl.text, ident.text, true)
+            }
+            [decl, ident]
+                if matches!(decl.text, "var" | "let") && ident.kind == TokenKind::Identifier =>
+            {
+                (decl.text, ident.text, false)
+            }
+            _ => continue,
+        };
+        if tokens.get(first_semi + 1).map(|token| token.text) != Some("(")
+            || tokens.get(first_semi + 2).map(|token| token.text) != Some(name)
+            || tokens.get(first_semi + 3).map(|token| token.text) != Some("=")
+        {
+            continue;
+        }
+        let Some(paren_close) = matching_close.get(first_semi + 1).copied().flatten() else {
+            continue;
+        };
+        if paren_close >= second_semi {
+            continue;
+        }
+        let after = &tokens[paren_close + 1..second_semi];
+        let ge_zero = matches!(after, [op, zero] if op.text == ">=" && zero.text == "0");
+        let gt_minus1 = matches!(
+            after,
+            [gt, minus, one] if gt.text == ">" && minus.text == "-" && one.text == "1"
+        ) || matches!(
+            after,
+            [gt, num] if gt.text == ">" && num.text == "-1"
+        );
+        if !ge_zero && !gt_minus1 || !zero_init && !ge_zero {
+            continue;
+        }
+        let assign = &source[tokens[first_semi + 1].start..tokens[paren_close].end];
+        let inc = &source[tokens[second_semi].end..tokens[header_close].start];
+        replacements.push((
+            tokens[for_at].start,
+            tokens[header_close].end,
+            format!("for({decl} {name};{assign}>-1;{inc})"),
+        ));
+    }
+    let (output, count) = apply_token_rewrites(source, replacements);
+    Ok((output, count))
+}
+
+fn fold_void_prefix_updates(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut cursor = 0usize;
+    while cursor + 1 < tokens.len() {
+        if tokens[cursor].text == "--"
+            && tokens[cursor + 1].kind == TokenKind::Identifier
+            && matches!(
+                tokens.get(cursor + 2).map(|token| token.text),
+                Some(";") | Some(",") | Some("}") | None
+            )
+            && matches!(
+                cursor
+                    .checked_sub(1)
+                    .map(|index| tokens[index].text)
+                    .unwrap_or(";"),
+                "&&" | "||" | "," | ";" | "{"
+            )
+        {
+            replacements.push((
+                tokens[cursor].start,
+                tokens[cursor + 1].end,
+                format!("{}--", tokens[cursor + 1].text),
+            ));
+            cursor += 2;
+            continue;
+        }
+        cursor += 1;
+    }
+    Ok(apply_token_rewrites(source, replacements))
+}
+
+fn fold_boolean_context_double_not(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut cursor = 0usize;
+    while cursor + 4 < tokens.len() {
+        if !matches!(tokens[cursor].text, "&&" | "||")
+            || tokens.get(cursor + 1).map(|token| token.text) != Some("!")
+            || tokens.get(cursor + 2).map(|token| token.text) != Some("!")
+        {
+            cursor += 1;
+            continue;
+        }
+        let Some(stop) = top_level_stop(&tokens, cursor + 3, &["&&", "||", ";", ",", ")", "]", "}"])
+        else {
+            cursor += 1;
+            continue;
+        };
+        if !matches!(tokens[stop].text, "&&" | "||") {
+            cursor += 1;
+            continue;
+        }
+        replacements.push((tokens[cursor + 1].start, tokens[cursor + 3].start, String::new()));
+        cursor = stop;
+    }
+    let (output, count) = apply_token_rewrites(source, replacements);
+    Ok((output, count))
+}
+
+fn fold_redundant_loop_body_braces(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    for index in 0..tokens.len() {
+        if !matches!(tokens[index].text, "for" | "while")
+            || tokens.get(index + 1).map(|token| token.text) != Some("(")
+        {
+            continue;
+        }
+        let Some(header_close) = matching_close.get(index + 1).copied().flatten() else {
+            continue;
+        };
+        if tokens.get(header_close + 1).map(|token| token.text) != Some("{") {
+            continue;
+        }
+        let body_open = header_close + 1;
+        let Some(body_close) = matching_close.get(body_open).copied().flatten() else {
+            continue;
+        };
+        if body_close <= body_open + 1 {
+            continue;
+        }
+        let mut body_end = body_close;
+        if tokens.get(body_close - 1).map(|token| token.text) == Some(";") {
+            body_end = body_close - 1;
+        }
+        if !safe_braceless_loop_body(&tokens, body_open + 1, body_end) {
+            continue;
+        }
+        let body = source[tokens[body_open + 1].start..tokens[body_end].start].trim();
+        if body.is_empty() {
+            continue;
+        }
+        replacements.push((
+            tokens[body_open].start,
+            tokens[body_close].end,
+            format!("{body};"),
+        ));
+    }
+    Ok(apply_token_rewrites(source, replacements))
+}
+
+fn safe_braceless_loop_body(tokens: &[Token<'_>], start: usize, end: usize) -> bool {
+    if start >= end {
+        return false;
+    }
+    if matches!(
+        tokens[start].text,
+        "if" | "else"
+            | "var"
+            | "let"
+            | "const"
+            | "function"
+            | "class"
+            | "return"
+            | "throw"
+            | "try"
+            | "switch"
+            | "with"
+            | "do"
+    ) {
+        return false;
+    }
+    if matches!(tokens[start].text, "for" | "while") {
+        if tokens.get(start + 1).map(|token| token.text) != Some("(") {
+            return false;
+        }
+        let matching_close = matching_closers(tokens);
+        let Some(header_close) = matching_close.get(start + 1).copied().flatten() else {
+            return false;
+        };
+        if header_close >= end {
+            return false;
+        }
+        let rest = header_close + 1;
+        if rest >= end {
+            return false;
+        }
+        if tokens[rest].text == "{" {
+            return false;
+        }
+        return safe_braceless_loop_body(tokens, rest, end);
+    }
+    let mut depth = 0i32;
+    for token in &tokens[start..end] {
+        match token.text {
+            "(" | "[" | "{" => depth += 1,
+            ")" | "]" | "}" => depth -= 1,
+            ";" if depth == 0 => return false,
+            _ => {}
+        }
+        if depth < 0 {
+            return false;
+        }
+    }
+    depth == 0
+}
+
+fn fold_statement_negated_ors(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut cursor = 0usize;
+    while cursor + 4 < tokens.len() {
+        if !is_statement_boundary(&tokens, cursor)
+            || tokens[cursor].text != "!"
+            || tokens
+                .get(cursor + 1)
+                .is_none_or(|token| token.kind != TokenKind::Identifier)
+            || tokens.get(cursor + 2).map(|token| token.text) != Some("||")
+            || tokens.get(cursor + 3).map(|token| token.text) != Some("(")
+        {
+            cursor += 1;
+            continue;
+        }
+        let name = tokens[cursor + 1].text;
+        let Some(close) = matching_close.get(cursor + 3).copied().flatten() else {
+            cursor += 1;
+            continue;
+        };
+        if !statement_follows_paren(&tokens, close) {
+            cursor += 1;
+            continue;
+        }
+        let rhs = &source[tokens[cursor + 4].start..tokens[close].start];
+        let end_at = if tokens.get(close + 1).map(|token| token.text) == Some(";") {
+            close + 1
+        } else {
+            close
+        };
+        replacements.push((
+            tokens[cursor].start,
+            tokens[end_at].end,
+            format!("{name}&&({rhs});"),
+        ));
+        cursor = end_at + 1;
+    }
+    Ok(apply_token_rewrites(source, replacements))
+}
+
+fn fold_chained_comma_assigns(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut cursor = 0usize;
+    while cursor + 6 < tokens.len() {
+        if !matches!(
+            cursor
+                .checked_sub(1)
+                .map(|index| tokens[index].text)
+                .unwrap_or(";"),
+            "(" | ","
+        ) || tokens[cursor].kind != TokenKind::Identifier
+            || tokens.get(cursor + 1).map(|token| token.text) != Some("=")
+        {
+            cursor += 1;
+            continue;
+        }
+        let Some(comma) = top_level_stop(&tokens, cursor + 2, &[","]) else {
+            cursor += 1;
+            continue;
+        };
+        if tokens.get(comma + 1).is_none_or(|token| token.kind != TokenKind::Identifier)
+            || tokens.get(comma + 2).map(|token| token.text) != Some("=")
+            || tokens.get(comma + 3).map(|token| token.text) != Some(tokens[cursor].text)
+            || !matches!(
+                tokens.get(comma + 4).map(|token| token.text),
+                Some(")") | Some(",") | Some(";")
+            )
+        {
+            cursor += 1;
+            continue;
+        }
+        let rhs = &source[tokens[cursor + 2].start..tokens[comma].start];
+        let other = tokens[comma + 1].text;
+        let first = tokens[cursor].text;
+        replacements.push((
+            tokens[cursor].start,
+            tokens[comma + 3].end,
+            format!("{other}={first}={rhs}"),
+        ));
+        cursor = comma + 4;
+    }
+    Ok(apply_token_rewrites(source, replacements))
+}
+
+fn fold_adjacent_expression_statements(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut depth_paren = 0i32;
+    let mut depth_brace = 0i32;
+    let mut for_header_depth = 0i32;
+    for (index, token) in tokens.iter().enumerate() {
+        match token.text {
+            "(" | "[" => {
+                depth_paren += 1;
+                if token.text == "("
+                    && index > 0
+                    && tokens[index - 1].text == "for"
+                    && for_header_depth == 0
+                {
+                    for_header_depth = depth_paren;
+                }
+            }
+            ")" | "]" => {
+                if token.text == ")" && depth_paren == for_header_depth {
+                    for_header_depth = 0;
+                }
+                depth_paren -= 1;
+            }
+            "{" => depth_brace += 1,
+            "}" => depth_brace -= 1,
+            ";" if depth_brace > 0 && (for_header_depth == 0 || depth_paren < for_header_depth) => {
+                let left_start = previous_statement_start(&tokens, index);
+                let right_end = next_statement_end(&tokens, index + 1);
+                if is_expression_statement_span(&tokens, left_start, index)
+                    && is_expression_statement_span(&tokens, index + 1, right_end)
+                {
+                    replacements.push((token.start, token.end, ",".to_string()));
+                }
+            }
+            _ => {}
+        }
+    }
+    Ok(apply_token_rewrites(source, replacements))
+}
+
+fn previous_statement_start(tokens: &[Token<'_>], semi: usize) -> usize {
+    let mut depth_paren = 0i32;
+    let mut depth_brace = 0i32;
+    let mut index = semi;
+    while index > 0 {
+        index -= 1;
+        match tokens[index].text {
+            ")" | "]" => depth_paren += 1,
+            "(" | "[" => depth_paren -= 1,
+            "}" => depth_brace += 1,
+            "{" => {
+                if depth_brace == 0 && depth_paren == 0 {
+                    return index + 1;
+                }
+                depth_brace -= 1;
+            }
+            ";" if depth_paren == 0 && depth_brace == 0 => return index + 1,
+            _ => {}
+        }
+    }
+    0
+}
+
+fn next_statement_end(tokens: &[Token<'_>], start: usize) -> usize {
+    let mut depth_paren = 0i32;
+    let mut depth_brace = 0i32;
+    for index in start..tokens.len() {
+        match tokens[index].text {
+            "(" | "[" => depth_paren += 1,
+            ")" | "]" => depth_paren -= 1,
+            "{" => depth_brace += 1,
+            "}" => {
+                if depth_brace == 0 && depth_paren == 0 {
+                    return index;
+                }
+                depth_brace -= 1;
+            }
+            ";" if depth_paren == 0 && depth_brace == 0 => return index,
+            _ => {}
+        }
+    }
+    tokens.len()
+}
+
+fn is_expression_statement_span(tokens: &[Token<'_>], start: usize, end: usize) -> bool {
+    let start = (start..end)
+        .find(|&index| tokens[index].text != ";")
+        .unwrap_or(end);
+    if start >= end {
+        return false;
+    }
+    !matches!(
+        tokens[start].text,
+        "if" | "else"
+            | "for"
+            | "while"
+            | "var"
+            | "let"
+            | "const"
+            | "function"
+            | "class"
+            | "return"
+            | "throw"
+            | "try"
+            | "switch"
+            | "do"
+            | "with"
+            | "break"
+            | "continue"
+            | "debugger"
+    )
+}
+
+fn fold_statement_or_assigns(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut cursor = 0usize;
+    while cursor < tokens.len() {
+        if !is_statement_boundary(&tokens, cursor) {
+            cursor += 1;
+            continue;
+        }
+        if let Some((start, end, replacement, next)) =
+            statement_or_assign_rewrite(source, &tokens, &matching_close, cursor)
+        {
+            replacements.push((start, end, replacement));
+            cursor = next;
+            continue;
+        }
+        cursor += 1;
+    }
+    Ok(apply_token_rewrites(source, replacements))
+}
+
+fn statement_or_assign_rewrite(
+    source: &str,
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    cursor: usize,
+) -> Option<(usize, usize, String, usize)> {
+    if tokens[cursor].text == "!"
+        && tokens.get(cursor + 1).is_some_and(|token| token.kind == TokenKind::Identifier)
+        && tokens.get(cursor + 2).map(|token| token.text) == Some("&&")
+        && tokens.get(cursor + 3).map(|token| token.text) == Some("(")
+    {
+        let name = tokens[cursor + 1].text;
+        let close = matching_close.get(cursor + 3).copied().flatten()?;
+        if tokens.get(cursor + 4).map(|token| token.text) == Some(name)
+            && tokens.get(cursor + 5).map(|token| token.text) == Some("=")
+            && statement_follows_paren(tokens, close)
+        {
+            let rhs = &source[tokens[cursor + 6].start..tokens[close].start];
+            let end_at = if tokens.get(close + 1).map(|token| token.text) == Some(";") {
+                close + 1
+            } else {
+                close
+            };
+            return Some((
+                tokens[cursor].start,
+                tokens[end_at].end,
+                format!("{name}={name}||{rhs};"),
+                end_at + 1,
+            ));
+        }
+    }
+    if tokens[cursor].kind == TokenKind::Identifier
+        && tokens.get(cursor + 1).map(|token| token.text) == Some("||")
+        && tokens.get(cursor + 2).map(|token| token.text) == Some("(")
+    {
+        let name = tokens[cursor].text;
+        let close = matching_close.get(cursor + 2).copied().flatten()?;
+        if tokens.get(cursor + 3).map(|token| token.text) == Some(name)
+            && tokens.get(cursor + 4).map(|token| token.text) == Some("=")
+            && statement_follows_paren(tokens, close)
+        {
+            let rhs = &source[tokens[cursor + 5].start..tokens[close].start];
+            let end_at = if tokens.get(close + 1).map(|token| token.text) == Some(";") {
+                close + 1
+            } else {
+                close
+            };
+            return Some((
+                tokens[cursor].start,
+                tokens[end_at].end,
+                format!("{name}={name}||{rhs};"),
+                end_at + 1,
+            ));
+        }
+    }
+    if tokens[cursor].text != "if" || tokens.get(cursor + 1).map(|token| token.text) != Some("(") {
+        return None;
+    }
+    let cond_close = matching_close.get(cursor + 1).copied().flatten()?;
+    if tokens.get(cursor + 2).map(|token| token.text) != Some("!")
+        || tokens
+            .get(cursor + 3)
+            .is_none_or(|token| token.kind != TokenKind::Identifier)
+        || cond_close != cursor + 4
+    {
+        return None;
+    }
+    let name = tokens[cursor + 3].text;
+    let after = cond_close + 1;
+    if tokens.get(after).map(|token| token.text) == Some(name)
+        && tokens.get(after + 1).map(|token| token.text) == Some("=")
+    {
+        let semi = top_level_stop(tokens, after + 2, &[";"])?;
+        if tokens.get(semi + 1).map(|token| token.text) == Some("else") {
+            return None;
+        }
+        let rhs = &source[tokens[after + 2].start..tokens[semi].start];
+        return Some((
+            tokens[cursor].start,
+            tokens[semi].end,
+            format!("{name}={name}||{rhs};"),
+            semi + 1,
+        ));
+    }
+    if tokens.get(after).map(|token| token.text) != Some("{") {
+        return None;
+    }
+    let block_close = matching_close.get(after).copied().flatten()?;
+    if tokens.get(block_close + 1).map(|token| token.text) == Some("else") {
+        return None;
+    }
+    if tokens.get(after + 1).map(|token| token.text) == Some(name)
+        && tokens.get(after + 2).map(|token| token.text) == Some("=")
+    {
+        let semi = top_level_stop(tokens, after + 3, &[";"])?;
+        let after_assign = if tokens.get(semi).map(|token| token.text) == Some(";") {
+            semi + 1
+        } else {
+            semi
+        };
+        if after_assign != block_close {
+            return None;
+        }
+        let rhs = &source[tokens[after + 3].start..tokens[semi].start];
+        return Some((
+            tokens[cursor].start,
+            tokens[block_close].end,
+            format!("{name}={name}||{rhs};"),
+            block_close + 1,
+        ));
+    }
+    if tokens.get(after + 1).map(|token| token.text) != Some("var")
+        || tokens
+            .get(after + 2)
+            .is_none_or(|token| token.kind != TokenKind::Identifier)
+        || tokens.get(after + 3).map(|token| token.text) != Some("=")
+    {
+        return None;
+    }
+    let temp = tokens[after + 2].text;
+    let first_semi = top_level_stop(tokens, after + 4, &[";"])?;
+    if tokens.get(first_semi + 1).map(|token| token.text) != Some(name)
+        || tokens.get(first_semi + 2).map(|token| token.text) != Some("=")
+        || tokens.get(first_semi + 3).map(|token| token.text) != Some(temp)
+    {
+        return None;
+    }
+    let after_copy = if tokens.get(first_semi + 4).map(|token| token.text) == Some(";") {
+        first_semi + 5
+    } else {
+        first_semi + 4
+    };
+    if after_copy != block_close {
+        return None;
+    }
+    let rhs = &source[tokens[after + 4].start..tokens[first_semi].start];
+    Some((
+        tokens[cursor].start,
+        tokens[block_close].end,
+        format!("{name}={name}||{rhs};"),
+        block_close + 1,
+    ))
+}
+
+fn statement_follows_paren(tokens: &[Token<'_>], close: usize) -> bool {
+    matches!(
+        tokens.get(close + 1).map(|token| token.text),
+        Some(";") | Some("}") | None
+    )
+}
+
+fn fold_prior_assign_into_for_init(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut cursor = 0usize;
+    while cursor + 8 < tokens.len() {
+        let mut assigns = Vec::new();
+        let mut scan = cursor;
+        while let Some(assign) = parse_bare_assign(source, &tokens, scan) {
+            assigns.push(assign);
+            scan = assign.3;
+        }
+        if !assigns.is_empty() {
+            if let Some((header_close, first_semi, _)) =
+                for_header_semicolons(&tokens, &matching_close, scan)
+            {
+                let init_empty = first_semi == scan + 2;
+                let init_starts_decl = matches!(
+                    tokens.get(scan + 2).map(|token| token.text),
+                    Some("var") | Some("let") | Some("const")
+                );
+                if init_empty {
+                    let init_parts = assigns
+                        .iter()
+                        .map(|(_, name, rhs, _)| format!("{name}={rhs}"))
+                        .collect::<Vec<_>>();
+                    let rest = &source[tokens[first_semi].start..tokens[header_close].end];
+                    replacements.push((
+                        tokens[assigns[0].0].start,
+                        tokens[header_close].end,
+                        format!("for({}{rest}", init_parts.join(",")),
+                    ));
+                    cursor = header_close + 1;
+                    continue;
+                }
+                if !init_starts_decl {
+                    let init_start = scan + 2;
+                    let first_init = if tokens[init_start].kind == TokenKind::Identifier
+                        && tokens.get(init_start + 1).map(|token| token.text) == Some("=")
+                    {
+                        top_level_stop(&tokens, init_start + 2, &[",", ";"]).and_then(|rhs_end| {
+                            cheap_literal_rhs(&tokens, init_start + 2, rhs_end).then(|| {
+                                (
+                                    tokens[init_start].text,
+                                    &source[tokens[init_start + 2].start..tokens[rhs_end].start],
+                                    rhs_end,
+                                )
+                            })
+                        })
+                    } else {
+                        None
+                    };
+                    if let Some((init_name, init_rhs, rhs_end)) = first_init {
+                        if let Some((_, last_name, last_rhs, _)) = assigns.last() {
+                            if *last_rhs == init_rhs {
+                                let mut init_parts = assigns
+                                    .iter()
+                                    .map(|(_, name, rhs, _)| format!("{name}={rhs}"))
+                                    .collect::<Vec<_>>();
+                                init_parts.pop();
+                                init_parts.push(format!("{last_name}={init_name}={init_rhs}"));
+                                let rest = &source[tokens[rhs_end].start..tokens[header_close].end];
+                                replacements.push((
+                                    tokens[assigns[0].0].start,
+                                    tokens[header_close].end,
+                                    format!("for({}{rest}", init_parts.join(",")),
+                                ));
+                                cursor = header_close + 1;
+                                continue;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let (decl, name_at) = if matches!(tokens[cursor].text, "var" | "let")
+            && tokens
+                .get(cursor + 1)
+                .is_some_and(|token| token.kind == TokenKind::Identifier)
+        {
+            (format!("{} ", tokens[cursor].text), cursor + 1)
+        } else if tokens[cursor].kind == TokenKind::Identifier {
+            (String::new(), cursor)
+        } else {
+            cursor += 1;
+            continue;
+        };
+        if !is_statement_boundary(&tokens, cursor)
+            || tokens.get(name_at + 1).map(|token| token.text) != Some("=")
+        {
+            cursor += 1;
+            continue;
+        }
+        let Some(semi) = top_level_stop(&tokens, name_at + 2, &[";"]) else {
+            cursor += 1;
+            continue;
+        };
+        if tokens.get(semi + 1).map(|token| token.text) != Some("for")
+            || tokens.get(semi + 2).map(|token| token.text) != Some("(")
+            || tokens.get(semi + 3).map(|token| token.text) != Some(";")
+        {
+            cursor += 1;
+            continue;
+        }
+        let Some(header_close) = matching_close.get(semi + 2).copied().flatten() else {
+            cursor += 1;
+            continue;
+        };
+        let rest = &source[tokens[semi + 3].start..tokens[header_close].end];
+        let init = &source[tokens[name_at].start..tokens[semi].start];
+        replacements.push((
+            tokens[cursor].start,
+            tokens[header_close].end,
+            format!("for({decl}{init}{rest}"),
+        ));
+        cursor = header_close + 1;
+    }
+    let (output, count) = apply_token_rewrites(source, replacements);
+    Ok((output, count))
+}
+
 fn fold_arrow_guard_returns(source: &str) -> Result<(String, usize), JavaScriptParseError> {
     let tokens = lex(source)?;
     let mut matching_close = vec![None; tokens.len()];
@@ -1557,8 +5590,7 @@ fn fold_conditional_return_tails(source: &str) -> Result<(String, usize), JavaSc
             }
             let tail_braced =
                 alternative && tokens.get(next_statement + 1).map(|token| token.text) == Some("{");
-            let tail_return =
-                next_statement + usize::from(alternative) + usize::from(tail_braced);
+            let tail_return = next_statement + usize::from(alternative) + usize::from(tail_braced);
             if tokens.get(tail_return).map(|token| token.text) != Some("return") {
                 continue;
             }
@@ -1647,7 +5679,8 @@ fn fold_single_return_arrow_bodies(source: &str) -> Result<(String, usize), Java
         if tokens[body_open].text != "{" || tokens[body_open - 1].text != "=>" {
             continue;
         }
-        let (Some(body_close), Some(value)) = (matching_close[body_open], tokens.get(body_open + 1))
+        let (Some(body_close), Some(value)) =
+            (matching_close[body_open], tokens.get(body_open + 1))
         else {
             continue;
         };
@@ -1949,7 +5982,8 @@ fn remove_unused_standalone_vars(source: &str) -> Result<(String, usize), JavaSc
                 let is_function = tokens[before].text == "function"
                     || before
                         .checked_sub(1)
-                        .is_some_and(|index| tokens[index].text == "function");
+                        .is_some_and(|index| tokens[index].text == "function")
+                    || tokens[before].kind == TokenKind::Identifier;
                 is_function.then_some((body, end, open_params))
             })
             .collect::<Vec<_>>();
@@ -2003,12 +6037,96 @@ fn remove_unused_standalone_vars(source: &str) -> Result<(String, usize), JavaSc
     Ok((output, removed))
 }
 
-/// Returns uninitialized `var` declarators with the byte range that removes
-/// just that declarator (or the complete declaration when it is the only one).
+/// Drops the space in `return "x"`, `case -1:`, `typeof {}` and friends.
+///
+/// A keyword only needs a separator when the next token could otherwise merge
+/// into it, which is exactly when that token starts with an identifier
+/// character or a digit (`return x`, `return 5`). String, template and regex
+/// literals, and punctuation that opens a group or applies a prefix operator,
+/// can all sit flush against the keyword.
+///
+/// `.` is deliberately excluded: `return .5` re-lexes as a member access on the
+/// keyword when the space is removed.
+fn elide_separating_keyword_spaces(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    let Some(tokens) = lex_certainly(source)? else {
+        return Ok((source.to_string(), 0));
+    };
+    let mut cuts = Vec::new();
+    for pair in tokens.windows(2) {
+        let [left, right] = pair else { continue };
+        if left.kind != TokenKind::Keyword || right.start != left.end + 1 {
+            continue;
+        }
+        if source.as_bytes().get(left.end) != Some(&b' ') {
+            continue;
+        }
+        let flush = match right.kind {
+            TokenKind::String | TokenKind::Template | TokenKind::Regex => true,
+            TokenKind::Punct => right
+                .text
+                .as_bytes()
+                .first()
+                .is_some_and(|byte| matches!(byte, b'[' | b'(' | b'{' | b'!' | b'~' | b'+' | b'-')),
+            _ => false,
+        };
+        if flush {
+            cuts.push(left.end);
+        }
+    }
+    if cuts.is_empty() {
+        return Ok((source.to_string(), 0));
+    }
+    let mut output = String::with_capacity(source.len());
+    let mut cursor = 0;
+    for cut in &cuts {
+        output.push_str(&source[cursor..*cut]);
+        cursor = cut + 1;
+    }
+    output.push_str(&source[cursor..]);
+    Ok((output, cuts.len()))
+}
+
+/// A declarator is removable when nothing observes dropping its initializer.
+/// Uninitialized bindings qualify trivially; so does a binding initialized to a
+/// single literal token, because evaluating a literal cannot be observed.
+///
+/// The string pool is the common producer of the second shape: it hoists a
+/// literal into a binding, and a later decision to spell the uses differently
+/// (`o["k"]` collapsing to `o.k`) can strand the binding with no readers.
+fn declarator_initializer_is_inert(tokens: &[Token<'_>], start: usize, end: usize) -> bool {
+    match end - start {
+        1 => true,
+        3 => {
+            tokens[start + 1].text == "="
+                && match tokens[start + 2].kind {
+                    TokenKind::Number | TokenKind::String | TokenKind::Regex => true,
+                    TokenKind::Keyword => {
+                        matches!(tokens[start + 2].text, "true" | "false" | "null")
+                    }
+                    _ => false,
+                }
+        }
+        _ => false,
+    }
+}
+
+/// Returns removable `var`/`let`/`const` declarators with the byte range that
+/// removes just that declarator (or the complete declaration when it is the
+/// only one).
 fn uninitialized_var_declarators(tokens: &[Token<'_>]) -> Vec<(usize, usize, usize)> {
     let mut candidates = Vec::new();
     for var_index in 0..tokens.len() {
-        if tokens[var_index].text != "var" {
+        if !matches!(tokens[var_index].text, "var" | "let" | "const") {
+            continue;
+        }
+        // `for ( let i = 0 ; ... )` ends its declaration on the header's own
+        // semicolon, so removing the declaration would eat a required `;`.
+        if var_index
+            .checked_sub(2)
+            .is_some_and(|index| tokens[index].text == "for" && tokens[index + 1].text == "(")
+        {
             continue;
         }
         let mut delimiters = Vec::<&str>::new();
@@ -2041,7 +6159,9 @@ fn uninitialized_var_declarators(tokens: &[Token<'_>]) -> Vec<(usize, usize, usi
             continue;
         };
         for (segment_index, (start, end, following_comma)) in segments.iter().enumerate() {
-            if end - start != 1 || tokens[*start].kind != TokenKind::Identifier {
+            if tokens[*start].kind != TokenKind::Identifier
+                || !declarator_initializer_is_inert(tokens, *start, *end)
+            {
                 continue;
             }
             let (remove_start, remove_end) = if segments.len() == 1 {
@@ -2052,7 +6172,7 @@ fn uninitialized_var_declarators(tokens: &[Token<'_>]) -> Vec<(usize, usize, usi
                     tokens[following_comma.expect("a non-final segment has a comma")].end,
                 )
             } else {
-                (tokens[start - 1].start, tokens[*start].end)
+                (tokens[start - 1].start, tokens[end - 1].end)
             };
             candidates.push((*start, remove_start, remove_end));
         }
@@ -2175,7 +6295,8 @@ fn reuse_dead_var_binding(source: &str) -> Result<(String, bool), JavaScriptPars
             let is_function = tokens[before].text == "function"
                 || before
                     .checked_sub(1)
-                    .is_some_and(|index| tokens[index].text == "function");
+                    .is_some_and(|index| tokens[index].text == "function")
+                || tokens[before].kind == TokenKind::Identifier;
             is_function.then_some((body, end, open_params + 1, close_params))
         })
         .collect::<Vec<_>>();
@@ -2999,9 +7120,7 @@ fn lex(source: &str) -> Result<Vec<Token<'_>>, JavaScriptParseError> {
 /// corrupt the artifact. Returning `None` keeps the caller's input untouched.
 fn lex_certainly(source: &str) -> Result<Option<Vec<Token<'_>>>, JavaScriptParseError> {
     let lexed = lex_classified(source)?;
-    Ok(lexed
-        .slash_classification_certain
-        .then_some(lexed.tokens))
+    Ok(lexed.slash_classification_certain.then_some(lexed.tokens))
 }
 
 fn lex_classified(source: &str) -> Result<LexedSource<'_>, JavaScriptParseError> {
@@ -3435,9 +7554,8 @@ fn is_keyword(identifier: &str) -> bool {
 mod tests {
     use super::{
         analyze_generated_javascript, function_leading_declaration_variant, lex,
-        non_overlapping_parsed_node_count, optimize_generated_javascript,
-        parse_expression_regions, punctuation_width, reorder_uninitialized_var_declarators,
-        PeepholeResult,
+        non_overlapping_parsed_node_count, optimize_generated_javascript, parse_expression_regions,
+        punctuation_width, reorder_uninitialized_var_declarators, PeepholeResult,
     };
 
     const LEGACY_PUNCTUATION: [&str; 31] = [
@@ -3606,9 +7724,9 @@ mod tests {
 
         assert_eq!(
             optimized.code,
-            "function f(a,b){a+=b;let c=a+b;if(c)a*=2;for(;a<9;a+=1)b^=a;return a}"
+            "function f(a,b){a+=b;let c=a+b;if(c)a*=2;for(;a<9;a++)b^=a;return a}"
         );
-        assert_eq!(optimized.rewrites, 4);
+        assert_eq!(optimized.rewrites, 5);
     }
 
     #[test]
@@ -3640,14 +7758,14 @@ mod tests {
 
         assert_eq!(
             optimized.code,
-            "let a=1+(left()!=right()),b=typeof (left()!==right()),c=!(left()==right()&&guard()),d=x!=/a==b/.test(s);use(a,b,c,d)"
+            "let a=1+(left()!=right()),b=typeof(left()!==right()),c=!(left()==right()&&guard()),d=x!=/a==b/.test(s);use(a,b,c,d)"
         );
-        assert_eq!(optimized.rewrites, 3);
+        assert_eq!(optimized.rewrites, 4);
     }
 
     #[test]
     fn negated_equality_refuses_postfix_yield_and_ambiguous_expression_starts() {
-        let source = "!(x==y).z;!(x==y)(z);!(x==y)[z];!(x==y)?.z;!(x==y)`tag`;!(x==y)++;!(x==y)--;!(x==y)**z;new !(x==y);function* g(){return !(yield x==y)};!({}==x);!(function(){}==x);!(class{}==x);!(async function(){}==x)";
+        let source = "!(x==y).z;!(x==y)(z);!(x==y)[z];!(x==y)?.z;!(x==y)`tag`;!(x==y)++;!(x==y)--;!(x==y)**z;new!(x==y);function* g(){return!(yield x==y)};!({}==x);!(function(){}==x);!(class{}==x);!(async function(){}==x)";
         let optimized = optimize_emitted_without_regex_literals(source);
 
         assert_eq!(optimized.code, source);
@@ -3683,7 +7801,7 @@ mod tests {
 
         assert_eq!(
             optimized.code,
-            "function run(){var empty,later,stable,log=[],first=(log.push('first'),1),second=(log.push('second'),2),tail=3;return [empty,first,later,second,stable,tail,log.join(',')]}console.log(JSON.stringify(run()))"
+            "function run(){var empty,later,stable,log=[],first=(log.push('first'),1),second=(log.push('second'),2),tail=3;return[empty,first,later,second,stable,tail,log.join(',')]}console.log(JSON.stringify(run()))"
         );
         assert_eq!(run_javascript(&optimized.code), run_javascript(source));
     }
@@ -3726,10 +7844,11 @@ mod tests {
             unicode_asi
         );
 
-        let reorderable = "function plain(){var initialized=read(),empty;return [initialized,empty]}";
+        let reorderable =
+            "function plain(){var initialized=read(),empty;return [initialized,empty]}";
         assert_eq!(
             optimize_generated_javascript(reorderable).unwrap().code,
-            "function plain(){var empty,initialized=read();return [initialized,empty]}"
+            "function plain(){var empty,initialized=read();return[initialized,empty]}"
         );
     }
 
@@ -3754,7 +7873,7 @@ mod tests {
 
     #[test]
     fn canonical_leaf_syntax_refuses_ambiguous_or_non_exact_spellings() {
-        let source = "typeof(value).length;typeof(value)[\"length\"];typeof(value)();typeof(value)?.length;typeof(value)**2;typeof (value);typeof(/*keep*/value);object[\"not-valid\"];object[\"\\x66oo\"];object[\"é\"];object?.[\"safe\"];object /*keep*/[\"safe\"];call()[\"safe\"];[\"safe\"];if(flag)[\"safe\"];let text=`typeof(value) object[\"safe\"]`";
+        let source = "typeof(value).length;typeof(value)[\"length\"];typeof(value)();typeof(value)?.length;typeof(value)**2;typeof value;typeof(/*keep*/value);object[\"not-valid\"];object[\"\\x66oo\"];object[\"é\"];object?.[\"safe\"];object /*keep*/[\"safe\"];call()[\"safe\"];[\"safe\"];if(flag)[\"safe\"];let text=`typeof(value) object[\"safe\"]`";
         let optimized = optimize_emitted_without_regex_literals(source);
 
         assert_eq!(optimized.code, source);
@@ -3763,11 +7882,14 @@ mod tests {
         // A regex body holds the same character sequences the rewrite selects.
         // The lexer reads each literal as one token, so only the spellings
         // outside them fold.
-        let regex = "let a=/typeof(value)/,b=/object[\"safe\"]/;typeof(value);object[\"safe\"]";
+        // `use(a,b)` keeps both bindings live; without a reader they are dead
+        // literal initializers and a different pass removes them outright.
+        let regex =
+            "let a=/typeof(value)/,b=/object[\"safe\"]/;typeof(value);object[\"safe\"];use(a,b)";
         let alongside_regex_literals = optimize_generated_javascript(regex).unwrap();
         assert_eq!(
             alongside_regex_literals.code,
-            "let a=/typeof(value)/,b=/object[\"safe\"]/;typeof value;object.safe"
+            "let a=/typeof(value)/,b=/object[\"safe\"]/;typeof value;object.safe;use(a,b)"
         );
 
         // `}` is the one predecessor that does not decide `/` on its own: a
@@ -3801,6 +7923,24 @@ mod tests {
             optimized.code
         );
         assert_eq!(run_javascript(&optimized.code), run_javascript(source));
+    }
+
+    #[test]
+    fn folds_assigned_truthy_ternary_to_logical_or() {
+        let optimized = optimize_generated_javascript(
+            "function f(n){if(n==null)return n+\"\";var s=typeof n;return \"object\"==s||\"function\"==s?(n=i[Object.prototype.toString.call(n)])?n:\"object\":s}",
+        )
+        .unwrap();
+        assert!(
+            optimized.code.contains("i[Object.prototype.toString.call(n)]||\"object\""),
+            "{}",
+            optimized.code
+        );
+        assert!(
+            !optimized.code.contains(")?n:\"object\""),
+            "{}",
+            optimized.code
+        );
     }
 
     #[test]
@@ -3922,17 +8062,41 @@ mod tests {
             "let f=a=>{var h;if(a)return 1;return b=>{var h;return b}},q=a=>{var g;return b=>{var x=0,g=1;return b+g}};function g(){var x;use(x)}",
         )
         .unwrap();
+        // `var x=0` is dropped too: nothing reads `x`, and evaluating a literal
+        // is unobservable, so the initializer cannot be missed.
         assert_eq!(
             optimized.code,
-            "let f=a=>a?1:b=>b,q=a=>b=>{var x=0,g=1;return b+g};function g(){var x;use(x)}"
+            "let f=a=>a?1:b=>b,q=a=>b=>{var g=1;return b+g};function g(){var x;use(x)}"
         );
-        assert_eq!(optimized.rewrites, 6);
+        assert_eq!(optimized.rewrites, 7);
 
         let optimized = optimize_generated_javascript(
             "let f=(a,b)=>{var e;if(a)return b;return e=>{if(e)return e;return b}};",
         )
         .unwrap();
         assert_eq!(optimized.code, "let f=(a,b)=>a?b:e=>e?e:b;");
+    }
+
+    #[test]
+    fn keeps_bindings_whose_initializer_could_be_observed_or_read() {
+        // An unread binding still has to stay when dropping it would drop a
+        // call, a property read, or any other evaluation that can be observed.
+        for source in [
+            "function f(){var x=side();use(1)}",
+            "function f(o){var x=o.k;use(1)}",
+            "function f(o){var x=o[k()];use(1)}",
+            "function f(){var x=1+g();use(1)}",
+            "function f(){let x=new C;use(1)}",
+        ] {
+            assert_eq!(
+                optimize_generated_javascript(source).unwrap().code,
+                source,
+                "must keep an observable initializer: {source}"
+            );
+        }
+        // A literal-initialized binding that is actually read also stays.
+        let read = "function f(){var x=2;return x+1}";
+        assert_eq!(optimize_generated_javascript(read).unwrap().code, read);
     }
 
     #[test]
@@ -3952,13 +8116,26 @@ mod tests {
         .unwrap();
         assert_eq!(omitted_terminal_semicolon.code, optimized.code);
 
-        for source in [
-            "function f(){var a=true;while(a){if(read())continue;a=read()}}",
-            "function f(){var a=true;while(a){use(a);a=read()}}",
-            "function f(){var a=false;while(a){work();a=read()}}",
-        ] {
-            assert_eq!(optimize_generated_javascript(source).unwrap().code, source);
-        }
+        assert_eq!(
+            optimize_generated_javascript(
+                "function f(){var a=true;while(a){if(read())continue;a=read()}}"
+            )
+            .unwrap()
+            .code,
+            "function f(){var a=true;while(a){if(read())continue;a=read()}}"
+        );
+        assert_eq!(
+            optimize_generated_javascript("function f(){var a=true;while(a){use(a);a=read()}}")
+                .unwrap()
+                .code,
+            "function f(){var a=true;while(a)use(a),a=read();}"
+        );
+        assert_eq!(
+            optimize_generated_javascript("function f(){var a=false;while(a){work();a=read()}}")
+                .unwrap()
+                .code,
+            "function f(){var a=false;while(a)work(),a=read();}"
+        );
     }
 
     #[test]
@@ -3976,15 +8153,30 @@ mod tests {
     #[test]
     fn folds_guarded_returns_and_their_tails_into_one_conditional_return() {
         for (source, expected) in [
-            ("function f(a){if(a)return 1;return 2}", "function f(a){return a?1:2}"),
+            (
+                "function f(a){if(a)return 1;return 2}",
+                "function f(a){return a?1:2}",
+            ),
             (
                 "function f(a,b){if(a)return 1;if(b)return 2;return 3}",
                 "function f(a,b){return a?1:b?2:3}",
             ),
-            ("function f(a){if(a){return 1}return 2}", "function f(a){return a?1:2}"),
-            ("function f(a){if(a)return;return 2}", "function f(a){return a?void 0:2}"),
-            ("function f(a){if(a)return 1;else return 2}", "function f(a){return a?1:2}"),
-            ("function f(a){if(a)return 1;else{return 2}}", "function f(a){return a?1:2}"),
+            (
+                "function f(a){if(a){return 1}return 2}",
+                "function f(a){return a?1:2}",
+            ),
+            (
+                "function f(a){if(a)return;return 2}",
+                "function f(a){return a?void 0:2}",
+            ),
+            (
+                "function f(a){if(a)return 1;else return 2}",
+                "function f(a){return a?1:2}",
+            ),
+            (
+                "function f(a){if(a)return 1;else{return 2}}",
+                "function f(a){return a?1:2}",
+            ),
             (
                 "function f(a,b){while(a)if(b)return 1;else return 2}",
                 "function f(a,b){while(a)return b?1:2}",
@@ -3993,14 +8185,23 @@ mod tests {
                 "function f(a,b){if(a){if(b)return 1;return 2}return 3}",
                 "function f(a,b){return a?b?1:2:3}",
             ),
-            ("function f(a,b){if(a=b)return 1;return 2}", "function f(a,b){return (a=b)?1:2}"),
-            ("function f(a,b){if(a)return b,1;return 2}", "function f(a,b){return a?(b,1):2}"),
+            (
+                "function f(a,b){if(a=b)return 1;return 2}",
+                "function f(a,b){return(a=b)?1:2}",
+            ),
+            (
+                "function f(a,b){if(a)return b,1;return 2}",
+                "function f(a,b){return a?(b,1):2}",
+            ),
             (
                 "function f(a){if(/x/.test(a))return 1;return 2}",
-                "function f(a){return /x/.test(a)?1:2}",
+                "function f(a){return/x/.test(a)?1:2}",
             ),
         ] {
-            assert_eq!(optimize_generated_javascript(source).unwrap().code, expected);
+            assert_eq!(
+                optimize_generated_javascript(source).unwrap().code,
+                expected
+            );
         }
     }
 
@@ -4028,7 +8229,9 @@ mod tests {
         let optimized = optimize_generated_javascript(source).unwrap();
 
         assert!(
-            optimized.code.contains("return n<0?\"negative\":n==0?\"zero\":\"positive\""),
+            optimized
+                .code
+                .contains("return n<0?\"negative\":n==0?\"zero\":\"positive\""),
             "{}",
             optimized.code
         );
@@ -4061,9 +8264,9 @@ mod tests {
         .unwrap();
         assert_eq!(
             optimized.code,
-            "function f(a){test(a)?(a+=1,b=a<12):b=false;return b}"
+            "function f(a){test(a)?(a++,b=a<12):b=false;return b}"
         );
-        assert_eq!(optimized.rewrites, 2);
+        assert_eq!(optimized.rewrites, 4);
 
         let optimized = optimize_generated_javascript(
             "function f(x){if(x){first(),second()}else{third(),fourth()}}",
@@ -4216,5 +8419,842 @@ mod tests {
     fn rejects_malformed_generated_javascript() {
         let error = analyze_generated_javascript("function f(){return [1,2}").unwrap_err();
         assert_eq!(error.offset(), 24);
+    }
+}
+
+
+#[cfg(test)]
+mod keyword_space_tests {
+    use super::optimize_generated_javascript;
+
+    #[test]
+    fn drops_separators_a_keyword_does_not_need() {
+        let optimized = optimize_generated_javascript(
+            "function f(a){if(a)return \"x\";return !1}function g(){return [1,2]}",
+        )
+        .unwrap();
+        // The conditional-return fold also fires here, so the guarded pair
+        // collapses; what this asserts is that no `return` keeps a separator it
+        // does not need.
+        assert_eq!(
+            optimized.code,
+            "function f(a){return a?\"x\":!1}function g(){return[1,2]}"
+        );
+    }
+
+    #[test]
+    fn keeps_separators_that_a_keyword_still_needs() {
+        for source in [
+            "function f(a){return a}",
+            "function f(){return 5}",
+            "function f(){return .5}",
+            "function f(a){return typeof a}",
+        ] {
+            assert_eq!(
+                optimize_generated_javascript(source).unwrap().code,
+                source,
+                "must not fuse: {source}"
+            );
+        }
+    }
+
+    #[test]
+    fn elided_output_still_runs_identically() {
+        let source = "function f(a){if(a)return -1;return (a,0)}function g(){return /b/.test(\"abc\")}";
+        let optimized = optimize_generated_javascript(source).unwrap();
+        assert!(optimized.code.len() < source.len());
+        let script = format!("{}\nconsole.log([f(1),f(0),g()].join(\",\"));", optimized.code);
+        let original = format!("{source}\nconsole.log([f(1),f(0),g()].join(\",\"));");
+        let run = |code: &str| {
+            let path = std::env::temp_dir().join(format!("lil-kw-{}.js", code.len()));
+            std::fs::write(&path, code).unwrap();
+            let out = std::process::Command::new("node").arg(&path).output().unwrap();
+            String::from_utf8_lossy(&out.stdout).trim().to_string()
+        };
+        assert_eq!(run(&script), run(&original));
+        assert_eq!(run(&script), "-1,0,true");
+    }
+
+    #[test]
+    fn folds_index_assigns_into_postfix_updates() {
+        let assign = optimize_generated_javascript("function m(a,b){var i=a.length,j=0;for(;j<b.length;j++)a[i]=b[j],i++;return a}")
+            .unwrap();
+        assert!(assign.code.contains("a[i++]=b[j]"), "{}", assign.code);
+        assert!(!assign.code.contains(",i++"), "{}", assign.code);
+
+        let read = optimize_generated_javascript("function t(a){var i=0,n,s=\"\";for(;;){n=a[i],i++;if(n==null)break;s+=n}return s}")
+            .unwrap();
+        assert!(read.code.contains("n=a[i++]"), "{}", read.code);
+
+        let original = "function m(a,b){var i=a.length,j=0;for(;j<b.length;j++)a[i]=b[j],i++;a.length=i;return a}console.log(JSON.stringify(m([1], [2,3])))";
+        let folded = optimize_generated_javascript(original).unwrap();
+        assert_eq!(run_node(&folded.code).trim(), run_node(original).trim());
+        assert_eq!(run_node(&folded.code).trim(), "[1,2,3]");
+    }
+
+    #[test]
+    fn folds_conditional_push_into_a_singleton_array() {
+        let optimized = optimize_generated_javascript(
+            "function eq(f){var i=this.length;g=[];f>=0&&f<i&&g.push(this[f]);return this.pushStack(g)}",
+        )
+        .unwrap();
+        assert!(
+            optimized.code.contains("return this.pushStack(f>=0&&f<i?[this[f]]:[])"),
+            "{}",
+            optimized.code
+        );
+
+        let original = "function eq(f){var i=this.length;var g=[];f>=0&&f<i&&g.push(this[f]);return g}console.log(JSON.stringify(eq.call({0:\"a\",1:\"b\",length:2},1)))";
+        let folded = optimize_generated_javascript(original).unwrap();
+        assert_eq!(run_node(&folded.code).trim(), run_node(original).trim());
+        assert_eq!(run_node(&folded.code).trim(), "[\"b\"]");
+    }
+
+    #[test]
+    fn folds_guarded_boolean_and_into_an_addend() {
+        let source = "function eq(f){var i=this.length,g=f<0;!g||(g=this.length);f+=g;return f}";
+        let (direct, count) = super::fold_guarded_and_addends(source).unwrap();
+        assert!(
+            count > 0 && direct.contains("f+=f<0&&this.length"),
+            "{count} {direct}"
+        );
+        let optimized = optimize_generated_javascript(source).unwrap();
+        assert!(
+            optimized.code.contains("f+=f<0&&this.length") || optimized.code.contains("f+=f<0&&i"),
+            "{}",
+            optimized.code
+        );
+        assert!(!optimized.code.contains(",g="), "{}", optimized.code);
+
+        let original = "function eq(f){var g=f<0;!g||(g=this.length);f+=g;return f}console.log([eq.call({length:4},-1),eq.call({length:4},2)].join(\",\"))";
+        let folded = optimize_generated_javascript(original).unwrap();
+        assert_eq!(run_node(&folded.code).trim(), run_node(original).trim());
+        assert_eq!(run_node(&folded.code).trim(), "3,2");
+    }
+
+    #[test]
+    fn folds_statement_unit_updates_to_postfix() {
+        let optimized = optimize_generated_javascript(
+            "function each(a,n){for(var i=0;i<n;i+=1)a[i]+=1;return a}",
+        )
+        .unwrap();
+        assert!(optimized.code.contains("i++"), "{}", optimized.code);
+        assert!(!optimized.code.contains("i+=1"), "{}", optimized.code);
+        assert!(optimized.code.contains("a[i]+=1"), "{}", optimized.code);
+
+        let original = "function each(a,n){for(var i=0;i<n;i+=1)a[i]+=1;return a}console.log(each([1,2],2).join(\",\"))";
+        let folded = optimize_generated_javascript(original).unwrap();
+        assert_eq!(run_node(&folded.code).trim(), run_node(original).trim());
+        assert_eq!(run_node(&folded.code).trim(), "2,3");
+    }
+
+    #[test]
+    fn folds_coalesced_or_into_a_returned_disjunction() {
+        let optimized = optimize_generated_javascript(
+            "function end(){var s=this.prevObject;!s&&(s=this.constructor());return s}",
+        )
+        .unwrap();
+        assert_eq!(
+            optimized.code,
+            "function end(){return this.prevObject||this.constructor()}"
+        );
+
+        let original = "function end(){var s=this.prevObject;!s&&(s=this.constructor());return s}console.log(end.call({prevObject:0,constructor:()=>\"c\"}))";
+        let folded = optimize_generated_javascript(original).unwrap();
+        assert_eq!(run_node(&folded.code).trim(), run_node(original).trim());
+        assert_eq!(run_node(&folded.code).trim(), "c");
+    }
+
+    #[test]
+    fn folds_coalesced_or_into_a_method_receiver() {
+        let optimized = optimize_generated_javascript(
+            "function strip(e){e=e.match(o);!e&&(e=[]);return e.join(\" \")}",
+        )
+        .unwrap();
+        assert_eq!(optimized.code, "function strip(e){return(e.match(o)||[]).join(\" \")}");
+    }
+
+    #[test]
+    fn flattens_parenthesized_string_concat_chains() {
+        let optimized = optimize_generated_javascript(
+            "function tag(n){return \"[object \"+(n+\"]\")}",
+        )
+        .unwrap();
+        assert_eq!(optimized.code, "function tag(n){return\"[object \"+n+\"]\"}");
+    }
+
+    #[test]
+    fn flips_trailing_false_equality_without_dropping_the_callee() {
+        let optimized = optimize_generated_javascript(
+            "function each(t,n){for(r in t)if(n.call(t[r],r,t[r])===!1)break;return t}",
+        )
+        .unwrap();
+        assert!(
+            optimized.code.contains("!1===n.call(t[r],r,t[r])"),
+            "{}",
+            optimized.code
+        );
+        assert!(!optimized.code.contains("n.!1"), "{}", optimized.code);
+
+        let apply = optimize_generated_javascript(
+            "function fire(a,i,m){if(a[i].apply(m[0],m[1])===!1)a.length=0}",
+        )
+        .unwrap();
+        assert!(
+            apply.code.contains("!1===a[i].apply(m[0],m[1])"),
+            "{}",
+            apply.code
+        );
+        assert!(!apply.code.contains(".!1"), "{}", apply.code);
+    }
+
+    #[test]
+    fn folds_false_break_into_the_for_condition() {
+        let optimized = optimize_generated_javascript(
+            "function each(t,n){for(var r=0,e=t.length;r<e;r++){if(n.call(t[r],r,t[r])===!1)break}return t}",
+        )
+        .unwrap();
+        assert!(
+            optimized.code.contains("!1!==n.call(t[r],r,t[r])")
+                && optimized.code.contains("r++")
+                && !optimized.code.contains("break"),
+            "{}",
+            optimized.code
+        );
+    }
+
+    #[test]
+    fn folds_truthy_index_walks_into_for_header_assigns() {
+        let optimized = optimize_generated_javascript(
+            "function text(o){var d=0,t=\"\",M;for(;!0;){M=d+1;d=o[d];if(!d)break;t+=l(d);d=M}return t}",
+        )
+        .unwrap();
+        assert!(
+            optimized.code.contains("M=o[d++]") && optimized.code.contains("t+=l(M);"),
+            "{}",
+            optimized.code
+        );
+
+        let original = "function l(n){return n.v||\"\"}function text(o){var d=0,t=\"\",M;for(;!0;){M=d+1;d=o[d];if(!d)break;t+=l(d);d=M}return t}console.log(text([{v:\"a\"},{v:\"b\"}]))";
+        let folded = optimize_generated_javascript(original).unwrap();
+        assert_eq!(run_node(&folded.code).trim(), run_node(original).trim());
+        assert_eq!(run_node(&folded.code).trim(), "ab");
+    }
+
+    #[test]
+    fn folds_self_minus_one_into_decrement() {
+        let optimized = optimize_generated_javascript("function f(i){i=i-1;return i}").unwrap();
+        assert!(optimized.code.contains("i--"), "{}", optimized.code);
+        assert!(!optimized.code.contains("i=i-1"), "{}", optimized.code);
+    }
+
+    #[test]
+    fn copies_identifier_aliases_into_their_only_reads() {
+        let optimized = optimize_generated_javascript(
+            "function xml(f){var h=f&&f.nodeName,E=f&&f.namespaceURI;f=T;!E&&(E=h||\"HTML\");return!f.test(E)}",
+        )
+        .unwrap();
+        assert!(
+            optimized.code.contains("return!T.test(") && !optimized.code.contains("f=T"),
+            "{}",
+            optimized.code
+        );
+    }
+
+    #[test]
+    fn folds_temp_computed_keys_into_the_member() {
+        let optimized = optimize_generated_javascript(
+            "function add(h,E){let i=\"[object \"+E+\"]\";h[i]=E.toLowerCase();return h}",
+        )
+        .unwrap();
+        assert!(
+            optimized.code.contains("h[\"[object \"+E+\"]\"]=E.toLowerCase()"),
+            "{}",
+            optimized.code
+        );
+
+        let arrow = optimize_generated_javascript(
+            "let add=(h,E)=>{let i=\"[object \"+E+\"]\";h[i]=E.toLowerCase()}",
+        )
+        .unwrap();
+        assert!(arrow.code.contains("h[\"[object \"+E+\"]\"]"), "{}", arrow.code);
+        assert!(arrow.code.contains("}"), "{}", arrow.code);
+    }
+
+    #[test]
+    fn folds_trailing_for_increments_into_the_header() {
+        let optimized = optimize_generated_javascript(
+            "function m(f,h){for(var r=+h.length,E=0,i=0;i<r;){f[E++]=h[i];i++;}return f}",
+        )
+        .unwrap();
+        assert!(
+            optimized.code.contains("for(var r=+h.length,E=0,i=0;i<r;i++)"),
+            "{}",
+            optimized.code
+        );
+        assert!(!optimized.code.contains("i++;"), "{}", optimized.code);
+        assert!(
+            optimized.code.contains("h[i];return") || optimized.code.contains("h[i]; return"),
+            "{}",
+            optimized.code
+        );
+    }
+
+    #[test]
+    fn does_not_comma_join_continue_into_an_expression() {
+        let optimized = optimize_generated_javascript(
+            "function f(){for(var n=0;n<3;n++){if(n==1){n++;continue}}return n}",
+        )
+        .unwrap();
+        assert!(
+            !optimized.code.contains(",continue"),
+            "{}",
+            optimized.code
+        );
+        assert_eq!(
+            run_node(&format!("{};console.log(f())", optimized.code)).trim(),
+            "3"
+        );
+    }
+
+    #[test]
+    fn does_not_lift_trailing_increment_when_continue_already_increments() {
+        let original = "function f(a){var n=0,s=0;for(;n<a.length;){if(a[n]==null){n++;continue}s+=a[n];n++;}return s}console.log(f([1,null,2]))";
+        let optimized = optimize_generated_javascript(original).unwrap();
+        assert!(
+            !optimized.code.contains("for(;n<a.length;n++)"),
+            "{}",
+            optimized.code
+        );
+        assert_eq!(run_node(&optimized.code).trim(), run_node(original).trim());
+        assert_eq!(run_node(&optimized.code).trim(), "3");
+    }
+
+    #[test]
+    fn does_not_lift_trailing_increment_when_continue_skips_it() {
+        let original = "function f(a){var n=0,s=0;for(;n<a.length;){if(a[n]==null)continue;s+=a[n];n++;}return s}";
+        let optimized = optimize_generated_javascript(original).unwrap();
+        assert!(
+            !optimized.code.contains("for(;n<a.length;n++)"),
+            "{}",
+            optimized.code
+        );
+        assert!(
+            optimized.code.contains("n++") || optimized.code.contains("++n"),
+            "{}",
+            optimized.code
+        );
+    }
+
+    #[test]
+    fn uses_cached_length_in_the_for_condition() {
+        let each = optimize_generated_javascript(
+            "function each(j,t){for(var n=j.length,r=0;r<j.length&&t(j[r]);r++);return j}",
+        )
+        .unwrap();
+        assert!(each.code.contains("r<n&&"), "{}", each.code);
+        assert!(!each.code.contains("r<j.length"), "{}", each.code);
+
+        let grep = optimize_generated_javascript(
+            "function g(j,t,r){var n=[],i=j.length,o=!r;for(r=0;r<j.length;r++)n.push(j[r]);return n}",
+        )
+        .unwrap();
+        assert!(grep.code.contains("r<i"), "{}", grep.code);
+
+        let prefix = optimize_generated_javascript(
+            "let v=(i,q,t)=>{var b=[],d=i.length,p=!t;for(t=0;t<i.length;++t)!q(i[t],t)!=p&&b.push(i[t]);return b}",
+        )
+        .unwrap();
+        assert!(prefix.code.contains("t<d"), "{}", prefix.code);
+    }
+
+    #[test]
+    fn copies_module_aliases_past_nested_function_assigns() {
+        let optimized = optimize_generated_javascript(
+            "let q=n;function x(){var n=1;return n}k={push:q}",
+        )
+        .unwrap();
+        assert!(optimized.code.contains("push:n"), "{}", optimized.code);
+        assert!(!optimized.code.contains("push:q"), "{}", optimized.code);
+    }
+
+    #[test]
+    fn copies_reads_before_a_later_reassignment() {
+        let optimized = optimize_generated_javascript(
+            "let N=j;k={constructor:N};N=j;c.call(N)",
+        )
+        .unwrap();
+        assert!(
+            optimized.code.contains("constructor:j") && optimized.code.contains("c.call(j)"),
+            "{}",
+            optimized.code
+        );
+    }
+
+    #[test]
+    fn prefers_a_cached_member_binding_over_rereading_the_property() {
+        let text = optimize_generated_javascript(
+            "function text(t){var r=t.nodeType;if(!t.nodeType){return\"\"}return r}",
+        )
+        .unwrap();
+        assert!(
+            text.code.contains("!r") && text.code.contains("return"),
+            "{}",
+            text.code
+        );
+        assert_eq!(text.code.matches("nodeType").count(), 1, "{}", text.code);
+
+        let grep = optimize_generated_javascript(
+            "let i=z=>z,l=(z,t,r)=>{var n=[],i=z.length,o=!r;for(r=0;r<z.length;r++)n.push(z[r]);return n}",
+        )
+        .unwrap();
+        assert!(grep.code.contains("r<i"), "{}", grep.code);
+    }
+
+    #[test]
+    fn drops_unused_member_copy_declarators() {
+        let optimized = optimize_generated_javascript("let q=k.push,T=k.sort;k={push:k.push,sort:k.sort}").unwrap();
+        assert!(!optimized.code.contains("q="), "{}", optimized.code);
+        assert!(!optimized.code.contains("T="), "{}", optimized.code);
+        assert!(optimized.code.contains("push:k.push"), "{}", optimized.code);
+
+        let used_before = optimize_generated_javascript(
+            "let o=j=>b.call(j);var b=t.toString,q=k.push;k={push:k.push}",
+        )
+        .unwrap();
+        assert!(used_before.code.contains("b=t.toString"), "{}", used_before.code);
+        assert!(!used_before.code.contains("q="), "{}", used_before.code);
+    }
+
+    #[test]
+    fn rematerializes_same_scope_single_use_empty_functions_and_regexes() {
+        let noop = optimize_generated_javascript("let H=()=>{},o=1;k={noop:H,id:o}").unwrap();
+        assert!(
+            noop.code.contains("noop:()=>{}") && !noop.code.contains("H="),
+            "{}",
+            noop.code
+        );
+
+        let regex = optimize_generated_javascript(
+            "let O=/\\D/g;k={expando:(\"jQuery\"+Math.random()).replace(O,\"\")}",
+        )
+        .unwrap();
+        assert!(
+            regex.code.contains(".replace(/\\D/g,\"\")") && !regex.code.contains("O="),
+            "{}",
+            regex.code
+        );
+
+        let shared = optimize_generated_javascript("let H=()=>{};k={a:H,b:H}").unwrap();
+        assert!(shared.code.contains("H=()=>{}"), "{}", shared.code);
+
+        let nested = optimize_generated_javascript("let H=()=>{};function f(){return H}").unwrap();
+        assert!(
+            nested.code.contains("H=()=>{}") && nested.code.contains("return H"),
+            "{}",
+            nested.code
+        );
+    }
+
+    #[test]
+    fn reuses_existing_tostring_aliases_for_prototype_calls() {
+        let object = optimize_generated_javascript(
+            "let K=a=>k[Object.prototype.toString.call(a)];var k={},C=k.toString",
+        )
+        .unwrap();
+        assert!(
+            object.code.contains("C.call(a)") && !object.code.contains("Object.prototype.toString"),
+            "{}",
+            object.code
+        );
+
+        let function = optimize_generated_javascript(
+            "let q=a=>D.call(a)==w;var w=Function.prototype.toString.call(Object),k={},t=k.hasOwnProperty,D=t.toString",
+        )
+        .unwrap();
+        assert!(
+            function.code.contains("D.call(a)==D.call(Object)")
+                && !function.code.contains("Function.prototype.toString")
+                && !function.code.contains("w="),
+            "{}",
+            function.code
+        );
+    }
+
+    #[test]
+    fn chains_repeated_member_assigns_of_the_same_binding() {
+        let optimized = optimize_generated_javascript("k={};j.fn=k;j.prototype=k;j.extend=c").unwrap();
+        assert!(
+            optimized.code.contains("j.fn=j.prototype=k"),
+            "{}",
+            optimized.code
+        );
+    }
+
+    #[test]
+    fn folds_coalesced_or_into_a_regex_test() {
+        let optimized = optimize_generated_javascript(
+            "function xml(e,t,o){var d=e&&e.namespaceURI;!d&&(d=t&&t.nodeName||\"HTML\");return!o.test(d)}",
+        )
+        .unwrap();
+        assert_eq!(
+            optimized.code,
+            "function xml(e,t,o){return!o.test(e&&e.namespaceURI||t&&t.nodeName||\"HTML\")}"
+        );
+    }
+
+    #[test]
+    fn drops_void_undefined_before_an_immediate_reassign() {
+        let optimized = optimize_generated_javascript(
+            "function f(){var a;a=void 0;a=g();return a}",
+        )
+        .unwrap();
+        assert!(
+            optimized.code.contains("a=g()") && !optimized.code.contains("void 0"),
+            "{}",
+            optimized.code
+        );
+
+        let comma = optimize_generated_javascript(
+            "function f(){var e=()=>1,a=void 0;a={n:e};return a}",
+        )
+        .unwrap();
+        assert!(
+            comma.code.contains("a={n:") && !comma.code.contains("void 0"),
+            "{}",
+            comma.code
+        );
+    }
+
+    #[test]
+    fn chains_adjacent_identifier_copies_into_one_assign() {
+        let (code, count) = super::fold_chained_identifier_assigns(
+            "function f(x){var a,b;a=x;b=a;a=null;return [a,b]}",
+        )
+        .unwrap();
+        assert!(count > 0, "{code}");
+        assert!(code.contains("b=a=x"), "{code}");
+
+        let (lists, count) = super::fold_chained_identifier_assigns(
+            "function f(){var u,o,i,e;u=[];o=u;e=\"\";i=e;return [o,i,u,e]}",
+        )
+        .unwrap();
+        assert!(count >= 2, "{lists}");
+        assert!(lists.contains("o=u=[]") && lists.contains("i=e=\"\""), "{lists}");
+    }
+
+    #[test]
+    fn folds_preincrement_plus_for_into_prefix_condition() {
+        let optimized = optimize_generated_javascript(
+            "function f(a,i){i++;for(;i<a.length;i++)a[i]();return i}",
+        )
+        .unwrap();
+        assert!(
+            optimized.code.contains("for(;++i<a.length;)"),
+            "{}",
+            optimized.code
+        );
+        assert!(!optimized.code.contains("i++;for"), "{}", optimized.code);
+    }
+
+    #[test]
+    fn folds_assigned_index_break_into_the_for_condition() {
+        let optimized = optimize_generated_javascript(
+            "function rem(a,v){for(var i=0;!0;){i=a.indexOf(v,i);if(i<0)break;a.splice(i,1)}return a}",
+        )
+        .unwrap();
+        assert!(
+            optimized.code.contains("(i=a.indexOf(v,i))>-1"),
+            "{}",
+            optimized.code
+        );
+        assert!(!optimized.code.contains("if(i<0)"), "{}", optimized.code);
+        assert!(
+            !optimized.code.contains("var i=0") && !optimized.code.contains(">=0"),
+            "{}",
+            optimized.code
+        );
+    }
+
+    #[test]
+    fn absorbs_prior_assigns_into_a_nonempty_for_init() {
+        let chained = optimize_generated_javascript(
+            "function f(q){var n,c;n=!0;for(c=!0;q.length;c=-1)q.pop();return n}",
+        )
+        .unwrap();
+        assert!(
+            chained.code.contains("n=c=!0") || chained.code.contains("for(n=c=!0"),
+            "{}",
+            chained.code
+        );
+
+        let empty_init = optimize_generated_javascript(
+            "function f(q){var o,n;o=o||q;n=!0;for(;q.length;)q.pop();return o}",
+        )
+        .unwrap();
+        assert!(
+            empty_init.code.contains("for(o=o||q,n=!0;")
+                || empty_init.code.contains("for(n=!0,o=o||q;"),
+            "{}",
+            empty_init.code
+        );
+    }
+
+    #[test]
+    fn folds_statement_or_assign_into_for_init() {
+        let and_form = optimize_generated_javascript(
+            "function f(o,e,r,n,c,i){!r&&(r=o.once);for(c=n=!0;e.length;i=-1)e.pop();return r}",
+        )
+        .unwrap();
+        assert!(
+            and_form.code.contains("for(r=r||o.once,c=n=!0;")
+                || and_form.code.contains("r=r||o.once"),
+            "{}",
+            and_form.code
+        );
+        assert!(!and_form.code.contains("!r&&(r="), "{}", and_form.code);
+
+        let if_temp = optimize_generated_javascript(
+            "function f(o,e,r,n,c,i){if(!r){var t=o.once;r=t}for(c=n=!0;e.length;i=-1)e.pop();return r}",
+        )
+        .unwrap();
+        assert!(
+            if_temp.code.contains("r=r||o.once"),
+            "{}",
+            if_temp.code
+        );
+        assert!(!if_temp.code.contains("if(!r)"), "{}", if_temp.code);
+
+        let original = "function f(o,e,r,n,c,i){!r&&(r=o.once);for(c=n=!0;e.length;i=-1)e.pop();return r}console.log(f({once:7},[1],0,0,0,0)+','+f({once:8},[],1,0,0,0))";
+        let folded = optimize_generated_javascript(original).unwrap();
+        assert_eq!(run_node(&folded.code).trim(), run_node(original).trim());
+        assert_eq!(run_node(&folded.code).trim(), "7,1");
+
+        let truthy_clear = optimize_generated_javascript(
+            "function empty(t){t&&(t=[]);return t}",
+        )
+        .unwrap();
+        assert!(
+            truthy_clear.code.contains("t&&(t=[])") || truthy_clear.code.contains("t&&(t=[]),"),
+            "{}",
+            truthy_clear.code
+        );
+        assert!(!truthy_clear.code.contains("t=t||[]"), "{}", truthy_clear.code);
+    }
+
+    #[test]
+    fn unwraps_expression_bodies_of_nested_for_loops() {
+        let optimized = optimize_generated_javascript(
+            "function f(t,e,o,i,a){for(c=n=!0;e.length;i=-1){for(a=e.shift();++i<t.length;){!1===t[i].apply(a[0],a[1])&&o.stopOnFalse&&(i=t.length,a=!1)}}o.memory||(a=!1);return t}",
+        )
+        .unwrap();
+        assert!(
+            optimized.code.contains(")for(") && optimized.code.contains(";)!1==="),
+            "{}",
+            optimized.code
+        );
+        assert!(
+            !optimized.code.contains("length;){") && !optimized.code.contains(";){!1==="),
+            "{}",
+            optimized.code
+        );
+
+        let original = "function f(n){var s=0;for(var i=0;i<n;i++){for(var j=0;j<n;j++){s+=1}}return s}console.log(f(3))";
+        let folded = optimize_generated_javascript(original).unwrap();
+        assert_eq!(run_node(&folded.code).trim(), run_node(original).trim());
+        assert_eq!(run_node(&folded.code).trim(), "9");
+
+        let once_unwrapped = optimize_generated_javascript(
+            "function d(o,e,t,i,n,c,r,a){for(r=r||o.once,c=n=!0;e.length;i=-1){for(a=e.shift();++i<t.length;)!1===t[i].apply(a[0],a[1])&&o.stopOnFalse&&(i=t.length,a=!1);}o.memory||(a=!1)}",
+        )
+        .unwrap();
+        assert!(
+            once_unwrapped.code.contains(")for("),
+            "{}",
+            once_unwrapped.code
+        );
+    }
+
+    #[test]
+    fn folds_fire_tail_into_comma_statements() {
+        let optimized = optimize_generated_javascript(
+            "function f(b,a,e){for(;e;)e--;i.memory||(e=!1);d=!1;!b||(a=e?[]:\"\");return a}",
+        )
+        .unwrap();
+        assert!(
+            optimized.code.contains("i.memory||(e=!1),d=!1,b&&(a=e?[]:\"\")")
+                || optimized.code.contains(",d=!1,b&&("),
+            "{}",
+            optimized.code
+        );
+        assert!(
+            optimized.code.contains("b&&(") && !optimized.code.contains("!b||("),
+            "{}",
+            optimized.code
+        );
+
+        let lock = optimize_generated_javascript(
+            "function lock(e,d,a){!e&&!d&&(e=\"\",a=e);return a}",
+        )
+        .unwrap();
+        assert!(
+            lock.code.contains("a=e=\"\""),
+            "{}",
+            lock.code
+        );
+
+        let fire_tail = optimize_generated_javascript(
+            "function d(){for(r=r||o.once,c=n=!0;e.length;i=-1)for(a=e.shift();++i<t.length;)!1===t[i].apply(a[0],a[1])&&o.stopOnFalse&&(i=t.length,a=!1);o.memory||(a=!1);n=!1;r&&(t=a?[]:\"\")}",
+        )
+        .unwrap();
+        assert!(
+            fire_tail.code.contains("o.memory||(a=!1),n=!1,r&&("),
+            "{}",
+            fire_tail.code
+        );
+
+        let removed = optimize_generated_javascript(
+            "function rem(t,i,n){for(var p=0;(p=l(n,t,p))>=0;){t.splice(p,1);p<=i&&--i}return t}",
+        )
+        .unwrap();
+        assert!(
+            removed.code.contains("for(var p;(p=l(n,t,p))>-1;)")
+                && (removed.code.contains("t.splice(p,1),p<=i&&i--")
+                    || removed.code.contains("splice(p,1),p<=i&&i--")),
+            "{}",
+            removed.code
+        );
+
+        let nested_call = optimize_generated_javascript(
+            "function rem(t,i,n){return f(arguments,(e,n)=>{for(var p=0;(p=l(n,t,p))>=0;){t.splice(p,1);p<=i&&--i}}),this}",
+        )
+        .unwrap();
+        assert!(
+            nested_call.code.contains("t.splice(p,1),p<=i&&i--")
+                || nested_call.code.contains("splice(p,1),p<=i&&i--"),
+            "{}",
+            nested_call.code
+        );
+
+        let already_gt = optimize_generated_javascript(
+            "function rem(t,i,n){for(var p=0;(p=l(n,t,p))>-1;)t.splice(p,1),p<=i&&i--;return t}",
+        )
+        .unwrap();
+        assert!(
+            already_gt.code.contains("for(var p;(p=l(n,t,p))>-1;)"),
+            "{}",
+            already_gt.code
+        );
+
+        let method_unused = optimize_generated_javascript(
+            "function make(){var f=-1;return{lock(){var f;return this},read(){return f}}}",
+        )
+        .unwrap();
+        assert!(
+            !method_unused.code.contains("lock(){var f;")
+                && !method_unused.code.contains("lock(){var f}"),
+            "{}",
+            method_unused.code
+        );
+    }
+
+    #[test]
+    fn folds_increment_infinite_for_into_prefix_condition() {
+        let optimized = optimize_generated_javascript(
+            "function f(a,i){i++;for(;;i++){var t=i;if(i>=a.length){break}t=a[i];t()}}",
+        )
+        .unwrap();
+        assert!(
+            optimized.code.contains("for(;++i<a.length;)"),
+            "{}",
+            optimized.code
+        );
+        assert!(!optimized.code.contains("i++;for"), "{}", optimized.code);
+        assert!(!optimized.code.contains("if(i>="), "{}", optimized.code);
+        assert!(
+            optimized.code.contains("a[i]()") || optimized.code.contains("a[i];"),
+            "{}",
+            optimized.code
+        );
+    }
+
+    #[test]
+    fn keeps_index_copies_that_are_reassigned_later() {
+        let source = "function ext(t,a,r,s,o){var u=t[a];s&&!Array.isArray(u)?u=[]:!s&&!o(u)&&(u={});t[a]=e(u);return t}";
+        let optimized = optimize_generated_javascript(source).unwrap();
+        assert!(
+            optimized.code.contains("u=t[a]") || optimized.code.contains("u=t[a];"),
+            "{}",
+            optimized.code
+        );
+        assert!(
+            optimized.code.contains("e(u)") || optimized.code.contains("e(u)"),
+            "{}",
+            optimized.code
+        );
+    }
+
+    #[test]
+    fn inlines_single_use_index_temps_in_a_fire_loop() {
+        let optimized = optimize_generated_javascript(
+            "function f(a,i,m){i++;for(;;i++){var t=i;if(i>=a.length){break}t=a[i];var c=m[0];!1===t.apply(c,m[1])&&(i=+a.length)}}",
+        )
+        .unwrap();
+        assert!(
+            optimized.code.contains("a[i].apply(m[0],m[1])"),
+            "{}",
+            optimized.code
+        );
+    }
+
+    #[test]
+    fn folds_trailing_return_this_into_a_comma() {
+        let fire = optimize_generated_javascript(
+            "function fire(){a.fireWith(this,arguments);return this}",
+        )
+        .unwrap();
+        assert!(
+            fire.code.contains("return a.fireWith(this,arguments),this"),
+            "{}",
+            fire.code
+        );
+
+        let add = optimize_generated_javascript(
+            "function add(){if(i){e&&u.push(e);n();e&&f()}return this}",
+        )
+        .unwrap();
+        assert!(
+            add.code.contains("return i&&(") && add.code.contains(",this"),
+            "{}",
+            add.code
+        );
+    }
+
+    #[test]
+    fn drops_double_not_in_the_middle_of_a_boolean_chain() {
+        let optimized = optimize_generated_javascript(
+            "function f(a,b,c){a&&!!b&&(c=1);return c}",
+        )
+        .unwrap();
+        assert!(
+            optimized.code.contains("a&&b&&") || optimized.code.contains("a&&b&&("),
+            "{}",
+            optimized.code
+        );
+        assert!(!optimized.code.contains("!!b"), "{}", optimized.code);
+    }
+
+    fn run_node(source: &str) -> String {
+        let output = std::process::Command::new("node")
+            .arg("-e")
+            .arg(source)
+            .output()
+            .expect("node must execute generated JavaScript");
+        assert!(
+            output.status.success(),
+            "node failed:\n{}\nsource:\n{source}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        String::from_utf8(output.stdout).expect("node stdout must be UTF-8")
     }
 }

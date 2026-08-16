@@ -7395,6 +7395,7 @@ fn intrinsic_uses_untyped_javascript_values(intrinsic: Intrinsic) -> bool {
             | Intrinsic::JsXMLHttpRequestNew
             | Intrinsic::JsNumber
             | Intrinsic::JsAdd
+            | Intrinsic::JsMod
             | Intrinsic::JsLessThan
             | Intrinsic::JsLessThanOrEqual
             | Intrinsic::JsGreaterThan
@@ -11101,6 +11102,7 @@ fn summarize_function_effects(
                     | Intrinsic::JsStringify
                     | Intrinsic::JsNumber
                     | Intrinsic::JsAdd
+                    | Intrinsic::JsMod
                     | Intrinsic::JsLessThan
                     | Intrinsic::JsLessThanOrEqual
                     | Intrinsic::JsGreaterThan
@@ -11369,6 +11371,7 @@ fn control_flow_op_has_side_effects(
                 | Intrinsic::JsXMLHttpRequestNew
                 | Intrinsic::JsNumber
                 | Intrinsic::JsAdd
+                | Intrinsic::JsMod
                 | Intrinsic::JsLessThan
                 | Intrinsic::JsLessThanOrEqual
                 | Intrinsic::JsGreaterThan

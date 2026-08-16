@@ -49,6 +49,7 @@ pub enum BuiltinCall {
     JsString,
     JsNumber,
     JsAdd,
+    JsMod,
     JsLessThan,
     JsLessThanOrEqual,
     JsGreaterThan,
@@ -322,6 +323,7 @@ pub struct ClassInfo<'src> {
     declared_methods: IndexMap<&'src str, MethodInfo<'src>>,
     pub constructor: Option<FunctionType<'src>>,
     pub external: bool,
+    pub object: bool,
     pub span: Span,
 }
 
@@ -444,6 +446,10 @@ impl<'src> SemanticModel<'src> {
         self.classes.get(name).is_some_and(|class| class.external)
     }
 
+    pub fn is_object(&self, name: &str) -> bool {
+        self.classes.get(name).is_some_and(|class| class.object)
+    }
+
     pub(crate) fn class_method_owner(&self, class: &str, method: &str) -> Option<&'src str> {
         self.classes
             .get(class)
@@ -515,6 +521,8 @@ struct Analyzer<'src> {
     type_parameter_scopes: Vec<AHashSet<&'src str>>,
     loop_depth: usize,
     async_depth: usize,
+    callable_depth: usize,
+    initializing: Option<(SymbolId, usize)>,
     constructor_classes: Vec<Option<&'src str>>,
     generator_contexts: Vec<Option<Type<'src>>>,
 }
@@ -570,6 +578,8 @@ impl<'src> Analyzer<'src> {
             type_parameter_scopes: Vec::new(),
             loop_depth: 0,
             async_depth: 0,
+            callable_depth: 0,
+            initializing: None,
             constructor_classes: Vec::new(),
             generator_contexts: Vec::new(),
         }
@@ -624,17 +634,45 @@ impl<'src> Analyzer<'src> {
         program: &Program<'ast, 'src>,
     ) -> Result<(), SemanticError> {
         for item in program.items {
-            let (name, type_params, span, is_struct, external) = match item {
-                Item::Struct(decl) => (decl.name.name, decl.type_params, decl.span, true, false),
-                Item::Class(decl) => (decl.name.name, decl.type_params, decl.span, false, false),
-                Item::ExternClass(decl) => {
-                    (decl.name.name, decl.type_params, decl.span, false, true)
-                }
+            let (name, type_params, span, is_struct, external, object) = match item {
+                Item::Struct(decl) => (
+                    decl.name.name,
+                    decl.type_params,
+                    decl.span,
+                    true,
+                    false,
+                    false,
+                ),
+                Item::Class(decl) => (
+                    decl.name.name,
+                    decl.type_params,
+                    decl.span,
+                    false,
+                    false,
+                    decl.object,
+                ),
+                Item::ExternClass(decl) => (
+                    decl.name.name,
+                    decl.type_params,
+                    decl.span,
+                    false,
+                    true,
+                    false,
+                ),
                 _ => continue,
             };
             let type_params = validate_type_params(type_params)?;
 
-            if self.model.structs.contains_key(name) || self.model.classes.contains_key(name) {
+            if self.model.structs.contains_key(name) {
+                return Err(SemanticError::new(
+                    span,
+                    format!("duplicate type declaration `{name}`"),
+                ));
+            }
+            if let Some(existing) = self.model.classes.get(name) {
+                if existing.object && object {
+                    continue;
+                }
                 return Err(SemanticError::new(
                     span,
                     format!("duplicate type declaration `{name}`"),
@@ -664,6 +702,7 @@ impl<'src> Analyzer<'src> {
                         declared_methods: IndexMap::new(),
                         constructor: None,
                         external,
+                        object,
                         span,
                     },
                 );
@@ -791,12 +830,25 @@ impl<'src> Analyzer<'src> {
                                 ),
                             ));
                         }
+                        let signature = self.function_type(method)?;
+                        if decl.object {
+                            let index = fields.len();
+                            fields.insert(
+                                method.name.name,
+                                FieldInfo {
+                                    name: method.name.name,
+                                    ty: Type::Function(signature.clone()),
+                                    index,
+                                    span: method.span,
+                                },
+                            );
+                        }
                         methods.insert(
                             method.name.name,
                             MethodInfo {
                                 owner: decl.name.name,
                                 type_params: validate_type_params(method.type_params)?,
-                                signature: self.function_type(method)?,
+                                signature,
                                 declared_pure: method.declared_pure,
                             },
                         );
@@ -827,19 +879,68 @@ impl<'src> Analyzer<'src> {
                 }
             }
 
-            let info = self
-                .model
-                .classes
-                .get_mut(decl.name.name)
-                .expect("class name was declared in the first semantic pass");
-            info.fields = fields;
-            info.methods = methods;
-            info.declared_fields = info.fields.clone();
-            info.declared_methods = info.methods.clone();
-            info.base = base;
-            info.constructor = constructor.clone();
-
+            let merge_object = {
+                let info = self
+                    .model
+                    .classes
+                    .get_mut(decl.name.name)
+                    .expect("class name was declared in the first semantic pass");
+                if decl.object
+                    && info.object
+                    && self
+                        .scopes
+                        .last()
+                        .is_some_and(|scope| scope.contains_key(decl.name.name))
+                {
+                    for name in methods.keys() {
+                        if info.methods.contains_key(name) || info.fields.contains_key(name) {
+                            return Err(SemanticError::new(
+                                decl.span,
+                                format!("duplicate member `{name}` in object `{}`", decl.name.name),
+                            ));
+                        }
+                    }
+                    let mut next_index = info.fields.len();
+                    for (name, field) in fields {
+                        let mut field = field;
+                        field.index = next_index;
+                        next_index += 1;
+                        info.fields.insert(name, field);
+                    }
+                    info.methods.extend(methods);
+                    info.declared_fields = info.fields.clone();
+                    info.declared_methods = info.methods.clone();
+                    true
+                } else {
+                    info.fields = fields;
+                    info.methods = methods;
+                    info.declared_fields = info.fields.clone();
+                    info.declared_methods = info.methods.clone();
+                    info.base = base;
+                    info.constructor = constructor.clone();
+                    info.object = decl.object;
+                    false
+                }
+            };
             self.pop_type_params();
+            if merge_object {
+                if let Some(&symbol) = self
+                    .scopes
+                    .last()
+                    .and_then(|scope| scope.get(decl.name.name))
+                {
+                    self.model.identifier_symbols.insert(decl.name.span, symbol);
+                    self.model
+                        .binding_types
+                        .insert(decl.name.span, Type::Class(decl.name.name));
+                }
+                continue;
+            }
+
+            if decl.object {
+                self.declare(decl.name, Type::Class(decl.name.name))?;
+                continue;
+            }
 
             let constructor_signature = constructor.unwrap_or(FunctionType {
                 params: Vec::new(),
@@ -1904,7 +2005,7 @@ impl<'src> Analyzer<'src> {
                 "variable declarations require an initializer",
             ));
         }
-        let ty = if decl.ty.is_auto() {
+        if decl.ty.is_auto() {
             let initializer = decl.initializer.as_ref().ok_or_else(|| {
                 SemanticError::new(decl.span, "`auto` declarations require an initializer")
             })?;
@@ -1921,19 +2022,38 @@ impl<'src> Analyzer<'src> {
                     "cannot infer a variable type from `null`; add an explicit nullable type",
                 ));
             }
-            inferred
-        } else {
-            let declared = self.resolve_value_type(decl.ty, "variable")?;
-            if let Some(initializer) = &decl.initializer {
-                let actual = self.analyze_expr(initializer, Some(&declared))?;
-                self.require_assignable(&declared, &actual, initializer.span())?;
-            }
-            declared
-        };
+            let mut ty = inferred;
+            strip_parameter_defaults_from_type(&mut ty);
+            self.declare(decl.name, ty)?;
+            return Ok(());
+        }
 
-        let mut ty = ty;
-        strip_parameter_defaults_from_type(&mut ty);
-        self.declare(decl.name, ty)?;
+        let declared = self.resolve_value_type(decl.ty, "variable")?;
+        let mut binding_ty = declared.clone();
+        strip_parameter_defaults_from_type(&mut binding_ty);
+        let id = self.declare(decl.name, binding_ty)?;
+        let previous = self.initializing;
+        self.initializing = Some((id, self.callable_depth));
+        let analyzed = if let Some(initializer) = &decl.initializer {
+            let actual = self.analyze_expr(initializer, Some(&declared));
+            self.initializing = previous;
+            let actual = actual?;
+            self.require_assignable(&declared, &actual, initializer.span())
+        } else {
+            self.initializing = previous;
+            Ok(())
+        };
+        analyzed?;
+        let referenced = self
+            .model
+            .identifier_symbols
+            .values()
+            .filter(|symbol| **symbol == id)
+            .count()
+            > 1;
+        if referenced {
+            self.model.assigned_symbols.insert(id);
+        }
         Ok(())
     }
 
@@ -2033,6 +2153,17 @@ impl<'src> Analyzer<'src> {
                     let symbol = self.resolve(ident)?;
                     (symbol.id, symbol.ty.clone())
                 };
+                if let Some((initializing, depth)) = self.initializing {
+                    if id == initializing && self.callable_depth == depth {
+                        return Err(SemanticError::new(
+                            ident.span,
+                            format!(
+                                "cannot read `{}` in its own initializer; nest the reference in a function",
+                                ident.name
+                            ),
+                        ));
+                    }
+                }
                 self.model.identifier_symbols.insert(ident.span, id);
                 self.narrowed_type(id).cloned().unwrap_or(declared)
             }
@@ -2260,6 +2391,12 @@ impl<'src> Analyzer<'src> {
                         return Err(SemanticError::new(
                             *span,
                             format!("extern class `{}` cannot be constructed", class.name),
+                        ));
+                    }
+                    if info.object {
+                        return Err(SemanticError::new(
+                            *span,
+                            format!("object `{}` cannot be constructed with `new`", class.name),
                         ));
                     }
                     let params = info
@@ -3882,6 +4019,10 @@ impl<'src> Analyzer<'src> {
                     require_arity(2..=2)?;
                     (BuiltinCall::JsAdd, js.clone(), vec![js.clone(), js.clone()])
                 }
+                "mod" => {
+                    require_arity(2..=2)?;
+                    (BuiltinCall::JsMod, js.clone(), vec![js.clone(), js.clone()])
+                }
                 "lessThan" => {
                     require_arity(2..=2)?;
                     (
@@ -4365,6 +4506,7 @@ impl<'src> Analyzer<'src> {
             parameter_types.push(ty);
         }
 
+        self.callable_depth += 1;
         let return_type = match body {
             ArrowBody::Expr(body) => self.analyze_expr(body, None)?,
             ArrowBody::Block(statements) => {
@@ -4390,6 +4532,7 @@ impl<'src> Analyzer<'src> {
                 }
             }
         };
+        self.callable_depth -= 1;
         self.analyze_parameter_defaults(params, &parameter_types)?;
         let global_symbols = self
             .scopes
@@ -6555,10 +6698,8 @@ mod tests {
 
     #[test]
     fn nested_parameter_defaults_may_capture_outer_locals() {
-        check(
-            "func(int)->int factory(int defaultSize){return (int size=defaultSize)=>size;}",
-        )
-        .unwrap();
+        check("func(int)->int factory(int defaultSize){return (int size=defaultSize)=>size;}")
+            .unwrap();
         let shadowed = check("int value=9;auto make=(int value=value)=>value;").unwrap_err();
         assert!(
             shadowed
@@ -7523,6 +7664,24 @@ mod tests {
     }
 
     #[test]
+    fn allows_explicit_function_bindings_to_recurse() {
+        check("func(int)->int loop=(int n)=>loop(n);int value=loop(1);").unwrap();
+        check("JsValue self=(JsValue _)=>self;JsValue value=self;").unwrap();
+        let inferred = check("auto fact=(int n)=>fact(n);").unwrap_err();
+        assert!(
+            inferred.message.contains("unknown identifier `fact`"),
+            "{inferred}"
+        );
+        let during_init = check("int boom=boom+1;").unwrap_err();
+        assert!(
+            during_init
+                .message
+                .contains("cannot read `boom` in its own initializer"),
+            "{during_init}"
+        );
+    }
+
+    #[test]
     fn checks_typed_javascript_adapter_callback_conventions() {
         check(
             "JsValue method0=JS.method0((JsValue self)=>self);JsValue method1=JS.method1((JsValue self,JsValue value)=>value);JsValue methodRest=JS.methodRest((JsValue self,JsValue args)=>args);JsValue staticRest=JS.staticRest((JsValue args)=>args);JsValue constructed=JS.construct(method0);",
@@ -7554,8 +7713,10 @@ mod tests {
 
     #[test]
     fn allows_jsvalue_property_keys_on_jsvalue_bags() {
-        check("extern JsValue obj;extern JsValue key;JsValue value=obj[key];obj[key]=value;").unwrap();
-        let error = check("extern JsValue obj;extern bool key;JsValue value=obj[key];").unwrap_err();
+        check("extern JsValue obj;extern JsValue key;JsValue value=obj[key];obj[key]=value;")
+            .unwrap();
+        let error =
+            check("extern JsValue obj;extern bool key;JsValue value=obj[key];").unwrap_err();
         assert!(
             error.message.contains("numeric, `string`, or `JsValue`"),
             "{error}"
@@ -7639,6 +7800,36 @@ mod tests {
 
         let error = check("extern class Document{}Document value=new Document();").unwrap_err();
         assert!(error.message.contains("cannot be constructed"));
+    }
+
+    #[test]
+    fn accepts_closed_objects_and_merges_method_tables() {
+        check("object Api{int add(int left,int right){return left+right;}}print(Api.add(1,2));")
+            .unwrap();
+        check(
+            "object Api{int add(int left,int right){return left+right;}}object Api{int mul(int left,int right){return left*right;}}print(Api.add(1,2)+Api.mul(3,4));",
+        )
+        .unwrap();
+        let constructed = check("object Api{int id(){return 1;}}Api value=new Api();").unwrap_err();
+        assert!(
+            constructed
+                .message
+                .contains("object `Api` cannot be constructed with `new`"),
+            "{constructed}"
+        );
+        let duplicate = check(
+            "object Api{int add(int left,int right){return left+right;}}object Api{int add(int left,int right){return left+right;}}",
+        )
+        .unwrap_err();
+        assert!(
+            duplicate.message.contains("duplicate member `add`"),
+            "{duplicate}"
+        );
+        let clash = check("class Api{}object Api{int id(){return 1;}}").unwrap_err();
+        assert!(
+            clash.message.contains("duplicate type declaration `Api`"),
+            "{clash}"
+        );
     }
 
     #[test]

@@ -693,23 +693,34 @@ pub fn link_modules<'arena>(
     let mut bindings = Vec::with_capacity(programs.len());
     for (module_id, program) in programs.iter().enumerate() {
         let mut module_bindings = AHashMap::default();
+        let mut object_names = AHashSet::default();
         for item in program.items {
             for name in top_level_names(item) {
-                let internal = if module_id == modules.root
+                let keep_source_name = module_id == modules.root
                     || matches!(item, Item::Extern(_) | Item::ExternGlobal(_))
-                {
+                    || matches!(item, Item::Class(decl) if decl.object
+                        && program.exports.iter().any(|export| export.local.name == decl.name.name));
+                let internal = if keep_source_name {
                     name.name
                 } else {
                     let generated = format!("$m{module_id}${}", name.name);
                     &*arena.alloc_str(&generated)
                 };
-                if module_bindings.insert(name.name, internal).is_some() {
-                    return Err(module_error_at(
-                        modules,
-                        module_id,
-                        name.span,
-                        format!("duplicate module binding `{}`", name.name),
-                    ));
+                if let Some(previous) = module_bindings.insert(name.name, internal) {
+                    let merge_object = matches!(item, Item::Class(decl) if decl.object)
+                        && object_names.contains(name.name)
+                        && previous == internal;
+                    if !merge_object {
+                        return Err(module_error_at(
+                            modules,
+                            module_id,
+                            name.span,
+                            format!("duplicate module binding `{}`", name.name),
+                        ));
+                    }
+                }
+                if matches!(item, Item::Class(decl) if decl.object) {
+                    object_names.insert(name.name);
                 }
             }
         }
@@ -1299,6 +1310,7 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
             type_params: self.clone_idents(decl.type_params),
             base: decl.base.map(|base| self.clone_type(base)),
             members: members.into_bump_slice(),
+            object: decl.object,
             span: self.span(decl.span),
         }
     }
@@ -2073,6 +2085,59 @@ mod tests {
             panic!("expected identifier default")
         };
         assert_eq!(default.name, "seed");
+    }
+
+    #[test]
+    fn exported_objects_keep_source_names_and_merge_across_modules() {
+        let root_source =
+            "import {Api} from \"./core.lil\";import \"./ajax.lil\";print(Api.add(1,2)+Api.mul(3,4));";
+        let core_source = "export object Api{int add(int left,int right){return left+right;}}";
+        let ajax_source = "export object Api{int mul(int left,int right){return left*right;}}";
+        let modules = ModuleSet {
+            modules: vec![
+                ModuleSource {
+                    path: PathBuf::from("/virtual/root.lil"),
+                    source: root_source.to_string(),
+                    dependencies: vec![1, 2],
+                    foreign_dependencies: Vec::new(),
+                    dynamic_dependencies: Vec::new(),
+                    offset: 0,
+                },
+                ModuleSource {
+                    path: PathBuf::from("/virtual/core.lil"),
+                    source: core_source.to_string(),
+                    dependencies: Vec::new(),
+                    foreign_dependencies: Vec::new(),
+                    dynamic_dependencies: Vec::new(),
+                    offset: root_source.len() + 1,
+                },
+                ModuleSource {
+                    path: PathBuf::from("/virtual/ajax.lil"),
+                    source: ajax_source.to_string(),
+                    dependencies: Vec::new(),
+                    foreign_dependencies: Vec::new(),
+                    dynamic_dependencies: Vec::new(),
+                    offset: root_source.len() + 1 + core_source.len() + 1,
+                },
+            ],
+            dependency_order: vec![1, 2, 0],
+            root: 0,
+            eager: vec![true, true, true],
+        };
+        let arena = Bump::new();
+        let modules = arena.alloc(modules);
+        let programs = parse_modules(&arena, modules).unwrap();
+        let programs = arena.alloc_slice_fill_iter(programs);
+        let linked = link_modules(&arena, modules, programs).unwrap();
+        let objects = linked
+            .items
+            .iter()
+            .filter_map(|item| match item {
+                Item::Class(decl) if decl.object => Some(decl.name.name),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(objects, vec!["Api", "Api"]);
     }
 
     #[test]

@@ -986,7 +986,11 @@ fn score_javascript_chunk_plan(
                 config,
             ));
         }
-        if best.is_none_or(|(best_score, _)| score < best_score) {
+        if best.is_none_or(|(best_score, best_options)| {
+            score < best_score
+                || (score == best_score
+                    && options.local_name_reserve < best_options.local_name_reserve)
+        }) {
             best = Some((score, options));
         }
     }
@@ -1449,7 +1453,7 @@ fn optimize_and_select_javascript_inner<'src>(
                 let mut combined = base;
                 combined.common_subexpression_elimination = false;
                 combined.inline_instruction_limit = combined.inline_instruction_limit.max(48);
-                combined.inline_control_flow_limit = combined.inline_control_flow_limit.max(64);
+                combined.inline_control_flow_limit = combined.inline_control_flow_limit.max(128);
                 combined.inline_growth_limit =
                     Some(combined.inline_growth_limit.unwrap_or(0).max(40));
                 if !optimizer_options.contains(&combined) {
@@ -1467,7 +1471,7 @@ fn optimize_and_select_javascript_inner<'src>(
             aggressive_inlining.inline_instruction_limit =
                 aggressive_inlining.inline_instruction_limit.max(48);
             aggressive_inlining.inline_control_flow_limit =
-                aggressive_inlining.inline_control_flow_limit.max(64);
+                aggressive_inlining.inline_control_flow_limit.max(128);
             aggressive_inlining.inline_growth_limit =
                 Some(aggressive_inlining.inline_growth_limit.unwrap_or(0).max(40));
             if !optimizer_options.contains(&aggressive_inlining) {
@@ -3235,6 +3239,25 @@ fn select_javascript_candidate_global(
         finalists,
         |options| {
             [crate::codegen_ir_js::IrJsOptions {
+                elide_length_tonumber: !options.elide_length_tonumber,
+                ..options
+            }]
+        },
+    )?;
+    let finalists = top_candidate_options(
+        &mut candidates,
+        candidate_beam_width,
+        config.javascript.cost_model,
+    )?;
+    extend_javascript_candidate_beam(
+        ir,
+        module_output,
+        beam_policy,
+        &integer_analysis,
+        &mut candidates,
+        finalists,
+        |options| {
+            [crate::codegen_ir_js::IrJsOptions {
                 pool_window_roots: !options.pool_window_roots,
                 ..options
             }]
@@ -3297,25 +3320,27 @@ fn select_javascript_candidate_global(
             }]
         },
     )?;
-    let finalists = top_candidate_options(
-        &mut candidates,
-        candidate_beam_width,
-        config.javascript.cost_model,
-    )?;
-    extend_javascript_candidate_beam(
-        ir,
-        module_output,
-        beam_policy,
-        &integer_analysis,
-        &mut candidates,
-        finalists,
-        |options| {
-            [crate::codegen_ir_js::IrJsOptions {
-                nested_once_run_helpers: !options.nested_once_run_helpers,
-                ..options
-            }]
-        },
-    )?;
+    if configured.nested_once_run_helpers {
+        let finalists = top_candidate_options(
+            &mut candidates,
+            candidate_beam_width,
+            config.javascript.cost_model,
+        )?;
+        extend_javascript_candidate_beam(
+            ir,
+            module_output,
+            beam_policy,
+            &integer_analysis,
+            &mut candidates,
+            finalists,
+            |options| {
+                [crate::codegen_ir_js::IrJsOptions {
+                    nested_once_run_helpers: false,
+                    ..options
+                }]
+            },
+        )?;
+    }
     let finalists = top_candidate_options(
         &mut candidates,
         candidate_beam_width,
@@ -3555,6 +3580,35 @@ fn select_javascript_candidate_global(
             )?;
         }
     }
+    // Local-name strategy is explored before the other axes, not after them.
+    //
+    // Whether short names are reused for the same source binding across scopes
+    // or reassigned per scope changes the byte cost of every later spelling
+    // decision, so it is a regime rather than a local tweak. Run late, it only
+    // ever gets flipped on finalists that were already selected under the other
+    // regime, and the beam has no way back; run first, every later axis is
+    // explored inside both regimes.
+    if configured.stable_local_names {
+        let finalists = top_candidate_options(
+            &mut candidates,
+            candidate_beam_width,
+            config.javascript.cost_model,
+        )?;
+        extend_javascript_candidate_beam(
+            ir,
+            module_output,
+            beam_policy,
+            &integer_analysis,
+            &mut candidates,
+            finalists,
+            |options| {
+                [crate::codegen_ir_js::IrJsOptions {
+                    stable_local_names: false,
+                    ..options
+                }]
+            },
+        )?;
+    }
     if config.js_default_argument_variants_enabled() {
         let finalists = top_candidate_options(
             &mut candidates,
@@ -3720,7 +3774,8 @@ fn select_javascript_candidate_global(
     // source expression looked like. Search may still score the three-address
     // spelling, but a project that turned fusion off keeps it off.
     if configured.operand_order_fusion
-        && config.javascript_optimization_enabled(JavaScriptOptimization::OperandOrderFusionVariants)
+        && config
+            .javascript_optimization_enabled(JavaScriptOptimization::OperandOrderFusionVariants)
     {
         let finalists = top_candidate_options(
             &mut candidates,
@@ -4046,6 +4101,11 @@ fn select_javascript_candidate_global(
             },
         )?;
     }
+    // Probe the same regime again next to the mangling axes. Beam search is not
+    // monotone: running the axis only at the front can settle a program into a
+    // regime whose finalists lose once identifier mangling is applied, so the
+    // late probe keeps a way back for programs the early split sends the wrong
+    // way (measured: zod regressed 58 brotli bytes with the early split alone).
     if configured.stable_local_names {
         let finalists = top_candidate_options(
             &mut candidates,
@@ -7127,6 +7187,9 @@ mod tests {
                 export JsValue add(JsValue left, JsValue right) {
                   return JS.add(left, right);
                 }
+                export JsValue remainder(JsValue left, JsValue right) {
+                  return JS.mod(left, right);
+                }
                 export bool ordered(JsValue left, JsValue right) {
                   return JS.lessThan(left, right) ||
                     JS.lessThanOrEqual(left, right) ||
@@ -7146,11 +7209,15 @@ mod tests {
         let output = compile_path_to_js_module(&main).unwrap();
         assert!(output.contains("typeof "), "{output}");
         assert!(output.contains("==null"), "{output}");
-        assert!(output.contains("===false"), "{output}");
+        assert!(
+            output.contains("===false") || output.contains("===!1"),
+            "{output}"
+        );
         assert!(output.contains("===void 0"), "{output}");
         assert!(output.contains("+\"\""), "{output}");
         assert!(output.contains("return +"), "{output}");
         assert!(output.contains('+'), "{output}");
+        assert!(output.contains('%'), "{output}");
         assert!(output.contains('<'), "{output}");
         assert!(output.contains("<="), "{output}");
         assert!(output.contains('>'), "{output}");
@@ -10665,6 +10732,8 @@ mod tests {
             // interaction, which only appears in the three-address spelling it
             // was written against.
             enabled.javascript.operand_order_fusion = false;
+            enabled.javascript.iife_private_callee_clusters = false;
+            enabled.javascript.nested_once_run_helpers = false;
             enabled.javascript.compression = Some(vec![
                 CompressionDecision::PureHelperInlining,
                 CompressionDecision::RegionOutlining,
@@ -10770,6 +10839,7 @@ mod tests {
         selected_config.javascript.candidate_search = CandidateSearch::Always;
         selected_config.javascript.candidate_limit = 2;
         selected_config.javascript.candidate_beam_width = 1;
+        selected_config.javascript.nested_once_run_helpers = false;
         selected_config.javascript.compression = Some(vec![
             CompressionDecision::PureHelperInlining,
             CompressionDecision::StructuredClosureInlining,
@@ -11026,7 +11096,10 @@ mod tests {
         )
         .unwrap();
         assert!(output.contains("console.log"), "{output}");
-        assert!(output.contains("7"), "explicit calls must keep the argument: {output}");
+        assert!(
+            output.contains("7"),
+            "explicit calls must keep the argument: {output}"
+        );
     }
 
     #[test]

@@ -507,6 +507,7 @@ fn keyword_name(name: &str) -> bool {
             | "record"
             | "match"
             | "class"
+            | "object"
             | "extends"
             | "super"
             | "return"
@@ -745,6 +746,7 @@ fn completion_result(source: Option<&str>) -> Value {
         keyword("is", "Narrow a union member with a portable runtime check"),
         keyword("return", "Return from the current function"),
         keyword("new", "Construct a class value"),
+        keyword("object", "Declare a closed public object with ABI keys"),
         keyword("extern", "Declare a typed host boundary"),
         keyword("import", "Import exported bindings from a LilScript module"),
         keyword("export", "Expose a module binding to importers"),
@@ -754,6 +756,7 @@ fn completion_result(source: Option<&str>) -> Value {
         snippet("pure function", "pure ${1:int} ${2:name}(${3:int} ${4:value}) {\n  return ${4:value};\n}", "Checked side-effect-free function"),
         snippet("struct", "struct ${1:Name} {\n  ${2:int} ${3:field};\n}", "Struct declaration"),
         snippet("class", "class ${1:Name} {\n  ${2:int} ${3:field};\n\n  init(${2:int} ${3:field}) {\n    this.${3:field} = ${3:field};\n  }\n}", "Class declaration"),
+        snippet("object", "object ${1:Api} {\n  ${2:int} ${3:method}(${4:int} ${5:value}) {\n    return ${5:value};\n  }\n}", "Closed public object"),
         snippet("extern class", "extern class ${1:Document} {\n  ${2:string} ${3:title};\n  ${4:void} ${5:method}(${6:string} ${7:value});\n}", "Typed JavaScript host interface"),
         snippet("extern global", "extern ${1:Document} ${2:document};", "Typed JavaScript host global"),
         snippet("function", "${1:int} ${2:name}(${3:int} ${4:value}) {\n  return ${4:value};\n}", "Typed function"),
@@ -851,7 +854,15 @@ fn append_document_completions(source: &str, items: &mut Vec<Value>) {
                 json!({ "label": decl.name.name, "kind": 22, "detail": "LilScript struct" })
             }
             Item::Class(decl) => {
-                json!({ "label": decl.name.name, "kind": 7, "detail": "LilScript class" })
+                json!({
+                    "label": decl.name.name,
+                    "kind": 7,
+                    "detail": if decl.object {
+                        "LilScript object"
+                    } else {
+                        "LilScript class"
+                    }
+                })
             }
             Item::ExternClass(decl) => {
                 json!({ "label": decl.name.name, "kind": 7, "detail": "LilScript host interface" })
@@ -946,6 +957,7 @@ fn language_help(word: &str) -> Option<&'static str> {
         "is" => "Checks a portable runtime type category and narrows a union binding in the selected branch.",
         "struct" => "Declares a positional value aggregate eligible for scalar replacement.",
         "class" => "Declares a nominal reference type with fields, one `init`, methods, and optional non-virtual single inheritance.",
+        "object" => "Declares a closed public object whose keys are ABI and whose method bodies are ordinary private functions.",
         "init" => "Declares the constructor body for a class.",
         "extern" => "Declares a typed function, host interface, or host global. JavaScript host member names remain exact and are emitted without wrappers.",
         "import" => "Adds a relative `.lil` module to the closed-world compilation graph and binds selected exports.",
