@@ -220,7 +220,7 @@ export function getArrayIterator(): any {
 
 export function noop(): void {}
 
-export function throwError(msg: string): never {
+export function throwError(msg: any): never {
   throw new Error(msg)
 }
 

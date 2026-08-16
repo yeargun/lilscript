@@ -1,34 +1,32 @@
 import { document } from "../var/document";
-import {
-  stringify,
-  call1
-} from "../js-host.lil";
 
-string[] preservedScriptAttributes = ["type", "src", "nonce", "noModule"];
+struct PreservedScriptAttributes {
+  bool type;
+  bool src;
+  bool nonce;
+  bool noModule;
+}
 
-export void DOMEval(string code, JsValue node, JsValue docArg = null) {
-  JsValue doc = docArg;
-  if (!doc.truthy()) {
-    doc = document;
-  }
+JsValue preservedScriptAttributes = PreservedScriptAttributes{
+  true,
+  true,
+  true,
+  true
+};
+
+export void DOMEval(JsValue code, JsValue node, JsValue docArg = null) {
+  JsValue doc = JS.or(docArg, document);
   JsValue script = JS.invoke(doc, "createElement", "script");
   script["text"] = code;
 
   if (node.truthy()) {
-    for (int i = 0; i < preservedScriptAttributes.length; i++) {
-      string name = preservedScriptAttributes[i];
-      JsValue val = node[name];
-      if (!val.truthy()) {
-        val = JS.invoke(node, "getAttribute", name);
-      }
+    for (string name in preservedScriptAttributes) {
+      JsValue val = JS.or(node[name], JS.and(node["getAttribute"], JS.invoke(node, "getAttribute", name)));
       if (val.truthy()) {
-        JS.invoke(script, "setAttribute", name, JS.string(val));
+        JS.invoke(script, "setAttribute", name, val);
       }
     }
   }
 
-  JsValue head = doc["head"];
-  JsValue appended = JS.invoke(head, "appendChild", script);
-  JsValue parent = appended["parentNode"];
-  JS.invoke(parent, "removeChild", appended);
+  JS.invoke(JS.invoke(doc["head"], "appendChild", script)["parentNode"], "removeChild", script);
 }

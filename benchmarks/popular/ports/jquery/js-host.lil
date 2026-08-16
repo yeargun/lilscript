@@ -153,7 +153,7 @@ export extern JsValue objectBox(JsValue value);
 export extern void defineIterator(JsValue obj, JsValue iterator);
 export extern JsValue getArrayIterator();
 export extern void noop();
-export extern void throwError(string msg);
+export extern void throwError(JsValue msg);
 export extern void throwTypeError(string msg);
 export extern JsValue jsUndefined();
 export extern void scheduleTimeout(JsValue fn);

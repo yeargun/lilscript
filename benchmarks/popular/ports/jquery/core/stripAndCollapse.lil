@@ -1,15 +1,6 @@
-import { emptyArray } from "../alloc.lil";
 import { rnothtmlwhite } from "../var/rnothtmlwhite";
-import {
-  stringMatch,
-  arrayJoin
-} from "../js-host.lil";
+import { stringMatch } from "../js-host.lil";
 
 export string stripAndCollapse(string value) {
-  JsValue matched = JS.stringMatch(value, rnothtmlwhite);
-  JsValue tokens = matched;
-  if (!matched.truthy()) {
-    tokens = emptyArray();
-  }
-  return JS.join(tokens, " ");
+  return JS.assume(JS.invoke(JS.or(JS.stringMatch(value, rnothtmlwhite), JS.array()), "join", " "));
 }

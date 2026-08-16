@@ -9,14 +9,12 @@ export string toType(JsValue obj) {
   if (JS.isNullish(obj)) {
     return JS.string(obj);
   }
-
-  string t = JS.typeOf(obj);
-  if (t == "object" || t == "function") {
+  if (JS.typeOf(obj) == "object" || JS.typeOf(obj) == "function") {
     JsValue mapped = class2type[objectToStringTag(obj)];
     if (mapped.truthy()) {
       return JS.assume(mapped);
     }
     return "object";
   }
-  return t;
+  return JS.typeOf(obj);
 }

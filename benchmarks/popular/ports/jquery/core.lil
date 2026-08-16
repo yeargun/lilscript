@@ -4,8 +4,6 @@ import { ObjectFunctionString } from "./var/ObjectFunctionString";
 import { support } from "./var/support";
 import { class2type } from "./var/class2type";
 import { isFunction } from "./var/isFunction";
-import { isWindow } from "./var/isWindow";
-import { toType } from "./core/toType";
 import { DOMEval } from "./core/DOMEval";
 import {
   createEmptyObject,
@@ -43,6 +41,13 @@ import {
 string version = "3.7.1";
 Regex rhtmlSuffix = new Regex("HTML$", "i");
 Regex nonDigits = new Regex("\\D", "g");
+JsValue slice = arr["slice"];
+JsValue push = arr["push"];
+JsValue indexOf = arr["indexOf"];
+JsValue flat = arr["flat"];
+JsValue toString = class2type["toString"];
+JsValue hasOwn = class2type["hasOwnProperty"];
+JsValue fnToString = hasOwn["toString"];
 
 JsValue defaultInit(JsValue self, JsValue _selector, JsValue _context) {
   return self;
@@ -84,19 +89,18 @@ jQuery = (JsValue selector, JsValue context) => {
 };
 
 bool isArrayLike(JsValue obj) {
-  if (isFunction(obj) || isWindow(obj)) {
+  if (isFunction(obj) || (!JS.isNullish(obj) && JS.strictEqual(obj, obj["window"]))) {
     return false;
   }
-  string type = toType(obj);
   if (!obj.truthy() || !JS.in("length", obj)) {
-    return type == "array";
+    return JS.isArray(obj);
   }
   JsValue lengthValue = obj["length"];
-  return type == "array" || JS.strictEqual(lengthValue, 0.0) || (JS.typeOf(lengthValue) == "number" && JS.number(lengthValue) > 0.0 && JS.in(JS.number(lengthValue) - 1.0, obj));
+  return JS.isArray(obj) || JS.strictEqual(lengthValue, 0.0) || (JS.typeOf(lengthValue) == "number" && JS.number(lengthValue) > 0.0 && JS.in(JS.number(lengthValue) - 1.0, obj));
 }
 
 export bool isPlainObject(JsValue obj) {
-  if (!obj.truthy() || objectToStringTag(obj) != "[object Object]") {
+  if (!obj.truthy() || JS.invoke(toString, "call", obj) != "[object Object]") {
     return false;
   }
 
@@ -105,19 +109,15 @@ export bool isPlainObject(JsValue obj) {
     return true;
   }
 
-  JsValue Ctor = null;
-  if (objectHasOwn(proto, "constructor")) {
-    Ctor = proto["constructor"];
-  }
-  return JS.typeOf(Ctor) == "function" && functionToString(Ctor) == ObjectFunctionString;
+  JsValue Ctor = JS.and(JS.invoke(hasOwn, "call", proto, "constructor"), proto["constructor"]);
+  return JS.typeOf(Ctor) == "function" && JS.invoke(fnToString, "call", Ctor) == ObjectFunctionString;
 }
 
 export bool isEmptyObject(JsValue obj) {
-  bool empty = true;
   for (string name in obj) {
-    empty = false;
+    return false;
   }
-  return empty;
+  return true;
 }
 
 export JsValue each(JsValue obj, JsValue callback) {
@@ -142,28 +142,26 @@ export JsValue each(JsValue obj, JsValue callback) {
 }
 
 export JsValue text(JsValue elem) {
-  string ret = "";
+  JsValue ret = "";
   float i = 0.0;
-  JsValue nodeTypeValue = JS.and(elem, elem["nodeType"]);
+  JsValue nodeTypeValue = elem["nodeType"];
 
   if (!nodeTypeValue.truthy()) {
     while (true) {
-      JsValue node = elem[i];
-      i = i + 1.0;
-      if (JS.isNullish(node)) {
+      JsValue node = elem[i++];
+      if (!node.truthy()) {
         break;
       }
-      JsValue part = text(node);
-      ret = ret + JS.string(part);
+      ret = JS.add(ret, JS.invoke(jQuery, "text", node));
     }
     return ret;
   }
 
-  if (nodeTypeValue == 1.0 || nodeTypeValue == 11.0 || nodeTypeValue == 9.0) {
-    if (nodeTypeValue == 9.0) {
-      return elem["documentElement"]["textContent"];
-    }
+  if (nodeTypeValue == 1.0 || nodeTypeValue == 11.0) {
     return elem["textContent"];
+  }
+  if (nodeTypeValue == 9.0) {
+    return elem["documentElement"]["textContent"];
   }
   if (nodeTypeValue == 3.0 || nodeTypeValue == 4.0) {
     return elem["nodeValue"];
@@ -173,53 +171,47 @@ export JsValue text(JsValue elem) {
 }
 
 export JsValue merge(JsValue first, JsValue second) {
-  int len = second.length.toInt();
-  int j = 0;
-  int i = first.length.toInt();
+  float len = JS.number(second["length"]);
+  float j = 0.0;
+  float i = first.length;
 
   for (; j < len; j++) {
-    first[i] = second[j];
-    i = i + 1;
+    first[i++] = second[j];
   }
 
-  setLength(first, i);
+  first["length"] = i;
   return first;
 }
 
 export JsValue makeArray(JsValue arrValue, JsValue results = null) {
-  JsValue ret = results;
-  if (JS.isNullish(ret)) {
-    ret = emptyArray();
-  }
+  JsValue ret = JS.or(results, emptyArray());
 
   if (!JS.isNullish(arrValue)) {
     if (isArrayLike(JS.box(arrValue))) {
       if (arrValue is string) {
-        JS.push(ret, arrValue);
+        JS.invoke(push, "call", ret, arrValue);
       } else {
         merge(ret, arrValue);
       }
     } else {
-      JS.push(ret, arrValue);
+      JS.invoke(push, "call", ret, arrValue);
     }
   }
 
   return ret;
 }
 
-export float inArray(JsValue elem, JsValue arrValue, float i = 0.0) {
+export float inArray(JsValue elem, JsValue arrValue, JsValue i = JS.undefined()) {
   if (JS.isNullish(arrValue)) {
     return -1.0;
   }
-  return JS.indexOf(arrValue, elem, i);
+  return JS.number(JS.invoke(indexOf, "call", arrValue, elem, i));
 }
 
 export bool isXMLDoc(JsValue elem) {
   JsValue namespace = JS.and(elem, elem["namespaceURI"]);
-  JsValue owner = JS.or(JS.and(elem, elem["ownerDocument"]), elem);
-  JsValue docElem = JS.and(owner, owner["documentElement"]);
-  JsValue probe = JS.or(namespace, JS.or(JS.and(docElem, docElem["nodeName"]), "HTML"));
-  return !JS.regexTest(rhtmlSuffix, JS.string(probe));
+  JsValue docElem = JS.and(elem, JS.or(elem["ownerDocument"], elem)["documentElement"]);
+  return !JS.invoke(rhtmlSuffix, "test", JS.or(namespace, JS.or(JS.and(docElem, docElem["nodeName"]), "HTML"))).truthy();
 }
 
 export JsValue grep(JsValue elems, JsValue callback, bool invert = false) {
@@ -231,7 +223,7 @@ export JsValue grep(JsValue elems, JsValue callback, bool invert = false) {
   for (; i < length; i++) {
     bool callbackInverse = !callback(elems[i], i).truthy();
     if (callbackInverse != callbackExpect) {
-      JS.push(matches, elems[i]);
+      JS.invoke(matches, "push", elems[i]);
     }
   }
 
@@ -247,70 +239,37 @@ export JsValue map(JsValue elems, JsValue callback, JsValue arg = null) {
     for (; i < length; i++) {
       JsValue value = callback(elems[i], i, arg);
       if (!JS.isNullish(value)) {
-        JS.push(ret, value);
+        JS.invoke(ret, "push", value);
       }
     }
   } else {
     for (string key in elems) {
       JsValue value = callback(elems[key], key, arg);
       if (!JS.isNullish(value)) {
-        JS.push(ret, value);
+        JS.invoke(ret, "push", value);
       }
     }
   }
 
-  return arrayFlat(ret);
+  return JS.invoke(flat, "call", ret);
 }
 
 extern JsValue this;
 extern JsValue arguments;
 
-export JsValue mergeObject(JsValue target, JsValue options, bool deep) {
-  if (JS.isNullish(options)) {
-    return target;
-  }
-
-  for (string name in options) {
-    JsValue copy = options[name];
-
-    if (name == "__proto__" || target == copy) {
-      continue;
-    }
-
-    bool copyIsArray = JS.isArray(copy);
-    if (deep && copy.truthy() && (isPlainObject(copy) || copyIsArray)) {
-      JsValue src = target[name];
-      JsValue clone = src;
-      if (copyIsArray && !JS.isArray(src)) {
-        clone = emptyArray();
-      } else if (!copyIsArray && !isPlainObject(src)) {
-        clone = JS.object();
-      }
-      target[name] = mergeObject(clone, copy, true);
-    } else if (!JS.isUndefined(copy)) {
-      target[name] = copy;
-    }
-  }
-
-  return target;
-}
-
 export JsValue extend() {
-  JsValue target = arguments[0];
-  if (JS.isNullish(target)) {
-    target = JS.object();
-  }
+  JsValue first = arguments[0];
   float i = 1.0;
   float length = arguments.length;
   bool deep = false;
+  JsValue target = JS.undefined();
 
-  if (target is bool) {
-    deep = target;
-    target = arguments[1];
-    if (JS.isNullish(target)) {
-      target = JS.object();
-    }
+  if (first is bool) {
+    deep = first;
+    target = JS.or(arguments[1], JS.object());
     i = 2.0;
+  } else {
+    target = JS.or(first, JS.object());
   }
 
   if (JS.typeOf(target) != "object" && !isFunction(target)) {
@@ -324,16 +283,39 @@ export JsValue extend() {
 
   for (; i < length; i++) {
     JsValue options = arguments[i];
-    if (!JS.isNullish(options)) {
-      mergeObject(target, options, deep);
+    if (JS.isNullish(options)) {
+      continue;
+    }
+    for (string name in options) {
+      JsValue copy = options[name];
+      if (name == "__proto__" || target == copy) {
+        continue;
+      }
+      bool copyIsArray = JS.isArray(copy);
+      if (deep && copy.truthy() && (isPlainObject(copy) || copyIsArray)) {
+        JsValue src = target[name];
+        JsValue clone = src;
+        if (copyIsArray && !JS.isArray(src)) {
+          clone = emptyArray();
+        } else if (!copyIsArray && !isPlainObject(src)) {
+          clone = JS.object();
+        }
+        target[name] = JS.invoke(jQuery, "extend", true, clone, copy);
+      } else if (!JS.isUndefined(copy)) {
+        target[name] = copy;
+      }
     }
   }
 
   return target;
 }
 
+export JsValue mergeObject(JsValue target, JsValue options, bool deep) {
+  return JS.invoke(jQuery, "extend", deep, target, options);
+}
+
 export JsValue fnToArray() {
-  return JS.slice(this);
+  return JS.invoke(slice, "call", this);
 }
 
 export JsValue wrap(JsValue elem) {
@@ -346,13 +328,12 @@ export JsValue wrap2(JsValue selector, JsValue context) {
 
 export JsValue fnGet(JsValue num) {
   if (JS.isNullish(num)) {
-    return JS.slice(this);
+    return JS.invoke(slice, "call", this);
   }
-  float n = JS.number(num);
-  if (n < 0.0) {
-    return this[n + this.length];
+  if (JS.lessThan(num, 0)) {
+    return this[JS.add(num, this["length"])];
   }
-  return this[n];
+  return this[num];
 }
 
 export JsValue fnPushStack(JsValue elems) {
@@ -362,44 +343,21 @@ export JsValue fnPushStack(JsValue elems) {
 }
 
 export JsValue fnMap(JsValue callback) {
-  JsValue mapped = emptyArray();
-  float i = 0.0;
-  float length = this.length;
-  for (; i < length; i++) {
-    JsValue value = JS.call(callback, this[i], i, this[i]);
-    if (!JS.isNullish(value)) {
-      JS.push(mapped, value);
-    }
-  }
-  return JS.invoke(this, "pushStack", arrayFlat(mapped));
-}
-
-JsValue sliceApply(JsValue self, JsValue args) {
-  float argc = args.length;
-  if (argc == 0.0) {
-    return JS.slice(self);
-  }
-  float start = JS.number(args[0]);
-  if (argc == 1.0) {
-    return JS.slice(self, start);
-  }
-  return JS.slice(self, start, JS.number(args[1]));
+  return JS.invoke(this, "pushStack", map(this, (JsValue elem, JsValue i) => {
+    return JS.call(callback, elem, i, elem);
+  }, null));
 }
 
 JsValue fnSliceArgs() {
-  return JS.invoke(this, "pushStack", sliceApply(this, arguments));
+  return JS.invoke(this, "pushStack", JS.invoke(slice, "apply", this, arguments));
 }
 
 export JsValue fnEq(JsValue iValue) {
-  float len = this.length;
-  float i = JS.number(iValue);
-  float j = i;
-  if (i < 0.0) {
-    j = i + len;
-  }
+  JsValue len = this["length"];
+  JsValue i = JS.add(iValue, JS.and(JS.lessThan(iValue, 0), len));
   JsValue elems = emptyArray();
-  if (j >= 0.0 && j < len) {
-    JS.push(elems, this[j]);
+  if (JS.greaterThanOrEqual(i, 0) && JS.lessThan(i, len)) {
+    JS.invoke(elems, "push", this[i]);
   }
   return JS.invoke(this, "pushStack", elems);
 }
@@ -416,105 +374,106 @@ JsValue fnLast() {
   return JS.invoke(this, "eq", -1.0);
 }
 
-JsValue filterParity(JsValue self, int rem) {
-  JsValue matches = emptyArray();
-  float i = 0.0;
-  float length = self.length;
-  for (; i < length; i++) {
-    if ((i.toInt() % 2) == rem) {
-      JS.push(matches, self[i]);
-    }
-  }
-  return JS.invoke(self, "pushStack", matches);
-}
-
 JsValue fnEven() {
-  return filterParity(this, 0);
+  return JS.invoke(this, "pushStack", grep(this, (JsValue _elem, JsValue i) => {
+    return JS.mod(JS.add(i, 1), 2);
+  }, false));
 }
 
 JsValue fnOdd() {
-  return filterParity(this, 1);
+  return JS.invoke(this, "pushStack", grep(this, (JsValue _elem, JsValue i) => {
+    return JS.mod(i, 2);
+  }, false));
 }
 
 JsValue fnEnd() {
-  JsValue prev = this["prevObject"];
-  if (!JS.isNullish(prev)) {
-    return prev;
-  }
-  return this["constructor"]();
+  return JS.or(this["prevObject"], this["constructor"]());
 }
 
-struct NonceHost {
-  JsValue nonce;
+JsValue runGlobalEval(JsValue code, JsValue options, JsValue doc) {
+  JsValue nonce = JS.object();
+  nonce["nonce"] = JS.and(options, options["nonce"]);
+  DOMEval(code, nonce, doc);
+  return JS.undefined();
 }
 
 export void globalEval(string code, JsValue options = null, JsValue doc = null) {
-  JsValue nonceValue = JS.undefined();
-  if (options.truthy()) {
-    nonceValue = options["nonce"];
-  }
-  DOMEval(code, NonceHost{nonceValue}, doc);
+  runGlobalEval(code, options, doc);
 }
 
-void install() {
-  JsValue jQueryFn = JQueryFnCore{
-    version,
-    jQuery,
-    0.0,
-    fnToArray,
-    fnGet,
-    fnPushStack,
-    fnEach,
-    fnMap,
-    fnSliceArgs,
-    fnFirst,
-    fnLast,
-    fnEven,
-    fnOdd,
-    fnEq,
-    fnEnd,
-    arr["push"],
-    arr["sort"],
-    arr["splice"],
-    extend
-  };
-  jQuery["fn"] = jQueryFn;
-  jQuery["prototype"] = jQueryFn;
-  setJQueryInit(jQuery, defaultInit);
-
-  JsValue jq = jQuery;
-  jq["extend"] = extend;
-  jq["expando"] = "jQuery" + JS.stringReplace(version + JS.string(mathRandom()), nonDigits, "");
-  jq["isReady"] = true;
-  jq["error"] = (JsValue msg) => {
-    throwError(JS.string(msg));
-    return JS.undefined();
-  };
-  jq["noop"] = noop;
-  jq["isPlainObject"] = isPlainObject;
-  jq["isEmptyObject"] = isEmptyObject;
-  jq["globalEval"] = JS.staticRest((JsValue args) => {
-    globalEval(JS.string(args[0]), args[1], args[2]);
-    return JS.undefined();
-  });
-  jq["each"] = each;
-  jq["text"] = text;
-  jq["makeArray"] = makeArray;
-  jq["inArray"] = inArray;
-  jq["isXMLDoc"] = isXMLDoc;
-  jq["merge"] = merge;
-  jq["grep"] = grep;
-  jq["map"] = map;
-  jq["guid"] = 1.0;
-  jq["support"] = support;
-
-  defineIterator(jQueryFn, getArrayIterator());
-
-  each(JS.stringSplit("Boolean Number String Function Array Date RegExp Object Error Symbol", " "), (JsValue _i, JsValue name) => {
-    string n = JS.string(name);
-    class2type["[object " + n + "]"] = n.toLowerCase();
-    return JS.undefined();
-  });
+JsValue jqError(JsValue msg) {
+  throwError(msg);
+  return JS.undefined();
 }
 
-install();
+struct JQueryStatics {
+  string expando;
+  bool isReady;
+  JsValue error;
+  JsValue noop;
+  JsValue isPlainObject;
+  JsValue isEmptyObject;
+  JsValue globalEval;
+  JsValue each;
+  JsValue text;
+  JsValue makeArray;
+  JsValue inArray;
+  JsValue isXMLDoc;
+  JsValue merge;
+  JsValue grep;
+  JsValue map;
+  float guid;
+  JsValue support;
+}
+
+JsValue jQueryFn = JQueryFnCore{
+  version,
+  jQuery,
+  0.0,
+  fnToArray,
+  fnGet,
+  fnPushStack,
+  fnEach,
+  fnMap,
+  fnSliceArgs,
+  fnFirst,
+  fnLast,
+  fnEven,
+  fnOdd,
+  fnEq,
+  fnEnd,
+  push,
+  arr["sort"],
+  arr["splice"],
+  extend
+};
+jQuery["fn"] = jQueryFn;
+jQuery["prototype"] = jQueryFn;
+jQuery["extend"] = extend;
+
+JS.invoke(jQuery, "extend", JQueryStatics{
+  "jQuery" + JS.stringReplace(version + JS.string(mathRandom()), nonDigits, ""),
+  true,
+  jqError,
+  noop,
+  isPlainObject,
+  isEmptyObject,
+  runGlobalEval,
+  each,
+  text,
+  makeArray,
+  inArray,
+  isXMLDoc,
+  merge,
+  grep,
+  map,
+  1.0,
+  support
+});
+
+defineIterator(jQueryFn, getArrayIterator());
+
+each(JS.stringSplit("Boolean Number String Function Array Date RegExp Object Error Symbol", " "), (JsValue _i, JsValue name) => {
+  class2type[JS.add("[object ", JS.add(name, "]"))] = JS.invoke(name, "toLowerCase");
+  return JS.undefined();
+});
