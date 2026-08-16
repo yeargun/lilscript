@@ -1,0 +1,1 @@
+var b=console,e=b.log,f=algorithmString(0),g=0,h=0;for(let d=0;d<f.length;d++){let a=f.charCodeAt(d);if(a===35)break;if(a===32)continue;let c=a>=48&&a<=57?1:a>=65&&a<=90||a>=97&&a<=122?2:a===58?3:a===59?4:0;g=c===4?0:g===0&&c===2?1:g===1&&c===3?2:g===2&&c===1?3:g;h=h+(g===1?a+d|0:g===2?c*17|0:g===3?(a-48|0)*(d+1)|0:c)|0}e.call(b,(h*5|0)+(g*97|0)|0);

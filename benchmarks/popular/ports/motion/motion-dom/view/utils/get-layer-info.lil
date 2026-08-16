@@ -1,0 +1,43 @@
+export class ViewAnimationLayerInfo {
+  string layer;
+  string type;
+  init(string layer, string type) {
+    this.layer = layer;
+    this.type = type;
+  }
+}
+
+string stringSlice(string s, int start, int end) {
+  string out = "";
+  int i = start;
+  while (i < end && i < s.length) {
+    out = out + s.charAt(i);
+    i = i + 1;
+  }
+  return out;
+}
+
+export ViewAnimationLayerInfo? getViewAnimationLayerInfo(string pseudoElement) {
+  string prefix = "::view-transition-";
+  if (!pseudoElement.startsWith(prefix)) {
+    return null;
+  }
+  string rest = stringSlice(pseudoElement, prefix.length, pseudoElement.length);
+  int open = rest.indexOf("(");
+  int close = rest.lastIndexOf(")");
+  if (open < 0 || close < 0 || close <= open) {
+    return null;
+  }
+  string type = stringSlice(rest, 0, open);
+  string layer = stringSlice(rest, open + 1, close);
+  if (
+    type == "old" ||
+    type == "new" ||
+    type == "group-children" ||
+    type == "group" ||
+    type == "image-pair"
+  ) {
+    return new ViewAnimationLayerInfo(layer, type);
+  }
+  return null;
+}

@@ -1,0 +1,9 @@
+import { jQuery } from "./jquery";
+import { windowSelf } from "./js-host.lil";
+
+JsValue win = windowSelf();
+win["jQuery"] = jQuery;
+win["$"] = jQuery;
+
+export { jQuery };
+export JsValue $ = jQuery;

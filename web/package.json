@@ -11,7 +11,8 @@
     "dev": "vite --port 5173",
     "build": "npm run catalog && vite build",
     "preview": "vite preview --port 4174",
-    "test": "node --test test/*.test.mjs"
+    "test": "node --test test/*.test.mjs",
+    "publish:motion-lab": "node ../benchmarks/popular/publish-motion-lab.mjs"
   },
   "dependencies": {
     "lucide": "^1.28.0"

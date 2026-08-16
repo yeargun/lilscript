@@ -1,0 +1,125 @@
+import { emptyArray } from "../alloc.lil";
+import { jQuery, merge, inArray } from "../core";
+import { toType } from "../core/toType";
+import { isAttached } from "../core/isAttached";
+import { rtagName } from "./var/rtagName";
+import { rscriptType } from "./var/rscriptType";
+import { wrapForTag } from "./wrapMap";
+import { getAll } from "./getAll";
+import { setGlobalEval } from "./setGlobalEval";
+import {
+  arrayPush,
+  createEmptyObject,
+  call0,
+  call1,
+  regexTest,
+  regexExec,
+  stringify,
+  isNullish,
+  newRegexp
+} from "../js-host.lil";
+
+Regex rhtml = newRegexp("<|&#?\\w+;");
+
+export JsValue buildFragment(JsValue elems, JsValue context, JsValue scripts = false, JsValue selection = null, JsValue ignored = null) {
+  JsValue fragment = JS.invoke(context, "createDocumentFragment");
+  JsValue nodes = emptyArray();
+  float i = 0.0;
+  float l = elems.length;
+  JsValue tmp = null;
+
+  for (; i < l; i++) {
+    JsValue elem = elems[i];
+
+    bool isTruthyOrZero = elem.truthy() || JS.strictEqual(elem, 0.0);
+
+    if (isTruthyOrZero) {
+      if (toType(elem) == "object") {
+        JsValue toMerge = elem;
+        if (elem["nodeType"].truthy()) {
+          toMerge = emptyArray();
+          JS.push(toMerge, elem);
+        }
+        merge(nodes, toMerge);
+      } else {
+        if (!JS.regexTest(rhtml, elem)) {
+          JS.push(nodes, JS.invoke(context, "createTextNode", elem));
+        } else {
+          tmp = JS.or(
+            tmp,
+            JS.invoke(fragment, "appendChild", JS.invoke(context, "createElement", "div"))
+          );
+
+          JsValue tagMatch = JS.or(JS.regexExec(rtagName, elem), ["", ""]);
+          string tagCapture = JS.assume(tagMatch[1]);
+          string tag = tagCapture.toLowerCase();
+
+          auto wrap = wrapForTag(tag);
+
+          string openTag = wrap.open;
+          string closeTag = wrap.close;
+          string prefilteredStr = JS.assume(JS.invoke(jQuery, "htmlPrefilter", elem));
+          tmp["innerHTML"] = openTag + prefilteredStr + closeTag;
+
+          float depth = wrap.depth;
+          while (depth > 0.0) {
+            depth = depth - 1.0;
+            tmp = tmp["lastChild"];
+          }
+
+          merge(nodes, tmp["childNodes"]);
+
+          tmp = fragment["firstChild"];
+          tmp["textContent"] = "";
+        }
+      }
+    }
+  }
+
+  fragment["textContent"] = "";
+
+  i = 0.0;
+  while (true) {
+    JsValue elem = nodes[i];
+    i = i + 1.0;
+    if (JS.isNullish(elem)) {
+      break;
+    }
+
+    if (selection.truthy()) {
+      float foundIndex = inArray(elem, selection);
+      if (foundIndex > -1.0) {
+        if (ignored.truthy()) {
+          JS.push(ignored, elem);
+        }
+        continue;
+      }
+    }
+
+    bool attached = isAttached(elem);
+
+    JsValue appended = JS.invoke(fragment, "appendChild", elem);
+    JsValue scriptTags = getAll(appended, "script");
+
+    if (attached) {
+      setGlobalEval(scriptTags);
+    }
+
+    if (scripts.truthy()) {
+      float j = 0.0;
+      while (true) {
+        JsValue scriptElem = scriptTags[j];
+        j = j + 1.0;
+        if (JS.isNullish(scriptElem)) {
+          break;
+        }
+        string typeStr = JS.assume(JS.or(scriptElem["type"], ""));
+        if (JS.regexTest(rscriptType, typeStr)) {
+          JS.push(scripts, scriptElem);
+        }
+      }
+    }
+  }
+
+  return fragment;
+}

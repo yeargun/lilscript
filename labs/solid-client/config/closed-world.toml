@@ -1,0 +1,17 @@
+# Application build: the complete consumer graph is linked before emission.
+[javascript]
+priority = "size-first"
+optimization_level = 15
+cost_model = "brotli"
+function_spelling = "arrow"
+public_aggregate_abi = "positional"
+pool_numeric_literals = true
+
+[mangle]
+identifiers = true
+properties = true
+exports = true
+pool_strings = true
+
+[bundle]
+mode = "single"

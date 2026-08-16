@@ -1,0 +1,13 @@
+export bool isNodeOrChild(JsValue? parent = null, JsValue? child = null) {
+  if (child == null) {
+    return false;
+  }
+  if (parent == child) {
+    return true;
+  }
+  JsValue parentElement = child["parentElement"];
+  if (!parentElement.truthy()) {
+    return false;
+  }
+  return isNodeOrChild(parent, parentElement);
+}

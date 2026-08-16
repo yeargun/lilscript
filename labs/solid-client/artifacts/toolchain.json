@@ -1,0 +1,51 @@
+{
+  "node": "v24.11.1",
+  "npm": "npm/11.6.2 node/v24.11.1 darwin arm64 workspaces/false",
+  "lilscript": "lilscript 0.1.0",
+  "compiler": {
+    "source": "repository-release",
+    "path": "../../target/release/lilscript",
+    "sha256": "46eeb54e8ee2d737b17fb988494ff968747908fa8fe3ffa8ace676618a2c8189",
+    "version": "lilscript 0.1.0"
+  },
+  "codecs": {
+    "implementation": "lilscript-codec",
+    "schemaVersion": 1,
+    "scorer": {
+      "path": "target/release/lilscript-codec",
+      "sha256": "48340e70c3a53ae5f58cee5dbb48ca5553b2feff6f29f086fc8060bd036594c8",
+      "bytes": 1804784
+    },
+    "gzip9": {
+      "encoder": "upstream-stock-zlib-c",
+      "libraryVersion": "1.3.1",
+      "cargoPackage": "libz-sys",
+      "cargoPackageVersion": "1.1.24",
+      "level": 9,
+      "mtime": 0
+    },
+    "brotli11": {
+      "encoder": "official-google-brotli-c",
+      "libraryVersion": "1.1.0",
+      "cargoPackage": "compu-brotli-sys",
+      "cargoPackageVersion": "1.1.0",
+      "quality": 11,
+      "lgwin": 22,
+      "mode": "generic"
+    },
+    "nodeCodecsAreDiagnosticOnly": true
+  },
+  "solidSourceCommit": "3be495cec52bf78d7cc61f054af00320ecf4058c",
+  "dependencies": {
+    "solid-js": "1.9.13"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint": "10.8.0",
+    "google-closure-compiler": "20260803.0.0",
+    "prettier": "3.9.6",
+    "vite": "8.2.0",
+    "vite-plugin-solid": "2.11.14",
+    "vitest": "4.1.10"
+  }
+}

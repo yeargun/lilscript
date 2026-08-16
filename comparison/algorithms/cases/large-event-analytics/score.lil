@@ -1,0 +1,22 @@
+import { scaleMagnitude, bucketMagnitude } from "./normalize";
+import { tokenClass } from "./classify";
+
+pure int mixIndex(int index) {
+  return (index + 3) * 11;
+}
+
+pure int weightedMagnitude(int value, int index) {
+  return scaleMagnitude(value, (index % 4) + 1);
+}
+
+pure int routeWeight(string token) {
+  return tokenClass(token) * 13;
+}
+
+export pure int eventScore(int value, string token, int index) {
+  return weightedMagnitude(value, index) + routeWeight(token) + mixIndex(index);
+}
+
+export pure int diagnosticScore(int value, string token) {
+  return bucketMagnitude(value) * 101 + tokenClass(token);
+}

@@ -1,0 +1,804 @@
+import { SubscriptionManager } from "../../motion-utils/subscription-manager";
+import { isNumericalString } from "../../motion-utils/is-numerical-string";
+import { isZeroValueString } from "../../motion-utils/is-zero-value-string";
+import { secondsToMilliseconds } from "../../motion-utils/time-conversion";
+import { warnOnce } from "../../motion-utils/warn-once";
+import { cancelFrame, frame } from "../frameloop/frame";
+import { microtask } from "../frameloop/microtask";
+import { time } from "../frameloop/sync-time";
+import { FrameData } from "../frameloop/types";
+import { createBox } from "../projection/geometry/models";
+import { motionValue, MotionValue, AccelerateConfig } from "../value/index";
+import { complex } from "../value/types/complex/index";
+import { getAnimatableNone } from "../value/types/utils/animatable-none";
+import { findValueType } from "../value/types/utils/find";
+import { isMotionValue } from "../value/utils/is-motion-value";
+import { Feature } from "./Feature";
+import { visualElementStore } from "./store";
+import extern { weakMapSet } from "../weak-host.ts";
+import {
+  isControllingVariants as checkIsControllingVariants,
+  isVariantNode as checkIsVariantNode
+} from "./utils/is-controlling-variants";
+import { transformProps } from "./utils/keys-transform";
+import { updateMotionValuesFromProps } from "./utils/motion-values";
+import {
+  hasReducedMotionListener,
+  initPrefersReducedMotion,
+  prefersReducedMotion
+} from "./utils/reduced-motion/index";
+import { resolveVariantFromProps } from "./utils/resolve-variants";
+import extern {
+  identity as asMotionValue
+} from "../cast-host.ts";
+import {callMethod0, callMethod1, callMethod2, callFn0, callFn1, isFunction, windowGet, mapKeys} from "../dom-host";
+
+extern MotionValue asMotionValue(JsValue value);
+
+extern float parseFloat(string v);
+extern void weakMapSet(JsValue map, JsValue key, JsValue value);
+string[] propEventHandlers = [
+  "AnimationStart",
+  "AnimationComplete",
+  "Update",
+  "BeforeLayoutMeasure",
+  "LayoutMeasure",
+  "LayoutAnimationStart",
+  "LayoutAnimationComplete"
+];
+
+Record<JsValue> featureDefinitions = record{};
+
+export void setFeatureDefinitions(JsValue definitions) {
+  if (definitions.isObject()) {
+    for (string key in definitions) {
+      featureDefinitions[key] = definitions[key];
+    }
+  }
+}
+
+export JsValue getFeatureDefinitions() {
+  JsValue out = record{};
+  for (string key in featureDefinitions) {
+    out[key] = featureDefinitions[key];
+  }
+  return out;
+}
+
+export class VisualElement {
+  string type;
+  JsValue? current;
+  VisualElement? parent;
+  Set<VisualElement> children;
+  Set<VisualElement>? enteringChildren;
+  float depth;
+  JsValue renderState;
+  JsValue latestValues;
+  bool isVariantNode;
+  bool isControllingVariants;
+  Set<VisualElement>? variantChildren;
+  bool? shouldReduceMotion;
+  bool shouldSkipAnimations;
+  bool manuallyAnimateOnMount;
+  bool blockInitialAnimation;
+  JsValue? projection;
+  Map<string, JsValue> values;
+  JsValue? animationState;
+  JsValue KeyframeResolverType;
+  JsValue options;
+  JsValue props;
+  JsValue? prevProps;
+  JsValue? presenceContext;
+  JsValue? prevPresenceContext;
+  Map<string, JsValue> features;
+  Map<string, (func()->void)> valueSubscriptions;
+  string? reducedMotionConfig;
+  bool? skipAnimationsConfig;
+  (func()->void)? removeFromVariantTree;
+  JsValue prevMotionValues;
+  JsValue baseTarget;
+  JsValue initialValues;
+  bool hasBeenMounted;
+  Map<string, SubscriptionManager> events;
+  Map<string, (func()->void)> propEventSubscriptions;
+  float renderScheduledAt;
+  bool isMounted;
+  (func()->void)? removeFromParent;
+  bool isVisible;
+  string[] valueKeys;
+
+  (func()->void)? buildHook;
+  (func(JsValue, JsValue, JsValue?, JsValue?)->void)? renderInstanceHook;
+  (func()->JsValue)? measureViewportBoxHook;
+  (func(JsValue, string)->JsValue?)? readValueFromInstanceHook;
+  (func(JsValue, JsValue)->float)? sortInstanceNodePositionHook;
+  (func(JsValue, string)->JsValue?)? getBaseTargetFromPropsHook;
+  (func(string, JsValue)->void)? removeValueFromRenderStateHook;
+  (func(JsValue, JsValue, VisualElement)->JsValue)? scrapeMotionValuesFromPropsHook;
+  (func()->void)? onBindTransformHook;
+  (func()->void)? handleChildMotionValueHook;
+  (func(JsValue)->void)? preMountHook;
+
+  init() {
+    this.type = "visual";
+    this.current = null;
+    this.parent = null;
+    this.children = new Set<VisualElement>();
+    this.enteringChildren = null;
+    this.depth = 0.0;
+    this.renderState = record{
+      style: record{},
+      vars: record{},
+      transform: record{},
+      transformOrigin: record{},
+      attrs: record{},
+      output: record{}
+    };
+    this.latestValues = record{};
+    this.isVariantNode = false;
+    this.isControllingVariants = false;
+    this.variantChildren = null;
+    this.shouldReduceMotion = null;
+    this.shouldSkipAnimations = false;
+    this.manuallyAnimateOnMount = false;
+    this.blockInitialAnimation = false;
+    this.projection = null;
+    this.values = new Map<string, JsValue>();
+    this.animationState = null;
+    this.KeyframeResolverType = null;
+    this.options = record{};
+    this.props = record{};
+    this.prevProps = null;
+    this.presenceContext = null;
+    this.prevPresenceContext = null;
+    this.features = new Map<string, JsValue>();
+    this.valueSubscriptions = new Map<string, (func()->void)>();
+    this.reducedMotionConfig = null;
+    this.skipAnimationsConfig = null;
+    this.removeFromVariantTree = null;
+    this.prevMotionValues = record{};
+    this.baseTarget = record{};
+    this.initialValues = record{};
+    this.hasBeenMounted = false;
+    this.events = new Map<string, SubscriptionManager>();
+    this.propEventSubscriptions = new Map<string, (func()->void)>();
+    this.renderScheduledAt = 0.0;
+    this.isMounted = false;
+    this.removeFromParent = null;
+    this.isVisible = true;
+    this.valueKeys = [];
+    this.buildHook = null;
+    this.renderInstanceHook = null;
+    this.measureViewportBoxHook = null;
+    this.readValueFromInstanceHook = null;
+    this.sortInstanceNodePositionHook = null;
+    this.getBaseTargetFromPropsHook = null;
+    this.removeValueFromRenderStateHook = null;
+    this.scrapeMotionValuesFromPropsHook = null;
+    this.onBindTransformHook = null;
+    this.handleChildMotionValueHook = null;
+    this.preMountHook = null;
+  }
+
+  void configure(JsValue visualOptions, JsValue? options = null) {
+    JsValue resolvedOptions = record{};
+    if (options != null) {
+      resolvedOptions = options;
+    }
+    JsValue visualState = visualOptions["visualState"];
+    JsValue latestValues = record{};
+    if (visualState.isObject() && visualState["latestValues"].isObject()) {
+      latestValues = visualState["latestValues"];
+    }
+    JsValue renderState = this.renderState;
+    if (visualState.isObject() && visualState["renderState"].truthy()) {
+      renderState = visualState["renderState"];
+    }
+    this.latestValues = latestValues;
+    this.baseTarget = record{};
+    for (string key in latestValues) {
+      this.baseTarget[key] = latestValues[key];
+    }
+    JsValue props = record{};
+    if (visualOptions["props"].isObject()) {
+      props = visualOptions["props"];
+    }
+    this.initialValues = record{};
+    if (props["initial"].truthy()) {
+      for (string key in latestValues) {
+        this.initialValues[key] = latestValues[key];
+      }
+    }
+    this.renderState = renderState;
+    this.parent = null;
+    JsValue parentVal = visualOptions["parent"];
+    if (parentVal.truthy()) {
+      this.options["parent"] = parentVal;
+    }
+    this.props = props;
+    this.presenceContext = visualOptions["presenceContext"];
+    VisualElement? parent = this.parent;
+    if (parent != null) {
+      this.depth = parent.depth + 1.0;
+    } else {
+      this.depth = 0.0;
+    }
+    JsValue reduced = visualOptions["reducedMotionConfig"];
+    if (reduced is string) {
+      this.reducedMotionConfig = reduced;
+    }
+    JsValue skip = visualOptions["skipAnimations"];
+    if (skip is bool) {
+      this.skipAnimationsConfig = skip;
+    }
+    this.options = resolvedOptions;
+    this.blockInitialAnimation = visualOptions["blockInitialAnimation"].truthy();
+    this.isControllingVariants = checkIsControllingVariants(props);
+    this.isVariantNode = checkIsVariantNode(props);
+    if (this.isVariantNode) {
+      this.variantChildren = new Set<VisualElement>();
+    }
+    this.manuallyAnimateOnMount = parent != null && parent.current != null;
+    JsValue scraped = this.scrapeMotionValuesFromProps(props, record{}, this);
+    for (string key in scraped) {
+      if (key == "willChange") {
+        continue;
+      }
+      JsValue value = scraped[key];
+      if (latestValues[key] != null && isMotionValue(value)) {
+        asMotionValue(value).set(latestValues[key]);
+      }
+    }
+  }
+
+  JsValue scrapeMotionValuesFromProps(JsValue props, JsValue prevProps, VisualElement element) {
+    (func(JsValue, JsValue, VisualElement)->JsValue)? hook = this.scrapeMotionValuesFromPropsHook;
+    if (hook != null) {
+      return hook(props, prevProps, element);
+    }
+    return record{};
+  }
+
+  void build() {
+    (func()->void)? hook = this.buildHook;
+    if (hook != null) {
+      hook();
+    }
+  }
+
+  void renderInstance(JsValue instance, JsValue renderState, JsValue? styleProp = null, JsValue? projection = null) {
+    (func(JsValue, JsValue, JsValue?, JsValue?)->void)? hook = this.renderInstanceHook;
+    if (hook != null) {
+      hook(instance, renderState, styleProp, projection);
+    }
+  }
+
+  JsValue measureViewportBoxDefault() {
+    return createBox();
+  }
+
+  JsValue measureViewportBox() {
+    (func()->JsValue)? hook = this.measureViewportBoxHook;
+    if (hook != null) {
+      return hook();
+    }
+    JsValue? current = this.current;
+    if (current == null) {
+      return createBox();
+    }
+    return createBox();
+  }
+
+  JsValue? readValueFromInstance(JsValue instance, string key) {
+    (func(JsValue, string)->JsValue?)? hook = this.readValueFromInstanceHook;
+    if (hook != null) {
+      return hook(instance, key);
+    }
+    return null;
+  }
+
+  float sortInstanceNodePosition(JsValue a, JsValue b) {
+    (func(JsValue, JsValue)->float)? hook = this.sortInstanceNodePositionHook;
+    if (hook != null) {
+      return hook(a, b);
+    }
+    return 0.0;
+  }
+
+  JsValue? getBaseTargetFromProps(JsValue props, string key) {
+    (func(JsValue, string)->JsValue?)? hook = this.getBaseTargetFromPropsHook;
+    if (hook != null) {
+      return hook(props, key);
+    }
+    return null;
+  }
+
+  void removeValueFromRenderState(string key, JsValue renderState) {
+    (func(string, JsValue)->void)? hook = this.removeValueFromRenderStateHook;
+    if (hook != null) {
+      hook(key, renderState);
+      return;
+    }
+    JsValue style = renderState["style"];
+    JsValue vars = renderState["vars"];
+    JsValue output = renderState["output"];
+    JsValue attrs = renderState["attrs"];
+    if (style.isObject()) {
+      style[key] = null;
+    }
+    if (vars.isObject()) {
+      vars[key] = null;
+    }
+    if (output.isObject()) {
+      output[key] = null;
+    }
+    if (attrs.isObject()) {
+      attrs[key] = null;
+    }
+  }
+
+  void mount(JsValue instance) {
+    (func(JsValue)->void)? preMount = this.preMountHook;
+    if (preMount != null) {
+      preMount(instance);
+    }
+    if (this.hasBeenMounted) {
+      for (string key in this.initialValues) {
+        JsValue? mv = this.values.get(key);
+        if (mv != null) {
+          asMotionValue(mv).jump(this.initialValues[key]);
+        }
+        this.latestValues[key] = this.initialValues[key];
+      }
+    }
+    this.current = instance;
+    this.isMounted = true;
+    weakMapSet(visualElementStore, instance, this);
+    JsValue? projection = this.projection;
+    if (projection != null && !projection["instance"].truthy()) {
+      callMethod1(projection, "mount", instance);
+    }
+    VisualElement? parent = this.parent;
+    if (parent != null && this.isVariantNode && !this.isControllingVariants) {
+      this.removeFromVariantTree = parent.addVariantChild(this);
+    }
+    JsValue[] __keys_1 = mapKeys(this.values);
+    for (int __i_1 = 0; __i_1 < __keys_1.length; __i_1++) {
+      string key = `${__keys_1[__i_1]}`;
+      JsValue? value = this.values.get(key);
+      if (value != null) {
+        this.bindToMotionValue(key, value);
+      }
+    }
+    string? reducedConfig = this.reducedMotionConfig;
+    if (reducedConfig == "never") {
+      this.shouldReduceMotion = false;
+    } else if (reducedConfig == "always") {
+      this.shouldReduceMotion = true;
+    } else {
+      if (!hasReducedMotionListener.current) {
+        initPrefersReducedMotion();
+      }
+      this.shouldReduceMotion = prefersReducedMotion.current;
+    }
+    bool? skipConfig = this.skipAnimationsConfig;
+    if (skipConfig != null) {
+      this.shouldSkipAnimations = skipConfig;
+    } else {
+      this.shouldSkipAnimations = false;
+    }
+    if (parent != null) {
+      parent.addChild(this);
+    }
+    this.update(this.props, this.presenceContext);
+    this.hasBeenMounted = true;
+  }
+
+  void unmount() {
+    JsValue? projection = this.projection;
+    if (projection != null) {
+      callMethod0(projection, "unmount");
+    }
+    VisualElement self = this;
+    cancelFrame((FrameData _d) => {
+      self.notifyUpdate();
+    });
+    cancelFrame((FrameData _d) => {
+      self.render();
+    });
+    JsValue[] __keys_2 = mapKeys(this.valueSubscriptions);
+    for (int __i_2 = 0; __i_2 < __keys_2.length; __i_2++) {
+      string key = `${__keys_2[__i_2]}`;
+      (func()->void)? remove = this.valueSubscriptions.get(key);
+      if (remove != null) {
+        remove();
+      }
+    }
+    this.valueSubscriptions.clear();
+    (func()->void)? removeVariant = this.removeFromVariantTree;
+    if (removeVariant != null) {
+      removeVariant();
+    }
+    VisualElement? parent = this.parent;
+    if (parent != null) {
+      parent.removeChild(this);
+    }
+    JsValue[] __keys_3 = mapKeys(this.events);
+    for (int __i_3 = 0; __i_3 < __keys_3.length; __i_3++) {
+      string key = `${__keys_3[__i_3]}`;
+      SubscriptionManager? manager = this.events.get(key);
+      if (manager != null) {
+        manager.clear();
+      }
+    }
+    JsValue[] __keys_4 = mapKeys(this.features);
+    for (int __i_4 = 0; __i_4 < __keys_4.length; __i_4++) {
+      string key = `${__keys_4[__i_4]}`;
+      JsValue? feature = this.features.get(key);
+      if (feature != null) {
+        callMethod0(feature, "unmount");
+        feature["isMounted"] = false;
+      }
+    }
+    this.current = null;
+    this.isMounted = false;
+  }
+
+  void addChild(VisualElement child) {
+    this.children.add(child);
+    Set<VisualElement>? existing = this.enteringChildren;
+    if (existing == null) {
+      Set<VisualElement> created = new Set<VisualElement>();
+      created.add(child);
+      this.enteringChildren = created;
+    } else {
+      existing.add(child);
+    }
+  }
+
+  void removeChild(VisualElement child) {
+    this.children.delete(child);
+    Set<VisualElement>? entering = this.enteringChildren;
+    if (entering != null) {
+      entering.delete(child);
+    }
+  }
+
+  void bindToMotionValue(string key, JsValue value) {
+    (func()->void)? existing = this.valueSubscriptions.get(key);
+    if (existing != null) {
+      existing();
+    }
+    bool valueIsTransform = transformProps.has(key);
+    (func()->void)? onBind = this.onBindTransformHook;
+    if (valueIsTransform && onBind != null) {
+      onBind();
+    }
+    VisualElement self = this;
+    string boundKey = key;
+    MotionValue boundValue = asMotionValue(value);
+    func()->void removeOnChange = boundValue.on(
+      "change",
+      (JsValue? latestValue = null, JsValue? _b = null, JsValue? _c = null) => {
+        self.latestValues[boundKey] = latestValue;
+        if (self.props["onUpdate"].truthy()) {
+          frame.preRender((FrameData _d) => {
+            self.notifyUpdate();
+          }, false, false);
+        }
+        JsValue? projection = self.projection;
+        if (valueIsTransform && projection != null) {
+          projection["isTransformDirty"] = true;
+        }
+        self.scheduleRender();
+      }
+    );
+    (func()->void)? removeSyncCheck = null;
+    JsValue checkFn = windowGet("MotionCheckAppearSync");
+    if (isFunction(checkFn)) {
+      JsValue result = callMethod2(checkFn, "call", null, self);
+      if (isFunction(result)) {
+        removeSyncCheck = () => {
+          callMethod0(result, "call");
+        };
+      }
+    }
+    this.valueSubscriptions.set(key, () => {
+      removeOnChange();
+      if (removeSyncCheck != null) {
+        removeSyncCheck();
+      }
+    });
+  }
+
+  float sortNodePosition(VisualElement other) {
+    JsValue? current = this.current;
+    if (current == null || this.type != other.type) {
+      return 0.0;
+    }
+    JsValue? otherCurrent = other.current;
+    if (otherCurrent == null) {
+      return 0.0;
+    }
+    return this.sortInstanceNodePosition(current, otherCurrent);
+  }
+
+  void updateFeatures() {
+    for (string key in featureDefinitions) {
+      JsValue? featureDefinition = featureDefinitions[key];
+      if (featureDefinition != null) {
+        JsValue def = featureDefinition;
+        JsValue isEnabled = def["isEnabled"];
+        JsValue FeatureConstructor = def["Feature"];
+        if (this.features.get(key) == null && FeatureConstructor.truthy() && isFunction(isEnabled)) {
+          if (callMethod1(isEnabled, "call", this.props).truthy()) {
+            JsValue created = callFn1(FeatureConstructor, this);
+            this.features.set(key, created);
+          }
+        }
+        JsValue? feature = this.features.get(key);
+        if (feature != null) {
+          if (feature["isMounted"].truthy()) {
+            callMethod0(feature, "update");
+          } else {
+            callMethod0(feature, "mount");
+            feature["isMounted"] = true;
+          }
+        }
+      }
+    }
+  }
+
+  void notifyUpdate() {
+    this.notify("Update", this.latestValues);
+  }
+
+  void triggerBuild() {
+    this.build();
+  }
+
+  void render() {
+    JsValue? current = this.current;
+    if (current == null) {
+      return;
+    }
+    this.triggerBuild();
+    this.renderInstance(current, this.renderState, this.props["style"], this.projection);
+  }
+
+  void scheduleRender() {
+    float now = time.now();
+    if (this.renderScheduledAt < now) {
+      this.renderScheduledAt = now;
+      VisualElement self = this;
+      frame.render((FrameData _d) => {
+        self.render();
+      }, false, false);
+    }
+  }
+
+  JsValue? getStaticValue(string name) {
+    return this.latestValues[name];
+  }
+
+  void setStaticValue(string name, JsValue value) {
+    this.latestValues[name] = value;
+  }
+
+  void update(JsValue props, JsValue? presenceContext = null) {
+    if (props["transformTemplate"].truthy() || this.props["transformTemplate"].truthy()) {
+      this.scheduleRender();
+    }
+    this.prevProps = this.props;
+    this.props = props;
+    this.prevPresenceContext = this.presenceContext;
+    this.presenceContext = presenceContext;
+    for (int i = 0; i < propEventHandlers.length; i++) {
+      string key = propEventHandlers[i];
+      (func()->void)? existing = this.propEventSubscriptions.get(key);
+      if (existing != null) {
+        existing();
+        this.propEventSubscriptions.delete(key);
+      }
+      string listenerName = `on${key}`;
+      JsValue listener = props[listenerName];
+      if (listener.truthy()) {
+        this.propEventSubscriptions.set(key, this.on(key, (JsValue? a = null, JsValue? b = null, JsValue? c = null) => {
+          if (isFunction(listener)) {
+            callMethod2(listener, "call", null, a);
+          }
+        }));
+      }
+    }
+    JsValue prevMotion = this.prevMotionValues;
+    JsValue scraped = this.scrapeMotionValuesFromProps(props, this.prevProps, this);
+    this.prevMotionValues = updateMotionValuesFromProps(this, scraped, prevMotion);
+    (func()->void)? childHook = this.handleChildMotionValueHook;
+    if (childHook != null) {
+      childHook();
+    }
+  }
+
+  JsValue getProps() {
+    return this.props;
+  }
+
+  JsValue? getVariant(string name) {
+    JsValue variants = this.props["variants"];
+    if (variants.isObject()) {
+      return variants[name];
+    }
+    return null;
+  }
+
+  JsValue? getDefaultTransition() {
+    return this.props["transition"];
+  }
+
+  JsValue? getTransformPagePoint() {
+    return this.props["transformPagePoint"];
+  }
+
+  VisualElement? getClosestVariantNode() {
+    if (this.isVariantNode) {
+      return this;
+    }
+    VisualElement? parent = this.parent;
+    if (parent != null) {
+      return parent.getClosestVariantNode();
+    }
+    return null;
+  }
+
+  (func()->void)? addVariantChild(VisualElement child) {
+    VisualElement? closestVariantNode = this.getClosestVariantNode();
+    if (closestVariantNode != null) {
+      Set<VisualElement>? variantChildren = closestVariantNode.variantChildren;
+      if (variantChildren != null) {
+        variantChildren.add(child);
+        return () => {
+          variantChildren.delete(child);
+        };
+      }
+    }
+    return null;
+  }
+
+  void addValue(string key, JsValue value) {
+    JsValue? existingValue = this.values.get(key);
+    if (value != existingValue) {
+      if (existingValue != null) {
+        this.removeValue(key);
+      }
+      this.bindToMotionValue(key, value);
+      this.values.set(key, value);
+      this.latestValues[key] = asMotionValue(value).get();
+      if (this.valueKeys.indexOf(key) == -1) {
+        this.valueKeys.push(key);
+      }
+    }
+  }
+
+  void removeValue(string key) {
+    this.values.delete(key);
+    (func()->void)? unsubscribe = this.valueSubscriptions.get(key);
+    if (unsubscribe != null) {
+      unsubscribe();
+      this.valueSubscriptions.delete(key);
+    }
+    this.latestValues[key] = null;
+    int idx = this.valueKeys.indexOf(key);
+    if (idx >= 0) {
+      this.valueKeys.splice(idx, 1);
+    }
+    this.removeValueFromRenderState(key, this.renderState);
+  }
+
+  bool hasValue(string key) {
+    return this.values.get(key) != null;
+  }
+
+  JsValue? getValue(string key, JsValue? defaultValue = null, bool hasDefault = false) {
+    JsValue propValues = this.props["values"];
+    if (propValues.isObject() && propValues[key].truthy()) {
+      return propValues[key];
+    }
+    JsValue? value = this.values.get(key);
+    if (value == null && hasDefault) {
+      JsValue created = motionValue(defaultValue, record{owner: this});
+      this.addValue(key, created);
+      return created;
+    }
+    return value;
+  }
+
+  JsValue? readValue(string key, JsValue? target = null) {
+    JsValue? value = this.latestValues[key];
+    JsValue? current = this.current;
+    if (value == null && current != null) {
+      value = this.getBaseTargetFromProps(this.props, key);
+      if (value == null) {
+        value = this.readValueFromInstance(current, key);
+      }
+    }
+    if (value != null) {
+      if (value is string) {
+        string stringValue = value;
+        if (isNumericalString(stringValue) || isZeroValueString(stringValue)) {
+          value = parseFloat(stringValue);
+        } else if (findValueType(value) == null) {
+          if (target != null) {
+            if (complex.test(target)) {
+              value = getAnimatableNone(key, `${target}`);
+            }
+          }
+        }
+      }
+      if (isMotionValue(value)) {
+        this.setBaseTarget(key, asMotionValue(value).get());
+      } else {
+        this.setBaseTarget(key, value);
+      }
+    }
+    if (isMotionValue(value)) {
+      return asMotionValue(value).get();
+    }
+    return value;
+  }
+
+  void setBaseTarget(string key, JsValue value) {
+    this.baseTarget[key] = value;
+  }
+
+  JsValue? getBaseTarget(string key) {
+    JsValue initial = this.props["initial"];
+    JsValue? valueFromInitial = null;
+    if ((initial is string) || initial.isObject()) {
+      JsValue? custom = null;
+      JsValue? presence = this.presenceContext;
+      if (presence != null) {
+        custom = presence["custom"];
+      }
+      JsValue? variant = resolveVariantFromProps(this.props, initial, custom);
+      if (variant != null) {
+        valueFromInitial = variant[key];
+      }
+    }
+    if (initial.truthy() && valueFromInitial != null) {
+      return valueFromInitial;
+    }
+    JsValue? target = this.getBaseTargetFromProps(this.props, key);
+    if (target != null && !isMotionValue(target)) {
+      return target;
+    }
+    if (this.initialValues[key] != null && valueFromInitial == null) {
+      return null;
+    }
+    return this.baseTarget[key];
+  }
+
+  func()->void on(string eventName, func(JsValue?, JsValue?, JsValue?)->void callback) {
+    SubscriptionManager? existing = this.events.get(eventName);
+    SubscriptionManager manager = new SubscriptionManager();
+    if (existing != null) {
+      manager = existing;
+    } else {
+      this.events.set(eventName, manager);
+    }
+    return manager.add(callback);
+  }
+
+  void notify(string eventName, JsValue? arg = null) {
+    SubscriptionManager? manager = this.events.get(eventName);
+    if (manager != null) {
+      manager.notify(arg);
+    }
+  }
+
+  void scheduleRenderMicrotask() {
+    VisualElement self = this;
+    microtask.render((FrameData _d) => {
+      self.render();
+    }, false, false);
+  }
+}

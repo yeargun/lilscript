@@ -1,0 +1,31 @@
+import {
+  arrayFromNullable,
+  documentQuerySelectorAll,
+  isEventTarget
+} from "../dom-host";
+
+export class AnimationScope {
+  JsValue current;
+  JsValue[] animations;
+
+  init(JsValue current) {
+    this.current = current;
+    this.animations = [];
+  }
+}
+
+export JsValue[] resolveElements(
+  JsValue? elementOrSelector = null,
+  AnimationScope? _scope = null
+) {
+  if (elementOrSelector == null) {
+    return [];
+  }
+  if (isEventTarget(elementOrSelector)) {
+    return [elementOrSelector];
+  }
+  if (elementOrSelector is string) {
+    return documentQuerySelectorAll(elementOrSelector);
+  }
+  return arrayFromNullable(elementOrSelector);
+}

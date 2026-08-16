@@ -1,0 +1,1 @@
+var s=[],_=0,g,h,n;for(;_<algorithmCount();++_)s.push(algorithmInt(_));for(g=0,_=0;(_+3|0)<s.length;_=_+4|0)h=(s[_]|0)+_|0,n=(s[_+1|0]|0)+(-_|0)|0,g=g+(((h*h|0)+(n*n|0)|0)+((h*(s[_+3|0]|0)|0)-(n*(s[_+2|0]|0)|0)|0)|0)|0;console.log(g)

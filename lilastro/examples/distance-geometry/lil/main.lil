@@ -1,0 +1,19 @@
+import { mix } from "../../../../benchmarks/popular/ports/motion/motion-dom/utils/mix/index";
+import { distance, distance2D } from "../../../../benchmarks/popular/ports/motion/framer-motion/utils/distance";
+import { Point } from "../../../../benchmarks/popular/ports/motion/motion-utils/types/geometry";
+
+float d1 = 0.0;
+float d2 = 0.0;
+float blended = 0.0;
+
+for (int i = 0; i < 10000; i++) {
+  float a = i * 0.017;
+  float b = i * 0.031;
+  d1 = d1 + distance(a, b);
+  Point pA = Point{a, b};
+  Point pB = Point{b, a};
+  d2 = d2 + distance2D(pA, pB);
+  blended = blended + mix(d1, d2, 0.5);
+}
+
+print(`distance-geometry:${d1.round()}:${d2.round()}:${blended.round()}`);

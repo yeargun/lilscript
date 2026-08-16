@@ -1,0 +1,6 @@
+import { whitespace } from "./whitespace";
+
+export Regex rtrimCSS = new Regex(
+  "^" + whitespace + "+|((?:^|[^\\\\])(?:\\\\.)*)" + whitespace + "+$",
+  "g"
+);

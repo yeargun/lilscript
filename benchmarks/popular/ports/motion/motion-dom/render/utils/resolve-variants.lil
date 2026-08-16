@@ -1,0 +1,51 @@
+import { callFn3, callMethod0, isFunction } from "../../dom-host";
+
+JsValue[] getValueState(JsValue? visualElement = null) {
+  JsValue current = record{};
+  JsValue velocity = record{};
+  if (visualElement != null) {
+    JsValue values = visualElement["values"];
+    if (values.isObject()) {
+      for (string key in values) {
+        JsValue value = values[key];
+        current[key] = callMethod0(value, "get");
+        velocity[key] = callMethod0(value, "getVelocity");
+      }
+    }
+  }
+  return [current, velocity];
+}
+
+export JsValue? resolveVariantFromProps(
+  JsValue props,
+  JsValue? definition = null,
+  JsValue? custom = null,
+  JsValue? visualElement = null
+) {
+  JsValue? resolved = definition;
+  if (resolved != null && isFunction(resolved)) {
+    JsValue[] state = getValueState(visualElement);
+    JsValue customArg = custom;
+    if (customArg == null) {
+      customArg = props["custom"];
+    }
+    resolved = callFn3(resolved, customArg, state[0], state[1]);
+  }
+  if (resolved is string) {
+    JsValue variants = props["variants"];
+    if (variants.isObject()) {
+      resolved = variants[resolved];
+    } else {
+      resolved = null;
+    }
+  }
+  if (resolved != null && isFunction(resolved)) {
+    JsValue[] state = getValueState(visualElement);
+    JsValue customArg = custom;
+    if (customArg == null) {
+      customArg = props["custom"];
+    }
+    resolved = callFn3(resolved, customArg, state[0], state[1]);
+  }
+  return resolved;
+}

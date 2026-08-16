@@ -1,0 +1,220 @@
+import { emptyArray } from "./alloc.lil";
+import { jQuery, each, makeArray } from "./core";
+import { dataPriv } from "./data/var/dataPriv";
+import { Deferred } from "./deferred";
+import { newCallbacksOnceMemory } from "./callbacks";
+import {
+  deleteProp,
+  typeOf,
+  isUndefined,
+  arrayIsArray,
+  arrayPush,
+  arrayShift,
+  arrayUnshift,
+  call0,
+  call1,
+  call2,
+  jsUndefined,
+  stringify,
+  createEmptyObject
+} from "./js-host.lil";
+
+struct QueueHooks {
+  JsValue empty;
+}
+
+string typeOrFx(JsValue typeValue) {
+  if (JS.isUndefined(typeValue) || !typeValue.truthy()) {
+    return "fx";
+  }
+  if (typeValue is string) {
+    return typeValue;
+  }
+  return JS.string(typeValue);
+}
+
+export JsValue queueStatic(JsValue elem, JsValue typeValue, JsValue data) {
+  if (!elem.truthy()) {
+    return JS.undefined();
+  }
+
+  string type = typeOrFx(typeValue);
+  string queueKey = type + "queue";
+  JsValue queue = dataPriv.get(elem, queueKey);
+
+  if (data.truthy()) {
+    if (!queue.truthy() || JS.isArray(data)) {
+      JsValue made = makeArray(data);
+      queue = dataPriv.access(elem, queueKey, made);
+    } else {
+      JS.push(queue, data);
+    }
+  }
+
+  if (queue.truthy()) {
+    return queue;
+  }
+  return emptyArray();
+}
+
+export JsValue dequeueStatic(JsValue elem, JsValue typeValue) {
+  string type = typeOrFx(typeValue);
+  JsValue queue = queueStatic(elem, type, JS.undefined());
+  float startLength = queue.length;
+  JsValue fn = JS.shift(queue);
+  JsValue hooks = queueHooks(elem, type);
+
+  JsValue next = () => {
+    dequeueStatic(elem, type);
+    return JS.undefined();
+  };
+
+  if (fn == "inprogress") {
+    fn = JS.shift(queue);
+    startLength = startLength - 1.0;
+  }
+
+  if (fn.truthy()) {
+    if (type == "fx") {
+      JS.unshift(queue, "inprogress");
+    }
+    JS.delete(hooks, "stop");
+    JS.call(fn, elem, next, hooks);
+  }
+
+  if (!(startLength > 0.0) && hooks.truthy()) {
+    JS.invoke(hooks["empty"], "fire");
+  }
+  return JS.undefined();
+}
+
+export JsValue queueHooks(JsValue elem, JsValue typeValue) {
+  string type = typeOrFx(typeValue);
+  string key = type + "queueHooks";
+  JsValue existing = dataPriv.get(elem, key);
+  if (existing.truthy()) {
+    return existing;
+  }
+
+  JsValue empty = newCallbacksOnceMemory();
+  JS.invoke(empty, "add", () => {
+    JsValue[] removeKeys = [];
+    removeKeys.push(type + "queue");
+    removeKeys.push(key);
+    dataPriv.remove(elem, removeKeys);
+    return JS.undefined();
+  });
+
+  return dataPriv.access(elem, key, QueueHooks{empty});
+}
+
+export JsValue fnQueue(JsValue self, JsValue args) {
+  JsValue type = "fx";
+  JsValue data = JS.undefined();
+  float setter = 2.0;
+
+  if (args.length > 0.0) {
+    if (JS.typeOf(args[0]) != "string") {
+      data = args[0];
+      type = "fx";
+      setter = 1.0;
+    } else {
+      type = args[0];
+      if (args.length > 1.0) {
+        data = args[1];
+      }
+    }
+  }
+
+  if (args.length < setter) {
+    return queueStatic(self[0], type, JS.undefined());
+  }
+
+  if (JS.isUndefined(data)) {
+    return self;
+  }
+
+  string typeKey = typeOrFx(type);
+  return each(self, (JsValue _i, JsValue el) => {
+    JsValue queue = queueStatic(el, typeKey, data);
+    queueHooks(el, typeKey);
+    if (typeKey == "fx" && queue[0] != "inprogress") {
+      dequeueStatic(el, typeKey);
+    }
+    return JS.undefined();
+  });
+}
+
+JsValue fnDequeue(JsValue self, JsValue type) {
+  return each(self, (JsValue _i, JsValue el) => {
+    dequeueStatic(el, type);
+    return JS.undefined();
+  });
+}
+
+JsValue fnClearQueue(JsValue self, JsValue type) {
+  JsValue queueType = type;
+  if (JS.isUndefined(type) || !type.truthy()) {
+    queueType = "fx";
+  }
+  return JS.invoke(self, "queue", queueType, emptyArray());
+}
+
+JsValue fnPromise(JsValue self, JsValue args) {
+  JsValue type = JS.undefined();
+  JsValue obj = JS.undefined();
+  if (args.length > 0.0) {
+    if (JS.typeOf(args[0]) != "string") {
+      obj = args[0];
+    } else {
+      type = args[0];
+      if (args.length > 1.0) {
+        obj = args[1];
+      }
+    }
+  }
+
+  string typeKey = typeOrFx(type);
+  JsValue defer = Deferred();
+  float count = 1.0;
+  JsValue elements = self;
+
+  JsValue resolve = () => {
+    count = count - 1.0;
+    if (!(count > 0.0)) {
+      JsValue[] resolveArgs = [];
+      resolveArgs.push(elements);
+      JS.invoke(defer, "resolveWith", elements, resolveArgs);
+    }
+    return JS.undefined();
+  };
+
+  float i = self.length;
+  while (i > 0.0) {
+    i = i - 1.0;
+    JsValue tmp = dataPriv.get(self[i], typeKey + "queueHooks");
+    if (tmp.truthy() && tmp["empty"].truthy()) {
+      count = count + 1.0;
+      JS.invoke(tmp["empty"], "add", resolve);
+    }
+  }
+  resolve();
+  return JS.invoke(defer, "promise", obj);
+}
+
+jQuery["queue"] = JS.staticRest((JsValue args) => {
+  return queueStatic(args[0], args[1], args[2]);
+});
+
+jQuery["dequeue"] = JS.staticRest((JsValue args) => {
+  return dequeueStatic(args[0], args[1]);
+});
+
+jQuery["_queueHooks"] = queueHooks;
+
+jQuery["fn"]["queue"] = JS.methodRest(fnQueue);
+jQuery["fn"]["dequeue"] = JS.method1(fnDequeue);
+jQuery["fn"]["clearQueue"] = JS.method1(fnClearQueue);
+jQuery["fn"]["promise"] = JS.methodRest(fnPromise);
+
+export { jQuery };

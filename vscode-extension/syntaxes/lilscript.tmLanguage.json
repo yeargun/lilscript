@@ -114,7 +114,7 @@
       "patterns": [
         {
           "name": "storage.type.primitive.lilscript",
-          "match": "\\b(int|float|string|bool|void|auto|func|Map|Set|ArrayBuffer|SharedArrayBuffer|Uint8Array)\\b"
+          "match": "\\b(int|float|number|string|bool|void|auto|func|Map|Set|Task|Generator|Regex|ArrayBuffer|SharedArrayBuffer|Uint8Array)\\b"
         }
       ]
     },
@@ -122,11 +122,11 @@
       "patterns": [
         {
           "name": "keyword.control.lilscript",
-          "match": "\\b(if|else|while|for|break|continue|return)\\b"
+          "match": "\\b(if|else|while|for|in|of|break|continue|return|await|yield|throw|try|catch|finally|super)\\b"
         },
         {
           "name": "storage.type.lilscript",
-          "match": "\\b(struct|class|init|extern|pure)\\b"
+          "match": "\\b(struct|class|extends|init|extern|pure|async|generator)\\b"
         },
         {
           "name": "keyword.control.module.lilscript",

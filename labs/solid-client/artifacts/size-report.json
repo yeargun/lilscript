@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-14T12:42:21.529Z",
+  "objectiveContract": {
+    "gateMetric": "brotli11",
+    "matchingArtifactOnly": true,
+    "crossMetricsAreDiagnostic": [
+      "raw",
+      "gzip9"
+    ]
+  },
+  "codecs": {
+    "implementation": "lilscript-codec",
+    "schemaVersion": 1,
+    "scorer": {
+      "path": "target/release/lilscript-codec",
+      "sha256": "48340e70c3a53ae5f58cee5dbb48ca5553b2feff6f29f086fc8060bd036594c8",
+      "bytes": 1804784
+    },
+    "gzip9": {
+      "encoder": "upstream-stock-zlib-c",
+      "libraryVersion": "1.3.1",
+      "cargoPackage": "libz-sys",
+      "cargoPackageVersion": "1.1.24",
+      "level": 9,
+      "mtime": 0
+    },
+    "brotli11": {
+      "encoder": "official-google-brotli-c",
+      "libraryVersion": "1.1.0",
+      "cargoPackage": "compu-brotli-sys",
+      "cargoPackageVersion": "1.1.0",
+      "quality": 11,
+      "lgwin": 22,
+      "mode": "generic"
+    },
+    "nodeCodecsAreDiagnosticOnly": true
+  },
+  "compiler": {
+    "source": "repository-release",
+    "path": "../../target/release/lilscript",
+    "sha256": "46eeb54e8ee2d737b17fb988494ff968747908fa8fe3ffa8ace676618a2c8189",
+    "version": "lilscript 0.1.0"
+  },
+  "artifacts": {
+    "solid-vite": {
+      "path": "artifacts/generated/solid-vite.js",
+      "sha256": "0de29f35406af06a983386064f68b5e6d17433622ca8397d9d5a60a0dc211809"
+    },
+    "solid-closure-advanced": {
+      "path": "artifacts/generated/solid-closure-advanced.js",
+      "sha256": "6f9d1570a08dee43db4af7327c35151dbd6abeb9934499cd575c7e235dc98278"
+    },
+    "lilscript-vite": {
+      "path": "artifacts/generated/lilscript-vite.js",
+      "sha256": "3c8edfdc7d3e024e1fee023daed88d4d72a9cd62545f6457e2fcf893e40c7485"
+    },
+    "lilscript-closure-advanced": {
+      "path": "artifacts/generated/lilscript-closure-advanced.js",
+      "sha256": "72f634fe1601a5707c975467f7db589827ab772e018f8795f74a4ead2b475d34"
+    },
+    "lilscript-compiler": {
+      "path": "artifacts/generated/lilscript-compiler.js",
+      "sha256": "bb9c6e24b93ee2d97371f8cc11c4629e4c25a30198b60b34d3e9c37f71336e91"
+    },
+    "solid-lsx-vite": {
+      "path": "artifacts/generated/solid-lsx-vite.js",
+      "sha256": "acef62e74da81bfbc82b64d03582a3a57c4ef6ff1a60cefcbf9f164cf4eafd73"
+    },
+    "solidlil-lsx-vite": {
+      "path": "artifacts/generated/solidlil-lsx-vite.js",
+      "sha256": "58627ef1e0f1bf7b1ef8aed7136c54317b18c86d5d245266b78b9ea4feb3cf8a"
+    },
+    "solid-core-open": {
+      "path": "artifacts/generated/solid-core-open.js",
+      "sha256": "28a4beda982f5b695db5cc4df95f984a3f8b1ca769bdb403b49701f3932d8ab2"
+    },
+    "solidlil-core-open": {
+      "path": "artifacts/generated/solidlil-core-open.js",
+      "sha256": "a97b3e64cdd72ec3349b141882071ed1e2715df4e2ec407cd78f793c02d00562"
+    }
+  },
+  "sizes": {
+    "solid-vite": {
+      "raw": 12522,
+      "gzip9": 4956,
+      "brotli11": 4466
+    },
+    "solid-closure-advanced": {
+      "raw": 11270,
+      "gzip9": 4797,
+      "brotli11": 4329
+    },
+    "lilscript-vite": {
+      "raw": 10582,
+      "gzip9": 4234,
+      "brotli11": 3799
+    },
+    "lilscript-closure-advanced": {
+      "raw": 10474,
+      "gzip9": 4285,
+      "brotli11": 3836
+    },
+    "lilscript-compiler": {
+      "raw": 7780,
+      "gzip9": 3146,
+      "brotli11": 2847
+    },
+    "solid-lsx-vite": {
+      "raw": 38629,
+      "gzip9": 13866,
+      "brotli11": 12560
+    },
+    "solidlil-lsx-vite": {
+      "raw": 34209,
+      "gzip9": 12035,
+      "brotli11": 10741
+    },
+    "solid-core-open": {
+      "raw": 29474,
+      "gzip9": 9422,
+      "brotli11": 8551
+    },
+    "solidlil-core-open": {
+      "raw": 30074,
+      "gzip9": 9340,
+      "brotli11": 8433
+    }
+  }
+}

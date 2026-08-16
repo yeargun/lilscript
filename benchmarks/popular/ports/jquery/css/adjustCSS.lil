@@ -1,0 +1,114 @@
+import { jQuery } from "../core";
+import { rcssNum } from "../var/rcssNum";
+import { css, style, registerRelativeCssAdjust, cssNumberHas } from "../css";
+import {
+  call0,
+  jsUndefined,
+  regexExec,
+  stringify,
+  unaryPlus
+} from "../js-host.lil";
+
+float currentValueOf(JsValue elem, string prop, JsValue tween) {
+  if (tween != null) {
+    return JS.number(JS.invoke(tween, "cur"));
+  }
+  return JS.number(css(elem, prop, ""));
+}
+
+export float adjustCSS(JsValue elem, string prop, JsValue valueParts, JsValue tween = null) {
+  int maxIterations = 20;
+  float initial = currentValueOf(elem, prop, tween);
+
+  JsValue partsUnit = JS.and(valueParts, valueParts[3]);
+  string unit = "px";
+  if (cssNumberHas(prop)) {
+    unit = "";
+  }
+  if (partsUnit.truthy()) {
+    unit = JS.string(partsUnit);
+  }
+
+  float nodeTypeVal = JS.number(JS.and(elem, elem["nodeType"]));
+
+  bool cssNumberForProp = cssNumberHas(prop);
+  bool wantsProbe = nodeTypeVal != 0.0 && (cssNumberForProp || (unit != "px" && initial != 0.0));
+
+  JsValue matchResult = JS.undefined();
+  if (wantsProbe) {
+    string currentCss = JS.string(css(elem, prop));
+    matchResult = JS.regexExec(rcssNum, currentCss);
+  }
+
+  float baseValue = initial;
+
+  if (matchResult.truthy()) {
+    JsValue matchUnitRaw = matchResult[3];
+    string matchUnit = "";
+    if (matchUnitRaw is string) {
+      matchUnit = matchUnitRaw;
+    }
+
+    if (matchUnit != unit) {
+      initial = initial / 2.0;
+      if (unit == "") {
+        unit = matchUnit;
+      }
+
+      float approxValue = initial;
+      if (approxValue == 0.0) {
+        approxValue = 1.0;
+      }
+
+      float scale = 0.0;
+      int iterations = maxIterations;
+      while (iterations > 0) {
+        iterations = iterations - 1;
+        style(elem, prop, JS.string(approxValue) + unit);
+
+        float nextScale = currentValueOf(elem, prop, tween) / initial;
+        if (nextScale == 0.0) {
+          nextScale = 0.5;
+        }
+        if ((1.0 - scale) * (1.0 - nextScale) <= 0.0) {
+          iterations = 0;
+        }
+        scale = nextScale;
+        approxValue = approxValue / scale;
+      }
+
+      approxValue = approxValue * 2.0;
+      style(elem, prop, JS.string(approxValue) + unit);
+      baseValue = approxValue;
+    }
+  }
+
+  if (!valueParts.truthy()) {
+    return 0.0;
+  }
+
+  float adjusted = 0.0;
+  JsValue signPart = valueParts[1];
+  if (signPart.truthy()) {
+    float amount = JS.number(valueParts[2]);
+    float multiplier = 1.0;
+    if (JS.string(signPart) == "-") {
+      multiplier = -1.0;
+    }
+    adjusted = baseValue + multiplier * amount;
+  } else {
+    adjusted = JS.number(valueParts[2]);
+  }
+
+  if (tween != null) {
+    tween["unit"] = unit;
+    tween["start"] = baseValue;
+    tween["end"] = adjusted;
+  }
+
+  return adjusted;
+}
+
+registerRelativeCssAdjust((JsValue elem, string prop, JsValue valueParts) => {
+  return adjustCSS(elem, prop, valueParts, null);
+});

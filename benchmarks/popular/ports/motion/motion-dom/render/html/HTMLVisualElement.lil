@@ -1,0 +1,64 @@
+import { DOMVisualElement } from "../dom/DOMVisualElement";
+import { scrapeMotionValuesFromProps } from "./utils/scrape-motion-values";
+import { buildHTMLStyles } from "./utils/build-styles";
+import { renderHTML } from "./utils/render";
+import { transformProps } from "../utils/keys-transform";
+import { defaultTransformValue, readTransformValue } from "../dom/parse-transform";
+import { isCSSVariableName } from "../../animation/utils/is-css-variable";
+import { VisualElement } from "../VisualElement";
+import { getComputedStyleValue, getComputedStyleProperty, getComputedStyleField } from "../../dom-host";
+import { stringTrim } from "../../string-host";
+
+export JsValue getComputedStyle(JsValue element) {
+  return getComputedStyleValue(element);
+}
+
+export class HTMLVisualElement extends DOMVisualElement {
+  init(JsValue? htmlOptions = null, JsValue? htmlParent = null) {
+    super();
+    this.type = "html";
+    if (htmlOptions != null) {
+      this.options = htmlOptions;
+    } else {
+      this.options = record{};
+    }
+    if (htmlParent != null) {
+      this.options["parent"] = htmlParent;
+    }
+    HTMLVisualElement self = this;
+    this.scrapeMotionValuesFromPropsHook = (JsValue props, JsValue prevProps, VisualElement element) => {
+      return scrapeMotionValuesFromProps(props, prevProps, element);
+    };
+    this.buildHook = () => {
+      buildHTMLStyles(self.renderState, self.latestValues, self.props["transformTemplate"]);
+    };
+    this.renderInstanceHook = (JsValue instance, JsValue renderState, JsValue? styleProp, JsValue? projection) => {
+      renderHTML(instance, renderState, styleProp, projection);
+    };
+    this.measureViewportBoxHook = () => {
+      return self.measureViewportBoxDefault();
+    };
+    this.readValueFromInstanceHook = (JsValue instance, string key) => {
+      if (transformProps.has(key)) {
+        JsValue? projection = self.projection;
+        if (projection != null && projection["isProjecting"].truthy()) {
+          return defaultTransformValue(key);
+        }
+        return readTransformValue(instance, key);
+      }
+      JsValue value = 0.0;
+      if (isCSSVariableName(key)) {
+        value = getComputedStyleProperty(instance, key);
+      } else {
+        value = getComputedStyleField(instance, key);
+      }
+      if (!value.truthy() && !(value is float)) {
+        value = 0.0;
+      }
+      if (value is string) {
+        return stringTrim(value);
+      }
+      return value;
+    };
+  }
+}

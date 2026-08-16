@@ -1,0 +1,659 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-14T12:40:10.745Z",
+  "toolchain": {
+    "node": "v24.11.1",
+    "solid": "1.9.13",
+    "vite": "8.2.0",
+    "compiler": {
+      "source": "repository-release",
+      "path": "../../target/release/lilscript",
+      "version": "lilscript 0.1.0",
+      "sha256": "46eeb54e8ee2d737b17fb988494ff968747908fa8fe3ffa8ace676618a2c8189"
+    },
+    "codecs": {
+      "implementation": "lilscript-codec",
+      "schemaVersion": 1,
+      "scorer": {
+        "path": "target/release/lilscript-codec",
+        "sha256": "48340e70c3a53ae5f58cee5dbb48ca5553b2feff6f29f086fc8060bd036594c8",
+        "bytes": 1804784
+      },
+      "gzip9": {
+        "encoder": "upstream-stock-zlib-c",
+        "libraryVersion": "1.3.1",
+        "cargoPackage": "libz-sys",
+        "cargoPackageVersion": "1.1.24",
+        "level": 9,
+        "mtime": 0
+      },
+      "brotli11": {
+        "encoder": "official-google-brotli-c",
+        "libraryVersion": "1.1.0",
+        "cargoPackage": "compu-brotli-sys",
+        "cargoPackageVersion": "1.1.0",
+        "quality": 11,
+        "lgwin": 22,
+        "mode": "generic"
+      },
+      "nodeCodecsAreDiagnosticOnly": true
+    }
+  },
+  "openWorld": {
+    "config": "config/open-world.toml",
+    "exports": [
+      "$DEVCOMP",
+      "$PROXY",
+      "$TRACK",
+      "DEV",
+      "ErrorBoundary",
+      "For",
+      "Index",
+      "Match",
+      "Show",
+      "Suspense",
+      "SuspenseList",
+      "Switch",
+      "batch",
+      "cancelCallback",
+      "catchError",
+      "children",
+      "createComponent",
+      "createComputed",
+      "createContext",
+      "createDeferred",
+      "createEffect",
+      "createMemo",
+      "createReaction",
+      "createRenderEffect",
+      "createResource",
+      "createRoot",
+      "createSelector",
+      "createSignal",
+      "createUniqueId",
+      "enableExternalSource",
+      "enableHydration",
+      "enableScheduling",
+      "equalFn",
+      "from",
+      "getListener",
+      "getOwner",
+      "indexArray",
+      "lazy",
+      "mapArray",
+      "mergeProps",
+      "observable",
+      "on",
+      "onCleanup",
+      "onError",
+      "onMount",
+      "requestCallback",
+      "resetErrorBoundaries",
+      "runWithOwner",
+      "sharedConfig",
+      "splitProps",
+      "startTransition",
+      "untrack",
+      "useContext",
+      "useTransition"
+    ],
+    "behaviorDigest": {
+      "value": {
+        "before": 1,
+        "count": 6,
+        "doubled": 12,
+        "selected6": true,
+        "selected5": false,
+        "ownerIdentity": true,
+        "listenerOutside": true,
+        "context": "provided",
+        "detached": 17,
+        "component": 9,
+        "uniqueIds": [
+          "cl-0",
+          "cl-1"
+        ]
+      },
+      "effects": [
+        "6:12",
+        "7:14"
+      ],
+      "renders": [
+        "1:2",
+        "6:12",
+        "7:14"
+      ],
+      "computed": [
+        1,
+        5,
+        6,
+        7
+      ],
+      "explicit": [
+        "none>7:0"
+      ],
+      "invalidations": [
+        "invalidated"
+      ],
+      "contextDefault": "default",
+      "afterParentDispose": [
+        "mount",
+        "mount-cleanup",
+        "second",
+        "first"
+      ],
+      "cleanups": [
+        "mount",
+        "mount-cleanup",
+        "second",
+        "first",
+        "detached"
+      ]
+    },
+    "utilityDigest": {
+      "markers": [
+        [
+          "symbol",
+          "solid-dev-component"
+        ],
+        [
+          "symbol",
+          "solid-proxy"
+        ],
+        [
+          "symbol",
+          "solid-track"
+        ]
+      ],
+      "equal": [
+        true,
+        false,
+        false
+      ],
+      "sharedConfig": [
+        [
+          "context",
+          "undefined"
+        ],
+        [
+          "done",
+          "boolean"
+        ],
+        [
+          "effects",
+          "undefined"
+        ],
+        [
+          "getContextId",
+          "function"
+        ],
+        [
+          "getNextContextId",
+          "function"
+        ],
+        [
+          "registry",
+          "undefined"
+        ]
+      ],
+      "merged": [
+        "override",
+        4,
+        [
+          "first",
+          "live",
+          "rest"
+        ]
+      ],
+      "split": [
+        [
+          [
+            "first"
+          ],
+          [
+            "live"
+          ],
+          [
+            "rest"
+          ]
+        ],
+        "override",
+        8,
+        7
+      ],
+      "initial": {
+        "children": [
+          1,
+          2,
+          null
+        ],
+        "childArray": [
+          1,
+          2,
+          null
+        ],
+        "mapped": [
+          "1:0",
+          "2:1"
+        ],
+        "indexed": [
+          "1:0",
+          "2:1"
+        ],
+        "forValue": [
+          "1:0",
+          "2:1"
+        ],
+        "indexValue": [
+          "1:0",
+          "2:1"
+        ],
+        "show": "hidden",
+        "switch": "none",
+        "from": 0
+      },
+      "updated": {
+        "dynamic": 4,
+        "mapped": [
+          "2:0",
+          "1:1",
+          "3:2"
+        ],
+        "indexed": [
+          "2:0",
+          "1:1",
+          "3:2"
+        ],
+        "forValue": [
+          "2:0",
+          "1:1",
+          "3:2"
+        ],
+        "indexValue": [
+          "2:0",
+          "1:1",
+          "3:2"
+        ],
+        "show": 5,
+        "switch": "two:true",
+        "from": 9
+      },
+      "observed": [
+        1,
+        4
+      ],
+      "producerCleanups": 1,
+      "rowCleanups": 6
+    },
+    "schedulerDigest": {
+      "initial": 1,
+      "immediate": 1,
+      "settled": 2,
+      "callbacks": [
+        "live:false"
+      ]
+    },
+    "advancedDigest": {
+      "boundary": {
+        "caught": [
+          [
+            "Error",
+            "caught"
+          ]
+        ],
+        "caughtReturn": "undefined",
+        "globalReset": "healthy",
+        "initial": "fallback:RangeError:boundary",
+        "observed": [
+          [
+            "TypeError",
+            "computed"
+          ]
+        ],
+        "reset": "healthy"
+      },
+      "external": {
+        "disposals": 2,
+        "factories": 2,
+        "tracks": 6,
+        "untracks": 2,
+        "values": [
+          2,
+          6,
+          12
+        ]
+      },
+      "hydration": {
+        "after": {
+          "id": "root",
+          "count": 1
+        },
+        "inside": {
+          "id": "root0",
+          "count": 0
+        },
+        "value": "hydrated component"
+      },
+      "lazy": {
+        "final": "loaded:7",
+        "initial": "",
+        "loads": 1,
+        "preloadIdentity": true
+      },
+      "ownerRestored": true,
+      "resource": {
+        "changes": [
+          "refreshing:true:seed",
+          "ready:false:one",
+          "refreshing:true:one",
+          "refreshing:true:manual",
+          "ready:false:two"
+        ],
+        "errors": [
+          [
+            "Error",
+            "bad"
+          ],
+          [
+            "Error",
+            "bad"
+          ]
+        ],
+        "disposedAfter": {
+          "effects": [
+            null
+          ],
+          "loading": false,
+          "state": "ready",
+          "value": "late"
+        },
+        "disposedBefore": {
+          "loading": true,
+          "state": "pending"
+        },
+        "final": {
+          "state": "ready",
+          "value": "two"
+        },
+        "initial": {
+          "loading": true,
+          "state": "refreshing",
+          "value": "seed"
+        },
+        "ready": {
+          "latest": "one",
+          "loading": false,
+          "state": "ready",
+          "value": "one"
+        },
+        "refreshing": {
+          "latest": "one",
+          "loading": true,
+          "state": "refreshing",
+          "value": "one"
+        },
+        "requests": [
+          [
+            1,
+            {
+              "value": "seed",
+              "refetching": false
+            }
+          ],
+          [
+            2,
+            {
+              "value": "one",
+              "refetching": false
+            }
+          ],
+          [
+            2,
+            {
+              "value": "manual",
+              "refetching": "manual-refetch"
+            }
+          ]
+        ],
+        "thrown": [
+          "Error",
+          "bad"
+        ]
+      },
+      "suspense": {
+        "final": [
+          "first:A",
+          "second:B"
+        ],
+        "initial": [
+          "loading:first",
+          null
+        ],
+        "middle": [
+          "first:A",
+          "loading:second"
+        ]
+      },
+      "transition": {
+        "final": {
+          "log": [
+            "effect:2",
+            "before:1:2",
+            "after:2:4",
+            "effect:4"
+          ],
+          "memo": 4,
+          "pending": false,
+          "source": 2
+        },
+        "identity": true,
+        "sync": {
+          "memo": 2,
+          "pending": false,
+          "queued": 0,
+          "source": 1
+        },
+        "waiting": {
+          "memo": 2,
+          "pending": true,
+          "queued": 1,
+          "source": 1
+        }
+      }
+    },
+    "behaviorPassed": true,
+    "distributionSelection": {
+      "entry": "api/solidlil-core.js",
+      "output": "artifacts/generated/solidlil-core-open.js",
+      "clientOnly": false,
+      "winner": "production-15",
+      "sizes": {
+        "brotli11": 8433,
+        "gzip9": 9340,
+        "raw": 30074
+      },
+      "artifactSha256": "a97b3e64cdd72ec3349b141882071ed1e2715df4e2ec407cd78f793c02d00562",
+      "candidates": {
+        "layout-18": {
+          "artifact": "artifacts/generated/distribution-candidates/core-open.layout-18.js",
+          "artifactSha256": "a97b3e64cdd72ec3349b141882071ed1e2715df4e2ec407cd78f793c02d00562",
+          "runtimeSha256": "f4cb80b083bac49785408cc7ba39c85b0f4c653cc1e121c62e0f4954669f740e",
+          "sizes": {
+            "brotli11": 8433,
+            "gzip9": 9340,
+            "raw": 30074
+          }
+        },
+        "production-12": {
+          "artifact": "artifacts/generated/distribution-candidates/core-open.production-12.js",
+          "artifactSha256": "98715730afea789b6ba56d88dcc691abd5c74ad20ae0bd779a2e5aa381c836b0",
+          "runtimeSha256": "fe6831469d5ceadee58ab039cd09225bcf0ab18c6043f38c5cab7151271ba904",
+          "sizes": {
+            "brotli11": 8512,
+            "gzip9": 9445,
+            "raw": 30191
+          }
+        },
+        "production-15": {
+          "artifact": "artifacts/generated/distribution-candidates/core-open.production-15.js",
+          "artifactSha256": "a97b3e64cdd72ec3349b141882071ed1e2715df4e2ec407cd78f793c02d00562",
+          "runtimeSha256": "f4cb80b083bac49785408cc7ba39c85b0f4c653cc1e121c62e0f4954669f740e",
+          "sizes": {
+            "brotli11": 8433,
+            "gzip9": 9340,
+            "raw": 30074
+          }
+        },
+        "source-15": {
+          "artifact": "artifacts/generated/distribution-candidates/core-open.source-15.js",
+          "artifactSha256": "69749875676ee1f2e68780ffdd20d79ce73e0aa4a079b8a6c2e8ed862895ff69",
+          "runtimeSha256": "c056f03b08be2ba9d377e1daae1d70ce5d955d05f956a2f4177e43ca2526dd92",
+          "sizes": {
+            "brotli11": 8524,
+            "gzip9": 9473,
+            "raw": 30390
+          }
+        }
+      }
+    },
+    "size": {
+      "solid": {
+        "raw": 29474,
+        "gzip9": 9422,
+        "brotli11": 8551
+      },
+      "solidlil": {
+        "raw": 30074,
+        "gzip9": 9340,
+        "brotli11": 8433
+      },
+      "ratio": {
+        "raw": 1.0203569247472348,
+        "gzip9": 0.9912969645510508,
+        "brotli11": 0.9862004443924687
+      },
+      "brotliSuperior": true,
+      "compressedSuperior": true,
+      "rawSuperior": false,
+      "superior": true
+    }
+  },
+  "closedWorld": {
+    "config": "config/closed-world.toml",
+    "sourceExports": [
+      "batch",
+      "cancelCallback",
+      "children",
+      "createBoolSignal",
+      "createComputed",
+      "createContext",
+      "createDeferred",
+      "createEffect",
+      "createIntMemo",
+      "createIntSignal",
+      "createIntSignalWithEquals",
+      "createMemo",
+      "createMemoWithPrevious",
+      "createReaction",
+      "createRenderEffect",
+      "createResource",
+      "createRoot",
+      "createRootWithOwner",
+      "createSelector",
+      "createSignal",
+      "createUniqueId",
+      "diagnosticEffectSlots",
+      "diagnosticFreeEffectSlots",
+      "diagnosticFreeOwnerSlots",
+      "diagnosticOwnerSlots",
+      "diagnosticPendingEffects",
+      "enableScheduling",
+      "enableSuspenseResolution",
+      "flushCallbacks",
+      "from",
+      "fromObservable",
+      "getListener",
+      "getOwner",
+      "hasListener",
+      "indexArray",
+      "indexArrayWithFallback",
+      "mapArray",
+      "mapArrayWithFallback",
+      "observable",
+      "on",
+      "on2",
+      "onCleanup",
+      "onMount",
+      "onWithInitial",
+      "ownerParent",
+      "provideContext",
+      "requestCallback",
+      "runWithOwner",
+      "selectorSelected",
+      "signalGet",
+      "signalSet",
+      "signalUpdate",
+      "untrack",
+      "untrackInt",
+      "useContext"
+    ],
+    "emittedExports": [
+      "$U",
+      "BU",
+      "DN",
+      "EN",
+      "FU",
+      "GN",
+      "HN",
+      "JN",
+      "KN",
+      "LN",
+      "MN",
+      "NN",
+      "OU",
+      "PN",
+      "QU",
+      "RN",
+      "S",
+      "SU",
+      "T",
+      "TN",
+      "UN",
+      "WN",
+      "XN",
+      "YU",
+      "ZN",
+      "_U",
+      "aN",
+      "bN",
+      "cN",
+      "dN",
+      "e",
+      "eN",
+      "fU",
+      "gN",
+      "hN",
+      "iN",
+      "iU",
+      "j",
+      "jN",
+      "kN",
+      "mN",
+      "n",
+      "nU",
+      "oN",
+      "pN",
+      "qN",
+      "rN",
+      "sU",
+      "tN",
+      "vN",
+      "wN",
+      "xN",
+      "yN",
+      "z",
+      "zN"
+    ],
+    "exportsMangled": true
+  }
+}

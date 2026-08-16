@@ -12,7 +12,8 @@
     "audit:configs": "node audit-configs.mjs",
     "performance": "node benchmark-exact.mjs",
     "publish:web": "node publish-web.mjs",
-    "verify:exact": "node verify-nanoid.mjs && node verify-mitt.mjs && node verify-clsx.mjs && node verify-gl-matrix.mjs"
+    "publish:motion-lab": "node publish-motion-lab.mjs",
+    "verify:exact": "node verify-nanoid.mjs && node verify-mitt.mjs && node verify-clsx.mjs && node verify-gl-matrix.mjs && node verify-motion.mjs"
   },
   "dependencies": {
     "@reduxjs/toolkit": "2.8.2",
@@ -20,7 +21,10 @@
     "clsx": "2.1.1",
     "gl-matrix": "3.4.3",
     "immer": "10.1.1",
+    "jquery": "3.7.1",
+    "jsdom": "26.1.0",
     "mitt": "3.0.1",
+    "motion": "^13.0.0",
     "nanoid": "5.1.5",
     "preact": "10.26.9",
     "zod": "3.25.76"
@@ -28,6 +32,7 @@
   "devDependencies": {
     "esbuild": "0.28.1",
     "google-closure-compiler": "20260804.0.0",
+    "rolldown": "1.2.3",
     "terser": "5.43.1",
     "vite": "8.2.1"
   }

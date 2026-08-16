@@ -1,0 +1,97 @@
+import { clamp } from "../../motion-utils/clamp";
+import { noop } from "../../motion-utils/noop";
+import { progress } from "../../motion-utils/progress";
+import { mixNumber } from "./mix/number";
+
+export class InterpolateOptions {
+  bool clampValues;
+  (func(float)->float)[]? ease;
+
+  init(bool clampValues = true, (func(float)->float)[]? ease = null) {
+    this.clampValues = clampValues;
+    this.ease = ease;
+  }
+}
+
+(func(float)->float)[] createFloatMixers(float[] output, (func(float)->float)[]? ease) {
+  (func(float)->float)[] mixers = [];
+  int numMixers = output.length - 1;
+  for (int i = 0; i < numMixers; i++) {
+    float from = output[i];
+    float to = output[i + 1];
+    func(float)->float mixer = (float p) => mixNumber(from, to, p);
+    if (ease != null) {
+      func(float)->float easingFunction = noop;
+      if (i < ease.length) {
+        easingFunction = ease[i];
+      }
+      func(float)->float inner = mixer;
+      mixer = (float p) => inner(easingFunction(p));
+    }
+    mixers.push(mixer);
+  }
+  return mixers;
+}
+
+export func(float)->float interpolate(
+  float[] input,
+  float[] output,
+  InterpolateOptions? options = null
+) {
+  bool isClamp = true;
+  (func(float)->float)[]? ease = null;
+  if (options != null) {
+    isClamp = options.clampValues;
+    ease = options.ease;
+  }
+  int inputLength = input.length;
+  if (inputLength == 1) {
+    float only = output[0];
+    return (float v) => only;
+  }
+  if (inputLength == 2 && output[0] == output[1]) {
+    float only = output[1];
+    return (float v) => only;
+  }
+  float[] inputCopy = [];
+  float[] outputCopy = [];
+  for (int i = 0; i < input.length; i++) {
+    inputCopy.push(input[i]);
+    outputCopy.push(output[i]);
+  }
+  if (inputCopy[0] > inputCopy[inputLength - 1]) {
+    float[] reversedInput = [];
+    float[] reversedOutput = [];
+    for (int i = inputLength - 1; i >= 0; i--) {
+      reversedInput.push(inputCopy[i]);
+      reversedOutput.push(outputCopy[i]);
+    }
+    inputCopy = reversedInput;
+    outputCopy = reversedOutput;
+  }
+  bool isZeroDeltaRange = inputCopy[0] == inputCopy[1];
+  (func(float)->float)[] mixers = createFloatMixers(outputCopy, ease);
+  int numMixers = mixers.length;
+  func(float)->float interpolator = (float v) => {
+    if (isZeroDeltaRange && v < inputCopy[0]) {
+      return outputCopy[0];
+    }
+    int i = 0;
+    if (numMixers > 1) {
+      while (i < inputCopy.length - 2) {
+        if (v < inputCopy[i + 1]) {
+          break;
+        }
+        i = i + 1;
+      }
+    }
+    float progressInRange = progress(inputCopy[i], inputCopy[i + 1], v);
+    return mixers[i](progressInRange);
+  };
+  if (isClamp) {
+    float min = inputCopy[0];
+    float max = inputCopy[inputLength - 1];
+    return (float v) => interpolator(clamp(min, max, v));
+  }
+  return interpolator;
+}

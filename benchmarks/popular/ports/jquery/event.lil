@@ -1,0 +1,1078 @@
+import { jQuery, isEmptyObject, each } from "./core";
+import { documentElement } from "./var/documentElement";
+import { rnothtmlwhite } from "./var/rnothtmlwhite";
+import { rcheckableType } from "./var/rcheckableType";
+import { isFunction } from "./var/isFunction";
+import { acceptData } from "./data/var/acceptData";
+import { dataPriv } from "./data/var/dataPriv";
+import { nodeName } from "./core/nodeName";
+import { needsContextPattern, findImpl, matchesSelectorImpl } from "./selector";
+import { containsImpl } from "./selector/contains";
+import {
+  createEmptyObject,
+  createNullProtoObject,
+  objectCreate,
+  hasProp,
+  deleteProp,
+  isUndefined,
+  isFalse,
+  typeOf,
+  stringify,
+  stringMatch,
+  stringSplit,
+  arraySort,
+  arraySlice,
+  arraySplice,
+  arrayJoin,
+  dateNow,
+  newRegexp,
+  regexTest,
+  regexExec,
+  jsUndefined,
+  call0,
+  call1,
+  call2,
+  call3,
+  apply,
+  addEventListener,
+  removeEventListener
+} from "./js-host.lil";
+
+/*
+ * Full port of upstream event.js. `add`/`remove`/`dispatch`/`handlers` are
+ * faithful to the source. Two upstream mechanisms are intentionally
+ * simplified because their prerequisites are not ported yet:
+ * - `addProp` normally installs lazy getters on `jQuery.Event.prototype`;
+ *   since events here are plain closures (no shared prototype), the same
+ *   properties are copied eagerly from the native event inside `Event()`.
+ * - Delegated-handler matching for `needsContext` selectors normally goes
+ *   through `jQuery(sel, this).index(cur)`; that requires the `traversing`/
+ *   `core/init` modules, which are not ported yet, so delegation always
+ *   uses the seed-based `find()` match instead (correct for plain
+ *   selectors, an approximation for leading-combinator ones).
+ * - `document.documentMode` (IE) branches are dropped; only the modern
+ *   evergreen-browser path is kept.
+ */
+
+Regex rtypenamespace = new Regex("^([^.]*)(?:\\.(.+)|)");
+
+struct TypeNamespace {
+  string type;
+  string[] namespaces;
+  string namespaceText;
+}
+
+class HandleObj {
+  string type;
+  string origType;
+  JsValue data;
+  JsValue handler;
+  JsValue guid;
+  JsValue selector;
+  bool needsContext;
+  JsValue namespace;
+
+  init(
+    string type,
+    string origType,
+    JsValue data,
+    JsValue handler,
+    JsValue guid,
+    JsValue selector,
+    bool needsContext,
+    JsValue namespace
+  ) {
+    this.type = type;
+    this.origType = origType;
+    this.data = data;
+    this.handler = handler;
+    this.guid = guid;
+    this.selector = selector;
+    this.needsContext = needsContext;
+    this.namespace = namespace;
+  }
+}
+
+HandleObj[]? asHandlerArray(JsValue value) {
+  if (JS.isArray(value)) {
+    HandleObj[] handlers = JS.assume(value);
+    return handlers;
+  }
+  return null;
+}
+
+HandleObj[] createHandlerArray() {
+  HandleObj[] handlers = [];
+  JsValue bag = JS.assume(handlers);
+  bag["delegateCount"] = 0.0;
+  return handlers;
+}
+
+float handlerDelegateCount(HandleObj[] handlers) {
+  JsValue bag = JS.assume(handlers);
+  return JS.assume(bag["delegateCount"]);
+}
+
+void setHandlerDelegateCount(HandleObj[] handlers, float count) {
+  JsValue bag = JS.assume(handlers);
+  bag["delegateCount"] = count;
+}
+
+class HandlerQueueEntry {
+  JsValue elem;
+  HandleObj[] handlers;
+
+  init(JsValue elem, HandleObj[] handlers) {
+    this.elem = elem;
+    this.handlers = handlers;
+  }
+}
+
+struct LoadSpecial {
+  bool noBubble;
+}
+
+struct ClickSpecial {
+  JsValue setup;
+  JsValue trigger;
+  JsValue _default;
+}
+
+struct BeforeUnloadSpecial {
+  JsValue postDispatch;
+}
+
+struct FocusBaseSpecial {
+  JsValue setup;
+  JsValue trigger;
+  JsValue teardown;
+  JsValue _default;
+  string delegateType;
+}
+
+struct FocusDelegateSpecial {
+  JsValue setup;
+  JsValue teardown;
+}
+
+struct EnterLeaveSpecial {
+  string delegateType;
+  string bindType;
+  JsValue handle;
+}
+
+struct EventApi {
+  JsValue global;
+  JsValue special;
+  JsValue handlers;
+  JsValue dispatch;
+  JsValue add;
+  JsValue remove;
+  JsValue fix;
+}
+
+JsValue emptySpecial = JS.object();
+
+JsValue returnTrue() {
+  return true;
+}
+
+JsValue returnFalse() {
+  return false;
+}
+
+JsValue eventApi = JS.undefined();
+JsValue global = JS.object();
+JsValue special = JS.object();
+
+JsValue expandoKey() {
+  return jQuery["expando"];
+}
+
+float nextGuid() {
+  float current = JS.number(jQuery["guid"]);
+  jQuery["guid"] = current + 1.0;
+  return current;
+}
+
+TypeNamespace splitTypeNamespace(string typeText) {
+  JsValue m = JS.regexExec(rtypenamespace, typeText);
+  string typePart = "";
+  string nsPart = "";
+  if (m.truthy()) {
+    JsValue g1 = m[1];
+    JsValue g2 = m[2];
+    if (g1.truthy()) {
+      typePart = JS.assume(g1);
+    }
+    if (g2.truthy()) {
+      nsPart = JS.assume(g2);
+    }
+  }
+  string[] namespaces = JS.stringSplit(nsPart, ".");
+  JS.sort(namespaces);
+  return TypeNamespace{ typePart, namespaces, JS.join(namespaces, ".") };
+}
+
+HandleObj[]? typedHandlers(JsValue elem, JsValue type) {
+  if (!dataPriv.hasData(elem)) {
+    return null;
+  }
+  JsValue elemData = dataPriv.get(elem);
+  JsValue events = elemData["events"];
+  if (!events.truthy()) {
+    return null;
+  }
+  return asHandlerArray(events[type]);
+}
+
+JsValue specialFor(JsValue type) {
+  JsValue specialForType = special[type];
+  if (specialForType.truthy()) {
+    return specialForType;
+  }
+  return emptySpecial;
+}
+
+void mergeHandleObjIn(HandleObj handleObj, JsValue handleObjIn) {
+  JsValue typeValue = handleObjIn["type"];
+  if (typeValue.truthy()) {
+    handleObj.type = JS.assume(typeValue);
+  }
+  JsValue origTypeValue = handleObjIn["origType"];
+  if (origTypeValue.truthy()) {
+    handleObj.origType = JS.assume(origTypeValue);
+  }
+  if (!JS.isUndefined(handleObjIn["data"])) {
+    handleObj.data = handleObjIn["data"];
+  }
+  if (!JS.isUndefined(handleObjIn["handler"])) {
+    handleObj.handler = handleObjIn["handler"];
+  }
+  if (!JS.isUndefined(handleObjIn["guid"])) {
+    handleObj.guid = handleObjIn["guid"];
+  }
+  if (!JS.isUndefined(handleObjIn["selector"])) {
+    handleObj.selector = handleObjIn["selector"];
+  }
+  if (!JS.isUndefined(handleObjIn["needsContext"])) {
+    handleObj.needsContext = JS.assume(handleObjIn["needsContext"]);
+  }
+  if (!JS.isUndefined(handleObjIn["namespace"])) {
+    handleObj.namespace = handleObjIn["namespace"];
+  }
+}
+
+string[] eventPropNames = [
+  "altKey", "bubbles", "cancelable", "changedTouches", "ctrlKey", "detail",
+  "eventPhase", "metaKey", "pageX", "pageY", "shiftKey", "view", "char",
+  "code", "charCode", "key", "keyCode", "button", "buttons", "clientX",
+  "clientY", "offsetX", "offsetY", "pointerId", "pointerType", "screenX",
+  "screenY", "targetTouches", "toElement", "touches", "which"
+];
+
+JsValue preventDefaultImpl() {
+  this["isDefaultPrevented"] = returnTrue;
+  JsValue original = this["originalEvent"];
+  if (original.truthy() && !this["isSimulated"].truthy()) {
+    JS.invoke(original, "preventDefault");
+  }
+  return JS.undefined();
+}
+
+JsValue stopPropagationImpl() {
+  this["isPropagationStopped"] = returnTrue;
+  JsValue original = this["originalEvent"];
+  if (original.truthy() && !this["isSimulated"].truthy()) {
+    JS.invoke(original, "stopPropagation");
+  }
+  return JS.undefined();
+}
+
+JsValue stopImmediatePropagationImpl() {
+  this["isImmediatePropagationStopped"] = returnTrue;
+  JsValue original = this["originalEvent"];
+  if (original.truthy() && !this["isSimulated"].truthy()) {
+    JS.invoke(original, "stopImmediatePropagation");
+  }
+  return JS.invoke(this, "stopPropagation");
+}
+
+struct EventProto {
+  JsValue isDefaultPrevented;
+  JsValue isPropagationStopped;
+  JsValue isImmediatePropagationStopped;
+  bool isSimulated;
+  JsValue preventDefault;
+  JsValue stopPropagation;
+  JsValue stopImmediatePropagation;
+}
+
+struct LeverageHandle {
+  bool namespace;
+  JsValue handler;
+}
+
+JsValue eventPrototype = EventProto{
+  returnFalse,
+  returnFalse,
+  returnFalse,
+  false,
+  preventDefaultImpl,
+  stopPropagationImpl,
+  stopImmediatePropagationImpl
+};
+
+export JsValue Event(JsValue src, JsValue props = null) {
+  JsValue self = objectCreate(eventPrototype);
+
+  if (src.truthy() && !JS.isUndefined(src["type"])) {
+    self["originalEvent"] = src;
+    self["type"] = src["type"];
+
+    JsValue defaultPreventedValue = src["defaultPrevented"];
+    if (defaultPreventedValue.truthy() || (JS.isUndefined(defaultPreventedValue) && src["returnValue"] == false)) {
+      self["isDefaultPrevented"] = returnTrue;
+    }
+
+    JsValue targetValue = src["target"];
+    if (JS.and(targetValue, targetValue["nodeType"]) == 3.0) {
+      self["target"] = targetValue["parentNode"];
+    } else {
+      self["target"] = targetValue;
+    }
+
+    self["currentTarget"] = src["currentTarget"];
+    self["relatedTarget"] = src["relatedTarget"];
+
+    int i = 0;
+    int len = eventPropNames.length;
+    for (; i < len; i++) {
+      string propName = eventPropNames[i];
+        if (JS.in(propName, src)) {
+        self[propName] = src[propName];
+      }
+    }
+  } else {
+    self["type"] = src;
+  }
+
+  if (props.truthy()) {
+    for (string key in props) {
+      self[key] = props[key];
+    }
+  }
+
+  JsValue timeStampValue = null;
+  if (src.truthy()) {
+    timeStampValue = src["timeStamp"];
+  }
+  if (timeStampValue.truthy()) {
+    self["timeStamp"] = timeStampValue;
+  } else {
+    self["timeStamp"] = dateNow();
+  }
+
+  self[expandoKey()] = true;
+  return self;
+}
+
+JsValue fix(JsValue originalEvent) {
+  if (originalEvent[expandoKey()].truthy()) {
+    return originalEvent;
+  }
+  return Event(originalEvent, null);
+}
+
+void leverageNative(JsValue el, string type, bool isSetup = false) {
+  if (!isSetup) {
+    if (JS.isUndefined(dataPriv.get(el, type))) {
+      add(el, type, returnTrue, null, null);
+    }
+    return;
+  }
+
+  dataPriv.set(el, type, false);
+
+  add(el, type, LeverageHandle{
+    false,
+    JS.methodRest((JsValue thisArg, JsValue args) => {
+    JsValue event = args[0];
+    JsValue saved = dataPriv.get(thisArg, type);
+
+    JsValue isTriggerValue = event["isTrigger"];
+    bool isTriggerNative = (JS.number(isTriggerValue).toInt() & 1) != 0;
+
+    if (isTriggerNative && thisArg[type].truthy()) {
+      if (!saved.truthy()) {
+        saved = JS.slice(args);
+        dataPriv.set(thisArg, type, saved);
+        JS.invoke(thisArg, type);
+        JsValue result = dataPriv.get(thisArg, type);
+        dataPriv.set(thisArg, type, false);
+        if (saved != result) {
+          JS.invoke(event, "stopImmediatePropagation");
+          JS.invoke(event, "preventDefault");
+          return result;
+        }
+      } else {
+        JsValue delegateOf = special[type];
+        if (delegateOf.truthy() && delegateOf["delegateType"].truthy()) {
+          JS.invoke(event, "stopPropagation");
+        }
+      }
+    } else if (saved.truthy()) {
+      JsValue savedTail = JS.slice(saved, 1.0);
+      dataPriv.set(thisArg, type, JS.invoke(eventApi, "trigger", saved[0], savedTail, thisArg));
+      JS.invoke(event, "stopPropagation");
+      event["isImmediatePropagationStopped"] = returnTrue;
+    }
+    return JS.undefined();
+  })
+  }, null, null);
+}
+
+JsValue stringMatchOrDefault(string typesText) {
+  return JS.or(JS.stringMatch(typesText, rnothtmlwhite), [""]);
+}
+
+export void add(JsValue elem, JsValue typesValue, JsValue handlerValue, JsValue data = null, JsValue selector = null, bool one = false) {
+  if (!acceptData(elem)) {
+    return;
+  }
+
+  JsValue handleObjIn = null;
+  JsValue handler = handlerValue;
+  if (handler.truthy() && handler["handler"].truthy()) {
+    handleObjIn = handler;
+    handler = handleObjIn["handler"];
+    selector = handleObjIn["selector"];
+  }
+
+  bool hasSelector = selector.truthy();
+  if (hasSelector) {
+    matchesSelectorImpl(documentElement, JS.assume(selector));
+  }
+
+  if (!handler["guid"].truthy()) {
+    handler["guid"] = nextGuid();
+  }
+
+  JsValue elemData = dataPriv.get(elem);
+  JsValue events = elemData["events"];
+  if (!events.truthy()) {
+    events = createNullProtoObject();
+    elemData["events"] = events;
+  }
+  if (!elemData["handle"].truthy()) {
+    elemData["handle"] = JS.methodRest(dispatchGate);
+  }
+  JsValue eventHandle = elemData["handle"];
+
+  string typesText = JS.string(JS.or(typesValue, ""));
+  JsValue types = stringMatchOrDefault(typesText);
+  float t = types.length;
+  while (t > 0.0) {
+    t = t - 1.0;
+    TypeNamespace parts = splitTypeNamespace(JS.string(types[t]));
+    string type = parts.type;
+    string origType = type;
+    string[] namespacesArray = parts.namespaces;
+    string namespaceText = parts.namespaceText;
+
+    if (type == "") {
+      continue;
+    }
+
+    JsValue specialForType = specialFor(type);
+    JsValue mappedType = specialForType["bindType"];
+    if (hasSelector) {
+      mappedType = specialForType["delegateType"];
+    }
+    type = JS.assume(JS.or(mappedType, type));
+
+    specialForType = specialFor(type);
+
+    bool needsContext = false;
+    if (hasSelector) {
+      needsContext = JS.regexTest(needsContextPattern, JS.assume(selector));
+    }
+    JsValue selectorValue = null;
+    if (hasSelector) {
+      selectorValue = selector;
+    }
+    HandleObj handleObj = new HandleObj(
+      type,
+      origType,
+      data,
+      handler,
+      handler["guid"],
+      selectorValue,
+      needsContext,
+      namespaceText
+    );
+    if (handleObjIn.truthy()) {
+      mergeHandleObjIn(handleObj, handleObjIn);
+    }
+    if (one) {
+      JsValue handleBag = handleObj;
+      handleBag["one"] = true;
+    }
+
+    HandleObj[]? existingHandlers = asHandlerArray(events[type]);
+    HandleObj[] handlers = createHandlerArray();
+    if (existingHandlers != null) {
+      handlers = existingHandlers;
+    } else {
+      events[type] = handlers;
+
+      JsValue setup = specialForType["setup"];
+      if (!setup.truthy() || JS.isFalse(JS.call(setup, elem, data, namespacesArray, eventHandle))) {
+        if (elem["addEventListener"].truthy()) {
+          addEventListener(elem, type, eventHandle);
+        }
+      }
+    }
+
+    if (specialForType["add"].truthy()) {
+      JS.call(specialForType["add"], elem, handleObj);
+      if (!handleObj.handler["guid"].truthy()) {
+        handleObj.handler["guid"] = handler["guid"];
+      }
+    }
+
+    if (hasSelector) {
+      float delegateCount = handlerDelegateCount(handlers);
+      JS.splice(handlers, delegateCount, 0.0, handleObj);
+      setHandlerDelegateCount(handlers, delegateCount + 1.0);
+    } else {
+      handlers.push(handleObj);
+    }
+
+    global[type] = true;
+  }
+}
+
+export void remove(JsValue elem, JsValue typesValue, JsValue handler = null, JsValue selector = null, bool mappedTypes = false) {
+  if (!dataPriv.hasData(elem)) {
+    return;
+  }
+  JsValue elemData = dataPriv.get(elem);
+  JsValue events = JS.and(elemData, elemData["events"]);
+  if (!events.truthy()) {
+    return;
+  }
+  string typesText = JS.string(JS.or(typesValue, ""));
+  JsValue types = stringMatchOrDefault(typesText);
+  float t = types.length;
+  while (t > 0.0) {
+    t = t - 1.0;
+    string rawType = JS.string(types[t]);
+    TypeNamespace parts = splitTypeNamespace(rawType);
+    string type = parts.type;
+    string origType = type;
+    string[] namespacesArray = parts.namespaces;
+    string namespaceText = parts.namespaceText;
+
+    if (type == "") {
+      for (string eventType in events) {
+        remove(elem, eventType + rawType, handler, selector, true);
+      }
+      continue;
+    }
+
+    JsValue specialForType = specialFor(type);
+    JsValue mappedType = specialForType["bindType"];
+    if (selector.truthy()) {
+      mappedType = specialForType["delegateType"];
+    }
+    type = JS.assume(JS.or(mappedType, type));
+
+    HandleObj[]? existingHandlers = asHandlerArray(events[type]);
+    if (existingHandlers != null) {
+      HandleObj[] handlers = existingHandlers;
+
+      Regex? namespaceMatcher = null;
+      if (namespaceText != "") {
+        namespaceMatcher = newRegexp("(^|\\.)" + JS.join(namespacesArray, "\\.(?:.*\\.|)") + "(\\.|$)");
+      }
+
+      int origCount = handlers.length;
+      int j = origCount;
+      while (j > 0) {
+        j = j - 1;
+        HandleObj handleObj = handlers[j];
+
+        bool typeOk = mappedTypes || origType == handleObj.origType;
+        bool handlerOk = !handler.truthy() || handler["guid"] == handleObj.guid;
+        bool namespaceOk = true;
+        if (namespaceMatcher != null) {
+          namespaceOk = JS.regexTest(namespaceMatcher, JS.string(handleObj.namespace));
+        }
+        bool selectorOk = !selector.truthy() || selector == handleObj.selector || (selector == "**" && handleObj.selector.truthy());
+
+        if (typeOk && handlerOk && namespaceOk && selectorOk) {
+          handlers.splice(j, 1);
+          if (handleObj.selector.truthy()) {
+            setHandlerDelegateCount(handlers, handlerDelegateCount(handlers) - 1.0);
+          }
+          if (specialForType["remove"].truthy()) {
+            JS.call(specialForType["remove"], elem, handleObj);
+          }
+        }
+      }
+
+      if (origCount > 0 && handlers.length == 0) {
+        JsValue teardown = specialForType["teardown"];
+        if (!teardown.truthy() || JS.isFalse(JS.call(teardown, elem, namespacesArray, elemData["handle"]))) {
+          removeEvent(elem, type, elemData["handle"]);
+        }
+        JS.delete(events, type);
+      }
+    }
+  }
+
+  if (isEmptyObject(events)) {
+    dataPriv.remove(elem, "handle events");
+  }
+}
+
+HandlerQueueEntry[] handlersFor(JsValue thisArg, JsValue event, HandleObj[] handlers) {
+  HandlerQueueEntry[] handlerQueue = [];
+  float delegateCount = handlerDelegateCount(handlers);
+  int delegateCountInt = delegateCount.toInt();
+  JsValue cur = event["target"];
+
+  bool isClick = event["type"] == "click";
+  JsValue buttonValue = event["button"];
+  bool suppressClick = isClick && JS.greaterThanOrEqual(buttonValue, 1.0);
+
+  if (delegateCount > 0.0 && JS.and(cur, cur["nodeType"]).truthy() && !suppressClick) {
+    Map<string, bool> matchedSelectors = new Map<string, bool>();
+    while (cur != thisArg) {
+      bool curIsElement = JS.and(cur, cur["nodeType"]) == 1.0;
+      bool clickDisabled = isClick && cur["disabled"] == true;
+      if (curIsElement && !clickDisabled) {
+        HandleObj[] matchedHandlers = [];
+        int i = 0;
+        for (; i < delegateCountInt; i++) {
+          HandleObj handleObj = handlers[i];
+          string sel = JS.string(handleObj.selector) + " ";
+          bool? existingOpt = matchedSelectors.get(sel);
+          bool matched = false;
+          if (existingOpt == null) {
+            JsValue[] seed = [];
+            seed.push(cur);
+            matched = findImpl(handleObj.selector, thisArg, null, seed).length > 0.0;
+            matchedSelectors.set(sel, matched);
+          } else {
+            matched = existingOpt;
+          }
+          if (matched) {
+            matchedHandlers.push(handleObj);
+          }
+        }
+        if (matchedHandlers.length > 0) {
+          handlerQueue.push(new HandlerQueueEntry(cur, matchedHandlers));
+        }
+      }
+      JsValue parent = cur["parentNode"];
+      if (parent.truthy()) {
+        cur = parent;
+      } else {
+        cur = thisArg;
+      }
+    }
+  }
+
+  cur = thisArg;
+  if (delegateCountInt < handlers.length) {
+    handlerQueue.push(new HandlerQueueEntry(cur, handlers.slice(delegateCountInt)));
+  }
+
+  return handlerQueue;
+}
+
+JsValue handlersForPublic(JsValue thisArg, JsValue event, JsValue handlersValue) {
+  HandleObj[]? typed = typedHandlers(thisArg, event["type"]);
+  HandleObj[] handlers = [];
+  if (typed != null) {
+    handlers = typed;
+  } else if (handlersValue.truthy()) {
+    HandleObj[]? supplied = asHandlerArray(handlersValue);
+    if (supplied != null) {
+      handlers = supplied;
+    }
+  }
+
+  HandlerQueueEntry[] queue = handlersFor(thisArg, event, handlers);
+  JsValue[] out = [];
+  int qi = 0;
+  while (qi < queue.length) {
+    out.push(queue[qi]);
+    qi = qi + 1;
+  }
+  return out;
+}
+
+JsValue dispatchGate(JsValue thisArg, JsValue args) {
+  JsValue nativeEvent = args[0];
+  JsValue triggered = jQuery["event"]["triggered"];
+  if (!JS.isUndefined(triggered) && JS.strictEqual(triggered, nativeEvent["type"])) {
+    return JS.undefined();
+  }
+  return dispatch(thisArg, args);
+}
+
+JsValue dispatch(JsValue thisArg, JsValue args) {
+  JsValue nativeEvent = args[0];
+  JsValue event = fix(nativeEvent);
+  args[0] = event;
+
+  JsValue eventType = event["type"];
+  HandleObj[]? typed = typedHandlers(thisArg, eventType);
+  HandleObj[] handlers = [];
+  if (typed != null) {
+    handlers = typed;
+  }
+  JsValue specialForType = specialFor(eventType);
+
+  event["delegateTarget"] = thisArg;
+
+  if (specialForType["preDispatch"].truthy()) {
+    if (JS.call(specialForType["preDispatch"], thisArg, event) == false) {
+      return JS.undefined();
+    }
+  }
+
+  HandlerQueueEntry[] handlerQueue = handlersFor(thisArg, event, handlers);
+
+  int i = 0;
+  while (i < handlerQueue.length && !JS.invoke(event, "isPropagationStopped").truthy()) {
+    HandlerQueueEntry matched = handlerQueue[i];
+    i = i + 1;
+    event["currentTarget"] = matched.elem;
+
+    int j = 0;
+    HandleObj[] matchedHandlers = matched.handlers;
+    while (j < matchedHandlers.length && !JS.invoke(event, "isImmediatePropagationStopped").truthy()) {
+      HandleObj handleObj = matchedHandlers[j];
+      j = j + 1;
+
+      JsValue rnamespaceValue = event["rnamespace"];
+      bool namespaceOk = true;
+      if (rnamespaceValue.truthy() && !JS.isFalse(handleObj.namespace)) {
+        namespaceOk = JS.invoke(rnamespaceValue, "test", JS.string(handleObj.namespace)).truthy();
+      }
+      if (namespaceOk) {
+        event["handleObj"] = handleObj;
+        event["data"] = handleObj.data;
+        JsValue handleBag = handleObj;
+        if (handleBag["one"].truthy()) {
+          offFromEvent(event);
+        }
+
+        JsValue originHandler = handleObj.handler;
+        JsValue originSpecial = special[handleObj.origType];
+        if (originSpecial.truthy() && originSpecial["handle"].truthy()) {
+          originHandler = originSpecial["handle"];
+        }
+
+        JsValue ret = JS.apply(originHandler, matched.elem, args);
+        if (!JS.isUndefined(ret)) {
+          event["result"] = ret;
+          if (JS.isFalse(ret)) {
+            JS.invoke(event, "preventDefault");
+            JS.invoke(event, "stopPropagation");
+          }
+        }
+      }
+    }
+  }
+
+  if (specialForType["postDispatch"].truthy()) {
+    JS.call(specialForType["postDispatch"], thisArg, event);
+  }
+
+  return event["result"];
+}
+
+eventApi = EventApi{
+  global,
+  special,
+  handlersForPublic,
+  JS.methodRest(dispatchGate),
+  add,
+  remove,
+  fix
+};
+
+export void removeEvent(JsValue elem, string type, JsValue handle) {
+  if (elem["removeEventListener"].truthy()) {
+    removeEventListener(elem, type, handle);
+  }
+}
+
+void offFromEvent(JsValue event) {
+  JsValue handleObj = event["handleObj"];
+  string namespaceStr = JS.string(handleObj["namespace"]);
+  string typesArg = JS.string(handleObj["origType"]);
+  if (namespaceStr != "") {
+    typesArg = typesArg + "." + namespaceStr;
+  }
+  remove(event["delegateTarget"], typesArg, handleObj["handler"], handleObj["selector"], false);
+}
+
+JsValue on(JsValue elem, JsValue typesValue, JsValue selectorValue, JsValue dataValue, JsValue fnValue, float one) {
+  if (JS.typeOf(typesValue) == "object") {
+    JsValue mapSelector = selectorValue;
+    JsValue mapData = dataValue;
+    if (JS.typeOf(mapSelector) != "string") {
+      if (!mapData.truthy()) {
+        mapData = mapSelector;
+      }
+      mapSelector = JS.undefined();
+    }
+    for (string type in typesValue) {
+      on(elem, type, mapSelector, mapData, typesValue[type], one);
+    }
+    return elem;
+  }
+
+  JsValue selector3 = selectorValue;
+  JsValue data3 = dataValue;
+  JsValue fn3 = fnValue;
+  bool normalized = false;
+  if (JS.isUndefined(dataValue) && JS.isUndefined(fnValue)) {
+    selector3 = JS.undefined();
+    data3 = JS.undefined();
+    fn3 = selectorValue;
+    normalized = true;
+  }
+  if (!normalized && JS.isUndefined(fnValue) && JS.typeOf(selectorValue) == "string") {
+    data3 = JS.undefined();
+    fn3 = dataValue;
+    normalized = true;
+  }
+  if (!normalized && JS.isUndefined(fnValue)) {
+    selector3 = JS.undefined();
+    data3 = selectorValue;
+    fn3 = dataValue;
+  }
+
+  if (JS.isFalse(fn3)) {
+    fn3 = returnFalse;
+  } else if (!fn3.truthy()) {
+    return elem;
+  }
+
+  float i = 0.0;
+  float len = elem.length;
+  for (; i < len; i++) {
+    add(elem[i], typesValue, fn3, data3, selector3, one == 1.0);
+  }
+  return elem;
+}
+
+JsValue off(JsValue elem, JsValue typesValue, JsValue selectorValue, JsValue fnValue) {
+  if (typesValue.truthy() && typesValue["preventDefault"].truthy() && typesValue["handleObj"].truthy()) {
+    offFromEvent(typesValue);
+    return elem;
+  }
+  if (JS.typeOf(typesValue) == "object") {
+    for (string type in typesValue) {
+      off(elem, type, selectorValue, typesValue[type]);
+    }
+    return elem;
+  }
+
+  JsValue selector2 = selectorValue;
+  JsValue fn2 = fnValue;
+  if (JS.isFalse(selectorValue) || isFunction(selectorValue)) {
+    fn2 = selectorValue;
+    selector2 = JS.undefined();
+  }
+  if (JS.isFalse(fn2)) {
+    fn2 = returnFalse;
+  }
+
+  return each(elem, JS.method0((JsValue el) => {
+    remove(el, typesValue, fn2, selector2, false);
+    return JS.undefined();
+  }));
+}
+
+export JsValue fnOn(JsValue self, JsValue args) {
+  return on(self, args[0], args[1], args[2], args[3], 0.0);
+}
+
+JsValue fnOne(JsValue self, JsValue args) {
+  return on(self, args[0], args[1], args[2], args[3], 1.0);
+}
+
+JsValue fnOff(JsValue self, JsValue args) {
+  return off(self, args[0], args[1], args[2]);
+}
+
+JsValue ownerDocOf(JsValue node) {
+  return JS.or(JS.or(node["ownerDocument"], node["document"]), node);
+}
+
+JsValue clickSetupImpl(JsValue thisArg) {
+  if (JS.regexTest(rcheckableType, thisArg["type"]) && thisArg["click"].truthy() && nodeName(thisArg, "input")) {
+    leverageNative(thisArg, "click", true);
+  }
+  return false;
+}
+
+JsValue clickTriggerImpl(JsValue thisArg) {
+  if (JS.regexTest(rcheckableType, thisArg["type"]) && thisArg["click"].truthy() && nodeName(thisArg, "input")) {
+    leverageNative(thisArg, "click", false);
+  }
+  return true;
+}
+
+JsValue clickDefaultImpl(JsValue event) {
+  JsValue target = event["target"];
+  JsValue saved = dataPriv.get(target, "click");
+  if (JS.regexTest(rcheckableType, target["type"]) && target["click"].truthy() && nodeName(target, "input") && saved.truthy()) {
+    return saved;
+  }
+  return nodeName(target, "a");
+}
+
+void registerClickSpecial() {
+  JsValue clickSpecial = ClickSpecial{
+    JS.method0(clickSetupImpl),
+    JS.method0(clickTriggerImpl),
+    clickDefaultImpl
+  };
+  special["click"] = clickSpecial;
+}
+
+void registerBeforeunloadSpecial() {
+  JsValue beforeunloadSpecial = BeforeUnloadSpecial{
+    JS.method1((JsValue thisArg, JsValue event) => {
+      JsValue resultValue = event["result"];
+      JsValue originalEvent = event["originalEvent"];
+      if (!JS.isUndefined(resultValue) && originalEvent.truthy()) {
+        originalEvent["returnValue"] = resultValue;
+      }
+      return JS.undefined();
+    })
+  };
+  special["beforeunload"] = beforeunloadSpecial;
+}
+
+JsValue focusMappedHandler = JS.method1((JsValue thisArg, JsValue nativeEvent) => {
+  JsValue simulated = "focusout";
+  if (nativeEvent["type"] == "focus") {
+    simulated = "focusin";
+  }
+  JS.invoke(eventApi, "simulate", simulated, nativeEvent["target"], fix(nativeEvent));
+  return JS.undefined();
+});
+
+void registerFocusBlur(string type, string delegateType) {
+
+  JsValue setupFn = JS.method0((JsValue thisArg) => {
+    leverageNative(thisArg, type, true);
+    return false;
+  });
+  JsValue triggerFn = JS.method0((JsValue thisArg) => {
+    leverageNative(thisArg, type, false);
+    return true;
+  });
+  JsValue teardownFalse = JS.method0((JsValue thisArg) => {
+    return false;
+  });
+
+  JsValue baseSpecial = FocusBaseSpecial{
+    setupFn,
+    triggerFn,
+    teardownFalse,
+    (JsValue event) => {
+      return dataPriv.get(event["target"], type);
+    },
+    delegateType
+  };
+  special[type] = baseSpecial;
+
+  JsValue delegateSetup = JS.method0((JsValue thisArg) => {
+    JsValue doc = ownerDocOf(thisArg);
+    JsValue attachesValue = dataPriv.get(doc, delegateType);
+    float attaches = JS.number(attachesValue);
+    if (attaches == 0.0) {
+      addEventListener(doc, type, focusMappedHandler, true);
+    }
+    dataPriv.set(doc, delegateType, attaches + 1.0);
+    return JS.undefined();
+  });
+  JsValue delegateTeardown = JS.method0((JsValue thisArg) => {
+    JsValue doc = ownerDocOf(thisArg);
+    JsValue attachesValue = dataPriv.get(doc, delegateType);
+    float attaches = JS.number(attachesValue) - 1.0;
+    if (attaches <= 0.0) {
+      removeEventListener(doc, type, focusMappedHandler, true);
+      dataPriv.remove(doc, delegateType);
+    } else {
+      dataPriv.set(doc, delegateType, attaches);
+    }
+    return JS.undefined();
+  });
+
+  JsValue delegateSpecial = FocusDelegateSpecial{
+    delegateSetup,
+    delegateTeardown
+  };
+  special[delegateType] = delegateSpecial;
+}
+
+JsValue enterLeaveHandle = JS.methodRest((JsValue thisArg, JsValue args) => {
+  JsValue event = args[0];
+  JsValue related = event["relatedTarget"];
+  JsValue handleObj = event["handleObj"];
+  JsValue ret = JS.undefined();
+  bool outside = !related.truthy() || (related != thisArg && !containsImpl(thisArg, related));
+  if (outside) {
+    event["type"] = handleObj["origType"];
+    ret = JS.apply(handleObj["handler"], thisArg, args);
+    event["type"] = handleObj["type"];
+  }
+  return ret;
+});
+
+void registerEnterLeave(string orig, string fixType) {
+  special[orig] = EnterLeaveSpecial{
+    fixType,
+    fixType,
+    enterLeaveHandle
+  };
+}
+
+void install() {
+  jQuery["event"] = eventApi;
+  jQuery["Event"] = Event;
+  eventPrototype["constructor"] = Event;
+  jQuery["removeEvent"] = removeEvent;
+
+  jQuery["fn"]["on"] = JS.methodRest(fnOn);
+  jQuery["fn"]["one"] = JS.methodRest(fnOne);
+  jQuery["fn"]["off"] = JS.methodRest(fnOff);
+
+  JsValue loadSpecial = LoadSpecial{true};
+  special["load"] = loadSpecial;
+
+  registerClickSpecial();
+  registerBeforeunloadSpecial();
+  registerFocusBlur("focus", "focusin");
+  registerFocusBlur("blur", "focusout");
+  registerEnterLeave("mouseenter", "mouseover");
+  registerEnterLeave("mouseleave", "mouseout");
+  registerEnterLeave("pointerenter", "pointerover");
+  registerEnterLeave("pointerleave", "pointerout");
+}
+
+install();
+
+export { jQuery };

@@ -1,0 +1,19 @@
+[optimization]
+preset = "maximum"
+
+[javascript]
+priority = "size-first"
+optimization_level = 15
+compression = [
+  "identifier-mangling",
+  "entropy-aware-mangling",
+  "quote-style-selection",
+  "safe-integer-coercion-elision",
+  "compact-boolean-literals",
+  "standard-grammar-elision",
+  "compact-generator-star",
+]
+cost_model = "raw"
+candidate_search = "off"
+stable_local_names = false
+local_name_reserve = 0

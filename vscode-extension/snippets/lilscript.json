@@ -13,6 +13,39 @@
     ],
     "description": "Declare a typed LilScript function"
   },
+  "Async function": {
+    "prefix": "asyncfn",
+    "body": [
+      "async ${1:int} ${2:name}(${3:int} ${4:value}) {",
+      "  return await Task.resolve(${5:${4:value}});",
+      "}"
+    ],
+    "description": "Declare a typed JavaScript-target async function"
+  },
+  "Generator function": {
+    "prefix": "genfn",
+    "body": [
+      "generator ${1:int} ${2:values}(${3:int} ${4:stop}) {",
+      "  for (int index = 0; index < ${4:stop}; index++) {",
+      "    yield index;",
+      "  }",
+      "}"
+    ],
+    "description": "Declare a typed JavaScript-target generator"
+  },
+  "Try catch finally": {
+    "prefix": "try",
+    "body": [
+      "try {",
+      "  ${1}",
+      "} catch (auto ${2:error}) {",
+      "  ${3}",
+      "} finally {",
+      "  ${4}",
+      "}"
+    ],
+    "description": "Handle a JavaScript-target exception with guaranteed cleanup"
+  },
   "Struct": {
     "prefix": "struct",
     "body": [
@@ -34,6 +67,17 @@
       "}"
     ],
     "description": "Declare an LilScript class and constructor"
+  },
+  "Derived class": {
+    "prefix": "extends",
+    "body": [
+      "class ${1:Child} extends ${2:Base} {",
+      "  init(${3:int} ${4:value}) {",
+      "    super(${4:value});",
+      "  }",
+      "}"
+    ],
+    "description": "Declare flattened non-virtual single inheritance"
   },
   "Typed map": {
     "prefix": "map",

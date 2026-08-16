@@ -1,0 +1,57 @@
+import { VisualElement } from "../VisualElement";
+import { createBox } from "../../projection/geometry/models";
+
+export class ObjectVisualElement extends VisualElement {
+  init(JsValue? options = null, JsValue? parent = null) {
+    super();
+    JsValue resolvedOptions = record{};
+    if (options != null) {
+      resolvedOptions = options;
+    }
+    this.type = "object";
+    this.options = resolvedOptions;
+    if (parent != null) {
+      this.options["parent"] = parent;
+    }
+    this.renderState = record{output: record{}};
+    ObjectVisualElement self = this;
+    this.readValueFromInstanceHook = (JsValue instance, string key) => {
+      JsValue value = instance[key];
+      if ((value is string) || (value is float)) {
+        return value;
+      }
+      return null;
+    };
+    this.getBaseTargetFromPropsHook = (JsValue _props, string _key) => {
+      return null;
+    };
+    this.removeValueFromRenderStateHook = (string key, JsValue renderState) => {
+      JsValue output = renderState["output"];
+      if (output.isObject()) {
+        output[key] = null;
+      }
+    };
+    this.measureViewportBoxHook = () => {
+      return createBox();
+    };
+    this.buildHook = () => {
+      JsValue output = self.renderState["output"];
+      if (output.isObject()) {
+        for (string key in self.latestValues) {
+          output[key] = self.latestValues[key];
+        }
+      }
+    };
+    this.renderInstanceHook = (JsValue instance, JsValue renderState, JsValue? _style, JsValue? _proj) => {
+      JsValue output = renderState["output"];
+      if (output.isObject()) {
+        for (string key in output) {
+          instance[key] = output[key];
+        }
+      }
+    };
+    this.sortInstanceNodePositionHook = (JsValue _a, JsValue _b) => {
+      return 0.0;
+    };
+  }
+}

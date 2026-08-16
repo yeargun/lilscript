@@ -1,0 +1,167 @@
+import { MotionGlobalConfig } from "../../motion-utils/global-config";
+import { performanceNow } from "../dom-host";
+import { createRenderStep } from "./render-step";
+import { Batcher, FrameData, Step, Steps } from "./types";
+
+float maxElapsed = 40.0;
+
+class BatchState {
+  bool runNextFrame;
+  bool useDefaultElapsed;
+  FrameData state;
+  Steps steps;
+  (func()->void)? processBatch;
+  (func()->void)? wake;
+
+  init(Steps steps) {
+    this.runNextFrame = false;
+    this.useDefaultElapsed = true;
+    this.state = new FrameData();
+    this.steps = steps;
+    this.processBatch = null;
+    this.wake = null;
+  }
+}
+
+export class RenderBatcher {
+  Batcher schedule;
+  func(func(FrameData)->void)->void cancel;
+  FrameData state;
+  Steps steps;
+
+  init(Batcher schedule, func(func(FrameData)->void)->void cancel, FrameData state, Steps steps) {
+    this.schedule = schedule;
+    this.cancel = cancel;
+    this.state = state;
+    this.steps = steps;
+  }
+}
+
+func(FrameData)->void bindStep(BatchState cell, Step step, func(FrameData)->void process, bool keepAlive, bool immediate) {
+  if (!cell.runNextFrame) {
+    (func()->void)? wake = cell.wake;
+    if (wake != null) {
+      wake();
+    }
+  }
+  return step.schedule(process, keepAlive, immediate);
+}
+
+export RenderBatcher createRenderBatcher(
+  func(func()->void)->void scheduleNextBatch,
+  bool allowKeepAlive
+) {
+  Step setup = createRenderStep(() => {});
+  Step read = createRenderStep(() => {});
+  Step resolveKeyframes = createRenderStep(() => {});
+  Step preUpdate = createRenderStep(() => {});
+  Step update = createRenderStep(() => {});
+  Step preRender = createRenderStep(() => {});
+  Step render = createRenderStep(() => {});
+  Step postRender = createRenderStep(() => {});
+
+  Steps steps = new Steps(
+    setup, read, resolveKeyframes, preUpdate, update, preRender, render, postRender
+  );
+  BatchState cell = new BatchState(steps);
+
+  setup = createRenderStep(() => { cell.runNextFrame = true; });
+  read = createRenderStep(() => { cell.runNextFrame = true; });
+  resolveKeyframes = createRenderStep(() => { cell.runNextFrame = true; });
+  preUpdate = createRenderStep(() => { cell.runNextFrame = true; });
+  update = createRenderStep(() => { cell.runNextFrame = true; });
+  preRender = createRenderStep(() => { cell.runNextFrame = true; });
+  render = createRenderStep(() => { cell.runNextFrame = true; });
+  postRender = createRenderStep(() => { cell.runNextFrame = true; });
+  steps = new Steps(
+    setup, read, resolveKeyframes, preUpdate, update, preRender, render, postRender
+  );
+  cell.steps = steps;
+
+  cell.processBatch = () => {
+    bool? useManualTiming = MotionGlobalConfig.useManualTiming;
+    float timestamp = cell.state.timestamp;
+    bool manual = false;
+    if (useManualTiming != null) {
+      manual = useManualTiming;
+    }
+    if (!manual) {
+      timestamp = performanceNow();
+    }
+    cell.runNextFrame = false;
+    if (!manual) {
+      if (cell.useDefaultElapsed) {
+        cell.state.delta = 1000.0 / 60.0;
+      } else {
+        float delta = timestamp - cell.state.timestamp;
+        if (delta > maxElapsed) {
+          delta = maxElapsed;
+        }
+        if (delta < 1.0) {
+          delta = 1.0;
+        }
+        cell.state.delta = delta;
+      }
+    }
+    cell.state.timestamp = timestamp;
+    cell.state.isProcessing = true;
+    cell.steps.setup.process(cell.state);
+    cell.steps.read.process(cell.state);
+    cell.steps.resolveKeyframes.process(cell.state);
+    cell.steps.preUpdate.process(cell.state);
+    cell.steps.update.process(cell.state);
+    cell.steps.preRender.process(cell.state);
+    cell.steps.render.process(cell.state);
+    cell.steps.postRender.process(cell.state);
+    cell.state.isProcessing = false;
+    if (cell.runNextFrame && allowKeepAlive) {
+      cell.useDefaultElapsed = false;
+      (func()->void)? process = cell.processBatch;
+      if (process != null) {
+        scheduleNextBatch(process);
+      }
+    }
+  };
+
+  cell.wake = () => {
+    cell.runNextFrame = true;
+    cell.useDefaultElapsed = true;
+    if (!cell.state.isProcessing) {
+      (func()->void)? process = cell.processBatch;
+      if (process != null) {
+        scheduleNextBatch(process);
+      }
+    }
+  };
+
+  Batcher schedule = new Batcher();
+  schedule.setup = (func(FrameData)->void process, bool keepAlive = false, bool immediate = false) =>
+    bindStep(cell, steps.setup, process, keepAlive, immediate);
+  schedule.read = (func(FrameData)->void process, bool keepAlive = false, bool immediate = false) =>
+    bindStep(cell, steps.read, process, keepAlive, immediate);
+  schedule.resolveKeyframes = (func(FrameData)->void process, bool keepAlive = false, bool immediate = false) =>
+    bindStep(cell, steps.resolveKeyframes, process, keepAlive, immediate);
+  schedule.preUpdate = (func(FrameData)->void process, bool keepAlive = false, bool immediate = false) =>
+    bindStep(cell, steps.preUpdate, process, keepAlive, immediate);
+  schedule.update = (func(FrameData)->void process, bool keepAlive = false, bool immediate = false) =>
+    bindStep(cell, steps.update, process, keepAlive, immediate);
+  schedule.preRender = (func(FrameData)->void process, bool keepAlive = false, bool immediate = false) =>
+    bindStep(cell, steps.preRender, process, keepAlive, immediate);
+  schedule.render = (func(FrameData)->void process, bool keepAlive = false, bool immediate = false) =>
+    bindStep(cell, steps.render, process, keepAlive, immediate);
+  schedule.postRender = (func(FrameData)->void process, bool keepAlive = false, bool immediate = false) =>
+    bindStep(cell, steps.postRender, process, keepAlive, immediate);
+
+  func(func(FrameData)->void)->void cancel = (func(FrameData)->void process) => {
+    steps.setup.cancel(process);
+    steps.read.cancel(process);
+    steps.resolveKeyframes.cancel(process);
+    steps.preUpdate.cancel(process);
+    steps.update.cancel(process);
+    steps.preRender.cancel(process);
+    steps.render.cancel(process);
+    steps.postRender.cancel(process);
+  };
+
+  return new RenderBatcher(schedule, cancel, cell.state, steps);
+}

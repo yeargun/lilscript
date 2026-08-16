@@ -1,0 +1,168 @@
+import {
+  setProp,
+  getProp,
+  isFunction,
+  callMethod0,
+  callMethod1,
+  callFn0
+} from "../dom-host";
+
+export class GroupAnimation {
+  JsValue[] animations;
+
+  init(JsValue[] input) {
+    this.animations = [];
+    for (int i = 0; i < input.length; i++) {
+      if (input[i].truthy()) {
+        this.animations.push(input[i]);
+      }
+    }
+    GroupAnimation self = this;
+    setProp(this, "attachTimeline", (JsValue timeline) => {
+      return self.attachTimeline(timeline);
+    });
+    setProp(this, "pause", () => {
+      self.pause();
+    });
+    setProp(this, "play", () => {
+      self.play();
+    });
+    setProp(this, "stop", () => {
+      self.stop();
+    });
+  }
+
+  JsValue getAll(string propName) {
+    if (this.animations.length == 0) {
+      return null;
+    }
+    JsValue first = this.animations[0];
+    if (propName == "time") {
+      JsValue getter = getProp(first, "getPlaybackTime");
+      if (isFunction(getter)) {
+        return callMethod0(first, "getPlaybackTime");
+      }
+    }
+    if (propName == "speed") {
+      JsValue getter = getProp(first, "getPlaybackSpeed");
+      if (isFunction(getter)) {
+        return callMethod0(first, "getPlaybackSpeed");
+      }
+    }
+    if (propName == "duration") {
+      JsValue getter = getProp(first, "getDuration");
+      if (isFunction(getter)) {
+        return callMethod0(first, "getDuration");
+      }
+    }
+    return getProp(first, propName);
+  }
+
+  void setAll(string propName, JsValue newValue) {
+    for (int i = 0; i < this.animations.length; i++) {
+      JsValue anim = this.animations[i];
+      if (propName == "time") {
+        JsValue setter = getProp(anim, "setPlaybackTime");
+        if (isFunction(setter)) {
+          callMethod1(anim, "setPlaybackTime", newValue);
+          continue;
+        }
+      }
+      if (propName == "speed") {
+        JsValue setter = getProp(anim, "setPlaybackSpeed");
+        if (isFunction(setter)) {
+          callMethod1(anim, "setPlaybackSpeed", newValue);
+          continue;
+        }
+      }
+      setProp(anim, propName, newValue);
+    }
+  }
+
+  float getMax(string propName) {
+    float max = 0.0;
+    for (int i = 0; i < this.animations.length; i++) {
+      JsValue value = this.readProp(this.animations[i], propName);
+      if (value is float) {
+        if (value > max) {
+          max = value;
+        }
+      }
+    }
+    return max;
+  }
+
+  JsValue readProp(JsValue anim, string propName) {
+    if (propName == "time") {
+      JsValue getter = getProp(anim, "getPlaybackTime");
+      if (isFunction(getter)) {
+        return callMethod0(anim, "getPlaybackTime");
+      }
+    }
+    if (propName == "speed") {
+      JsValue getter = getProp(anim, "getPlaybackSpeed");
+      if (isFunction(getter)) {
+        return callMethod0(anim, "getPlaybackSpeed");
+      }
+    }
+    if (propName == "duration") {
+      JsValue getter = getProp(anim, "getDuration");
+      if (isFunction(getter)) {
+        return callMethod0(anim, "getDuration");
+      }
+    }
+    return getProp(anim, propName);
+  }
+
+  void runAll(string methodName) {
+    for (int i = 0; i < this.animations.length; i++) {
+      JsValue method = getProp(this.animations[i], methodName);
+      if (isFunction(method)) {
+        callMethod0(this.animations[i], methodName);
+      }
+    }
+  }
+
+  func()->void attachTimeline(JsValue timeline) {
+    (func()->void)[] subscriptions = [];
+    for (int i = 0; i < this.animations.length; i++) {
+      JsValue anim = this.animations[i];
+      JsValue attach = getProp(anim, "attachTimeline");
+      if (isFunction(attach)) {
+        JsValue cancel = callMethod1(anim, "attachTimeline", timeline);
+        if (isFunction(cancel)) {
+          JsValue cancelFn = cancel;
+          subscriptions.push(() => {
+            callFn0(cancelFn);
+          });
+        }
+      }
+    }
+    return () => {
+      for (int i = 0; i < subscriptions.length; i++) {
+        subscriptions[i]();
+        callMethod0(this.animations[i], "stop");
+      }
+    };
+  }
+
+  void play() {
+    this.runAll("play");
+  }
+
+  void pause() {
+    this.runAll("pause");
+  }
+
+  void stop() {
+    this.runAll("stop");
+  }
+
+  void cancel() {
+    this.runAll("cancel");
+  }
+
+  void complete() {
+    this.runAll("complete");
+  }
+}

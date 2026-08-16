@@ -1,0 +1,76 @@
+import { warning } from "../../../motion-utils/errors";
+import { isGenerator } from "../generators/utils/is-generator";
+import { isAnimatable } from "./is-animatable";
+
+bool hasKeyframesChanged(JsValue[] keyframes) {
+  if (keyframes.length == 0) {
+    return false;
+  }
+  JsValue current = keyframes[0];
+  if (keyframes.length == 1) {
+    return true;
+  }
+  for (int i = 0; i < keyframes.length; i++) {
+    if (keyframes[i] != current) {
+      return true;
+    }
+  }
+  return false;
+}
+
+export bool canAnimate(
+  JsValue[] keyframes,
+  string? name = null,
+  JsValue? type = null,
+  float? velocity = null
+) {
+  if (keyframes.length == 0) {
+    return false;
+  }
+  JsValue originKeyframe = keyframes[0];
+  bool originIsNull = !(
+    (originKeyframe is float) ||
+    (originKeyframe is string) ||
+    (originKeyframe is bool) ||
+    originKeyframe.isArray() ||
+    (originKeyframe.isObject() && originKeyframe.truthy())
+  );
+  if (originIsNull) {
+    return false;
+  }
+  if (name == "display" || name == "visibility") {
+    return true;
+  }
+  JsValue targetKeyframe = keyframes[keyframes.length - 1];
+  bool isOriginAnimatable = isAnimatable(originKeyframe, name);
+  bool isTargetAnimatable = isAnimatable(targetKeyframe, name);
+  string label = "";
+  if (name != null) {
+    label = name;
+  }
+  string badValue = `${originKeyframe}`;
+  if (isOriginAnimatable) {
+    badValue = `${targetKeyframe}`;
+  }
+  warning(
+    isOriginAnimatable == isTargetAnimatable,
+    `You are trying to animate ${label} from "${originKeyframe}" to "${targetKeyframe}". "${badValue}" is not an animatable value.`,
+    "value-not-animatable"
+  );
+  if (!isOriginAnimatable || !isTargetAnimatable) {
+    return false;
+  }
+  if (hasKeyframesChanged(keyframes)) {
+    return true;
+  }
+  bool springLike = false;
+  if (type is string) {
+    springLike = type == "spring";
+  } else if (type != null) {
+    springLike = isGenerator(type);
+  }
+  if (springLike && velocity != null && velocity != 0.0) {
+    return true;
+  }
+  return false;
+}

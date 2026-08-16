@@ -1,0 +1,5 @@
+import { untrack } from "./reactive";
+
+export T createComponent<P,T>(func(P)->T component, P props) {
+  return untrack(() => component(props));
+}

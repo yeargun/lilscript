@@ -1,0 +1,1 @@
+let $=0,D=0,E;for(;D<12;++D){if(D%3==0)continue;for(E=0;E<4;)$=(D+E)%2==0?$+D*E|0:$+1|0,++E;}console.log($)

@@ -1,0 +1,8 @@
+export func(float)->float mirrorEasing(func(float)->float easing) {
+  return (float p) => {
+    if (p <= 0.5) {
+      return easing(2.0 * p) / 2.0;
+    }
+    return (2.0 - easing(2.0 * (1.0 - p))) / 2.0;
+  };
+}

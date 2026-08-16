@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "dictionary-template-router",
+  "title": "Cross-module token dictionaries and layout ordering",
+  "hypothesis": "Repeated keyword, prefix, suffix, and result-label vocabularies make helper layout and string-dictionary choices interact with both minification and codec windows while all tokens remain runtime supplied.",
+  "tier": "medium-structural",
+  "boundary": "runtime-host-script",
+  "structure": { "functions": 10, "modules": 2, "hostBoundaries": 2, "callDepth": 4 },
+  "opportunities": ["dictionary-repetition", "string-pooling", "declaration-order", "helper-sharing", "cross-module-inlining", "object-dictionary"],
+  "expectations": { "raw": "le", "gzip9": "le", "brotli11": "le" },
+  "vectors": [
+    { "name": "commands", "ints": [], "strings": ["render", "hydrate", "prefetch", "invalidate", "commit"], "expected": "template-route-retry\n3533\n" },
+    { "name": "qualified", "ints": [], "strings": ["cache:item:hot", "view:home:cold", "data:user:idle", "cache:next:cold", "view:tail:hot"], "expected": "template-route-warm\n5437\n" },
+    { "name": "mixed", "ints": [], "strings": ["render", "cache:alpha:hot", "", "data:beta:cold", "commit", "view:gamma:idle", "unknown"], "expected": "template-route-retry\n5796\n" },
+    { "name": "inherited-name", "ints": [], "strings": ["toString"], "expected": "template-route-stable\n414\n" },
+    { "name": "negative-total", "ints": [], "strings": ["A:cold"], "expected": "template-route-cold\n8\n" }
+  ]
+}

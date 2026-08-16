@@ -1,0 +1,119 @@
+import { HSLA, RGBA } from "../types";
+import { floatRegex } from "../utils/float-regex";
+import { isNullish } from "../utils/is-nullish";
+import { singleColorRegex } from "../utils/single-color-regex";
+import { stringMatch } from "../../../string-host";
+
+extern float parseFloat(string v);
+
+float channelFrom(JsValue v) {
+  if (v is float) {
+    return v;
+  }
+  if (v is string) {
+    return parseFloat(v);
+  }
+  return 0.0;
+}
+
+float objectChannel(JsValue v, string name, float fallback) {
+  if (!v.isObject()) {
+    return fallback;
+  }
+  JsValue raw = v[name];
+  if (raw is float) {
+    return raw;
+  }
+  if (raw is string) {
+    return parseFloat(raw);
+  }
+  return fallback;
+}
+
+export func(JsValue)->bool isColorString(string type, string? testProp = null) {
+  return (JsValue v) => {
+    if (v is string) {
+      if (singleColorRegex.test(v) && v.startsWith(type)) {
+        return true;
+      }
+    }
+    if (testProp != null) {
+      if (!isNullish(v)) {
+        if (v.isObject()) {
+          for (string key in v) {
+            if (key == testProp) {
+              return true;
+            }
+          }
+        }
+      }
+    }
+    return false;
+  };
+}
+
+export func(JsValue)->RGBA splitColorRGBA(string aName, string bName, string cName) {
+  return (JsValue v) => {
+    if (!(v is string)) {
+      return new RGBA(
+        objectChannel(v, aName, 0.0),
+        objectChannel(v, bName, 0.0),
+        objectChannel(v, cName, 0.0),
+        objectChannel(v, "alpha", 1.0)
+      );
+    }
+    JsValue matched = stringMatch(v, floatRegex);
+    float a = 0.0;
+    float b = 0.0;
+    float c = 0.0;
+    float alpha = 1.0;
+    if (matched.isArray()) {
+      if (matched.length > 0.0) {
+        a = channelFrom(matched[0]);
+      }
+      if (matched.length > 1.0) {
+        b = channelFrom(matched[1]);
+      }
+      if (matched.length > 2.0) {
+        c = channelFrom(matched[2]);
+      }
+      if (matched.length > 3.0) {
+        alpha = channelFrom(matched[3]);
+      }
+    }
+    return new RGBA(a, b, c, alpha);
+  };
+}
+
+export func(JsValue)->HSLA splitColorHSLA(string aName, string bName, string cName) {
+  return (JsValue v) => {
+    if (!(v is string)) {
+      return new HSLA(
+        objectChannel(v, aName, 0.0),
+        objectChannel(v, bName, 0.0),
+        objectChannel(v, cName, 0.0),
+        objectChannel(v, "alpha", 1.0)
+      );
+    }
+    JsValue matched = stringMatch(v, floatRegex);
+    float a = 0.0;
+    float b = 0.0;
+    float c = 0.0;
+    float alpha = 1.0;
+    if (matched.isArray()) {
+      if (matched.length > 0.0) {
+        a = channelFrom(matched[0]);
+      }
+      if (matched.length > 1.0) {
+        b = channelFrom(matched[1]);
+      }
+      if (matched.length > 2.0) {
+        c = channelFrom(matched[2]);
+      }
+      if (matched.length > 3.0) {
+        alpha = channelFrom(matched[3]);
+      }
+    }
+    return new HSLA(a, b, c, alpha);
+  };
+}

@@ -1,0 +1,4 @@
+import { animateSequence } from "./framer-motion/animation/animators/waapi/animate-sequence";
+import { animateMini } from "./framer-motion/animation/animators/waapi/animate-style";
+
+export { animateSequence, animateMini as animate };

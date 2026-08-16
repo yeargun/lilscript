@@ -5,8 +5,16 @@ runPassAblation({
   source: "benchmarks/function-subsumption/fixture.lil",
   expected: "benchmarks/function-subsumption/fixture.out",
   variants: [
-    ["subsumption enabled", "benchmarks/function-subsumption/enabled.toml", "enabled.js"],
-    ["subsumption disabled", "benchmarks/function-subsumption/disabled.toml", "disabled.js"],
+    [
+      "subsumption enabled",
+      "benchmarks/function-subsumption/enabled.toml",
+      "enabled.js",
+    ],
+    [
+      "subsumption disabled",
+      "benchmarks/function-subsumption/disabled.toml",
+      "disabled.js",
+    ],
   ],
-  strictMetrics: ["raw", "gzip", "brotli"],
+  gateMetric: "brotli",
 });

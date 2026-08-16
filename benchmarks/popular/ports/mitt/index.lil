@@ -44,14 +44,19 @@ export Emitter mitt(
     ((func(string)->void) | (func(Symbol|string, string)->void))[]? cur = all.get(type);
     if (cur != null) {
       cur.slice().map(
-        ((func(string)->void) | (func(Symbol|string, string)->void) handler) => handler(event)
+        ((func(string)->void) | (func(Symbol|string, string)->void) handler) => {
+          JsValue callable = handler;
+          callable(event);
+        }
       );
     }
     cur = all.get("*");
     if (cur != null) {
       cur.slice().map(
-        ((func(string)->void) | (func(Symbol|string, string)->void) handler) =>
-          handler(type, event)
+        ((func(string)->void) | (func(Symbol|string, string)->void) handler) => {
+          JsValue callable = handler;
+          callable(type, event);
+        }
       );
     }
   };

@@ -1,0 +1,55 @@
+import { clamp } from "../../../../motion-utils/clamp";
+import { alpha as alphaType, numberType } from "../numbers/index";
+import { RGBA } from "../types";
+import { ValueType } from "../types";
+import { sanitize } from "../utils/sanitize";
+import { isRgbaShape, rgbaFromJs } from "./shape";
+import { isColorString, splitColorRGBA } from "./utils";
+
+float clampRgbUnit(float v) {
+  return clamp(0.0, 255.0, v);
+}
+
+export ValueType rgbUnit = new ValueType(
+  numberType.test,
+  numberType.parse,
+  (JsValue v) => {
+    float n = 0.0;
+    if (v is float) {
+      n = v;
+    }
+    return clampRgbUnit(n).round();
+  }
+);
+
+export ValueType rgba = new ValueType(
+  isColorString("rgb", "red"),
+  (JsValue v) => splitColorRGBA("red", "green", "blue")(v),
+  (JsValue v) => {
+    RGBA color = new RGBA();
+    if (isRgbaShape(v)) {
+      color = rgbaFromJs(v);
+    }
+    (func(JsValue)->JsValue)? rgbTransform = rgbUnit.transform;
+    (func(JsValue)->JsValue)? alphaTransform = alphaType.transform;
+    float red = color.red;
+    float green = color.green;
+    float blue = color.blue;
+    float alpha = color.alpha;
+    if (rgbTransform != null) {
+      JsValue r = rgbTransform(red);
+      JsValue g = rgbTransform(green);
+      JsValue b = rgbTransform(blue);
+      JsValue a = alpha;
+      if (alphaTransform != null) {
+        a = alphaTransform(alpha);
+      }
+      float aNum = alpha;
+      if (a is float) {
+        aNum = a;
+      }
+      return "rgba(" + `${r}` + ", " + `${g}` + ", " + `${b}` + ", " + `${sanitize(aNum)}` + ")";
+    }
+    return "rgba(" + `${red.round()}` + ", " + `${green.round()}` + ", " + `${blue.round()}` + ", " + `${sanitize(alpha)}` + ")";
+  }
+);

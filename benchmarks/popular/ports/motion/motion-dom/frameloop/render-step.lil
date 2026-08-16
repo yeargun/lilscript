@@ -1,0 +1,89 @@
+import { FrameData, Step } from "./types";
+
+class StepState {
+  (func(FrameData)->void)[] thisFrame;
+  (func(FrameData)->void)[] nextFrame;
+  bool isProcessing;
+  bool flushNextFrame;
+  Set<func(FrameData)->void> toKeepAlive;
+  FrameData latestFrameData;
+  Step? stepRef;
+
+  init() {
+    this.thisFrame = [];
+    this.nextFrame = [];
+    this.isProcessing = false;
+    this.flushNextFrame = false;
+    this.toKeepAlive = new Set<func(FrameData)->void>();
+    this.latestFrameData = new FrameData();
+    this.stepRef = null;
+  }
+}
+
+export Step createRenderStep(func()->void runNextFrame) {
+  StepState state = new StepState();
+
+  func(func(FrameData)->void)->void triggerCallback = (func(FrameData)->void callback) => {
+    if (state.toKeepAlive.has(callback)) {
+      Step? step = state.stepRef;
+      if (step != null) {
+        step.schedule(callback, false, false);
+      }
+      runNextFrame();
+    }
+    callback(state.latestFrameData);
+  };
+
+  func(FrameData)->void processFn = (FrameData frameData) => {
+    state.latestFrameData = frameData;
+    if (state.isProcessing) {
+      state.flushNextFrame = true;
+      return;
+    }
+    state.isProcessing = true;
+    (func(FrameData)->void)[] prevFrame = state.thisFrame;
+    state.thisFrame = state.nextFrame;
+    state.nextFrame = prevFrame;
+    int i = 0;
+    while (i < state.thisFrame.length) {
+      triggerCallback(state.thisFrame[i]);
+      i = i + 1;
+    }
+    state.thisFrame = [];
+    state.isProcessing = false;
+    if (state.flushNextFrame) {
+      state.flushNextFrame = false;
+      Step? step = state.stepRef;
+      if (step != null) {
+        step.process(frameData);
+      }
+    }
+  };
+
+  Step step = new Step(
+    (func(FrameData)->void callback, bool keepAlive = false, bool immediate = false) => {
+      bool addToCurrentFrame = immediate && state.isProcessing;
+      (func(FrameData)->void)[] queue = state.nextFrame;
+      if (addToCurrentFrame) {
+        queue = state.thisFrame;
+      }
+      if (keepAlive) {
+        state.toKeepAlive.add(callback);
+      }
+      if (queue.indexOf(callback) == -1) {
+        queue.push(callback);
+      }
+      return callback;
+    },
+    (func(FrameData)->void callback) => {
+      int index = state.nextFrame.indexOf(callback);
+      if (index > -1) {
+        state.nextFrame.splice(index, 1);
+      }
+      state.toKeepAlive.delete(callback);
+    },
+    processFn
+  );
+  state.stepRef = step;
+  return step;
+}

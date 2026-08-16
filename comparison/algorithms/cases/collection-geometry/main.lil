@@ -1,0 +1,44 @@
+extern int algorithmInt(int index);
+extern int algorithmCount();
+
+struct Point {
+  int x;
+  int y;
+}
+
+pure Point makePoint(int x, int y) {
+  return Point{x, y};
+}
+
+pure Point translate(Point point, int dx, int dy) {
+  return Point{point.x + dx, point.y + dy};
+}
+
+pure int energy(Point point) {
+  return point.x * point.x + point.y * point.y;
+}
+
+pure int cross(Point left, Point right) {
+  return left.x * right.y - left.y * right.x;
+}
+
+int[] collectValues() {
+  int[] values = [];
+  for (int index = 0; index < algorithmCount(); index++) {
+    values.push(algorithmInt(index));
+  }
+  return values;
+}
+
+int analyzeGeometry() {
+  int[] values = collectValues();
+  int total = 0;
+  for (int index = 0; index + 3 < values.length; index += 4) {
+    Point first = translate(makePoint(values[index], values[index + 1]), index, -index);
+    Point second = makePoint(values[index + 2], values[index + 3]);
+    total += energy(first) + cross(first, second);
+  }
+  return total;
+}
+
+print(analyzeGeometry());

@@ -1,0 +1,19 @@
+[optimization]
+preset = "maximum"
+
+[javascript]
+priority = "balanced"
+optimization_level = 15
+cost_model = "brotli"
+candidate_search = "off"
+function_spelling = "arrow"
+strip_console = true
+inline_instruction_limit = 48
+inline_control_flow_limit = 64
+max_inline_growth = 40
+
+[mangle]
+identifiers = true
+properties = true
+exports = false
+pool_strings = false

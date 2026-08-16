@@ -1,0 +1,13 @@
+import { LayoutProjectionMetrics, StatsRecording } from "./types";
+
+export class StatsBuffer {
+  StatsRecording? value;
+  (func(LayoutProjectionMetrics)->void)? addProjectionMetrics;
+
+  init() {
+    this.value = null;
+    this.addProjectionMetrics = null;
+  }
+}
+
+export StatsBuffer statsBuffer = new StatsBuffer();

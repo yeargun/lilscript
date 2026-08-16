@@ -1,0 +1,15 @@
+extern string algorithmString(int index);
+extern int algorithmCount();
+import { tokenScore, labelFor, renderDigest } from "./dictionary";
+
+int runDictionaryRouter() {
+  int total = 0;
+  int count = algorithmCount();
+  for (int index = 0; index < count; index++) {
+    total += tokenScore(algorithmString(index), index);
+  }
+  print(labelFor(total));
+  return renderDigest(total, count);
+}
+
+print(runDictionaryRouter());

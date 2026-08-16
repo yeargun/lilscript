@@ -1,0 +1,1 @@
+let $=[1,2,3,4,5,6].map($=>$*3|0).filter($=>$%2==0),o=$.reduce(($,o)=>$+o|0,0);$.forEach($=>{console.log($)}),console.log(o)

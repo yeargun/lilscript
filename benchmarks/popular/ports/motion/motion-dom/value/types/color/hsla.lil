@@ -1,0 +1,36 @@
+import { alpha as alphaType } from "../numbers/index";
+import { percent } from "../numbers/units";
+import { HSLA } from "../types";
+import { ValueType } from "../types";
+import { sanitize } from "../utils/sanitize";
+import { isHslaShape, hslaFromJs } from "./shape";
+import { isColorString, splitColorHSLA } from "./utils";
+
+export ValueType hsla = new ValueType(
+  isColorString("hsl", "hue"),
+  (JsValue v) => splitColorHSLA("hue", "saturation", "lightness")(v),
+  (JsValue v) => {
+    HSLA color = new HSLA();
+    if (isHslaShape(v)) {
+      color = hslaFromJs(v);
+    }
+    (func(JsValue)->JsValue)? percentTransform = percent.transform;
+    (func(JsValue)->JsValue)? alphaTransform = alphaType.transform;
+    string sat = `${sanitize(color.saturation)}%`;
+    string light = `${sanitize(color.lightness)}%`;
+    if (percentTransform != null) {
+      JsValue s = percentTransform(sanitize(color.saturation));
+      JsValue l = percentTransform(sanitize(color.lightness));
+      sat = `${s}`;
+      light = `${l}`;
+    }
+    float aNum = color.alpha;
+    if (alphaTransform != null) {
+      JsValue a = alphaTransform(color.alpha);
+      if (a is float) {
+        aNum = a;
+      }
+    }
+    return "hsla(" + `${color.hue.round()}` + ", " + sat + ", " + light + ", " + `${sanitize(aNum)}` + ")";
+  }
+);

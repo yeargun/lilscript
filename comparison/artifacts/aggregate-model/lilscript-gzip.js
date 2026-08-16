@@ -1,0 +1,1 @@
+let c=[3,4];c=c[0]+c[1];console.log(42);console.log(c+6);console.log(c+13)

@@ -1,0 +1,57 @@
+import { taskFromCallback } from "../../dom-host";
+
+export class WithPromise {
+  Task<bool>? finishedTask;
+  (func()->void)? resolveFn;
+  bool resolved;
+
+  init() {
+    this.finishedTask = null;
+    this.resolveFn = null;
+    this.resolved = false;
+  }
+
+  Task<bool> finished() {
+    if (this.resolved) {
+      return Task.resolve(true);
+    }
+    Task<bool>? task = this.finishedTask;
+    if (task == null) {
+      this.createFinishedTask();
+      task = this.finishedTask;
+    }
+    if (task != null) {
+      return task;
+    }
+    return Task.resolve(this.resolved);
+  }
+
+  void updateFinished() {
+    this.finishedTask = null;
+    this.resolveFn = null;
+    this.resolved = false;
+  }
+
+  void createFinishedTask() {
+    WithPromise self = this;
+    this.finishedTask = taskFromCallback((func()->void resolve) => {
+      self.resolveFn = resolve;
+    });
+  }
+
+  void notifyFinished() {
+    this.resolved = true;
+    (func()->void)? resolve = this.resolveFn;
+    if (resolve != null) {
+      resolve();
+      this.resolveFn = null;
+    }
+  }
+
+  Task<bool> then(func()->void onResolve, (func()->void)? onReject = null) {
+    return this.finished().then((bool _v) => {
+      onResolve();
+      return true;
+    });
+  }
+}

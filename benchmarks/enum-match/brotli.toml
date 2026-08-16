@@ -1,0 +1,19 @@
+[optimization]
+preset = "maximum"
+
+[javascript]
+priority = "balanced"
+optimization_level = 15
+cost_model = "brotli"
+candidate_search = "always"
+candidate_limit = 1536
+candidate_byte_budget = 16777216
+candidate_beam_width = 24
+max_candidate_raw_growth_percent = 20
+
+[javascript.performance]
+deoptimization_weight = 32
+allocation_weight = 12
+indirect_call_weight = 24
+hot_code_weight = 1
+max_regression_percent = 10

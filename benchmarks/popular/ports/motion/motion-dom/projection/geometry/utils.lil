@@ -1,0 +1,38 @@
+import { Axis, AxisDelta, Box, Delta } from "../../../motion-utils/types/geometry";
+import { calcLength } from "./delta-calc";
+
+bool isAxisDeltaZero(AxisDelta delta) {
+  return delta.translate == 0.0 && delta.scale == 1.0;
+}
+
+export bool isDeltaZero(Delta delta) {
+  return isAxisDeltaZero(delta.x) && isAxisDeltaZero(delta.y);
+}
+
+export bool axisEquals(Axis a, Axis b) {
+  return a.min == b.min && a.max == b.max;
+}
+
+export bool boxEquals(Box a, Box b) {
+  return axisEquals(a.x, b.x) && axisEquals(a.y, b.y);
+}
+
+export bool axisEqualsRounded(Axis a, Axis b) {
+  return a.min.round() == b.min.round() && a.max.round() == b.max.round();
+}
+
+export bool boxEqualsRounded(Box a, Box b) {
+  return axisEqualsRounded(a.x, b.x) && axisEqualsRounded(a.y, b.y);
+}
+
+export float aspectRatio(Box box) {
+  return calcLength(box.x) / calcLength(box.y);
+}
+
+export bool axisDeltaEquals(AxisDelta a, AxisDelta b) {
+  return (
+    a.translate == b.translate &&
+    a.scale == b.scale &&
+    a.originPoint == b.originPoint
+  );
+}

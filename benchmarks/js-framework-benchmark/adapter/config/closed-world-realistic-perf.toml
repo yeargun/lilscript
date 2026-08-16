@@ -1,0 +1,27 @@
+[optimization]
+preset = "maximum"
+profile_guided = true
+call_site_specialization = true
+capture_signature_cloning = true
+identical_function_folding = true
+
+[javascript]
+priority = "realistic-performance-first"
+optimization_level = 15
+cost_model = "brotli"
+candidate_search = "production"
+candidate_limit = 1536
+candidate_byte_budget = 1048576
+candidate_beam_width = 12
+max_candidate_raw_growth_percent = 10
+public_aggregate_abi = "positional"
+pool_numeric_literals = true
+
+[mangle]
+identifiers = true
+properties = true
+exports = true
+pool_strings = true
+
+[bundle]
+mode = "single"

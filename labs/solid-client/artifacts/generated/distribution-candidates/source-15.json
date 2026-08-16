@@ -1,0 +1,9 @@
+{
+  "id": "source-15",
+  "description": "Level 15 source-shaped development output without candidate search",
+  "mode": "development",
+  "fingerprint": "fa7e6b95ef9fbd0f2cc1c1635baf3945f205d77a73d488380be7da8709187135",
+  "configSha256": "92e25d9fd4ff21f8b85ae967ac74fdf619c772ce44a2cd609d400b3e59463384",
+  "runtimeSha256": "c056f03b08be2ba9d377e1daae1d70ce5d955d05f956a2f4177e43ca2526dd92",
+  "runtimeRawBytes": 13828
+}

@@ -1,0 +1,38 @@
+import { clamp } from "../../../../motion-utils/clamp";
+import { ValueType } from "../types";
+
+extern float parseFloat(string v);
+
+export ValueType numberType = new ValueType(
+  (JsValue v) => v is float,
+  (JsValue v) => {
+    if (v is float) {
+      return v;
+    }
+    if (v is string) {
+      return parseFloat(v);
+    }
+    return 0.0;
+  },
+  (JsValue v) => v
+);
+
+export ValueType alpha = new ValueType(
+  numberType.test,
+  numberType.parse,
+  (JsValue v) => {
+    float n = 0.0;
+    if (v is float) {
+      n = v;
+    }
+    return clamp(0.0, 1.0, n);
+  }
+);
+
+export ValueType scale = new ValueType(
+  numberType.test,
+  numberType.parse,
+  numberType.transform,
+  null,
+  1.0
+);

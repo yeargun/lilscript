@@ -1,54 +1,330 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Compile and run LilScript in the browser playground.">
-    <title>Playground | LilScript</title>
-    <link rel="stylesheet" href="/src/styles.css">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="LilScript is a typed, compression-first language. Lilpack delivers it to the web. Compare Lastro, SolidLil, libraries, and algorithms against JavaScript and SolidJS."
+    />
+    <title>LilScript — a language built to ship less JavaScript</title>
+    <link rel="stylesheet" href="/src/styles.css" />
   </head>
-  <body class="playground-page">
-    <header class="site-header playground-header">
-      <a class="wordmark" href="/" aria-label="LilScript playground">
-        <span class="wordmark-mark" aria-hidden="true">L</span>
-        <span>LilScript</span>
-      </a>
-      <nav class="site-nav" aria-label="Primary navigation">
-        <a class="active" href="/">Playground</a>
-        <a href="/docs.html">Docs</a>
-        <a href="/benchmarks.html">Benchmarks</a>
-        <a href="/explorer.html">Explorer</a>
-        <a href="/delivery.html">Delivery</a>
-        <a href="/roadmap.html">Roadmap</a>
-        <a href="/about.html">About</a>
-      </nav>
-      <div class="playground-actions">
-        <span id="status" class="status" role="status">Ready</span>
-        <button id="run" class="primary-button" type="button">
-          <i data-lucide="play" aria-hidden="true"></i>
-          <span>Run</span>
-        </button>
-      </div>
+  <body class="content-page home-page">
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <header class="site-header">
+      <a class="wordmark" href="/" aria-label="LilScript home"
+        ><span class="wordmark-mark" aria-hidden="true">L</span
+        ><span>LilScript</span></a
+      >
+      <button
+        class="nav-toggle icon-button"
+        type="button"
+        aria-label="Toggle navigation"
+        aria-expanded="false"
+      >
+        <i data-lucide="menu" aria-hidden="true"></i>
+      </button>
+      <nav class="site-nav" aria-label="Primary navigation"></nav>
     </header>
 
-    <main class="workspace">
-      <section class="source-pane" aria-labelledby="source-title">
-        <div class="pane-bar">
-          <h1 id="source-title">Source</h1>
-          <span class="file-name">main.lil</span>
+    <main id="main-content">
+      <section class="product-hero content-width">
+        <div>
+          <p class="eyebrow">A language-centered web stack</p>
+          <h1>Write LilScript.<br /><span>Ship less JavaScript.</span></h1>
+          <p class="hero-summary">
+            LilScript is a typed, compression-first language. The compiler owns
+            types, optimization, mangling, and codec search. Lilpack is the
+            bundler that compiles <code>.lil</code> modules and delivers them
+            through Vite 8. They are not the same thing.
+          </p>
+          <div class="hero-actions">
+            <a class="primary-link" href="/demos.html"
+              >Open the demos<i data-lucide="arrow-right" aria-hidden="true"></i
+            ></a>
+            <a class="secondary-link" href="/playground.html"
+              >Try the language<i data-lucide="play" aria-hidden="true"></i
+            ></a>
+          </div>
         </div>
-        <textarea id="source" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="LilScript source code"></textarea>
+        <aside
+          class="hero-definition"
+          aria-label="The LilScript stack in one minute"
+        >
+          <p class="eyebrow">In one minute</p>
+          <dl>
+            <div>
+              <dt>LilScript</dt>
+              <dd>
+                The language, type system, SSA optimizer, and JavaScript/native
+                backends. Source of truth is <code>.lil</code>, not TypeScript.
+              </dd>
+            </div>
+            <div>
+              <dt><a href="/delivery.html">Lilpack</a></dt>
+              <dd>
+                The delivery interface: mixed <code>.lil</code> / JS / TS
+                graphs, HMR, and production bundles. It does not replace the
+                compiler.
+              </dd>
+            </div>
+            <div>
+              <dt>Projects</dt>
+              <dd>
+                Lilastro, SolidLil, and Lastro sit on that path. They prove
+                pages, reactivity, and a full app — they are not the language.
+              </dd>
+            </div>
+          </dl>
+        </aside>
       </section>
-      <section class="result-pane" aria-label="Compiler results">
-        <div class="tabs" role="tablist" aria-label="Result view">
-          <button id="console-tab" class="tab active" role="tab" aria-selected="true" aria-controls="console">Console</button>
-          <button id="js-tab" class="tab" role="tab" aria-selected="false" aria-controls="javascript">JavaScript</button>
+
+      <section class="stack-band" aria-labelledby="stack-title">
+        <div class="content-width">
+          <div class="section-heading">
+            <p class="eyebrow">One name per job</p>
+            <h2 id="stack-title">
+              The parts fit together. They are not the same thing.
+            </h2>
+            <p>
+              Start with LilScript source. Add only the project layer the
+              application needs. Lilpack owns delivery at the edge of the graph.
+            </p>
+          </div>
+          <ol class="stack-flow" aria-label="Lilscript web delivery flow">
+            <li>
+              <span>01 · language</span><strong>LilScript</strong>
+              <p>
+                Types, semantics, whole-program optimization, JavaScript and
+                native output. Gzip and Brotli are scored on complete artifacts.
+              </p>
+            </li>
+            <li>
+              <span>02 · optional layer</span
+              ><strong>Lilastro or SolidLil</strong>
+              <p>
+                Static page structure or a Solid-compatible reactive DOM,
+                still authored in LilScript and LSX.
+              </p>
+            </li>
+            <li>
+              <span>03 · delivery</span><strong>Lilpack</strong>
+              <p>
+                Compiles the module graph, keeps HMR honest, and ships the
+                compiler’s JavaScript. It is not a second optimizer stacked on
+                Terser.
+              </p>
+            </li>
+            <li>
+              <span>04 · application</span><strong>Lastro</strong>
+              <p>
+                The product experiment: Parcel Market, compared live against
+                its Astro control in the demos.
+              </p>
+            </li>
+          </ol>
         </div>
-        <pre id="console" class="result active" role="tabpanel" aria-labelledby="console-tab"></pre>
-        <pre id="javascript" class="result" role="tabpanel" aria-labelledby="js-tab"></pre>
+      </section>
+
+      <section
+        class="content-band content-width"
+        aria-labelledby="demos-title"
+      >
+        <div class="section-heading">
+          <p class="eyebrow">Demos, as pairs</p>
+          <h2 id="demos-title">Click a card. Compare both frames.</h2>
+          <p>
+            Live iframes for Lastro and SolidLil sit beside measured library
+            and algorithm pairs. Brotli, gzip, and compilation settings stay
+            under the stage.
+          </p>
+        </div>
+        <div class="home-demo-grid">
+          <a class="home-demo-card" href="/demos.html#lastro">
+            <span>Application</span>
+            <h3>Lastro</h3>
+            <p>
+              Parcel Market next to the Astro control. Same CSS and behavior
+              contract; 2,665 B vs 2,672 B Brotli JavaScript.
+            </p>
+            <b>Open the pair</b>
+          </a>
+          <a class="home-demo-card" href="/demos.html#solidlil-keyed">
+            <span>SolidLil + LSX</span>
+            <h3>SolidJS</h3>
+            <p>
+              Keyed table app, public ABI, and LSX versus JSX. Left is SolidJS;
+              right is the LilScript compile.
+            </p>
+            <b>Open the pair</b>
+          </a>
+          <a class="home-demo-card" href="/demos.html#motion-showcase-carousel">
+            <span>Libraries &amp; motion</span>
+            <h3>Motion</h3>
+            <p>
+              npm motion and the LilScript port in matching call-site fixtures,
+              then nanoid, mitt, hashes, and algorithm cases.
+            </p>
+            <b>Open the pair</b>
+          </a>
+        </div>
+      </section>
+
+      <section
+        class="content-band content-width"
+        aria-labelledby="projects-title"
+      >
+        <div class="section-heading">
+          <p class="eyebrow">Implementation projects</p>
+          <h2 id="projects-title">Read each experiment on its own terms</h2>
+          <p>
+            Every page separates current implementation, measured evidence, and
+            unsolved scope.
+          </p>
+        </div>
+        <div class="project-grid">
+          <article class="project-card project-card-primary">
+            <span class="status-tag implemented">Implemented POC</span>
+            <h3>Lilastro</h3>
+            <p>
+              A local <code>.lilastro</code> page compiler and CLI. It emits the
+              static shell, passes Lilscript entries to Lilpack, and uses Vite
+              8/Rolldown/Oxc for delivery.
+            </p>
+            <a href="/lilastro.html"
+              >How Lilastro works<i
+                data-lucide="arrow-right"
+                aria-hidden="true"
+              ></i
+            ></a>
+          </article>
+          <article class="project-card">
+            <span class="status-tag implemented"
+              >Runtime + client LSX parity</span
+            >
+            <h3>SolidLil</h3>
+            <p>
+              The pinned browser Core, Web, and Store runtime exposes all 135
+              public exports, passes 469/469 unchanged upstream tests, and
+              verifies all 21 in-scope client LSX families. Hydration and SSR
+              remain explicit server-coupled exclusions.
+            </p>
+            <a href="/solidlil.html"
+              >See scope and evidence<i
+                data-lucide="arrow-right"
+                aria-hidden="true"
+              ></i
+            ></a>
+            <a href="/demos.html#solidlil-keyed"
+              >Compare SolidJS live<i
+                data-lucide="arrow-right"
+                aria-hidden="true"
+              ></i
+            ></a>
+          </article>
+          <article class="project-card">
+            <span class="status-tag experiment">Application experiment</span>
+            <h3>Lastro</h3>
+            <p>
+              The app-level proving ground. Parcel Market exercises loading,
+              list state, checkout, accessibility, and the Lilastro/Lilpack
+              path.
+            </p>
+            <a href="/lastro.html"
+              >Understand the Lastro boundary<i
+                data-lucide="arrow-right"
+                aria-hidden="true"
+              ></i
+            ></a>
+            <a href="/demos.html#lastro"
+              >Use Parcel Market<i
+                data-lucide="arrow-right"
+                aria-hidden="true"
+              ></i
+            ></a>
+          </article>
+        </div>
+      </section>
+
+      <section class="evidence-band" aria-labelledby="evidence-title">
+        <div class="content-width">
+          <div class="section-heading">
+            <p class="eyebrow">Size evidence, with boundaries</p>
+            <h2 id="evidence-title">Smaller is a measurement, not a slogan</h2>
+            <p>
+              We compare equivalent behavior, publish raw and compressed output,
+              and state when an implementation covers only part of another
+              ecosystem.
+            </p>
+          </div>
+          <div class="evidence-grid">
+            <article>
+              <div class="metric-pair">
+                <strong>2,665 B</strong><span>Brotli JavaScript</span>
+              </div>
+              <h3>Lilastro + Lilpack marketplace</h3>
+              <p>
+                The accessibility-matched Astro build is 2,672 B Brotli. The
+                current win is 7 B (0.3%)—real, reproducible, and deliberately
+                described as tiny.
+              </p>
+              <a href="/demos.html#lastro">Open the live pair</a>
+            </article>
+            <article>
+              <div class="metric-pair">
+                <strong>8,507 B</strong><span>Brotli open-world Core</span>
+              </div>
+              <h3>SolidLil exact browser runtime</h3>
+              <p>
+                Official Solid Core is 8,551 B and Store is also smaller. Web
+                passes the same public and behavior gates but remains 385 B
+                larger, so the loss stays visible.
+              </p>
+              <a href="/demos.html#solidlil-api"
+                >Open the SolidLil pairs</a
+              >
+            </article>
+          </div>
+          <div class="codec-explainer">
+            <strong>How to read the numbers</strong>
+            <p>
+              <b>Raw</b> shows emitted code volume. <b>gzip</b> is common
+              transfer compression. <b>Brotli</b> is a stronger production
+              transfer codec. A result matters only after behavior and scope
+              match.
+            </p>
+            <a class="secondary-link" href="/demos.html"
+              >Open demos<i
+                data-lucide="arrow-right"
+                aria-hidden="true"
+              ></i
+            ></a>
+          </div>
+        </div>
+      </section>
+
+      <section class="demo-callout content-width" aria-labelledby="demo-title">
+        <div>
+          <p class="eyebrow">Sixty-plus comparisons</p>
+          <h2 id="demo-title">Libraries and algorithms use the same stage.</h2>
+          <p>
+            Popular ports, complete packages, paired compression cases, and
+            algorithm challenges are cards too. Click one to put npm/JS on the
+            left and the LilScript compile on the right, with gzip, Brotli, and
+            toolchain notes underneath.
+          </p>
+        </div>
+        <a class="primary-link" href="/demos.html"
+          >Browse every demo<i data-lucide="arrow-right" aria-hidden="true"></i
+        ></a>
       </section>
     </main>
-    <iframe id="runner" sandbox="allow-scripts" title="LilScript execution sandbox"></iframe>
-    <script type="module" src="/src/playground.js"></script>
+
+    <footer class="site-footer content-width">
+      <span>LilScript web stack</span
+      ><a href="/demos.html">Demos</a>
+    </footer>
+    <script type="module" src="/src/site.js"></script>
   </body>
 </html>

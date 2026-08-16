@@ -1,0 +1,52 @@
+extern string algorithmString(int index);
+
+pure bool isDigit(int code) {
+  return code >= 48 && code <= 57;
+}
+
+pure bool isLetter(int code) {
+  return (code >= 65 && code <= 90) || (code >= 97 && code <= 122);
+}
+
+pure int characterKind(int code) {
+  if (isDigit(code)) { return 1; }
+  if (isLetter(code)) { return 2; }
+  if (code == 58) { return 3; }
+  if (code == 59) { return 4; }
+  return 0;
+}
+
+pure int nextState(int state, int kind) {
+  if (kind == 4) { return 0; }
+  if (state == 0 && kind == 2) { return 1; }
+  if (state == 1 && kind == 3) { return 2; }
+  if (state == 2 && kind == 1) { return 3; }
+  return state;
+}
+
+pure int contribution(int state, int kind, int code, int index) {
+  if (state == 1) { return code + index; }
+  if (state == 2) { return kind * 17; }
+  if (state == 3) { return (code - 48) * (index + 1); }
+  return kind;
+}
+
+pure int finishState(int state, int checksum) {
+  return checksum * 5 + state * 97;
+}
+
+int parseStateMachine(string input) {
+  int state = 0;
+  int checksum = 0;
+  for (int index = 0; index < input.length; index++) {
+    int code = input.charCodeAt(index);
+    if (code == 35) { break; }
+    if (code == 32) { continue; }
+    int kind = characterKind(code);
+    state = nextState(state, kind);
+    checksum += contribution(state, kind, code, index);
+  }
+  return finishState(state, checksum);
+}
+
+print(parseStateMachine(algorithmString(0)));

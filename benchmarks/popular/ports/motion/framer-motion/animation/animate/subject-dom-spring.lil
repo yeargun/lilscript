@@ -1,0 +1,117 @@
+import { animateTarget } from "../../../motion-dom/animation/interfaces/visual-element-target-spring";
+import { animateSingleValue } from "../../../motion-dom/animation/animate/single-value";
+import { isMotionValue } from "../../../motion-dom/value/utils/is-motion-value";
+import { visualElementStore } from "../../../motion-dom/render/store";
+import { AnimationScope } from "../../../motion-dom/utils/resolve-elements";
+import { invariant } from "../../../motion-utils/errors";
+import {
+  callFn2,
+  callMethod2,
+  isFunction,
+  windowGet
+} from "../../../motion-dom/dom-host";
+import extern { weakMapGet } from "../../../motion-dom/weak-host.ts";
+import { createDOMVisualElement } from "../utils/create-html-visual-element";
+import { isDOMKeyframes } from "../utils/is-dom-keyframes";
+import { resolveSubjects } from "./resolve-subjects";
+
+extern JsValue? weakMapGet(JsValue map, JsValue key);
+
+void copyRecord(JsValue target, JsValue? source) {
+  if (source != null && source.isObject()) {
+    callMethod2(windowGet("Object"), "assign", target, source);
+  }
+}
+
+bool isSingleValue(JsValue? subject = null, JsValue? keyframes = null) {
+  if (isMotionValue(subject)) {
+    return true;
+  }
+  if (subject is float) {
+    return true;
+  }
+  if ((subject is string) && !isDOMKeyframes(keyframes)) {
+    return true;
+  }
+  return false;
+}
+
+export JsValue[] animateSubject(
+  JsValue? subject = null,
+  JsValue? keyframes = null,
+  JsValue? options = null,
+  AnimationScope? scope = null
+) {
+  JsValue[] animations = [];
+
+  if (isSingleValue(subject, keyframes)) {
+    JsValue resolvedKeyframes = keyframes;
+    if (keyframes != null) {
+      if (isDOMKeyframes(keyframes)) {
+        JsValue defaultKf = keyframes["default"];
+        if (defaultKf.truthy() || (defaultKf is float) || (defaultKf is string) || (defaultKf is bool)) {
+          resolvedKeyframes = defaultKf;
+        }
+      }
+    }
+    JsValue resolvedOptions = options;
+    if (options != null) {
+      if (options.isObject()) {
+        JsValue defaultOpt = options["default"];
+        if (defaultOpt.truthy() || (defaultOpt is float) || (defaultOpt is string) || (defaultOpt is bool)) {
+          resolvedOptions = defaultOpt;
+        }
+      }
+    }
+    animations.push(animateSingleValue(subject, resolvedKeyframes, resolvedOptions));
+    return animations;
+  }
+
+  if (subject == null) {
+    return animations;
+  }
+
+  JsValue[] subjects = resolveSubjects(subject, keyframes, scope);
+  int numSubjects = subjects.length;
+
+  invariant(numSubjects > 0, "No valid elements provided.", "no-valid-elements");
+
+  for (int i = 0; i < numSubjects; i++) {
+    JsValue thisSubject = subjects[i];
+
+    JsValue? stored = weakMapGet(visualElementStore, thisSubject);
+    if (stored == null) {
+      createDOMVisualElement(thisSubject);
+      stored = weakMapGet(visualElementStore, thisSubject);
+    }
+
+    JsValue? visualElement = stored;
+    if (visualElement == null) {
+      continue;
+    }
+
+    JsValue transition = record{};
+    copyRecord(transition, options);
+
+    JsValue delayVal = transition["delay"];
+    if (isFunction(delayVal)) {
+      transition["delay"] = callFn2(delayVal, i, numSubjects);
+    }
+
+    JsValue definition = record{};
+    copyRecord(definition, keyframes);
+    definition["transition"] = transition;
+
+    JsValue targetOpts = record{};
+    JsValue resolvedDelay = transition["delay"];
+    if (resolvedDelay is float) {
+      targetOpts["delay"] = resolvedDelay;
+    }
+    JsValue[] created = animateTarget(visualElement, definition, targetOpts);
+    for (int a = 0; a < created.length; a++) {
+      animations.push(created[a]);
+    }
+  }
+
+  return animations;
+}

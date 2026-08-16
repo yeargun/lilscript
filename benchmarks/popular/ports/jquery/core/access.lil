@@ -1,0 +1,66 @@
+import { wrap } from "../core";
+import { toType } from "./toType";
+import { isFunction } from "../var/isFunction";
+
+export JsValue access(
+  JsValue elems,
+  JsValue fn,
+  JsValue key,
+  JsValue value,
+  bool chainable,
+  JsValue emptyGet,
+  bool raw
+) {
+  float i = 0.0;
+  float len = elems.length;
+  bool bulk = key == null;
+
+  if (toType(key) == "object") {
+    chainable = true;
+    for (string prop in key) {
+      access(elems, fn, prop, key[prop], true, emptyGet, raw);
+    }
+  } else if (!JS.isUndefined(value)) {
+    chainable = true;
+
+    if (!isFunction(value)) {
+      raw = true;
+    }
+
+    if (bulk) {
+      if (raw) {
+        JS.call(fn, elems, value);
+        fn = null;
+      } else {
+        JsValue bulkFn = fn;
+        fn = (JsValue elem, JsValue _key, JsValue val) => {
+          return JS.call(bulkFn, wrap(elem), val);
+        };
+      }
+    }
+
+    if (fn.truthy()) {
+      for (; i < len; i++) {
+        JsValue elem = elems[i];
+        JsValue computed = value;
+        if (!raw) {
+          computed = JS.call(value, elem, i, fn(elem, key));
+        }
+        fn(elem, key, computed);
+      }
+    }
+  }
+
+  if (chainable) {
+    return elems;
+  }
+
+  if (bulk) {
+    return JS.call(fn, elems);
+  }
+
+  if (len != 0.0) {
+    return fn(elems[0], key);
+  }
+  return emptyGet;
+}

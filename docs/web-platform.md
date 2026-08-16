@@ -1,5 +1,7 @@
 # Web Platform Integration
 
+Host ABI reasoning: [knowledge/language/boundaries-escape.md](knowledge/language/boundaries-escape.md). Progressive enhancement: [knowledge/delivery/progressive-enhancement.md](knowledge/delivery/progressive-enhancement.md).
+
 LilScript is not a JavaScript syntax subset. It has its own static semantics and
 implements only language features that can be checked and optimized consistently.
 Browser APIs are a separate typed host ABI, declared with `extern class` and an
@@ -37,6 +39,14 @@ runtime type checks. External global and member names are ABI names. Identifier,
 property, and export mangling never changes them. Internal values passed to or
 returned from a host operation are marked as escaping so representation-changing
 optimizations remain sound.
+
+Known pure host factories used by ports may also lower in the optimizer before
+codegen: `createEmptyObject()` becomes a plain `{}` (distinct from null-proto
+`record{}`), `createArray()` becomes `[]`, `callN(f, null, …)` becomes a direct
+call, and rare DOM field getters expand to `.prop` when a mangled helper would
+cost more than the property spelling. That is the same class of whole-program
+knowledge Closure `ADVANCED` applies to externs — LilScript just starts from
+typed `extern` contracts instead of JSDoc.
 
 Property reads and ordinary host calls are conservatively effectful because a Web
 IDL getter or operation may throw, mutate host state, or run custom behavior. A

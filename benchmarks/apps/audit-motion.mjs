@@ -3,13 +3,11 @@ import { readFile, writeFile } from "node:fs/promises";
 
 const manifestUrl = new URL("./compatibility/motion-v13.json", import.meta.url);
 const packageUrl = new URL("./node_modules/motion/package.json", import.meta.url);
-const reactUrl = new URL("./node_modules/react/package.json", import.meta.url);
-const reactDomUrl = new URL("./node_modules/react-dom/package.json", import.meta.url);
+
+const DOM_ENTRYPOINT_PATHS = new Set([".", "./debug", "./mini"]);
 
 const manifest = JSON.parse(await readFile(manifestUrl, "utf8"));
 const packageManifest = JSON.parse(await readFile(packageUrl, "utf8"));
-const react = JSON.parse(await readFile(reactUrl, "utf8"));
-const reactDom = JSON.parse(await readFile(reactDomUrl, "utf8"));
 
 if (packageManifest.version !== manifest.version) {
   throw new Error(
@@ -19,6 +17,7 @@ if (packageManifest.version !== manifest.version) {
 
 const publishedEntrypoints = Object.keys(packageManifest.exports)
   .filter((path) => path !== "./package.json")
+  .filter((path) => DOM_ENTRYPOINT_PATHS.has(path))
   .map((path) => ({
     path,
     specifier: path === "." ? "motion" : `motion/${path.slice(2)}`,
@@ -45,7 +44,8 @@ for (const entrypoint of publishedEntrypoints) {
 const root = entrypoints.find((entrypoint) => entrypoint.path === ".");
 const output = {
   ...manifest,
-  auditedAt: "2026-08-09",
+  scope: "dom-only",
+  auditedAt: new Date().toISOString().slice(0, 10),
   rootRuntimeExports: root.runtimeExports,
   implementedRootRuntimeExports: 0,
   publishedEntrypoints: entrypoints,
@@ -54,13 +54,15 @@ const output = {
     0,
   ),
   uniqueRuntimeExportNames: uniqueNames.size,
-  peerEnvironment: {
-    react: react.version,
-    reactDom: reactDom.version,
+  outOfScopeEntrypoints: ["./react", "./react-client", "./react-m", "./react-mini"],
+  peerEnvironment: {},
+  testStatus: {
+    ...manifest.testStatus,
+    upstreamReact: "out-of-scope",
   },
 };
 
 await writeFile(manifestUrl, `${JSON.stringify(output, null, 2)}\n`);
 console.log(
-  `Audited motion@${manifest.version}: ${entrypoints.length} entrypoints, ${output.publishedRuntimeBindings} entrypoint bindings, ${output.uniqueRuntimeExportNames} unique names`,
+  `Audited motion@${manifest.version} (DOM-only): ${entrypoints.length} entrypoints, ${output.publishedRuntimeBindings} entrypoint bindings, ${output.uniqueRuntimeExportNames} unique names`,
 );

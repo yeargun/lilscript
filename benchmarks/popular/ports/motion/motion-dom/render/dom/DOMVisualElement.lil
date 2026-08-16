@@ -1,0 +1,79 @@
+import { VisualElement } from "../VisualElement";
+import { isMotionValue } from "../../value/utils/is-motion-value";
+import { DOMKeyframesResolver } from "../../animation/keyframes/DOMKeyframesResolver";
+import { callMethod1, callMethod2, callFn0, isFunction, setProp } from "../../dom-host";
+
+export class DOMVisualElement extends VisualElement {
+  (func()->void)? childSubscription;
+
+  init() {
+    super();
+    this.KeyframeResolverType = null;
+    this.childSubscription = null;
+    this.sortInstanceNodePositionHook = (JsValue a, JsValue b) => {
+      JsValue result = callMethod1(a, "compareDocumentPosition", b);
+      float bits = 0.0;
+      if (result is float) {
+        bits = result;
+      }
+      int mask = bits.toInt() & 2;
+      if (mask != 0) {
+        return 1.0;
+      }
+      return 0.0 - 1.0;
+    };
+    this.getBaseTargetFromPropsHook = (JsValue props, string key) => {
+      JsValue style = props["style"];
+      if (style.isObject()) {
+        return style[key];
+      }
+      return null;
+    };
+    this.removeValueFromRenderStateHook = (string key, JsValue renderState) => {
+      JsValue vars = renderState["vars"];
+      JsValue style = renderState["style"];
+      if (vars.isObject()) {
+        vars[key] = null;
+      }
+      if (style.isObject()) {
+        style[key] = null;
+      }
+    };
+    DOMVisualElement self = this;
+    this.handleChildMotionValueHook = () => {
+      self.handleChildMotionValue();
+    };
+  }
+
+  void handleChildMotionValue() {
+    (func()->void)? existing = this.childSubscription;
+    if (existing != null) {
+      existing();
+      this.childSubscription = null;
+    }
+    JsValue children = this.props["children"];
+    if (isMotionValue(children)) {
+      DOMVisualElement self = this;
+      JsValue unsubscribe = callMethod2(
+        children,
+        "on",
+        "change",
+        (JsValue? latest = null) => {
+          JsValue? current = self.current;
+          if (current != null) {
+            string text = "";
+            if (latest != null) {
+              text = `${latest}`;
+            }
+            setProp(current, "textContent", text);
+          }
+        }
+      );
+      if (isFunction(unsubscribe)) {
+        this.childSubscription = () => {
+          callFn0(unsubscribe);
+        };
+      }
+    }
+  }
+}

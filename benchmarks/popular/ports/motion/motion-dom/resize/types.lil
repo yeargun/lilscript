@@ -1,0 +1,9 @@
+export class ResizeInfo {
+  float width;
+  float height;
+
+  init(float width = 0.0, float height = 0.0) {
+    this.width = width;
+    this.height = height;
+  }
+}

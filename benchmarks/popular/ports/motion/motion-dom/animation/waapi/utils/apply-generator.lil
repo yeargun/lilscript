@@ -1,0 +1,18 @@
+import { supportsLinearEasing } from "../../../utils/supports/linear-easing";
+import { isGenerator } from "../../generators/utils/is-generator";
+import { springApplyToOptions } from "../../generators/spring-apply";
+import { ValueAnimationTransition } from "../../types";
+
+export ValueAnimationTransition applyGeneratorOptions(ValueAnimationTransition options) {
+  JsValue? type = options.type;
+  if (type != null && isGenerator(type) && supportsLinearEasing()) {
+    return springApplyToOptions(options);
+  }
+  if (options.duration == null) {
+    options.duration = 300.0;
+  }
+  if (options.ease == null) {
+    options.ease = "easeOut";
+  }
+  return options;
+}

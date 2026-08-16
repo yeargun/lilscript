@@ -1,0 +1,145 @@
+import { addToQueue } from "./queue";
+import { taskFromCallback, isFunction } from "../dom-host";
+
+export class ViewTransitionBuilder {
+  JsValue currentSubject;
+  Map<JsValue, JsValue> targets;
+  JsValue[] targetDefs;
+  Set<JsValue> resolveDefs;
+  Map<JsValue, bool> cropOverride;
+  Map<JsValue, JsValue> pairs;
+  Map<JsValue, string> classNames;
+  Set<JsValue> flatGroups;
+  func()->void update;
+  JsValue options;
+  (func(JsValue)->void)? notifyReady;
+  (func(JsValue)->void)? notifyReject;
+  Task<JsValue> readyPromise;
+
+  init(func()->void update, JsValue? options = null) {
+    this.currentSubject = "root";
+    this.targets = new Map<JsValue, JsValue>();
+    this.targetDefs = ["root"];
+    this.resolveDefs = new Set<JsValue>();
+    this.cropOverride = new Map<JsValue, bool>();
+    this.pairs = new Map<JsValue, JsValue>();
+    this.classNames = new Map<JsValue, string>();
+    this.flatGroups = new Set<JsValue>();
+    this.update = update;
+    this.options = options;
+    if (this.options == null) {
+      this.options = record{};
+    }
+    if (!(this.options["interrupt"] is string)) {
+      this.options["interrupt"] = "wait";
+    }
+    this.notifyReady = null;
+    this.notifyReject = null;
+    ViewTransitionBuilder self = this;
+    this.readyPromise = taskFromCallback((func()->void resolve) => {
+      self.notifyReady = (JsValue animation) => {
+        resolve();
+      };
+      self.notifyReject = (JsValue _error) => {
+        resolve();
+      };
+    }).then((bool _v) => null);
+    addToQueue(this);
+  }
+
+  ViewTransitionBuilder add(JsValue subject, JsValue? newSubject = null) {
+    this.currentSubject = subject;
+    this.resolveDefs.add(subject);
+    if (newSubject != null) {
+      this.pairs.set(subject, newSubject);
+    }
+    if (!this.targets.has(subject)) {
+      this.targets.set(subject, record{});
+      this.targetDefs.push(subject);
+    }
+    return this;
+  }
+
+  ViewTransitionBuilder crop(bool enabled = true) {
+    this.cropOverride.set(this.currentSubject, enabled);
+    return this;
+  }
+
+  ViewTransitionBuilder group(bool enabled = true) {
+    if (enabled) {
+      this.flatGroups.delete(this.currentSubject);
+    } else {
+      this.flatGroups.add(this.currentSubject);
+    }
+    return this;
+  }
+
+  ViewTransitionBuilder setClass(string name) {
+    this.classNames.set(this.currentSubject, name);
+    return this;
+  }
+
+  ViewTransitionBuilder layout(JsValue? options = null) {
+    JsValue opts = options;
+    if (opts == null) {
+      opts = record{};
+    }
+    this.updateTarget("layout", record{}, opts);
+    return this;
+  }
+
+  ViewTransitionBuilder enter(JsValue keyframes, JsValue? options = null) {
+    this.updateTarget("enter", keyframes, options);
+    return this;
+  }
+
+  ViewTransitionBuilder exit(JsValue keyframes, JsValue? options = null) {
+    this.updateTarget("exit", keyframes, options);
+    return this;
+  }
+
+  ViewTransitionBuilder newView(JsValue keyframes, JsValue? options = null) {
+    this.updateTarget("new", keyframes, options);
+    return this;
+  }
+
+  ViewTransitionBuilder old(JsValue keyframes, JsValue? options = null) {
+    this.updateTarget("old", keyframes, options);
+    return this;
+  }
+
+  void updateTarget(string target, JsValue keyframes, JsValue? options = null) {
+    JsValue opts = options;
+    if (opts == null) {
+      opts = record{};
+    }
+    JsValue subject = this.currentSubject;
+    if (!this.targets.has(subject)) {
+      this.targets.set(subject, record{});
+    }
+    JsValue? targetDataOpt = this.targets.get(subject);
+    JsValue targetData = record{};
+    if (targetDataOpt != null) {
+      targetData = targetDataOpt;
+    } else {
+      this.targets.set(subject, targetData);
+    }
+    targetData[target] = record{keyframes: keyframes, options: opts};
+  }
+
+  Task<JsValue> then(
+    func(JsValue)->JsValue onResolve,
+    (func(JsValue)->JsValue)? onReject = null
+  ) {
+    return this.readyPromise.then(onResolve);
+  }
+}
+
+export ViewTransitionBuilder animateView(
+  func()->void update,
+  JsValue? options = null
+) {
+  return new ViewTransitionBuilder(update, options);
+}
+
+export { addToQueue };

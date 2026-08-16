@@ -1,0 +1,286 @@
+import { jQuery, each, wrap } from "./core";
+import { access } from "./core/access";
+import { documentElement } from "./var/documentElement";
+import { isFunction } from "./var/isFunction";
+import { isWindow } from "./var/isWindow";
+import { rnumnonpx } from "./css/var/rnumnonpx";
+import { curCSS } from "./css/curCSS";
+import { addGetHookIf } from "./css/addGetHookIf";
+import { support } from "./css/support";
+import { css, style } from "./css";
+import {
+  hasProp,
+  call0,
+  call1,
+  call2,
+  regexTest,
+  stringify,
+  unaryPlus,
+  isNullish,
+  isUndefined,
+  jsUndefined
+} from "./js-host.lil";
+
+
+struct OffsetHooks {
+  JsValue setOffset;
+}
+
+struct OffsetCoords {
+  float top;
+  float left;
+}
+
+string cssString(JsValue value) {
+  return JS.string(JS.or(value, ""));
+}
+
+float cssFloat(JsValue value) {
+  return JS.number(value);
+}
+
+void setOffset(JsValue elem, JsValue optionsArg, float i) {
+  JsValue positionRaw = css(elem, "position");
+  string position = cssString(positionRaw);
+  JsValue curElem = wrap(elem);
+  OffsetCoords props = OffsetCoords{0.0 / 0.0, 0.0 / 0.0};
+  bool hasTop = false;
+  bool hasLeft = false;
+
+  if (position == "static") {
+    elem["style"]["position"] = "relative";
+  }
+
+  JsValue curOffset = JS.call(fnOffset, curElem);
+  string curCSSTop = cssString(css(elem, "top"));
+  string curCSSLeft = cssString(css(elem, "left"));
+  bool calculatePosition = false;
+  if (position == "absolute" || position == "fixed") {
+    calculatePosition = (curCSSTop + curCSSLeft).indexOf("auto") > -1;
+  }
+
+  float curTop = 0.0;
+  float curLeft = 0.0;
+
+  if (calculatePosition) {
+    JsValue curPosition = JS.call(fnPosition, curElem);
+    curTop = cssFloat(curPosition["top"]);
+    curLeft = cssFloat(curPosition["left"]);
+  } else {
+    curTop = JS.number(curCSSTop);
+    if (curTop != curTop) {
+      curTop = 0.0;
+    }
+    curLeft = JS.number(curCSSLeft);
+    if (curLeft != curLeft) {
+      curLeft = 0.0;
+    }
+  }
+
+  JsValue options = optionsArg;
+  if (isFunction(options)) {
+    OffsetCoords extended = OffsetCoords{
+      cssFloat(curOffset["top"]),
+      cssFloat(curOffset["left"])
+    };
+    options = JS.call(options, elem, i, extended);
+  }
+
+  JsValue optTop = options["top"];
+  if (!JS.isNullish(optTop)) {
+    props.top = (cssFloat(optTop) - cssFloat(curOffset["top"])) + curTop;
+    hasTop = true;
+  }
+  JsValue optLeft = options["left"];
+  if (!JS.isNullish(optLeft)) {
+    props.left = (cssFloat(optLeft) - cssFloat(curOffset["left"])) + curLeft;
+    hasLeft = true;
+  }
+
+  if (JS.in("using", options)) {
+    JsValue usingFn = options["using"];
+    JS.call(usingFn, elem, props);
+  } else {
+    if (hasTop) {
+      style(elem, "top", props.top, null);
+    }
+    if (hasLeft) {
+      style(elem, "left", props.left, null);
+    }
+  }
+}
+
+JsValue offsetHooks = OffsetHooks{setOffset};
+jQuery["offset"] = offsetHooks;
+
+JsValue fnOffset() {
+  JsValue self = this;
+  JsValue args = arguments;
+  if (args.length > 0.0) {
+    JsValue options = args[0];
+    if (JS.isUndefined(options)) {
+      return self;
+    }
+    return each(self, (JsValue index, JsValue elem) => {
+      setOffset(elem, options, cssFloat(index));
+      return JS.undefined();
+    });
+  }
+
+  JsValue elem = self[0];
+  if (!elem.truthy()) {
+    return JS.undefined();
+  }
+
+  JsValue rects = JS.invoke(elem, "getClientRects");
+  if (rects.length == 0.0) {
+    return OffsetCoords{0.0, 0.0};
+  }
+
+  JsValue rect = JS.invoke(elem, "getBoundingClientRect");
+  JsValue win = elem["ownerDocument"]["defaultView"];
+
+  return OffsetCoords{
+    cssFloat(rect["top"]) + cssFloat(win["pageYOffset"]),
+    cssFloat(rect["left"]) + cssFloat(win["pageXOffset"])
+  };
+}
+
+JsValue fnPosition() {
+  JsValue self = this;
+  JsValue elem = self[0];
+  if (!elem.truthy()) {
+    return JS.undefined();
+  }
+
+  JsValue parentOffset = OffsetCoords{0.0, 0.0};
+
+  JsValue offset = null;
+
+  if (cssString(css(elem, "position")) == "fixed") {
+    offset = JS.invoke(elem, "getBoundingClientRect");
+  } else {
+    JsValue selfWrapped = wrap(elem);
+    offset = JS.call(fnOffset, selfWrapped);
+
+    JsValue doc = elem["ownerDocument"];
+    JsValue offsetParent = elem["offsetParent"];
+    if (!offsetParent.truthy()) {
+      offsetParent = doc["documentElement"];
+    }
+
+    while (offsetParent.truthy()) {
+      bool isDocBody = offsetParent == doc["body"];
+      bool isDocElem = offsetParent == doc["documentElement"];
+      if (!(isDocBody || isDocElem)) {
+        break;
+      }
+      if (cssString(css(offsetParent, "position")) != "static") {
+        break;
+      }
+      offsetParent = offsetParent["parentNode"];
+    }
+
+    if (offsetParent.truthy() && offsetParent != elem) {
+      if (offsetParent["nodeType"] == 1.0) {
+        JsValue offsetParentWrapped = wrap(offsetParent);
+        parentOffset = JS.call(fnOffset, offsetParentWrapped);
+        float borderTop = cssFloat(css(offsetParent, "borderTopWidth", true));
+        float borderLeft = cssFloat(css(offsetParent, "borderLeftWidth", true));
+        parentOffset["top"] = cssFloat(parentOffset["top"]) + borderTop;
+        parentOffset["left"] = cssFloat(parentOffset["left"]) + borderLeft;
+      }
+    }
+  }
+
+  float marginTop = cssFloat(css(elem, "marginTop", true));
+  float marginLeft = cssFloat(css(elem, "marginLeft", true));
+
+  return OffsetCoords{
+    cssFloat(offset["top"]) - cssFloat(parentOffset["top"]) - marginTop,
+    cssFloat(offset["left"]) - cssFloat(parentOffset["left"]) - marginLeft
+  };
+}
+
+JsValue fnOffsetParent() {
+  JsValue self = this;
+  return JS.invoke(self, "map", (JsValue index, JsValue elem) => {
+    JsValue offsetParent = elem["offsetParent"];
+    while (offsetParent.truthy()) {
+      if (cssString(css(offsetParent, "position")) != "static") {
+        break;
+      }
+      offsetParent = offsetParent["offsetParent"];
+    }
+    if (offsetParent.truthy()) {
+      return offsetParent;
+    }
+    return documentElement;
+  });
+}
+
+JsValue fn = jQuery["fn"];
+fn["offset"] = fnOffset;
+fn["position"] = fnPosition;
+fn["offsetParent"] = fnOffsetParent;
+
+func()->bool pixelPositionCondition = () => JS.invoke(support, "pixelPosition").truthy();
+
+JsValue makeEdgeHook(string prop) {
+  return addGetHookIf(pixelPositionCondition, (JsValue elem, JsValue computed) => {
+    if (computed.truthy()) {
+      JsValue computedValue = curCSS(elem, prop, null);
+      string computedStr = cssString(computedValue);
+      if (JS.regexTest(rnumnonpx, computedStr)) {
+        JsValue wrapped = wrap(elem);
+        JsValue pos = JS.call(fnPosition, wrapped);
+        return JS.string(pos[prop]) + "px";
+      }
+      return computedValue;
+    }
+    return JS.undefined();
+  });
+}
+
+jQuery["cssHooks"]["top"] = makeEdgeHook("top");
+jQuery["cssHooks"]["left"] = makeEdgeHook("left");
+
+void installScrollMethod(string method, string prop, bool isTop) {
+  fn[method] = (JsValue valArg) => {
+    JsValue self = this;
+    return access(self, (JsValue elem, JsValue _method, JsValue valueArg) => {
+      JsValue win = null;
+      if (isWindow(elem)) {
+        win = elem;
+      } else if (elem["nodeType"] == 9.0) {
+        win = elem["defaultView"];
+      }
+
+      if (JS.isUndefined(valueArg)) {
+        if (win.truthy()) {
+          return win[prop];
+        }
+        return elem[method];
+      }
+
+      if (win.truthy()) {
+        float x = cssFloat(win["pageXOffset"]);
+        float y = cssFloat(win["pageYOffset"]);
+        float target = cssFloat(valueArg);
+        if (isTop) {
+          JS.invoke(win, "scrollTo", x, target);
+        } else {
+          JS.invoke(win, "scrollTo", target, y);
+        }
+      } else {
+        elem[method] = valueArg;
+      }
+      return JS.undefined();
+    }, method, valArg, !JS.isUndefined(valArg), null, false);
+  };
+}
+
+installScrollMethod("scrollLeft", "pageXOffset", false);
+installScrollMethod("scrollTop", "pageYOffset", true);
+
+export { jQuery };

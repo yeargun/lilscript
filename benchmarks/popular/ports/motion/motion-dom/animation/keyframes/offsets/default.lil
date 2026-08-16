@@ -1,0 +1,13 @@
+import { fillOffset } from "./fill";
+
+export float[] defaultOffset(JsValue[] arr) {
+  float[] offset = [0.0];
+  fillOffset(offset, arr.length - 1);
+  return offset;
+}
+
+export float[] defaultOffsetFloats(float[] arr) {
+  float[] offset = [0.0];
+  fillOffset(offset, arr.length - 1);
+  return offset;
+}

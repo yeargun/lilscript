@@ -1,0 +1,36 @@
+import { isMotionValue } from "../../value/utils/is-motion-value";
+import { motionValue as createMotionValue, MotionValue } from "../../value/index";
+import { animateMotionValue } from "../interfaces/motion-value";
+import { motionValueOf } from "../../cast";
+
+export JsValue animateSingleValue(
+  JsValue value,
+  JsValue keyframes,
+  JsValue? options = null
+) {
+  JsValue mvRef = value;
+  if (!isMotionValue(value)) {
+    mvRef = createMotionValue(value);
+  }
+  MotionValue mv = motionValueOf(mvRef);
+  mv.start((func()->void resolve) => {
+    func(func()->void)->JsValue? startAnimation =
+      animateMotionValue("", mvRef, keyframes, options);
+    return startAnimation(resolve);
+  });
+  JsValue? animation = mv.animation;
+  if (animation != null) {
+    return animation;
+  }
+  return record{
+    time: 0.0,
+    speed: 1.0,
+    state: "idle",
+    duration: 0.0,
+    iterationDuration: 0.0,
+    stop: () => {},
+    then: (func()->void resolve, (func()->void)? _reject = null) => {
+      resolve();
+    }
+  };
+}

@@ -1,0 +1,605 @@
+import { jQuery, isXMLDoc, each, merge, map, text, inArray, mergeObject, wrap } from "./core";
+import { add, remove, removeEvent } from "./event";
+import { filterImpl } from "./traversing/findFilter";
+import { containsImpl } from "./selector/contains";
+import { isAttached } from "./core/isAttached";
+import { DOMEval } from "./core/DOMEval";
+import { nodeName } from "./core/nodeName";
+import { access } from "./core/access";
+import { flat } from "./var/flat";
+import { isFunction } from "./var/isFunction";
+import { rcheckableType } from "./var/rcheckableType";
+import { rtagName } from "./manipulation/var/rtagName";
+import { rscriptType } from "./manipulation/var/rscriptType";
+import { wrapForTag } from "./manipulation/wrapMap";
+import { getAll } from "./manipulation/getAll";
+import { setGlobalEval } from "./manipulation/setGlobalEval";
+import { buildFragment } from "./manipulation/buildFragment";
+import { support } from "./manipulation/support";
+import { arr } from "./var/arr";
+import { dataPriv } from "./data/var/dataPriv";
+import { dataUser } from "./data/var/dataUser";
+import { acceptData } from "./data/var/acceptData";
+import {
+  createEmptyObject,
+  hasProp,
+  isNullish,
+  isUndefined,
+  call0,
+  call1,
+  call2,
+  call3,
+  apply,
+  regexTest,
+  regexExec,
+  stringReplace,
+  stringify,
+  stringSlice,
+  jsUndefined
+} from "./js-host.lil";
+
+
+Regex rnoInnerhtml = new Regex("<script|<style|<link", "i");
+Regex rchecked = new Regex("checked\\s*(?:[^=]|=\\s*.checked.)", "i");
+Regex rcleanScript = new Regex("^\\s*<!\\[CDATA\\[|\\]\\]>\\s*$", "g");
+
+struct NonceOpts {
+  JsValue nonce;
+}
+
+JsValue fn = jQuery["fn"];
+
+JsValue manipulationTarget(JsValue elem, JsValue content) {
+  JsValue contentForCheck = content;
+  if (content["nodeType"] == 11.0) {
+    contentForCheck = content["firstChild"];
+  }
+
+  if (nodeName(elem, "table") && nodeName(contentForCheck, "tr")) {
+    JsValue wrapped = wrap(elem);
+    JsValue tbodyChildren = JS.invoke(wrapped, "children", "tbody");
+    JsValue firstTbody = tbodyChildren[0];
+    if (!JS.isNullish(firstTbody)) {
+      return firstTbody;
+    }
+    return elem;
+  }
+
+  return elem;
+}
+
+JsValue disableScript(JsValue elem) {
+  bool hasTypeAttr = !JS.isNullish(JS.invoke(elem, "getAttribute", "type"));
+  string boolPart = "false";
+  if (hasTypeAttr) {
+    boolPart = "true";
+  }
+  elem["type"] = boolPart + "/" + JS.string(elem["type"]);
+  return elem;
+}
+
+JsValue restoreScript(JsValue elem) {
+  string typeStr = JS.string(JS.or(elem["type"], ""));
+  if (JS.stringSlice(typeStr, 0.0, 5.0) == "true/") {
+    elem["type"] = JS.stringSlice(typeStr, 5.0);
+  } else {
+    JS.invoke(elem, "removeAttribute", "type");
+  }
+  return elem;
+}
+
+void cloneCopyEvent(JsValue src, JsValue dest) {
+  if (dest["nodeType"] != 1.0) {
+    return;
+  }
+
+  if (dataPriv.hasData(src)) {
+    JsValue pdataOld = dataPriv.get(src);
+    JsValue events = pdataOld["events"];
+    if (events.truthy()) {
+      dataPriv.remove(dest, "handle events");
+      for (string type in events) {
+        JsValue handlers = events[type];
+        if (!handlers.truthy()) {
+          continue;
+        }
+        int len = handlers.length.toInt();
+        for (int i = 0; i < len; i++) {
+          add(dest, type, handlers[i]);
+        }
+      }
+    }
+  }
+
+  if (dataUser.hasData(src)) {
+    JsValue udataOld = dataUser.access(src);
+    JsValue udataCur = mergeObject(JS.object(), udataOld, false);
+    dataUser.set(dest, udataCur);
+  }
+}
+
+void fixInput(JsValue src, JsValue dest) {
+  string nm = JS.string(dest["nodeName"]).toLowerCase();
+  string srcType = JS.string(src["type"]);
+
+  if (nm == "input" && JS.regexTest(rcheckableType, srcType)) {
+    dest["checked"] = src["checked"];
+  } else if (nm == "input" || nm == "textarea") {
+    dest["defaultValue"] = src["defaultValue"];
+  }
+}
+
+export JsValue domManip(JsValue collection, JsValue argsIn, JsValue callback, JsValue ignored = null) {
+  JsValue args = flat(argsIn);
+
+  float l = collection.length;
+  float iNoClone = l - 1.0;
+  JsValue value = args[0];
+  bool valueIsFunction = isFunction(value);
+
+  bool needsPerElementRecursion = valueIsFunction;
+  if (!needsPerElementRecursion) {
+    if (l > 1.0) {
+      if (value is string) {
+        string valueStr = value;
+        if (!support["checkClone"].truthy()) {
+          if (JS.regexTest(rchecked, valueStr)) {
+            needsPerElementRecursion = true;
+          }
+        }
+      }
+    }
+  }
+
+  if (needsPerElementRecursion) {
+    return each(collection, (JsValue index, JsValue elemRaw) => {
+      JsValue selfSub = JS.invoke(collection, "eq", index);
+      if (valueIsFunction) {
+        JsValue htmlText = JS.invoke(selfSub, "html");
+        JsValue computed = JS.call(value, elemRaw, index, htmlText);
+        args[0] = computed;
+      }
+      domManip(selfSub, args, callback, ignored);
+      return JS.undefined();
+    });
+  }
+
+  if (l > 0.0) {
+    JsValue firstCollectionElem = collection[0];
+    JsValue fragment = buildFragment(args, firstCollectionElem["ownerDocument"], false, collection, ignored);
+    JsValue first = fragment["firstChild"];
+
+    bool singleChild = fragment["childNodes"]["length"] == 1.0;
+    if (singleChild) {
+      fragment = first;
+    }
+
+    if (first.truthy() || ignored.truthy()) {
+      JsValue scripts = map(getAll(fragment, "script"), disableScript);
+      float hasScripts = scripts.length;
+
+      float i = 0.0;
+      for (; i < l; i++) {
+        JsValue node = fragment;
+        if (i != iNoClone) {
+          node = clone(node, true, true);
+          if (hasScripts > 0.0) {
+            merge(scripts, getAll(node, "script"));
+          }
+        }
+        JS.call(callback, collection[i], node, i);
+      }
+
+      if (hasScripts > 0.0) {
+        JsValue lastScript = scripts[hasScripts - 1.0];
+        JsValue doc = lastScript["ownerDocument"];
+
+        map(scripts, restoreScript);
+
+        float j = 0.0;
+        for (; j < hasScripts; j++) {
+          JsValue node = scripts[j];
+          string typeStr = JS.string(JS.or(node["type"], ""));
+          bool alreadyEvaluated = dataPriv.access(node, "globalEval").truthy();
+          bool contained = containsImpl(doc, node);
+
+          if (JS.regexTest(rscriptType, typeStr) && !alreadyEvaluated && contained) {
+            JsValue srcRaw = node["src"];
+            bool hasSrc = srcRaw.truthy();
+            bool isModule = typeStr.toLowerCase() == "module";
+
+            if (hasSrc && !isModule) {
+              JsValue evalUrlFn = jQuery["_evalUrl"];
+              bool noModule = node["noModule"].truthy();
+              if (evalUrlFn.truthy() && !noModule) {
+                NonceOpts nonceOpts = NonceOpts{null};
+                JsValue nonceRaw = node["nonce"];
+                if (!nonceRaw.truthy()) {
+                  nonceRaw = JS.invoke(node, "getAttribute", "nonce");
+                }
+                nonceOpts.nonce = nonceRaw;
+                string srcStr = JS.string(srcRaw);
+                JS.call(evalUrlFn, jQuery, srcStr, nonceOpts, doc);
+              }
+            } else {
+              JsValue textRaw = node["textContent"];
+              string textStr = "";
+              if (textRaw is string) {
+                textStr = textRaw;
+              }
+              DOMEval(JS.stringReplace(textStr, rcleanScript, ""), node, doc);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return collection;
+}
+
+JsValue removeElems(JsValue elem, JsValue selector, bool keepData) {
+  JsValue nodes = elem;
+  if (selector.truthy()) {
+    nodes = filterImpl(selector, elem);
+  }
+
+  float i = 0.0;
+  while (true) {
+    JsValue node = nodes[i];
+    i = i + 1.0;
+    if (JS.isNullish(node)) {
+      break;
+    }
+
+    if (!keepData) {
+      if (node["nodeType"] == 1.0) {
+        cleanData(getAll(node, false));
+      }
+    }
+
+    JsValue parent = node["parentNode"];
+    if (parent.truthy()) {
+      if (keepData && isAttached(node)) {
+        setGlobalEval(getAll(node, "script"));
+      }
+      JS.invoke(parent, "removeChild", node);
+    }
+  }
+
+  return elem;
+}
+
+export JsValue htmlPrefilter(JsValue html) {
+  return html;
+}
+
+export JsValue clone(JsValue elem, JsValue dataAndEventsArg = false, JsValue deepDataAndEventsArg = false) {
+  JsValue cloned = JS.invoke(elem, "cloneNode", true);
+  bool inPage = isAttached(elem);
+
+  JsValue srcElements = null;
+  JsValue destElements = null;
+
+  JsValue nodeTypeRaw = elem["nodeType"];
+  bool isElementOrFragment = nodeTypeRaw == 1.0 || nodeTypeRaw == 11.0;
+
+  if (!support["noCloneChecked"].truthy() && isElementOrFragment && !isXMLDoc(elem)) {
+    destElements = getAll(cloned);
+    srcElements = getAll(elem);
+
+    int len = srcElements.length.toInt();
+    for (int i = 0; i < len; i++) {
+      fixInput(srcElements[i], destElements[i]);
+    }
+  }
+
+  if (dataAndEventsArg.truthy()) {
+    if (deepDataAndEventsArg.truthy()) {
+      if (JS.isNullish(srcElements)) {
+        srcElements = getAll(elem);
+      }
+      if (JS.isNullish(destElements)) {
+        destElements = getAll(cloned);
+      }
+
+      int len2 = srcElements.length.toInt();
+      for (int i = 0; i < len2; i++) {
+        cloneCopyEvent(srcElements[i], destElements[i]);
+      }
+    } else {
+      cloneCopyEvent(elem, cloned);
+    }
+  }
+
+  JsValue scriptDest = getAll(cloned, "script");
+  if (scriptDest.length > 0.0) {
+    JsValue refElements = null;
+    if (!inPage) {
+      refElements = getAll(elem, "script");
+    }
+    setGlobalEval(scriptDest, refElements);
+  }
+
+  return cloned;
+}
+
+export void cleanData(JsValue elems) {
+  JsValue special = jQuery["event"]["special"];
+  JsValue expandoPriv = dataPriv.expando;
+  JsValue expandoUser = dataUser.expando;
+
+  int i = 0;
+  while (true) {
+    JsValue elem = elems[i];
+    i = i + 1;
+    if (JS.isUndefined(elem)) {
+      break;
+    }
+
+    if (acceptData(elem)) {
+      JsValue data = elem[expandoPriv];
+      if (data.truthy()) {
+        JsValue events = data["events"];
+        if (events.truthy()) {
+          for (string type in events) {
+            if (special[type].truthy()) {
+              remove(elem, type);
+            } else {
+              removeEvent(elem, type, data["handle"]);
+            }
+          }
+        }
+        elem[expandoPriv] = JS.undefined();
+      }
+      if (elem[expandoUser].truthy()) {
+        elem[expandoUser] = JS.undefined();
+      }
+    }
+  }
+}
+
+jQuery["htmlPrefilter"] = htmlPrefilter;
+jQuery["clone"] = clone;
+jQuery["cleanData"] = cleanData;
+
+JsValue fnDetach(JsValue self, JsValue args) {
+  return removeElems(self, args[0], true);
+}
+
+export JsValue fnRemove(JsValue self, JsValue args) {
+  return removeElems(self, args[0], false);
+}
+
+JsValue fnText(JsValue self, JsValue args) {
+  JsValue value = args[0];
+  bool chainable = args.length > 0.0;
+
+  return access(self, (JsValue valueArg) => {
+    if (JS.isUndefined(valueArg)) {
+      return text(self);
+    }
+    JS.invoke(self, "empty");
+    each(self, (JsValue index, JsValue childElem) => {
+      JsValue nt = childElem["nodeType"];
+      if (nt == 1.0 || nt == 11.0 || nt == 9.0) {
+        childElem["textContent"] = valueArg;
+      }
+      return JS.undefined();
+    });
+    return JS.undefined();
+  }, null, value, chainable, null, false);
+}
+
+export JsValue fnAppend(JsValue self, JsValue args) {
+  return domManip(self, args, (JsValue targetElem, JsValue elem, JsValue index) => {
+    JsValue nt = targetElem["nodeType"];
+    if (nt == 1.0 || nt == 11.0 || nt == 9.0) {
+      JsValue target = manipulationTarget(targetElem, elem);
+      JS.invoke(target, "appendChild", elem);
+    }
+    return JS.undefined();
+  }, null);
+}
+
+export JsValue fnPrepend(JsValue self, JsValue args) {
+  return domManip(self, args, (JsValue targetElem, JsValue elem, JsValue index) => {
+    JsValue nt = targetElem["nodeType"];
+    if (nt == 1.0 || nt == 11.0 || nt == 9.0) {
+      JsValue target = manipulationTarget(targetElem, elem);
+      JS.invoke(target, "insertBefore", elem, target["firstChild"]);
+    }
+    return JS.undefined();
+  }, null);
+}
+
+export JsValue fnBefore(JsValue self, JsValue args) {
+  return domManip(self, args, (JsValue targetElem, JsValue elem, JsValue index) => {
+    JsValue parent = targetElem["parentNode"];
+    if (parent.truthy()) {
+      JS.invoke(parent, "insertBefore", elem, targetElem);
+    }
+    return JS.undefined();
+  }, null);
+}
+
+export JsValue fnAfter(JsValue self, JsValue args) {
+  return domManip(self, args, (JsValue targetElem, JsValue elem, JsValue index) => {
+    JsValue parent = targetElem["parentNode"];
+    if (parent.truthy()) {
+      JS.invoke(parent, "insertBefore", elem, targetElem["nextSibling"]);
+    }
+    return JS.undefined();
+  }, null);
+}
+
+JsValue fnEmpty(JsValue self) {
+  float i = 0.0;
+  while (true) {
+    JsValue elem = self[i];
+    i = i + 1.0;
+    if (JS.isNullish(elem)) {
+      break;
+    }
+    if (elem["nodeType"] == 1.0) {
+      cleanData(getAll(elem, false));
+      elem["textContent"] = "";
+    }
+  }
+  return self;
+}
+
+export JsValue fnClone(JsValue self, JsValue args) {
+  JsValue dataAndEventsArg = null;
+  if (args.length > 0.0) {
+    dataAndEventsArg = args[0];
+  }
+  JsValue deepDataAndEventsArg = null;
+  if (args.length > 1.0) {
+    deepDataAndEventsArg = args[1];
+  }
+
+  bool dataAndEvents = false;
+  if (!JS.isNullish(dataAndEventsArg)) {
+    dataAndEvents = dataAndEventsArg.truthy();
+  }
+  bool deepDataAndEvents = dataAndEvents;
+  if (!JS.isNullish(deepDataAndEventsArg)) {
+    deepDataAndEvents = deepDataAndEventsArg.truthy();
+  }
+
+  return JS.invoke(self, "map", (JsValue index, JsValue elem) => {
+    return clone(elem, dataAndEvents, deepDataAndEvents);
+  });
+}
+
+export JsValue fnHtml(JsValue self, JsValue args) {
+  JsValue value = JS.undefined();
+  bool chainable = args.length > 0.0;
+  if (chainable) {
+    value = args[0];
+  }
+
+  return access(self, (JsValue valueArg) => {
+    if (JS.isUndefined(valueArg)) {
+      JsValue elem = self[0];
+      if (!elem.truthy()) {
+        return JS.undefined();
+      }
+      if (elem["nodeType"] == 1.0) {
+        return elem["innerHTML"];
+      }
+      return JS.undefined();
+    }
+
+    bool canUseInnerHtml = false;
+    string valueStr = "";
+    if (valueArg is string) {
+      valueStr = valueArg;
+      if (!JS.regexTest(rnoInnerhtml, valueStr)) {
+        JsValue tagMatch = JS.regexExec(rtagName, valueStr);
+        string tag = "";
+        if (tagMatch.truthy()) {
+          tag = JS.string(JS.or(tagMatch[1], "")).toLowerCase();
+        }
+        if (!(wrapForTag(tag).depth > 0.0)) {
+          canUseInnerHtml = true;
+        }
+      }
+    }
+
+    if (canUseInnerHtml) {
+      string prefiltered = JS.string(htmlPrefilter(valueStr));
+
+      float i = 0.0;
+      float len = self.length;
+      for (; i < len; i++) {
+        JsValue current = self[i];
+        if (current.truthy()) {
+          if (current["nodeType"] == 1.0) {
+            cleanData(getAll(current, false));
+            current["innerHTML"] = prefiltered;
+          }
+        }
+      }
+    } else {
+      JS.invoke(self, "empty");
+      JS.invoke(self, "append", valueArg);
+    }
+
+    return JS.undefined();
+  }, null, value, chainable, null, false);
+}
+
+export JsValue fnReplaceWith(JsValue self, JsValue args) {
+  JsValue[] ignored = [];
+  return domManip(self, args, (JsValue targetElem, JsValue elem, JsValue index) => {
+    JsValue parent = targetElem["parentNode"];
+    float foundIndex = inArray(targetElem, ignored);
+    if (foundIndex < 0.0) {
+      cleanData(getAll(targetElem));
+      if (parent.truthy()) {
+        JS.invoke(parent, "replaceChild", elem, targetElem);
+      }
+    }
+    return JS.undefined();
+  }, ignored);
+}
+
+fn["detach"] = JS.methodRest(fnDetach);
+fn["remove"] = JS.methodRest(fnRemove);
+fn["text"] = JS.methodRest(fnText);
+fn["append"] = JS.methodRest(fnAppend);
+fn["prepend"] = JS.methodRest(fnPrepend);
+fn["before"] = JS.methodRest(fnBefore);
+fn["after"] = JS.methodRest(fnAfter);
+fn["empty"] = JS.method0(fnEmpty);
+fn["clone"] = JS.methodRest(fnClone);
+fn["html"] = JS.methodRest(fnHtml);
+fn["replaceWith"] = JS.methodRest(fnReplaceWith);
+
+JsValue makeInsertMethod(string original) {
+  return JS.methodRest((JsValue self, JsValue restArgs) => {
+    JsValue selector = restArgs[0];
+
+    JsValue[] ret = [];
+    JsValue insert = wrap(selector);
+    float last = insert.length - 1.0;
+    float i = 0.0;
+
+    for (; i <= last; i++) {
+      JsValue elems = self;
+      if (i != last) {
+        elems = JS.invoke(self, "clone", true);
+      }
+      JsValue target = wrap(insert[i]);
+      JS.invoke(target, original, elems);
+
+      JsValue elemsArray = JS.invoke(elems, "get");
+      JS.apply(arr["push"], ret, elemsArray);
+    }
+
+    return JS.invoke(self, "pushStack", ret);
+  });
+}
+
+struct InsertAlias {
+  string name;
+  string original;
+}
+
+InsertAlias[] insertAliases = [
+  InsertAlias{"appendTo", "append"},
+  InsertAlias{"prependTo", "prepend"},
+  InsertAlias{"insertBefore", "before"},
+  InsertAlias{"insertAfter", "after"},
+  InsertAlias{"replaceAll", "replaceWith"}
+];
+int aliasIndex = 0;
+while (aliasIndex < insertAliases.length) {
+  InsertAlias alias = insertAliases[aliasIndex];
+  fn[alias.name] = makeInsertMethod(alias.original);
+  aliasIndex = aliasIndex + 1;
+}
+
+export { jQuery };

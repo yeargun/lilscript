@@ -1,0 +1,52 @@
+export class RGBA {
+  float red;
+  float green;
+  float blue;
+  float alpha;
+
+  init(float red = 0.0, float green = 0.0, float blue = 0.0, float alpha = 1.0) {
+    this.red = red;
+    this.green = green;
+    this.blue = blue;
+    this.alpha = alpha;
+  }
+}
+
+export class HSLA {
+  float hue;
+  float saturation;
+  float lightness;
+  float alpha;
+
+  init(float hue = 0.0, float saturation = 0.0, float lightness = 0.0, float alpha = 1.0) {
+    this.hue = hue;
+    this.saturation = saturation;
+    this.lightness = lightness;
+    this.alpha = alpha;
+  }
+}
+
+export class ValueType {
+  func(JsValue)->bool test;
+  func(JsValue)->JsValue parse;
+  (func(JsValue)->JsValue)? transform;
+  (func(string)->func(JsValue)->JsValue)? createTransformer;
+  JsValue? defaultValue;
+  (func(JsValue)->JsValue)? getAnimatableNone;
+
+  init(
+    func(JsValue)->bool test,
+    func(JsValue)->JsValue parse,
+    (func(JsValue)->JsValue)? transform = null,
+    (func(string)->func(JsValue)->JsValue)? createTransformer = null,
+    JsValue? defaultValue = null,
+    (func(JsValue)->JsValue)? getAnimatableNone = null
+  ) {
+    this.test = test;
+    this.parse = parse;
+    this.transform = transform;
+    this.createTransformer = createTransformer;
+    this.defaultValue = defaultValue;
+    this.getAnimatableNone = getAnimatableNone;
+  }
+}

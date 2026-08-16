@@ -3,11 +3,13 @@ pub mod codegen_ir_js;
 pub mod codegen_js;
 pub mod codegen_native;
 pub mod compiler;
+pub mod compress_passes;
 pub mod config;
 pub mod formatter;
 pub mod interpreter;
 pub mod ir;
 pub mod js_peephole;
+mod js_regex;
 pub mod lexer;
 pub mod lint;
 pub mod lower;
@@ -18,22 +20,27 @@ pub mod parser;
 pub mod profile;
 pub mod semantic;
 pub mod span;
+mod stable_hash;
 pub mod typed_array;
 pub mod value_analysis;
 
 pub use codegen_js::{compile_to_js, CodegenError, CodegenOptions, CompileError, JsEmitter};
 pub use codegen_native::{compile_to_c, emit_native_c, emit_native_c_with_options, NativeOptions};
 pub use compiler::{
-    compile_path, compile_path_all, compile_path_all_configured, compile_path_configured,
+    canonical_brotli_version, canonical_zlib_version, compile_path, compile_path_all,
+    compile_path_all_configured, compile_path_all_to_js_bundle_configured, compile_path_configured,
     compile_path_explained_configured, compile_path_to_c, compile_path_to_c_configured,
     compile_path_to_js_bundle_configured, compile_path_to_js_module,
     compile_path_to_js_module_configured, compile_path_to_js_module_explained_configured,
     compile_path_to_js_module_with_source, compile_path_with_source,
     compile_path_with_source_configured, compile_source, compile_source_all, compile_source_to_c,
-    compile_source_to_js_module, profile_template_path_configured, render_diagnostic,
-    render_module_diagnostic, CompilationArtifacts, JavaScriptBundle, JavaScriptBundleFile,
+    compile_source_to_js_module, measure_javascript_transfer_sizes,
+    profile_template_path_configured, render_diagnostic, render_module_diagnostic,
+    BundledCompilationArtifacts, CompilationArtifacts, JavaScriptBundle, JavaScriptBundleFile,
     JavaScriptBundleManifest, JavaScriptBundleManifestChunk, JavaScriptCompilation,
-    JavaScriptSelectionMetrics, SourceCompileError,
+    JavaScriptSelectionMetrics, JavaScriptTransferSizes, SourceCompileError,
+    CANONICAL_BROTLI_LIBRARY_VERSION, CANONICAL_BROTLI_PACKAGE_VERSION,
+    CANONICAL_ZLIB_LIBRARY_VERSION, CANONICAL_ZLIB_PACKAGE_VERSION,
 };
 pub use interpreter::{
     interpret_program, interpret_program_with_limits, InterpretError, InterpreterLimits,

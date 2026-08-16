@@ -1,0 +1,1 @@
+console.log((function(e){var t=0,n=0,i=0,r,s;for(;i<e.length;++i){r=e.charCodeAt(i);if(35==r)break;if(32==r)continue;s=r>=48&&r<=57?1:r>=65&&r<=90||r>=97&&r<=122?2:58==r?3:59==r?4:0;t=4==s?0:0==t&&2==s?1:1==t&&3==s?2:2==t&&1==s?3:t;n=n+(1==t?r+i|0:2==t?s*17:3==t?(r-48)*(i+1|0)|0:s)|0}return (n*5|0)+(t*97|0)|0})(algorithmString(0)))

@@ -1,0 +1,36 @@
+import { isCSSVariableName } from "../../animation/utils/is-css-variable";
+import { cornerRadiusProps } from "../../utils/border-radius";
+import { correctBorderRadius } from "./scale-border-radius";
+import { correctBoxShadow } from "./scale-box-shadow";
+import { ScaleCorrectorDefinition } from "./types";
+
+export Record<ScaleCorrectorDefinition> scaleCorrectors = record{};
+
+void initScaleCorrectors() {
+  ScaleCorrectorDefinition border = new ScaleCorrectorDefinition(
+    correctBorderRadius.correct,
+    [...cornerRadiusProps]
+  );
+  scaleCorrectors.borderRadius = border;
+  scaleCorrectors.borderTopLeftRadius = correctBorderRadius;
+  scaleCorrectors.borderTopRightRadius = correctBorderRadius;
+  scaleCorrectors.borderBottomLeftRadius = correctBorderRadius;
+  scaleCorrectors.borderBottomRightRadius = correctBorderRadius;
+  scaleCorrectors.boxShadow = correctBoxShadow;
+}
+
+initScaleCorrectors();
+
+export void addScaleCorrector(Record<ScaleCorrectorDefinition> correctors) {
+  string[] keys = Object.keys(correctors);
+  for (int i = 0; i < keys.length; i++) {
+    string key = keys[i];
+    ScaleCorrectorDefinition? def = correctors[key];
+    if (def != null) {
+      scaleCorrectors[key] = def;
+      if (isCSSVariableName(key)) {
+        def.isCSSVariable = true;
+      }
+    }
+  }
+}

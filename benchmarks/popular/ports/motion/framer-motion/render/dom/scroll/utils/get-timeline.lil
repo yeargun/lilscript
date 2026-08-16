@@ -1,0 +1,141 @@
+import { constructConfigured, windowGet, callFn0, isFunction } from "../../../../../motion-dom/dom-host";
+import { scrollInfo } from "../track";
+import { ScrollInfo } from "../types";
+import { canUseNativeTimeline } from "./can-use-native-timeline";
+import { offsetToViewTimelineRange, ViewTimelineRange } from "./offset-to-range";
+
+class TimelineTargetCache {
+  Map<string, JsValue> inner;
+
+  init() {
+    this.inner = new Map<string, JsValue>();
+  }
+}
+
+class TimelineContainerCache {
+  Map<JsValue, TimelineTargetCache> inner;
+
+  init() {
+    this.inner = new Map<JsValue, TimelineTargetCache>();
+  }
+}
+
+Map<JsValue, TimelineContainerCache> timelineCache =
+  new Map<JsValue, TimelineContainerCache>();
+
+TimelineContainerCache containerCacheFor(JsValue container) {
+  TimelineContainerCache? existing = timelineCache.get(container);
+  if (existing != null) {
+    return existing;
+  }
+  TimelineContainerCache created = new TimelineContainerCache();
+  timelineCache.set(container, created);
+  return created;
+}
+
+TimelineTargetCache targetCacheFor(
+  TimelineContainerCache containerCache,
+  JsValue targetKey
+) {
+  TimelineTargetCache? existing = containerCache.inner.get(targetKey);
+  if (existing != null) {
+    return existing;
+  }
+  TimelineTargetCache created = new TimelineTargetCache();
+  containerCache.inner.set(targetKey, created);
+  return created;
+}
+
+JsValue scrollTimelineFallback(JsValue options) {
+  JsValue currentTime = record{};
+  currentTime["value"] = 0.0;
+
+  string axis = "y";
+  if (options.isObject()) {
+    JsValue axisVal = options["axis"];
+    if (axisVal is string) {
+      axis = axisVal;
+    }
+  }
+
+  string activeAxis = axis;
+  func()->void cancel = scrollInfo((ScrollInfo info) => {
+    float progressValue = info.x.progress;
+    if (activeAxis == "y") {
+      progressValue = info.y.progress;
+    }
+    currentTime["value"] = progressValue * 100.0;
+  }, options);
+
+  JsValue timeline = record{};
+  timeline["currentTime"] = currentTime;
+  timeline["cancel"] = cancel;
+  return timeline;
+}
+
+JsValue createTimeline(
+  JsValue options,
+  JsValue container,
+  string axis,
+  JsValue offset
+) {
+  JsValue target = options["target"];
+  if (target.truthy() && canUseNativeTimeline(target)) {
+    ViewTimelineRange? range = offsetToViewTimelineRange(offset);
+    if (range != null) {
+      JsValue viewOpts = record{};
+      viewOpts["subject"] = target;
+      viewOpts["axis"] = axis;
+      return constructConfigured(windowGet("ViewTimeline"), viewOpts);
+    }
+    return scrollTimelineFallback(options);
+  }
+  if (canUseNativeTimeline()) {
+    JsValue scrollOpts = record{};
+    scrollOpts["source"] = container;
+    scrollOpts["axis"] = axis;
+    return constructConfigured(windowGet("ScrollTimeline"), scrollOpts);
+  }
+  return scrollTimelineFallback(options);
+}
+
+export JsValue getTimeline(JsValue options) {
+  JsValue container = options["container"];
+  JsValue source = options["source"];
+  if (source.truthy()) {
+    container = source;
+  }
+
+  string axis = "y";
+  JsValue axisVal = options["axis"];
+  if (axisVal is string) {
+    axis = axisVal;
+  }
+
+  TimelineContainerCache containerCache = containerCacheFor(container);
+
+  JsValue targetKey = options["target"];
+  if (!targetKey.truthy() && !(targetKey is float) && !(targetKey is string) && !(targetKey is bool)) {
+    targetKey = "self";
+  }
+
+  Map<string, JsValue> targetCache =
+    targetCacheFor(containerCache, targetKey).inner;
+
+  string axisKey = axis;
+  JsValue offset = options["offset"];
+  if (offset.truthy() && offset.isArray()) {
+    axisKey = `${axis}${offset}`;
+  } else {
+    axisKey = `${axis}`;
+  }
+
+  JsValue? cached = targetCache.get(axisKey);
+  if (cached != null) {
+    return cached;
+  }
+
+  JsValue created = createTimeline(options, container, axis, offset);
+  targetCache.set(axisKey, created);
+  return created;
+}

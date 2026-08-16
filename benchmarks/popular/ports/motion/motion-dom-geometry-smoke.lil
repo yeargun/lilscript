@@ -1,0 +1,68 @@
+import { Axis, AxisDelta, BoundingBox, Box, Delta, Point } from "./motion-utils/types/geometry";
+import { createAxis, createBox, createDelta } from "./motion-dom/projection/geometry/models";
+import { copyBoxInto } from "./motion-dom/projection/geometry/copy";
+import { calcLength, calcAxisDelta, calcBoxDelta, isNear } from "./motion-dom/projection/geometry/delta-calc";
+import { applyBoxDelta, scalePoint, translateAxis, transformBox } from "./motion-dom/projection/geometry/delta-apply";
+import { removeBoxTransforms } from "./motion-dom/projection/geometry/delta-remove";
+import { axisEquals, boxEquals, aspectRatio, isDeltaZero } from "./motion-dom/projection/geometry/utils";
+import { convertBoundingBoxToBox, convertBoxToBoundingBox } from "./motion-dom/projection/geometry/conversion";
+import { hasTransform, hasScale } from "./motion-dom/projection/utils/has-transform";
+import { FlatTree } from "./motion-dom/projection/utils/flat-tree";
+import { WithDepth } from "./motion-dom/projection/utils/compare-by-depth";
+import { eachAxis } from "./motion-dom/projection/utils/each-axis";
+
+float digest = 0.0;
+Axis a = createAxis();
+a.min = 0.0;
+a.max = 100.0;
+digest = digest + calcLength(a);
+AxisDelta d = AxisDelta{0.0, 1.0, 0.0, 0.0};
+Axis target = Axis{10.0, 210.0};
+calcAxisDelta(d, a, target, 0.5);
+digest = digest + d.translate + d.scale;
+Box b1 = createBox();
+b1.x.min = 0.0;
+b1.x.max = 100.0;
+b1.y.min = 0.0;
+b1.y.max = 50.0;
+Box b2 = createBox();
+copyBoxInto(b2, b1);
+if (boxEquals(b1, b2)) {
+  digest = digest + 1.0;
+}
+digest = digest + aspectRatio(b1);
+digest = digest + scalePoint(10.0, 2.0, 0.0);
+Delta delta = createDelta();
+calcBoxDelta(delta, b1, Box{Axis{0.0, 200.0}, Axis{0.0, 100.0}});
+applyBoxDelta(b2, delta);
+digest = digest + b2.x.max;
+Record<JsValue> values = record{};
+values.x = 10.0;
+values.scale = 2.0;
+if (hasTransform(values)) {
+  digest = digest + 1.0;
+}
+if (hasScale(values)) {
+  digest = digest + 1.0;
+}
+FlatTree tree = new FlatTree();
+WithDepth c1 = new WithDepth(2);
+WithDepth c0 = new WithDepth(0);
+tree.add(c1);
+tree.add(c0);
+int[] depths = [];
+tree.each((WithDepth child) => {
+  depths.push(child.depth);
+});
+digest = digest + depths[0] + depths[1];
+JsValue[] axes = eachAxis((string axis) => axis);
+digest = digest + axes.length;
+BoundingBox bb = convertBoxToBoundingBox(b1);
+Box back = convertBoundingBoxToBox(bb);
+if (boxEquals(b1, back)) {
+  digest = digest + 1.0;
+}
+if (isNear(1.0, 1.001, 0.01)) {
+  digest = digest + 1.0;
+}
+print(`geometry:${digest}`);

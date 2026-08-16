@@ -1,10 +1,12 @@
 # higher-order-pipeline
 
-LilScript 0.1.0 vs Closure Compiler v20260803 ADVANCED.
+LilScript 0.1.0 vs Closure Compiler v20260804 ADVANCED.
 
-| Compiler | Raw | Gzip-9 | Brotli-11 |
+Each LilScript column comes from a separate build optimized for that exact objective. Cross-metric sizes of those artifacts are diagnostic only.
+
+| Compiler/objective | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
-| LilScript | 137 | 137 | 116 |
-| Closure | 142 | 142 | 125 |
+| LilScript objective builds | 124 | 125 | 101 |
+| Closure | 133 | 135 | 113 |
 
 Winners: raw **LilScript**, gzip **LilScript**, Brotli **LilScript**.

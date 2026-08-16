@@ -1,0 +1,113 @@
+import { emptyArray } from "./alloc.lil";
+import { jQuery } from "./core";
+import { nodeName } from "./core/nodeName";
+import { camelCase } from "./core/camelCase";
+import { toType } from "./core/toType";
+import { isFunction } from "./var/isFunction";
+import { isWindow } from "./var/isWindow";
+import {
+  isNullish,
+  arrayIsArray,
+  arraySlice,
+  dateNow,
+  stringify,
+  stringReplace,
+  unaryPlus,
+  parseFloatValue,
+  isFiniteValue,
+  jsUndefined,
+  apply
+} from "./js-host.lil";
+
+Regex rtrim = new Regex("^[\\s\\uFEFF\\xA0]+|([^\\s\\uFEFF\\xA0])[\\s\\uFEFF\\xA0]+$", "g");
+
+JsValue proxy(JsValue args) {
+  JsValue fnArg = args[0];
+  JsValue context = args[1];
+
+  if (context is string) {
+    string key = context;
+    JsValue owner = fnArg;
+    fnArg = owner[key];
+    context = owner;
+  }
+
+  if (!isFunction(fnArg)) {
+    return JS.undefined();
+  }
+
+  JsValue boundArgs = arraySlice(args, 2.0, 9007199254740991.0);
+  JsValue guidValue = fnArg["guid"];
+  if (!guidValue.truthy()) {
+    float nextGuid = JS.number(jQuery["guid"]);
+    jQuery["guid"] = nextGuid + 1.0;
+    guidValue = nextGuid;
+    fnArg["guid"] = guidValue;
+  }
+
+  JsValue boundFn = fnArg;
+  JsValue boundContext = context;
+  JsValue proxied = JS.methodRest((JsValue thisArg, JsValue callArgs) => {
+    JsValue extra = arraySlice(callArgs, 0.0, 9007199254740991.0);
+    JsValue finalArgs = JS.invoke(boundArgs, "concat", extra);
+    return JS.apply(boundFn, JS.or(boundContext, thisArg), finalArgs);
+  });
+  proxied["guid"] = guidValue;
+  return proxied;
+}
+
+bool isArrayValue(JsValue value) {
+  return JS.isArray(value);
+}
+
+float nowValue() {
+  return dateNow();
+}
+
+bool isNumericValue(JsValue obj) {
+  string t = toType(obj);
+  if (t != "number" && t != "string") {
+    return false;
+  }
+  float diff = JS.number(obj) - parseFloatValue(JS.string(obj));
+  return isFiniteValue(diff);
+}
+
+string trimValue(JsValue text) {
+  if (JS.isNullish(text)) {
+    return "";
+  }
+  return JS.stringReplace(JS.string(text), rtrim, "$1");
+}
+
+JsValue parseJSONValue(JsValue data) {
+  return JSON.parse(JS.string(data));
+}
+
+void install() {
+  jQuery["proxy"] = JS.staticRest(proxy);
+
+  jQuery["holdReady"] = (JsValue hold) => {
+    if (hold.truthy()) {
+      jQuery["readyWait"] = JS.number(jQuery["readyWait"]) + 1.0;
+    } else {
+      JS.invoke(jQuery, "ready", true);
+    }
+    return JS.undefined();
+  };
+
+  jQuery["isArray"] = isArrayValue;
+  jQuery["parseJSON"] = parseJSONValue;
+  jQuery["nodeName"] = nodeName;
+  jQuery["isFunction"] = isFunction;
+  jQuery["isWindow"] = isWindow;
+  jQuery["camelCase"] = camelCase;
+  jQuery["type"] = toType;
+  jQuery["now"] = nowValue;
+  jQuery["isNumeric"] = isNumericValue;
+  jQuery["trim"] = trimValue;
+}
+
+install();
+
+export { jQuery };

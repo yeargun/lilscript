@@ -496,19 +496,27 @@ fn keyword_name(name: &str) -> bool {
         name,
         "int"
             | "float"
+            | "number"
             | "string"
             | "bool"
             | "void"
             | "auto"
             | "func"
             | "struct"
+            | "enum"
+            | "record"
+            | "match"
             | "class"
+            | "extends"
+            | "super"
             | "return"
             | "init"
             | "if"
             | "else"
             | "while"
             | "for"
+            | "of"
+            | "in"
             | "break"
             | "continue"
             | "extern"
@@ -522,6 +530,14 @@ fn keyword_name(name: &str) -> bool {
             | "null"
             | "new"
             | "is"
+            | "async"
+            | "generator"
+            | "yield"
+            | "await"
+            | "throw"
+            | "try"
+            | "catch"
+            | "finally"
     )
 }
 
@@ -577,6 +593,7 @@ fn semantic_token_type(kind: &TokenKind<'_>) -> Option<u32> {
     Some(match kind {
         TokenKind::Int
         | TokenKind::Float
+        | TokenKind::Number
         | TokenKind::String
         | TokenKind::Bool
         | TokenKind::Void
@@ -586,6 +603,8 @@ fn semantic_token_type(kind: &TokenKind<'_>) -> Option<u32> {
         TokenKind::Ident(_) => 4,
         TokenKind::Func
         | TokenKind::Struct
+        | TokenKind::Enum
+        | TokenKind::Record
         | TokenKind::Class
         | TokenKind::Return
         | TokenKind::Init
@@ -593,6 +612,8 @@ fn semantic_token_type(kind: &TokenKind<'_>) -> Option<u32> {
         | TokenKind::Else
         | TokenKind::While
         | TokenKind::For
+        | TokenKind::Of
+        | TokenKind::Match
         | TokenKind::Break
         | TokenKind::Continue
         | TokenKind::Extern
@@ -680,11 +701,17 @@ fn completion_result(source: Option<&str>) -> Value {
     let mut items = vec![
         keyword("int", "Signed 32-bit integer type"),
         keyword("float", "IEEE-754 binary64 type"),
+        keyword("number", "JavaScript-compatible IEEE-754 binary64 type"),
+        keyword("enum", "Compact closed set of named variants"),
+        keyword("record", "Open homogeneous string-keyed record literal"),
+        keyword("match", "Exhaustive enum match expression"),
+        keyword("of", "Iterate array or typed-array values"),
         keyword("string", "Immutable UTF-8 string type"),
         keyword("bool", "Boolean type"),
         keyword("auto", "Infer a declaration type from its initializer"),
         keyword("void", "No-value return type"),
         keyword("Map", "Typed mutable key/value collection"),
+        keyword("Record", "Open homogeneous string-keyed object type"),
         keyword("Set", "Typed mutable unique-value collection"),
         keyword("ArrayBuffer", "Fixed-length byte storage"),
         keyword(
@@ -701,7 +728,19 @@ fn completion_result(source: Option<&str>) -> Value {
         keyword("Float32Array", "IEEE-754 single-precision buffer view"),
         keyword("Float64Array", "IEEE-754 double-precision buffer view"),
         keyword("Symbol", "Unique opaque identity value"),
+        keyword("Regex", "JavaScript ECMAScript regular expression"),
         keyword("Task", "Typed asynchronous value"),
+        keyword("Generator", "Typed synchronous yielded-value iterator"),
+        keyword("async", "Declare a JavaScript-target asynchronous function"),
+        keyword("generator", "Declare a JavaScript-target generator function"),
+        keyword("yield", "Suspend a generator and produce its next value"),
+        keyword("extends", "Inherit fields and non-virtual methods from one base class"),
+        keyword("super", "Invoke the checked base constructor first"),
+        keyword("await", "Unwrap a Task<T> inside an async function"),
+        keyword("throw", "Raise a JavaScript-target exception"),
+        keyword("try", "Start a structured exception region"),
+        keyword("catch", "Handle a thrown or rejected JavaScript value"),
+        keyword("finally", "Run a block for every completion path"),
         keyword("null", "Absent value for an explicitly nullable type"),
         keyword("is", "Narrow a union member with a portable runtime check"),
         keyword("return", "Return from the current function"),
@@ -718,6 +757,10 @@ fn completion_result(source: Option<&str>) -> Value {
         snippet("extern class", "extern class ${1:Document} {\n  ${2:string} ${3:title};\n  ${4:void} ${5:method}(${6:string} ${7:value});\n}", "Typed JavaScript host interface"),
         snippet("extern global", "extern ${1:Document} ${2:document};", "Typed JavaScript host global"),
         snippet("function", "${1:int} ${2:name}(${3:int} ${4:value}) {\n  return ${4:value};\n}", "Typed function"),
+        snippet("async function", "async ${1:int} ${2:name}(${3:int} ${4:value}) {\n  return await Task.resolve(${4:value});\n}", "Typed asynchronous function"),
+        snippet("generator function", "generator ${1:int} ${2:values}(${3:int} ${4:stop}) {\n  for (int index = 0; index < ${4:stop}; index++) {\n    yield index;\n  }\n}", "Typed synchronous generator"),
+        snippet("derived class", "class ${1:Child} extends ${2:Base} {\n  init(${3:int} ${4:value}) {\n    super(${4:value});\n  }\n}", "Flattened non-virtual class inheritance"),
+        snippet("try/catch", "try {\n  ${1}\n} catch (auto ${2:error}) {\n  ${3}\n} finally {\n  ${4}\n}", "Structured JavaScript exception handling"),
         snippet("if", "if (${1:condition}) {\n  ${2}\n}", "Conditional block"),
         snippet("for", "for (int ${1:index} = 0; ${1:index} < ${2:length}; ${1:index}++) {\n  ${3}\n}", "Counted loop"),
         snippet("while", "while (${1:condition}) {\n  ${2}\n}", "While loop"),
@@ -729,6 +772,11 @@ fn completion_result(source: Option<&str>) -> Value {
         snippet("Uint8Array", "Uint8Array ${1:bytes} = new Uint8Array(${2:length});", "Unsigned byte view declaration"),
         snippet("Float32Array", "Float32Array ${1:values} = new Float32Array(${2:length});", "Single-precision float view declaration"),
         snippet("Int32Array", "Int32Array ${1:values} = new Int32Array(${2:length});", "Signed 32-bit view declaration"),
+        snippet(
+            "Regex",
+            "Regex ${1:pattern} = new Regex(\"${2:pattern}\", \"${3:i}\");",
+            "ECMAScript regular expression declaration",
+        ),
         snippet(
             "dynamic import",
             "import(\"${1:./feature}\").then((auto ${2:module}) => ${2:module}.${3:run}()).catch((auto error) => print(error.message));",
@@ -785,8 +833,20 @@ fn append_document_completions(source: &str, items: &mut Vec<Value>) {
             }));
         }
     }
+    for import in program.foreign_imports {
+        for specifier in import.specifiers {
+            items.push(json!({
+                "label": specifier.local.name,
+                "kind": 6,
+                "detail": format!("typed foreign import from {}", import.source)
+            }));
+        }
+    }
     for item in program.items {
         let entry = match item {
+            Item::Enum(decl) => {
+                json!({ "label": decl.name.name, "kind": 13, "detail": "LilScript enum" })
+            }
             Item::Struct(decl) => {
                 json!({ "label": decl.name.name, "kind": 22, "detail": "LilScript struct" })
             }
@@ -844,6 +904,14 @@ fn language_help(word: &str) -> Option<&'static str> {
         "toUnsignedString" => "Formats an int's unsigned 32-bit bit pattern with a radix from 2 through 36.",
         "toString" => "Formats a signed int with a radix from 2 through 36.",
         "float" => "IEEE-754 binary64 floating-point value.",
+        "number" => "JavaScript-compatible IEEE-754 binary64 number; unlike `int`, arithmetic does not insert wrapping i32 coercions.",
+        "enum" => "Declares a compact closed set of named variants.",
+        "record" => "Creates a plain open record with statically homogeneous values.",
+        "Record" => "Open string-keyed record type. Missing reads return `T?`, while direct writes require `T`.",
+        "Object" => "Typed record namespace with `keys`, `values`, `hasOwn`, and `assign`.",
+        "JSON" => "JSON namespace. `stringify` supports the portable scalar, array, and record subset; `parse` returns JavaScript-only `JsValue`.",
+        "match" => "Selects an expression arm and requires exhaustive enum coverage.",
+        "of" => "Iterates array or typed-array elements with live array-length semantics.",
         "string" => "Immutable UTF-8 text value.",
         "bool" => "Boolean value: `true` or `false`.",
         "Map" => "Invariant typed key/value collection with `get`, `set`, `has`, `delete`, `clear`, and `size`.",
@@ -860,12 +928,24 @@ fn language_help(word: &str) -> Option<&'static str> {
         "Float32Array" => "IEEE-754 single-precision view with indexed access, copy slices, and zero-copy subarrays.",
         "Float64Array" => "IEEE-754 double-precision view with indexed access, copy slices, and zero-copy subarrays.",
         "Symbol" => "Unique opaque identity value for map keys and event channels.",
+        "Regex" => "JavaScript-only ECMAScript regular expression. Use `test(string)` and inspect `source`, `flags`, `global`, `ignoreCase`, `multiline`, `dotAll`, `sticky`, or `unicode`.",
         "Task" => "Typed asynchronous value returned by dynamic module imports. Chain `then`, `catch`, and `finally` without an untyped Promise boundary.",
+        "Generator" => "Typed synchronous iterator returned by a generator function and consumed directly by `for...of` or `yield*`.",
+        "async" => "Declares a JavaScript-target function whose call returns `Task<T>` while its body returns `T`.",
+        "generator" => "Declares a JavaScript-target function whose call returns `Generator<T>` while `yield` values have type `T`.",
+        "yield" => "Produces one checked generator element; `yield*` delegates to an array, typed array, or compatible generator.",
+        "extends" => "Declares non-virtual single inheritance with a flattened base-first field layout. Inherited members cannot be overridden.",
+        "super" => "Calls a derived class's base constructor. It must be first and is required exactly once when the base declares `init`.",
+        "await" => "Unwraps `Task<T>` to `T`; valid only inside an async function or method.",
+        "throw" => "Throws any non-void value on the JavaScript target.",
+        "try" => "Starts structured exception handling and requires catch, finally, or both.",
+        "catch" => "Handles a general `JsValue`; use `(auto error)`, `(JsValue error)`, or omit the binding.",
+        "finally" => "Runs for normal completion, throw, return, break, and continue.",
         "auto" => "Infers the binding type from its required initializer.",
         "null" => "Absent value assignable only to an explicitly nullable `T?` type.",
         "is" => "Checks a portable runtime type category and narrows a union binding in the selected branch.",
         "struct" => "Declares a positional value aggregate eligible for scalar replacement.",
-        "class" => "Declares a nominal reference type with fields, one `init`, and methods.",
+        "class" => "Declares a nominal reference type with fields, one `init`, methods, and optional non-virtual single inheritance.",
         "init" => "Declares the constructor body for a class.",
         "extern" => "Declares a typed function, host interface, or host global. JavaScript host member names remain exact and are emitted without wrappers.",
         "import" => "Adds a relative `.lil` module to the closed-world compilation graph and binds selected exports.",
@@ -907,6 +987,26 @@ fn document_symbol_result(params: &Value, documents: &HashMap<String, Document>)
     let mut symbols = Vec::new();
     for item in program.items {
         match item {
+            Item::Enum(decl) => symbols.push(document_symbol(
+                &document.text,
+                decl.name.name,
+                10,
+                decl.span,
+                decl.name.span,
+                decl.variants
+                    .iter()
+                    .map(|variant| {
+                        document_symbol(
+                            &document.text,
+                            variant.name,
+                            22,
+                            variant.span,
+                            variant.span,
+                            Vec::new(),
+                        )
+                    })
+                    .collect(),
+            )),
             Item::Struct(decl) => symbols.push(document_symbol(
                 &document.text,
                 decl.name.name,

@@ -1,0 +1,35 @@
+import { analyseComplexValue } from "../../../value/types/complex/index";
+import { getAnimatableNone } from "../../../value/types/utils/animatable-none";
+
+Set<string> invalidTemplates = new Set<string>();
+invalidTemplates.add("auto");
+invalidTemplates.add("none");
+invalidTemplates.add("0");
+
+export void makeNoneKeyframesAnimatable(
+  JsValue[] unresolvedKeyframes,
+  int[] noneKeyframeIndexes,
+  string? name = null
+) {
+  int i = 0;
+  string? animatableTemplate = null;
+  while (i < unresolvedKeyframes.length && animatableTemplate == null) {
+    JsValue keyframe = unresolvedKeyframes[i];
+    if (keyframe is string) {
+      if (!invalidTemplates.has(keyframe)) {
+        if (analyseComplexValue(keyframe).values.length > 0) {
+          animatableTemplate = keyframe;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  if (animatableTemplate != null) {
+    if (name != null) {
+      for (int noneIndex = 0; noneIndex < noneKeyframeIndexes.length; noneIndex++) {
+        int idx = noneKeyframeIndexes[noneIndex];
+        unresolvedKeyframes[idx] = getAnimatableNone(name, animatableTemplate);
+      }
+    }
+  }
+}

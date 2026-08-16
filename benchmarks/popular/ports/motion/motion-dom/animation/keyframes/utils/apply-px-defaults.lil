@@ -1,0 +1,10 @@
+import { pxValues } from "../../waapi/utils/px-values-mini";
+
+export void applyPxDefaults(JsValue[] keyframes, string name) {
+  for (int i = 0; i < keyframes.length; i++) {
+    JsValue frame = keyframes[i];
+    if ((frame is float) && pxValues.has(name)) {
+      keyframes[i] = `${frame}px`;
+    }
+  }
+}

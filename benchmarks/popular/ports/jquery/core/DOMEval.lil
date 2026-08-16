@@ -1,0 +1,34 @@
+import { document } from "../var/document";
+import {
+  stringify,
+  call1
+} from "../js-host.lil";
+
+string[] preservedScriptAttributes = ["type", "src", "nonce", "noModule"];
+
+export void DOMEval(string code, JsValue node, JsValue docArg = null) {
+  JsValue doc = docArg;
+  if (!doc.truthy()) {
+    doc = document;
+  }
+  JsValue script = JS.invoke(doc, "createElement", "script");
+  script["text"] = code;
+
+  if (node.truthy()) {
+    for (int i = 0; i < preservedScriptAttributes.length; i++) {
+      string name = preservedScriptAttributes[i];
+      JsValue val = node[name];
+      if (!val.truthy()) {
+        val = JS.invoke(node, "getAttribute", name);
+      }
+      if (val.truthy()) {
+        JS.invoke(script, "setAttribute", name, JS.string(val));
+      }
+    }
+  }
+
+  JsValue head = doc["head"];
+  JsValue appended = JS.invoke(head, "appendChild", script);
+  JsValue parent = appended["parentNode"];
+  JS.invoke(parent, "removeChild", appended);
+}

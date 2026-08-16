@@ -11,12 +11,15 @@ for app in "$COMPARISON"/apps/*; do
   build="$app/build"
   destination="$ARTIFACTS/$name"
 
-  if [ ! -f "$build/lilscript.js" ] || [ ! -f "$build/closure.js" ]; then
-    "$app/build.sh"
-  fi
+  # Snapshot export is an attested rebuild operation, never a copy of whatever
+  # complete-looking files happen to be left in build/.
+  "$app/build.sh"
 
   mkdir -p "$destination"
   install -m 0644 "$build/lilscript.js" "$destination/lilscript.js"
+  install -m 0644 "$build/lilscript-raw.js" "$destination/lilscript-raw.js"
+  install -m 0644 "$build/lilscript-gzip.js" "$destination/lilscript-gzip.js"
+  install -m 0644 "$build/lilscript-brotli.js" "$destination/lilscript-brotli.js"
   install -m 0644 "$build/lilscript.c" "$destination/lilscript.c"
   install -m 0644 "$build/closure.js" "$destination/closure-advanced.js"
   install -m 0644 "$build/report.json" "$destination/report.json"
@@ -27,5 +30,7 @@ for app in "$COMPARISON"/apps/*; do
     install -m 0755 "$build/lilscript" "$destination/lilscript-native-macos-arm64"
   fi
 done
+
+node "$COMPARISON/lib/check-size-gate.mjs" "$COMPARISON"
 
 printf 'Exported checked-in comparison artifacts to %s\n' "$ARTIFACTS"

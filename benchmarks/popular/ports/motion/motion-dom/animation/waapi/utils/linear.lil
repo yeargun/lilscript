@@ -1,0 +1,23 @@
+export string generateLinearEasing(
+  func(float)->float easing,
+  float duration,
+  float resolution = 10.0
+) {
+  string points = "";
+  float numPointsFloat = (duration / resolution).round().max(2.0);
+  int numPoints = numPointsFloat.toInt();
+  for (int i = 0; i < numPoints; i++) {
+    float sample = easing(i / (numPoints - 1));
+    float rounded = (sample * 10000.0).round() / 10000.0;
+    points = `${points}${rounded}, `;
+  }
+  int end = points.length - 2;
+  if (end < 0) {
+    end = 0;
+  }
+  string trimmed = "";
+  for (int i = 0; i < end; i++) {
+    trimmed = `${trimmed}${points.charAt(i)}`;
+  }
+  return `linear(${trimmed})`;
+}

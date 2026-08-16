@@ -1,0 +1,59 @@
+export bool isIdentityScale(JsValue? scale) {
+  if (scale == null) {
+    return true;
+  }
+  if (scale is float) {
+    return scale == 1.0;
+  }
+  return false;
+}
+
+export bool hasScale(JsValue values) {
+  return (
+    !isIdentityScale(values["scale"]) ||
+    !isIdentityScale(values["scaleX"]) ||
+    !isIdentityScale(values["scaleY"])
+  );
+}
+
+bool is2DTranslate(JsValue? value) {
+  if (value == null) {
+    return false;
+  }
+  if (value is string) {
+    return value != "0%";
+  }
+  if (value is float) {
+    return value != 0.0;
+  }
+  return true;
+}
+
+export bool has2DTranslate(JsValue values) {
+  return is2DTranslate(values["x"]) || is2DTranslate(values["y"]);
+}
+
+export bool hasTransform(JsValue values) {
+  if (hasScale(values) || has2DTranslate(values)) {
+    return true;
+  }
+  if (values["z"].truthy() || (values["z"] is float)) {
+    return true;
+  }
+  if (values["rotate"].truthy() || (values["rotate"] is float)) {
+    return true;
+  }
+  if (values["rotateX"].truthy() || (values["rotateX"] is float)) {
+    return true;
+  }
+  if (values["rotateY"].truthy() || (values["rotateY"] is float)) {
+    return true;
+  }
+  if (values["skewX"].truthy() || (values["skewX"] is float)) {
+    return true;
+  }
+  if (values["skewY"].truthy() || (values["skewY"] is float)) {
+    return true;
+  }
+  return false;
+}

@@ -1,0 +1,3 @@
+[submodule "upstream/solid"]
+	path = upstream/solid
+	url = https://github.com/solidjs/solid.git

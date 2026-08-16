@@ -1,0 +1,168 @@
+import { resolveElements } from "../../utils/resolve-elements";
+import { callMethod1, callMethod2, getComputedStyleValue, getComputedStyleProperty, getComputedStyleField, windowGet } from "../../dom-host";
+
+int nameCount = 0;
+
+string generatedName() {
+  string name = `motion-view-${nameCount}`;
+  nameCount = nameCount + 1;
+  return name;
+}
+
+bool isGeneratedName(string name) {
+  return name.startsWith("motion-view-");
+}
+
+void tagClass(JsValue element, string? className, JsValue[] classed) {
+  if (className == null) {
+    return;
+  }
+  JsValue style = element["style"];
+  if (style.truthy()) {
+    callMethod2(style, "setProperty", "view-transition-class", className);
+  }
+  classed.push(element);
+}
+
+void applyGroup(
+  JsValue element,
+  string name,
+  string? group,
+  JsValue[] grouped,
+  Set<string>? clipChildren = null
+) {
+  if (group == null) {
+    return;
+  }
+  JsValue style = element["style"];
+  if (style.truthy()) {
+    callMethod2(style, "setProperty", "view-transition-group", group);
+  }
+  grouped.push(element);
+  if (group != "none" && clipChildren != null) {
+    JsValue computed = getComputedStyleValue(element);
+    if (computed["overflowX"] != "visible" || computed["overflowY"] != "visible") {
+      clipChildren.add(name);
+    }
+  }
+}
+
+export string[] assignViewTransitionNames(
+  JsValue definition,
+  Map<JsValue, string> registry,
+  JsValue[] assigned,
+  string[]? forcedNames = null,
+  string? className = null,
+  JsValue[]? classed = null,
+  string? group = null,
+  JsValue[]? grouped = null,
+  Set<string>? clipChildren = null
+) {
+  JsValue[] classedArr = [];
+  if (classed != null) {
+    classedArr = classed;
+  }
+  JsValue[] groupedArr = [];
+  if (grouped != null) {
+    groupedArr = grouped;
+  }
+  JsValue[] elements = resolveElements(definition);
+  string[] result = [];
+
+  if (forcedNames != null) {
+    for (int i = 0; i < elements.length; i++) {
+      JsValue element = elements[i];
+      string? existing = registry.get(element);
+      if (existing != null) {
+        result.push(existing);
+        continue;
+      }
+      string name = generatedName();
+      if (i < forcedNames.length) {
+        name = forcedNames[i];
+      }
+      JsValue style = element["style"];
+      if (style.truthy()) {
+        callMethod2(style, "setProperty", "view-transition-name", name);
+      }
+      assigned.push(element);
+      registry.set(element, name);
+      tagClass(element, className, classedArr);
+      applyGroup(element, name, group, groupedArr, clipChildren);
+      result.push(name);
+    }
+    return result;
+  }
+
+  string[] currentNames = [];
+  for (int i = 0; i < elements.length; i++) {
+    JsValue element = elements[i];
+    if (registry.get(element) != null) {
+      currentNames.push("");
+    } else {
+      string current = getComputedStyleProperty(element, "view-transition-name");
+      currentNames.push(current);
+    }
+  }
+
+  for (int i = 0; i < elements.length; i++) {
+    JsValue element = elements[i];
+    string? existing = registry.get(element);
+    if (existing != null) {
+      result.push(existing);
+      continue;
+    }
+    string current = currentNames[i];
+    string name = "";
+    if (
+      current != "" &&
+      current != "none" &&
+      current != "auto" &&
+      current != "match-element" &&
+      !isGeneratedName(current)
+    ) {
+      name = current;
+    } else {
+      name = generatedName();
+      JsValue style = element["style"];
+      if (style.truthy()) {
+        callMethod2(style, "setProperty", "view-transition-name", name);
+      }
+      assigned.push(element);
+    }
+    registry.set(element, name);
+    tagClass(element, className, classedArr);
+    applyGroup(element, name, group, groupedArr, clipChildren);
+    result.push(name);
+  }
+  return result;
+}
+
+export void releaseViewTransitionNames(
+  JsValue[] assigned,
+  JsValue[]? classed = null,
+  JsValue[]? grouped = null
+) {
+  for (int i = 0; i < assigned.length; i++) {
+    JsValue style = assigned[i]["style"];
+    if (style.truthy()) {
+      callMethod1(style, "removeProperty", "view-transition-name");
+    }
+  }
+  if (classed != null) {
+    for (int i = 0; i < classed.length; i++) {
+      JsValue style = classed[i]["style"];
+      if (style.truthy()) {
+        callMethod1(style, "removeProperty", "view-transition-class");
+      }
+    }
+  }
+  if (grouped != null) {
+    for (int i = 0; i < grouped.length; i++) {
+      JsValue style = grouped[i]["style"];
+      if (style.truthy()) {
+        callMethod1(style, "removeProperty", "view-transition-group");
+      }
+    }
+  }
+}

@@ -1,18 +1,23 @@
 use std::fmt::Write;
 
-use ahash::AHashMap;
+use crate::stable_hash::StableHashMap as AHashMap;
 use indexmap::IndexMap;
 
 use crate::ast::{
-    ArrowBody, AssignmentOp, BinaryOp, ClassDecl, ClassMember, Expr, ForInitializer, FunctionDecl,
-    Ident, Item, Program, Stmt, StructDecl, TemplatePart, TypeKind, TypeRef, UnaryOp, UpdateOp,
-    VarDecl,
+    ArrayBinding, ArrayElement, ArrowBody, AssignmentOp, BinaryOp, ClassDecl, ClassMember, Expr,
+    ForInitializer, FunctionDecl, Ident, Item, MatchPattern, Program, RecordElement, Stmt,
+    StructDecl, TemplatePart, TypeKind, TypeRef, UnaryOp, UpdateOp, VarDecl,
 };
 use crate::codegen_ir_js::emit_optimized_ir_js;
 use crate::lower::{lower_to_control_flow, LowerError};
 use crate::optimizer::{optimize_control_flow, SsaError};
 use crate::semantic::{analyze, SemanticError, SemanticModel, Type};
 use crate::span::Span;
+
+fn decoded_source_string(value: &str) -> String {
+    let encoded = format!("\"{value}\"");
+    serde_json::from_str(&encoded).unwrap_or_else(|_| value.to_string())
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CodegenOptions {
@@ -136,6 +141,7 @@ pub struct JsEmitter<'src> {
     options: CodegenOptions,
     mangler: Mangler,
     scopes: Vec<Scope<'src>>,
+    enums: AHashMap<&'src str, IndexMap<&'src str, i64>>,
     structs: AHashMap<&'src str, StructLayout<'src>>,
     classes: AHashMap<&'src str, ClassLayout<'src>>,
     expression_types: AHashMap<Span, Type<'src>>,
@@ -155,6 +161,7 @@ struct StructLayout<'src> {
 
 #[derive(Debug)]
 struct ClassLayout<'src> {
+    base: Option<&'src str>,
     members: IndexMap<&'src str, String>,
 }
 
@@ -164,10 +171,11 @@ impl<'src> JsEmitter<'src> {
             options,
             mangler: Mangler::default(),
             scopes: vec![Scope::default()],
-            structs: AHashMap::new(),
-            classes: AHashMap::new(),
-            expression_types: AHashMap::new(),
-            binding_types: AHashMap::new(),
+            enums: AHashMap::default(),
+            structs: AHashMap::default(),
+            classes: AHashMap::default(),
+            expression_types: AHashMap::default(),
+            binding_types: AHashMap::default(),
         }
     }
 
@@ -201,6 +209,7 @@ impl<'src> JsEmitter<'src> {
     }
 
     fn prepare_program<'ast>(&mut self, program: &Program<'ast, 'src>) -> Result<(), CodegenError> {
+        self.collect_enums(program)?;
         self.collect_structs(program)?;
         self.collect_classes(program)?;
 
@@ -214,6 +223,31 @@ impl<'src> JsEmitter<'src> {
                 }
                 _ => {}
             }
+        }
+        Ok(())
+    }
+
+    fn collect_enums<'ast>(&mut self, program: &Program<'ast, 'src>) -> Result<(), CodegenError> {
+        for item in program.items {
+            let Item::Enum(declaration) = item else {
+                continue;
+            };
+            if self.enums.contains_key(declaration.name.name) {
+                return Err(CodegenError::new(
+                    declaration.name.span,
+                    format!("duplicate enum `{}`", declaration.name.name),
+                ));
+            }
+            let mut variants = IndexMap::new();
+            for (value, variant) in declaration.variants.iter().enumerate() {
+                if variants.insert(variant.name, value as i64).is_some() {
+                    return Err(CodegenError::new(
+                        variant.span,
+                        format!("duplicate enum variant `{}`", variant.name),
+                    ));
+                }
+            }
+            self.enums.insert(declaration.name.name, variants);
         }
         Ok(())
     }
@@ -253,6 +287,27 @@ impl<'src> JsEmitter<'src> {
     }
 
     fn collect_classes<'ast>(&mut self, program: &Program<'ast, 'src>) -> Result<(), CodegenError> {
+        let mut shared_members = IndexMap::new();
+        let mut shared_mangler = Mangler::default();
+        for item in program.items {
+            let Item::Class(decl) = item else {
+                continue;
+            };
+            for member in decl.members {
+                let name = match member {
+                    ClassMember::Field(field) => field.name.name,
+                    ClassMember::Method(method) => method.name.name,
+                    ClassMember::Constructor(_) => continue,
+                };
+                shared_members.entry(name).or_insert_with(|| {
+                    if self.options.mangle {
+                        shared_mangler.next_name()
+                    } else {
+                        name.to_string()
+                    }
+                });
+            }
+        }
         for item in program.items {
             let Item::Class(decl) = item else {
                 continue;
@@ -265,7 +320,6 @@ impl<'src> JsEmitter<'src> {
             }
 
             let mut members = IndexMap::new();
-            let mut mangler = Mangler::default();
             for member in decl.members {
                 let ident = match member {
                     ClassMember::Field(field) => field.name,
@@ -281,14 +335,15 @@ impl<'src> JsEmitter<'src> {
                         ),
                     ));
                 }
-                let emitted = if self.options.mangle {
-                    mangler.next_name()
-                } else {
-                    ident.name.to_string()
-                };
+                let emitted = shared_members[ident.name].clone();
                 members.insert(ident.name, emitted);
             }
-            self.classes.insert(decl.name.name, ClassLayout { members });
+            let base = decl.base.and_then(|base| match base.kind {
+                TypeKind::Named { name, .. } => Some(name),
+                _ => None,
+            });
+            self.classes
+                .insert(decl.name.name, ClassLayout { base, members });
         }
         Ok(())
     }
@@ -299,7 +354,7 @@ impl<'src> JsEmitter<'src> {
         out: &mut String,
     ) -> Result<(), CodegenError> {
         match item {
-            Item::Struct(_) => Ok(()),
+            Item::Enum(_) | Item::Struct(_) => Ok(()),
             Item::Class(decl) => self.emit_class(decl, out),
             Item::Function(function) => self.emit_function(function, out),
             Item::Extern(_) | Item::ExternClass(_) | Item::ExternGlobal(_) => Ok(()),
@@ -316,7 +371,15 @@ impl<'src> JsEmitter<'src> {
             .resolve_name(&function.name)
             .ok_or_else(|| CodegenError::new(function.name.span, "unregistered function"))?
             .to_string();
-        write!(out, "function {}(", js_name).expect("writing to String cannot fail");
+        if function.is_async {
+            out.push_str("async ");
+        }
+        if function.is_generator {
+            out.push_str("function* ");
+            write!(out, "{}(", js_name).expect("writing to String cannot fail");
+        } else {
+            write!(out, "function {}(", js_name).expect("writing to String cannot fail");
+        }
 
         self.push_scope();
         for (index, param) in function.params.iter().enumerate() {
@@ -345,7 +408,20 @@ impl<'src> JsEmitter<'src> {
             .resolve_name(&class.name)
             .ok_or_else(|| CodegenError::new(class.name.span, "unregistered class"))?
             .to_string();
-        write!(out, "class {js_name}{{").expect("writing to String cannot fail");
+        write!(out, "class {js_name}").expect("writing to String cannot fail");
+        if let Some(base) = class.base {
+            let TypeKind::Named { name, .. } = base.kind else {
+                return Err(CodegenError::new(base.span, "invalid base class type"));
+            };
+            let base = self
+                .resolve_name(&Ident {
+                    name,
+                    span: base.span,
+                })
+                .ok_or_else(|| CodegenError::new(base.span, "unregistered base class"))?;
+            write!(out, " extends {base}").expect("writing to String cannot fail");
+        }
+        out.push('{');
 
         for member in class.members {
             let ClassMember::Field(field) = member else {
@@ -387,6 +463,12 @@ impl<'src> JsEmitter<'src> {
             let emitted = self
                 .class_member_name(class.name.name, method.name)?
                 .to_string();
+            if method.is_async {
+                out.push_str("async ");
+            }
+            if method.is_generator {
+                out.push('*');
+            }
             out.push_str(&emitted);
             out.push('(');
             self.push_scope();
@@ -416,6 +498,77 @@ impl<'src> JsEmitter<'src> {
     ) -> Result<(), CodegenError> {
         match stmt {
             Stmt::VarDecl(decl) => self.emit_var_decl(decl, out),
+            Stmt::ArrayDestructure {
+                bindings, value, ..
+            } => {
+                let mut nullable = Vec::new();
+                out.push_str("let[");
+                for (index, binding) in bindings.iter().enumerate() {
+                    if index != 0 {
+                        out.push(',');
+                    }
+                    match binding {
+                        ArrayBinding::Hole(_) => {}
+                        ArrayBinding::Name(name) => {
+                            let name = self.declare_name(*name)?;
+                            out.push_str(&name);
+                            nullable.push(name);
+                        }
+                        ArrayBinding::Rest(name) => {
+                            out.push_str("...");
+                            out.push_str(&self.declare_name(*name)?);
+                        }
+                    }
+                }
+                out.push_str("]=");
+                self.emit_expr(value, out)?;
+                out.push(';');
+                for name in nullable {
+                    out.push_str(&name);
+                    out.push_str("??=null;");
+                }
+                Ok(())
+            }
+            Stmt::RecordDestructure {
+                bindings,
+                rest,
+                value,
+                ..
+            } => {
+                let mut nullable = Vec::new();
+                out.push_str("let{");
+                for (index, binding) in bindings.iter().enumerate() {
+                    if index != 0 {
+                        out.push(',');
+                    }
+                    write_string_literal(binding.key.name, out);
+                    out.push(':');
+                    let name = self.declare_name(binding.name)?;
+                    out.push_str(&name);
+                    nullable.push(name);
+                }
+                let rest = rest.map(|rest| self.declare_name(rest)).transpose()?;
+                if let Some(rest) = &rest {
+                    if !bindings.is_empty() {
+                        out.push(',');
+                    }
+                    out.push_str("...");
+                    out.push_str(rest);
+                }
+                out.push_str("}=");
+                self.emit_expr(value, out)?;
+                out.push(';');
+                for name in nullable {
+                    out.push_str(&name);
+                    out.push_str("??=null;");
+                }
+                if let Some(rest) = rest {
+                    out.push_str("Object.setPrototypeOf(");
+                    out.push_str(&rest);
+                    out.push_str(",null);");
+                }
+                Ok(())
+            }
             Stmt::Expr(expr) => {
                 self.emit_expr(expr, out)?;
                 out.push(';');
@@ -428,6 +581,60 @@ impl<'src> JsEmitter<'src> {
                     self.emit_expr(value, out)?;
                 }
                 out.push(';');
+                Ok(())
+            }
+            Stmt::Throw { value, .. } => {
+                out.push_str("throw ");
+                self.emit_expr(value, out)?;
+                out.push(';');
+                Ok(())
+            }
+            Stmt::SuperCall { args, .. } => {
+                out.push_str("super(");
+                for (index, argument) in args.iter().enumerate() {
+                    if index != 0 {
+                        out.push(',');
+                    }
+                    self.emit_expr(argument, out)?;
+                }
+                out.push_str(");");
+                Ok(())
+            }
+            Stmt::Yield {
+                value, delegate, ..
+            } => {
+                out.push_str(if *delegate { "yield*" } else { "yield " });
+                self.emit_expr(value, out)?;
+                out.push(';');
+                Ok(())
+            }
+            Stmt::Try {
+                body,
+                catch,
+                finally,
+                ..
+            } => {
+                out.push_str("try");
+                self.push_scope();
+                self.emit_stmt_list_as_block(body, out)?;
+                self.pop_scope();
+                if let Some(clause) = catch {
+                    self.push_scope();
+                    out.push_str("catch");
+                    if let Some(binding) = clause.binding {
+                        out.push('(');
+                        out.push_str(&self.declare_name(binding.name)?);
+                        out.push(')');
+                    }
+                    self.emit_stmt_list_as_block(clause.body, out)?;
+                    self.pop_scope();
+                }
+                if let Some(body) = finally {
+                    out.push_str("finally");
+                    self.push_scope();
+                    self.emit_stmt_list_as_block(body, out)?;
+                    self.pop_scope();
+                }
                 Ok(())
             }
             Stmt::Block { body, .. } => {
@@ -497,6 +704,23 @@ impl<'src> JsEmitter<'src> {
                 out.push_str(&key);
                 out.push_str(" in ");
                 self.emit_expr(object, out)?;
+                out.push(')');
+                self.emit_control_body(body, out)?;
+                self.pop_scope();
+                Ok(())
+            }
+            Stmt::ForOf {
+                element,
+                iterable,
+                body,
+                ..
+            } => {
+                self.push_scope();
+                let element = self.declare_name(*element)?;
+                out.push_str("for(let ");
+                out.push_str(&element);
+                out.push_str(" of ");
+                self.emit_expr(iterable, out)?;
                 out.push(')');
                 self.emit_control_body(body, out)?;
                 self.pop_scope();
@@ -612,9 +836,39 @@ impl<'src> JsEmitter<'src> {
                     if index > 0 {
                         out.push(',');
                     }
-                    self.emit_expr(element, out)?;
+                    match element {
+                        ArrayElement::Value(value) => self.emit_expr(value, out)?,
+                        ArrayElement::Spread { value, .. } => {
+                            out.push_str("...");
+                            self.emit_expr(value, out)?;
+                        }
+                    }
                 }
                 out.push(']');
+            }
+            Expr::RecordLiteral { entries, .. } => {
+                out.push_str("{__proto__:null");
+                for entry in *entries {
+                    out.push(',');
+                    match entry {
+                        RecordElement::Spread { value, .. } => {
+                            out.push_str("...");
+                            self.emit_expr(value, out)?;
+                        }
+                        RecordElement::Entry(entry) => {
+                            if decoded_source_string(entry.key.name) == "__proto__" {
+                                out.push('[');
+                                write_string_literal(entry.key.name, out);
+                                out.push(']');
+                            } else {
+                                write_string_literal(entry.key.name, out);
+                            }
+                            out.push(':');
+                            self.emit_expr(&entry.value, out)?;
+                        }
+                    }
+                }
+                out.push('}');
             }
             Expr::StructLiteral { name, values, span } => {
                 if self.options.dissolve_structs {
@@ -642,7 +896,23 @@ impl<'src> JsEmitter<'src> {
                 object,
                 property,
                 span,
-            } => self.emit_member_expr(object, *property, *span, out)?,
+            } => {
+                if matches!(object, Expr::Ident(Ident { name: "Task", .. })) {
+                    out.push_str("Promise.");
+                    out.push_str(property.name);
+                } else {
+                    self.emit_member_expr(object, *property, *span, out)?;
+                }
+            }
+            Expr::OptionalMember {
+                object, property, ..
+            } => {
+                out.push('(');
+                self.emit_expr(object, out)?;
+                out.push_str("?.");
+                out.push_str(property.name);
+                out.push_str("??null)");
+            }
             Expr::Call { callee, args, .. } => {
                 if matches!(callee, Expr::Ident(Ident { name: "print", .. })) {
                     out.push_str("console.log");
@@ -688,6 +958,11 @@ impl<'src> JsEmitter<'src> {
                 });
                 self.emit_parenthesized_if_binary(expr, out)?;
             }
+            Expr::Await { task, .. } => {
+                out.push_str("await(");
+                self.emit_expr(task, out)?;
+                out.push(')');
+            }
             Expr::Binary { op, lhs, rhs, .. } => {
                 self.emit_binary_expr(*op, lhs, rhs, out)?;
             }
@@ -729,6 +1004,45 @@ impl<'src> JsEmitter<'src> {
                 out.push('[');
                 self.emit_expr(index, out)?;
                 out.push(']');
+            }
+            Expr::OptionalIndex { object, index, .. } => {
+                out.push('(');
+                self.emit_expr(object, out)?;
+                out.push_str("?.[");
+                self.emit_expr(index, out)?;
+                out.push_str("]??null)");
+            }
+            Expr::Match { value, arms, span } => {
+                if arms.is_empty() {
+                    return Err(CodegenError::new(*span, "match expression has no arms"));
+                }
+                out.push_str("(($lilmatch)=>");
+                for arm in &arms[..arms.len() - 1] {
+                    let MatchPattern::EnumVariant {
+                        enum_name,
+                        variant,
+                        span,
+                    } = arm.pattern
+                    else {
+                        return Err(CodegenError::new(
+                            arm.pattern.span(),
+                            "wildcard match arm must be last",
+                        ));
+                    };
+                    let value = self
+                        .enums
+                        .get(enum_name.name)
+                        .and_then(|variants| variants.get(variant.name))
+                        .copied()
+                        .ok_or_else(|| CodegenError::new(span, "unknown enum match pattern"))?;
+                    write!(out, "$lilmatch==={value}?").expect("writing to String cannot fail");
+                    self.emit_expr(&arm.value, out)?;
+                    out.push(':');
+                }
+                self.emit_expr(&arms.last().expect("checked nonempty").value, out)?;
+                out.push_str(")(");
+                self.emit_expr(value, out)?;
+                out.push(')');
             }
             Expr::Assignment {
                 op, target, value, ..
@@ -859,6 +1173,16 @@ impl<'src> JsEmitter<'src> {
         span: Span,
         out: &mut String,
     ) -> Result<(), CodegenError> {
+        if let Expr::Ident(enum_name) = object {
+            if let Some(value) = self
+                .enums
+                .get(enum_name.name)
+                .and_then(|variants| variants.get(property.name))
+            {
+                write!(out, "{value}").expect("writing to String cannot fail");
+                return Ok(());
+            }
+        }
         if self.options.dissolve_structs {
             let semantic_struct =
                 self.expression_types
@@ -931,16 +1255,20 @@ impl<'src> JsEmitter<'src> {
         class_name: &str,
         member: Ident<'src>,
     ) -> Result<&str, CodegenError> {
-        self.classes
-            .get(class_name)
-            .and_then(|layout| layout.members.get(member.name))
-            .map(String::as_str)
-            .ok_or_else(|| {
-                CodegenError::new(
-                    member.span,
-                    format!("class `{class_name}` has no member `{}`", member.name),
-                )
-            })
+        let mut current = Some(class_name);
+        while let Some(name) = current {
+            let Some(layout) = self.classes.get(name) else {
+                break;
+            };
+            if let Some(emitted) = layout.members.get(member.name) {
+                return Ok(emitted);
+            }
+            current = layout.base;
+        }
+        Err(CodegenError::new(
+            member.span,
+            format!("class `{class_name}` has no member `{}`", member.name),
+        ))
     }
 
     fn emit_binary_expr<'ast>(
@@ -1133,12 +1461,14 @@ fn binary_op_js(op: BinaryOp) -> &'static str {
         BinaryOp::GreaterEq => ">=",
         BinaryOp::And => "&&",
         BinaryOp::Or => "||",
+        BinaryOp::Nullish => "??",
     }
 }
 
 fn assignment_op_js(op: AssignmentOp) -> &'static str {
     match op {
         AssignmentOp::Assign => "=",
+        AssignmentOp::Nullish => "??=",
         AssignmentOp::Add => "+=",
         AssignmentOp::Sub => "-=",
         AssignmentOp::Mul => "*=",
@@ -1155,7 +1485,7 @@ fn assignment_op_js(op: AssignmentOp) -> &'static str {
 
 fn binary_precedence(op: BinaryOp) -> u8 {
     match op {
-        BinaryOp::Or => 1,
+        BinaryOp::Or | BinaryOp::Nullish => 1,
         BinaryOp::And => 2,
         BinaryOp::BitOr => 3,
         BinaryOp::Xor => 4,

@@ -1,0 +1,1 @@
+console.log((function(){var g,r,l,o=algorithmCount(),t=0,a=0;for(;(a+3|0)<o;a=a+4|0)g=algorithmInt(a),r=algorithmInt(a+1|0),l=algorithmInt(a+2|0),t=t+(t=>(o=>(b=>o>b?o-b|0:b-o|0)(((t<-100?-100:t>100?100:t)*(0==l?3:1==l?-2:2==l?5:1)|0)+l|0))(((r<-100?-100:r>100?100:r)*(0==g?3:1==g?-2:2==g?5:1)|0)+g|0))(algorithmInt(a+3|0))|0;return t})())

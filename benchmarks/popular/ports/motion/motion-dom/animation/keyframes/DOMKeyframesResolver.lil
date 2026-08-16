@@ -1,0 +1,217 @@
+import { positionalKeys } from "../../render/utils/keys-position";
+import { findDimensionValueType } from "../../value/types/dimensions";
+import { ValueType } from "../../value/types/types";
+import { getVariableValue } from "../utils/css-variables-conversion";
+import { containsCSSVariable, isCSSVariableToken } from "../utils/is-css-variable";
+import { KeyframeResolver } from "./KeyframesResolver";
+import { isNone } from "./utils/is-none";
+import { makeNoneKeyframesAnimatable } from "./utils/make-none-animatable";
+import { isNumOrPxType, positionalValues } from "./utils/unit-conversion";
+import { callMethod2, getComputedStyleValue, getComputedStyleProperty, getComputedStyleField, windowPageYOffset, windowGet } from "../../dom-host";
+import { stringTrim } from "../../string-host";
+import { visualElementOf, motionValueOf } from "../../cast";
+import { VisualElement } from "../../render/VisualElement";
+import { MotionValue } from "../../value/index";
+
+extern float parseFloat(string v);
+
+JsValue? visualElementCurrent(JsValue element) {
+  VisualElement typed = visualElementOf(element);
+  return typed.current;
+}
+
+export class DOMKeyframesResolver extends KeyframeResolver {
+  JsValue[]? removedTransforms;
+  JsValue? measuredOrigin;
+
+  init(
+    JsValue[] unresolvedKeyframes,
+    func(JsValue[], JsValue?, bool)->void onComplete,
+    string? name = null,
+    JsValue? motionValue = null,
+    JsValue? element = null
+  ) {
+    super(unresolvedKeyframes, onComplete, name, motionValue, element, true);
+    this.removedTransforms = null;
+    this.measuredOrigin = null;
+    this.readKeyframesHook = () => {
+      this.readKeyframesDOM();
+    };
+    this.measureInitialStateHook = () => {
+      this.measureInitialStateDOM();
+    };
+    this.measureEndStateHook = () => {
+      this.measureEndStateDOM();
+    };
+  }
+
+  void readKeyframesDOM() {
+    JsValue? element = this.element;
+    if (element == null) {
+      return;
+    }
+    JsValue? current = visualElementCurrent(element);
+    if (current == null) {
+      return;
+    }
+    this.readKeyframesDefault();
+    JsValue[] unresolvedKeyframes = this.unresolvedKeyframes;
+    for (int i = 0; i < unresolvedKeyframes.length; i++) {
+      JsValue keyframe = unresolvedKeyframes[i];
+      if (keyframe is string) {
+        string trimmed = stringTrim(keyframe);
+        if (isCSSVariableToken(trimmed)) {
+          JsValue? resolved = getVariableValue(trimmed, current);
+          if (resolved != null) {
+            unresolvedKeyframes[i] = resolved;
+          }
+          if (i == unresolvedKeyframes.length - 1) {
+            this.finalKeyframe = trimmed;
+          }
+        }
+      }
+    }
+    this.resolveNoneKeyframes();
+    string? name = this.name;
+    if (name == null || !positionalKeys.has(name) || unresolvedKeyframes.length != 2) {
+      return;
+    }
+    JsValue origin = unresolvedKeyframes[0];
+    JsValue target = unresolvedKeyframes[1];
+    ValueType? originType = findDimensionValueType(origin);
+    ValueType? targetType = findDimensionValueType(target);
+    bool originHasVar = containsCSSVariable(origin);
+    bool targetHasVar = containsCSSVariable(target);
+    if (originHasVar != targetHasVar && positionalValues.get(name) != null) {
+      this.needsMeasurement = true;
+      return;
+    }
+    if (originType == targetType) {
+      return;
+    }
+    if (isNumOrPxType(originType) && isNumOrPxType(targetType)) {
+      for (int i = 0; i < unresolvedKeyframes.length; i++) {
+        JsValue value = unresolvedKeyframes[i];
+        if (value is string) {
+          unresolvedKeyframes[i] = parseFloat(value);
+        }
+      }
+    } else if (positionalValues.get(name) != null) {
+      this.needsMeasurement = true;
+    }
+  }
+
+  void resolveNoneKeyframes() {
+    JsValue[] unresolvedKeyframes = this.unresolvedKeyframes;
+    string? name = this.name;
+    int[] noneKeyframeIndexes = [];
+    for (int i = 0; i < unresolvedKeyframes.length; i++) {
+      JsValue kf = unresolvedKeyframes[i];
+      bool isNull = !(
+        (kf is float) ||
+        (kf is string) ||
+        (kf is bool) ||
+        kf.isArray() ||
+        (kf.isObject() && kf.truthy())
+      );
+      if (isNull || isNone(kf)) {
+        noneKeyframeIndexes.push(i);
+      }
+    }
+    if (noneKeyframeIndexes.length > 0) {
+      makeNoneKeyframesAnimatable(unresolvedKeyframes, noneKeyframeIndexes, name);
+    }
+  }
+
+  void measureInitialStateDOM() {
+    JsValue? element = this.element;
+    string? name = this.name;
+    if (element == null) {
+      return;
+    }
+    JsValue? current = visualElementCurrent(element);
+    if (current == null) {
+      return;
+    }
+    if (name == null) {
+      return;
+    }
+    if (name == "height") {
+      this.suspendedScrollY = windowPageYOffset();
+    }
+    (func(JsValue, JsValue)->float)? measure = positionalValues.get(name);
+    if (measure == null) {
+      return;
+    }
+    VisualElement typed = visualElementOf(element);
+    this.measuredOrigin = measure(
+      typed.measureViewportBox(),
+      getComputedStyleValue(current)
+    );
+    this.unresolvedKeyframes[0] = this.measuredOrigin;
+    JsValue measureKeyframe = this.unresolvedKeyframes[this.unresolvedKeyframes.length - 1];
+    bool defined =
+      (measureKeyframe is float) ||
+      (measureKeyframe is string) ||
+      (measureKeyframe is bool) ||
+      measureKeyframe.isArray() ||
+      (measureKeyframe.isObject() && measureKeyframe.truthy());
+    if (defined) {
+      JsValue? mv = typed.getValue(name, measureKeyframe, true);
+      if (mv != null) {
+        motionValueOf(mv).jump(measureKeyframe, false);
+      }
+    }
+  }
+
+  void measureEndStateDOM() {
+    JsValue? element = this.element;
+    string? name = this.name;
+    if (element == null) {
+      return;
+    }
+    JsValue? current = visualElementCurrent(element);
+    if (current == null) {
+      return;
+    }
+    if (name == null) {
+      return;
+    }
+    VisualElement typed = visualElementOf(element);
+    JsValue? value = typed.getValue(name);
+    if (value != null) {
+      motionValueOf(value).jump(this.measuredOrigin, false);
+    }
+    int finalKeyframeIndex = this.unresolvedKeyframes.length - 1;
+    JsValue finalKeyframe = this.unresolvedKeyframes[finalKeyframeIndex];
+    (func(JsValue, JsValue)->float)? measure = positionalValues.get(name);
+    if (measure != null) {
+      this.unresolvedKeyframes[finalKeyframeIndex] = measure(
+        typed.measureViewportBox(),
+        getComputedStyleValue(current)
+      );
+    }
+    bool finalDefined =
+      (finalKeyframe is float) ||
+      (finalKeyframe is string) ||
+      (finalKeyframe is bool) ||
+      finalKeyframe.isArray() ||
+      (finalKeyframe.isObject() && finalKeyframe.truthy());
+    if (finalDefined && this.finalKeyframe == null) {
+      this.finalKeyframe = finalKeyframe;
+    }
+    JsValue[]? removed = this.removedTransforms;
+    if (removed != null) {
+      for (int i = 0; i < removed.length; i++) {
+        JsValue pair = removed[i];
+        string unsetName = `${pair[0]}`;
+        JsValue unsetValue = pair[1];
+        JsValue? mv = typed.getValue(unsetName);
+        if (mv != null) {
+          motionValueOf(mv).set(unsetValue);
+        }
+      }
+    }
+    this.resolveNoneKeyframes();
+  }
+}

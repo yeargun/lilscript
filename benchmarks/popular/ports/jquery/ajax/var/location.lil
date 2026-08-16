@@ -1,0 +1,5 @@
+import {
+  windowSelf
+} from "../../js-host.lil";
+
+export JsValue location = windowSelf()["location"];

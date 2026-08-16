@@ -1,0 +1,24 @@
+import { VisualElement } from "./render/VisualElement";
+import { MotionValue } from "./value/index";
+import { WithPromise } from "./animation/utils/WithPromise";
+import extern {
+  identity as asVisualElement,
+  identity as asMotionValue,
+  identity as asWithPromise
+} from "./cast-host.ts";
+
+extern VisualElement asVisualElement(JsValue value);
+extern MotionValue asMotionValue(JsValue value);
+extern WithPromise asWithPromise(JsValue value);
+
+export VisualElement visualElementOf(JsValue value) {
+  return asVisualElement(value);
+}
+
+export MotionValue motionValueOf(JsValue value) {
+  return asMotionValue(value);
+}
+
+export WithPromise withPromiseOf(JsValue value) {
+  return asWithPromise(value);
+}

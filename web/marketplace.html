@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="An accessible Parcel Market demo for the Lastro application experiment, powered by the Lilscript web stack.">
+    <meta name="theme-color" content="#f5f1e8">
+    <title>Parcel Market | Lastro demo</title>
+    <link rel="stylesheet" href="/src/styles.css">
+    <link rel="stylesheet" href="/src/marketplace.css">
+  </head>
+  <body class="content-page marketplace-page">
+    <a class="skip-link" href="#main-content">Skip to marketplace</a>
+    <header class="site-header">
+      <a class="wordmark" href="/" aria-label="LilScript home"><span class="wordmark-mark" aria-hidden="true">L</span><span>LilScript</span></a>
+      <button class="nav-toggle icon-button" type="button" aria-label="Toggle navigation" aria-expanded="false"><i data-lucide="menu" aria-hidden="true"></i></button>
+      <nav class="site-nav" aria-label="Primary navigation"></nav>
+    </header>
+
+    <main id="main-content">
+      <div class="demo-bar">
+        <div class="content-width"><p><span>Interactive Lastro example</span> No login, backend, persistence, or real payment.</p><a href="/lastro.html">How it is implemented</a></div>
+      </div>
+      <h1 class="sr-only">Parcel Market accessible marketplace demo</h1>
+      <p id="market-status" class="sr-only" role="status" aria-live="polite" aria-atomic="true">Loading six marketplace listings.</p>
+      <section id="parcel-market" class="market-demo" aria-label="Parcel Market demo">
+        <div class="market-shell">
+          <header class="market-topbar">
+            <span class="market-brand"><span aria-hidden="true">P</span>parcel market</span>
+            <p>Independent objects for daily life</p>
+            <span class="market-list-pill"><span>Shopping list</span><b>0</b></span>
+          </header>
+          <div class="market-content">
+            <section class="market-hero" aria-labelledby="market-loading-title">
+              <p class="market-eyebrow">Edition 04 · made by small studios</p>
+              <div class="market-hero-grid"><h2 id="market-loading-title">Useful things,<br><em>chosen slowly.</em></h2><div class="market-hero-note"><p>A compact market for objects with a point of view. Six finds, no endless aisle.</p><span>Opening the shelf…</span></div></div>
+            </section>
+            <section class="market-layout" aria-busy="true" aria-label="Loading marketplace listings">
+              <div><div class="market-section-heading"><div><span class="market-eyebrow">This week</span><h2>The market shelf</h2></div><p>6 objects</p></div><div class="market-listing-grid market-skeleton-grid" aria-hidden="true"><article class="market-skeleton-card"><div></div><span></span><span></span><span></span></article><article class="market-skeleton-card"><div></div><span></span><span></span><span></span></article><article class="market-skeleton-card"><div></div><span></span><span></span><span></span></article><article class="market-skeleton-card"><div></div><span></span><span></span><span></span></article></div></div>
+              <aside class="market-shopping-list market-skeleton-list" aria-hidden="true"><div></div><span></span><span></span></aside>
+            </section>
+          </div>
+        </div>
+      </section>
+      <noscript><p class="market-noscript">Parcel Market needs JavaScript for the shopping list and demo checkout.</p></noscript>
+    </main>
+    <script type="module" src="/src/marketplace.js"></script>
+  </body>
+</html>

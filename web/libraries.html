@@ -1,11 +1,14 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="LilScript ports compared fairly with installed npm packages through Vite 8, Terser, and Closure Compiler.">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="LilScript ports compared fairly with installed npm packages through Vite 8, Terser, and Closure Compiler."
+    />
     <title>Library Lab | LilScript</title>
-    <link rel="stylesheet" href="/src/styles.css">
+    <link rel="stylesheet" href="/src/styles.css" />
   </head>
   <body class="content-page">
     <header class="site-header">
@@ -13,7 +16,12 @@
         <span class="wordmark-mark" aria-hidden="true">L</span>
         <span>LilScript</span>
       </a>
-      <button class="nav-toggle icon-button" type="button" aria-label="Toggle navigation" aria-expanded="false">
+      <button
+        class="nav-toggle icon-button"
+        type="button"
+        aria-label="Toggle navigation"
+        aria-expanded="false"
+      >
         <i data-lucide="menu" aria-hidden="true"></i>
       </button>
       <nav class="site-nav" aria-label="Primary navigation">
@@ -31,23 +39,153 @@
       <section class="comparison-intro">
         <p class="eyebrow">Ecosystem evidence</p>
         <h1>Real client code, checked end to end</h1>
-        <p class="lead">A Solid-like LSX app, seven complete package apps, and four exact populated-package entrypoints run through reproducible behavior, size, speed, and memory gates.</p>
-        <p class="comparison-note" data-library-summary>Loading generated library results.</p>
-        <div class="benchmark-links"><a class="secondary-link" href="/benchmarks.html"><i data-lucide="arrow-right" aria-hidden="true"></i>Compiler corpus</a><a class="secondary-link" href="/explorer.html"><i data-lucide="search" aria-hidden="true"></i>Filter every result</a></div>
+        <p class="lead">
+          Three exact SolidLil runtime surfaces, one archived partial LSX app,
+          seven complete package apps, and four exact populated-package
+          entrypoints run through reproducible behavior, size, speed, and memory
+          gates.
+        </p>
+        <p class="comparison-note" data-library-summary>
+          Loading generated library results.
+        </p>
+        <div class="benchmark-links">
+          <a class="secondary-link" href="/benchmarks.html"
+            ><i data-lucide="arrow-right" aria-hidden="true"></i>Compiler
+            corpus</a
+          ><a class="secondary-link" href="/explorer.html"
+            ><i data-lucide="search" aria-hidden="true"></i>Filter every
+            result</a
+          >
+        </div>
+      </section>
+
+      <section
+        class="library-comparator"
+        id="compare"
+        aria-labelledby="compare-title"
+        data-library-comparator
+      >
+        <header class="comparator-heading">
+          <div>
+            <p class="eyebrow">Interactive comparison</p>
+            <h2 id="compare-title">Start with shipped Brotli bytes</h2>
+            <p>
+              Choose a metric, filter the evidence boundary, and select exactly
+              which rewrites to compare. Brotli-11 is the default and primary
+              transfer-size view.
+            </p>
+          </div>
+          <p class="comparator-total" data-compare-total aria-live="polite">
+            Loading comparisons.
+          </p>
+        </header>
+        <div class="comparator-controls" aria-label="Comparison controls">
+          <label
+            ><span>Metric</span
+            ><select data-compare-metric>
+              <option value="brotli">Brotli-11 bytes · primary</option>
+              <option value="gzip">Gzip-9 bytes</option>
+              <option value="raw">Raw JavaScript bytes</option>
+              <option value="time">Median execution time</option>
+              <option value="memory">Retained heap</option>
+              <option value="disposed-memory">Post-unmount heap</option>
+            </select></label
+          >
+          <label
+            ><span>Evidence</span
+            ><select data-compare-scope>
+              <option value="all">All measured rewrites</option>
+              <option value="exact">Exact public entrypoints</option>
+              <option value="candidate">Candidate / partial ports</option>
+              <option value="eligible">Published winners</option>
+              <option value="regression">Current regressions</option>
+            </select></label
+          >
+          <label
+            ><span>Sort</span
+            ><select data-compare-sort>
+              <option value="saving">Largest saving</option>
+              <option value="name">Library name</option>
+              <option value="candidate">Smallest LilScript value</option>
+              <option value="baseline">Smallest npm value</option>
+            </select></label
+          >
+          <label class="comparator-search"
+            ><span>Find rewrite</span
+            ><input
+              type="search"
+              data-compare-search
+              placeholder="Solid, Motion, jQuery…"
+              autocomplete="off"
+          /></label>
+        </div>
+        <div class="comparator-actions" aria-label="Selection actions">
+          <button type="button" data-select-visible>Select visible</button
+          ><button type="button" data-select-winners>
+            Select metric winners</button
+          ><button type="button" data-clear-selection>Clear</button>
+        </div>
+        <fieldset class="comparator-picker">
+          <legend>Rewrites in comparison</legend>
+          <div data-compare-picker></div>
+        </fieldset>
+        <div
+          class="comparator-results"
+          data-compare-results
+          aria-live="polite"
+        ></div>
       </section>
 
       <div data-client-runtime></div>
 
-      <section class="comparison-method" id="popular-library-matrix" aria-labelledby="popular-library-title">
+      <section
+        class="comparison-method"
+        id="popular-library-matrix"
+        aria-labelledby="popular-library-title"
+      >
         <p class="eyebrow">Requested Vite 8 matrix</p>
-        <h2 id="popular-library-title">Exact published-entrypoint results only</h2>
+        <h2 id="popular-library-title">
+          Exact published-entrypoint results only
+        </h2>
         <p data-popular-summary>Loading popular-library benchmark results.</p>
-        <p class="comparison-note">Eligibility requires the complete selected public entrypoint, counted adapter code, no material representative time or retained-memory regression, and a LilScript Vite 8 artifact no larger than both npm/Vite 8 and public-API-preserving Closure ADVANCED in raw and configured-codec bytes. Gzip-9 and Brotli-11 are both reported. Partial implementations are not shown as library comparisons.</p>
+        <p class="comparison-note">
+          Eligibility requires the complete selected public entrypoint, counted
+          adapter code, no material representative time or retained-memory
+          regression, and a LilScript Vite 8 artifact no larger than both
+          npm/Vite 8 and public-API-preserving Closure ADVANCED in raw and
+          configured-codec bytes. Size cells lead with Brotli-11, followed by
+          gzip-9 and raw bytes. Partial implementations are not shown as library
+          comparisons.
+        </p>
         <h3>Passing exact entrypoints</h3>
         <div class="benchmark-table-wrap" data-popular-eligible></div>
         <h3>Exact entrypoints under investigation</h3>
         <div class="benchmark-table-wrap" data-popular-blocked></div>
+        <h3>Candidate / partial ports (measured, not eligibility wins)</h3>
+        <p class="comparison-note">
+          Same Brotli-11 / gzip-9 / raw cells. These rows are research ports or
+          subset surfaces; they do not clear the exact-entrypoint publication
+          gate. Every project name opens its Explorer detail page.
+        </p>
+        <div class="benchmark-table-wrap" data-popular-candidates></div>
         <p data-popular-method></p>
+      </section>
+
+      <section
+        class="comparison-method"
+        id="motion-lab-examples"
+        aria-labelledby="motion-lab-title"
+      >
+        <p class="eyebrow">Openable Motion examples</p>
+        <h2 id="motion-lab-title">motion@13 DOM fixtures, npm vs LilScript</h2>
+        <p data-motion-lab-summary>Loading Motion lab examples.</p>
+        <p class="comparison-note">
+          Each fixture is a call-site Vite 8 bundle. Prefer the
+          <a href="/demos.html#motion-showcase-carousel">Demos dual-iframe stage</a>
+          for side-by-side playback. Size cells are Brotli-11 / gzip-9 / raw for the
+          minified JS asset.
+        </p>
+        <div class="benchmark-table-wrap" data-motion-lab-examples></div>
       </section>
 
       <div data-library-results></div>
@@ -55,7 +193,11 @@
       <section class="comparison-method" aria-labelledby="excluded-title">
         <p class="eyebrow">Audited, not claimed</p>
         <h2 id="excluded-title">Packages outside the compatibility boundary</h2>
-        <p>A popular package stays out of measured totals when LilScript cannot express its complete documented root API. The blocker inventory is generated from the checked compatibility manifest.</p>
+        <p>
+          A popular package stays out of measured totals when LilScript cannot
+          express its complete documented root API. The blocker inventory is
+          generated from the checked compatibility manifest.
+        </p>
         <div class="benchmark-table-wrap" data-ineligible-table></div>
       </section>
 
@@ -63,11 +205,19 @@
         <p class="eyebrow">Method</p>
         <h2 id="library-method-title">Measurements follow behavior gates</h2>
         <p data-library-method>Loading benchmark metadata.</p>
-        <p>Transfer columns independently compress each served file with gzip level 9 and Brotli quality 11. Runtime is cache-busted Node module parsing plus deterministic app execution, not a browser rendering benchmark.</p>
+        <p>
+          Transfer columns independently compress each served file with gzip
+          level 9 and Brotli quality 11. Runtime is cache-busted Node module
+          parsing plus deterministic app execution, not a browser rendering
+          benchmark.
+        </p>
       </section>
     </main>
 
-    <footer class="site-footer content-width"><span>LilScript library lab</span><a href="/docs.html#verification">Verification method</a></footer>
+    <footer class="site-footer content-width">
+      <span>LilScript library lab</span
+      ><a href="/docs.html#verification">Verification method</a>
+    </footer>
     <script type="module" src="/src/libraries.js"></script>
   </body>
 </html>

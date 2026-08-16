@@ -1,0 +1,127 @@
+import { GroupAnimationWithThen } from "../../../motion-dom/animation/GroupAnimationWithThen";
+import { AnimationScope } from "../../../motion-dom/utils/resolve-elements";
+import { removeItem } from "../../../motion-utils/array";
+import {
+  isFunction,
+  callFn0,
+  callMethod2,
+  windowGet
+} from "../../../motion-dom/dom-host";
+import { animateSequence } from "./sequence";
+import { animateSubject } from "./subject";
+
+bool isSequence(JsValue? value = null) {
+  if (value == null || !value.isArray()) {
+    return false;
+  }
+  int len = value.length.toInt();
+  for (int i = 0; i < len; i++) {
+    if (value[i].isArray()) {
+      return true;
+    }
+  }
+  return false;
+}
+
+void assignObject(JsValue target, JsValue? source) {
+  if (source != null && source.isObject()) {
+    callMethod2(windowGet("Object"), "assign", target, source);
+  }
+}
+
+(func()->void)? takeOnComplete(JsValue target) {
+  JsValue onComplete = target["onComplete"];
+  if (isFunction(onComplete)) {
+    target["onComplete"] = null;
+    return () => {
+      callFn0(onComplete);
+    };
+  }
+  return null;
+}
+
+export class ScopedAnimateOptions {
+  AnimationScope? scope;
+  bool? reduceMotion;
+  bool? skipAnimations;
+
+  init(
+    AnimationScope? scope = null,
+    bool? reduceMotion = null,
+    bool? skipAnimations = null
+  ) {
+    this.scope = scope;
+    this.reduceMotion = reduceMotion;
+    this.skipAnimations = skipAnimations;
+  }
+}
+
+export func(JsValue, JsValue?, JsValue?)->GroupAnimationWithThen createScopedAnimate(
+  ScopedAnimateOptions? options = null
+) {
+  AnimationScope? scope = null;
+  bool? reduceMotion = null;
+  bool? skipAnimations = null;
+  if (options != null) {
+    scope = options.scope;
+    reduceMotion = options.reduceMotion;
+    skipAnimations = options.skipAnimations;
+  }
+
+  return (JsValue subjectOrSequence, JsValue? optionsOrKeyframes = null, JsValue? opts = null) => {
+    JsValue[] animations = [];
+    (func()->void)? animationOnComplete = null;
+
+    JsValue inherited = record{};
+    if (reduceMotion != null) {
+      inherited["reduceMotion"] = reduceMotion;
+    }
+    if (skipAnimations != null) {
+      inherited["skipAnimations"] = skipAnimations;
+    }
+
+    if (isSequence(subjectOrSequence)) {
+      JsValue sequenceOptions = record{};
+      assignObject(sequenceOptions, inherited);
+      assignObject(sequenceOptions, optionsOrKeyframes);
+      (func()->void)? complete = takeOnComplete(sequenceOptions);
+      if (complete != null) {
+        animationOnComplete = complete;
+      }
+      animations = animateSequence(subjectOrSequence, sequenceOptions, scope);
+    } else {
+      JsValue rest = record{};
+      assignObject(rest, inherited);
+      assignObject(rest, opts);
+      (func()->void)? complete = takeOnComplete(rest);
+      if (complete != null) {
+        animationOnComplete = complete;
+      }
+      animations = animateSubject(subjectOrSequence, optionsOrKeyframes, rest, scope);
+    }
+
+    GroupAnimationWithThen animation = new GroupAnimationWithThen(animations);
+
+    if (animationOnComplete != null) {
+      (func()->void) complete = animationOnComplete;
+      animation.finished().then((bool _v) => {
+        complete();
+        return true;
+      });
+    }
+
+    if (scope != null) {
+      AnimationScope activeScope = scope;
+      activeScope.animations.push(animation);
+      animation.finished().then((bool _v) => {
+        removeItem(activeScope.animations, animation);
+        return true;
+      });
+    }
+
+    return animation;
+  };
+}
+
+export func(JsValue, JsValue?, JsValue?)->GroupAnimationWithThen animate =
+  createScopedAnimate();

@@ -1,0 +1,11 @@
+export class DriverControls {
+  func(bool)->void start;
+  func()->void stop;
+  func()->float now;
+
+  init(func(bool)->void start, func()->void stop, func()->float now) {
+    this.start = start;
+    this.stop = stop;
+    this.now = now;
+  }
+}

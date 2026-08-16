@@ -1,0 +1,17 @@
+import { transformPropOrder } from "./keys-transform";
+
+export Set<string> positionalKeys = new Set<string>();
+
+void initPositionalKeys() {
+  positionalKeys.add("width");
+  positionalKeys.add("height");
+  positionalKeys.add("top");
+  positionalKeys.add("left");
+  positionalKeys.add("right");
+  positionalKeys.add("bottom");
+  for (int i = 0; i < transformPropOrder.length; i++) {
+    positionalKeys.add(transformPropOrder[i]);
+  }
+}
+
+initPositionalKeys();

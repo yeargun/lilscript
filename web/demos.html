@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Side-by-side LilScript demos: Lastro, SolidLil versus SolidJS, Motion, libraries, and algorithms with Brotli compression ratios."
+    />
+    <title>Demos | LilScript</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body class="content-page demos-page">
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <header class="site-header">
+      <a class="wordmark" href="/" aria-label="LilScript home"
+        ><span class="wordmark-mark" aria-hidden="true">L</span
+        ><span>LilScript</span></a
+      >
+      <button
+        class="nav-toggle icon-button"
+        type="button"
+        aria-label="Toggle navigation"
+        aria-expanded="false"
+      >
+        <i data-lucide="menu" aria-hidden="true"></i>
+      </button>
+      <nav class="site-nav" aria-label="Primary navigation"></nav>
+    </header>
+
+    <main id="main-content" class="content-width">
+      <section class="demos-hero">
+        <div>
+          <p class="eyebrow">Runnable comparisons</p>
+          <h1>See the same work twice.</h1>
+          <p class="lead">
+            Each card is a fair pair. Click one to open JavaScript or SolidJS on
+            the left and the LilScript compile on the right. Ratios are Brotli-11
+            of the selected JavaScript, not HTML or CSS.
+          </p>
+        </div>
+      </section>
+
+      <div class="demos-toolbar">
+        <p data-demo-count>Loading comparisons.</p>
+        <div class="demo-filters" data-demo-filters role="tablist" aria-label="Demo groups"></div>
+      </div>
+
+      <div class="demos-shell">
+        <div class="demos-rail" data-demo-rail aria-label="Demo gallery"></div>
+        <article class="demo-stage" data-demo-stage></article>
+      </div>
+    </main>
+
+    <footer class="site-footer content-width">
+      <span>LilScript demos</span>
+      <a href="https://github.com/yeargun/lilscript" target="_blank" rel="noopener">GitHub</a>
+    </footer>
+    <script type="module" src="/src/demos.js"></script>
+  </body>
+</html>

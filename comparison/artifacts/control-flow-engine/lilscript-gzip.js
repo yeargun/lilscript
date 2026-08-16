@@ -1,0 +1,1 @@
+let c=0,i=0,l;for(;i<12;i++){if(i%3==0)continue;for(l=0;l<4;)c=(i+l)%2==0?c+i*l|0:c+1|0,l++;}console.log(c)

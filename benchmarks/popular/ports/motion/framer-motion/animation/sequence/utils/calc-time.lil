@@ -1,0 +1,40 @@
+import { stringSubstring } from "../../../../motion-dom/string-host";
+
+extern float parseFloat(string value);
+
+export float calcNextTime(
+  float current,
+  JsValue next,
+  float prev,
+  Map<string, float> labels
+) {
+  if (next is float) {
+    return next;
+  }
+  if (!(next is string)) {
+    return current;
+  }
+  string nextStr = next;
+  if (nextStr.startsWith("-") || nextStr.startsWith("+")) {
+    float result = current + parseFloat(nextStr);
+    if (result < 0.0) {
+      return 0.0;
+    }
+    return result;
+  }
+  if (nextStr == "<") {
+    return prev;
+  }
+  if (nextStr.startsWith("<")) {
+    float result = prev + parseFloat(stringSubstring(nextStr, 1));
+    if (result < 0.0) {
+      return 0.0;
+    }
+    return result;
+  }
+  float? labeled = labels.get(nextStr);
+  if (labeled != null) {
+    return labeled;
+  }
+  return current;
+}

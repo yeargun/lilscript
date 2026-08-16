@@ -1,0 +1,34 @@
+import { jQuery } from "../core";
+import {
+  stringify,
+  stringReplace,
+  regexTest,
+  stringSlice
+} from "../js-host.lil";
+
+Regex rcssescape = new Regex(
+  "([\\0-\\x1f\\x7f]|^-?\\d)|^-$|[^\\x80-\\uFFFF\\w-]",
+  "g"
+);
+
+Regex rleadDigitOrControl = new Regex("^(?:[\\0-\\x1f\\x7f]|-?\\d)$");
+
+string fcssescape(string ch) {
+  bool asCodePoint = JS.regexTest(rleadDigitOrControl, ch);
+  if (asCodePoint) {
+    if (ch == "\0") {
+      return "\uFFFD";
+    }
+    int code = ch.charCodeAt(ch.length - 1);
+    return JS.stringSlice(ch, 0, ch.length - 1) + "\\" + code.toString(16) + " ";
+  }
+  return "\\" + ch;
+}
+
+string escapeSelectorImpl(JsValue sel) {
+  return JS.stringReplace(JS.string(sel), rcssescape, fcssescape);
+}
+
+jQuery["escapeSelector"] = escapeSelectorImpl;
+
+export { jQuery, escapeSelectorImpl };

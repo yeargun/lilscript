@@ -1,0 +1,57 @@
+import { setProp, callMethod2 } from "../../../dom-host";
+
+export class ProjectionStyles {
+  void applyProjectionStyles(JsValue elementStyle, JsValue? styleProp = null) {}
+}
+
+export void renderHTML(
+  JsValue element,
+  JsValue renderState,
+  JsValue? styleProp = null,
+  JsValue? projection = null
+) {
+  JsValue elementStyle = element["style"];
+  JsValue style = renderState["style"];
+  if (style.isObject()) {
+    for (string key in style) {
+      JsValue value = style[key];
+      bool missing =
+        !(value is float) &&
+        !(value is string) &&
+        !(value is bool) &&
+        !value.isArray() &&
+        !(value.isObject() && value.truthy());
+      if (!missing) {
+        if (value is string) {
+          setProp(elementStyle, key, value);
+        } else {
+          setProp(elementStyle, key, `${value}`);
+        }
+      }
+    }
+  }
+
+  if (projection != null) {
+    callMethod2(projection, "applyProjectionStyles", elementStyle, styleProp);
+  }
+
+  JsValue vars = renderState["vars"];
+  if (vars.isObject()) {
+    for (string varKey in vars) {
+      JsValue varValue = vars[varKey];
+      bool missing =
+        !(varValue is float) &&
+        !(varValue is string) &&
+        !(varValue is bool) &&
+        !varValue.isArray() &&
+        !(varValue.isObject() && varValue.truthy());
+      if (!missing) {
+        if (varValue is string) {
+          callMethod2(elementStyle, "setProperty", varKey, varValue);
+        } else {
+          callMethod2(elementStyle, "setProperty", varKey, `${varValue}`);
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,19 @@
+[optimization]
+preset = "none"
+
+[javascript]
+# The compatibility corpus uses print() as its observable test protocol.
+# Production builds may strip console output, but an oracle must preserve it.
+strip_console = false
+
+[mangle]
+identifiers = false
+properties = false
+exports = false
+pool_strings = false
+
+[bundle]
+mode = "single"
+min_chunk_bytes = 16384
+max_chunks = 32
+shared_min_imports = 2

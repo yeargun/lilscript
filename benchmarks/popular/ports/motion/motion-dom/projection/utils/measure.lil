@@ -1,0 +1,76 @@
+import { BoundingBox, Box, Point } from "../../../motion-utils/types/geometry";
+import {
+  convertBoundingBoxToBox,
+  transformBoxPoints
+} from "../geometry/conversion";
+import { translateAxis } from "../geometry/delta-apply";
+import { callMethod0, callFn1, isFunction } from "../../dom-host";
+
+export class ScrollOffset {
+  Point offset;
+  init(float x = 0.0, float y = 0.0) {
+    this.offset = Point{x, y};
+  }
+}
+
+export class RootProjectionScroll {
+  ScrollOffset? scroll;
+  init(ScrollOffset? scroll = null) {
+    this.scroll = scroll;
+  }
+}
+
+float rectField(JsValue rect, string key) {
+  JsValue value = rect[key];
+  if (value is float) {
+    return value;
+  }
+  return 0.0;
+}
+
+export Box measureViewportBox(
+  JsValue instance,
+  JsValue? transformPoint = null
+) {
+  JsValue rect = callMethod0(instance, "getBoundingClientRect");
+  BoundingBox box = BoundingBox{
+    rectField(rect, "top"),
+    rectField(rect, "right"),
+    rectField(rect, "bottom"),
+    rectField(rect, "left")
+  };
+  (func(Point)->Point)? typedTransform = null;
+  if (transformPoint != null && isFunction(transformPoint)) {
+    typedTransform = (Point point) => {
+      JsValue result = callFn1(transformPoint, point);
+      float x = 0.0;
+      float y = 0.0;
+      if (result.isObject()) {
+        JsValue rx = result["x"];
+        JsValue ry = result["y"];
+        if (rx is float) {
+          x = rx;
+        }
+        if (ry is float) {
+          y = ry;
+        }
+      }
+      return Point{x, y};
+    };
+  }
+  return convertBoundingBoxToBox(transformBoxPoints(box, typedTransform));
+}
+
+export Box measurePageBox(
+  JsValue element,
+  RootProjectionScroll rootProjectionNode,
+  JsValue? transformPagePoint = null
+) {
+  Box viewportBox = measureViewportBox(element, transformPagePoint);
+  ScrollOffset? scroll = rootProjectionNode.scroll;
+  if (scroll != null) {
+    translateAxis(viewportBox.x, scroll.offset.x);
+    translateAxis(viewportBox.y, scroll.offset.y);
+  }
+  return viewportBox;
+}

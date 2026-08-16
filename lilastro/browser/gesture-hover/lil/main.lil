@@ -1,0 +1,19 @@
+import { hover } from "../../../../benchmarks/popular/ports/motion/motion-dom/gestures/hover";
+import { animate } from "../../../../benchmarks/popular/ports/motion/framer-motion/animation/animate/element";
+import { documentQuerySelectorAll, setProp } from "../../../../benchmarks/popular/ports/motion/motion-dom/dom-host";
+
+void setStatus(string text) {
+  JsValue[] nodes = documentQuerySelectorAll("#status");
+  if (nodes.length > 0) {
+    setProp(nodes[0], "textContent", text);
+  }
+}
+
+hover("#box", (JsValue _element, JsValue _event) => {
+  setStatus("hovered");
+  animate("#box", record{ scale: 1.1 }, record{ duration: 0.1 });
+  return (JsValue _leaveEvent) => {
+    setStatus("left");
+    animate("#box", record{ scale: 1.0 }, record{ duration: 0.1 });
+  };
+});

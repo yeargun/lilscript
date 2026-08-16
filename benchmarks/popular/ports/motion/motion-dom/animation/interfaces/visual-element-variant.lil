@@ -1,0 +1,147 @@
+import { resolveVariant } from "../../render/utils/resolve-dynamic-variants";
+import { calcChildStagger } from "../utils/calc-child-stagger";
+import { animateTarget } from "./visual-element-target";
+import { callMethod0, callMethod1, callMethod2, isFunction, setValues } from "../../dom-host";
+
+Task<bool> animateChildren(
+  JsValue visualElement,
+  JsValue variant,
+  float delayAmt,
+  JsValue delayChildren,
+  float staggerChildren,
+  float staggerDirection,
+  JsValue options
+) {
+  Task<bool>[] animations = [];
+  JsValue children = visualElement["variantChildren"];
+  if (children.truthy()) {
+    JsValue[] childList = setValues(children);
+    for (int i = 0; i < childList.length; i++) {
+      JsValue child = childList[i];
+      callMethod2(child, "notify", "AnimationStart", variant);
+      float childDelay = delayAmt;
+      if (!(isFunction(delayChildren)) && (delayChildren is float)) {
+        childDelay = childDelay + delayChildren;
+      }
+      childDelay = childDelay + calcChildStagger(
+        children,
+        child,
+        delayChildren,
+        staggerChildren,
+        staggerDirection
+      );
+      JsValue childOptions = record{};
+      for (string key in options) {
+        childOptions[key] = options[key];
+      }
+      childOptions["delay"] = childDelay;
+      animations.push(
+        animateVariant(child, variant, childOptions).then((bool _v) => {
+          callMethod2(child, "notify", "AnimationComplete", variant);
+          return true;
+        })
+      );
+    }
+  }
+  return Task.all(animations).then((bool[] _v) => true);
+}
+
+export Task<bool> animateVariant(
+  JsValue visualElement,
+  JsValue variant,
+  JsValue? options = null
+) {
+  JsValue opts = options;
+  if (opts == null) {
+    opts = record{};
+  }
+  JsValue? custom = null;
+  if (opts["type"] == "exit") {
+    JsValue presence = visualElement["presenceContext"];
+    if (presence.truthy()) {
+      custom = presence["custom"];
+    }
+  }
+  JsValue? resolved = resolveVariant(visualElement, variant, custom);
+  JsValue transition = record{};
+  if (resolved != null && resolved.isObject()) {
+    JsValue t = resolved["transition"];
+    if (t.isObject()) {
+      transition = t;
+    } else {
+      JsValue defaults = null;
+      JsValue visualProps = visualElement["props"];
+      if (visualProps.truthy() && visualProps.isObject()) {
+        defaults = visualProps["transition"];
+      }
+      if (defaults != null && defaults.isObject()) {
+        transition = defaults;
+      }
+    }
+  }
+  if (opts["transitionOverride"].truthy()) {
+    transition = opts["transitionOverride"];
+  }
+  func()->Task<bool> getAnimation = () => Task.resolve(true);
+  if (resolved != null) {
+    JsValue resolvedCapture = resolved;
+    JsValue optsCapture = opts;
+    getAnimation = () => {
+      JsValue[] controls = animateTarget(visualElement, resolvedCapture, optsCapture);
+      Task<bool>[] tasks = [];
+      for (int i = 0; i < controls.length; i++) {
+        tasks.push(Task.resolve(true));
+      }
+      if (tasks.length == 0) {
+        return Task.resolve(true);
+      }
+      return Task.all(tasks).then((bool[] _v) => true);
+    };
+  }
+  func(float)->Task<bool> getChildAnimations = (float forwardDelay = 0.0) => Task.resolve(true);
+  JsValue variantChildren = visualElement["variantChildren"];
+  if (variantChildren.truthy() && variantChildren["size"].truthy()) {
+    JsValue transitionCapture = transition;
+    JsValue optsCapture = opts;
+    JsValue variantCapture = variant;
+    getChildAnimations = (float forwardDelay = 0.0) => {
+      JsValue delayChildren = transitionCapture["delayChildren"];
+      if (!(delayChildren is float) && !isFunction(delayChildren)) {
+        delayChildren = 0.0;
+      }
+      float staggerChildren = 0.0;
+      JsValue staggerChildrenVal = transitionCapture["staggerChildren"];
+      if (staggerChildrenVal is float) {
+        staggerChildren = staggerChildrenVal;
+      }
+      float staggerDirection = 1.0;
+      JsValue staggerDirectionVal = transitionCapture["staggerDirection"];
+      if (staggerDirectionVal is float) {
+        staggerDirection = staggerDirectionVal;
+      }
+      return animateChildren(
+        visualElement,
+        variantCapture,
+        forwardDelay,
+        delayChildren,
+        staggerChildren,
+        staggerDirection,
+        optsCapture
+      );
+    };
+  }
+  JsValue when = transition["when"];
+  if (when.truthy()) {
+    if (when == "beforeChildren") {
+      return getAnimation().then((bool _v) => getChildAnimations(0.0));
+    }
+    return getChildAnimations(0.0).then((bool _v) => getAnimation());
+  }
+  float delayOpt = 0.0;
+  JsValue delayOptVal = opts["delay"];
+  if (delayOptVal is float) {
+    delayOpt = delayOptVal;
+  }
+  Task<bool>[] both = [getAnimation(), getChildAnimations(delayOpt)];
+  return Task.all(both).then((bool[] _v) => true);
+}

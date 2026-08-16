@@ -567,7 +567,9 @@ fn task_chain_has_catch(expression: &Expr<'_, '_>) -> bool {
             } => property.name == "catch" || task_chain_has_catch(object),
             _ => task_chain_has_catch(callee),
         },
-        Expr::Member { object, .. } => task_chain_has_catch(object),
+        Expr::Member { object, .. } | Expr::OptionalMember { object, .. } => {
+            task_chain_has_catch(object)
+        }
         _ => false,
     }
 }
@@ -575,12 +577,19 @@ fn task_chain_has_catch(expression: &Expr<'_, '_>) -> bool {
 fn contains_dynamic_import(expression: &Expr<'_, '_>) -> bool {
     match expression {
         Expr::DynamicImport { .. } => true,
-        Expr::ArrayLiteral { elements, .. } => elements.iter().any(contains_dynamic_import),
+        Expr::ArrayLiteral { elements, .. } => elements
+            .iter()
+            .any(|element| contains_dynamic_import(element.value())),
+        Expr::RecordLiteral { entries, .. } => entries
+            .iter()
+            .any(|entry| contains_dynamic_import(entry.value())),
         Expr::StructLiteral { values, .. } | Expr::New { args: values, .. } => {
             values.iter().any(contains_dynamic_import)
         }
         Expr::Member { object, .. }
+        | Expr::OptionalMember { object, .. }
         | Expr::Unary { expr: object, .. }
+        | Expr::Await { task: object, .. }
         | Expr::TypeCheck { value: object, .. }
         | Expr::Update { target: object, .. } => contains_dynamic_import(object),
         Expr::Call { callee, args, .. } => {
@@ -596,6 +605,11 @@ fn contains_dynamic_import(expression: &Expr<'_, '_>) -> bool {
             index: rhs,
             ..
         }
+        | Expr::OptionalIndex {
+            object: lhs,
+            index: rhs,
+            ..
+        }
         | Expr::Assignment {
             target: lhs,
             value: rhs,
@@ -605,6 +619,10 @@ fn contains_dynamic_import(expression: &Expr<'_, '_>) -> bool {
             crate::ast::TemplatePart::Expr(expression) => contains_dynamic_import(expression),
             crate::ast::TemplatePart::String(..) => false,
         }),
+        Expr::Match { value, arms, .. } => {
+            contains_dynamic_import(value)
+                || arms.iter().any(|arm| contains_dynamic_import(&arm.value))
+        }
         Expr::Int(..)
         | Expr::Float(..)
         | Expr::String(..)
@@ -629,13 +647,25 @@ fn lint_constant_condition(condition: &Expr<'_, '_>, pending: &mut Vec<PendingDi
 
 fn statement_terminates(statement: &Stmt<'_, '_>) -> bool {
     match statement {
-        Stmt::Return { .. } | Stmt::Break(_) | Stmt::Continue(_) => true,
+        Stmt::Return { .. } | Stmt::Throw { .. } | Stmt::Break(_) | Stmt::Continue(_) => true,
         Stmt::Block { body, .. } => body.last().is_some_and(statement_terminates),
         Stmt::If {
             then_branch,
             else_branch: Some(else_branch),
             ..
         } => statement_terminates(then_branch) && statement_terminates(else_branch),
+        Stmt::Try {
+            body,
+            catch,
+            finally,
+            ..
+        } => {
+            finally.is_some_and(|body| body.last().is_some_and(statement_terminates))
+                || (body.last().is_some_and(statement_terminates)
+                    && catch
+                        .as_ref()
+                        .is_none_or(|clause| clause.body.last().is_some_and(statement_terminates)))
+        }
         _ => false,
     }
 }
@@ -769,7 +799,9 @@ fn lint_ir(module: &crate::ir::ControlFlowModule<'_>, pending: &mut Vec<PendingD
 
 fn intrinsic_allocation_kind(intrinsic: Intrinsic) -> Option<&'static str> {
     match intrinsic {
-        Intrinsic::ArrayMap | Intrinsic::ArrayFilter => Some("array result"),
+        Intrinsic::ArrayMap | Intrinsic::ArrayFilter | Intrinsic::ArrayConcat => {
+            Some("array result")
+        }
         Intrinsic::MapNew => Some("map"),
         Intrinsic::SetNew => Some("set"),
         Intrinsic::ArrayBufferNew | Intrinsic::SharedArrayBufferNew | Intrinsic::BufferSlice => {
@@ -1025,6 +1057,12 @@ fn walk_program_idents(program: &Program<'_, '_>, visitor: &mut impl FnMut(Span)
             visitor(specifier.local.span);
         }
     }
+    for import in program.foreign_imports {
+        for specifier in import.specifiers {
+            visitor(specifier.imported.span);
+            visitor(specifier.local.span);
+        }
+    }
     for export in program.exports {
         visitor(export.local.span);
         visitor(export.exported.span);
@@ -1036,6 +1074,12 @@ fn walk_program_idents(program: &Program<'_, '_>, visitor: &mut impl FnMut(Span)
 
 fn walk_item_idents(item: &Item<'_, '_>, visitor: &mut impl FnMut(Span)) {
     match item {
+        Item::Enum(declaration) => {
+            visitor(declaration.name.span);
+            for variant in declaration.variants {
+                visitor(variant.span);
+            }
+        }
         Item::Function(function) => {
             visitor(function.name.span);
             for parameter in function.params {
@@ -1094,10 +1138,61 @@ fn walk_statement_idents(statement: &Stmt<'_, '_>, visitor: &mut impl FnMut(Span
                 walk_expr_idents(initializer, visitor);
             }
         }
+        Stmt::ArrayDestructure {
+            bindings, value, ..
+        } => {
+            for binding in *bindings {
+                match binding {
+                    crate::ast::ArrayBinding::Hole(_) => {}
+                    crate::ast::ArrayBinding::Name(name) | crate::ast::ArrayBinding::Rest(name) => {
+                        visitor(name.span)
+                    }
+                }
+            }
+            walk_expr_idents(value, visitor);
+        }
+        Stmt::RecordDestructure {
+            bindings,
+            rest,
+            value,
+            ..
+        } => {
+            for binding in *bindings {
+                visitor(binding.name.span);
+            }
+            if let Some(rest) = rest {
+                visitor(rest.span);
+            }
+            walk_expr_idents(value, visitor);
+        }
         Stmt::Expr(expression) => walk_expr_idents(expression, visitor),
         Stmt::Return { value, .. } => {
             if let Some(value) = value {
                 walk_expr_idents(value, visitor);
+            }
+        }
+        Stmt::Throw { value, .. } => walk_expr_idents(value, visitor),
+        Stmt::SuperCall { args, .. } => {
+            for argument in *args {
+                walk_expr_idents(argument, visitor);
+            }
+        }
+        Stmt::Yield { value, .. } => walk_expr_idents(value, visitor),
+        Stmt::Try {
+            body,
+            catch,
+            finally,
+            ..
+        } => {
+            walk_statements_idents(body, visitor);
+            if let Some(clause) = catch {
+                if let Some(binding) = clause.binding {
+                    visitor(binding.name.span);
+                }
+                walk_statements_idents(clause.body, visitor);
+            }
+            if let Some(body) = finally {
+                walk_statements_idents(body, visitor);
             }
         }
         Stmt::Block { body, .. } => walk_statements_idents(body, visitor),
@@ -1154,6 +1249,16 @@ fn walk_statement_idents(statement: &Stmt<'_, '_>, visitor: &mut impl FnMut(Span
             walk_expr_idents(object, visitor);
             walk_statement_idents(body, visitor);
         }
+        Stmt::ForOf {
+            element,
+            iterable,
+            body,
+            ..
+        } => {
+            visitor(element.span);
+            walk_expr_idents(iterable, visitor);
+            walk_statement_idents(body, visitor);
+        }
         Stmt::Break(_) | Stmt::Continue(_) => {}
     }
 }
@@ -1163,7 +1268,15 @@ fn walk_expr_idents(expression: &Expr<'_, '_>, visitor: &mut impl FnMut(Span)) {
         Expr::Ident(identifier) => visitor(identifier.span),
         Expr::ArrayLiteral { elements, .. } => {
             for element in *elements {
-                walk_expr_idents(element, visitor);
+                walk_expr_idents(element.value(), visitor);
+            }
+        }
+        Expr::RecordLiteral { entries, .. } => {
+            for entry in *entries {
+                if let crate::ast::RecordElement::Entry(entry) = entry {
+                    visitor(entry.key.span);
+                }
+                walk_expr_idents(entry.value(), visitor);
             }
         }
         Expr::StructLiteral { name, values, .. } => {
@@ -1178,7 +1291,9 @@ fn walk_expr_idents(expression: &Expr<'_, '_>, visitor: &mut impl FnMut(Span)) {
                 walk_expr_idents(argument, visitor);
             }
         }
-        Expr::Member { object, .. } => walk_expr_idents(object, visitor),
+        Expr::Member { object, .. } | Expr::OptionalMember { object, .. } => {
+            walk_expr_idents(object, visitor)
+        }
         Expr::Call { callee, args, .. } => {
             walk_expr_idents(callee, visitor);
             for argument in *args {
@@ -1195,12 +1310,13 @@ fn walk_expr_idents(expression: &Expr<'_, '_>, visitor: &mut impl FnMut(Span)) {
             }
         }
         Expr::Unary { expr, .. } => walk_expr_idents(expr, visitor),
+        Expr::Await { task, .. } => walk_expr_idents(task, visitor),
         Expr::Binary { lhs, rhs, .. } => {
             walk_expr_idents(lhs, visitor);
             walk_expr_idents(rhs, visitor);
         }
         Expr::TypeCheck { value, .. } => walk_expr_idents(value, visitor),
-        Expr::Index { object, index, .. } => {
+        Expr::Index { object, index, .. } | Expr::OptionalIndex { object, index, .. } => {
             walk_expr_idents(object, visitor);
             walk_expr_idents(index, visitor);
         }
@@ -1214,6 +1330,19 @@ fn walk_expr_idents(expression: &Expr<'_, '_>, visitor: &mut impl FnMut(Span)) {
                 if let crate::ast::TemplatePart::Expr(expression) = part {
                     walk_expr_idents(expression, visitor);
                 }
+            }
+        }
+        Expr::Match { value, arms, .. } => {
+            walk_expr_idents(value, visitor);
+            for arm in *arms {
+                if let crate::ast::MatchPattern::EnumVariant {
+                    enum_name, variant, ..
+                } = arm.pattern
+                {
+                    visitor(enum_name.span);
+                    visitor(variant.span);
+                }
+                walk_expr_idents(&arm.value, visitor);
             }
         }
         Expr::Int(..)

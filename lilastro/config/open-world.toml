@@ -1,0 +1,16 @@
+# Reusable-library build: exported names and aggregate fields are JavaScript ABI.
+[javascript]
+priority = "size-first"
+optimization_level = 15
+cost_model = "brotli"
+public_aggregate_abi = "named"
+pool_numeric_literals = true
+
+[mangle]
+identifiers = true
+properties = true
+exports = false
+pool_strings = true
+
+[bundle]
+mode = "single"

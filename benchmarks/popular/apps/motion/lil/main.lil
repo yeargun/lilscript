@@ -1,0 +1,31 @@
+import { mix } from "../../../ports/motion/motion-dom/utils/mix/index";
+import { spring, SpringGenerator } from "../../../ports/motion/motion-dom/animation/generators/spring";
+import { stagger } from "../../../ports/motion/motion-dom/utils/stagger";
+import { wrap } from "../../../ports/motion/motion-utils/wrap";
+
+func(int, int)->float delay = stagger(0.125, record{startDelay: 0.25, from: 0.0});
+float position = 0.0;
+float phase = 0.0;
+float schedule = 0.0;
+float springDigest = 0.0;
+
+for (int index = 0; index < 160000; index++) {
+  int lane = index % 8;
+  position = position + mix(-120.0, 360.0, lane / 8.0);
+  phase = phase + wrap(0.0, 360.0, index * 47.0);
+  schedule = schedule + delay(lane, 8) * 8.0;
+}
+
+SpringGenerator springGen = spring(
+  record{
+    keyframes: [0.0, 100.0],
+    stiffness: 170.0,
+    damping: 26.0,
+    mass: 1.0
+  }
+);
+for (int time = 0; time <= 1024; time = time + 16) {
+  springDigest = springDigest + (springGen.next(time).value * 1000.0).round();
+}
+
+print(`motion:${position}:${phase}:${schedule}:${springDigest}`);

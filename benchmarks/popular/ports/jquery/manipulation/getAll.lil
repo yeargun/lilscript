@@ -1,0 +1,41 @@
+import { emptyArray } from "../alloc.lil";
+import { merge } from "../core";
+import { nodeName } from "../core/nodeName";
+import {
+  hasProp,
+  call1,
+  isNullish
+} from "../js-host.lil";
+
+export JsValue getAll(JsValue context, JsValue tagArg = null) {
+  string tag = "*";
+  if (tagArg is string) {
+    string t = tagArg;
+    if (t.length > 0) {
+      tag = t;
+    }
+  }
+
+  JsValue ret = emptyArray();
+  if (context["getElementsByTagName"].truthy()) {
+    ret = JS.invoke(context, "getElementsByTagName", tag);
+  } else if (context["querySelectorAll"].truthy()) {
+    ret = JS.invoke(context, "querySelectorAll", tag);
+  }
+
+  bool tagMatches = false;
+  if (tagArg is string) {
+    string t2 = tagArg;
+    if (t2.length > 0) {
+      tagMatches = nodeName(context, t2);
+    }
+  }
+
+  if (JS.isNullish(tagArg) || tagMatches) {
+    JsValue[] single = [];
+    single.push(context);
+    return merge(single, ret);
+  }
+
+  return ret;
+}

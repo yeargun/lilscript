@@ -1,0 +1,124 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-14T12:42:35.837Z",
+  "baseline": "solid-js@1.9.13 store browser bundle",
+  "exports": [
+    "$RAW",
+    "DEV",
+    "createMutable",
+    "createStore",
+    "modifyMutable",
+    "produce",
+    "reconcile",
+    "unwrap"
+  ],
+  "exportCount": 8,
+  "exactExports": true,
+  "behaviorEquivalent": true,
+  "distributionSelection": {
+    "entry": "api/solidlil-store.js",
+    "output": "artifacts/generated/solidlil-store.js",
+    "clientOnly": false,
+    "winner": "production-12",
+    "sizes": {
+      "brotli11": 4231,
+      "gzip9": 4691,
+      "raw": 15634
+    },
+    "artifactSha256": "44103291b772cd54e29ca7524d7396941efa1dcd0efaf5151b7c48a8545a1bb5",
+    "candidates": {
+      "layout-18": {
+        "artifact": "artifacts/generated/distribution-candidates/store-open.layout-18.js",
+        "artifactSha256": "442730732345d599ca288b4aa265edccd2f4479aac0e9b9ea8740704f421de4a",
+        "runtimeSha256": "f4cb80b083bac49785408cc7ba39c85b0f4c653cc1e121c62e0f4954669f740e",
+        "sizes": {
+          "brotli11": 4253,
+          "gzip9": 4695,
+          "raw": 15679
+        }
+      },
+      "production-12": {
+        "artifact": "artifacts/generated/distribution-candidates/store-open.production-12.js",
+        "artifactSha256": "44103291b772cd54e29ca7524d7396941efa1dcd0efaf5151b7c48a8545a1bb5",
+        "runtimeSha256": "fe6831469d5ceadee58ab039cd09225bcf0ab18c6043f38c5cab7151271ba904",
+        "sizes": {
+          "brotli11": 4231,
+          "gzip9": 4691,
+          "raw": 15634
+        }
+      },
+      "production-15": {
+        "artifact": "artifacts/generated/distribution-candidates/store-open.production-15.js",
+        "artifactSha256": "442730732345d599ca288b4aa265edccd2f4479aac0e9b9ea8740704f421de4a",
+        "runtimeSha256": "f4cb80b083bac49785408cc7ba39c85b0f4c653cc1e121c62e0f4954669f740e",
+        "sizes": {
+          "brotli11": 4253,
+          "gzip9": 4695,
+          "raw": 15679
+        }
+      },
+      "source-15": {
+        "artifact": "artifacts/generated/distribution-candidates/store-open.source-15.js",
+        "artifactSha256": "fb1ffb6bf9e3f272d47a04fddb30686e847d46a5ffefa84dfad9d97569066531",
+        "runtimeSha256": "c056f03b08be2ba9d377e1daae1d70ce5d955d05f956a2f4177e43ca2526dd92",
+        "sizes": {
+          "brotli11": 4237,
+          "gzip9": 4695,
+          "raw": 15668
+        }
+      }
+    }
+  },
+  "codecs": {
+    "implementation": "lilscript-codec",
+    "schemaVersion": 1,
+    "scorer": {
+      "path": "target/release/lilscript-codec",
+      "sha256": "48340e70c3a53ae5f58cee5dbb48ca5553b2feff6f29f086fc8060bd036594c8",
+      "bytes": 1804784
+    },
+    "gzip9": {
+      "encoder": "upstream-stock-zlib-c",
+      "libraryVersion": "1.3.1",
+      "cargoPackage": "libz-sys",
+      "cargoPackageVersion": "1.1.24",
+      "level": 9,
+      "mtime": 0
+    },
+    "brotli11": {
+      "encoder": "official-google-brotli-c",
+      "libraryVersion": "1.1.0",
+      "cargoPackage": "compu-brotli-sys",
+      "cargoPackageVersion": "1.1.0",
+      "quality": 11,
+      "lgwin": 22,
+      "mode": "generic"
+    },
+    "nodeCodecsAreDiagnosticOnly": true
+  },
+  "compiler": {
+    "source": "repository-release",
+    "path": "../../target/release/lilscript",
+    "version": "lilscript 0.1.0",
+    "sha256": "46eeb54e8ee2d737b17fb988494ff968747908fa8fe3ffa8ace676618a2c8189"
+  },
+  "sourceBuildModesSha256": "e13ea4d35862303be32c34abf50e6cb0a9c1877233327ffac2ea8a8e433802b8",
+  "sizes": {
+    "solid": {
+      "brotli11": 4286,
+      "gzip9": 4722,
+      "raw": 15793
+    },
+    "solidlil": {
+      "brotli11": 4231,
+      "gzip9": 4691,
+      "raw": 15634
+    }
+  },
+  "ratio": {
+    "brotli11": 0.987167522165189,
+    "gzip9": 0.993434985175773,
+    "raw": 0.9899322484645096
+  },
+  "brotliSuperior": true
+}

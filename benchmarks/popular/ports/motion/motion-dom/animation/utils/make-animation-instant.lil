@@ -1,0 +1,4 @@
+export void makeAnimationInstant(JsValue options) {
+  options["duration"] = 0.0;
+  options["type"] = "keyframes";
+}

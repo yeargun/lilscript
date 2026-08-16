@@ -1,0 +1,32 @@
+extern int algorithmInt(int index);
+extern string algorithmString(int index);
+extern int algorithmCount();
+import { eventScore } from "./score";
+import { Stats, beginAggregate, updateAggregate, finishAggregate } from "./aggregate";
+
+export Stats processEvents() {
+  int first = eventScore(algorithmInt(0), algorithmString(0), 0);
+  Stats stats = beginAggregate(first);
+  int count = algorithmCount();
+  for (int index = 1; index < count; index++) {
+    stats = updateAggregate(
+      stats,
+      eventScore(algorithmInt(index), algorithmString(index), index),
+      index
+    );
+  }
+  return stats;
+}
+
+pure string summaryLabel(Stats stats) {
+  int spread = stats.high - stats.low;
+  if (spread > 500) { return "analytics-wide"; }
+  if (stats.total < 0) { return "analytics-negative"; }
+  if (stats.count >= 6) { return "analytics-batch"; }
+  return "analytics-compact";
+}
+
+export int renderResult(Stats stats) {
+  print(summaryLabel(stats));
+  return finishAggregate(stats);
+}

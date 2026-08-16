@@ -1,0 +1,175 @@
+import { jQuery, each } from "./core";
+import { access } from "./core/access";
+import { camelCase } from "./core/camelCase";
+import { dataPriv } from "./data/var/dataPriv";
+import { dataUser } from "./data/var/dataUser";
+import {
+  typeOf,
+  isUndefined,
+  unaryPlus,
+  stringify,
+  stringReplace,
+  regexTest,
+  jsUndefined,
+  stringSlice
+} from "./js-host.lil";
+
+Regex rbrace = new Regex("^(?:\\{[\\w\\W]*\\}|\\[[\\w\\W]*\\])$");
+Regex rmultiDash = new Regex("[A-Z]", "g");
+
+JsValue getData(JsValue data) {
+  if (data == "true") {
+    return true;
+  }
+  if (data == "false") {
+    return false;
+  }
+  if (data == "null") {
+    return null;
+  }
+
+  float asNumber = JS.number(data);
+  if (asNumber == asNumber && data == JS.string(asNumber)) {
+    return asNumber;
+  }
+
+  string asText = JS.string(data);
+  if (JS.regexTest(rbrace, asText)) {
+    try {
+      return JSON.parse(asText);
+    } catch {
+    }
+  }
+
+  return data;
+}
+
+JsValue dataAttr(JsValue elem, string key, JsValue data) {
+  if (JS.isUndefined(data) && JS.and(elem, elem["nodeType"]) == 1.0) {
+    string name = "data-" + JS.stringReplace(key, rmultiDash, "-$&").toLowerCase();
+    JsValue attr = JS.invoke(elem, "getAttribute", name);
+    if (attr is string) {
+      JsValue converted = getData(attr);
+      dataUser.set(elem, key, converted);
+      return converted;
+    }
+    return JS.undefined();
+  }
+  return data;
+}
+
+JsValue fnData(JsValue self, JsValue args) {
+  JsValue key = args[0];
+  JsValue value = args[1];
+
+  JsValue elem = self[0];
+  JsValue attrs = null;
+  if (elem.truthy()) {
+    attrs = elem["attributes"];
+  }
+
+  if (JS.isUndefined(key)) {
+    JsValue data = JS.undefined();
+    if (self.length > 0.0) {
+      data = dataUser.get(elem);
+      JsValue hasAttrs = dataPriv.get(elem, "hasDataAttrs");
+      if (JS.and(elem, elem["nodeType"]) == 1.0 && !hasAttrs.truthy()) {
+        float i = 0.0;
+        if (attrs.truthy()) {
+          i = attrs.length;
+        }
+        while (i > 0.0) {
+          i = i - 1.0;
+          JsValue attrNode = attrs[i];
+          if (attrNode.truthy()) {
+            JsValue nameValue = attrNode["name"];
+            if (nameValue.truthy()) {
+              string name = JS.assume(nameValue);
+              if (name.indexOf("data-") == 0) {
+                string camel = camelCase(JS.stringSlice(name, 5.0));
+                dataAttr(elem, camel, data[camel]);
+              }
+            }
+          }
+        }
+        dataPriv.set(elem, "hasDataAttrs", true);
+      }
+    }
+    return data;
+  }
+
+  if (JS.typeOf(key) == "object") {
+    JsValue keyObj = key;
+    return each(self, (JsValue _i, JsValue el) => {
+      dataUser.set(el, keyObj);
+      return JS.undefined();
+    });
+  }
+
+  bool chainable = args.length > 1.0;
+  return access(
+    self,
+    (JsValue valueArg) => {
+      if (elem.truthy() && JS.isUndefined(valueArg)) {
+        JsValue data = dataUser.get(elem, key);
+        if (!JS.isUndefined(data)) {
+          return data;
+        }
+
+        data = dataAttr(elem, JS.string(key), JS.undefined());
+        if (!JS.isUndefined(data)) {
+          return data;
+        }
+        return JS.undefined();
+      }
+
+      each(self, (JsValue _i, JsValue el) => {
+        dataUser.set(el, key, valueArg);
+        return JS.undefined();
+      });
+      return JS.undefined();
+    },
+    null,
+    value,
+    chainable,
+    null,
+    true
+  );
+}
+
+JsValue fnRemoveData(JsValue self, JsValue key) {
+  return each(self, (JsValue _i, JsValue el) => {
+    dataUser.remove(el, key);
+    return JS.undefined();
+  });
+}
+
+jQuery["hasData"] = (JsValue elem) => {
+  if (dataUser.hasData(elem)) {
+    return true;
+  }
+  return dataPriv.hasData(elem);
+};
+
+jQuery["data"] = JS.staticRest((JsValue args) => {
+  return dataUser.access(args[0], args[1], args[2]);
+});
+
+jQuery["removeData"] = (JsValue elem, JsValue name) => {
+  dataUser.remove(elem, name);
+  return JS.undefined();
+};
+
+jQuery["_data"] = JS.staticRest((JsValue args) => {
+  return dataPriv.access(args[0], args[1], args[2]);
+});
+
+jQuery["_removeData"] = (JsValue elem, JsValue name) => {
+  dataPriv.remove(elem, name);
+  return JS.undefined();
+};
+
+jQuery["fn"]["data"] = JS.methodRest(fnData);
+jQuery["fn"]["removeData"] = JS.method1(fnRemoveData);
+
+export { jQuery };

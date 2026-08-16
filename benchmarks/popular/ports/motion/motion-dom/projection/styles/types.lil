@@ -1,0 +1,29 @@
+import { Axis, Box, Delta, Point } from "../../../motion-utils/types/geometry";
+
+export class ScaleCorrectionNode {
+  Box? target;
+  Point? treeScale;
+  Delta? projectionDelta;
+
+  init() {
+    this.target = null;
+    this.treeScale = null;
+    this.projectionDelta = null;
+  }
+}
+
+export class ScaleCorrectorDefinition {
+  func(JsValue, ScaleCorrectionNode)->JsValue correct;
+  string[]? applyTo;
+  bool isCSSVariable;
+
+  init(
+    func(JsValue, ScaleCorrectionNode)->JsValue correct,
+    string[]? applyTo = null,
+    bool isCSSVariable = false
+  ) {
+    this.correct = correct;
+    this.applyTo = applyTo;
+    this.isCSSVariable = isCSSVariable;
+  }
+}

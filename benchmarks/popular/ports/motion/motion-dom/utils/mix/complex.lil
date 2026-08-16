@@ -1,0 +1,217 @@
+import { pipe, warning } from "../../../motion-utils/index";
+import { isCSSVariableToken } from "../../animation/utils/is-css-variable";
+import { color } from "../../value/types/color/index";
+import {
+  analyseComplexValue,
+  buildTransformer,
+  complex,
+  ComplexValueInfo
+} from "../../value/types/complex/index";
+import { mixColor } from "./color";
+import { mixImmediate } from "./immediate";
+import { mixNumber as mixNumberImmediate } from "./number";
+import { invisibleValues, mixVisibility } from "./visibility";
+import { mapKeys } from "../../dom-host";
+
+func(float)->float mixNumberPair(float a, float b) {
+  return (float p) => mixNumberImmediate(a, b, p);
+}
+
+export func(JsValue, JsValue)->func(float)->JsValue getMixer(JsValue a) {
+  if (a is float) {
+    return (JsValue from, JsValue to) => {
+      float af = 0.0;
+      float bf = 0.0;
+      if (from is float) {
+        af = from;
+      }
+      if (to is float) {
+        bf = to;
+      }
+      return (float p) => mixNumberImmediate(af, bf, p);
+    };
+  } else if (a is string) {
+    if (isCSSVariableToken(a)) {
+      return mixImmediate;
+    }
+    if (color.test(a)) {
+      return (JsValue from, JsValue to) => mixColor(from, to);
+    }
+    return mixComplex;
+  } else if (a.isArray()) {
+    return mixArray;
+  } else if (a.isObject()) {
+    if (color.test(a)) {
+      return (JsValue from, JsValue to) => mixColor(from, to);
+    }
+    return mixObject;
+  }
+  return mixImmediate;
+}
+
+export func(float)->JsValue mixArray(JsValue a, JsValue b) {
+  JsValue[] output = [];
+  if (a.isArray()) {
+    int i = 0;
+    int len = a.length.toInt();
+    while (i < len) {
+      output.push(a[i]);
+      i = i + 1;
+    }
+  }
+  int numValues = output.length;
+  (func(float)->JsValue)[] blendValue = [];
+  int j = 0;
+  while (j < numValues) {
+    JsValue av = output[j];
+    JsValue bv = 0.0;
+    if (b.isArray() && j < b.length.toInt()) {
+      bv = b[j];
+    }
+    func(JsValue, JsValue)->func(float)->JsValue mixerFactory = getMixer(av);
+    blendValue.push(mixerFactory(av, bv));
+    j = j + 1;
+  }
+  return (float p) => {
+    int i = 0;
+    while (i < numValues) {
+      output[i] = blendValue[i](p);
+      i = i + 1;
+    }
+    return output;
+  };
+}
+
+export func(float)->JsValue mixObject(JsValue a, JsValue b) {
+  Map<string, JsValue> output = new Map<string, JsValue>();
+  Map<string, func(float)->JsValue> blendValue = new Map<string, func(float)->JsValue>();
+  if (a.isObject()) {
+    for (string key in a) {
+      output.set(key, a[key]);
+    }
+  }
+  if (b.isObject()) {
+    for (string key in b) {
+      output.set(key, b[key]);
+    }
+  }
+  JsValue[] outputKeys = mapKeys(output);
+  for (int oi = 0; oi < outputKeys.length; oi++) {
+    JsValue keyValue = outputKeys[oi];
+    if (keyValue is string) {
+      string key = keyValue;
+      JsValue? av = null;
+      JsValue? bv = null;
+      if (a.isObject()) {
+        av = a[key];
+      }
+      if (b.isObject()) {
+        bv = b[key];
+      }
+      if (av != null && bv != null) {
+        JsValue avv = av;
+        JsValue bvv = bv;
+        func(JsValue, JsValue)->func(float)->JsValue mixerFactory = getMixer(avv);
+        blendValue.set(key, mixerFactory(avv, bvv));
+      }
+    }
+  }
+  return (float v) => {
+    JsValue[] blendKeys = mapKeys(blendValue);
+    for (int bi = 0; bi < blendKeys.length; bi++) {
+      JsValue keyValue = blendKeys[bi];
+      if (keyValue is string) {
+        string key = keyValue;
+        (func(float)->JsValue)? blender = blendValue.get(key);
+        if (blender != null) {
+          output.set(key, blender(v));
+        }
+      }
+    }
+    return output;
+  };
+}
+
+class MatchOrderPointers {
+  int color;
+  int varCount;
+  int numberCount;
+
+  init() {
+    this.color = 0;
+    this.varCount = 0;
+    this.numberCount = 0;
+  }
+}
+
+JsValue[] matchOrder(ComplexValueInfo origin, ComplexValueInfo target) {
+  JsValue[] orderedOrigin = [];
+  MatchOrderPointers pointers = new MatchOrderPointers();
+  int i = 0;
+  while (i < target.values.length) {
+    string type = target.types[i];
+    int originIndex = -1;
+    if (type == "color") {
+      if (pointers.color < origin.indexes.color.length) {
+        originIndex = origin.indexes.color[pointers.color];
+      }
+      pointers.color = pointers.color + 1;
+    } else if (type == "var") {
+      if (pointers.varCount < origin.indexes.varIndexes.length) {
+        originIndex = origin.indexes.varIndexes[pointers.varCount];
+      }
+      pointers.varCount = pointers.varCount + 1;
+    } else {
+      if (pointers.numberCount < origin.indexes.number.length) {
+        originIndex = origin.indexes.number[pointers.numberCount];
+      }
+      pointers.numberCount = pointers.numberCount + 1;
+    }
+    JsValue originValue = 0.0;
+    if (originIndex >= 0 && originIndex < origin.values.length) {
+      originValue = origin.values[originIndex];
+    }
+    orderedOrigin.push(originValue);
+    i = i + 1;
+  }
+  return orderedOrigin;
+}
+
+export func(float)->JsValue mixComplex(JsValue origin, JsValue target) {
+  (func(string)->func(JsValue)->JsValue)? createTransformer = complex.createTransformer;
+  func(JsValue)->JsValue template = (JsValue v) => v;
+  if (createTransformer != null) {
+    template = createTransformer(`${target}`);
+  }
+  ComplexValueInfo originStats = analyseComplexValue(origin);
+  ComplexValueInfo targetStats = analyseComplexValue(target);
+  bool canInterpolate =
+    originStats.indexes.varIndexes.length == targetStats.indexes.varIndexes.length &&
+    originStats.indexes.color.length == targetStats.indexes.color.length &&
+    originStats.indexes.number.length >= targetStats.indexes.number.length;
+
+  if (canInterpolate) {
+    bool originInvisible = false;
+    bool targetInvisible = false;
+    if (origin is string) {
+      originInvisible = invisibleValues.has(origin);
+    }
+    if (target is string) {
+      targetInvisible = invisibleValues.has(target);
+    }
+    if ((originInvisible && targetStats.values.length == 0) || (targetInvisible && originStats.values.length == 0)) {
+      return (float p) => mixVisibility(`${origin}`, `${target}`)(p);
+    }
+    func(float)->JsValue arrayMixer = mixArray(matchOrder(originStats, targetStats), targetStats.values);
+    return (float p) => template(arrayMixer(p));
+  } else {
+    warning(
+      true,
+      `Complex values '${origin}' and '${target}' too different to mix. Ensure all colors are of the same type, and that each contains the same quantity of number and color values. Falling back to instant transition.`,
+      "complex-values-different"
+    );
+    return mixImmediate(origin, target);
+  }
+}
+
+export { mixComplex as mixComplexExport };

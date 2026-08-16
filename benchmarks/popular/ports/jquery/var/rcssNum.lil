@@ -1,0 +1,3 @@
+import { pnum } from "./pnum";
+
+export Regex rcssNum = new Regex("^(?:([+-])=|)(" + pnum + ")([a-z%]*)$", "i");

@@ -1,0 +1,21 @@
+import { isCSSVar } from "./is-css-var";
+import { setProp, callMethod2 } from "../../dom-host";
+
+export void setStyle(JsValue element, string name, JsValue value) {
+  string text = `${value}`;
+  if (value is string) {
+    text = value;
+  } else if (value is float) {
+    float numberValue = value;
+    text = `${numberValue}`;
+  }
+  JsValue style = element["style"];
+  if (!style.truthy()) {
+    return;
+  }
+  if (isCSSVar(name)) {
+    callMethod2(style, "setProperty", name, text);
+  } else {
+    setProp(style, name, text);
+  }
+}

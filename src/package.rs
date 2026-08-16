@@ -10,6 +10,28 @@ use crate::config::{DependencyConfig, ProjectConfig};
 
 pub const LILSCRIPT_ABI_VERSION: u32 = 1;
 pub const LOCKFILE_VERSION: u32 = 1;
+pub const EFFECTS_FILE_VERSION: u32 = 1;
+pub const EFFECTS_FILE_NAME: &str = "lilscript.effects.toml";
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PackageEffectSummary {
+    pub functions: BTreeMap<String, FunctionEffectMeta>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FunctionEffectMeta {
+    pub pure: bool,
+    pub mutated_parameters: Vec<usize>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct PackageEffectsFile {
+    version: u32,
+    functions: BTreeMap<String, FunctionEffectMeta>,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -38,6 +60,7 @@ pub struct PackageResolver {
     root_dependencies: BTreeSet<String>,
     packages: BTreeMap<String, LockedPackage>,
     package_roots: Vec<(PathBuf, String)>,
+    effects: BTreeMap<String, PackageEffectSummary>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -63,6 +86,50 @@ impl std::fmt::Display for PackageError {
 
 impl std::error::Error for PackageError {}
 
+/// Effect summaries live in `lilscript.effects.toml` beside the package root and are not part of
+/// `lilscript.lock`, so existing lockfiles remain compatible across ABI 1 packages.
+pub fn write_package_effects(
+    package_root: &Path,
+    summary: &PackageEffectSummary,
+) -> Result<(), PackageError> {
+    let path = package_root.join(EFFECTS_FILE_NAME);
+    let encoded = toml::to_string(&PackageEffectsFile {
+        version: EFFECTS_FILE_VERSION,
+        functions: summary.functions.clone(),
+    })
+    .map_err(|error| PackageError::new(&path, format!("failed to encode effects file: {error}")))?;
+    fs::write(&path, encoded).map_err(|error| {
+        PackageError::new(&path, format!("failed to write effects file: {error}"))
+    })?;
+    Ok(())
+}
+
+pub fn load_package_effects(
+    package_root: &Path,
+) -> Result<Option<PackageEffectSummary>, PackageError> {
+    let path = package_root.join(EFFECTS_FILE_NAME);
+    if !path.is_file() {
+        return Ok(None);
+    }
+    let source = fs::read_to_string(&path).map_err(|error| {
+        PackageError::new(&path, format!("failed to read effects file: {error}"))
+    })?;
+    let file = toml::from_str::<PackageEffectsFile>(&source)
+        .map_err(|error| PackageError::new(&path, format!("invalid effects file: {error}")))?;
+    if file.version != EFFECTS_FILE_VERSION {
+        return Err(PackageError::new(
+            &path,
+            format!(
+                "effects file version {} is unsupported; expected {}",
+                file.version, EFFECTS_FILE_VERSION
+            ),
+        ));
+    }
+    Ok(Some(PackageEffectSummary {
+        functions: file.functions,
+    }))
+}
+
 pub fn write_lockfile(config: &ProjectConfig) -> Result<PathBuf, PackageError> {
     let root = config_root(config)?;
     let lock = build_lockfile(config)?;
@@ -71,7 +138,48 @@ pub fn write_lockfile(config: &ProjectConfig) -> Result<PathBuf, PackageError> {
     let path = root.join("lilscript.lock");
     fs::write(&path, encoded)
         .map_err(|error| PackageError::new(&path, format!("failed to write lockfile: {error}")))?;
+    if config.package.is_some() {
+        if let Some(summary) = effect_summary_for_package_root(&root, config)? {
+            write_package_effects(&root, &summary)?;
+        }
+    }
+    for package in &lock.packages {
+        let package_root = root.join(&package.source);
+        if let Some(summary) = effect_summary_for_entry(&package_root.join(&package.entry))? {
+            write_package_effects(&package_root, &summary)?;
+        }
+    }
     Ok(path)
+}
+
+fn effect_summary_for_package_root(
+    root: &Path,
+    config: &ProjectConfig,
+) -> Result<Option<PackageEffectSummary>, PackageError> {
+    let Some(package) = &config.package else {
+        return Ok(None);
+    };
+    effect_summary_for_entry(&root.join(&package.entry))
+}
+
+fn effect_summary_for_entry(entry: &Path) -> Result<Option<PackageEffectSummary>, PackageError> {
+    if !entry.is_file() {
+        return Ok(None);
+    }
+    let source = fs::read_to_string(entry).map_err(|error| {
+        PackageError::new(entry, format!("failed to read package entry: {error}"))
+    })?;
+    let arena = bumpalo::Bump::new();
+    let program = crate::parser::parse_source(&arena, &source).map_err(|error| {
+        PackageError::new(entry, format!("failed to parse package entry: {error}"))
+    })?;
+    let semantics = crate::semantic::analyze(&program).map_err(|error| {
+        PackageError::new(entry, format!("failed to analyze package entry: {error}"))
+    })?;
+    let module = crate::lower::lower_to_control_flow(&program, &semantics).map_err(|error| {
+        PackageError::new(entry, format!("failed to lower package entry: {error}"))
+    })?;
+    Ok(Some(crate::optimizer::summarize_module_effects(&module)))
 }
 
 pub fn load_package_resolver(
@@ -124,15 +232,26 @@ pub fn load_package_resolver(
             .cmp(&left.components().count())
             .then_with(|| left.cmp(right))
     });
+    let mut effects = BTreeMap::new();
+    for (package_root, name) in &package_roots {
+        if let Some(summary) = load_package_effects(package_root)? {
+            effects.insert(name.clone(), summary);
+        }
+    }
     Ok(Some(PackageResolver {
         root,
         root_dependencies,
         packages,
         package_roots,
+        effects,
     }))
 }
 
 impl PackageResolver {
+    pub fn effects(&self, package_name: &str) -> Option<&PackageEffectSummary> {
+        self.effects.get(package_name)
+    }
+
     pub fn resolve(&self, importer: &Path, specifier: &str) -> Result<PathBuf, PackageError> {
         let (name, subpath) = specifier
             .split_once('/')
@@ -523,6 +642,7 @@ mod tests {
                     "hidden".to_string(),
                 ),
             ],
+            effects: BTreeMap::new(),
         };
 
         let error = resolver
@@ -534,5 +654,39 @@ mod tests {
             .resolve(Path::new("/work/app/src"), "hidden")
             .unwrap_err();
         assert!(error.message.contains("not declared by root package"));
+    }
+
+    #[test]
+    fn package_effects_roundtrip_beside_package_root() {
+        let directory = std::env::temp_dir().join(format!(
+            "lilscript-package-effects-test-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&directory).unwrap();
+        let summary = PackageEffectSummary {
+            functions: BTreeMap::from([
+                (
+                    "add".to_string(),
+                    FunctionEffectMeta {
+                        pure: true,
+                        mutated_parameters: Vec::new(),
+                    },
+                ),
+                (
+                    "push".to_string(),
+                    FunctionEffectMeta {
+                        pure: false,
+                        mutated_parameters: vec![0],
+                    },
+                ),
+            ]),
+        };
+        write_package_effects(&directory, &summary).unwrap();
+        let loaded = load_package_effects(&directory).unwrap().unwrap();
+        assert_eq!(loaded, summary);
+        assert!(load_package_effects(&directory.join("missing"))
+            .unwrap()
+            .is_none());
+        std::fs::remove_dir_all(directory).unwrap();
     }
 }

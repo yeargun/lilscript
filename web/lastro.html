@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Lastro is the Lilscript application experiment demonstrated by the accessible Parcel Market experience.">
+    <title>Lastro | LilScript</title><link rel="stylesheet" href="/src/styles.css">
+  </head>
+  <body class="content-page project-page">
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <header class="site-header"><a class="wordmark" href="/" aria-label="LilScript home"><span class="wordmark-mark" aria-hidden="true">L</span><span>LilScript</span></a><button class="nav-toggle icon-button" type="button" aria-label="Toggle navigation" aria-expanded="false"><i data-lucide="menu" aria-hidden="true"></i></button><nav class="site-nav" aria-label="Primary navigation"></nav></header>
+    <main id="main-content" class="project-main content-width">
+      <nav class="project-switcher" aria-label="Project pages"><a href="/lilastro.html">Lilastro</a><a class="active" aria-current="page" href="/lastro.html">Lastro</a><a href="/solidlil.html">SolidLil</a><a href="/delivery.html">Lilpack</a></nav>
+      <section class="project-hero">
+        <div><span class="status-tag experiment">Application experiment</span><p class="eyebrow">Product proving ground</p><h1>Lastro</h1><p class="lead">The app-level experiment for learning whether the Lilscript stack can produce a small, understandable, accessible web experience—not another compiler hidden in the stack.</p><div class="hero-actions"><a class="primary-link" href="/demos.html#lastro">Compare with Astro<i data-lucide="arrow-right" aria-hidden="true"></i></a><a class="secondary-link" href="/marketplace.html">Open Parcel Market</a></div></div>
+        <aside class="project-fact"><strong>Naming boundary</strong><p>There is currently no separate Lastro compiler package. The implemented page compiler is Lilastro. Lastro names the application experiment and its product constraints.</p></aside>
+      </section>
+
+      <section class="project-section" aria-labelledby="lastro-purpose"><div class="section-heading"><p class="eyebrow">Why it exists</p><h2 id="lastro-purpose">A real interface exposes problems tiny fixtures miss</h2><p>Parcel Market exercises loading, repeated data, derived totals, quantity updates, multi-screen state, form interaction, and reload behavior in one deliberately small app.</p></div><div class="responsibility-grid"><article><span>Experience</span><h3>Understandable first</h3><p>Six products, one shopping list, and one fake checkout. No authentication, backend, persistence, or real payment ambiguity.</p></article><article><span>Accessibility</span><h3>Usable without a mouse</h3><p>Semantic regions, keyboard focus, visible outlines, live status announcements, explicit button names, and reduced-motion behavior.</p></article><article><span>Architecture</span><h3>Lilscript remains central</h3><p>The adjacent POC keeps listings, prices, quantities, and screen transitions in <code>main.lil</code>, with only a narrow typed browser host.</p></article></div></section>
+
+      <section class="project-section architecture-panel" aria-labelledby="lastro-stack"><div class="section-heading"><p class="eyebrow">Implemented path</p><h2 id="lastro-stack">What powers the experiment</h2></div><ol class="architecture-flow"><li><strong>Lastro</strong><span>product constraints and Parcel Market experience</span></li><li><strong>Lilastro</strong><span>page shell and Lilscript entry selection</span></li><li><strong>Lilscript</strong><span>application data, behavior, and generated markup</span></li><li><strong>Lilpack</strong><span>module graph, HMR, and production delivery</span></li></ol></section>
+
+      <section class="project-section split-explanation" aria-labelledby="lastro-demo"><div><p class="eyebrow">Accessible demo</p><h2 id="lastro-demo">Parcel Market is available here</h2><p>The hosted example starts with an announced skeleton state, then exposes six listings. Add multiple quantities, remove them one at a time, clear the list, enter the fake checkout, and finish on a local success screen.</p><div class="hero-actions"><a class="primary-link" href="/marketplace.html">Use the marketplace<i data-lucide="arrow-right" aria-hidden="true"></i></a></div></div><div class="plain-note"><strong>Demo contract</strong><p>No details are transmitted or stored. The payment form is intentionally prefilled with test data and clearly labeled as fake.</p></div></section>
+
+      <section class="project-section scope-section" aria-labelledby="lastro-status"><div><p class="eyebrow">Current definition</p><h2 id="lastro-status">Lastro owns</h2><ul><li>Application-level experience and constraints</li><li>The reference marketplace flow</li><li>Accessibility and interaction acceptance criteria</li><li>A realistic target for language and bundler work</li></ul></div><div><p class="eyebrow">It does not own</p><h2>Separate responsibilities</h2><ul><li><code>.lilastro</code> parsing—that is Lilastro</li><li>Lilscript compilation—that is the compiler core</li><li>Bundling and HMR—that is Lilpack</li><li>A general component runtime—that is a separate experiment such as SolidLil</li></ul></div></section>
+    </main>
+    <footer class="site-footer content-width"><span>Lastro application experiment</span><a href="/marketplace.html">Run Parcel Market</a></footer><script type="module" src="/src/site.js"></script>
+  </body>
+</html>

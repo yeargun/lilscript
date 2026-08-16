@@ -1,0 +1,40 @@
+pure int clampValue(int value) {
+  if (value < -120) { return -120; }
+  if (value > 120) { return 120; }
+  return value;
+}
+
+pure int modeWeight(int mode) {
+  if (mode == 0) { return 5; }
+  if (mode == 1) { return -3; }
+  if (mode == 2) { return 7; }
+  return 2;
+}
+
+pure int riskBand(int risk) {
+  if (risk < 0) { return -3; }
+  if (risk > 80) { return 9; }
+  if (risk > 40) { return 5; }
+  return 2;
+}
+
+pure int baseScore(int mode, int value, int risk) {
+  return clampValue(value) * modeWeight(mode) + riskBand(risk);
+}
+
+pure int safeAdjustment(int score) {
+  if (score < 0) { return -score + 7; }
+  return score + 3;
+}
+
+pure int auditAdjustment(int score, bool enabled) {
+  if (enabled) { return score * 101 + 17; }
+  return score;
+}
+
+export pure int evaluateWindow(int mode, int value, int risk) {
+  int band = riskBand(risk);
+  int adjusted = safeAdjustment(baseScore(mode, value, risk));
+  int visible = auditAdjustment(adjusted, false);
+  return visible ^ (mode + band);
+}

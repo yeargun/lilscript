@@ -1,0 +1,79 @@
+import { emptyArray } from "../alloc.lil";
+import { jQuery, merge } from "../core";
+import { document } from "../var/document";
+import { rsingleTag } from "./var/rsingleTag";
+import { buildFragment } from "../manipulation/buildFragment";
+import { support } from "./support";
+import {
+  typeOf,
+  isNullish,
+  call1,
+  regexExec
+} from "../js-host.lil";
+
+void removeElements(JsValue elems) {
+  float i = 0.0;
+  float len = elems.length;
+  for (; i < len; i++) {
+    JsValue el = elems[i];
+    if (el.truthy()) {
+      JsValue parent = el["parentNode"];
+      if (parent.truthy()) {
+        JS.invoke(parent, "removeChild", el);
+      }
+    }
+  }
+}
+
+export JsValue parseHTML(JsValue data, JsValue context = null, JsValue keepScripts = null) {
+  if (!(data is string)) {
+    return emptyArray();
+  }
+  string html = data;
+
+  JsValue ctx = context;
+  JsValue keep = keepScripts;
+  if (ctx is bool) {
+    keep = ctx;
+    ctx = false;
+  }
+
+  if (!ctx.truthy()) {
+    if (support["createHTMLDocument"].truthy()) {
+      JsValue implementation = document["implementation"];
+      ctx = JS.invoke(implementation, "createHTMLDocument", "");
+      JsValue base = JS.invoke(ctx, "createElement", "base");
+      base["href"] = document["location"]["href"];
+      JsValue head = ctx["head"];
+      JS.invoke(head, "appendChild", base);
+    } else {
+      ctx = document;
+    }
+  }
+
+  JsValue parsed = JS.regexExec(rsingleTag, html);
+  JsValue scripts = null;
+  if (!keep.truthy()) {
+    scripts = emptyArray();
+  }
+
+  if (parsed.truthy()) {
+    JsValue[] result = [];
+    result.push(JS.invoke(ctx, "createElement", parsed[1]));
+    return result;
+  }
+
+  JsValue[] elemsToBuild = [];
+  elemsToBuild.push(html);
+  JsValue fragment = buildFragment(elemsToBuild, ctx, scripts);
+
+  if (!JS.isNullish(scripts) && scripts.truthy() && scripts.length > 0.0) {
+    removeElements(scripts);
+  }
+
+  return merge(emptyArray(), fragment["childNodes"]);
+}
+
+jQuery["parseHTML"] = parseHTML;
+
+export { jQuery };

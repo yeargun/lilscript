@@ -1,0 +1,78 @@
+import { complex } from "./index";
+import { floatRegex } from "../utils/float-regex";
+import { ValueType } from "../types";
+import {
+  stringMatch,
+  stringReplace,
+  stringSplit,
+  stringSubstring
+} from "../../../string-host";
+
+extern float parseFloat(string v);
+
+Set<string> maxDefaults = new Set<string>();
+maxDefaults.add("brightness");
+maxDefaults.add("contrast");
+maxDefaults.add("saturate");
+maxDefaults.add("opacity");
+
+Regex functionRegex = new Regex("\\b([a-z-]*)\\(.*?\\)", "gu");
+
+string applyDefaultFilter(string v) {
+  string head = stringSubstring(v, 0, v.length - 1);
+  string[] parts = stringSplit(head, "(");
+  if (parts.length < 2) {
+    return v;
+  }
+  string name = parts[0];
+  string value = parts[1];
+  if (name == "drop-shadow") {
+    return v;
+  }
+  JsValue matched = stringMatch(value, floatRegex);
+  if (!matched.isArray() || matched.length == 0.0) {
+    return v;
+  }
+  JsValue numberVal = matched[0];
+  string numberValue = `${numberVal}`;
+  string unit = stringReplace(value, floatRegex, "");
+  float defaultValue = 0.0;
+  if (maxDefaults.has(name)) {
+    defaultValue = 1.0;
+  }
+  if (numberValue != value) {
+    defaultValue = defaultValue * 100.0;
+  }
+  return name + "(" + `${defaultValue}` + unit + ")";
+}
+
+export ValueType filter = new ValueType(
+  complex.test,
+  complex.parse,
+  complex.transform,
+  complex.createTransformer,
+  complex.defaultValue,
+  (JsValue v) => {
+    if (!(v is string)) {
+      return v;
+    }
+    JsValue functions = stringMatch(v, functionRegex);
+    if (!functions.isArray()) {
+      return v;
+    }
+    string output = "";
+    int i = 0;
+    int len = functions.length.toInt();
+    while (i < len) {
+      JsValue item = functions[i];
+      string applied = applyDefaultFilter(`${item}`);
+      if (i == 0) {
+        output = applied;
+      } else {
+        output = output + " " + applied;
+      }
+      i = i + 1;
+    }
+    return output;
+  }
+);

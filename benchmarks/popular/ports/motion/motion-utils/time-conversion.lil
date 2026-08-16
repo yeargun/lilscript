@@ -1,0 +1,7 @@
+export float secondsToMilliseconds(float seconds) {
+  return seconds * 1000.0;
+}
+
+export float millisecondsToSeconds(float milliseconds) {
+  return milliseconds / 1000.0;
+}

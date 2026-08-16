@@ -49,9 +49,17 @@ impl<'ast, 'src> TypeRef<'ast, 'src> {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Program<'ast, 'src> {
     pub imports: &'ast [ImportDecl<'ast, 'src>],
+    pub foreign_imports: &'ast [ForeignImportDecl<'ast, 'src>],
     pub dynamic_imports: &'ast [DynamicImportDecl<'ast, 'src>],
     pub exports: &'ast [ExportDecl<'src>],
     pub items: &'ast [Item<'ast, 'src>],
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ForeignImportDecl<'ast, 'src> {
+    pub specifiers: &'ast [ImportSpecifier<'src>],
+    pub source: &'src str,
     pub span: Span,
 }
 
@@ -93,6 +101,7 @@ pub struct ExportDecl<'src> {
 // Arena-owned AST nodes stay inline so parsing does not add per-statement heap boxes.
 #[allow(clippy::large_enum_variant)]
 pub enum Item<'ast, 'src> {
+    Enum(EnumDecl<'ast, 'src>),
     Struct(StructDecl<'ast, 'src>),
     Class(ClassDecl<'ast, 'src>),
     ExternClass(ExternClassDecl<'ast, 'src>),
@@ -105,6 +114,7 @@ pub enum Item<'ast, 'src> {
 impl<'ast, 'src> Item<'ast, 'src> {
     pub const fn span(&self) -> Span {
         match self {
+            Self::Enum(decl) => decl.span,
             Self::Struct(decl) => decl.span,
             Self::Class(decl) => decl.span,
             Self::ExternClass(decl) => decl.span,
@@ -114,6 +124,13 @@ impl<'ast, 'src> Item<'ast, 'src> {
             Self::Stmt(stmt) => stmt.span(),
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct EnumDecl<'ast, 'src> {
+    pub name: Ident<'src>,
+    pub variants: &'ast [Ident<'src>],
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -128,6 +145,7 @@ pub struct StructDecl<'ast, 'src> {
 pub struct ClassDecl<'ast, 'src> {
     pub name: Ident<'src>,
     pub type_params: &'ast [Ident<'src>],
+    pub base: Option<TypeRef<'ast, 'src>>,
     pub members: &'ast [ClassMember<'ast, 'src>],
     pub span: Span,
 }
@@ -136,6 +154,7 @@ pub struct ClassDecl<'ast, 'src> {
 pub struct ExternClassDecl<'ast, 'src> {
     pub name: Ident<'src>,
     pub type_params: &'ast [Ident<'src>],
+    pub base: Option<TypeRef<'ast, 'src>>,
     pub members: &'ast [ExternClassMember<'ast, 'src>],
     pub span: Span,
 }
@@ -170,6 +189,8 @@ pub struct FieldDecl<'ast, 'src> {
 #[derive(Debug, Clone, PartialEq)]
 pub struct FunctionDecl<'ast, 'src> {
     pub declared_pure: bool,
+    pub is_async: bool,
+    pub is_generator: bool,
     pub return_type: TypeRef<'ast, 'src>,
     pub name: Ident<'src>,
     pub type_params: &'ast [Ident<'src>],
@@ -203,12 +224,56 @@ pub struct Param<'ast, 'src> {
     pub span: Span,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CatchBinding<'ast, 'src> {
+    pub ty: TypeRef<'ast, 'src>,
+    pub name: Ident<'src>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct CatchClause<'ast, 'src> {
+    pub binding: Option<CatchBinding<'ast, 'src>>,
+    pub body: &'ast [Stmt<'ast, 'src>],
+    pub span: Span,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Stmt<'ast, 'src> {
     VarDecl(VarDecl<'ast, 'src>),
+    ArrayDestructure {
+        bindings: &'ast [ArrayBinding<'src>],
+        value: Expr<'ast, 'src>,
+        span: Span,
+    },
+    RecordDestructure {
+        bindings: &'ast [RecordBinding<'src>],
+        rest: Option<Ident<'src>>,
+        value: Expr<'ast, 'src>,
+        span: Span,
+    },
     Expr(Expr<'ast, 'src>),
     Return {
         value: Option<Expr<'ast, 'src>>,
+        span: Span,
+    },
+    Throw {
+        value: Expr<'ast, 'src>,
+        span: Span,
+    },
+    SuperCall {
+        args: &'ast [Expr<'ast, 'src>],
+        span: Span,
+    },
+    Yield {
+        value: Expr<'ast, 'src>,
+        delegate: bool,
+        span: Span,
+    },
+    Try {
+        body: &'ast [Stmt<'ast, 'src>],
+        catch: Option<CatchClause<'ast, 'src>>,
+        finally: Option<&'ast [Stmt<'ast, 'src>]>,
         span: Span,
     },
     Block {
@@ -240,6 +305,13 @@ pub enum Stmt<'ast, 'src> {
         body: &'ast Stmt<'ast, 'src>,
         span: Span,
     },
+    ForOf {
+        element_type: TypeRef<'ast, 'src>,
+        element: Ident<'src>,
+        iterable: Expr<'ast, 'src>,
+        body: &'ast Stmt<'ast, 'src>,
+        span: Span,
+    },
     Break(Span),
     Continue(Span),
 }
@@ -254,17 +326,46 @@ impl<'ast, 'src> Stmt<'ast, 'src> {
     pub const fn span(&self) -> Span {
         match self {
             Self::VarDecl(decl) => decl.span,
+            Self::ArrayDestructure { span, .. } | Self::RecordDestructure { span, .. } => *span,
             Self::Expr(expr) => expr.span(),
-            Self::Return { span, .. } => *span,
+            Self::Return { span, .. }
+            | Self::Throw { span, .. }
+            | Self::SuperCall { span, .. }
+            | Self::Yield { span, .. }
+            | Self::Try { span, .. } => *span,
             Self::Block { span, .. }
             | Self::If { span, .. }
             | Self::While { span, .. }
             | Self::For { span, .. }
             | Self::ForIn { span, .. }
+            | Self::ForOf { span, .. }
             | Self::Break(span)
             | Self::Continue(span) => *span,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ArrayBinding<'src> {
+    Hole(Span),
+    Name(Ident<'src>),
+    Rest(Ident<'src>),
+}
+
+impl ArrayBinding<'_> {
+    pub const fn span(self) -> Span {
+        match self {
+            Self::Hole(span) => span,
+            Self::Name(name) | Self::Rest(name) => name.span,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RecordBinding<'src> {
+    pub key: Ident<'src>,
+    pub name: Ident<'src>,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -284,7 +385,11 @@ pub enum Expr<'ast, 'src> {
     Null(Span),
     Ident(Ident<'src>),
     ArrayLiteral {
-        elements: &'ast [Expr<'ast, 'src>],
+        elements: &'ast [ArrayElement<'ast, 'src>],
+        span: Span,
+    },
+    RecordLiteral {
+        entries: &'ast [RecordElement<'ast, 'src>],
         span: Span,
     },
     StructLiteral {
@@ -307,6 +412,11 @@ pub enum Expr<'ast, 'src> {
         property: Ident<'src>,
         span: Span,
     },
+    OptionalMember {
+        object: &'ast Expr<'ast, 'src>,
+        property: Ident<'src>,
+        span: Span,
+    },
     Call {
         callee: &'ast Expr<'ast, 'src>,
         args: &'ast [Expr<'ast, 'src>],
@@ -320,6 +430,10 @@ pub enum Expr<'ast, 'src> {
     Unary {
         op: UnaryOp,
         expr: &'ast Expr<'ast, 'src>,
+        span: Span,
+    },
+    Await {
+        task: &'ast Expr<'ast, 'src>,
         span: Span,
     },
     Binary {
@@ -336,6 +450,16 @@ pub enum Expr<'ast, 'src> {
     Index {
         object: &'ast Expr<'ast, 'src>,
         index: &'ast Expr<'ast, 'src>,
+        span: Span,
+    },
+    OptionalIndex {
+        object: &'ast Expr<'ast, 'src>,
+        index: &'ast Expr<'ast, 'src>,
+        span: Span,
+    },
+    Match {
+        value: &'ast Expr<'ast, 'src>,
+        arms: &'ast [MatchArm<'ast, 'src>],
         span: Span,
     },
     Assignment {
@@ -356,6 +480,55 @@ pub enum Expr<'ast, 'src> {
     },
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct RecordEntry<'ast, 'src> {
+    pub key: Ident<'src>,
+    pub value: Expr<'ast, 'src>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ArrayElement<'ast, 'src> {
+    Value(Expr<'ast, 'src>),
+    Spread { value: Expr<'ast, 'src>, span: Span },
+}
+
+impl<'ast, 'src> ArrayElement<'ast, 'src> {
+    pub const fn value(&self) -> &Expr<'ast, 'src> {
+        match self {
+            Self::Value(value) | Self::Spread { value, .. } => value,
+        }
+    }
+
+    pub const fn span(&self) -> Span {
+        match self {
+            Self::Value(value) => value.span(),
+            Self::Spread { span, .. } => *span,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum RecordElement<'ast, 'src> {
+    Entry(RecordEntry<'ast, 'src>),
+    Spread { value: Expr<'ast, 'src>, span: Span },
+}
+
+impl<'ast, 'src> RecordElement<'ast, 'src> {
+    pub const fn value(&self) -> &Expr<'ast, 'src> {
+        match self {
+            Self::Entry(entry) => &entry.value,
+            Self::Spread { value, .. } => value,
+        }
+    }
+
+    pub const fn span(&self) -> Span {
+        match self {
+            Self::Entry(entry) => entry.span,
+            Self::Spread { span, .. } => *span,
+        }
+    }
+}
 impl<'ast, 'src> Expr<'ast, 'src> {
     pub const fn span(&self) -> Span {
         match self {
@@ -365,20 +538,50 @@ impl<'ast, 'src> Expr<'ast, 'src> {
             | Self::Bool(_, span)
             | Self::Null(span)
             | Self::ArrayLiteral { span, .. }
+            | Self::RecordLiteral { span, .. }
             | Self::StructLiteral { span, .. }
             | Self::New { span, .. }
             | Self::DynamicImport { span, .. }
             | Self::Member { span, .. }
+            | Self::OptionalMember { span, .. }
             | Self::Call { span, .. }
             | Self::ArrowFunction { span, .. }
             | Self::Unary { span, .. }
+            | Self::Await { span, .. }
             | Self::Binary { span, .. }
             | Self::TypeCheck { span, .. }
             | Self::Index { span, .. }
+            | Self::OptionalIndex { span, .. }
+            | Self::Match { span, .. }
             | Self::Assignment { span, .. }
             | Self::Update { span, .. }
             | Self::Template { span, .. } => *span,
             Self::Ident(ident) => ident.span,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct MatchArm<'ast, 'src> {
+    pub pattern: MatchPattern<'src>,
+    pub value: Expr<'ast, 'src>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MatchPattern<'src> {
+    EnumVariant {
+        enum_name: Ident<'src>,
+        variant: Ident<'src>,
+        span: Span,
+    },
+    Wildcard(Span),
+}
+
+impl MatchPattern<'_> {
+    pub const fn span(self) -> Span {
+        match self {
+            Self::EnumVariant { span, .. } | Self::Wildcard(span) => span,
         }
     }
 }
@@ -398,6 +601,7 @@ pub enum UnaryOp {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AssignmentOp {
     Assign,
+    Nullish,
     Add,
     Sub,
     Mul,
@@ -444,4 +648,5 @@ pub enum BinaryOp {
     GreaterEq,
     And,
     Or,
+    Nullish,
 }

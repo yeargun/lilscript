@@ -1,0 +1,104 @@
+import {
+  scrollOffsetEnter,
+  scrollOffsetExit,
+  scrollOffsetAny,
+  scrollOffsetAll
+} from "../offsets/presets";
+import { stringTrim, stringSplit } from "../../../../../motion-dom/string-host";
+
+export class ViewTimelineRange {
+  string rangeStart;
+  string rangeEnd;
+
+  init(string rangeStart, string rangeEnd) {
+    this.rangeStart = rangeStart;
+    this.rangeEnd = rangeEnd;
+  }
+}
+
+Map<string, float> stringToProgress = new Map<string, float>();
+
+void initStringToProgress() {
+  if (stringToProgress.size == 0) {
+    stringToProgress.set("start", 0.0);
+    stringToProgress.set("end", 1.0);
+  }
+}
+
+float[]? parseStringOffset(string s) {
+  initStringToProgress();
+  string[] parts = stringSplit(stringTrim(s), " ");
+  if (parts.length != 2) {
+    return null;
+  }
+  float? a = stringToProgress.get(parts[0]);
+  float? b = stringToProgress.get(parts[1]);
+  if (a == null || b == null) {
+    return null;
+  }
+  return [a, b];
+}
+
+float[][]? normaliseOffset(JsValue offset) {
+  if (!offset.isArray() || offset.length.toInt() != 2) {
+    return null;
+  }
+  float[][] result = [];
+  for (int i = 0; i < 2; i++) {
+    JsValue item = offset[i];
+    if (item.isArray()) {
+      JsValue a = item[0];
+      JsValue b = item[1];
+      if ((a is float) && (b is float)) {
+        result.push([a, b]);
+      } else {
+        return null;
+      }
+    } else if (item is string) {
+      float[]? parsed = parseStringOffset(item);
+      if (parsed == null) {
+        return null;
+      }
+      result.push(parsed);
+    } else {
+      return null;
+    }
+  }
+  return result;
+}
+
+bool matchesPreset(JsValue offset, float[][] preset) {
+  float[][]? normalised = normaliseOffset(offset);
+  if (normalised == null) {
+    return false;
+  }
+  for (int i = 0; i < 2; i++) {
+    float[] o = normalised[i];
+    float[] p = preset[i];
+    if (o[0] != p[0] || o[1] != p[1]) {
+      return false;
+    }
+  }
+  return true;
+}
+
+export ViewTimelineRange? offsetToViewTimelineRange(JsValue? offset = null) {
+  if (offset == null) {
+    return new ViewTimelineRange("contain 0%", "contain 100%");
+  }
+
+  if (matchesPreset(offset, scrollOffsetEnter)) {
+    return new ViewTimelineRange("entry 0%", "entry 100%");
+  }
+  if (matchesPreset(offset, scrollOffsetExit)) {
+    return new ViewTimelineRange("exit 0%", "exit 100%");
+  }
+  if (matchesPreset(offset, scrollOffsetAny)) {
+    return new ViewTimelineRange("cover 0%", "cover 100%");
+  }
+  if (matchesPreset(offset, scrollOffsetAll)) {
+    return new ViewTimelineRange("contain 0%", "contain 100%");
+  }
+
+  return null;
+}

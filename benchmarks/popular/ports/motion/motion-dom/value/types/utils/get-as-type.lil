@@ -1,0 +1,11 @@
+import { ValueType } from "../types";
+
+export JsValue getAsType(JsValue value, ValueType? type = null) {
+  if (type != null) {
+    (func(JsValue)->JsValue)? transform = type.transform;
+    if (transform != null) {
+      return transform(value);
+    }
+  }
+  return value;
+}

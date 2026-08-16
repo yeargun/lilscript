@@ -1,0 +1,9 @@
+import { hasFunction } from "../../dom-host";
+import { isMotionValue } from "../utils/is-motion-value";
+
+export bool isWillChangeMotionValue(JsValue? value = null) {
+  if (!isMotionValue(value)) {
+    return false;
+  }
+  return hasFunction(value, "add");
+}

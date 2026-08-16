@@ -1,0 +1,15 @@
+export class Feature {
+  bool isMounted;
+  JsValue node;
+
+  init(JsValue node) {
+    this.isMounted = false;
+    this.node = node;
+  }
+
+  void mount() {}
+
+  void unmount() {}
+
+  void update() {}
+}

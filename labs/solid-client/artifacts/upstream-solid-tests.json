@@ -1,0 +1,9 @@
+{
+  "package": "solid-js@1.9.13",
+  "revision": "3be495cec52bf78d7cc61f054af00320ecf4058c",
+  "testFiles": 26,
+  "tests": 469,
+  "passed": 469,
+  "failed": 0,
+  "success": true
+}

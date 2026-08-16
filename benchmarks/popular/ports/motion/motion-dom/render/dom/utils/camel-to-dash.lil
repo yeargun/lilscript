@@ -1,0 +1,14 @@
+export string camelToDash(string str) {
+  string out = "";
+  int len = str.length;
+  for (int i = 0; i < len; i++) {
+    string ch = str.charAt(i);
+    int code = str.charCodeAt(i);
+    if (code >= 65 && code <= 90) {
+      out = out + "-" + ch.toLowerCase();
+    } else {
+      out = out + ch;
+    }
+  }
+  return out;
+}

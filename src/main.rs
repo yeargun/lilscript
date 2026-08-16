@@ -1,17 +1,19 @@
 use std::fs;
 use std::io::Write;
+use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 use clap::{Parser, ValueEnum};
 
-use lilscript::config::{load_project_config, BundleMode, CandidateSearch};
+use lilscript::config::{load_project_config, BundleMode, CandidateSearch, ProjectConfig};
 use lilscript::package::write_lockfile;
 use lilscript::{
-    compile_path_all_configured, compile_path_configured, compile_path_explained_configured,
-    compile_path_to_c_configured, compile_path_to_js_bundle_configured,
-    compile_path_to_js_module_configured, compile_path_to_js_module_explained_configured,
-    profile_template_path_configured, render_module_diagnostic, JavaScriptBundle,
+    compile_path_all_configured, compile_path_all_to_js_bundle_configured, compile_path_configured,
+    compile_path_explained_configured, compile_path_to_c_configured,
+    compile_path_to_js_bundle_configured, compile_path_to_js_module_configured,
+    compile_path_to_js_module_explained_configured, profile_template_path_configured,
+    render_module_diagnostic, JavaScriptBundle,
 };
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -37,6 +39,7 @@ enum ExplainFormat {
 
 #[derive(Debug, Parser)]
 #[command(name = "lilscript")]
+#[command(version)]
 #[command(about = "Compile LilScript source to optimized JavaScript, C, or a native executable.")]
 struct Args {
     /// LilScript source file to compile.
@@ -54,6 +57,14 @@ struct Args {
     #[arg(long)]
     config: Option<PathBuf>,
 
+    /// JavaScript compiler worker threads. Omit to use RAYON_NUM_THREADS or the host default.
+    #[arg(short = 'j', long, value_name = "N")]
+    jobs: Option<NonZeroUsize>,
+
+    /// Maximum concurrent terminal Brotli finalizer workers.
+    #[arg(long, value_name = "N")]
+    codec_jobs: Option<NonZeroUsize>,
+
     /// Development skips compressor-in-loop candidate search; production uses project policy.
     #[arg(long, value_enum, default_value_t = BuildMode::Production)]
     mode: BuildMode,
@@ -69,6 +80,14 @@ struct Args {
     /// Write a versioned profile template with stable function/loop keys, then exit.
     #[arg(long)]
     profile_template: Option<PathBuf>,
+
+    /// Force a single ESM artifact for an external bundler such as Lilpack.
+    #[arg(long, hide = true)]
+    delegate_bundling: bool,
+
+    /// Print compiler inputs as JSON for an external incremental build graph, then exit.
+    #[arg(long, hide = true)]
+    print_dependencies: bool,
 }
 
 fn main() {
@@ -82,12 +101,19 @@ fn run() -> Result<(), String> {
     let args = Args::parse();
     let mut loaded = load_project_config(&args.input, args.config.as_deref())
         .map_err(|error| error.to_string())?;
+    apply_resource_overrides(&mut loaded.config, args.jobs, args.codec_jobs);
     if args.write_lock {
         let path = write_lockfile(&loaded.config).map_err(|error| error.to_string())?;
         eprintln!("wrote {}", path.display());
     }
+    if args.delegate_bundling {
+        loaded.config.bundle.mode = BundleMode::Single;
+    }
     if matches!(args.mode, BuildMode::Development) {
         loaded.config.javascript.candidate_search = CandidateSearch::Off;
+    }
+    if args.print_dependencies {
+        return print_dependencies(&args.input, &loaded);
     }
     if let Some(output) = &args.profile_template {
         let profile = profile_template_path_configured(&args.input, &loaded.config)
@@ -163,8 +189,6 @@ fn run() -> Result<(), String> {
             compile_native(&c, &output)?;
         }
         Target::All => {
-            let artifacts = compile_path_all_configured(&args.input, &loaded.config)
-                .map_err(|error| render_module_diagnostic(&error))?;
             let base = args.output.unwrap_or_else(|| {
                 let mut output = args.input.clone();
                 output.set_extension("");
@@ -172,20 +196,93 @@ fn run() -> Result<(), String> {
             });
             let javascript = base.with_extension("js");
             let c = base.with_extension("c");
-            ensure_parent(&base)?;
             if loaded.config.bundle.mode == BundleMode::Single {
+                let artifacts = compile_path_all_configured(&args.input, &loaded.config)
+                    .map_err(|error| render_module_diagnostic(&error))?;
+                ensure_parent(&base)?;
                 fs::write(&javascript, &artifacts.javascript).map_err(|error| {
                     format!("failed to write {}: {error}", javascript.display())
                 })?;
+                fs::write(&c, &artifacts.c)
+                    .map_err(|error| format!("failed to write {}: {error}", c.display()))?;
+                compile_native(&artifacts.c, &base)?;
             } else {
-                write_configured_bundle(&args.input, Some(&javascript), &loaded.config)?;
+                let entry_file = javascript
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .ok_or_else(|| "bundle output must have a UTF-8 file name".to_string())?;
+                let artifacts = compile_path_all_to_js_bundle_configured(
+                    &args.input,
+                    &loaded.config,
+                    entry_file,
+                )
+                .map_err(|error| render_module_diagnostic(&error))?;
+                ensure_parent(&base)?;
+                write_javascript_bundle(&javascript, &artifacts.javascript)?;
+                fs::write(&c, &artifacts.c)
+                    .map_err(|error| format!("failed to write {}: {error}", c.display()))?;
+                compile_native(&artifacts.c, &base)?;
             }
-            fs::write(&c, &artifacts.c)
-                .map_err(|error| format!("failed to write {}: {error}", c.display()))?;
-            compile_native(&artifacts.c, &base)?;
         }
     }
 
+    Ok(())
+}
+
+fn apply_resource_overrides(
+    config: &mut ProjectConfig,
+    jobs: Option<NonZeroUsize>,
+    codec_jobs: Option<NonZeroUsize>,
+) {
+    if let Some(jobs) = jobs {
+        config.compiler.resources.threads = Some(jobs);
+    }
+    if let Some(codec_jobs) = codec_jobs {
+        config.compiler.resources.codec_workers = codec_jobs;
+    }
+}
+
+fn print_dependencies(
+    input: &Path,
+    loaded: &lilscript::config::LoadedConfig,
+) -> Result<(), String> {
+    let modules = lilscript::module::discover_modules_configured(input, &loaded.config)
+        .map_err(|error| render_module_diagnostic(&error))?;
+    let mut files = modules
+        .modules
+        .iter()
+        .map(|module| module.path.clone())
+        .collect::<Vec<_>>();
+    if let Some(path) = &loaded.path {
+        files.push(path.canonicalize().unwrap_or_else(|_| path.clone()));
+    }
+    if let Some(root) = &loaded.config.config_dir {
+        let lockfile = root.join("lilscript.lock");
+        if lockfile.is_file() {
+            files.push(lockfile.canonicalize().unwrap_or(lockfile));
+        }
+        if let Some(profile) = &loaded.config.profile.path {
+            let path = if profile.is_absolute() {
+                profile.clone()
+            } else {
+                root.join(profile)
+            };
+            if path.is_file() {
+                files.push(path.canonicalize().unwrap_or(path));
+            }
+        }
+    }
+    files.sort();
+    files.dedup();
+    println!(
+        "{}",
+        serde_json::to_string(&serde_json::json!({
+            "version": 1,
+            "entry": modules.modules[modules.root].path,
+            "files": files,
+        }))
+        .map_err(|error| format!("failed to serialize compiler inputs: {error}"))?
+    );
     Ok(())
 }
 
@@ -206,6 +303,22 @@ fn print_explanation(
                         "unchanged"
                     }
                 );
+            }
+            let census = lilscript::compiler::store_census();
+            if census.iter().any(|count| *count != 0) {
+                for (label, count) in [
+                    "store: crosses blocks",
+                    "store: used more than once",
+                    "store: unstable and unfused",
+                    "store: single use, fusion refused",
+                    "store: other",
+                    "  of which: only a fall-through edge",
+                ]
+                .into_iter()
+                .zip(census)
+                {
+                    eprintln!("{label:<34} {count}");
+                }
             }
             eprintln!("{:<34} {}", "javascript codec", metrics.codec);
             eprintln!(
@@ -297,6 +410,7 @@ fn write_javascript_bundle(output: &Path, bundle: &JavaScriptBundle) -> Result<(
         } else {
             directory.join(&file.file_name)
         };
+        ensure_parent(&path)?;
         fs::write(&path, &file.code)
             .map_err(|error| format!("failed to write {}: {error}", path.display()))?;
     }
@@ -334,10 +448,9 @@ fn remove_stale_chunks(
         .iter()
         .filter_map(|chunk| chunk.get("file")?.as_str())
     {
-        if current.contains(file)
-            || !(file.starts_with("chunk-") || file.starts_with("lil-chunk-"))
-            || Path::new(file).file_name().and_then(|name| name.to_str()) != Some(file)
-        {
+        let flat_chunk = (file.starts_with("chunk-") || file.starts_with("lil-chunk-"))
+            && Path::new(file).file_name().and_then(|name| name.to_str()) == Some(file);
+        if current.contains(file) || !flat_chunk {
             continue;
         }
         let path = directory.join(file);
@@ -408,5 +521,33 @@ fn compile_native(c: &str, output: &Path) -> Result<(), String> {
             "native compiler failed:\n{}",
             String::from_utf8_lossy(&result.stderr)
         ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cli_resource_limits_are_nonzero_and_override_project_values() {
+        let args = Args::try_parse_from([
+            "lilscript",
+            "input.lil",
+            "--jobs",
+            "12",
+            "--codec-jobs",
+            "8",
+        ])
+        .unwrap();
+        let mut config = ProjectConfig::default();
+        config.compiler.resources.threads = NonZeroUsize::new(2);
+        config.compiler.resources.codec_workers = NonZeroUsize::new(3).unwrap();
+
+        apply_resource_overrides(&mut config, args.jobs, args.codec_jobs);
+
+        assert_eq!(config.compiler.resources.threads.unwrap().get(), 12);
+        assert_eq!(config.compiler.resources.codec_workers.get(), 8);
+        assert!(Args::try_parse_from(["lilscript", "input.lil", "--jobs", "0"]).is_err());
+        assert!(Args::try_parse_from(["lilscript", "input.lil", "--codec-jobs", "0"]).is_err());
     }
 }

@@ -1,0 +1,45 @@
+import { jQuery } from "../core";
+import {
+  call1,
+  isNullish
+} from "../js-host.lil";
+
+export bool containsImpl(JsValue a, JsValue b) {
+  JsValue bup = null;
+  if (!JS.isNullish(b)) {
+    bup = b["parentNode"];
+  }
+
+  if (a == bup) {
+    return true;
+  }
+
+  if (JS.isNullish(bup)) {
+    return false;
+  }
+
+  JsValue nodeTypeValue = bup["nodeType"];
+  if (nodeTypeValue != 1.0) {
+    return false;
+  }
+
+  JsValue containsMethod = a["contains"];
+  if (containsMethod.truthy()) {
+    return JS.call(containsMethod, a, bup).truthy();
+  }
+
+  JsValue compareMethod = a["compareDocumentPosition"];
+  if (compareMethod.truthy()) {
+    JsValue posResult = JS.call(compareMethod, a, bup);
+    if (posResult is float) {
+      float p = posResult;
+      int bits = p.toInt();
+      return (bits & 16) != 0;
+    }
+  }
+  return false;
+}
+
+jQuery["contains"] = containsImpl;
+
+export { jQuery };

@@ -1,0 +1,3 @@
+import { cssExpand } from "./cssExpand";
+
+export Regex rboxStyle = new Regex(cssExpand.join("|"), "i");

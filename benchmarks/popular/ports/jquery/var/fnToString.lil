@@ -1,0 +1,5 @@
+import {
+  functionToString
+} from "../js-host.lil";
+
+export func(JsValue)->string fnToString = functionToString;

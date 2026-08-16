@@ -1,0 +1,146 @@
+import { animateMini } from "../../../../benchmarks/popular/ports/motion/framer-motion/animation/animators/waapi/animate-style-mini";
+import { stagger } from "../../../../benchmarks/popular/ports/motion/motion-dom/utils/stagger-mini";
+import {
+  documentCreateElement,
+  documentQuerySelectorAll,
+  setProp,
+  windowSelf,
+  windowGet,
+  callMethod0,
+  callMethod1,
+  callFn2,
+  isFunction,
+  performanceNow,
+  scheduleAnimationFrame
+} from "../../../../benchmarks/popular/ports/motion/motion-dom/dom-host";
+
+int COUNT = 192;
+float DURATION = 0.12;
+float STAGGER = 0.001;
+float SAMPLE_MS = (DURATION + COUNT * 1.0 * STAGGER + 0.08) * 1000.0;
+
+JsValue[] ensureBoxes() {
+  JsValue[] stages = documentQuerySelectorAll("#stage");
+  JsValue stage = stages[0];
+  callMethod0(stage, "replaceChildren");
+  JsValue[] boxes = [];
+  for (int i = 0; i < COUNT; i++) {
+    JsValue el = documentCreateElement("div");
+    setProp(el, "className", "box");
+    JsValue style = el["style"];
+    setProp(style, "top", `${(i % 8) * 24}px`);
+    int col = 0;
+    int n = i;
+    while (n >= 8) {
+      n = n - 8;
+      col = col + 1;
+    }
+    setProp(style, "left", `${col * 24}px`);
+    setProp(style, "transform", "");
+    setProp(style, "opacity", "1");
+    callMethod1(stage, "appendChild", el);
+    boxes.push(el);
+  }
+  return boxes;
+}
+
+JsValue win = windowSelf();
+setProp(win, "__perfReady", false);
+setProp(win, "__perfSampleDone", false);
+setProp(win, "__perfSample", null);
+
+float[] frameTimes = [];
+bool probing = false;
+float lastFrame = 0.0;
+
+void probeFrames() {
+  if (!probing) {
+    return;
+  }
+  float now = performanceNow();
+  frameTimes.push(now - lastFrame);
+  lastFrame = now;
+  scheduleAnimationFrame(() => {
+    probeFrames();
+  });
+}
+
+float meanOf(float[] values) {
+  if (values.length == 0) {
+    return 0.0;
+  }
+  float sum = 0.0;
+  for (int i = 0; i < values.length; i++) {
+    sum = sum + values[i];
+  }
+  return sum / (values.length * 1.0);
+}
+
+float quantileOf(float[] values, float q) {
+  if (values.length == 0) {
+    return 0.0;
+  }
+  float[] sorted = [];
+  for (int i = 0; i < values.length; i++) {
+    sorted.push(values[i]);
+  }
+  for (int i = 0; i < sorted.length; i++) {
+    for (int j = i + 1; j < sorted.length; j++) {
+      if (sorted[j] < sorted[i]) {
+        float tmp = sorted[i];
+        sorted[i] = sorted[j];
+        sorted[j] = tmp;
+      }
+    }
+  }
+  float pos = (sorted.length - 1) * 1.0 * q;
+  int idx = pos.toInt();
+  if (idx < 0) {
+    idx = 0;
+  }
+  if (idx >= sorted.length) {
+    idx = sorted.length - 1;
+  }
+  return sorted[idx];
+}
+
+setProp(win, "__runPerfSample", () => {
+  setProp(win, "__perfSampleDone", false);
+  setProp(win, "__perfSample", null);
+  frameTimes = [];
+  probing = true;
+  lastFrame = performanceNow();
+  scheduleAnimationFrame(() => {
+    probeFrames();
+  });
+
+  JsValue[] boxes = ensureBoxes();
+  float t0 = performanceNow();
+  func(int, int)->float delayFn = stagger(STAGGER, null);
+  animateMini(
+    boxes,
+    record{ transform: "translateX(160px)", opacity: 0.85 },
+    record{ duration: DURATION, delay: delayFn }
+  );
+  float scheduleMs = performanceNow() - t0;
+
+  JsValue setTimeoutFn = windowGet("setTimeout");
+  if (isFunction(setTimeoutFn)) {
+    callFn2(setTimeoutFn, () => {
+      probing = false;
+      setProp(win, "__perfSample", record{
+        scheduleMs: scheduleMs,
+        animateMs: scheduleMs,
+        heapDelta: 0.0,
+        heapEnd: 0.0,
+        frames: frameTimes.length * 1.0,
+        frameMean: meanOf(frameTimes),
+        frameP50: quantileOf(frameTimes, 0.5),
+        frameP95: quantileOf(frameTimes, 0.95)
+      });
+      setProp(win, "__perfSampleDone", true);
+    }, SAMPLE_MS);
+  }
+});
+
+setProp(win, "__perfReady", true);

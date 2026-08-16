@@ -1,0 +1,39 @@
+import { jQuery } from "../core";
+import {
+  createEmptyObject,
+  call0
+} from "../js-host.lil";
+
+JsValue expr = jQuery["expr"];
+if (!expr.truthy()) {
+  expr = JS.object();
+  jQuery["expr"] = expr;
+}
+
+JsValue pseudos = expr["pseudos"];
+if (!pseudos.truthy()) {
+  pseudos = JS.object();
+  expr["pseudos"] = pseudos;
+}
+
+bool visible(JsValue elem) {
+  JsValue offsetWidth = elem["offsetWidth"];
+  if (offsetWidth.truthy()) {
+    return true;
+  }
+  JsValue offsetHeight = elem["offsetHeight"];
+  if (offsetHeight.truthy()) {
+    return true;
+  }
+  JsValue rects = JS.invoke(elem, "getClientRects");
+  return rects.length > 0.0;
+}
+
+bool hidden(JsValue elem) {
+  return !visible(elem);
+}
+
+pseudos["hidden"] = hidden;
+pseudos["visible"] = visible;
+
+export { jQuery };

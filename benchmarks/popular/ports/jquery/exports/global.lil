@@ -1,0 +1,23 @@
+import { jQuery } from "../core";
+import {
+  windowSelf
+} from "../js-host.lil";
+
+JsValue win = windowSelf();
+JsValue previousJQuery = win["jQuery"];
+JsValue previousDollar = win["$"];
+
+jQuery["noConflict"] = (JsValue deep) => {
+  if (win["$"] == jQuery) {
+    win["$"] = previousDollar;
+  }
+  if (deep.truthy() && win["jQuery"] == jQuery) {
+    win["jQuery"] = previousJQuery;
+  }
+  return jQuery;
+};
+
+win["jQuery"] = jQuery;
+win["$"] = jQuery;
+
+export { jQuery };

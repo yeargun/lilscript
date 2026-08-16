@@ -1,4 +1,9 @@
 {
+  "evidence": {
+    "status": "archived-external-snapshot",
+    "reproducibleFromIntegratedLab": false,
+    "source": "lilscript-solid-lab sibling worktree"
+  },
   "pipeline": {
     "solid": "shared JSX → babel-preset-solid → solid-js + solid-js/web",
     "solidlil": "LSX (.lilx) → LilScript reactive + LilScript DOM (same Solid-like API)",

@@ -2,11 +2,26 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { brotliCompressSync, constants, gzipSync } from "node:zlib";
+import {
+  canonicalCodecProvenance,
+  canonicalCodecSizesForFile,
+  requireExistingLilscriptToolchain,
+  requirePairedLilscriptOverrides,
+} from "./codec-contract.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const compiler = process.env.LILSCRIPT ?? join(root, "target/release/lilscript");
-const cargo = process.env.CARGO ?? join(process.env.HOME ?? "", ".cargo/bin/cargo");
+const { compilerOverride, codecOverride } = requirePairedLilscriptOverrides(
+  "compiler pass-ablation",
+);
+const executableSuffix = process.platform === "win32" ? ".exe" : "";
+const compiler = compilerOverride
+  ? resolve(process.cwd(), compilerOverride)
+  : join(root, `target/release/lilscript${executableSuffix}`);
+const codec = codecOverride
+  ? resolve(process.cwd(), codecOverride)
+  : join(root, `target/release/lilscript-codec${executableSuffix}`);
+const cargo =
+  process.env.CARGO ?? join(process.env.HOME ?? "", ".cargo/bin/cargo");
 
 function command(executable, args, capture = false) {
   return execFileSync(executable, args, {
@@ -17,14 +32,46 @@ function command(executable, args, capture = false) {
 }
 
 function sizes(path) {
-  const bytes = readFileSync(path);
-  return {
-    raw: bytes.length,
-    gzip: gzipSync(bytes, { level: 9, mtime: 0 }).length,
-    brotli: brotliCompressSync(bytes, {
-      params: { [constants.BROTLI_PARAM_QUALITY]: 11 },
-    }).length,
-  };
+  return canonicalCodecSizesForFile(path, "compiler pass-ablation gate");
+}
+
+export function objectiveRelationPasses(
+  enabled,
+  disabled,
+  gateMetric,
+  expectation,
+) {
+  return expectation === "lt"
+    ? enabled[gateMetric] < disabled[gateMetric]
+    : enabled[gateMetric] <= disabled[gateMetric];
+}
+
+export function declaredCostModel(configText) {
+  return (
+    configText.match(/^cost_model\s*=\s*["'](raw|gzip|brotli)["']\s*$/m)?.[1] ??
+    null
+  );
+}
+
+function prepareCompilerAndCodec() {
+  if (compilerOverride) {
+    requireExistingLilscriptToolchain(
+      "compiler pass-ablation",
+      compiler,
+      codec,
+    );
+    return;
+  }
+  if (!existsSync(compiler) || !existsSync(codec)) {
+    command(cargo, [
+      "build",
+      "--release",
+      "--bin",
+      "lilscript",
+      "--bin",
+      "lilscript-codec",
+    ]);
+  }
 }
 
 export function runPassAblation({
@@ -32,23 +79,37 @@ export function runPassAblation({
   source,
   expected,
   variants,
-  strictMetrics = ["raw", "gzip", "brotli"],
-  nonRegressionMetrics = [],
+  gateMetric,
+  expectation = "lt",
 }) {
+  if (!["raw", "gzip", "brotli"].includes(gateMetric)) {
+    throw new Error(`${id} must declare gateMetric as raw, gzip, or brotli`);
+  }
+  if (!["lt", "le"].includes(expectation)) {
+    throw new Error(`${id} must declare expectation as lt or le`);
+  }
+  prepareCompilerAndCodec();
   const build = join(root, "target/pass-ablation", id);
   const expectedOutput = readFileSync(join(root, expected), "utf8").trimEnd();
   mkdirSync(build, { recursive: true });
-  if (!existsSync(compiler)) {
-    command(cargo, ["build", "--release", "--bin", "lilscript"]);
-  }
 
   const results = [];
   for (const [label, config, file] of variants) {
+    const configPath = join(root, config);
+    const configuredObjective = declaredCostModel(
+      readFileSync(configPath, "utf8"),
+    );
+    if (configuredObjective !== gateMetric) {
+      throw new Error(
+        `${id}/${label}: ${config} must explicitly declare javascript.cost_model = ` +
+          `${JSON.stringify(gateMetric)}; found ${JSON.stringify(configuredObjective)}`,
+      );
+    }
     const output = join(build, file);
     command(compiler, [
       join(root, source),
       "--config",
-      join(root, config),
+      configPath,
       "-o",
       output,
     ]);
@@ -62,26 +123,44 @@ export function runPassAblation({
   }
 
   const [enabled, disabled] = results;
-  for (const metric of strictMetrics) {
-    if (enabled[metric] >= disabled[metric]) {
-      throw new Error(
-        `${id} did not reduce ${metric}: ${enabled[metric]} >= ${disabled[metric]}`,
-      );
-    }
-  }
-  for (const metric of nonRegressionMetrics) {
-    if (enabled[metric] > disabled[metric]) {
-      throw new Error(
-        `${id} regressed ${metric}: ${enabled[metric]} > ${disabled[metric]}`,
-      );
-    }
-  }
-
-  console.log("| Variant | Raw | Gzip-9 | Brotli-11 |");
-  console.log("| --- | ---: | ---: | ---: |");
-  for (const result of results) {
-    console.log(
-      `| ${result.label} | ${result.raw} | ${result.gzip} | ${result.brotli} |`,
+  if (!objectiveRelationPasses(enabled, disabled, gateMetric, expectation)) {
+    throw new Error(
+      `${id} failed its ${gateMetric} ${expectation} objective: ` +
+        `${enabled[gateMetric]} versus ${disabled[gateMetric]}`,
     );
   }
+
+  const diagnosticMetrics = ["raw", "gzip", "brotli"].filter(
+    (metric) => metric !== gateMetric,
+  );
+  const report = {
+    schemaVersion: 1,
+    id,
+    objectiveContract: {
+      artifactMetricMapping: {
+        [gateMetric]: {
+          artifacts: "sizes.*",
+          configs: Object.fromEntries(
+            variants.map(([label, config]) => [label, config]),
+          ),
+          gateMetric,
+          diagnosticMetrics,
+        },
+      },
+      gates: [
+        {
+          candidate: enabled.label,
+          baseline: disabled.label,
+          gateMetric,
+          expectation,
+        },
+      ],
+      diagnosticCrossMetricsMayLose: true,
+    },
+    codecs: canonicalCodecProvenance(`${id} pass-ablation report`),
+    output: expectedOutput,
+    sizes: results,
+  };
+  console.log(JSON.stringify(report, null, 2));
+  return report;
 }

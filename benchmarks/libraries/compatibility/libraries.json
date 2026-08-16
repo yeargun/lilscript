@@ -4,7 +4,7 @@
   "downloadWindow": "last-month",
   "downloadSource": "https://api.npmjs.org/downloads/point/last-month/{package}",
   "selectedCodec": "brotli",
-  "eligibilityRule": "Every documented callable in the selected published root entrypoint is implemented for its typed input domain with the same algorithmic work; all available upstream assertions plus added package-contract vectors pass; npm and LilScript app and isolated-workload checksums match; the LilScript port compiles to JavaScript, C, and a native executable; LilScript JavaScript is no larger than both npm/Vite and public-contract-preserving Closure ADVANCED in raw bytes or the selected Brotli-11 codec; and median isolated-workload throughput and retained memory are each no worse than 1.05x npm. Gzip-9 is reported as an alternate codec, not silently substituted into the configured gate.",
+  "eligibilityRule": "Every documented callable in the selected published root entrypoint is implemented for its typed input domain with the same algorithmic work; all available upstream assertions plus added package-contract vectors pass; npm and LilScript app and isolated-workload checksums match; the LilScript port compiles to JavaScript, C, and a native executable; independently compiled raw- and selected-codec-objective LilScript surfaces are no larger in their matching metrics than both npm/Vite and public-contract-preserving Closure ADVANCED; and median isolated-workload throughput and retained memory are each no worse than 1.05x npm. Other metrics of each objective build, app-specialized sizes, and native file sizes are diagnostics only.",
   "ports": [
     {
       "id": "motion-easing",

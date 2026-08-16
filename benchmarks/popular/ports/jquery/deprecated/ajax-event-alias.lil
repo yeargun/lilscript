@@ -1,0 +1,20 @@
+import { jQuery, each } from "../core";
+import "../ajax";
+import "../event";
+import {
+  stringify,
+  call2
+} from "../js-host.lil";
+
+JsValue fn = jQuery["fn"];
+
+void installAlias(JsValue _i, JsValue typeValue) {
+  string type = JS.string(typeValue);
+  fn[type] = JS.method1((JsValue self, JsValue handler) => {
+    return JS.invoke(self, "on", type, handler);
+  });
+}
+
+each(["ajaxStart", "ajaxStop", "ajaxComplete", "ajaxError", "ajaxSuccess", "ajaxSend"], installAlias);
+
+export { jQuery };

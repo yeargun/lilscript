@@ -1,0 +1,17 @@
+import { ValueType } from "../types";
+
+export class ValueTypeMap {
+  Map<string, ValueType> entries;
+
+  init() {
+    this.entries = new Map<string, ValueType>();
+  }
+
+  ValueType? get(string key) {
+    return this.entries.get(key);
+  }
+
+  void set(string key, ValueType value) {
+    this.entries.set(key, value);
+  }
+}

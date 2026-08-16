@@ -1,0 +1,24 @@
+class MemoCell<T> {
+  bool hasResult;
+  T? stored;
+
+  init() {
+    this.hasResult = false;
+    this.stored = null;
+  }
+}
+
+export func()->T memo<T>(func()->T callback) {
+  MemoCell<T> cell = new MemoCell<T>();
+  return () => {
+    if (!cell.hasResult) {
+      cell.stored = callback();
+      cell.hasResult = true;
+    }
+    T? value = cell.stored;
+    if (value != null) {
+      return value;
+    }
+    return callback();
+  };
+}

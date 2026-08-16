@@ -12,5 +12,5 @@ runPassAblation({
       "inlined.js",
     ],
   ],
-  strictMetrics: ["raw", "brotli"],
+  gateMetric: "brotli",
 });

@@ -1,0 +1,22 @@
+string statusAt(int value) {
+  int kind = value % 5;
+  if (kind == 0) { return "draft"; }
+  if (kind == 1) { return "active"; }
+  if (kind == 2) { return "sold"; }
+  if (kind == 3) { return "archived"; }
+  return "pending";
+}
+
+int score(string status) {
+  if (status == "draft") { return 3; }
+  if (status == "active") { return 7; }
+  if (status == "sold") { return 13; }
+  if (status == "archived") { return 19; }
+  return 29;
+}
+
+int digest = 0;
+for (int round = 0; round < 50000; round++) {
+  digest = digest * 31 + score(statusAt(round));
+}
+print(digest);

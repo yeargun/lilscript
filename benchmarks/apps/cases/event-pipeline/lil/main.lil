@@ -25,7 +25,7 @@ class MetricEvents {
   }
 }
 
-int record(int value) {
+int recordMetric(int value) {
   score = score * 31 + value;
   return score;
 }
@@ -36,7 +36,7 @@ int recordAny(int value) {
 }
 
 MetricEvents events = new MetricEvents();
-events.onMetric(record);
+events.onMetric(recordMetric);
 events.onAny(recordAny);
 for (int index = 0; index < 180000; index++) {
   events.emitMetric(index % 97);

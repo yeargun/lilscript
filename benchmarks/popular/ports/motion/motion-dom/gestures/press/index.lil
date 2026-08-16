@@ -1,0 +1,174 @@
+import { isHTMLElement } from "../../utils/is-html-element";
+import { isDragActive } from "../drag/state/is-active";
+import { isNodeOrChild } from "../utils/is-node-or-child";
+import { isPrimaryPointer } from "../utils/is-primary-pointer";
+import { setupGesture, GestureSetup } from "../utils/setup";
+import { isElementKeyboardAccessible } from "./utils/is-keyboard-accessible";
+import { enableKeyboardPress } from "./utils/keyboard";
+import { isPressing } from "./utils/state";
+import extern {
+  weakSetCreate,
+  weakSetAdd,
+  weakSetHas,
+  weakSetDelete
+} from "../../weak-host.ts";
+import {
+  addEventListener,
+  addWindowListener,
+  removeWindowListener,
+  callFn2,
+  callMethod1,
+  isFunction,
+  documentGet,
+  windowSelf
+} from "../../dom-host";
+
+extern JsValue weakSetCreate();
+extern void weakSetAdd(JsValue set, JsValue value);
+extern bool weakSetHas(JsValue set, JsValue value);
+extern void weakSetDelete(JsValue set, JsValue value);
+
+bool isValidPressEvent(JsValue event) {
+  return isPrimaryPointer(event) && !isDragActive();
+}
+
+JsValue claimedPointerDownEvents = weakSetCreate();
+
+class PressCell {
+  JsValue? onPressEnd;
+  (func()->void)? pointerUpWindow;
+  (func()->void)? pointerCancelWindow;
+
+  init() {
+    this.onPressEnd = null;
+    this.pointerUpWindow = null;
+    this.pointerCancelWindow = null;
+  }
+}
+
+export func()->void press(
+  JsValue targetOrSelector,
+  JsValue onPressStart,
+  JsValue? options = null
+) {
+  JsValue opts = options;
+  if (opts == null) {
+    opts = record{};
+  }
+  GestureSetup setup = setupGesture(targetOrSelector, opts);
+  JsValue[] targets = setup.elements;
+  JsValue eventOptions = setup.eventOptions;
+  func()->void cancelEvents = setup.cancel;
+  bool useGlobalTarget = opts["useGlobalTarget"].truthy();
+  JsValue win = windowSelf();
+  JsValue doc = documentGet("documentElement");
+
+  for (int i = 0; i < targets.length; i++) {
+    JsValue target = targets[i];
+    PressCell cell = new PressCell();
+    JsValue pointerDownTarget = target;
+    if (useGlobalTarget) {
+      pointerDownTarget = win;
+    }
+
+    func(JsValue)->void startPress = (JsValue startEvent) => {
+      JsValue currentTarget = startEvent["currentTarget"];
+      if (useGlobalTarget) {
+        currentTarget = target;
+      }
+      if (!isValidPressEvent(startEvent)) {
+        return;
+      }
+      if (weakSetHas(claimedPointerDownEvents, startEvent)) {
+        return;
+      }
+      weakSetAdd(isPressing, currentTarget);
+      if (opts["stopPropagation"].truthy()) {
+        weakSetAdd(claimedPointerDownEvents, startEvent);
+      }
+      JsValue result = callFn2(onPressStart, currentTarget, startEvent);
+      if (isFunction(result)) {
+        cell.onPressEnd = result;
+      }
+
+      cell.pointerUpWindow = () => {
+        JsValue upEvent = record{target: null};
+        bool success =
+          currentTarget == win ||
+          currentTarget == doc ||
+          useGlobalTarget ||
+          isNodeOrChild(currentTarget, upEvent["target"]);
+        (func()->void)? up = cell.pointerUpWindow;
+        (func()->void)? cancel = cell.pointerCancelWindow;
+        if (up != null) {
+          removeWindowListener("pointerup", up);
+        }
+        if (cancel != null) {
+          removeWindowListener("pointercancel", cancel);
+        }
+        if (weakSetHas(isPressing, currentTarget)) {
+          weakSetDelete(isPressing, currentTarget);
+        }
+        if (!isValidPressEvent(upEvent)) {
+          JsValue? endCb = cell.onPressEnd;
+          if (endCb != null && isFunction(endCb)) {
+            callFn2(endCb, upEvent, record{success: success});
+          }
+          cell.onPressEnd = null;
+          return;
+        }
+        JsValue? endCb = cell.onPressEnd;
+        if (endCb != null && isFunction(endCb)) {
+          callFn2(endCb, upEvent, record{success: success});
+        }
+        cell.onPressEnd = null;
+      };
+
+      cell.pointerCancelWindow = () => {
+        JsValue cancelEvent = record{};
+        (func()->void)? up = cell.pointerUpWindow;
+        (func()->void)? cancel = cell.pointerCancelWindow;
+        if (up != null) {
+          removeWindowListener("pointerup", up);
+        }
+        if (cancel != null) {
+          removeWindowListener("pointercancel", cancel);
+        }
+        if (weakSetHas(isPressing, currentTarget)) {
+          weakSetDelete(isPressing, currentTarget);
+        }
+        JsValue? endCb = cell.onPressEnd;
+        if (endCb != null && isFunction(endCb) && isValidPressEvent(cancelEvent)) {
+          callFn2(endCb, cancelEvent, record{success: false});
+        }
+        cell.onPressEnd = null;
+      };
+
+      (func()->void)? up = cell.pointerUpWindow;
+      (func()->void)? cancel = cell.pointerCancelWindow;
+      if (up != null) {
+        addWindowListener("pointerup", up);
+      }
+      if (cancel != null) {
+        addWindowListener("pointercancel", cancel);
+      }
+    };
+
+    addEventListener(pointerDownTarget, "pointerdown", startPress, eventOptions);
+
+    if (isHTMLElement(target)) {
+      addEventListener(target, "focus", (JsValue event) => {
+        enableKeyboardPress(event, eventOptions);
+      }, eventOptions);
+      bool hasTabIndex = false;
+      if (isFunction(target["hasAttribute"])) {
+        hasTabIndex = callMethod1(target, "hasAttribute", "tabindex").truthy();
+      }
+      if (!isElementKeyboardAccessible(target) && !hasTabIndex) {
+        target["tabIndex"] = 0.0;
+      }
+    }
+  }
+
+  return cancelEvents;
+}

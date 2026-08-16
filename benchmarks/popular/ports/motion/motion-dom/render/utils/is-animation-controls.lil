@@ -1,0 +1,11 @@
+import { isFunction } from "../../dom-host";
+
+export bool isAnimationControls(JsValue? v) {
+  if (v == null) {
+    return false;
+  }
+  if (!v.isObject()) {
+    return false;
+  }
+  return isFunction(v["start"]);
+}

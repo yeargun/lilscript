@@ -1,0 +1,13 @@
+import { document } from "../var/document";
+import { support } from "../var/support";
+import {
+  call1
+} from "../js-host.lil";
+
+JsValue implementation = document["implementation"];
+JsValue htmlDoc = JS.invoke(implementation, "createHTMLDocument", "");
+JsValue body = htmlDoc["body"];
+body["innerHTML"] = "<form></form><form></form>";
+support["createHTMLDocument"] = body["childNodes"].length == 2.0;
+
+export { support };

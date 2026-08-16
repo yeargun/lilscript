@@ -1,0 +1,70 @@
+import { mapEasingToNativeEasing } from "./easing/map-easing";
+import { ValueAnimationTransition } from "../types";
+import { callMethod2 } from "../../dom-host";
+
+export JsValue startWaapiAnimation(
+  JsValue element,
+  string valueName,
+  JsValue keyframes,
+  ValueAnimationTransition? transition = null,
+  string? pseudoElement = null
+) {
+  float delay = 0.0;
+  float duration = 300.0;
+  float repeat = 0.0;
+  string repeatType = "loop";
+  string easeName = "easeOut";
+  float[]? times = null;
+  if (transition != null) {
+    ValueAnimationTransition options = transition;
+    float? delayOpt = options.delay;
+    if (delayOpt != null) {
+      delay = delayOpt;
+    }
+    float? durationOpt = options.duration;
+    if (durationOpt != null) {
+      duration = durationOpt;
+    }
+    float? repeatOpt = options.repeat;
+    if (repeatOpt != null) {
+      repeat = repeatOpt;
+    }
+    string? repeatTypeOpt = options.repeatType;
+    if (repeatTypeOpt != null) {
+      repeatType = repeatTypeOpt;
+    }
+    JsValue? easeVal = options.ease;
+    if (easeVal != null) {
+      JsValue easeValue = easeVal;
+      if (easeValue is string) {
+        easeName = easeValue;
+      }
+    }
+    times = options.times;
+  }
+  Record<JsValue> keyframeOptions = record{};
+  keyframeOptions[valueName] = keyframes;
+  if (times != null) {
+    keyframeOptions["offset"] = times;
+  }
+  string? easing = mapEasingToNativeEasing(easeName, duration);
+  string direction = "normal";
+  if (repeatType == "reverse") {
+    direction = "alternate";
+  }
+  Record<JsValue> animationOptions = record{};
+  animationOptions["delay"] = delay;
+  animationOptions["duration"] = duration;
+  if (easing != null) {
+    animationOptions["easing"] = easing;
+  } else {
+    animationOptions["easing"] = "linear";
+  }
+  animationOptions["fill"] = "both";
+  animationOptions["iterations"] = repeat + 1.0;
+  animationOptions["direction"] = direction;
+  if (pseudoElement != null) {
+    animationOptions["pseudoElement"] = pseudoElement;
+  }
+  return callMethod2(element, "animate", keyframeOptions, animationOptions);
+}

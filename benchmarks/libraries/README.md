@@ -26,6 +26,10 @@ specialization from removing the implementation being compared. Publication
 requires LilScript's reusable surface to be no larger than both baselines in raw
 bytes and the configured transport codec, and requires median throughput and
 retained memory to remain within 1.05x npm.
+The raw cell comes from a raw-cost-model build, gzip-9 from a gzip-cost-model
+build, and Brotli-11 from a Brotli-cost-model build. Eligibility compares only
+each build's matching metric. Cross-metric sizes are retained in the machine
+report as diagnostics and may regress; this is not a one-artifact Pareto gate.
 The retained-memory lane first runs one complete unretained workload before its
 baseline GC. This puts both implementations past V8 tier-up thresholds so JIT
 code created during warmup is not nondeterministically charged to the measured
@@ -45,8 +49,8 @@ surface sizes are the publication gate; checked demo-app sizes and load/executio
 times remain diagnostics. Native artifacts are correctness gates, not transfer-size
 rows.
 
-Reusable LilScript surfaces use `surface-size.toml`, whose explicit public-arrow
-mode matches the selected packages' documented callable contract. Constructor use
+Reusable LilScript surfaces derive three objective configs from `surface-size.toml`,
+whose explicit public-arrow mode matches the selected packages' documented callable contract. Constructor use
 of a JavaScript function object is outside these typed package domains. The checked
 all-target apps continue to use the repository's ordinary constructible-function
 ABI, so the size setting is isolated and auditable.

@@ -1,0 +1,6 @@
+export bool isSVGTag(JsValue tag) {
+  if (tag is string) {
+    return tag.toLowerCase() == "svg";
+  }
+  return false;
+}

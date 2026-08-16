@@ -3,26 +3,59 @@ set -eu
 
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 BUILD="$ROOT/benchmarks/build"
-CLOSURE_VERSION=${CLOSURE_VERSION:-v20260803}
-CLOSURE_JAR=${CLOSURE_JAR:-"$BUILD/closure-compiler-$CLOSURE_VERSION.jar"}
+PINNED_CLOSURE_VERSION=v20260804
+PINNED_CLOSURE_SHA256=9cad14d0337b2aaaf9ba8b24446cc45dc737bc34fe591e00835eff700a795d5b
 CARGO=${CARGO:-cargo}
+
+if [ "${CLOSURE_VERSION:-$PINNED_CLOSURE_VERSION}" != "$PINNED_CLOSURE_VERSION" ]; then
+  printf 'Closure version override must remain pinned at %s; found %s\n' \
+    "$PINNED_CLOSURE_VERSION" "$CLOSURE_VERSION" >&2
+  exit 1
+fi
+if [ "${CLOSURE_SHA256:-$PINNED_CLOSURE_SHA256}" != "$PINNED_CLOSURE_SHA256" ]; then
+  printf 'Closure digest override must remain pinned at %s; found %s\n' \
+    "$PINNED_CLOSURE_SHA256" "$CLOSURE_SHA256" >&2
+  exit 1
+fi
+CLOSURE_VERSION=$PINNED_CLOSURE_VERSION
+CLOSURE_SHA256=$PINNED_CLOSURE_SHA256
+
+if [ "${CLOSURE_JAR+x}" = x ]; then
+  if [ ! -f "$CLOSURE_JAR" ]; then
+    printf 'Closure jar override does not exist: %s\n' "$CLOSURE_JAR" >&2
+    exit 1
+  fi
+  ACTUAL_CLOSURE_SHA256=$(shasum -a 256 "$CLOSURE_JAR" | awk '{print $1}')
+  if [ "$ACTUAL_CLOSURE_SHA256" != "$CLOSURE_SHA256" ]; then
+    printf 'Closure checksum mismatch for %s: expected %s, found %s\n' \
+      "$CLOSURE_JAR" "$CLOSURE_SHA256" "$ACTUAL_CLOSURE_SHA256" >&2
+    exit 1
+  fi
+else
+  CLOSURE_JAR=$(
+    "$ROOT/comparison/install-closure.sh" "$CLOSURE_VERSION" "$CLOSURE_SHA256"
+  )
+fi
 
 mkdir -p "$BUILD"
 
-if [ ! -f "$CLOSURE_JAR" ]; then
-  curl -fL "https://repo.maven.apache.org/maven2/com/google/javascript/closure-compiler/$CLOSURE_VERSION/closure-compiler-$CLOSURE_VERSION.jar" -o "$CLOSURE_JAR"
-fi
-
-"$CARGO" build --release --bin lilscript
+"$CARGO" build --release --bin lilscript --bin lilscript-codec
 
 run_case() {
   name=$1
   lilscript_source=$2
   js_source=$3
-  lilscript_output="$BUILD/$name-lilscript.js"
+  lilscript_raw_output="$BUILD/$name-lilscript-raw.js"
+  lilscript_gzip_output="$BUILD/$name-lilscript-gzip.js"
+  lilscript_brotli_output="$BUILD/$name-lilscript-brotli.js"
   closure_output="$BUILD/$name-closure.js"
 
-  "$ROOT/target/release/lilscript" "$lilscript_source" -o "$lilscript_output"
+  "$ROOT/target/release/lilscript" "$lilscript_source" --target js --mode production \
+    --config "$ROOT/comparison/cases/configs/raw.toml" -o "$lilscript_raw_output"
+  "$ROOT/target/release/lilscript" "$lilscript_source" --target js --mode production \
+    --config "$ROOT/comparison/cases/configs/gzip.toml" -o "$lilscript_gzip_output"
+  "$ROOT/target/release/lilscript" "$lilscript_source" --target js --mode production \
+    --config "$ROOT/comparison/cases/configs/brotli.toml" -o "$lilscript_brotli_output"
   java -jar "$CLOSURE_JAR" \
     --js "$js_source" \
     --js_output_file "$closure_output" \
@@ -32,13 +65,18 @@ run_case() {
     --warning_level QUIET \
     --emit_use_strict=false
 
-  node "$lilscript_output" > "$BUILD/$name-lilscript.out"
+  node "$lilscript_raw_output" > "$BUILD/$name-lilscript-raw.out"
+  node "$lilscript_gzip_output" > "$BUILD/$name-lilscript-gzip.out"
+  node "$lilscript_brotli_output" > "$BUILD/$name-lilscript-brotli.out"
   node "$closure_output" > "$BUILD/$name-closure.out"
-  diff -u "$BUILD/$name-closure.out" "$BUILD/$name-lilscript.out"
+  diff -u "$BUILD/$name-closure.out" "$BUILD/$name-lilscript-raw.out"
+  diff -u "$BUILD/$name-closure.out" "$BUILD/$name-lilscript-gzip.out"
+  diff -u "$BUILD/$name-closure.out" "$BUILD/$name-lilscript-brotli.out"
 
   printf '\n%s\n' "$name"
   node "$ROOT/benchmarks/measure.mjs" \
-    LilScript "$lilscript_output" \
+    --objective LilScript \
+    "$lilscript_raw_output" "$lilscript_gzip_output" "$lilscript_brotli_output" \
     "Closure ADVANCED $CLOSURE_VERSION" "$closure_output"
 }
 
@@ -46,10 +84,17 @@ run_module_case() {
   name=$1
   lilscript_source=$2
   js_directory=$3
-  lilscript_output="$BUILD/$name-lilscript.js"
+  lilscript_raw_output="$BUILD/$name-lilscript-raw.js"
+  lilscript_gzip_output="$BUILD/$name-lilscript-gzip.js"
+  lilscript_brotli_output="$BUILD/$name-lilscript-brotli.js"
   closure_output="$BUILD/$name-closure.js"
 
-  "$ROOT/target/release/lilscript" "$lilscript_source" -o "$lilscript_output"
+  "$ROOT/target/release/lilscript" "$lilscript_source" --target js --mode production \
+    --config "$ROOT/comparison/cases/configs/raw.toml" -o "$lilscript_raw_output"
+  "$ROOT/target/release/lilscript" "$lilscript_source" --target js --mode production \
+    --config "$ROOT/comparison/cases/configs/gzip.toml" -o "$lilscript_gzip_output"
+  "$ROOT/target/release/lilscript" "$lilscript_source" --target js --mode production \
+    --config "$ROOT/comparison/cases/configs/brotli.toml" -o "$lilscript_brotli_output"
   java -jar "$CLOSURE_JAR" \
     --js "$js_directory/math.js" \
     --js "$js_directory/stats.js" \
@@ -61,13 +106,18 @@ run_module_case() {
     --warning_level QUIET \
     --emit_use_strict=false
 
-  node "$lilscript_output" > "$BUILD/$name-lilscript.out"
+  node "$lilscript_raw_output" > "$BUILD/$name-lilscript-raw.out"
+  node "$lilscript_gzip_output" > "$BUILD/$name-lilscript-gzip.out"
+  node "$lilscript_brotli_output" > "$BUILD/$name-lilscript-brotli.out"
   node "$closure_output" > "$BUILD/$name-closure.out"
-  diff -u "$BUILD/$name-closure.out" "$BUILD/$name-lilscript.out"
+  diff -u "$BUILD/$name-closure.out" "$BUILD/$name-lilscript-raw.out"
+  diff -u "$BUILD/$name-closure.out" "$BUILD/$name-lilscript-gzip.out"
+  diff -u "$BUILD/$name-closure.out" "$BUILD/$name-lilscript-brotli.out"
 
   printf '\n%s\n' "$name"
   node "$ROOT/benchmarks/measure.mjs" \
-    LilScript "$lilscript_output" \
+    --objective LilScript \
+    "$lilscript_raw_output" "$lilscript_gzip_output" "$lilscript_brotli_output" \
     "Closure ADVANCED $CLOSURE_VERSION" "$closure_output"
 }
 

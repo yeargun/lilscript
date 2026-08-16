@@ -1,0 +1,16 @@
+import { mix } from "./motion-dom/utils/mix/index";
+import { stagger, StaggerOptions } from "./motion-dom/utils/stagger";
+import { MotionValue, motionValue } from "./motion-dom/value/index";
+
+float digest = 0.0;
+digest = digest + mix(0.0, 10.0, 0.5);
+func(int, int)->float staggered = stagger(0.1, new StaggerOptions(0.0, 0.0, null));
+digest = digest + staggered(2, 5);
+MotionValue mv = motionValue(1.0);
+mv.set(3.0);
+digest = digest + mv.getVelocity();
+JsValue current = mv.get();
+if (current is float) {
+  digest = digest + current;
+}
+print(`motion-dom:${digest}`);

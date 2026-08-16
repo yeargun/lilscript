@@ -1,0 +1,151 @@
+import extern {
+  performanceNow,
+  scheduleAnimationFrame,
+  scheduleMicrotask,
+  hasOwn,
+  isEventTarget,
+  isNodeList,
+  querySelectorAll,
+  documentQuerySelectorAll,
+  arrayFromNullable,
+  supportsLinearEasingCheck,
+  supportsPartialKeyframesCheck,
+  supportsWaapiCheck,
+  documentCreateElement,
+  documentHead,
+  documentGetAnimations,
+  documentStartViewTransition,
+  asMap,
+  asSet,
+  asArray,
+  hasScrollTimeline,
+  hasViewTimeline,
+  windowInnerWidth,
+  windowInnerHeight,
+  addWindowListener,
+  removeWindowListener,
+  addEventListener,
+  removeEventListener,
+  createResizeObserver,
+  observeResize,
+  unobserveResize,
+  readBorderBoxSize,
+  readElementSize,
+  getElementTagName,
+  constructConfigured,
+  constructConfigured2,
+  parseFloatValue,
+  hasFunction,
+  callMethod0,
+  callMethod1,
+  callMethod2,
+  createPointerEvent,
+  dispatchEvent,
+  isFunction,
+  invoke1,
+  invoke2,
+  callFn3,
+  callFn5,
+  callFn0,
+  callFn1,
+  callFn2,
+  getComputedStyleValue,
+  getComputedStyleProperty,
+  getComputedStyleField,
+  windowScrollTo,
+  windowPageYOffset,
+  windowGet,
+  windowSelf,
+  documentElement,
+  matchMediaQuery,
+  hasWindow,
+  addMatchMediaListener,
+  matchMediaMatches,
+  documentGet,
+  documentScrollingElement,
+  setProp,
+  getProp,
+  deleteProp,
+  mapKeys,
+  mapValues,
+  setValues,
+  taskFromCallback
+} from "./dom-host.ts";
+
+export extern float performanceNow();
+export extern float scheduleAnimationFrame(func()->void callback);
+export extern void scheduleMicrotask(func()->void callback);
+export extern bool hasOwn(JsValue obj, string key);
+export extern bool isEventTarget(JsValue value);
+export extern bool isNodeList(JsValue value);
+export extern JsValue[] querySelectorAll(JsValue root, string selector);
+export extern JsValue[] documentQuerySelectorAll(string selector);
+export extern JsValue[] arrayFromNullable(JsValue? list = null);
+export extern bool supportsLinearEasingCheck();
+export extern bool supportsPartialKeyframesCheck();
+export extern bool supportsWaapiCheck();
+export extern JsValue documentCreateElement(string tag);
+export extern JsValue documentHead();
+export extern JsValue[] documentGetAnimations();
+export extern JsValue documentStartViewTransition(func()->void callback);
+export extern (Map<JsValue, JsValue>)? asMap(JsValue value);
+export extern (Set<JsValue>)? asSet(JsValue value);
+export extern (JsValue[])? asArray(JsValue value);
+export extern bool hasScrollTimeline();
+export extern bool hasViewTimeline();
+export extern float windowInnerWidth();
+export extern float windowInnerHeight();
+export extern void addWindowListener(string eventName, func()->void handler);
+export extern void removeWindowListener(string eventName, func()->void handler);
+export extern void addEventListener(JsValue target, string eventName, JsValue handler, JsValue? options = null);
+export extern void removeEventListener(JsValue target, string eventName, JsValue handler, JsValue? options = null);
+export extern JsValue? createResizeObserver(func(JsValue)->void callback);
+export extern void observeResize(JsValue observer, JsValue element);
+export extern void unobserveResize(JsValue observer, JsValue element);
+export extern float? readBorderBoxSize(JsValue? borderBoxSize, string axis);
+export extern float readElementSize(JsValue target, string svgAxis, string htmlAxis);
+export extern string getElementTagName(JsValue element);
+export extern JsValue constructConfigured(JsValue Ctor, JsValue arg);
+export extern JsValue constructConfigured2(JsValue Ctor, JsValue arg1, JsValue arg2);
+export extern float parseFloatValue(JsValue v);
+export extern bool hasFunction(JsValue obj, string name);
+export extern JsValue callMethod0(JsValue obj, string name);
+export extern JsValue callMethod1(JsValue obj, string name, JsValue arg);
+export extern JsValue callMethod2(JsValue obj, string name, JsValue a, JsValue b);
+export extern JsValue createPointerEvent(string type, JsValue options);
+export extern bool dispatchEvent(JsValue target, JsValue event);
+export extern bool isFunction(JsValue v);
+export extern void invoke1(JsValue fn, JsValue a);
+export extern void invoke2(JsValue fn, JsValue a, JsValue b);
+export extern JsValue callFn3(JsValue fn, JsValue a, JsValue b, JsValue c);
+export extern JsValue callFn5(JsValue fn, JsValue a, JsValue b, JsValue c, JsValue d, JsValue e);
+export extern JsValue callFn0(JsValue fn);
+export extern JsValue callFn1(JsValue fn, JsValue a);
+export extern JsValue callFn2(JsValue fn, JsValue a, JsValue b);
+export extern Task<bool> taskFromCallback(func(func()->void)->void runner);
+
+export extern JsValue getComputedStyleValue(JsValue element);
+export extern string getComputedStyleProperty(JsValue element, string name);
+export extern JsValue getComputedStyleField(JsValue element, string name);
+export extern void windowScrollTo(float x, float y);
+export extern float windowPageYOffset();
+export extern JsValue windowGet(string name);
+export extern JsValue windowSelf();
+export extern JsValue documentElement();
+
+export extern JsValue? matchMediaQuery(string query);
+export extern bool hasWindow();
+
+export extern (func()->void)? addMatchMediaListener(string query, func()->void callback);
+export extern bool matchMediaMatches(string query);
+
+export extern JsValue documentGet(string name);
+export extern JsValue? documentScrollingElement();
+
+export extern void setProp(JsValue obj, string key, JsValue value);
+export extern JsValue getProp(JsValue obj, string key);
+export extern void deleteProp(JsValue obj, string key);
+
+export extern JsValue[] mapKeys(JsValue map);
+export extern JsValue[] mapValues(JsValue map);
+export extern JsValue[] setValues(JsValue set);

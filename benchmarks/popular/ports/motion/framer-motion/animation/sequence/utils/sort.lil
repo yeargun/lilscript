@@ -1,0 +1,30 @@
+export class AbsoluteKeyframe {
+  JsValue value;
+  float at;
+  JsValue? easing;
+
+  init(JsValue value, float at, JsValue? easing = null) {
+    this.value = value;
+    this.at = at;
+    this.easing = easing;
+  }
+}
+
+export int compareByTime(AbsoluteKeyframe a, AbsoluteKeyframe b) {
+  if (a.at == b.at) {
+    if (!a.value.truthy()) {
+      return 1;
+    }
+    if (!b.value.truthy()) {
+      return -1;
+    }
+    return 0;
+  }
+  if (a.at < b.at) {
+    return -1;
+  }
+  if (a.at > b.at) {
+    return 1;
+  }
+  return 0;
+}

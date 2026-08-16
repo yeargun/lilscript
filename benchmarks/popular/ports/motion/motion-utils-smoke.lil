@@ -1,0 +1,117 @@
+import {
+  MotionGlobalConfig,
+  SubscriptionManager,
+  addUniqueItem,
+  anticipate,
+  backIn,
+  backInOut,
+  backOut,
+  circIn,
+  circInOut,
+  circOut,
+  clamp,
+  cubicBezier,
+  easeIn,
+  easeInOut,
+  easeOut,
+  easingDefinitionToFunction,
+  getEasingForSegment,
+  hasWarned,
+  invariant,
+  isBezierDefinition,
+  isEasingArray,
+  isNumericalString,
+  isObject,
+  isZeroValueString,
+  memo,
+  millisecondsToSeconds,
+  mirrorEasing,
+  moveItem,
+  noop,
+  pipe,
+  progress,
+  removeItem,
+  reverseEasing,
+  secondsToMilliseconds,
+  steps,
+  velocityPerSecond,
+  warnOnce,
+  warning,
+  wrap
+} from "./motion-utils/index";
+
+float digest = 0.0;
+digest = digest + clamp(0.0, 1.0, 1.5);
+digest = digest + wrap(0.0, 360.0, 400.0);
+digest = digest + progress(0.0, 100.0, 25.0);
+digest = digest + noop(0.5);
+digest = digest + anticipate(0.25);
+digest = digest + backIn(0.5);
+digest = digest + circOut(0.5);
+digest = digest + easeInOut(0.5);
+digest = digest + cubicBezier(0.42, 0.0, 0.58, 1.0)(0.5);
+digest = digest + steps(4)(0.6);
+digest = digest + velocityPerSecond(10.0, 16.0);
+digest = digest + secondsToMilliseconds(1.0);
+digest = digest + millisecondsToSeconds(1000.0);
+func()->float once = memo(() => 7.0);
+digest = digest + once();
+digest = digest + once();
+float[] values = [1.0, 2.0, 3.0];
+addUniqueItem(values, 2.0);
+addUniqueItem(values, 4.0);
+removeItem(values, 1.0);
+float[] moved = moveItem(values, 0, 1);
+digest = digest + moved.length;
+if (isNumericalString("12.5")) {
+  digest = digest + 1.0;
+}
+if (isZeroValueString("0px")) {
+  digest = digest + 1.0;
+}
+if (isObject(record{a: 1.0})) {
+  digest = digest + 1.0;
+}
+if (isBezierDefinition([0.2, 0.2, 0.8, 1.0])) {
+  digest = digest + 1.0;
+}
+if (isEasingArray([easeIn, easeOut])) {
+  digest = digest + 1.0;
+}
+func(float)->float mapped = easingDefinitionToFunction("easeIn");
+digest = digest + mapped(0.5);
+func(JsValue)->JsValue doubled = (JsValue v) => {
+  if (v is float) {
+    return v * 2.0;
+  }
+  return v;
+};
+func(JsValue)->JsValue composed = pipe(doubled, doubled);
+JsValue piped = composed(3.0);
+if (piped is float) {
+  digest = digest + piped;
+}
+warning(true, "ok", null);
+invariant(true, "ok", null);
+warnOnce(true, "skip", null);
+if (hasWarned("skip")) {
+  digest = digest + 1.0;
+}
+SubscriptionManager manager = new SubscriptionManager();
+manager.add((JsValue? a, JsValue? b, JsValue? c) => {});
+manager.notify(1.0, 2.0, 3.0);
+digest = digest + manager.getSize();
+MotionGlobalConfig.skipAnimations = true;
+bool? skip = MotionGlobalConfig.skipAnimations;
+if (skip != null) {
+  if (skip) {
+    digest = digest + 1.0;
+  }
+}
+JsValue segment = getEasingForSegment([easeIn, easeOut], 1);
+digest = digest + easeOut(0.5);
+func(float)->float mirrored = mirrorEasing(easeIn);
+func(float)->float reversed = reverseEasing(easeIn);
+digest = digest + mirrored(0.25) + reversed(0.25);
+digest = digest + backInOut(0.5) + backOut(0.5) + circIn(0.5) + circInOut(0.5) + easeIn(0.5) + easeOut(0.5);
+print(`motion-utils:${digest}`);

@@ -1,0 +1,1 @@
+let $=l=>l<=1?1:l*$(l-1|0)|0;console.log($(7));var E=1071,D=462,F;for(;D!=0;)[E,D]=[D,E%D|0];for(console.log(E),D=0,E=1,F=0;F<12;)D=D+E|0,[D,E,F]=[E,D,F+1];console.log(D)

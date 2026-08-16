@@ -1,0 +1,40 @@
+export class SupportedWaapiEasing {
+  string linear;
+  string ease;
+  string easeIn;
+  string easeOut;
+  string easeInOut;
+
+  init() {
+    this.linear = "linear";
+    this.ease = "ease";
+    this.easeIn = "ease-in";
+    this.easeOut = "ease-out";
+    this.easeInOut = "ease-in-out";
+  }
+
+  string? get(string name) {
+    if (name == "linear") {
+      return this.linear;
+    }
+    if (name == "ease") {
+      return this.ease;
+    }
+    if (name == "easeIn") {
+      return this.easeIn;
+    }
+    if (name == "easeOut") {
+      return this.easeOut;
+    }
+    if (name == "easeInOut") {
+      return this.easeInOut;
+    }
+    return null;
+  }
+
+  bool has(string name) {
+    return this.get(name) != null;
+  }
+}
+
+export SupportedWaapiEasing supportedWaapiEasing = new SupportedWaapiEasing();

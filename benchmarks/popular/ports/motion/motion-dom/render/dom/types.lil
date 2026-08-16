@@ -1,0 +1,9 @@
+export class DOMVisualElementOptions {
+  bool allowProjection;
+  bool enableHardwareAcceleration;
+
+  init(bool allowProjection = true, bool enableHardwareAcceleration = true) {
+    this.allowProjection = allowProjection;
+    this.enableHardwareAcceleration = enableHardwareAcceleration;
+  }
+}

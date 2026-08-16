@@ -1,0 +1,35 @@
+import { animate } from "../../../../benchmarks/popular/ports/motion/framer-motion/animation/animate/element";
+import { animateMini } from "../../../../benchmarks/popular/ports/motion/framer-motion/animation/animators/waapi/animate-style-mini";
+import { GroupAnimationWithThen as MiniGroupAnimation } from "../../../../benchmarks/popular/ports/motion/motion-dom/animation/GroupAnimationWithThenMini";
+import { GroupAnimationWithThen } from "../../../../benchmarks/popular/ports/motion/motion-dom/animation/GroupAnimationWithThen";
+import { setProp, windowSelf } from "../../../../benchmarks/popular/ports/motion/motion-dom/dom-host";
+
+int finishedCount = 0;
+
+void markFinished() {
+  finishedCount = finishedCount + 1;
+  setProp(windowSelf(), "__finishedCount", finishedCount);
+}
+
+JsValue options = record{ duration: 0.2 };
+setProp(windowSelf(), "__finishedCount", 0);
+MiniGroupAnimation mini = animateMini(
+  "#mini",
+  record{ transform: "translateX(100px)" },
+  options
+);
+GroupAnimationWithThen js = animate("#js", record{ x: 100.0 }, options);
+GroupAnimationWithThen waapi = animate(
+  "#waapi",
+  record{ transform: "translateX(100px)" },
+  options
+);
+mini.then(() => {
+  markFinished();
+});
+js.then(() => {
+  markFinished();
+});
+waapi.then(() => {
+  markFinished();
+});

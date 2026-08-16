@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "state-machine-parser",
+  "title": "Structured control flow and state-machine contraction",
+  "hypothesis": "Typed character classes and state transitions should let LilScript contract the parser's call graph and structured branches without losing the early-stop behavior that JS minifiers observe.",
+  "tier": "small-structural",
+  "boundary": "runtime-host-script",
+  "structure": { "functions": 7, "modules": 1, "hostBoundaries": 1, "callDepth": 3 },
+  "opportunities": ["control-flow-structuring", "state-machine", "loop-spelling", "branch-folding"],
+  "expectations": { "raw": "le", "gzip9": "le", "brotli11": "le" },
+  "vectors": [
+    { "name": "complete", "ints": [], "strings": ["alpha:123;beta:45"], "expected": "6746\n" },
+    { "name": "spaces", "ints": [], "strings": ["item:9; next:802; tail:7"], "expected": "10056\n" },
+    { "name": "comment-stop", "ints": [], "strings": ["token:314#ignored:999"], "expected": "3646\n" }
+  ]
+}

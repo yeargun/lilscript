@@ -1,0 +1,15 @@
+import { noop } from "../../motion-utils/noop";
+import { scheduleAnimationFrame } from "../dom-host";
+import { createRenderBatcher, RenderBatcher } from "./batcher";
+import { Batcher, FrameData, Steps } from "./types";
+
+void scheduleFrame(func()->void callback) {
+  scheduleAnimationFrame(callback);
+}
+
+RenderBatcher batcher = createRenderBatcher(scheduleFrame, true);
+
+export Batcher frame = batcher.schedule;
+export func(func(FrameData)->void)->void cancelFrame = batcher.cancel;
+export FrameData frameData = batcher.state;
+export Steps frameSteps = batcher.steps;

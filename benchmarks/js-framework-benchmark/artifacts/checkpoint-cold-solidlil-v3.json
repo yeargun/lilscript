@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "provenance": {
+    "generatedAt": "2026-08-15T13:21:38.795Z",
+    "upstreamRepository": "https://github.com/krausest/js-framework-benchmark.git",
+    "upstreamCommit": "afe7c118dd217ccae4c10813613ac0d7566b1ef1",
+    "lilscriptCommit": "51ee9b9a5aec927a83179f3409188573ae39aa8c",
+    "compilerSha256": "965b71554bbbd359d4478a5a1bce3b82317478e4f3e643af421d19b2730a8744",
+    "node": "v20.12.0",
+    "chrome": "Google Chrome 151.0.7922.138",
+    "platform": "darwin 24.6.0 arm64",
+    "cpu": "Apple M3 Pro",
+    "logicalCpuCount": 12,
+    "totalMemoryBytes": 19327352832
+  },
+  "configuration": {
+    "runner": "upstream Playwright implementation",
+    "browser": "installed Google Chrome",
+    "blocks": 5,
+    "seed": 20260814,
+    "cpuThrottling": true,
+    "warmups": "upstream workload-specific warmupCount",
+    "memoryCollection": "forceGC + performance.measureUserAgentSpecificMemory",
+    "coldLoad": "fresh browser context with an empty cache",
+    "brotliQuality": 11,
+    "frameworkFilter": "solidlil",
+    "measurementFingerprint": "326b738afdb9e07e4496e37ab83d6b31177c024c1836c45af32b9a7c0c3b5c2a"
+  },
+  "sizes": {},
+  "samples": [
+    {
+      "phase": "cold",
+      "block": 0,
+      "workload": "cold-page-load",
+      "framework": "solidlil-v0.1.0-keyed",
+      "elapsedMs": 595,
+      "value": {
+        "domContentLoadedMs": 46.65499997138977,
+        "loadMs": 55.18499994277954,
+        "firstPaintMs": 71.84499990940094
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cold",
+      "block": 1,
+      "workload": "cold-page-load",
+      "framework": "solidlil-v0.1.0-keyed",
+      "elapsedMs": 591,
+      "value": {
+        "domContentLoadedMs": 46.49500000476837,
+        "loadMs": 55.1800000667572,
+        "firstPaintMs": 69.84500002861023
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cold",
+      "block": 2,
+      "workload": "cold-page-load",
+      "framework": "solidlil-v0.1.0-keyed",
+      "elapsedMs": 582,
+      "value": {
+        "domContentLoadedMs": 47.545000076293945,
+        "loadMs": 56.825000047683716,
+        "firstPaintMs": 73.37999999523163
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cold",
+      "block": 3,
+      "workload": "cold-page-load",
+      "framework": "solidlil-v0.1.0-keyed",
+      "elapsedMs": 591,
+      "value": {
+        "domContentLoadedMs": 48.50999999046326,
+        "loadMs": 58.954999923706055,
+        "firstPaintMs": 73.66999995708466
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cold",
+      "block": 4,
+      "workload": "cold-page-load",
+      "framework": "solidlil-v0.1.0-keyed",
+      "elapsedMs": 577,
+      "value": {
+        "domContentLoadedMs": 44.25,
+        "loadMs": 52.675000071525574,
+        "firstPaintMs": 64.31000006198883
+      },
+      "warnings": []
+    }
+  ],
+  "completedAt": "2026-08-15T13:21:43.458Z"
+}

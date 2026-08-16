@@ -1,0 +1,511 @@
+import {
+  Signal,
+  createBoolSignal,
+  createIntSignal,
+  createSignal
+} from "../../apps/lilscript/src/reactive";
+import {
+  Dynamic,
+  DomEvent,
+  DomNode,
+  DomRegion,
+  append,
+  attribute,
+  boolAttribute,
+  boolProperty,
+  classToggle,
+  clearDelegatedEvents,
+  dynamicAttribute,
+  dynamicBoolAttribute,
+  dynamicBoolProperty,
+  dynamicClass,
+  dynamicComponent,
+  dynamicElement,
+  dynamicFor,
+  dynamicIndex,
+  dynamicShow,
+  dynamicStringProperty,
+  dynamicStyle,
+  dynamicText,
+  element,
+  mathElement,
+  onEvent,
+  onDelegatedEvent,
+  onDelegatedEventWithData,
+  portal,
+  query,
+  region,
+  render,
+  stringProperty,
+  styleProperty,
+  svgElement,
+  text,
+  use
+} from "../../apps/lilscript/src/web";
+
+class DynamicProps {
+  Signal<string> name;
+
+  init(Signal<string> name) {
+    this.name = name;
+  }
+}
+
+DomNode componentA(DynamicProps props) {
+  DomNode node = element("div");
+  attribute(node, "data-dynamic-component", "a");
+  dynamicText(node, () => "A " + props.name.read());
+  return node;
+}
+
+DomNode componentB(DynamicProps props) {
+  DomNode node = element("span");
+  attribute(node, "data-dynamic-component", "b");
+  dynamicText(node, () => "B " + props.name.read());
+  return node;
+}
+
+Signal<bool> visible = createBoolSignal(false);
+Signal<int> clicks = createIntSignal(0);
+Signal<int> rowClicks = createIntSignal(0);
+Signal<int[]> items = createSignal(
+  [1, 2, 3],
+  (int[] previous, int[] next) => previous == next
+);
+Signal<int[]> indexedItems = createSignal(
+  [1, 2],
+  (int[] previous, int[] next) => previous == next
+);
+Signal<string> fieldTitle = createSignal(
+  "initial",
+  (string previous, string next) => previous == next
+);
+Signal<string> fieldValue = createSignal(
+  "alpha",
+  (string previous, string next) => previous == next
+);
+Signal<string> fieldColor = createSignal(
+  "",
+  (string previous, string next) => previous == next
+);
+Signal<bool> fieldDisabled = createBoolSignal(false);
+Signal<bool> fieldChecked = createBoolSignal(false);
+Signal<bool> fieldActive = createBoolSignal(false);
+Signal<string> delegatedTrace = createSignal(
+  "",
+  (string previous, string next) => previous == next
+);
+Signal<string> portalText = createSignal(
+  "Portal One",
+  (string previous, string next) => previous == next
+);
+Signal<string> portalTrace = createSignal(
+  "",
+  (string previous, string next) => previous == next
+);
+Signal<string> dynamicTag = createSignal(
+  "",
+  (string previous, string next) => previous == next
+);
+Signal<string> dynamicName = createSignal(
+  "Smith",
+  (string previous, string next) => previous == next
+);
+Signal<string> componentName = createSignal(
+  "One",
+  (string previous, string next) => previous == next
+);
+DynamicProps componentProps = new DynamicProps(componentName);
+Signal<func(DynamicProps)->DomNode> dynamicRenderer = createSignal(
+  (DynamicProps props) => componentA(props),
+  (
+    func(DynamicProps)->DomNode previous,
+    func(DynamicProps)->DomNode next
+  ) => false
+);
+Signal<(string|func(DynamicProps)->DomNode)?> dynamicChoice = createSignal(
+  null,
+  (
+    (string|func(DynamicProps)->DomNode)? previous,
+    (string|func(DynamicProps)->DomNode)? next
+  ) => false
+);
+
+class DisposeBox {
+  func()->void value;
+
+  init() {
+    this.value = () => {};
+  }
+
+  void set(func()->void value) {
+    this.value = value;
+  }
+
+  void run() {
+    func()->void value = this.value;
+    value();
+  }
+}
+
+DisposeBox rootDispose = new DisposeBox();
+
+DomNode button(string action, string label, func()->void callback) {
+  DomNode value = element("button");
+  attribute(value, "type", "button");
+  attribute(value, "data-action", action);
+  append(value, text(label));
+  onEvent(value, "click", callback);
+  return value;
+}
+
+func()->void dispose = render("#app", (DomNode root) => {
+  DomNode shell = element("section");
+  attribute(shell, "data-test", "dynamic-region");
+
+  DomNode count = element("strong");
+  attribute(count, "data-value", "clicks");
+  dynamicText(count, () => "" + clicks.read());
+  append(shell, count);
+
+  DomNode rowCount = element("strong");
+  attribute(rowCount, "data-value", "row-clicks");
+  dynamicText(rowCount, () => "" + rowClicks.read());
+  append(shell, rowCount);
+
+  DomNode delegatedValue = element("strong");
+  attribute(delegatedValue, "data-value", "delegated-events");
+  dynamicText(delegatedValue, () => delegatedTrace.read());
+  append(shell, delegatedValue);
+
+  append(shell, button("show", "Show", () => {
+    visible.write(true);
+  }));
+  append(shell, button("hide", "Hide", () => {
+    visible.write(false);
+  }));
+  append(shell, button("dispose", "Dispose", () => {
+    rootDispose.run();
+  }));
+  append(shell, button("rotate", "Rotate", () => {
+    items.write([3, 1, 2]);
+  }));
+  append(shell, button("remove-item", "Remove", () => {
+    items.write([3, 2]);
+  }));
+  append(shell, button("clear-items", "Clear", () => {
+    items.write([]);
+  }));
+  append(shell, button("restore-items", "Restore", () => {
+    items.write([1, 2, 3]);
+  }));
+  append(shell, button("update-index", "Update index", () => {
+    indexedItems.write([4, 5]);
+  }));
+  append(shell, button("shrink-index", "Shrink index", () => {
+    indexedItems.write([7]);
+  }));
+  append(shell, button("clear-index", "Clear index", () => {
+    indexedItems.write([]);
+  }));
+  append(shell, button("restore-index", "Restore index", () => {
+    indexedItems.write([8, 9]);
+  }));
+  append(shell, button("activate-field", "Activate field", () => {
+    fieldTitle.write("updated");
+    fieldValue.write("beta");
+    fieldColor.write("red");
+    fieldDisabled.write(true);
+    fieldChecked.write(true);
+    fieldActive.write(true);
+  }));
+  append(shell, button("reset-field", "Reset field", () => {
+    fieldTitle.write("initial");
+    fieldValue.write("alpha");
+    fieldColor.write("");
+    fieldDisabled.write(false);
+    fieldChecked.write(false);
+    fieldActive.write(false);
+  }));
+  append(shell, button("dynamic-div", "Dynamic div", () => {
+    dynamicTag.write("div");
+  }));
+  append(shell, button("dynamic-span", "Dynamic span", () => {
+    dynamicTag.write("span");
+  }));
+  append(shell, button("dynamic-svg", "Dynamic svg", () => {
+    dynamicTag.write("svg");
+  }));
+  append(shell, button("dynamic-path", "Dynamic path", () => {
+    dynamicTag.write("path");
+  }));
+  append(shell, button("dynamic-name", "Dynamic name", () => {
+    dynamicName.write("Sunny");
+  }));
+  append(shell, button("dynamic-clear", "Clear dynamic", () => {
+    dynamicTag.write("");
+  }));
+  append(shell, button("component-name", "Component name", () => {
+    componentName.write("Two");
+  }));
+  append(shell, button("component-b", "Component B", () => {
+    dynamicRenderer.write((DynamicProps props) => componentB(props));
+  }));
+  append(shell, button("dynamic-choice-a", "Dynamic choice A", () => {
+    dynamicChoice.write((DynamicProps props) => componentA(props));
+  }));
+  append(shell, button("dynamic-choice-b", "Dynamic choice B", () => {
+    dynamicChoice.write((DynamicProps props) => componentB(props));
+  }));
+  append(shell, button("dynamic-choice-h1", "Dynamic choice h1", () => {
+    dynamicChoice.write("h1");
+  }));
+  append(shell, button("dynamic-choice-name", "Dynamic choice name", () => {
+    componentName.write("Three");
+  }));
+  append(shell, button("dynamic-choice-svg", "Dynamic choice svg", () => {
+    dynamicChoice.write("svg");
+  }));
+  append(shell, button("dynamic-choice-path", "Dynamic choice path", () => {
+    dynamicChoice.write("path");
+  }));
+  append(shell, button("dynamic-choice-clear", "Clear dynamic choice", () => {
+    dynamicChoice.write(null);
+  }));
+  append(shell, button("portal-update", "Update portal", () => {
+    portalText.write("Portal Two");
+  }));
+  append(shell, button("clear-delegated", "Clear events", () => {
+    clearDelegatedEvents();
+  }));
+
+  DomNode field = element("input");
+  attribute(field, "data-element", "field");
+  attribute(field, "type", "checkbox");
+  boolAttribute(field, "required", true);
+  stringProperty(field, "placeholder", "Static placeholder");
+  boolProperty(field, "readOnly", true);
+  classToggle(field, "base", true);
+  styleProperty(field, "background-color", "white");
+  dynamicAttribute(field, "title", () => fieldTitle.read());
+  dynamicStringProperty(field, "value", () => fieldValue.read());
+  dynamicBoolAttribute(field, "disabled", fieldDisabled);
+  dynamicBoolProperty(field, "checked", fieldChecked);
+  dynamicClass(field, "first second", fieldActive);
+  dynamicStyle(field, "color", () => fieldColor.read());
+  use(
+    field,
+    (DomNode node, string value) => attribute(node, "data-directive", value),
+    "applied"
+  );
+  append(shell, field);
+
+  DomNode delegatedParent = element("div");
+  attribute(delegatedParent, "data-delegated", "parent");
+  DomNode delegatedChild = element("button");
+  attribute(delegatedChild, "type", "button");
+  attribute(delegatedChild, "data-action", "delegated-child");
+  append(delegatedChild, text("Delegated child"));
+  onDelegatedEventWithData(
+    delegatedChild,
+    "click",
+    "payload",
+    (string data, DomEvent event) => {
+      delegatedTrace.write(
+        data +
+        ":" +
+        event.type() +
+        ":" +
+        (event.target().id == delegatedChild.id) +
+        ":" +
+        (event.currentTarget().id == delegatedChild.id)
+      );
+      event.preventDefault();
+    }
+  );
+  onDelegatedEvent(delegatedParent, "click", (DomEvent event) => {
+    delegatedTrace.write(
+      delegatedTrace.read() +
+      "|parent:" +
+      event.defaultPrevented() +
+      ":" +
+      (event.currentTarget().id == delegatedParent.id)
+    );
+  });
+  append(delegatedParent, delegatedChild);
+
+  DomNode delegatedStop = element("button");
+  attribute(delegatedStop, "type", "button");
+  attribute(delegatedStop, "data-action", "delegated-stop");
+  append(delegatedStop, text("Stop delegated event"));
+  onDelegatedEvent(delegatedStop, "click", (DomEvent event) => {
+    delegatedTrace.write(delegatedTrace.read() + "|stop");
+    event.stopPropagation();
+  });
+  append(delegatedParent, delegatedStop);
+
+  DomNode delegatedDisabled = element("button");
+  attribute(delegatedDisabled, "type", "button");
+  attribute(delegatedDisabled, "data-action", "delegated-disabled");
+  boolProperty(delegatedDisabled, "disabled", true);
+  append(delegatedDisabled, text("Disabled delegated event"));
+  onDelegatedEvent(delegatedDisabled, "click", (DomEvent event) => {
+    delegatedTrace.write(delegatedTrace.read() + "|disabled-child");
+  });
+  append(delegatedParent, delegatedDisabled);
+  append(shell, delegatedParent);
+
+  DomNode staticSvg = svgElement("svg");
+  attribute(staticSvg, "data-namespace", "svg");
+  DomNode staticCircle = svgElement("circle");
+  attribute(staticCircle, "data-namespace-child", "circle");
+  append(staticSvg, staticCircle);
+  append(shell, staticSvg);
+
+  DomNode staticMath = mathElement("math");
+  attribute(staticMath, "data-namespace", "math");
+  DomNode staticIdentifier = mathElement("mi");
+  append(staticIdentifier, text("x"));
+  append(staticMath, staticIdentifier);
+  append(shell, staticMath);
+
+  DomNode portalHost = element("div");
+  attribute(portalHost, "data-portal-host", "source");
+  onDelegatedEvent(portalHost, "click", (DomEvent event) => {
+    portalTrace.write(portalTrace.read() + "|host");
+  });
+  append(shell, portalHost);
+  portal(
+    portalHost,
+    query("#portal-target"),
+    false,
+    (DomNode container) => {
+      attribute(container, "data-portal", "html");
+      DomNode value = element("span");
+      attribute(value, "data-portal-value", "text");
+      dynamicText(value, () => portalText.read());
+      append(container, value);
+      DomNode child = element("button");
+      attribute(child, "type", "button");
+      attribute(child, "data-action", "portal-child");
+      append(child, text("Portal action"));
+      onDelegatedEvent(child, "click", (DomEvent event) => {
+        portalTrace.write("child");
+      });
+      append(container, child);
+      DomNode trace = element("strong");
+      attribute(trace, "data-portal-value", "trace");
+      dynamicText(trace, () => portalTrace.read());
+      append(container, trace);
+    }
+  );
+  portal(
+    portalHost,
+    query("#svg-portal-target"),
+    true,
+    (DomNode container) => {
+      attribute(container, "data-portal", "svg");
+      append(container, text("SVG portal"));
+    }
+  );
+
+  DomNode dynamicRoot = element("div");
+  attribute(dynamicRoot, "data-dynamic-root", "intrinsic");
+  dynamicElement(
+    dynamicRoot,
+    dynamicTag,
+    (DomNode node) => {
+      attribute(node, "data-dynamic-node", "active");
+      dynamicAttribute(node, "data-name", () => dynamicName.read());
+      dynamicText(node, () => "Hi " + dynamicName.read());
+    }
+  );
+  append(shell, dynamicRoot);
+
+  DomNode componentRoot = element("div");
+  attribute(componentRoot, "data-component-root", "dynamic");
+  dynamicComponent(componentRoot, dynamicRenderer, componentProps);
+  append(shell, componentRoot);
+
+  DomNode dynamicChoiceRoot = element("div");
+  attribute(dynamicChoiceRoot, "data-component-root", "union");
+  Dynamic(
+    dynamicChoiceRoot,
+    dynamicChoice,
+    componentProps,
+    (DomNode node) => {
+      attribute(node, "data-dynamic-choice", "intrinsic");
+      dynamicAttribute(node, "id", () => componentName.read());
+    }
+  );
+  append(shell, dynamicChoiceRoot);
+
+  DomRegion slot = region(shell);
+  dynamicShow(
+    slot,
+    visible,
+    () => {
+      DomNode panel = element("article");
+      attribute(panel, "data-state", "shown");
+      append(
+        panel,
+        button("inside", "Count", () => {
+          clicks.write(clicks.read() + 1);
+        })
+      );
+      return [panel];
+    },
+    () => {
+      DomNode hidden = element("p");
+      attribute(hidden, "data-state", "hidden");
+      append(hidden, text("Hidden"));
+      return [hidden];
+    }
+  );
+
+  DomNode list = element("ol");
+  attribute(list, "data-list", "items");
+  dynamicFor(
+    list,
+    items,
+    (int value, Signal<int> index) => {
+      DomNode row = element("li");
+      attribute(row, "data-item", "" + value);
+      dynamicText(row, () => value + ":" + index.read());
+      onEvent(row, "click", () => {
+        rowClicks.write(rowClicks.read() + 1);
+      });
+      return row;
+    },
+    () => {
+      DomNode fallback = element("li");
+      attribute(fallback, "data-list-fallback", "empty");
+      append(fallback, text("Empty"));
+      return fallback;
+    }
+  );
+  append(shell, list);
+
+  DomNode indexedList = element("ol");
+  attribute(indexedList, "data-list", "indexed");
+  dynamicIndex(
+    indexedList,
+    indexedItems,
+    (Signal<int> value, int index) => {
+      DomNode row = element("li");
+      attribute(row, "data-position", "" + index);
+      dynamicText(row, () => "" + value.read());
+      return row;
+    },
+    () => {
+      DomNode fallback = element("li");
+      attribute(fallback, "data-index-fallback", "empty");
+      append(fallback, text("Empty"));
+      return fallback;
+    }
+  );
+  append(shell, indexedList);
+
+  append(root, shell);
+});
+rootDispose.set(dispose);

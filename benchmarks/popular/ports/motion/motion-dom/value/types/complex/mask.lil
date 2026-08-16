@@ -1,0 +1,40 @@
+import { complex } from "./index";
+import { HSLA, RGBA, ValueType } from "../types";
+import { isHslaShape, isRgbaShape, hslaFromJs, rgbaFromJs } from "../color/shape";
+
+export ValueType mask = new ValueType(
+  complex.test,
+  complex.parse,
+  complex.transform,
+  complex.createTransformer,
+  complex.defaultValue,
+  (JsValue v) => {
+    JsValue parsed = complex.parse(v);
+    (func(string)->func(JsValue)->JsValue)? createTransformer = complex.createTransformer;
+    if (createTransformer == null) {
+      return v;
+    }
+    func(JsValue)->JsValue transformer = createTransformer(`${v}`);
+    JsValue[] mapped = [];
+    if (parsed.isArray()) {
+      int i = 0;
+      int len = parsed.length.toInt();
+      while (i < len) {
+        JsValue item = parsed[i];
+        if (item is float) {
+          mapped.push(0.0);
+        } else if (isRgbaShape(item)) {
+          RGBA color = rgbaFromJs(item);
+          mapped.push(new RGBA(color.red, color.green, color.blue, 1.0));
+        } else if (isHslaShape(item)) {
+          HSLA color = hslaFromJs(item);
+          mapped.push(new HSLA(color.hue, color.saturation, color.lightness, 1.0));
+        } else {
+          mapped.push(item);
+        }
+        i = i + 1;
+      }
+    }
+    return transformer(mapped);
+  }
+);

@@ -1,0 +1,50 @@
+import { color } from "../color/index";
+import { filter } from "../complex/filter";
+import { mask } from "../complex/mask";
+import { ValueType } from "../types";
+import { numberValueTypes } from "./number";
+import { ValueTypeMap } from "./types";
+
+export ValueTypeMap defaultValueTypes = new ValueTypeMap();
+
+string[] numberKeys = [
+  "borderWidth", "borderTopWidth", "borderRightWidth", "borderBottomWidth", "borderLeftWidth",
+  "borderRadius", "borderTopLeftRadius", "borderTopRightRadius", "borderBottomRightRadius", "borderBottomLeftRadius",
+  "width", "maxWidth", "height", "maxHeight", "top", "right", "bottom", "left", "inset",
+  "insetBlock", "insetBlockStart", "insetBlockEnd", "insetInline", "insetInlineStart", "insetInlineEnd",
+  "padding", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft",
+  "paddingBlock", "paddingBlockStart", "paddingBlockEnd", "paddingInline", "paddingInlineStart", "paddingInlineEnd",
+  "margin", "marginTop", "marginRight", "marginBottom", "marginLeft",
+  "marginBlock", "marginBlockStart", "marginBlockEnd", "marginInline", "marginInlineStart", "marginInlineEnd",
+  "fontSize", "backgroundPositionX", "backgroundPositionY",
+  "rotate", "pathRotation", "rotateX", "rotateY", "rotateZ", "scale", "scaleX", "scaleY", "scaleZ",
+  "skew", "skewX", "skewY", "distance", "translateX", "translateY", "translateZ", "x", "y", "z",
+  "perspective", "transformPerspective", "opacity", "originX", "originY", "originZ",
+  "zIndex", "fillOpacity", "strokeOpacity", "numOctaves"
+];
+int i = 0;
+while (i < numberKeys.length) {
+  ValueType? t = numberValueTypes.get(numberKeys[i]);
+  if (t != null) {
+    defaultValueTypes.set(numberKeys[i], t);
+  }
+  i = i + 1;
+}
+defaultValueTypes.set("color", color);
+defaultValueTypes.set("backgroundColor", color);
+defaultValueTypes.set("outlineColor", color);
+defaultValueTypes.set("fill", color);
+defaultValueTypes.set("stroke", color);
+defaultValueTypes.set("borderColor", color);
+defaultValueTypes.set("borderTopColor", color);
+defaultValueTypes.set("borderRightColor", color);
+defaultValueTypes.set("borderBottomColor", color);
+defaultValueTypes.set("borderLeftColor", color);
+defaultValueTypes.set("filter", filter);
+defaultValueTypes.set("WebkitFilter", filter);
+defaultValueTypes.set("mask", mask);
+defaultValueTypes.set("WebkitMask", mask);
+
+export ValueType? getDefaultValueType(string key) {
+  return defaultValueTypes.get(key);
+}

@@ -1,0 +1,13 @@
+import { NativeAnimation } from "./NativeAnimation";
+
+export class NativeAnimationWrapper extends NativeAnimation {
+  init(JsValue animation) {
+    super(null);
+    this.animation = animation;
+    NativeAnimationWrapper self = this;
+    animation["onfinish"] = () => {
+      self.finishedTime = self.time;
+      self.notifyFinished();
+    };
+  }
+}

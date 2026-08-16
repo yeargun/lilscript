@@ -1,0 +1,11 @@
+[javascript]
+priority = "size-first"
+optimization_level = 15
+cost_model = "brotli"
+function_spelling = "arrow"
+aggregate_layout = "named"
+
+[mangle]
+identifiers = true
+properties = true
+pool_strings = true

@@ -1,0 +1,48 @@
+import { jQuery, map } from "../core";
+import {
+  isNullish,
+  typeOf,
+  stringify,
+  newDOMParser,
+  call1,
+  call2,
+  arrayJoin
+} from "../js-host.lil";
+
+export JsValue parseXML(JsValue data) {
+  if (JS.isNullish(data) || !data.truthy() || JS.typeOf(data) != "string") {
+    return null;
+  }
+
+  JsValue xml = null;
+  try {
+    JsValue parser = newDOMParser();
+    xml = JS.invoke(parser, "parseFromString", data, "text/xml");
+  } catch {
+  }
+
+  JsValue parserErrorElem = null;
+  bool hasXml = !JS.isNullish(xml) && xml.truthy();
+  if (hasXml) {
+    JsValue errors = JS.invoke(xml, "getElementsByTagName", "parsererror");
+    parserErrorElem = errors[0];
+  }
+
+  bool hasError = !JS.isNullish(parserErrorElem) && parserErrorElem.truthy();
+  if (!hasXml || hasError) {
+    JsValue detail = data;
+    if (hasError) {
+      JsValue texts = map(parserErrorElem["childNodes"], (JsValue el, JsValue _i, JsValue _arg) => {
+        return el["textContent"];
+      });
+      detail = JS.join(texts, "\n");
+    }
+    JS.invoke(jQuery, "error", "Invalid XML: " + JS.string(detail));
+  }
+
+  return xml;
+}
+
+jQuery["parseXML"] = parseXML;
+
+export { jQuery };

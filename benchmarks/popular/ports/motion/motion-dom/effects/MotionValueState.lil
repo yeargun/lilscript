@@ -1,0 +1,88 @@
+import { cancelFrame, frame } from "../frameloop/frame";
+import { FrameData } from "../frameloop/types";
+import { MotionValue } from "../value/index";
+import { numberValueTypes } from "../value/types/maps/number";
+import { getAsType } from "../value/types/utils/get-as-type";
+import { ValueType } from "../value/types/types";
+
+class StoredValue {
+  MotionValue value;
+  func()->void onRemove;
+
+  init(MotionValue value, func()->void onRemove) {
+    this.value = value;
+    this.onRemove = onRemove;
+  }
+}
+
+export class MotionValueState {
+  Record<JsValue> latest;
+  Map<string, StoredValue> values;
+
+  init() {
+    this.latest = record{};
+    this.values = new Map<string, StoredValue>();
+  }
+
+  func()->void set(
+    string name,
+    MotionValue value,
+    (func()->void)? render = null,
+    MotionValue? computed = null,
+    bool useDefaultValueType = true
+  ) {
+    StoredValue? existingValue = this.values.get(name);
+    if (existingValue != null) {
+      existingValue.onRemove();
+    }
+    MotionValueState self = this;
+    (func()->void)? renderFn = render;
+    (func(FrameData)->void)? scheduledRender = null;
+    if (renderFn != null) {
+      scheduledRender = (FrameData _data) => {
+        renderFn();
+      };
+    }
+    func(JsValue?, JsValue?, JsValue?)->void onChange = (
+      JsValue? _a = null,
+      JsValue? _b = null,
+      JsValue? _c = null
+    ) => {
+      JsValue v = value.get();
+      if (useDefaultValueType) {
+        ValueType? valueType = numberValueTypes.get(name);
+        self.latest[name] = getAsType(v, valueType);
+      } else {
+        self.latest[name] = v;
+      }
+      if (scheduledRender != null) {
+        frame.render(scheduledRender, false, false);
+      }
+    };
+    onChange(null, null, null);
+    func()->void cancelOnChange = value.on("change", onChange);
+    if (computed != null) {
+      value.addDependent(computed);
+    }
+    func()->void remove = () => {
+      cancelOnChange();
+      if (scheduledRender != null) {
+        cancelFrame(scheduledRender);
+      }
+      self.values.delete(name);
+      if (computed != null) {
+        value.removeDependent(computed);
+      }
+    };
+    this.values.set(name, new StoredValue(value, remove));
+    return remove;
+  }
+
+  MotionValue? get(string name) {
+    StoredValue? stored = this.values.get(name);
+    if (stored != null) {
+      return stored.value;
+    }
+    return null;
+  }
+}

@@ -159,7 +159,9 @@ Three bounded improvements were implemented:
 The reusable benchmark impact was measurable: the micro-math app changed from
 `396/247/210` to `319/224/201`, and the motion-easing public surface changed
 from `447/315/281` to `438/310/280`. The latter now beats the corresponding
-Closure `ADVANCED` public surface (`445/326/286`) in all three size columns.
+Closure `ADVANCED` public surface (`445/326/286`) in each reported size column.
+That historical same-artifact observation is not the objective contract used by
+the raw/gzip/Brotli comparison lanes, which compile and gate separate artifacts.
 
 ## Highest-value next work
 

@@ -1,0 +1,78 @@
+import { microtask } from "../frameloop/microtask";
+import { FrameData } from "../frameloop/types";
+import { startViewAnimation } from "./start";
+import { removeItem } from "../../motion-utils/array";
+import { callMethod1, callFn0, isFunction } from "../dom-host";
+
+JsValue[] builders = [];
+JsValue? current = null;
+
+void next() {
+  current = null;
+  if (builders.length > 0) {
+    JsValue nextBuilder = builders[0];
+    start(nextBuilder);
+  }
+}
+
+void start(JsValue builder) {
+  removeItem(builders, builder);
+  current = builder;
+  Task<JsValue> animationTask = startViewAnimation(builder);
+  animationTask
+    .then((JsValue animation) => {
+      callMethod1(builder, "notifyReady", animation);
+      return animation["finished"];
+    })
+    .catch((JsValue error) => {
+      callMethod1(builder, "notifyReject", error);
+      return null;
+    })
+    .finally(() => {
+      next();
+    });
+}
+
+void processQueue(FrameData _data) {
+  for (int i = builders.length - 1; i >= 0; i--) {
+    JsValue builder = builders[i];
+    JsValue interrupt = builder["options"]["interrupt"];
+    if (interrupt == "immediate") {
+      (func()->void)[] batchedUpdates = [];
+      for (int j = 0; j <= i; j++) {
+        JsValue update = builders[j]["update"];
+        if (isFunction(update)) {
+          batchedUpdates.push(() => {
+            callFn0(update);
+          });
+        }
+      }
+      JsValue[] remaining = builders.slice(i + 1);
+      builder["update"] = () => {
+        for (int k = 0; k < batchedUpdates.length; k++) {
+          batchedUpdates[k]();
+        }
+      };
+      JsValue[] nextBuilders = [builder];
+      for (int r = 0; r < remaining.length; r++) {
+        nextBuilders.push(remaining[r]);
+      }
+      builders = nextBuilders;
+      break;
+    }
+  }
+  bool shouldAdvance = current == null;
+  if (!shouldAdvance && builders.length > 0) {
+    if (builders[0]["options"]["interrupt"] == "immediate") {
+      shouldAdvance = true;
+    }
+  }
+  if (shouldAdvance) {
+    next();
+  }
+}
+
+export void addToQueue(JsValue builder) {
+  builders.push(builder);
+  microtask.render(processQueue, false, false);
+}

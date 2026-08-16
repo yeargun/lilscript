@@ -1,0 +1,25 @@
+export pure int absoluteValue(int value) {
+  if (value < 0) { return -value; }
+  return value;
+}
+
+export pure int clampMagnitude(int value) {
+  if (value > 500) { return 500; }
+  return value;
+}
+
+export pure int normalizedMagnitude(int value) {
+  return clampMagnitude(absoluteValue(value));
+}
+
+export pure int scaleMagnitude(int value, int factor) {
+  return normalizedMagnitude(value) * factor;
+}
+
+export pure int bucketMagnitude(int value) {
+  int normalized = normalizedMagnitude(value);
+  if (normalized > 300) { return 4; }
+  if (normalized > 100) { return 3; }
+  if (normalized > 25) { return 2; }
+  return 1;
+}

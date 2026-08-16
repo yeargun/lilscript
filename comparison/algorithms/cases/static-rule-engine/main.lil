@@ -1,0 +1,45 @@
+extern int algorithmInt(int index);
+extern int algorithmCount();
+
+pure int clampScore(int value) {
+  if (value < -100) { return -100; }
+  if (value > 100) { return 100; }
+  return value;
+}
+
+pure int modeWeight(int mode) {
+  if (mode == 0) { return 3; }
+  if (mode == 1) { return -2; }
+  if (mode == 2) { return 5; }
+  return 1;
+}
+
+pure int adjust(int mode, int value) {
+  int normalized = clampScore(value);
+  int deadBias = 17;
+  if (false) { return normalized + deadBias * 1000; }
+  return normalized * modeWeight(mode) + mode;
+}
+
+pure int foldPair(int leftMode, int left, int rightMode, int right) {
+  int first = adjust(leftMode, left);
+  int second = adjust(rightMode, right);
+  if (first > second) { return first - second; }
+  return second - first;
+}
+
+int evaluateRules() {
+  int total = 0;
+  int count = algorithmCount();
+  for (int index = 0; index + 3 < count; index += 4) {
+    total += foldPair(
+      algorithmInt(index),
+      algorithmInt(index + 1),
+      algorithmInt(index + 2),
+      algorithmInt(index + 3)
+    );
+  }
+  return total;
+}
+
+print(evaluateRules());

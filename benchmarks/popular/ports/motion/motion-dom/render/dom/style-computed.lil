@@ -1,0 +1,14 @@
+import { getComputedStyleField, getComputedStyleProperty, getComputedStyleValue } from "../../dom-host";
+import { isCSSVar } from "./is-css-var";
+
+export string getComputedStyle(JsValue element, string name) {
+  if (isCSSVar(name)) {
+    return getComputedStyleProperty(element, name);
+  }
+  JsValue computedStyle = getComputedStyleValue(element);
+  JsValue value = computedStyle[name];
+  if (value is string) {
+    return value;
+  }
+  return `${value}`;
+}

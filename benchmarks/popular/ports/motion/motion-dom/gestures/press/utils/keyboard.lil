@@ -1,0 +1,66 @@
+import { isPressingHas } from "./state";
+import {
+  addEventListener,
+  removeEventListener,
+  createPointerEvent,
+  dispatchEvent
+} from "../../../dom-host";
+
+func(JsValue)->void filterEvents(func(JsValue)->void callback) {
+  return (JsValue event) => {
+    JsValue key = event["key"];
+    if (key is string) {
+      if (key != "Enter") {
+        return;
+      }
+    } else {
+      return;
+    }
+    callback(event);
+  };
+}
+
+void firePointerEvent(JsValue target, string type) {
+  JsValue options = record{};
+  options["isPrimary"] = true;
+  options["bubbles"] = true;
+  JsValue event = createPointerEvent("pointer" + type, options);
+  dispatchEvent(target, event);
+}
+
+export void enableKeyboardPress(JsValue focusEvent, JsValue eventOptions) {
+  JsValue currentTarget = focusEvent["currentTarget"];
+  if (!currentTarget.truthy()) {
+    return;
+  }
+  JsValue element = currentTarget;
+
+  func(JsValue)->void handleKeydown = filterEvents((JsValue _event) => {
+    if (isPressingHas(element)) {
+      return;
+    }
+    firePointerEvent(element, "down");
+
+    func(JsValue)->void handleKeyup = filterEvents((JsValue _up) => {
+      firePointerEvent(element, "up");
+    });
+
+    func()->void handleBlur = () => {
+      firePointerEvent(element, "cancel");
+    };
+
+    addEventListener(element, "keyup", handleKeyup, eventOptions);
+    addEventListener(element, "blur", handleBlur, eventOptions);
+  });
+
+  addEventListener(element, "keydown", handleKeydown, eventOptions);
+
+  addEventListener(
+    element,
+    "blur",
+    () => {
+      removeEventListener(element, "keydown", handleKeydown, null);
+    },
+    eventOptions
+  );
+}

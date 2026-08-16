@@ -1,0 +1,17 @@
+export class MotionGlobalConfigState {
+  bool? skipAnimations;
+  bool? instantAnimations;
+  bool? useManualTiming;
+  JsValue? WillChange;
+  JsValue? mix;
+
+  init() {
+    this.skipAnimations = null;
+    this.instantAnimations = null;
+    this.useManualTiming = null;
+    this.WillChange = null;
+    this.mix = null;
+  }
+}
+
+export MotionGlobalConfigState MotionGlobalConfig = new MotionGlobalConfigState();

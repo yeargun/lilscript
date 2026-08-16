@@ -1,0 +1,58 @@
+import { motionValue } from "../../value/index";
+import { VisualElement } from "../VisualElement";
+import { resolveVariant } from "./resolve-dynamic-variants";
+import { isKeyframesTarget } from "./is-keyframes-target";
+import { visualElementOf, motionValueOf } from "../../cast";
+
+void setMotionValue(JsValue visualElement, string key, JsValue value) {
+  VisualElement element = visualElementOf(visualElement);
+  if (element.hasValue(key)) {
+    JsValue? mv = element.getValue(key);
+    if (mv != null) {
+      motionValueOf(mv).set(value);
+    }
+  } else {
+    element.addValue(key, motionValue(value));
+  }
+}
+
+JsValue resolveFinalValueInKeyframes(JsValue v) {
+  if (isKeyframesTarget(v)) {
+    if (v.isArray() && v.length > 0.0) {
+      JsValue last = v[v.length.toInt() - 1];
+      bool defined =
+        (last is float) ||
+        (last is string) ||
+        (last is bool) ||
+        last.isArray() ||
+        (last.isObject() && last.truthy());
+      if (defined) {
+        return last;
+      }
+      return 0.0;
+    }
+  }
+  return v;
+}
+
+export void setTarget(JsValue visualElement, JsValue definition) {
+  JsValue? resolved = resolveVariant(visualElement, definition);
+  JsValue target = record{};
+  if (resolved != null && resolved.isObject()) {
+    for (string key in resolved) {
+      if (key != "transition" && key != "transitionEnd") {
+        target[key] = resolved[key];
+      }
+    }
+    JsValue transitionEnd = resolved["transitionEnd"];
+    if (transitionEnd.isObject()) {
+      for (string key in transitionEnd) {
+        target[key] = transitionEnd[key];
+      }
+    }
+  }
+  for (string key in target) {
+    JsValue value = resolveFinalValueInKeyframes(target[key]);
+    setMotionValue(visualElement, key, value);
+  }
+}

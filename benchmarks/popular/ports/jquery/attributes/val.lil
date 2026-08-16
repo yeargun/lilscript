@@ -1,0 +1,231 @@
+import { jQuery, each, map, text, makeArray, inArray, wrap } from "../core";
+import { stripAndCollapse } from "../core/stripAndCollapse";
+import { nodeName } from "../core/nodeName";
+import { support } from "./support";
+import { isFunction } from "../var/isFunction";
+import { find } from "../selector";
+import {
+  jsUndefined,
+  createEmptyObject,
+  hasProp,
+  arrayIsArray,
+  isNullish,
+  isUndefined,
+  typeOf,
+  stringify,
+  stringReplace,
+  call0,
+  call1,
+  call2,
+  call3
+} from "../js-host.lil";
+
+
+Regex rreturn = new Regex("\\r", "g");
+
+struct GetHook {
+  JsValue get;
+}
+
+struct GetSetHook {
+  JsValue get;
+  JsValue set;
+}
+
+struct SetHook {
+  JsValue set;
+}
+
+struct ValHooks {
+  JsValue option;
+  JsValue select;
+}
+
+JsValue optionGet(JsValue elem) {
+  JsValue val = JS.invoke(find, "attr", elem, "value");
+  if (!JS.isNullish(val)) {
+    return val;
+  }
+  return stripAndCollapse(JS.string(text(elem)));
+}
+
+JsValue optionHookBag = GetHook{optionGet};
+
+JsValue selectGet(JsValue elem) {
+  JsValue options = elem["options"];
+  float index = JS.number(elem["selectedIndex"]);
+  bool one = elem["type"] == "select-one";
+  JsValue[] values = [];
+  float max = options.length;
+  if (one) {
+    max = index + 1.0;
+  }
+
+  float i = 0.0;
+  if (index < 0.0) {
+    i = max;
+  } else if (one) {
+    i = index;
+  } else {
+    i = 0.0;
+  }
+
+  for (; i < max; i++) {
+    JsValue option = options[i];
+    bool selectedFlag = option["selected"].truthy() || i == index;
+    bool disabledFlag = option["disabled"].truthy();
+    JsValue parent = option["parentNode"];
+    bool parentDisabled = parent.truthy() && parent["disabled"].truthy();
+    bool parentIsOptgroup = parent.truthy() && nodeName(parent, "optgroup");
+    bool skip = parentDisabled && parentIsOptgroup;
+
+    if (selectedFlag && !disabledFlag && !skip) {
+      JsValue single = wrap(option);
+      JsValue[] emptyValArgs = [];
+      JsValue value = JS.call(fnVal, single);
+      if (one) {
+        return value;
+      }
+      values.push(value);
+    }
+  }
+  if (one) {
+    return null;
+  }
+  return values;
+}
+
+JsValue selectSet(JsValue elem, JsValue value) {
+  JsValue options = elem["options"];
+  JsValue values = makeArray(value);
+  float i = options.length;
+  bool optionSet = false;
+  while (i > 0.0) {
+    i = i - 1.0;
+    JsValue option = options[i];
+    bool matched = inArray(optionGet(option), values) > -1.0;
+    option["selected"] = matched;
+    if (matched) {
+      optionSet = true;
+    }
+  }
+  if (!optionSet) {
+    elem["selectedIndex"] = -1.0;
+  }
+  return values;
+}
+
+JsValue selectHookBag = GetSetHook{selectGet, selectSet};
+JsValue valHooks = ValHooks{optionHookBag, selectHookBag};
+
+JsValue checkableSet(JsValue elem, JsValue value) {
+  if (JS.isArray(value)) {
+    JsValue single = wrap(elem);
+    JsValue[] emptyValArgs = [];
+    JsValue val = JS.call(fnVal, single);
+    bool matched = inArray(val, value) > -1.0;
+    elem["checked"] = matched;
+    return matched;
+  }
+  return JS.undefined();
+}
+
+JsValue checkableGet(JsValue elem) {
+  JsValue attrValue = JS.invoke(elem, "getAttribute", "value");
+  if (JS.isNullish(attrValue)) {
+    return "on";
+  }
+  return elem["value"];
+}
+
+JsValue checkableHooks = SetHook{checkableSet};
+if (!support["checkOn"].truthy()) {
+  checkableHooks = GetSetHook{checkableGet, checkableSet};
+}
+
+valHooks["radio"] = checkableHooks;
+valHooks["checkbox"] = checkableHooks;
+
+JsValue lookupHooks(JsValue elem) {
+  JsValue typeHook = valHooks[JS.string(elem["type"])];
+  if (typeHook.truthy()) {
+    return typeHook;
+  }
+  string lowered = JS.string(JS.or(JS.and(elem, elem["nodeName"]), "")).toLowerCase();
+  return valHooks[lowered];
+}
+
+JsValue mapToStringOrEmpty(JsValue value, JsValue _i, JsValue _arg) {
+  if (JS.isNullish(value)) {
+    return "";
+  }
+  return JS.string(value);
+}
+
+export JsValue fnVal() {
+  JsValue self = this;
+  JsValue args = arguments;
+  if (args.length == 0.0) {
+    if (self.length > 0.0) {
+      JsValue elem = self[0];
+      JsValue hooks = lookupHooks(elem);
+      if (hooks.truthy() && JS.in("get", hooks)) {
+        JsValue hooked = JS.invoke(hooks, "get", elem, "value");
+        if (!JS.isUndefined(hooked)) {
+          return hooked;
+        }
+      }
+      JsValue ret = elem["value"];
+      if (ret is string) {
+        string retText = ret;
+        return JS.stringReplace(retText, rreturn, "");
+      }
+      if (JS.isNullish(ret)) {
+        return "";
+      }
+      return ret;
+    }
+    return JS.undefined();
+  }
+
+  JsValue value = args[0];
+  bool valueIsFunction = isFunction(value);
+
+  return each(self, (JsValue i, JsValue el) => {
+    if (JS.and(el, el["nodeType"]) != 1.0) {
+      return null;
+    }
+
+    JsValue val = value;
+    if (valueIsFunction) {
+      JsValue single = wrap(el);
+      JsValue[] emptyValArgs = [];
+      JsValue current = JS.call(fnVal, single);
+      val = JS.call(value, el, i, current);
+    }
+
+    if (JS.isNullish(val)) {
+      val = "";
+    } else if (val is float) {
+      val = JS.string(val);
+    } else if (JS.isArray(val)) {
+      val = map(val, mapToStringOrEmpty);
+    }
+
+    JsValue hooks = lookupHooks(el);
+    bool handled = false;
+    if (hooks.truthy() && JS.in("set", hooks)) {
+      JsValue setResult = JS.invoke(hooks, "set", el, val, "value");
+      handled = !JS.isUndefined(setResult);
+    }
+    if (!handled) {
+      el["value"] = val;
+    }
+    return null;
+  });
+}
+
+jQuery["fn"]["val"] = fnVal;
+jQuery["valHooks"] = valHooks;
+
+export { jQuery };

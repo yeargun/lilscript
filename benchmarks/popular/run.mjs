@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
   existsSync,
   mkdirSync,
@@ -6,18 +7,27 @@ import {
   readdirSync,
   writeFileSync,
 } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { platform } from "node:os";
-import { brotliCompressSync, constants, gzipSync } from "node:zlib";
 import { build as esbuild, transformSync as esbuildTransform } from "esbuild";
 import { minify as terserMinify } from "terser";
 import { build as viteBuild } from "vite";
+import {
+  canonicalCodecProvenance,
+  canonicalCodecSizes,
+  requireCanonicalCodecRuntime,
+} from "../codec-contract.mjs";
 
 const labRoot = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(labRoot, "../..");
 const compiler = join(repoRoot, "target/release/lilscript");
+const codecScorer = join(
+  repoRoot,
+  `target/release/lilscript-codec${process.platform === "win32" ? ".exe" : ""}`,
+);
 const buildRoot = join(labRoot, "build");
+const brotliObjectiveConfig = join(repoRoot, "lilscript.toml");
 const closure = join(
   labRoot,
   "node_modules",
@@ -28,14 +38,11 @@ const closure = join(
 );
 
 function metrics(buf) {
-  const bytes = Buffer.isBuffer(buf) ? buf : Buffer.from(buf);
-  return {
-    raw: bytes.length,
-    gzip: gzipSync(bytes, { level: 9, mtime: 0 }).length,
-    brotli: brotliCompressSync(bytes, {
-      params: { [constants.BROTLI_PARAM_QUALITY]: 11 },
-    }).length,
-  };
+  return canonicalCodecSizes(buf);
+}
+
+function sha256File(path) {
+  return createHash("sha256").update(readFileSync(path)).digest("hex");
 }
 
 function run(program, args, cwd = labRoot) {
@@ -45,9 +52,30 @@ function run(program, args, cwd = labRoot) {
     maxBuffer: 32 * 1024 * 1024,
   });
   if (result.status !== 0) {
-    throw new Error(`${program} ${args.join(" ")}\n${result.stdout}${result.stderr}`);
+    throw new Error(
+      `${program} ${args.join(" ")}\n${result.stdout}${result.stderr}`,
+    );
   }
   return result.stdout.trim();
+}
+
+function compileBrotliModule(source, output) {
+  const portId = source.match(/[/\\]ports[/\\]([^/\\]+)[/\\]/)?.[1];
+  const config = portId ? portConfig(portId) : brotliObjectiveConfig;
+  run(compiler, [
+    source,
+    "--target",
+    "js-module",
+    "--config",
+    config,
+    "-o",
+    output,
+  ]);
+}
+
+function portConfig(id) {
+  const specific = join(labRoot, "ports", id, "lilscript.toml");
+  return existsSync(specific) ? specific : brotliObjectiveConfig;
 }
 
 function execute(path) {
@@ -76,13 +104,16 @@ async function buildViteLane(root, name, expected, external = []) {
       rollupOptions: external.length > 0 ? { external } : undefined,
     },
   });
-  const code = readFileSync(
-    join(
-      outDir,
-      "assets",
-      readdirSync(join(outDir, "assets")).find((file) => file.endsWith(".js")),
-    ),
-  );
+  const jsAssets = readdirSync(join(outDir, "assets"))
+    .filter((file) => file.endsWith(".js"))
+    .sort();
+  if (jsAssets.length !== 1) {
+    throw new Error(
+      `${name}: expected exactly one eager JavaScript artifact; found ${jsAssets.length}. ` +
+        "Use a manifest-aware chunk lane before measuring split output.",
+    );
+  }
+  const code = readFileSync(join(outDir, "assets", jsAssets[0]));
   const executable = join(buildRoot, `${name}-run.mjs`);
   writeFileSync(executable, code);
   const stdout = execute(executable);
@@ -123,7 +154,9 @@ async function terserLane(code, name, expected) {
   writeFileSync(output, result.code);
   const stdout = execute(output);
   if (stdout !== expected) {
-    throw new Error(`${name} Terser contract failed:\n${stdout}\n!=\n${expected}`);
+    throw new Error(
+      `${name} Terser contract failed:\n${stdout}\n!=\n${expected}`,
+    );
   }
   return result.code;
 }
@@ -184,7 +217,9 @@ function closureLane(code, name, expected, options = {}) {
   run(closure, args);
   const stdout = execute(output);
   if (stdout !== expected) {
-    throw new Error(`${name} Closure contract failed:\n${stdout}\n!=\n${expected}`);
+    throw new Error(
+      `${name} Closure contract failed:\n${stdout}\n!=\n${expected}`,
+    );
   }
   return readFileSync(output);
 }
@@ -210,6 +245,13 @@ async function measureProject(spec) {
     costModel = "brotli",
   } = spec;
 
+  if (costModel !== "brotli") {
+    throw new Error(
+      `${id}: this runner emits ${relative(repoRoot, brotliObjectiveConfig)} ` +
+        `Brotli-objective modules, so costModel must be "brotli"`,
+    );
+  }
+
   const vite = await buildViteLane(jsRoot, viteName, expected, external);
   const lilVite = await buildViteLane(lilRoot, lilViteName, expected);
   const rawJs = await bundleLane(jsEntry, rawName, expected, external);
@@ -225,6 +267,21 @@ async function measureProject(spec) {
     verification,
     closureLevel: closureOptions.compilationLevel ?? "ADVANCED",
     costModel,
+    objectiveContract: {
+      artifact: "lilscriptVite",
+      gateMetric: costModel,
+      config: relative(repoRoot, brotliObjectiveConfig),
+      diagnosticMetrics: ["raw", "gzip", "brotli"].filter(
+        (metric) => metric !== costModel,
+      ),
+      diagnosticCrossMetricsMayLose: true,
+    },
+    codecs: canonicalCodecProvenance(),
+    compiler: {
+      path: relative(repoRoot, compiler),
+      sha256: sha256File(compiler),
+      configSha256: sha256File(brotliObjectiveConfig),
+    },
     rawJs: metrics(rawJs),
     terser: metrics(terser),
     closure: metrics(closureCode),
@@ -254,11 +311,12 @@ function normalizeExternalSize(size) {
 function solidLabReportPaths() {
   const paths = [];
   if (process.env.LILSCRIPT_SOLID_LAB) {
-    paths.push(join(process.env.LILSCRIPT_SOLID_LAB, "artifacts/size-report.json"));
+    paths.push(
+      join(process.env.LILSCRIPT_SOLID_LAB, "artifacts/size-report.json"),
+    );
   }
-  paths.push(join(labRoot, "apps/solid/size-report.json"));
   paths.push(join(repoRoot, "labs/solid-client/artifacts/size-report.json"));
-  paths.push(resolve(repoRoot, "../lilscript-solid-lab/artifacts/size-report.json"));
+  paths.push(join(labRoot, "apps/solid/size-report.json"));
   return paths;
 }
 
@@ -268,10 +326,18 @@ function loadSolidExternalTable() {
       continue;
     }
     const report = JSON.parse(readFileSync(reportPath, "utf8"));
-    const solid = normalizeExternalSize(report.sizes["solid-todolist"]);
-    const solidlil = normalizeExternalSize(report.sizes["solidlil-todolist"]);
+    const solidSize = report.sizes?.["solid-todolist"];
+    const solidlilSize = report.sizes?.["solidlil-todolist"];
+    if (!solidSize || !solidlilSize) {
+      console.log(`note: ${reportPath} has no integrated LSX application lane`);
+      continue;
+    }
+    const solid = normalizeExternalSize(solidSize);
+    const solidlil = normalizeExternalSize(solidlilSize);
+    const evidenceStatus = report.evidence?.status ?? "external-current";
+    const archived = evidenceStatus === "archived-external-snapshot";
     const source = reportPath.endsWith("apps/solid/size-report.json")
-      ? "vendored apps/solid/size-report.json"
+      ? "archived apps/solid/size-report.json"
       : reportPath;
     console.log(`Solid / solidlil LSX sizes from ${source}`);
     return {
@@ -279,10 +345,16 @@ function loadSolidExternalTable() {
       project: "Solid / solidlil LSX todolist",
       eligibility: "partial-external",
       blockers: [
-        "Measured in the integrated Solid client lab (Solid JSX vs solidlil LSX todolist), not inside this runner.",
+        archived
+          ? "Archived sibling-worktree application snapshot; LSX parsing/lowering is integrated, but the todolist and its gates are not yet reproducible from the monorepo lab."
+          : "Measured by the integrated Solid client lab, outside this runner.",
         "Same todo interaction contract; Vite/oxc-minified full app JS. Not a complete Solid replacement.",
       ],
       external: true,
+      evidenceStatus,
+      codecEvidence: archived ? "legacy-unknown" : "external-unattested",
+      codecs: null,
+      compiler: null,
       costModel: "brotli",
       source: reportPath.startsWith(repoRoot)
         ? relative(repoRoot, reportPath)
@@ -298,7 +370,7 @@ function loadSolidExternalTable() {
     };
   }
   console.log(
-    "note: skipping Solid / solidlil row — lilscript-solid-lab artifacts/size-report.json not found (and no apps/solid/size-report.json snapshot)",
+    "note: skipping Solid / solidlil row — neither the integrated lab nor the archived apps/solid snapshot has an LSX application report",
   );
   return null;
 }
@@ -309,27 +381,38 @@ function formatExternalRow(table) {
 
 mkdirSync(buildRoot, { recursive: true });
 
-if (!existsSync(compiler)) {
-  run(process.env.CARGO ?? "cargo", ["build", "--release"], repoRoot);
+if (
+  !/^cost_model\s*=\s*["']brotli["']\s*$/m.test(
+    readFileSync(brotliObjectiveConfig, "utf8"),
+  )
+) {
+  throw new Error(
+    `${brotliObjectiveConfig} must declare cost_model = "brotli"`,
+  );
 }
+
+if (!existsSync(compiler) || !existsSync(codecScorer)) {
+  run(
+    process.env.CARGO ?? "cargo",
+    ["build", "--release", "--bin", "lilscript", "--bin", "lilscript-codec"],
+    repoRoot,
+  );
+}
+requireCanonicalCodecRuntime("popular-library publication gate");
 
 const nanoidExpected = readFileSync(
   join(labRoot, "apps/nanoid/expected.txt"),
   "utf8",
 ).trim();
 const lilModule = join(buildRoot, "nanoid-lilscript-module.js");
-run(compiler, [
-  join(labRoot, "ports/nanoid/index.lil"),
-  "--target",
-  "js-module",
-  "-o",
-  lilModule,
-]);
+compileBrotliModule(join(labRoot, "ports/nanoid/index.lil"), lilModule);
 const nanoidUpstreamStdout = run(process.execPath, [
   join(labRoot, "verify-nanoid.mjs"),
 ]);
 if (nanoidUpstreamStdout !== "nanoid-upstream:2") {
-  throw new Error(`nanoid upstream assertions failed:\n${nanoidUpstreamStdout}`);
+  throw new Error(
+    `nanoid upstream assertions failed:\n${nanoidUpstreamStdout}`,
+  );
 }
 
 const nanoidTable = await measureProject({
@@ -358,7 +441,9 @@ run(compiler, [
 writeFileSync(lilMerged, `${readFileSync(lilOut, "utf8")}\n`);
 const lilStdout = execute(lilMerged);
 if (lilStdout !== nanoidExpected) {
-  throw new Error(`lilscript contract failed:\n${lilStdout}\n!=\n${nanoidExpected}`);
+  throw new Error(
+    `lilscript contract failed:\n${lilStdout}\n!=\n${nanoidExpected}`,
+  );
 }
 const nanoidNativeC = join(buildRoot, "nanoid-lilscript-native.c");
 const nanoidNativeExecutable = join(buildRoot, "nanoid-lilscript-native");
@@ -389,18 +474,17 @@ const mittExpected = readFileSync(
   join(labRoot, "apps/mitt/expected.txt"),
   "utf8",
 ).trim();
-run(compiler, [
+compileBrotliModule(
   join(labRoot, "ports/mitt/index.lil"),
-  "--target",
-  "js-module",
-  "-o",
   join(buildRoot, "mitt-lilscript.js"),
-]);
+);
 const mittVerifierStdout = run(process.execPath, [
   join(labRoot, "verify-mitt.mjs"),
 ]);
 if (mittVerifierStdout !== "mitt-upstream:2:10") {
-  throw new Error(`mitt differential assertions failed:\n${mittVerifierStdout}`);
+  throw new Error(
+    `mitt differential assertions failed:\n${mittVerifierStdout}`,
+  );
 }
 const mittTable = await measureProject({
   id: "mitt",
@@ -424,18 +508,17 @@ const clsxExpected = readFileSync(
   join(labRoot, "apps/clsx/expected.txt"),
   "utf8",
 ).trim();
-run(compiler, [
+compileBrotliModule(
   join(labRoot, "ports/clsx/index.lil"),
-  "--target",
-  "js-module",
-  "-o",
   join(buildRoot, "clsx-lilscript.js"),
-]);
+);
 const clsxVerifierStdout = run(process.execPath, [
   join(labRoot, "verify-clsx.mjs"),
 ]);
 if (clsxVerifierStdout !== "clsx-differential:10000") {
-  throw new Error(`clsx differential assertions failed:\n${clsxVerifierStdout}`);
+  throw new Error(
+    `clsx differential assertions failed:\n${clsxVerifierStdout}`,
+  );
 }
 const clsxTable = await measureProject({
   id: "clsx",
@@ -453,13 +536,10 @@ const immerExpected = readFileSync(
   join(labRoot, "apps/immer/expected.txt"),
   "utf8",
 ).trim();
-run(compiler, [
+compileBrotliModule(
   join(labRoot, "ports/immer/index.lil"),
-  "--target",
-  "js-module",
-  "-o",
   join(buildRoot, "immer-lilscript.js"),
-]);
+);
 const immerTable = await measureProject({
   id: "immer",
   project: "immer",
@@ -475,13 +555,10 @@ const rtkExpected = readFileSync(
   join(labRoot, "apps/redux-toolkit/expected.txt"),
   "utf8",
 ).trim();
-run(compiler, [
+compileBrotliModule(
   join(labRoot, "ports/redux-toolkit/index.lil"),
-  "--target",
-  "js-module",
-  "-o",
   join(buildRoot, "redux-toolkit-lilscript.js"),
-]);
+);
 const rtkTable = await measureProject({
   id: "redux-toolkit",
   project: "Redux Toolkit core subset",
@@ -503,13 +580,10 @@ const zodExpected = readFileSync(
   join(labRoot, "apps/zod/expected.txt"),
   "utf8",
 ).trim();
-run(compiler, [
+compileBrotliModule(
   join(labRoot, "ports/zod/index.lil"),
-  "--target",
-  "js-module",
-  "-o",
   join(buildRoot, "zod-lilscript.js"),
-]);
+);
 const zodTable = await measureProject({
   id: "zod",
   project: "Zod 3 core subset",
@@ -532,13 +606,10 @@ const acornExpected = readFileSync(
   join(labRoot, "apps/acorn/expected.txt"),
   "utf8",
 ).trim();
-run(compiler, [
+compileBrotliModule(
   join(labRoot, "ports/acorn/index.lil"),
-  "--target",
-  "js-module",
-  "-o",
   join(buildRoot, "acorn-lilscript.js"),
-]);
+);
 const acornTable = await measureProject({
   id: "acorn",
   project: "Acorn 8 parse subset",
@@ -554,13 +625,10 @@ const preactExpected = readFileSync(
   join(labRoot, "apps/preact/expected.txt"),
   "utf8",
 ).trim();
-run(compiler, [
+compileBrotliModule(
   join(labRoot, "apps/preact/lil/main.lil"),
-  "--target",
-  "js-module",
-  "-o",
   join(buildRoot, "preact-lilscript.js"),
-]);
+);
 const preactTable = await measureProject({
   id: "preact",
   project: "Preact 10 core subset",
@@ -608,13 +676,10 @@ const glMatrixExternProperties = [
 ];
 const glMatrixPmRoot = join(buildRoot, "gl-matrix-pm");
 mkdirSync(glMatrixPmRoot, { recursive: true });
-run(compiler, [
+compileBrotliModule(
   join(labRoot, "ports/gl-matrix/entry.lil"),
-  "--target",
-  "js-module",
-  "-o",
   join(glMatrixPmRoot, "entry.js"),
-]);
+);
 writeFileSync(
   join(glMatrixPmRoot, "state.js"),
   `export let ARRAY_TYPE=typeof Float32Array!=="undefined"?Float32Array:Array;
@@ -633,7 +698,8 @@ if(!Math.hypot)Math.hypot=function(){let sum=0,index=arguments.length;while(inde
 `,
 );
 for (const file of readdirSync(glMatrixPmRoot)) {
-  if (!file.endsWith(".js") || file === "state.js" || file === "common.js") continue;
+  if (!file.endsWith(".js") || file === "state.js" || file === "common.js")
+    continue;
   const path = join(glMatrixPmRoot, file);
   const source = readFileSync(path, "utf8");
   const imports = [];
@@ -645,7 +711,8 @@ for (const file of readdirSync(glMatrixPmRoot)) {
   if (source.includes("rand(")) {
     imports.push(`import {RANDOM as rand} from "./common.js";`);
   }
-  if (imports.length > 0) writeFileSync(path, `${imports.join("\n")}\n${source}`);
+  if (imports.length > 0)
+    writeFileSync(path, `${imports.join("\n")}\n${source}`);
 }
 const glMatrixEntryLil = readFileSync(
   join(labRoot, "ports/gl-matrix/entry.lil"),
@@ -678,13 +745,18 @@ for (const moduleName of glMatrixModules) {
     `import * as ${moduleName} from "./${moduleName}.js";\nexport {${moduleName}};`,
   );
 }
-writeFileSync(join(glMatrixPmRoot, "api.js"), `${glMatrixApiParts.join("\n")}\n`);
+writeFileSync(
+  join(glMatrixPmRoot, "api.js"),
+  `${glMatrixApiParts.join("\n")}\n`,
+);
 
 const glMatrixVerifierStdout = run(process.execPath, [
   join(labRoot, "verify-gl-matrix.mjs"),
 ]);
 if (!glMatrixVerifierStdout.startsWith("gl-matrix-upstream:10:")) {
-  throw new Error(`gl-matrix differential assertions failed:\n${glMatrixVerifierStdout}`);
+  throw new Error(
+    `gl-matrix differential assertions failed:\n${glMatrixVerifierStdout}`,
+  );
 }
 
 const glMatrixTable = await measureProject({
@@ -710,6 +782,39 @@ const glMatrixTable = await measureProject({
   },
 });
 glMatrixTable.nativeExpected = glNativeExpected;
+
+const motionExpected = readFileSync(
+  join(labRoot, "apps/motion/expected.txt"),
+  "utf8",
+).trim();
+compileBrotliModule(
+  join(labRoot, "ports/motion/entry.lil"),
+  join(buildRoot, "motion-lilscript.js"),
+);
+const motionVerifierStdout = run(process.execPath, [
+  join(labRoot, "verify-motion.mjs"),
+]);
+if (!motionVerifierStdout.startsWith("motion-upstream:2:312:")) {
+  throw new Error(
+    `motion differential assertions failed:\n${motionVerifierStdout}`,
+  );
+}
+const motionTable = await measureProject({
+  id: "motion",
+  project: "motion (mix/wrap/stagger/spring)",
+  eligibility: "exact-selected-surface",
+  blockers: [
+    "Measured selected Motion 13 DOM surface used by the app: mix, wrap, stagger, spring (same algorithms as npm motion@13). Full DOM package completeness is tracked separately; React entrypoints are out of scope.",
+  ],
+  verification: {
+    differential: motionVerifierStdout,
+    selectedEntrypoint: "motion:mix+wrap+stagger+spring",
+  },
+  expected: motionExpected,
+  closureOptions: {
+    externProperties: ["next", "value"],
+  },
+});
 
 const glNativeC = join(buildRoot, "gl-matrix-native.c");
 const glNativeExecutable = join(buildRoot, "gl-matrix-native");
@@ -748,25 +853,44 @@ const tables = [
   preactTable,
   ...(solidTable ? [solidTable] : []),
   glMatrixTable,
+  motionTable,
 ];
 
 const solidProse = solidTable
-  ? `
+  ? solidTable.evidenceStatus === "archived-external-snapshot"
+    ? `
+Solid / solidlil is an archived sibling-worktree snapshot: Solid JSX todolist
+vs solidlil LSX (\`.lilx\` → LilScript reactive + LilScript DOM), same todo
+contract, Vite/oxc-minified full app JS. Brotli ${solidTable.lilscriptVite.brotli} /
+${solidTable.vite.brotli} (solidlil / Solid; ${
+        solidTable.comparisons
+          ? `${solidTable.comparisons.brotliPct.toFixed(1)}%`
+          : "see archived report"
+      }). The current integrated lab does not contain the LSX pipeline, so this row
+is historical evidence rather than a reproducible single-repository gate.
+`
+    : `
 Solid / solidlil is a partial external row from \`lilscript-solid-lab\`: Solid JSX
 todolist vs solidlil LSX (\`.lilx\` → LilScript reactive + LilScript DOM), same todo
 contract, Vite/oxc-minified full app JS. Brotli ${solidTable.lilscriptVite.brotli} /
 ${solidTable.vite.brotli} (solidlil / Solid; ${
-      solidTable.comparisons
-        ? `${solidTable.comparisons.brotliPct.toFixed(1)}%`
-        : "see lab report"
-    }). Raw/Terser/Closure columns are not measured in that lab lane.
+        solidTable.comparisons
+          ? `${solidTable.comparisons.brotliPct.toFixed(1)}%`
+          : "see lab report"
+      }). Raw/Terser/Closure columns are not measured in that lab lane.
 `
   : `
-Solid / solidlil was skipped (no \`lilscript-solid-lab\` size-report.json and no
-vendored \`apps/solid/size-report.json\`).
+Solid / solidlil was skipped because neither the integrated lab nor the archived
+\`apps/solid/size-report.json\` snapshot contains an LSX application report.
 `;
 
-const publicTables = [nanoidTable, mittTable, clsxTable, glMatrixTable];
+const publicTables = [
+  nanoidTable,
+  mittTable,
+  clsxTable,
+  glMatrixTable,
+  motionTable,
+];
 const md = `# Exact-entrypoint popular library sizes
 
 Only complete selected entrypoints appear in this comparison. Incomplete research
@@ -777,13 +901,17 @@ deterministic custom generators, randomness/distribution, and the 2147483648 cal
 step. mitt covers its complete default-export surface and observable runtime function
 shape. clsx preserves its default/named identity and recursive raw-JavaScript-value
 algorithm without a conversion facade. gl-matrix covers the complete ESM root namespace, every module export and alias,
-live \`ARRAY_TYPE\`, and \`setMatrixArrayType\` allocation behavior.
+live \`ARRAY_TYPE\`, and \`setMatrixArrayType\` allocation behavior. motion measures the selected Motion 13
+\`mix\`/\`wrap\`/\`stagger\`/\`spring\` surface used by the app (same equations as npm \`motion@13\`); full DOM
+package completeness remains the compatibility backlog (React entrypoints are out of scope).
 
 Each row uses the same app contract and Vite 8 settings. Adapter bytes are included.
-Publication additionally requires differential behavior, no raw or selected-codec
+Publication additionally requires differential behavior and no selected-codec
 size regression against either npm/Vite 8 or public-API-preserving Closure ADVANCED,
 and no material throughput or retained-memory regression. Gzip and Brotli remain
-visible because a build tuned for one may trade a few bytes in the other.
+visible, along with raw, as diagnostics because a build tuned for one may trade
+bytes in the others. The current publication objective is Brotli, so only the
+Brotli cell of the Brotli-selected LilScript artifact is size-gated.
 Closure ADVANCED receives generated externs for observable published properties, so
 it may optimize through the app but may not rename the API being compared.
 
@@ -791,7 +919,7 @@ ${solidProse}
 The Solid/solidlil result above is an application benchmark, not a claim that the
 complete Solid package surface has been reimplemented.
 
-| Project | Raw JS | Terser | Closure (actual level) | npm Vite 8 | LilScript raw | LilScript Vite 8 | Brotli (Lil / npm) |
+| Project | Raw JS | Terser | Closure (actual level) | npm Vite 8 | LilScript pre-Vite (diagnostic triplet) | LilScript Vite (Brotli objective) | Brotli (Lil / npm) |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 ${publicTables.map(formatRow).join("\n")}
 `;

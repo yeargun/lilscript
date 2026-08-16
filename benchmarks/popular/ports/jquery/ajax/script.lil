@@ -1,0 +1,134 @@
+import { jQuery, globalEval, wrap } from "../core";
+import { document } from "../var/document";
+import {
+  jsUndefined,
+  createEmptyObject,
+  isUndefined,
+  stringify,
+  call0,
+  call1,
+  call2,
+  call4,
+  apply
+} from "../js-host.lil";
+
+struct ScriptAccepts {
+  string script;
+}
+
+struct ScriptContents {
+  Regex script;
+}
+
+struct ScriptSetup {
+  JsValue accepts;
+  JsValue contents;
+  JsValue converters;
+}
+
+struct ScriptProps {
+  JsValue charset;
+  JsValue src;
+}
+
+struct ScriptTransport {
+  JsValue send;
+  JsValue abort;
+}
+
+Regex rScriptContentType = new Regex("\\b(?:java|ecma)script\\b");
+
+JsValue scriptConverters = JS.object();
+scriptConverters["text script"] = (JsValue text) => {
+  if (text is string) {
+    globalEval(text);
+  } else {
+    globalEval(JS.string(text));
+  }
+  return text;
+};
+
+JsValue scriptSetupOptions = ScriptSetup{
+  ScriptAccepts{"text/javascript, application/javascript, application/ecmascript, application/x-ecmascript"},
+  ScriptContents{rScriptContentType},
+  scriptConverters
+};
+
+JsValue scriptTransportFactory(JsValue s) {
+  if (s["crossDomain"].truthy() || s["scriptAttrs"].truthy()) {
+    JsValue callback = null;
+
+    JsValue onHandler = JS.undefined();
+    JsValue transport = JS.undefined();
+
+    transport = ScriptTransport{
+      JS.methodRest((JsValue _self, JsValue args) => {
+      JsValue complete = args[1];
+
+      JsValue attrs = s["scriptAttrs"];
+      if (!attrs.truthy()) {
+        attrs = JS.object();
+      }
+      JsValue script = wrap("<script>");
+      JS.invoke(script, "attr", attrs);
+
+      JS.invoke(script, "prop", ScriptProps{s["scriptCharset"], s["url"]});
+
+      onHandler = JS.method1((JsValue _self2, JsValue evt) => {
+        JS.invoke(script, "remove");
+        callback = null;
+        if (evt.truthy()) {
+          float statusNum = 200.0;
+          if (JS.string(evt["type"]) == "error") {
+            statusNum = 404.0;
+          }
+          complete(statusNum, evt["type"]);
+        }
+        return JS.undefined();
+      });
+      callback = onHandler;
+
+      JS.invoke(script, "on", "load error", onHandler);
+
+      JS.invoke(document["head"], "appendChild", script[0]);
+      return JS.undefined();
+    }),
+      JS.method0((JsValue _self) => {
+      if (callback.truthy()) {
+        callback();
+      }
+      return JS.undefined();
+    })
+    };
+
+    return transport;
+  }
+  return JS.undefined();
+}
+
+void install() {
+  JS.invoke(jQuery, "ajaxPrefilter", (JsValue s) => {
+    if (s["crossDomain"].truthy()) {
+      s["contents"]["script"] = false;
+    }
+    return JS.undefined();
+  });
+
+  JS.invoke(jQuery, "ajaxSetup", scriptSetupOptions);
+
+  JS.invoke(jQuery, "ajaxPrefilter", "script", (JsValue s) => {
+    if (JS.isUndefined(s["cache"])) {
+      s["cache"] = false;
+    }
+    if (s["crossDomain"].truthy()) {
+      s["type"] = "GET";
+    }
+    return JS.undefined();
+  });
+
+  JS.invoke(jQuery, "ajaxTransport", "script", scriptTransportFactory);
+}
+
+install();
+
+export { jQuery };

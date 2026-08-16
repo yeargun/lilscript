@@ -1,12 +1,12 @@
 use std::fmt::Write;
 
-use ahash::{AHashMap, AHashSet};
+use crate::stable_hash::{StableHashMap as AHashMap, StableHashSet as AHashSet};
 
 use crate::codegen_js::{CodegenError, CompileError};
 use crate::ir::{
-    BlockId, ConstValue, ControlFlowFunction, ControlFlowInstruction, ControlFlowModule,
-    ControlFlowOp, FunctionId, FunctionKind, Intrinsic, IrBinaryOp, IrUnaryOp, TemplateOperand,
-    Terminator, ValueId,
+    ArrayOperand, BlockId, ConstValue, ControlFlowFunction, ControlFlowInstruction,
+    ControlFlowModule, ControlFlowOp, FunctionId, FunctionKind, Intrinsic, IrBinaryOp, IrUnaryOp,
+    LocalId, RecordOperand, TemplateOperand, Terminator, ValueId,
 };
 use crate::lower::lower_to_control_flow;
 use crate::optimizer::optimize_control_flow;
@@ -134,7 +134,30 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
             "static inline int32_t lilscript_array_index(int32_t i,int32_t n){int64_t x=i<0?(int64_t)n+i:i;if(x<0)return 0;if(x>n)return n;return(int32_t)x;}static inline LilScriptArray lilscript_array_slice(LilScriptArray a,int32_t start,int32_t end,size_t z){int32_t x=lilscript_array_index(start,a->len),y=lilscript_array_index(end,a->len);if(y<x)y=x;LilScriptArray r=lilscript_array(y-x,z);if(y>x)memcpy(r->data,(char*)a->data+(size_t)x*z,(size_t)(y-x)*z);return r;}\n",
         );
         out.push_str(
+            "static inline int32_t lilscript_array_find_value(LilScriptArray a,LilScriptValue v,int32_t from,bool zero){int32_t i=from<0?from+a->len:from;if(i<0)i=0;for(;i<a->len;i++){LilScriptValue x=((LilScriptValue*)a->data)[i];if(zero?lilscript_collection_eq(x,v):lilscript_value_eq(x,v))return i;}return-1;}\n",
+        );
+        out.push_str(
+            "static inline LilScriptArray lilscript_array_concat(LilScriptArray a,LilScriptArray b){if(a->len>INT32_MAX-b->len)abort();LilScriptArray r=lilscript_array(a->len+b->len,sizeof(LilScriptValue));memcpy(r->data,a->data,(size_t)a->len*sizeof(LilScriptValue));memcpy((LilScriptValue*)r->data+a->len,b->data,(size_t)b->len*sizeof(LilScriptValue));return r;}static inline LilScriptArray lilscript_array_copy_within(LilScriptArray a,int32_t t,int32_t s,int32_t e){t=lilscript_array_index(t,a->len);s=lilscript_array_index(s,a->len);e=lilscript_array_index(e,a->len);int32_t n=e>s?e-s:0;if(n>a->len-t)n=a->len-t;memmove((LilScriptValue*)a->data+t,(LilScriptValue*)a->data+s,(size_t)n*sizeof(LilScriptValue));return a;}static inline LilScriptArray lilscript_array_reverse(LilScriptArray a){LilScriptValue*v=a->data;for(int32_t i=0,j=a->len-1;i<j;i++,j--){LilScriptValue x=v[i];v[i]=v[j];v[j]=x;}return a;}\n",
+        );
+        out.push_str(
+            "static inline LilScriptArray lilscript_array_spread(int32_t n,const uint8_t*k,LilScriptValue*v){int32_t z=0;for(int32_t i=0;i<n;i++){int32_t q=k[i]?((LilScriptArray)v[i].p)->len:1;if(q>INT32_MAX-z)abort();z+=q;}LilScriptArray r=lilscript_array(z,sizeof(LilScriptValue));int32_t p=0;for(int32_t i=0;i<n;i++)if(k[i]){LilScriptArray a=v[i].p;memcpy((LilScriptValue*)r->data+p,a->data,(size_t)a->len*sizeof(LilScriptValue));p+=a->len;}else((LilScriptValue*)r->data)[p++]=v[i];return r;}\n",
+        );
+        out.push_str(
             "static inline LilScriptMap lilscript_map(void){LilScriptMap m=calloc(1,sizeof*m);if(!m)abort();return m;}static inline void lilscript_map_reserve(LilScriptMap m){if(m->len<m->cap)return;m->cap=m->cap?m->cap*2:4;m->keys=realloc(m->keys,(size_t)m->cap*sizeof*m->keys);m->values=realloc(m->values,(size_t)m->cap*sizeof*m->values);if(!m->keys||!m->values)abort();}static inline int32_t lilscript_map_index(LilScriptMap m,LilScriptValue k){for(int32_t i=0;i<m->len;i++)if(lilscript_collection_eq(m->keys[i],k))return i;return -1;}static inline LilScriptOptional lilscript_map_get(LilScriptMap m,LilScriptValue k){int32_t i=lilscript_map_index(m,k);return i<0?(LilScriptOptional){false,{0}}:lilscript_value_optional(m->values[i]);}static inline bool lilscript_map_has(LilScriptMap m,LilScriptValue k){return lilscript_map_index(m,k)>=0;}static inline LilScriptMap lilscript_map_set(LilScriptMap m,LilScriptValue k,LilScriptValue v){int32_t i=lilscript_map_index(m,k);if(i>=0)m->values[i]=v;else{lilscript_map_reserve(m);m->keys[m->len]=k;m->values[m->len++]=v;}return m;}static inline bool lilscript_map_delete(LilScriptMap m,LilScriptValue k){int32_t i=lilscript_map_index(m,k);if(i<0)return false;int32_t n=--m->len-i;memmove(m->keys+i,m->keys+i+1,(size_t)n*sizeof*m->keys);memmove(m->values+i,m->values+i+1,(size_t)n*sizeof*m->values);return true;}static inline void lilscript_map_clear(LilScriptMap m){m->len=0;}\n",
+        );
+        out.push_str(
+            "static inline LilScriptMap lilscript_record(int32_t n,LilScriptValue*keys,LilScriptValue*values){LilScriptMap m=lilscript_map();for(int32_t i=0;i<n;i++)lilscript_map_set(m,keys[i],values[i]);return m;}\n",
+        );
+        out.push_str(
+            r#"static inline bool lilscript_record_array_index(const char*s,uint32_t*out){if(!*s||(s[0]=='0'&&s[1]))return false;uint64_t n=0;for(const unsigned char*p=(const unsigned char*)s;*p;p++){if(*p<'0'||*p>'9')return false;n=n*10u+(uint64_t)(*p-'0');if(n>=UINT32_MAX)return false;}*out=(uint32_t)n;return true;}
+static inline bool lilscript_record_key_before(const char*a,const char*b){uint32_t x=0,y=0;bool ax=lilscript_record_array_index(a,&x),by=lilscript_record_array_index(b,&y);return ax!=by?ax:ax&&x<y;}
+static inline int32_t*lilscript_record_order(LilScriptMap m){int32_t*o=malloc((size_t)m->len*sizeof*o);if(m->len&&!o)abort();for(int32_t i=0;i<m->len;i++){int32_t x=i,j=i;while(j&&lilscript_record_key_before(m->keys[x].s,m->keys[o[j-1]].s)){o[j]=o[j-1];j--;}o[j]=x;}return o;}
+static inline LilScriptArray lilscript_record_keys(LilScriptMap m){LilScriptArray a=lilscript_array(m->len,sizeof(LilScriptValue));int32_t*o=lilscript_record_order(m);for(int32_t i=0;i<m->len;i++)((LilScriptValue*)a->data)[i]=(LilScriptValue){.tag=4,.s=m->keys[o[i]].s};free(o);return a;}
+static inline LilScriptArray lilscript_record_values(LilScriptMap m){LilScriptArray a=lilscript_array(m->len,sizeof(LilScriptValue));int32_t*o=lilscript_record_order(m);for(int32_t i=0;i<m->len;i++)((LilScriptValue*)a->data)[i]=m->values[o[i]];free(o);return a;}
+static inline LilScriptMap lilscript_record_assign(LilScriptMap a,LilScriptMap b){int32_t*o=lilscript_record_order(b);for(int32_t i=0;i<b->len;i++){int32_t j=o[i];lilscript_map_set(a,b->keys[j],b->values[j]);}free(o);return a;}
+static inline LilScriptMap lilscript_record_spread(int32_t n,const uint8_t*k,LilScriptValue*keys,LilScriptValue*values){LilScriptMap r=lilscript_map();for(int32_t i=0;i<n;i++)if(k[i])lilscript_record_assign(r,values[i].p);else lilscript_map_set(r,keys[i],values[i]);return r;}
+static inline LilScriptMap lilscript_record_rest(LilScriptMap a,int32_t n,LilScriptValue*keys){LilScriptMap r=lilscript_map();int32_t*o=lilscript_record_order(a);for(int32_t i=0;i<a->len;i++){int32_t j=o[i],skip=0;for(int32_t k=0;k<n;k++)if(lilscript_value_eq(a->keys[j],keys[k])){skip=1;break;}if(!skip)lilscript_map_set(r,a->keys[j],a->values[j]);}free(o);return r;}
+"#,
         );
         out.push_str(
             "static inline LilScriptSet lilscript_set(void){LilScriptSet s=calloc(1,sizeof*s);if(!s)abort();return s;}static inline int32_t lilscript_set_index(LilScriptSet s,LilScriptValue v){for(int32_t i=0;i<s->len;i++)if(lilscript_collection_eq(s->values[i],v))return i;return -1;}static inline LilScriptSet lilscript_set_add(LilScriptSet s,LilScriptValue v){if(lilscript_set_index(s,v)>=0)return s;if(s->len==s->cap){s->cap=s->cap?s->cap*2:4;s->values=realloc(s->values,(size_t)s->cap*sizeof*s->values);if(!s->values)abort();}s->values[s->len++]=v;return s;}static inline bool lilscript_set_has(LilScriptSet s,LilScriptValue v){return lilscript_set_index(s,v)>=0;}static inline bool lilscript_set_delete(LilScriptSet s,LilScriptValue v){int32_t i=lilscript_set_index(s,v);if(i<0)return false;int32_t n=--s->len-i;memmove(s->values+i,s->values+i+1,(size_t)n*sizeof*s->values);return true;}static inline void lilscript_set_clear(LilScriptSet s){s->len=0;}\n",
@@ -155,6 +178,9 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
             "static inline double lilscript_ta_get_f32(LilScriptTypedArray v,int32_t i){float x;memcpy(&x,v->buffer->data+v->offset+(size_t)i*4,4);return(double)x;}static inline void lilscript_ta_set_f32(LilScriptTypedArray v,int32_t i,double value){float x=(float)value;memcpy(v->buffer->data+v->offset+(size_t)i*4,&x,4);}static inline double lilscript_ta_get_f64(LilScriptTypedArray v,int32_t i){double x;memcpy(&x,v->buffer->data+v->offset+(size_t)i*8,8);return x;}static inline void lilscript_ta_set_f64(LilScriptTypedArray v,int32_t i,double value){memcpy(v->buffer->data+v->offset+(size_t)i*8,&value,8);}\n",
         );
         out.push_str(
+            "static inline void lilscript_ta_set(LilScriptTypedArray d,LilScriptTypedArray s,int32_t o,int32_t b){if(o<0||s->len>d->len-o)abort();memmove(d->buffer->data+d->offset+(size_t)o*b,s->buffer->data+s->offset,(size_t)s->len*b);}static inline LilScriptTypedArray lilscript_ta_fill_i(LilScriptTypedArray v,int32_t x,int32_t a,int32_t z,int32_t k){a=lilscript_buffer_index(a,v->len);z=lilscript_buffer_index(z,v->len);for(int32_t i=a;i<z;i++)lilscript_ta_set_int(v,i,x,k);return v;}static inline LilScriptTypedArray lilscript_ta_fill_f(LilScriptTypedArray v,double x,int32_t a,int32_t z,int32_t k){a=lilscript_buffer_index(a,v->len);z=lilscript_buffer_index(z,v->len);for(int32_t i=a;i<z;i++)if(k==7)lilscript_ta_set_f32(v,i,x);else lilscript_ta_set_f64(v,i,x);return v;}static inline LilScriptTypedArray lilscript_ta_copy_within(LilScriptTypedArray v,int32_t t,int32_t a,int32_t z,int32_t b){t=lilscript_buffer_index(t,v->len);a=lilscript_buffer_index(a,v->len);z=lilscript_buffer_index(z,v->len);int32_t n=z>a?z-a:0;if(n>v->len-t)n=v->len-t;memmove(v->buffer->data+v->offset+(size_t)t*b,v->buffer->data+v->offset+(size_t)a*b,(size_t)n*b);return v;}\n",
+        );
+        out.push_str(
             "static inline LilScriptUint8Array lilscript_u8_buffer(LilScriptBuffer b){return lilscript_ta_buffer(b,1);}static inline LilScriptUint8Array lilscript_u8_length(int32_t n){return lilscript_ta_length(n,1);}static inline LilScriptFloat32Array lilscript_f32_buffer(LilScriptBuffer b){return lilscript_ta_buffer(b,4);}static inline LilScriptFloat32Array lilscript_f32_length(int32_t n){return lilscript_ta_length(n,4);}static inline double lilscript_f32_get(LilScriptFloat32Array v,int32_t i){return lilscript_ta_get_f32(v,i);}static inline void lilscript_f32_set(LilScriptFloat32Array v,int32_t i,double value){lilscript_ta_set_f32(v,i,value);}\n",
         );
         out.push_str(
@@ -170,6 +196,19 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
             "static inline LilScriptString lilscript_i32(int32_t v){char b[16];snprintf(b,sizeof b,\"%d\",v);return lilscript_dup(b);}\n",
         );
         out.push_str(
+            r#"typedef struct{char*p;size_t n,c;}LilScriptJsonBuffer;
+static inline void lilscript_json_reserve(LilScriptJsonBuffer*b,size_t n){if(b->n+n+1<=b->c)return;size_t c=b->c?b->c:32;while(c<b->n+n+1)c*=2;b->p=realloc(b->p,c);if(!b->p)abort();b->c=c;}
+static inline void lilscript_json_bytes(LilScriptJsonBuffer*b,const char*s,size_t n){lilscript_json_reserve(b,n);memcpy(b->p+b->n,s,n);b->n+=n;b->p[b->n]=0;}
+static inline void lilscript_json_char(LilScriptJsonBuffer*b,char c){lilscript_json_bytes(b,&c,1);}
+static inline void lilscript_json_quote_into(LilScriptJsonBuffer*b,const char*s){static const char h[]="0123456789abcdef";lilscript_json_char(b,'"');for(const unsigned char*p=(const unsigned char*)s;*p;p++){switch(*p){case '"':lilscript_json_bytes(b,"\\\"",2);break;case '\\':lilscript_json_bytes(b,"\\\\",2);break;case '\b':lilscript_json_bytes(b,"\\b",2);break;case '\f':lilscript_json_bytes(b,"\\f",2);break;case '\n':lilscript_json_bytes(b,"\\n",2);break;case '\r':lilscript_json_bytes(b,"\\r",2);break;case '\t':lilscript_json_bytes(b,"\\t",2);break;default:if(*p<32){char x[6]={'\\','u','0','0',h[*p>>4],h[*p&15]};lilscript_json_bytes(b,x,6);}else lilscript_json_char(b,(char)*p);}}lilscript_json_char(b,'"');}
+static inline void lilscript_json_value_into(LilScriptJsonBuffer*b,LilScriptValue v){char n[16];switch(v.tag){case 0:lilscript_json_bytes(b,"null",4);break;case 1:{int z=snprintf(n,sizeof n,"%d",v.i);lilscript_json_bytes(b,n,(size_t)z);break;}case 3:lilscript_json_bytes(b,v.b?"true":"false",v.b?4:5);break;case 4:lilscript_json_quote_into(b,v.s);break;default:abort();}}
+static inline LilScriptString lilscript_json_finish(LilScriptJsonBuffer*b){if(!b->p){b->p=malloc(1);if(!b->p)abort();b->p[0]=0;}return b->p;}
+static inline LilScriptString lilscript_json_value(LilScriptValue v){LilScriptJsonBuffer b={0};lilscript_json_value_into(&b,v);return lilscript_json_finish(&b);}
+static inline LilScriptString lilscript_json_array(LilScriptArray a){LilScriptJsonBuffer b={0};lilscript_json_char(&b,'[');for(int32_t i=0;i<a->len;i++){if(i)lilscript_json_char(&b,',');lilscript_json_value_into(&b,((LilScriptValue*)a->data)[i]);}lilscript_json_char(&b,']');return lilscript_json_finish(&b);}
+static inline LilScriptString lilscript_json_record(LilScriptMap m){LilScriptJsonBuffer b={0};int32_t*o=lilscript_record_order(m);lilscript_json_char(&b,'{');for(int32_t i=0;i<m->len;i++){int32_t j=o[i];if(i)lilscript_json_char(&b,',');lilscript_json_quote_into(&b,m->keys[j].s);lilscript_json_char(&b,':');lilscript_json_value_into(&b,m->values[j]);}lilscript_json_char(&b,'}');free(o);return lilscript_json_finish(&b);}
+"#,
+        );
+        out.push_str(
             "static inline LilScriptString lilscript_i32_radix(int32_t v,int32_t radix,bool unsign){if(radix<2||radix>36)abort();static const char d[]=\"0123456789abcdefghijklmnopqrstuvwxyz\";char b[35],*p=b+sizeof b;*--p=0;bool neg=!unsign&&v<0;uint32_t n=unsign?(uint32_t)v:neg?(uint32_t)(0-(uint32_t)v):(uint32_t)v;do{*--p=d[n%(uint32_t)radix];n/=(uint32_t)radix;}while(n);if(neg)*--p='-';return lilscript_dup(p);}\n",
         );
         out.push_str(
@@ -177,6 +216,9 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
         );
         out.push_str(
             "static inline LilScriptString lilscript_value_string(LilScriptValue v){switch(v.tag){case 0:return lilscript_dup(\"null\");case 1:return lilscript_i32(v.i);case 2:return lilscript_f64(v.f);case 3:return lilscript_dup(v.b?\"true\":\"false\");case 4:return lilscript_dup(v.s);default:abort();}}static inline void lilscript_print_value(LilScriptValue v){switch(v.tag){case 0:puts(\"null\");break;case 1:printf(\"%d\\n\",v.i);break;case 2:printf(\"%.17g\\n\",v.f);break;case 3:puts(v.b?\"true\":\"false\");break;case 4:puts(v.s);break;default:abort();}}\n",
+        );
+        out.push_str(
+            "static inline LilScriptString lilscript_array_join(LilScriptArray a,const char*sep){size_t n=0,c=1;char*r=malloc(c);if(!r)abort();r[0]=0;for(int32_t i=0;i<a->len;i++){LilScriptValue v=((LilScriptValue*)a->data)[i];char*x=v.tag?lilscript_value_string(v):lilscript_dup(\"\");size_t p=i?strlen(sep):0,q=strlen(x),need=n+p+q+1;if(need>c){c=need;r=realloc(r,c);if(!r)abort();}if(p){memcpy(r+n,sep,p);n+=p;}memcpy(r+n,x,q);n+=q;r[n]=0;free(x);}return r;}\n",
         );
         out.push_str(
             "static inline bool lilscript_ends(const char*s,const char*x){size_t a=strlen(s),b=strlen(x);return a>=b&&!memcmp(s+a-b,x,b);}\n",
@@ -189,6 +231,9 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
         );
         out.push_str(
             "static inline int32_t lilscript_utf16_len(const char*s){const unsigned char*p=(const unsigned char*)s;int32_t n=0;while(*p){uint32_t c=lilscript_utf8_next(&p);n+=c>65535?2:1;}return n;}static inline int32_t lilscript_char_code_at(const char*s,int32_t i){if(i<0)return 0;const unsigned char*p=(const unsigned char*)s;int32_t n=0;while(*p){uint32_t c=lilscript_utf8_next(&p);if(c<=65535){if(n++==i)return(int32_t)c;}else{c-=65536;uint32_t h=55296+(c>>10),l=56320+(c&1023);if(n++==i)return(int32_t)h;if(n++==i)return(int32_t)l;}}return 0;}static inline LilScriptString lilscript_char_at(const char*s,int32_t i){int32_t code=lilscript_char_code_at(s,i);if(i<0||i>=lilscript_utf16_len(s))return lilscript_dup(\"\");char b[5];uint32_t c=(uint32_t)code;if(c<128){b[0]=(char)c;b[1]=0;}else if(c<2048){b[0]=(char)(192|(c>>6));b[1]=(char)(128|(c&63));b[2]=0;}else{b[0]=(char)(224|(c>>12));b[1]=(char)(128|((c>>6)&63));b[2]=(char)(128|(c&63));b[3]=0;}return lilscript_dup(b);}\n",
+        );
+        out.push_str(
+            "static inline int32_t lilscript_string_index(const char*s,const char*x,int32_t p,bool last){int32_t n=lilscript_utf16_len(s),m=lilscript_utf16_len(x);if(p<0)p=0;if(p>n)p=n;if(!m)return p;if(m>n)return-1;int32_t z=n-m;if(last&&p<z)z=p;if(!last){if(p>z)return-1;z=p;}for(int32_t i=z;last?i>=0:i<=n-m;last?i--:i++){bool same=true;for(int32_t j=0;j<m;j++)if(lilscript_char_code_at(s,i+j)!=lilscript_char_code_at(x,j)){same=false;break;}if(same)return i;}return-1;}static inline LilScriptString lilscript_repeat(const char*s,int32_t n){if(n<0)abort();size_t z=strlen(s);if(z&&((size_t)n>SIZE_MAX/z))abort();size_t q=z*(size_t)n;char*r=malloc(q+1);if(!r)abort();for(int32_t i=0;i<n;i++)memcpy(r+(size_t)i*z,s,z);r[q]=0;return r;}\n",
         );
         out.push_str(
             "static inline void*lilscript_copy(const void*value,size_t size){void*copy=malloc(size);if(!copy)abort();memcpy(copy,value,size);return copy;}\n",
@@ -213,8 +258,17 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                 write!(out, "typedef struct{{").expect("writing to String cannot fail");
                 for (index, capture) in function.params[..function.capture_count].iter().enumerate()
                 {
-                    write!(out, "{} c{index};", c_type(&capture.ty))
-                        .expect("writing to String cannot fail");
+                    write!(
+                        out,
+                        "{}{} c{index};",
+                        c_type(&capture.ty),
+                        if function.mutable_capture_locals.contains(&capture.local) {
+                            "*"
+                        } else {
+                            ""
+                        }
+                    )
+                    .expect("writing to String cannot fail");
                 }
                 writeln!(out, "}}E{};", function.id.0).expect("writing to String cannot fail");
             }
@@ -247,6 +301,142 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
     }
 
     fn validate_host_boundaries(&self) -> Result<(), CodegenError> {
+        if let Some(import) = self.module.foreign_imports.first() {
+            return Err(CodegenError::new(
+                import.span,
+                "JavaScript and TypeScript module imports are only available for JavaScript targets",
+            ));
+        }
+        if let Some(class) = self
+            .module
+            .classes
+            .iter()
+            .find(|class| class.base.is_some())
+        {
+            return Err(CodegenError::new(
+                self.function(self.module.entry)?.span,
+                format!(
+                    "class inheritance for `{}` is only available for JavaScript targets until the native subtype ABI is fixed",
+                    class.name
+                ),
+            ));
+        }
+        if let Some(function) = self
+            .module
+            .functions
+            .iter()
+            .find(|function| function.is_async)
+        {
+            return Err(CodegenError::new(
+                function.span,
+                "async functions and await are only available for JavaScript targets",
+            ));
+        }
+        if let Some(function) = self
+            .module
+            .functions
+            .iter()
+            .find(|function| function.is_generator)
+        {
+            return Err(CodegenError::new(
+                function.span,
+                "generators and yield are only available for JavaScript targets",
+            ));
+        }
+        if let Some(function) = self.module.functions.iter().find(|function| {
+            function
+                .params
+                .iter()
+                .any(|parameter| contains_generator(&parameter.ty))
+                || contains_generator(&function.return_type)
+                || function
+                    .locals
+                    .iter()
+                    .any(|local| contains_generator(&local.ty))
+                || function.blocks.iter().any(|block| {
+                    block.phis.iter().any(|phi| contains_generator(&phi.ty))
+                        || block.instructions.iter().any(|instruction| {
+                            instruction.ty.as_ref().is_some_and(contains_generator)
+                        })
+                })
+        }) {
+            return Err(CodegenError::new(
+                function.span,
+                "Generator<T> values are only available for JavaScript targets",
+            ));
+        }
+        if let Some(global) = self
+            .module
+            .globals
+            .iter()
+            .find(|global| contains_generator(&global.ty))
+        {
+            return Err(CodegenError::new(
+                global.span,
+                "Generator<T> values are only available for JavaScript targets",
+            ));
+        }
+        if self
+            .module
+            .structs
+            .iter()
+            .chain(&self.module.classes)
+            .any(|layout| {
+                layout
+                    .fields
+                    .iter()
+                    .any(|field| contains_generator(&field.ty))
+            })
+        {
+            return Err(CodegenError::new(
+                self.function(self.module.entry)?.span,
+                "Generator<T> fields are only available for JavaScript targets",
+            ));
+        }
+        if let Some(block) = self
+            .module
+            .functions
+            .iter()
+            .flat_map(|function| &function.blocks)
+            .find(|block| {
+                matches!(
+                    block.terminator,
+                    Some(Terminator::Throw(_) | Terminator::Try { .. })
+                )
+            })
+        {
+            return Err(CodegenError::new(
+                block.span,
+                "exceptions are only available for JavaScript targets",
+            ));
+        }
+        if let Some(function) = self.module.functions.iter().find(|function| {
+            function
+                .params
+                .iter()
+                .any(|parameter| contains_regex(&parameter.ty))
+                || contains_regex(&function.return_type)
+                || function
+                    .locals
+                    .iter()
+                    .any(|local| contains_regex(&local.ty))
+        }) {
+            return Err(CodegenError::new(
+                function.span,
+                "Regex is only available for JavaScript targets",
+            ));
+        }
+        if let Some(global) = self
+            .module
+            .globals
+            .iter()
+            .find(|global| contains_regex(&global.ty))
+        {
+            return Err(CodegenError::new(
+                global.span,
+                "Regex is only available for JavaScript targets",
+            ));
+        }
         if let Some(function) = self.module.functions.iter().find(|function| {
             function
                 .params
@@ -276,12 +466,97 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                         | ControlFlowOp::HostFieldSet { .. }
                         | ControlFlowOp::HostCall { .. }
                         | ControlFlowOp::DynamicImport { .. }
+                        | ControlFlowOp::Await { .. }
+                        | ControlFlowOp::Intrinsic {
+                            intrinsic: Intrinsic::TaskResolve
+                                | Intrinsic::TaskReject
+                                | Intrinsic::TaskAll
+                                | Intrinsic::JsonParse
+                                | Intrinsic::RegexNew
+                                | Intrinsic::RegexTest
+                                | Intrinsic::RegexSource
+                                | Intrinsic::RegexFlags
+                                | Intrinsic::RegexGlobal
+                                | Intrinsic::RegexIgnoreCase
+                                | Intrinsic::RegexMultiline
+                                | Intrinsic::RegexDotAll
+                                | Intrinsic::RegexSticky
+                                | Intrinsic::RegexUnicode
+                                | Intrinsic::JsPlainObject
+                                | Intrinsic::JsUndefined
+                                | Intrinsic::JsDateNow
+                                | Intrinsic::JsParseFloat
+                                | Intrinsic::JsParseInt
+                                | Intrinsic::JsIsFinite
+                                | Intrinsic::JsEncodeURIComponent
+                                | Intrinsic::JsObjectCreate
+                                | Intrinsic::JsGetPrototypeOf
+                                | Intrinsic::JsMathPI
+                                | Intrinsic::JsObjectConstructor
+                                | Intrinsic::JsWindow
+                                | Intrinsic::JsDocument
+                                | Intrinsic::JsSetTimeout
+                                | Intrinsic::JsClearTimeout
+                                | Intrinsic::JsDomParserNew
+                                | Intrinsic::JsXMLHttpRequestNew
+                                | Intrinsic::JsNullProtoObject
+                                | Intrinsic::JsTypeOf
+                                | Intrinsic::JsIsNullish
+                                | Intrinsic::JsIsFalse
+                                | Intrinsic::JsIsUndefined
+                                | Intrinsic::JsStringify
+                                | Intrinsic::JsNumber
+                                | Intrinsic::JsAdd
+                                | Intrinsic::JsLessThan
+                                | Intrinsic::JsLessThanOrEqual
+                                | Intrinsic::JsGreaterThan
+                                | Intrinsic::JsGreaterThanOrEqual
+                                | Intrinsic::JsStrictEqual
+                                | Intrinsic::JsStrictNotEqual
+                                | Intrinsic::JsCall
+                                | Intrinsic::JsConstruct
+                                | Intrinsic::JsInvoke
+                                | Intrinsic::JsApply
+                                | Intrinsic::JsMethod0
+                                | Intrinsic::JsMethod1
+                                | Intrinsic::JsMethodRest
+                                | Intrinsic::JsStaticRest
+                                | Intrinsic::JsDeleteProperty
+                                | Intrinsic::JsHasProperty
+                                | Intrinsic::JsInProperty
+                                | Intrinsic::JsBox
+                                | Intrinsic::JsArrayPush
+                                | Intrinsic::JsArrayPop
+                                | Intrinsic::JsArraySlice
+                                | Intrinsic::JsArrayIndexOf
+                                | Intrinsic::JsArraySort
+                                | Intrinsic::JsArraySplice
+                                | Intrinsic::JsArrayConcatApply
+                                | Intrinsic::JsArrayJoin
+                                | Intrinsic::JsArrayShift
+                                | Intrinsic::JsArrayUnshift
+                                | Intrinsic::JsArrayFlat
+                                | Intrinsic::JsIsFunctionValue
+                                | Intrinsic::JsIsWindowValue
+                                | Intrinsic::JsDefineConfigurable
+                                | Intrinsic::JsDefineIterator
+                                | Intrinsic::JsArrayIterator
+                                | Intrinsic::JsConsoleWarn
+                                | Intrinsic::JsRequestAnimationFrameOrNull
+                                | Intrinsic::JsStringSlice
+                                | Intrinsic::JsStringIndexOf
+                                | Intrinsic::JsStringReplace
+                                | Intrinsic::JsStringMatch
+                                | Intrinsic::JsStringSplit
+                                | Intrinsic::JsRegexExec,
+                            ..
+                        }
                 )
             })
         {
             return Err(CodegenError::new(
                 instruction.span,
-                "extern object member access is only available for JavaScript targets",
+                "this operation is only available for JavaScript targets",
             ));
         }
         if let Some(global) = self.module.globals.iter().find(|global| global.external) {
@@ -294,7 +569,7 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
     }
 
     fn closure_adapter_targets(&self) -> Vec<&ControlFlowFunction<'src>> {
-        let mut referenced = AHashSet::new();
+        let mut referenced = AHashSet::default();
         for function in &self.module.functions {
             if !function.live {
                 continue;
@@ -390,7 +665,7 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
             writeln!(out, "typedef struct {name}*{name};").expect("writing to String cannot fail");
         }
 
-        let mut emitted = AHashSet::new();
+        let mut emitted = AHashSet::default();
         while emitted.len() != self.module.structs.len() {
             let mut changed = false;
             for layout in &self.module.structs {
@@ -518,9 +793,9 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
         function: &ControlFlowFunction<'src>,
     ) -> AHashMap<ValueId, NativeStorage<'src>> {
         if !self.options.partial_escape_analysis {
-            return AHashMap::new();
+            return AHashMap::default();
         }
-        let mut plan = AHashMap::new();
+        let mut plan = AHashMap::default();
         for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
             let Some(value) = instruction.out else {
                 continue;
@@ -618,6 +893,24 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
             }
             write!(out, "{} v{};", c_type(ty), value.0).expect("writing to String cannot fail");
         }
+        for local in &function.mutable_capture_locals {
+            let binding = function.locals.get(local.0 as usize).ok_or_else(|| {
+                CodegenError::new(function.span, "mutable capture local is missing metadata")
+            })?;
+            let inherited = function.params[..function.capture_count]
+                .iter()
+                .any(|parameter| parameter.local == *local);
+            write!(out, "{}*l{};", c_type(&binding.ty), local.0)
+                .expect("writing to String cannot fail");
+            if !inherited {
+                write!(
+                    out,
+                    "l{}=malloc(sizeof*l{});if(!l{})abort();",
+                    local.0, local.0, local.0
+                )
+                .expect("writing to String cannot fail");
+            }
+        }
         let mut storage = allocation_plan.iter().collect::<Vec<_>>();
         storage.sort_unstable_by_key(|(value, _)| value.0);
         for (value, allocation) in storage {
@@ -661,8 +954,13 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                     .expect("writing to String cannot fail");
                 for (index, capture) in function.params[..function.capture_count].iter().enumerate()
                 {
-                    write!(out, "v{}=e->c{index};", capture.value.0)
-                        .expect("writing to String cannot fail");
+                    if function.mutable_capture_locals.contains(&capture.local) {
+                        write!(out, "l{}=e->c{index};", capture.local.0)
+                            .expect("writing to String cannot fail");
+                    } else {
+                        write!(out, "v{}=e->c{index};", capture.value.0)
+                            .expect("writing to String cannot fail");
+                    }
                 }
             }
             let universal = Type::TypeParameter("$closure");
@@ -684,7 +982,7 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
         for block in &function.blocks {
             write!(out, "case {}:{{", block.id.0).expect("writing to String cannot fail");
             for instruction in &block.instructions {
-                self.emit_instruction(instruction, &types, &allocation_plan, out)?;
+                self.emit_instruction(function, instruction, &types, &allocation_plan, out)?;
             }
             self.emit_terminator(function, block.id, &types, &mut phi_temp, uses_region, out)?;
             out.push('}');
@@ -699,12 +997,19 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
 
     fn emit_instruction(
         &self,
+        owner: &ControlFlowFunction<'src>,
         instruction: &ControlFlowInstruction<'src>,
         types: &AHashMap<ValueId, Type<'src>>,
         allocation_plan: &AHashMap<ValueId, NativeStorage<'src>>,
         out: &mut String,
     ) -> Result<(), CodegenError> {
         match &instruction.op {
+            ControlFlowOp::StoreLocal { local, value }
+                if owner.mutable_capture_locals.contains(local) =>
+            {
+                write!(out, "*l{}=v{};", local.0, value.0).expect("writing to String cannot fail");
+                return Ok(());
+            }
             ControlFlowOp::Array(values) => {
                 let result = required_output(instruction)?;
                 let Some(Type::Array(element)) = instruction.ty.as_ref() else {
@@ -890,14 +1195,27 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                     .expect("writing to String cannot fail");
                     let closure = self.function(*function)?;
                     for (index, capture) in captures.iter().enumerate() {
-                        let converted = self.render_value_conversion(
-                            &format!("v{}", capture.0),
-                            &types[capture],
-                            &closure.params[index].ty,
-                            instruction.span,
-                        )?;
-                        write!(out, "e{}->c{index}={converted};", result.0)
-                            .expect("writing to String cannot fail");
+                        let parameter = &closure.params[index];
+                        if closure.mutable_capture_locals.contains(&parameter.local) {
+                            let source =
+                                capture_local_source(owner, *capture).ok_or_else(|| {
+                                    CodegenError::new(
+                                        instruction.span,
+                                        "mutable closure capture is not a lexical cell",
+                                    )
+                                })?;
+                            write!(out, "e{}->c{index}=l{};", result.0, source.0)
+                                .expect("writing to String cannot fail");
+                        } else {
+                            let converted = self.render_value_conversion(
+                                &format!("v{}", capture.0),
+                                &types[capture],
+                                &parameter.ty,
+                                instruction.span,
+                            )?;
+                            write!(out, "e{}->c{index}={converted};", result.0)
+                                .expect("writing to String cannot fail");
+                        }
                     }
                     write!(
                         out,
@@ -936,11 +1254,45 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                     .expect("writing to String cannot fail");
                 return Ok(());
             }
+            ControlFlowOp::RecordFieldSet {
+                object,
+                property,
+                value,
+            } => {
+                let Some(Type::Record(element)) = types.get(object) else {
+                    return Err(CodegenError::new(
+                        instruction.span,
+                        "native record store requires a record",
+                    ));
+                };
+                let boxed =
+                    self.render_collection_value(*value, element, types, instruction.span)?;
+                write!(
+                    out,
+                    "lilscript_map_set(v{},(LilScriptValue){{.tag=4,.s=\"{}\"}},{boxed});",
+                    object.0, property
+                )
+                .expect("writing to String cannot fail");
+                return Ok(());
+            }
             ControlFlowOp::IndexSet {
                 object,
                 index,
                 value,
             } => {
+                if let Some(Type::Record(element)) = types.get(object) {
+                    let key = self.render_collection_value(
+                        *index,
+                        &Type::String,
+                        types,
+                        instruction.span,
+                    )?;
+                    let value =
+                        self.render_collection_value(*value, element, types, instruction.span)?;
+                    write!(out, "lilscript_map_set(v{},{key},{value});", object.0)
+                        .expect("writing to String cannot fail");
+                    return Ok(());
+                }
                 if let Some(kind) = types.get(object).and_then(TypedArrayKind::from_type) {
                     if kind.element_is_float() {
                         let converted = self.render_value_conversion(
@@ -1054,11 +1406,27 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                 return Ok(());
             }
             ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::ArraySome | Intrinsic::ArrayEvery | Intrinsic::ArrayFindIndex,
+                receiver: Some(receiver),
+                args,
+            } => {
+                self.emit_array_predicate(instruction, *receiver, args, types, out)?;
+                return Ok(());
+            }
+            ControlFlowOp::Intrinsic {
                 intrinsic: Intrinsic::ArrayPush | Intrinsic::ArrayPop,
                 receiver: Some(receiver),
                 args,
             } => {
                 self.emit_array_mutation(instruction, *receiver, args, types, out)?;
+                return Ok(());
+            }
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::ArrayFill,
+                receiver: Some(receiver),
+                args,
+            } => {
+                self.emit_array_fill(instruction, *receiver, args, types, out)?;
                 return Ok(());
             }
             ControlFlowOp::Intrinsic {
@@ -1123,7 +1491,7 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
             _ => {}
         }
 
-        let expression = self.render_instruction(instruction, types)?;
+        let expression = self.render_instruction(owner, instruction, types)?;
         if instruction.ty.as_ref() == Some(&Type::Void) {
             if !expression.is_empty() {
                 out.push_str(&expression);
@@ -1345,6 +1713,79 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
         Ok(())
     }
 
+    fn emit_array_predicate(
+        &self,
+        instruction: &ControlFlowInstruction<'src>,
+        receiver: ValueId,
+        args: &[ValueId],
+        types: &AHashMap<ValueId, Type<'src>>,
+        out: &mut String,
+    ) -> Result<(), CodegenError> {
+        let result = required_output(instruction)?;
+        let callback = *args.first().ok_or_else(|| {
+            CodegenError::new(instruction.span, "array predicate requires a callback")
+        })?;
+        let Some(Type::Array(element)) = types.get(&receiver) else {
+            return Err(CodegenError::new(
+                instruction.span,
+                "array predicate receiver has no array type",
+            ));
+        };
+        let signature = closure_signature(types, callback, instruction.span)?;
+        let initial = match instruction.op {
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::ArraySome,
+                ..
+            } => "false",
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::ArrayEvery,
+                ..
+            } => "true",
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::ArrayFindIndex,
+                ..
+            } => "-1",
+            _ => unreachable!(),
+        };
+        write!(
+            out,
+            "v{}={initial};{{int32_t n=v{}->len;for(int32_t i=0;i<n;i++){{if(i>=v{}->len)continue;",
+            result.0, receiver.0, receiver.0
+        )
+        .expect("writing to String cannot fail");
+        let item = self.render_value_conversion(
+            &format!("((LilScriptValue*)v{}->data)[i]", receiver.0),
+            &Type::TypeParameter("$array"),
+            element,
+            instruction.span,
+        )?;
+        let call = self.render_closure_call(
+            callback,
+            std::slice::from_ref(&item),
+            &[element.as_ref().clone()],
+            signature,
+            instruction.span,
+        )?;
+        match instruction.op {
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::ArraySome,
+                ..
+            } => write!(out, "if({call}){{v{}=true;break;}}", result.0),
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::ArrayEvery,
+                ..
+            } => write!(out, "if(!({call})){{v{}=false;break;}}", result.0),
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::ArrayFindIndex,
+                ..
+            } => write!(out, "if({call}){{v{}=i;break;}}", result.0),
+            _ => unreachable!(),
+        }
+        .expect("writing to String cannot fail");
+        out.push_str("}}}");
+        Ok(())
+    }
+
     fn emit_array_mutation(
         &self,
         instruction: &ControlFlowInstruction<'src>,
@@ -1408,6 +1849,48 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
         Ok(())
     }
 
+    fn emit_array_fill(
+        &self,
+        instruction: &ControlFlowInstruction<'src>,
+        receiver: ValueId,
+        args: &[ValueId],
+        types: &AHashMap<ValueId, Type<'src>>,
+        out: &mut String,
+    ) -> Result<(), CodegenError> {
+        let result = required_output(instruction)?;
+        let [value] = args else {
+            return Err(CodegenError::new(
+                instruction.span,
+                "array fill requires one value",
+            ));
+        };
+        let Some(Type::Array(element)) = types.get(&receiver) else {
+            return Err(CodegenError::new(
+                instruction.span,
+                "array fill receiver has no array type",
+            ));
+        };
+        let normalized = self.render_value_conversion(
+            &format!("v{}", value.0),
+            &types[value],
+            element,
+            instruction.span,
+        )?;
+        let boxed = self.render_value_conversion(
+            &normalized,
+            element,
+            &Type::TypeParameter("$array"),
+            instruction.span,
+        )?;
+        write!(
+            out,
+            "{{LilScriptValue f={boxed};for(size_t i=0;i<v{}->len;i++)((LilScriptValue*)v{}->data)[i]=f;}}v{}=v{};",
+            receiver.0, receiver.0, result.0, receiver.0
+        )
+        .expect("writing to String cannot fail");
+        Ok(())
+    }
+
     fn emit_template(
         &self,
         instruction: &ControlFlowInstruction<'src>,
@@ -1449,6 +1932,7 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
 
     fn render_instruction(
         &self,
+        owner: &ControlFlowFunction<'src>,
         instruction: &ControlFlowInstruction<'src>,
         types: &AHashMap<ValueId, Type<'src>>,
     ) -> Result<String, CodegenError> {
@@ -1499,8 +1983,117 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                 value.push('}');
                 value
             }
+            ControlFlowOp::Record(entries) => {
+                if entries.is_empty() {
+                    "lilscript_map()".to_string()
+                } else {
+                    let Some(Type::Record(element)) = instruction.ty.as_ref() else {
+                        return Err(CodegenError::new(
+                            instruction.span,
+                            "native record literal has no record type",
+                        ));
+                    };
+                    let mut keys = String::new();
+                    let mut values = String::new();
+                    for (index, (key, value)) in entries.iter().enumerate() {
+                        if index != 0 {
+                            keys.push(',');
+                            values.push(',');
+                        }
+                        write!(keys, "(LilScriptValue){{.tag=4,.s=\"{key}\"}}")
+                            .expect("writing to String cannot fail");
+                        values.push_str(&self.render_collection_value(
+                            *value,
+                            element,
+                            types,
+                            instruction.span,
+                        )?);
+                    }
+                    format!(
+                        "lilscript_record({},(LilScriptValue[]){{{keys}}},(LilScriptValue[]){{{values}}})",
+                        entries.len()
+                    )
+                }
+            }
+            ControlFlowOp::ArraySpread(operands) => {
+                let Some(Type::Array(element)) = instruction.ty.as_ref() else {
+                    return Err(CodegenError::new(
+                        instruction.span,
+                        "native array spread has no array type",
+                    ));
+                };
+                let mut kinds = String::new();
+                let mut values = String::new();
+                for (index, operand) in operands.iter().enumerate() {
+                    if index != 0 {
+                        kinds.push(',');
+                        values.push(',');
+                    }
+                    match operand {
+                        ArrayOperand::Value(value) => {
+                            kinds.push('0');
+                            values.push_str(&self.render_collection_value(
+                                *value,
+                                element,
+                                types,
+                                instruction.span,
+                            )?);
+                        }
+                        ArrayOperand::Spread(value) => {
+                            kinds.push('1');
+                            write!(values, "(LilScriptValue){{.tag=6,.p=v{}}}", value.0)
+                                .expect("writing to String cannot fail");
+                        }
+                    }
+                }
+                format!(
+                    "lilscript_array_spread({},(uint8_t[]){{{kinds}}},(LilScriptValue[]){{{values}}})",
+                    operands.len()
+                )
+            }
+            ControlFlowOp::RecordSpread(operands) => {
+                let Some(Type::Record(element)) = instruction.ty.as_ref() else {
+                    return Err(CodegenError::new(
+                        instruction.span,
+                        "native record spread has no record type",
+                    ));
+                };
+                let mut kinds = String::new();
+                let mut keys = String::new();
+                let mut values = String::new();
+                for (index, operand) in operands.iter().enumerate() {
+                    if index != 0 {
+                        kinds.push(',');
+                        keys.push(',');
+                        values.push(',');
+                    }
+                    match operand {
+                        RecordOperand::Entry(key, value) => {
+                            kinds.push('0');
+                            write!(keys, "(LilScriptValue){{.tag=4,.s=\"{key}\"}}")
+                                .expect("writing to String cannot fail");
+                            values.push_str(&self.render_collection_value(
+                                *value,
+                                element,
+                                types,
+                                instruction.span,
+                            )?);
+                        }
+                        RecordOperand::Spread(value) => {
+                            kinds.push('1');
+                            keys.push_str("(LilScriptValue){0}");
+                            write!(values, "(LilScriptValue){{.tag=6,.p=v{}}}", value.0)
+                                .expect("writing to String cannot fail");
+                        }
+                    }
+                }
+                format!(
+                    "lilscript_record_spread({},(uint8_t[]){{{kinds}}},(LilScriptValue[]){{{keys}}},(LilScriptValue[]){{{values}}})",
+                    operands.len()
+                )
+            }
             ControlFlowOp::LoadGlobal(symbol) => format!("g{}", symbol.0),
-            ControlFlowOp::CallDirect { function, args } => self.render_direct_call(
+            ControlFlowOp::CallDirect { function, args, .. } => self.render_direct_call(
                 *function,
                 args,
                 types,
@@ -1531,6 +2124,15 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                     element,
                     instruction.span,
                 )?,
+                Some(Type::Record(_)) => {
+                    let key = self.render_collection_value(
+                        *index,
+                        &Type::String,
+                        types,
+                        instruction.span,
+                    )?;
+                    format!("lilscript_map_get(v{},{key})", object.0)
+                }
                 Some(ty) if let Some(kind) = TypedArrayKind::from_type(ty) => {
                     if kind.element_is_float() {
                         let getter = if matches!(kind, TypedArrayKind::Float64) {
@@ -1561,6 +2163,10 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                     ));
                 }
             },
+            ControlFlowOp::ArrayGetOptional { object, index } => format!(
+                "{}<v{}->len?lilscript_value_optional(((LilScriptValue*)v{}->data)[{}]):(LilScriptOptional){{false,{{0}}}}",
+                index, object.0, object.0, index
+            ),
             ControlFlowOp::FieldGet {
                 object,
                 owner,
@@ -1587,6 +2193,22 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                     })?,
                     instruction.span,
                 )?
+            }
+            ControlFlowOp::RecordFieldGet { object, property } => format!(
+                "lilscript_map_get(v{},(LilScriptValue){{.tag=4,.s=\"{property}\"}})",
+                object.0
+            ),
+            ControlFlowOp::RecordRest { object, excluded } => {
+                let keys = excluded
+                    .iter()
+                    .map(|key| format!("(LilScriptValue){{.tag=4,.s=\"{key}\"}}"))
+                    .collect::<Vec<_>>()
+                    .join(",");
+                format!(
+                    "lilscript_record_rest(v{},{},(LilScriptValue[]){{{keys}}})",
+                    object.0,
+                    excluded.len()
+                )
             }
             ControlFlowOp::Intrinsic {
                 intrinsic: Intrinsic::IntImul,
@@ -1685,6 +2307,194 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                 } else {
                     "lilscript_symbol(NULL)".to_string()
                 }
+            }
+            ControlFlowOp::Intrinsic {
+                intrinsic: intrinsic @ (Intrinsic::ArrayIndexOf | Intrinsic::ArrayIncludes),
+                receiver: Some(receiver),
+                args,
+            } => {
+                let needle = args.first().ok_or_else(|| {
+                    CodegenError::new(instruction.span, "array search requires a value")
+                })?;
+                let Some(Type::Array(element)) = types.get(receiver) else {
+                    return Err(CodegenError::new(
+                        instruction.span,
+                        "array search receiver has no array type",
+                    ));
+                };
+                let needle =
+                    self.render_collection_value(*needle, element, types, instruction.span)?;
+                let from = if matches!(intrinsic, Intrinsic::ArrayIncludes) {
+                    args.get(1)
+                        .map_or_else(|| "0".to_string(), |value| format!("v{}", value.0))
+                } else {
+                    "0".to_string()
+                };
+                let call = format!(
+                    "lilscript_array_find_value(v{},{needle},{from},{})",
+                    receiver.0,
+                    matches!(intrinsic, Intrinsic::ArrayIncludes)
+                );
+                if matches!(intrinsic, Intrinsic::ArrayIncludes) {
+                    format!("{call}>=0")
+                } else {
+                    call
+                }
+            }
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::ArrayJoin,
+                receiver: Some(receiver),
+                args,
+            } => {
+                let separator = args
+                    .first()
+                    .map_or_else(|| "\",\"".to_string(), |value| format!("v{}", value.0));
+                format!("lilscript_array_join(v{},{separator})", receiver.0)
+            }
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::ArrayConcat,
+                receiver: Some(receiver),
+                args,
+            } => {
+                let other = args.first().ok_or_else(|| {
+                    CodegenError::new(instruction.span, "array concat requires another array")
+                })?;
+                format!("lilscript_array_concat(v{},v{})", receiver.0, other.0)
+            }
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::ArrayCopyWithin,
+                receiver: Some(receiver),
+                args,
+            } => {
+                let [target, start, rest @ ..] = args.as_slice() else {
+                    return Err(CodegenError::new(
+                        instruction.span,
+                        "array copyWithin requires target and start",
+                    ));
+                };
+                if rest.len() > 1 {
+                    return Err(CodegenError::new(
+                        instruction.span,
+                        "array copyWithin accepts at most three arguments",
+                    ));
+                }
+                let end = rest
+                    .first()
+                    .map_or_else(|| "INT32_MAX".to_string(), |value| format!("v{}", value.0));
+                format!(
+                    "lilscript_array_copy_within(v{},v{},v{},{end})",
+                    receiver.0, target.0, start.0
+                )
+            }
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::ArrayReverse,
+                receiver: Some(receiver),
+                args,
+            } => {
+                if !args.is_empty() {
+                    return Err(CodegenError::new(
+                        instruction.span,
+                        "array reverse takes no arguments",
+                    ));
+                }
+                format!("lilscript_array_reverse(v{})", receiver.0)
+            }
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::TypedArraySet,
+                receiver: Some(receiver),
+                args,
+            } => {
+                let source = args.first().ok_or_else(|| {
+                    CodegenError::new(instruction.span, "typed-array set requires a source")
+                })?;
+                let kind = types
+                    .get(receiver)
+                    .and_then(TypedArrayKind::from_type)
+                    .ok_or_else(|| {
+                        CodegenError::new(instruction.span, "typed-array set has no view type")
+                    })?;
+                let offset = args
+                    .get(1)
+                    .map_or_else(|| "0".to_string(), |value| format!("v{}", value.0));
+                format!(
+                    "lilscript_ta_set(v{},v{},{offset},{})",
+                    receiver.0,
+                    source.0,
+                    kind.bytes_per_element()
+                )
+            }
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::TypedArrayFill,
+                receiver: Some(receiver),
+                args,
+            } => {
+                let value = args.first().ok_or_else(|| {
+                    CodegenError::new(instruction.span, "typed-array fill requires a value")
+                })?;
+                let kind = types
+                    .get(receiver)
+                    .and_then(TypedArrayKind::from_type)
+                    .ok_or_else(|| {
+                        CodegenError::new(instruction.span, "typed-array fill has no view type")
+                    })?;
+                let start = args
+                    .get(1)
+                    .map_or_else(|| "0".to_string(), |value| format!("v{}", value.0));
+                let end = args
+                    .get(2)
+                    .map_or_else(|| "INT32_MAX".to_string(), |value| format!("v{}", value.0));
+                if kind.element_is_float() {
+                    format!(
+                        "lilscript_ta_fill_f(v{},v{},{start},{end},{})",
+                        receiver.0,
+                        value.0,
+                        kind.native_kind_code()
+                    )
+                } else {
+                    format!(
+                        "lilscript_ta_fill_i(v{},v{},{start},{end},{})",
+                        receiver.0,
+                        value.0,
+                        kind.native_kind_code()
+                    )
+                }
+            }
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::TypedArrayCopyWithin,
+                receiver: Some(receiver),
+                args,
+            } => {
+                let [target, start, rest @ ..] = args.as_slice() else {
+                    return Err(CodegenError::new(
+                        instruction.span,
+                        "typed-array copyWithin requires target and start",
+                    ));
+                };
+                if rest.len() > 1 {
+                    return Err(CodegenError::new(
+                        instruction.span,
+                        "typed-array copyWithin accepts at most three arguments",
+                    ));
+                }
+                let kind = types
+                    .get(receiver)
+                    .and_then(TypedArrayKind::from_type)
+                    .ok_or_else(|| {
+                        CodegenError::new(
+                            instruction.span,
+                            "typed-array copyWithin has no view type",
+                        )
+                    })?;
+                let end = rest
+                    .first()
+                    .map_or_else(|| "INT32_MAX".to_string(), |value| format!("v{}", value.0));
+                format!(
+                    "lilscript_ta_copy_within(v{},v{},v{},{end},{})",
+                    receiver.0,
+                    target.0,
+                    start.0,
+                    kind.bytes_per_element()
+                )
             }
             ControlFlowOp::Intrinsic {
                 intrinsic: Intrinsic::MapSize | Intrinsic::SetSize,
@@ -1806,6 +2616,89 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                 receiver: Some(receiver),
                 ..
             } => format!("lilscript_map_clear(v{})", receiver.0),
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::RecordKeys,
+                args,
+                ..
+            } => {
+                let [record] = args.as_slice() else {
+                    return Err(CodegenError::new(
+                        instruction.span,
+                        "Object.keys requires one record",
+                    ));
+                };
+                format!("lilscript_record_keys(v{})", record.0)
+            }
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::RecordValues,
+                args,
+                ..
+            } => {
+                let [record] = args.as_slice() else {
+                    return Err(CodegenError::new(
+                        instruction.span,
+                        "Object.values requires one record",
+                    ));
+                };
+                format!("lilscript_record_values(v{})", record.0)
+            }
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::RecordHasOwn,
+                args,
+                ..
+            } => {
+                let [record, key] = args.as_slice() else {
+                    return Err(CodegenError::new(
+                        instruction.span,
+                        "Object.hasOwn requires a record and key",
+                    ));
+                };
+                let key = self.render_collection_value(
+                    *key,
+                    &Type::String,
+                    types,
+                    instruction.span,
+                )?;
+                format!("lilscript_map_has(v{},{key})", record.0)
+            }
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::RecordAssign,
+                args,
+                ..
+            } => {
+                let [target, source] = args.as_slice() else {
+                    return Err(CodegenError::new(
+                        instruction.span,
+                        "Object.assign requires two records",
+                    ));
+                };
+                format!("lilscript_record_assign(v{},v{})", target.0, source.0)
+            }
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::JsonStringify,
+                args,
+                ..
+            } => {
+                let [argument] = args.as_slice() else {
+                    return Err(CodegenError::new(
+                        instruction.span,
+                        "JSON.stringify requires one value",
+                    ));
+                };
+                match &types[argument] {
+                    Type::Array(_) => format!("lilscript_json_array(v{})", argument.0),
+                    Type::Record(_) => format!("lilscript_json_record(v{})", argument.0),
+                    ty => {
+                        let value = self.render_collection_value(
+                            *argument,
+                            ty,
+                            types,
+                            instruction.span,
+                        )?;
+                        format!("lilscript_json_value({value})")
+                    }
+                }
+            }
             ControlFlowOp::Intrinsic {
                 intrinsic:
                     intrinsic @ (Intrinsic::SetAdd | Intrinsic::SetHas | Intrinsic::SetDelete),
@@ -2030,6 +2923,40 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                 format!("lilscript_char_at(v{},v{})", receiver.0, index.0)
             }
             ControlFlowOp::Intrinsic {
+                intrinsic: intrinsic @ (Intrinsic::StringIndexOf | Intrinsic::StringLastIndexOf),
+                receiver: Some(receiver),
+                args,
+            } => {
+                let needle = args.first().ok_or_else(|| {
+                    CodegenError::new(instruction.span, "string search requires a needle")
+                })?;
+                let last = matches!(intrinsic, Intrinsic::StringLastIndexOf);
+                let position = args.get(1).map_or_else(
+                    || {
+                        if last {
+                            "INT32_MAX".to_string()
+                        } else {
+                            "0".to_string()
+                        }
+                    },
+                    |value| format!("v{}", value.0),
+                );
+                format!(
+                    "lilscript_string_index(v{},v{},{position},{last})",
+                    receiver.0, needle.0
+                )
+            }
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::StringRepeat,
+                receiver: Some(receiver),
+                args,
+            } => {
+                let count = args.first().ok_or_else(|| {
+                    CodegenError::new(instruction.span, "string repeat requires a count")
+                })?;
+                format!("lilscript_repeat(v{},v{})", receiver.0, count.0)
+            }
+            ControlFlowOp::Intrinsic {
                 intrinsic:
                     intrinsic @ (Intrinsic::StringIncludes
                     | Intrinsic::StringStartsWith
@@ -2062,10 +2989,18 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                 receiver.0,
                 matches!(intrinsic, Intrinsic::StringToUpperCase)
             ),
+            // CaptureLocal is consumed by closure-environment construction.
+            // Its nominal SSA output still has the binding's value type, so
+            // materialize the current value for any analysis/debug use rather
+            // than assigning a cell pointer into that scalar slot.
+            ControlFlowOp::CaptureLocal(local) => format!("*l{}", local.0),
+            ControlFlowOp::LoadLocal(local) if owner.mutable_capture_locals.contains(local) => {
+                format!("*l{}", local.0)
+            }
             ControlFlowOp::StoreLocal { .. } | ControlFlowOp::LoadLocal(_) => {
                 return Err(CodegenError::new(
                     instruction.span,
-                    "native backend received locals before SSA promotion",
+                    "native backend received ordinary locals before SSA promotion",
                 ));
             }
             _ => {
@@ -2243,12 +3178,13 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
         }
         if is_erased_type(to) {
             let member = match from {
-                Type::Int => "i",
+                Type::Int | Type::Enum(_) => "i",
                 Type::Float => "f",
                 Type::Bool => "b",
                 Type::String => "s",
                 Type::Function(_) | Type::GenericFunction(_) => "c",
                 Type::Array(_)
+                | Type::Record(_)
                 | Type::Map(_, _)
                 | Type::Set(_)
                 | Type::ArrayBuffer
@@ -2263,9 +3199,11 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                 | Type::Float32Array
                 | Type::Float64Array
                 | Type::Symbol
+                | Type::Regex
                 | Type::Class(_)
                 | Type::ClassInstance { .. }
                 | Type::Task(_)
+                | Type::Generator(_)
                 | Type::ModuleNamespace(_)
                 | Type::ModuleLoadError => "p",
                 Type::Struct(_) | Type::StructInstance { .. } => {
@@ -2296,12 +3234,13 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
         }
         if is_erased_type(from) {
             return Ok(match to {
-                Type::Int => format!("({expression}).i"),
+                Type::Int | Type::Enum(_) => format!("({expression}).i"),
                 Type::Float => format!("({expression}).f"),
                 Type::Bool => format!("({expression}).b"),
                 Type::String => format!("({expression}).s"),
                 Type::Function(_) | Type::GenericFunction(_) => format!("({expression}).c"),
                 Type::Array(_)
+                | Type::Record(_)
                 | Type::Map(_, _)
                 | Type::Set(_)
                 | Type::ArrayBuffer
@@ -2316,9 +3255,11 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                 | Type::Float32Array
                 | Type::Float64Array
                 | Type::Symbol
+                | Type::Regex
                 | Type::Class(_)
                 | Type::ClassInstance { .. }
                 | Type::Task(_)
+                | Type::Generator(_)
                 | Type::ModuleNamespace(_)
                 | Type::ModuleLoadError => {
                     format!("({})({expression}).p", c_type(to))
@@ -2650,6 +3591,8 @@ impl<'module, 'src> NativeEmitter<'module, 'src> {
                 }
                 out.push_str("return;");
             }
+            Terminator::Throw(_) => out.push_str("abort();"),
+            Terminator::Try { .. } => out.push_str("abort();"),
             Terminator::Unreachable => out.push_str("abort();"),
         }
         Ok(())
@@ -2721,6 +3664,7 @@ fn contains_js_value(ty: &Type<'_>) -> bool {
     match ty {
         Type::TypeParameter("$js") => true,
         Type::Array(element)
+        | Type::Record(element)
         | Type::Set(element)
         | Type::Task(element)
         | Type::Nullable(element) => contains_js_value(element),
@@ -2741,6 +3685,55 @@ fn contains_js_value(ty: &Type<'_>) -> bool {
     }
 }
 
+fn contains_generator(ty: &Type<'_>) -> bool {
+    match ty {
+        Type::Generator(_) => true,
+        Type::Array(element)
+        | Type::Record(element)
+        | Type::Set(element)
+        | Type::Task(element)
+        | Type::Nullable(element) => contains_generator(element),
+        Type::Map(key, value) => contains_generator(key) || contains_generator(value),
+        Type::Union(members) => members.iter().any(contains_generator),
+        Type::StructInstance { args, .. } | Type::ClassInstance { args, .. } => {
+            args.iter().any(contains_generator)
+        }
+        Type::Function(signature) => {
+            signature.params.iter().any(contains_generator)
+                || contains_generator(&signature.return_type)
+        }
+        Type::GenericFunction(function) => {
+            function.signature.params.iter().any(contains_generator)
+                || contains_generator(&function.signature.return_type)
+        }
+        _ => false,
+    }
+}
+
+fn contains_regex(ty: &Type<'_>) -> bool {
+    match ty {
+        Type::Regex => true,
+        Type::Array(element)
+        | Type::Record(element)
+        | Type::Set(element)
+        | Type::Task(element)
+        | Type::Nullable(element) => contains_regex(element),
+        Type::Map(key, value) => contains_regex(key) || contains_regex(value),
+        Type::Union(members) => members.iter().any(contains_regex),
+        Type::StructInstance { args, .. } | Type::ClassInstance { args, .. } => {
+            args.iter().any(contains_regex)
+        }
+        Type::Function(signature) => {
+            signature.params.iter().any(contains_regex) || contains_regex(&signature.return_type)
+        }
+        Type::GenericFunction(function) => {
+            function.signature.params.iter().any(contains_regex)
+                || contains_regex(&function.signature.return_type)
+        }
+        _ => false,
+    }
+}
+
 fn allocation_is_function_bounded(
     module: &ControlFlowModule<'_>,
     function: &ControlFlowFunction<'_>,
@@ -2754,8 +3747,11 @@ fn allocation_is_function_bounded(
         {
             return false;
         }
-        if matches!(block.terminator, Some(Terminator::Return(Some(returned))) if returned == value)
-        {
+        if matches!(
+            block.terminator,
+            Some(Terminator::Return(Some(returned)) | Terminator::Throw(returned))
+                if returned == value
+        ) {
             return false;
         }
         for instruction in &block.instructions {
@@ -2765,6 +3761,15 @@ fn allocation_is_function_bounded(
                 ControlFlowOp::Array(values) | ControlFlowOp::Struct { fields: values, .. } => {
                     values.contains(&value)
                 }
+                ControlFlowOp::Record(entries) => {
+                    entries.iter().any(|(_, stored)| *stored == value)
+                }
+                ControlFlowOp::ArraySpread(operands) => operands.iter().any(|operand| {
+                    matches!(operand, ArrayOperand::Value(stored) | ArrayOperand::Spread(stored) if *stored == value)
+                }),
+                ControlFlowOp::RecordSpread(operands) => operands.iter().any(|operand| {
+                    matches!(operand, RecordOperand::Entry(_, stored) | RecordOperand::Spread(stored) if *stored == value)
+                }),
                 ControlFlowOp::NewClass { args, .. } => args.contains(&value),
                 ControlFlowOp::Closure { captures, .. } => captures.contains(&value),
                 ControlFlowOp::FieldSet {
@@ -2776,13 +3781,18 @@ fn allocation_is_function_bounded(
                     object,
                     value: stored,
                     ..
+                }
+                | ControlFlowOp::RecordFieldSet {
+                    object,
+                    value: stored,
+                    ..
                 } => *stored == value && *object != value,
                 ControlFlowOp::IndexSet {
                     object,
                     index,
                     value: stored,
                 } => (*stored == value && *object != value) || *index == value,
-                ControlFlowOp::CallDirect { function, args } => {
+                ControlFlowOp::CallDirect { function, args, .. } => {
                     direct_call_retains_value(module, *function, args, value)
                 }
                 ControlFlowOp::CallMethod {
@@ -2844,7 +3854,17 @@ fn intrinsic_retains_receiver(operation: &ControlFlowOp<'_>) -> bool {
     match operation {
         ControlFlowOp::Intrinsic {
             intrinsic:
-                Intrinsic::ArrayPush | Intrinsic::MapSet | Intrinsic::SetAdd | Intrinsic::BufferSlice,
+                Intrinsic::ArrayPush
+                | Intrinsic::ArrayFill
+                | Intrinsic::ArrayCopyWithin
+                | Intrinsic::ArrayReverse
+                | Intrinsic::TypedArrayFill
+                | Intrinsic::TypedArrayCopyWithin
+                | Intrinsic::MapSet
+                | Intrinsic::SetAdd
+                | Intrinsic::BufferSlice
+                | Intrinsic::UnwrapNullable
+                | Intrinsic::UnwrapUnion,
             ..
         } => true,
         ControlFlowOp::Intrinsic { intrinsic, .. } => matches!(
@@ -2913,8 +3933,20 @@ fn closure_signature<'a, 'src>(
     }
 }
 
+fn capture_local_source(function: &ControlFlowFunction<'_>, value: ValueId) -> Option<LocalId> {
+    function
+        .blocks
+        .iter()
+        .flat_map(|block| &block.instructions)
+        .find_map(|instruction| (instruction.out == Some(value)).then_some(&instruction.op))
+        .and_then(|operation| match operation {
+            ControlFlowOp::CaptureLocal(local) => Some(*local),
+            _ => None,
+        })
+}
+
 fn value_types<'src>(function: &ControlFlowFunction<'src>) -> AHashMap<ValueId, Type<'src>> {
-    let mut types = AHashMap::new();
+    let mut types = AHashMap::default();
     for param in &function.params {
         types.insert(param.value, param.ty.clone());
     }
@@ -2964,21 +3996,24 @@ fn render_native_equality(
 
 fn generic_value_tag(ty: &Type<'_>) -> u8 {
     match ty {
-        Type::Int => 1,
+        Type::Int | Type::Enum(_) => 1,
         Type::Float => 2,
         Type::Bool => 3,
         Type::String => 4,
         Type::Function(_) | Type::GenericFunction(_) => 5,
         Type::Array(_)
+        | Type::Record(_)
         | Type::Map(_, _)
         | Type::Set(_)
         | Type::ArrayBuffer
         | Type::SharedArrayBuffer
         | Type::Task(_)
+        | Type::Generator(_)
         | Type::ModuleNamespace(_)
         | Type::ModuleLoadError
         | Type::Class(_)
         | Type::ClassInstance { .. } => 6,
+        Type::Regex => 6,
         Type::Symbol => 9,
         Type::Struct(_) | Type::StructInstance { .. } | Type::Null | Type::Nullable(_) => 7,
         Type::TypeParameter(_) | Type::Union(_) | Type::Void => 0,
@@ -3001,12 +4036,13 @@ fn c_type(ty: &Type<'_>) -> String {
         return kind.native_ctype_alias().to_string();
     }
     match ty {
-        Type::Int => "int32_t".to_string(),
+        Type::Int | Type::Enum(_) => "int32_t".to_string(),
         Type::Float => "double".to_string(),
         Type::Bool => "bool".to_string(),
         Type::String => "const char*".to_string(),
         Type::Null | Type::Nullable(_) => "LilScriptOptional".to_string(),
         Type::Array(_) => "LilScriptArray".to_string(),
+        Type::Record(_) => "LilScriptMap".to_string(),
         Type::Map(_, _) => "LilScriptMap".to_string(),
         Type::Set(_) => "LilScriptSet".to_string(),
         Type::ArrayBuffer | Type::SharedArrayBuffer => "LilScriptBuffer".to_string(),
@@ -3020,13 +4056,16 @@ fn c_type(ty: &Type<'_>) -> String {
         | Type::Float32Array
         | Type::Float64Array => unreachable!("typed arrays handled above"),
         Type::Symbol => "LilScriptSymbol".to_string(),
+        Type::Regex => "void*".to_string(),
         Type::Struct(name) => aggregate_type_name("Struct", name),
         Type::Class(name) => aggregate_type_name("Class", name),
         Type::StructInstance { name, .. } => aggregate_type_name("Struct", name),
         Type::ClassInstance { name, .. } => aggregate_type_name("Class", name),
         Type::TypeParameter(_) | Type::Union(_) => "LilScriptValue".to_string(),
         Type::Function(_) | Type::GenericFunction(_) => "LilScriptClosure".to_string(),
-        Type::Task(_) | Type::ModuleNamespace(_) | Type::ModuleLoadError => "void*".to_string(),
+        Type::Task(_) | Type::Generator(_) | Type::ModuleNamespace(_) | Type::ModuleLoadError => {
+            "void*".to_string()
+        }
         Type::Void => "void".to_string(),
     }
 }
@@ -3053,12 +4092,13 @@ fn native_default_value(ty: &Type<'_>) -> Result<String, CodegenError> {
         ));
     }
     Ok(match ty {
-        Type::Int => "(int32_t)0".to_string(),
+        Type::Int | Type::Enum(_) => "(int32_t)0".to_string(),
         Type::Float => "0.0".to_string(),
         Type::Bool => "false".to_string(),
         Type::String => "\"\"".to_string(),
         Type::Null | Type::Nullable(_) => "(LilScriptOptional){false,{0}}".to_string(),
         Type::Array(_) => "lilscript_array(0,sizeof(LilScriptValue))".to_string(),
+        Type::Record(_) => "lilscript_map()".to_string(),
         Type::Map(_, _) => "lilscript_map()".to_string(),
         Type::Set(_) => "lilscript_set()".to_string(),
         Type::ArrayBuffer => "lilscript_buffer(0,false)".to_string(),
@@ -3073,11 +4113,14 @@ fn native_default_value(ty: &Type<'_>) -> Result<String, CodegenError> {
         | Type::Float32Array
         | Type::Float64Array => unreachable!("typed arrays handled above"),
         Type::Symbol => "lilscript_symbol(NULL)".to_string(),
+        Type::Regex => "NULL".to_string(),
         Type::Struct(_) | Type::StructInstance { .. } => format!("({}){{0}}", c_type(ty)),
         Type::Class(_) | Type::ClassInstance { .. } => "NULL".to_string(),
         Type::TypeParameter(_) => "(LilScriptValue){0}".to_string(),
         Type::Function(_) | Type::GenericFunction(_) => "(LilScriptClosure){0}".to_string(),
-        Type::Task(_) | Type::ModuleNamespace(_) | Type::ModuleLoadError => "NULL".to_string(),
+        Type::Task(_) | Type::Generator(_) | Type::ModuleNamespace(_) | Type::ModuleLoadError => {
+            "NULL".to_string()
+        }
         Type::Union(members) => {
             let member = members.first().ok_or_else(|| {
                 CodegenError::new(Span::empty(0), "union has no native member type")
@@ -3141,6 +4184,201 @@ mod tests {
 
     use super::*;
     use crate::parse_source;
+
+    #[test]
+    fn emits_enums_as_int32_without_runtime_metadata() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "enum Status{Draft,Active,Sold}Status active(){return Status.Active;}int code(Status value){return match(value){Status.Draft=>10,Status.Active=>20,Status.Sold=>30};}print(code(active()));",
+        )
+        .unwrap();
+        let c = compile_to_c(&program).unwrap();
+        assert!(!c.contains("Draft"), "{c}");
+        assert!(!c.contains("Active"), "{c}");
+        assert!(!c.contains("Sold"), "{c}");
+        assert!(c.contains("int32_t"), "{c}");
+    }
+
+    #[test]
+    fn emits_structural_records_through_the_native_map_runtime() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "Record<int> values=record{alpha:1};values.beta=3;print(values.alpha??0);print(values[\"beta\"]??0);",
+        )
+        .unwrap();
+        let c = compile_to_c(&program).unwrap();
+        assert!(c.contains("lilscript_record("), "{c}");
+        assert!(c.contains("lilscript_map_set("), "{c}");
+        assert!(c.contains("lilscript_map_get("), "{c}");
+    }
+
+    #[test]
+    fn emits_portable_record_object_and_json_runtime_calls() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "Record<int> values=record{alpha:1};string[] keys=Object.keys(values);int[] entries=Object.values(values);print(keys.length);print(entries.length);print(Object.hasOwn(values,\"alpha\"));Object.assign(values,record{beta:2});print(JSON.stringify(values));",
+        )
+        .unwrap();
+        let c = compile_to_c(&program).unwrap();
+        assert!(c.contains("lilscript_record_keys(v"), "{c}");
+        assert!(c.contains("lilscript_record_values(v"), "{c}");
+        assert!(c.contains("lilscript_record_assign(v"), "{c}");
+        assert!(c.contains("lilscript_json_record(v"), "{c}");
+    }
+
+    #[test]
+    fn rejects_json_parse_for_native_targets() {
+        let arena = Bump::new();
+        let program = parse_source(&arena, "JSON.parse(\"null\");").unwrap();
+        let error = compile_to_c(&program).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("only available for JavaScript targets"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn rejects_first_class_javascript_abi_for_native_targets() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "JsValue value=JS.object();JS.set(value,\"x\",1);JS.number(value);JS.strictEqual(value,0);JS.or(value,JS.undefined());JS.invoke(value,\"run\");",
+        )
+        .unwrap();
+        let error = compile_to_c(&program).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("only available for JavaScript targets"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn rejects_typed_javascript_adapters_for_native_targets() {
+        let arena = Bump::new();
+        let program =
+            parse_source(&arena, "JsValue wrapped=JS.method0((JsValue self)=>self);").unwrap();
+        let error = compile_to_c(&program).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("only available for JavaScript targets"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn rejects_regex_for_native_targets_without_approximating_ecmascript() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "Regex pattern=new Regex(\"sale\",\"i\");print(pattern.test(\"SALE\"));",
+        )
+        .unwrap();
+        let error = compile_to_c(&program).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("Regex is only available for JavaScript targets"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn rejects_exceptions_for_native_targets() {
+        let arena = Bump::new();
+        let program = parse_source(&arena, "try{throw \"bad\";}catch{}").unwrap();
+        let error = compile_to_c(&program).unwrap_err();
+        assert!(
+            error.to_string().contains("exceptions are only available"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn rejects_generators_and_inheritance_until_native_abis_are_exact() {
+        let arena = Bump::new();
+        let generator = parse_source(
+            &arena,
+            "generator int values(){yield 1;}for(int value of values()){print(value);}",
+        )
+        .unwrap();
+        let error = compile_to_c(&generator).unwrap_err();
+        assert!(
+            error.to_string().contains("generators and yield"),
+            "{error}"
+        );
+
+        let arena = Bump::new();
+        let inherited = parse_source(
+            &arena,
+            "class Base{}class Child extends Base{}Child child=new Child();",
+        )
+        .unwrap();
+        let error = compile_to_c(&inherited).unwrap_err();
+        assert!(error.to_string().contains("native subtype ABI"), "{error}");
+
+        let arena = Bump::new();
+        let imported_generator =
+            parse_source(&arena, "extern Generator<int> values();values();").unwrap();
+        let error = compile_to_c(&imported_generator).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("Generator<T> values are only available"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn emits_native_indexed_for_of_loops() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "int[] values=[1,2];int total=0;for(int value of values){total+=value;}print(total);",
+        )
+        .unwrap();
+        let c = compile_to_c(&program).unwrap();
+        assert!(c.contains("->len"), "{c}");
+        assert!(c.contains("->data"), "{c}");
+    }
+
+    #[test]
+    fn emits_native_shallow_spread_runtime_calls() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "int[] base=[1,2];int[] values=[0,...base,3];Record<int> source=record{a:1};Record<int> merged=record{...source,b:2};print(values.length);print(merged.b??0);",
+        )
+        .unwrap();
+        let c = compile_to_c(&program).unwrap();
+        assert!(c.contains("lilscript_array_spread(3"), "{c}");
+        assert!(c.contains("lilscript_record_spread(2"), "{c}");
+    }
+
+    #[test]
+    fn emits_native_bounds_checked_destructuring_and_copied_rest() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "int[] values=[1];auto [first,,third,...rest]=values;print(first??0);print(third??0);print(rest.length);Record<int> source=record{a:1,b:2};auto {a,...remaining}=source;print(a??0);print(JSON.stringify(remaining));",
+        )
+        .unwrap();
+        let c = compile_to_c(&program).unwrap();
+        assert!(
+            c.contains("<v") && c.contains("->len?lilscript_value_optional"),
+            "{c}"
+        );
+        assert!(c.contains("lilscript_array_slice"), "{c}");
+        assert!(c.contains("lilscript_map_get"), "{c}");
+        assert!(c.contains("lilscript_record_rest"), "{c}");
+    }
 
     #[test]
     fn emits_c_from_optimized_ssa() {
@@ -3212,6 +4450,59 @@ mod tests {
     }
 
     #[test]
+    fn retained_and_thrown_allocations_are_not_function_bounded() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "class Box{int value;init(int value){this.value=value;}}Record<Box> direct(){return record{item:new Box(1)};}Record<Box> spreadEntry(Record<Box> base){return record{...base,item:new Box(2)};}Record<Box> setEntry(){Record<Box> result=record{};Box box=new Box(3);result.item=box;return result;}Box[] spreadArray(Box[] tail){return [new Box(4),...tail];}int[] spreadSource(){int[] source=[1,2];return [...source];}Box unwrap(){Box? maybe=new Box(5);if(maybe!=null){return maybe;}return new Box(6);}void fail(){throw new Box(7);}",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut module = lower_to_control_flow(&program, &semantics).unwrap();
+        crate::optimizer::promote_locals_to_ssa(&mut module).unwrap();
+
+        for (name, expected_allocations) in [
+            ("direct", 1),
+            ("spreadEntry", 1),
+            ("setEntry", 1),
+            ("spreadArray", 1),
+            ("spreadSource", 1),
+            ("unwrap", 2),
+            ("fail", 1),
+        ] {
+            let function = module
+                .functions
+                .iter()
+                .find(|function| function.name == Some(name))
+                .expect("fixture function");
+            let allocations = function
+                .blocks
+                .iter()
+                .flat_map(|block| &block.instructions)
+                .filter_map(|instruction| {
+                    matches!(
+                        instruction.op,
+                        ControlFlowOp::Array(_) | ControlFlowOp::NewClass { .. }
+                    )
+                    .then_some(instruction.out)
+                    .flatten()
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(
+                allocations.len(),
+                expected_allocations,
+                "{name}: {function:#?}"
+            );
+            for allocation in allocations {
+                assert!(
+                    !allocation_is_function_bounded(&module, function, allocation),
+                    "{name} retained allocation {allocation:?} was classified function-bounded"
+                );
+            }
+        }
+    }
+
+    #[test]
     fn stack_allocates_fixed_local_arrays_and_keeps_resizable_arrays_on_heap() {
         let arena = Bump::new();
         let fixed =
@@ -3239,6 +4530,95 @@ mod tests {
         .unwrap();
         let aliased_c = compile_to_c(&aliased).unwrap();
         assert!(aliased_c.contains("=lilscript_array(0"), "{aliased_c}");
+    }
+
+    #[test]
+    fn emits_in_place_array_fill_for_native_targets() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "int[] values=[1,2,3];int[] alias=values.fill(7);print(alias[1]);",
+        )
+        .unwrap();
+        let c = compile_to_c(&program).unwrap();
+
+        assert!(c.contains("for(size_t i=0;i<"), "{c}");
+        assert!(c.contains("LilScriptValue f="), "{c}");
+    }
+
+    #[test]
+    fn emits_native_collection_search_join_and_typed_bulk_operations() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "int[] values=[1,2,3];print(values.includes(2));print(values.join(\"-\"));print(values.some((int value)=>value>2));print(values.every((int value)=>value>0));print(values.findIndex((int value)=>value==2));int[] combined=values.concat([4]);values.copyWithin(1,0,2).reverse();print(combined.length);Uint8Array a=new Uint8Array(4);Uint8Array b=new Uint8Array(2);a.fill(7);a.set(b,1);a.copyWithin(2,0,2);print(a[3]);",
+        )
+        .unwrap();
+        let c = compile_to_c(&program).unwrap();
+
+        assert!(c.contains("lilscript_array_find_value("), "{c}");
+        assert!(c.contains("lilscript_array_join("), "{c}");
+        assert!(c.contains("=false;{int32_t n="), "{c}");
+        assert!(c.contains("=true;{int32_t n="), "{c}");
+        assert!(c.contains("=-1;{int32_t n="), "{c}");
+        assert!(c.contains("lilscript_array_concat("), "{c}");
+        assert!(c.contains("lilscript_array_copy_within("), "{c}");
+        assert!(c.contains("lilscript_array_reverse("), "{c}");
+        assert!(c.contains("lilscript_ta_fill_i("), "{c}");
+        assert!(c.contains("lilscript_ta_set("), "{c}");
+        assert!(c.contains("lilscript_ta_copy_within("), "{c}");
+    }
+
+    #[test]
+    fn emits_native_utf16_string_search_and_repeat_operations() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "string value=\"a😀b😀\";print(value.indexOf(\"😀\",2));print(value.lastIndexOf(\"😀\"));print(value.repeat(2));",
+        )
+        .unwrap();
+        let c = compile_to_c(&program).unwrap();
+
+        assert!(c.contains("lilscript_string_index("), "{c}");
+        assert!(c.contains("lilscript_repeat("), "{c}");
+    }
+
+    #[test]
+    fn emits_native_lazy_nullish_control_flow() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "string fallback(){return \"fallback\";}string choose(string? value){return value??fallback();}print(choose(null));",
+        )
+        .unwrap();
+        let c = compile_to_c(&program).unwrap();
+
+        assert!(c.contains(".has"), "{c}");
+        assert!(c.contains("fallback"), "{c}");
+    }
+
+    #[test]
+    fn emits_native_optional_access_control_flow() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "int[]? values=null;print(values?.length??-1);print(values?.[0]??-1);",
+        )
+        .unwrap();
+        let c = compile_to_c(&program).unwrap();
+        assert!(c.contains("LilScriptOptional"), "{c}");
+    }
+
+    #[test]
+    fn lowers_number_alias_to_native_binary64() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "number step(number value){return value*3+1;}print(step(4));",
+        )
+        .unwrap();
+        let c = compile_to_c(&program).unwrap();
+        assert!(c.contains("double"), "{c}");
     }
 
     #[test]

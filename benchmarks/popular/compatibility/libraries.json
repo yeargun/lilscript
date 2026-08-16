@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "measuredAt": "2026-08-08",
   "downloadWindow": "last-month",
-  "eligibilityRule": "Every documented runtime export in the explicitly selected published entrypoint is implemented over the same JavaScript input domain and with the same algorithmic work; upstream-derived assertions, dense differential vectors, and identical app contracts pass; every adapter byte is measured; the LilScript Vite 8 artifact is no larger than either npm Vite 8 or public-API-preserving Closure ADVANCED in raw bytes or the explicitly selected transport codec; and representative throughput and retained-memory workloads show no material regression. Alternate gzip-9 and Brotli-11 sizes are always reported because optimizing one codec is not a promise about another. Partial, adapter-algorithm, and subset implementations are implementation backlog only and are not published as library comparisons. C/native checks are additional portability evidence where the selected API can be represented natively, not a substitute for JavaScript compatibility.",
+  "eligibilityRule": "Every documented runtime export in the explicitly selected published entrypoint is implemented over the same JavaScript input domain and with the same algorithmic work; upstream-derived assertions, dense differential vectors, and identical app contracts pass; every adapter byte is measured; the LilScript Vite 8 artifact is no larger than either npm Vite 8 or public-API-preserving Closure ADVANCED in the explicitly selected transport codec; and representative throughput and retained-memory workloads show no material regression. Raw and alternate-codec sizes are diagnostics and may lose because optimizing one objective is not a promise about another. Partial, adapter-algorithm, and subset implementations are implementation backlog only and are not published as library comparisons. C/native checks are additional portability evidence where the selected API can be represented natively, not a substitute for JavaScript compatibility.",
   "targets": [
     {
       "id": "nanoid",
@@ -210,7 +210,7 @@
         "1.9.13"
       ],
       "status": "partial-external",
-      "notes": "Measured in lilscript-solid-lab and not a complete Solid replacement. The publisher refreshes app, identical-JSX, used-core, runtime, and retained-memory evidence directly from that lab's current reports."
+      "notes": "Archived sibling-worktree LSX application snapshot. Parsing, lowering, and the Vite transform are integrated, but the todolist and its gates are not reproducible from the monorepo lab yet. This is not a complete Solid replacement."
     },
     {
       "id": "redux-toolkit",
@@ -372,6 +372,34 @@
               "setUseStrictShallowCopy"
             ]
           }
+        ]
+      }
+    },
+    {
+      "id": "motion",
+      "packages": [
+        "motion"
+      ],
+      "versions": [
+        "13.0.0"
+      ],
+      "status": "candidate-selected-surface",
+      "publicRuntimeApi": [
+        "mix",
+        "wrap",
+        "stagger",
+        "spring"
+      ],
+      "entrypoint": "motion",
+      "notes": "Selected Motion 13 surface used by the popular app contract: mix, wrap, stagger, spring (same algorithms as npm motion@13). Openable DOM fixtures live under /motion-lab/ (lilastro browser lab). Full DOM package completeness and React entrypoints remain out of scope; this row is not an exact-entrypoint eligibility win.",
+      "runtimeAudit": {
+        "auditedAt": "2026-08-11",
+        "installedVersion": "13.0.0",
+        "selectedSubsetPaths": [
+          "mix",
+          "wrap",
+          "stagger",
+          "spring"
         ]
       }
     },

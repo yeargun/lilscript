@@ -1,0 +1,5 @@
+# Record, Object, and JSON benchmark
+
+This benchmark compares the portable `Record<T>`/`Object`/`JSON.stringify` primitives with a fixed-schema LilScript control that performs the same observable work explicitly. The intrinsic version supports arbitrary keys at runtime; the control deliberately assumes the six benchmark keys, so it is a conservative size comparison rather than a weaker straw-man implementation.
+
+`run.mjs` compiles both variants under independent gzip- and Brotli-selected production configurations, checks JavaScript and native output parity, and requires a compressed-size win for the intrinsic version under both selected codecs. Runtime and retained heap are sampled eleven times against `reference.js`, a direct JavaScript implementation using the same dynamic primitives; this separates the honest fixed-schema size control from the capability-equivalent performance control. The benchmark fails on output mismatch, a runtime regression over 10%, or a retained-memory regression over the configured noise allowance.

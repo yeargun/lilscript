@@ -1,0 +1,71 @@
+import { observeTimeline } from "../../../../motion-dom/scroll/observe";
+import {
+  callFn0,
+  callMethod0,
+  callMethod1,
+  getProp,
+  isFunction,
+  setProp
+} from "../../../../motion-dom/dom-host";
+import { getTimeline } from "./utils/get-timeline";
+import { canUseNativeTimeline } from "./utils/can-use-native-timeline";
+import { offsetToViewTimelineRange, ViewTimelineRange } from "./utils/offset-to-range";
+
+export func()->void attachToAnimation(JsValue animation, JsValue options) {
+  JsValue timeline = getTimeline(options);
+  ViewTimelineRange? range = null;
+  JsValue target = options["target"];
+  if (target.truthy()) {
+    range = offsetToViewTimelineRange(options["offset"]);
+  }
+
+  bool useNative = false;
+  if (target.truthy()) {
+    useNative = canUseNativeTimeline(target) && range != null;
+  } else {
+    useNative = canUseNativeTimeline();
+  }
+
+  JsValue timelineOptions = record{};
+  if (useNative) {
+    timelineOptions["timeline"] = timeline;
+    if (range != null) {
+      timelineOptions["rangeStart"] = range.rangeStart;
+      timelineOptions["rangeEnd"] = range.rangeEnd;
+    }
+  } else {
+    timelineOptions["timeline"] = null;
+  }
+
+  timelineOptions["observe"] = (JsValue valueAnimation) => {
+    JsValue pause = getProp(valueAnimation, "pause");
+    if (isFunction(pause)) {
+      callMethod0(valueAnimation, "pause");
+    }
+    return observeTimeline((float progress) => {
+      JsValue iterationDuration = getProp(valueAnimation, "iterationDuration");
+      float duration = 0.0;
+      if (iterationDuration is float) {
+        duration = iterationDuration;
+      }
+      float nextTime = duration * progress;
+      JsValue setter = getProp(valueAnimation, "setPlaybackTime");
+      if (isFunction(setter)) {
+        callMethod1(valueAnimation, "setPlaybackTime", nextTime);
+      } else {
+        setProp(valueAnimation, "time", nextTime);
+      }
+    }, timeline);
+  };
+
+  JsValue attach = getProp(animation, "attachTimeline");
+  if (isFunction(attach)) {
+    JsValue cancel = callMethod1(animation, "attachTimeline", timelineOptions);
+    if (isFunction(cancel)) {
+      return () => {
+        callFn0(cancel);
+      };
+    }
+  }
+  return () => {};
+}

@@ -1,0 +1,962 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>SolidLil vs Solid — size, CPU, memory</title>
+    <style>
+      :root {
+        --ink: #eef4ec;
+        --muted: #aab6aa;
+        --faint: #6f7d72;
+        --bg: #08100d;
+        --panel: #101a16;
+        --line: #2a3a31;
+        --lime: #bef264;
+        --mint: #5eead4;
+        --amber: #fbbf24;
+        --rose: #fb7185;
+        --blue: #7dd3fc;
+        --win: #86efac;
+        --lose: #fda4af;
+        --radius: 16px;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      * { box-sizing: border-box; }
+      html { background: var(--bg); scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        color: var(--ink);
+        background: var(--bg);
+        line-height: 1.5;
+      }
+      a { color: var(--mint); }
+      code, .mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      .shell { width: min(1240px, calc(100% - 32px)); margin: 0 auto; }
+      nav.toc {
+        position: sticky;
+        top: 0;
+        z-index: 4;
+        border-bottom: 1px solid var(--line);
+        background: rgba(8, 16, 13, .92);
+        backdrop-filter: blur(10px);
+      }
+      nav.toc .shell {
+        display: flex;
+        gap: 18px;
+        overflow-x: auto;
+        padding: 12px 0;
+        font-size: 12px;
+      }
+      nav.toc a { color: var(--muted); text-decoration: none; white-space: nowrap; }
+      nav.toc a:hover { color: var(--ink); }
+      .hero { padding: 56px 0 28px; }
+      .eyebrow {
+        margin: 0 0 12px;
+        color: var(--lime);
+        font: 700 12px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+        letter-spacing: .16em;
+        text-transform: uppercase;
+      }
+      h1 {
+        margin: 0;
+        max-width: 18ch;
+        font-size: clamp(36px, 6vw, 64px);
+        line-height: .95;
+        letter-spacing: -.05em;
+      }
+      .lede { max-width: 720px; margin: 20px 0 0; color: var(--muted); font-size: 17px; }
+      .pills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
+      .pill {
+        padding: 6px 10px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        margin: 28px 0 36px;
+      }
+      .stat {
+        min-height: 132px;
+        padding: 18px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--panel);
+      }
+      .stat.primary { border-color: rgba(190, 242, 100, .4); }
+      .stat span {
+        color: var(--muted);
+        font-size: 11px;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+      }
+      .stat strong {
+        display: block;
+        margin-top: 10px;
+        font-size: clamp(26px, 3.4vw, 40px);
+        letter-spacing: -.04em;
+        line-height: 1;
+      }
+      .stat.primary strong { color: var(--lime); }
+      .stat small { display: block; margin-top: 10px; color: var(--faint); font-size: 12px; }
+      .panel {
+        margin: 0 0 22px;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: var(--panel);
+      }
+      .panel-head { padding: 22px 24px 16px; border-bottom: 1px solid var(--line); }
+      .panel-head h2 { margin: 0; font-size: 22px; letter-spacing: -.03em; }
+      .panel-head p { max-width: 820px; margin: 8px 0 0; color: var(--muted); }
+      .pad { padding: 8px 24px 22px; }
+      .races {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin: 0 0 22px;
+      }
+      .race {
+        padding: 20px 22px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--panel);
+      }
+      .race h3 { margin: 0 0 8px; font-size: 16px; }
+      .race p { margin: 0; color: var(--muted); font-size: 14px; }
+      .warn {
+        margin: 0 0 22px;
+        padding: 14px 16px;
+        border-left: 3px solid var(--amber);
+        background: rgba(251, 191, 36, .06);
+        color: #d8d2b8;
+      }
+      .tabs { display: flex; gap: 8px; padding: 14px 24px 0; }
+      .tabs button {
+        padding: 7px 11px;
+        color: var(--muted);
+        background: #0c1511;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        font: inherit;
+        font-size: 12px;
+        cursor: pointer;
+      }
+      .tabs button[aria-pressed="true"] {
+        color: #08100d;
+        background: var(--lime);
+        border-color: var(--lime);
+      }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { padding: 11px 12px; text-align: left; vertical-align: middle; }
+      th {
+        color: var(--faint);
+        font-size: 11px;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        border-bottom: 1px solid var(--line);
+      }
+      td { border-top: 1px solid rgba(42, 58, 49, .7); font-variant-numeric: tabular-nums; }
+      th:first-child, td:first-child { padding-left: 24px; }
+      th:last-child, td:last-child { padding-right: 24px; }
+      .num { text-align: right; white-space: nowrap; }
+      .bar {
+        height: 5px;
+        margin-top: 6px;
+        overflow: hidden;
+        border-radius: 99px;
+        background: #213028;
+      }
+      .bar i { display: block; height: 100%; border-radius: inherit; background: var(--mint); }
+      .win { color: var(--win); }
+      .lose { color: var(--lose); }
+      .tie { color: var(--muted); }
+      .note { margin: 0; padding: 0 24px 18px; color: var(--faint); font-size: 12px; }
+      .two {
+        display: grid;
+        grid-template-columns: 1.1fr .9fr;
+        gap: 22px;
+      }
+      ul.plain { margin: 10px 0 0; padding-left: 18px; color: var(--muted); }
+      ul.plain li + li { margin-top: 6px; }
+      .grid3 {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+        padding: 18px 24px 22px;
+      }
+      .mini {
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+      }
+      .mini span { color: var(--faint); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+      .mini strong { display: block; margin-top: 6px; font-size: 22px; letter-spacing: -.03em; }
+      .mini small { color: var(--muted); }
+      footer { padding: 10px 0 48px; color: var(--faint); font-size: 12px; }
+      dl.meta { display: grid; grid-template-columns: 180px 1fr; gap: 6px 16px; margin: 0; font-size: 13px; }
+      dl.meta dt { color: var(--faint); }
+      dl.meta dd { margin: 0; overflow-wrap: anywhere; }
+      @media (max-width: 960px) {
+        .stats, .races, .two, .grid3 { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="toc">
+      <div class="shell">
+        <a href="#races">Two races</a>
+        <a href="#keyed-size">Keyed size</a>
+        <a href="#compression">Compression</a>
+        <a href="#keyed-cpu">Keyed CPU</a>
+        <a href="#diagnosis">Diagnosis</a>
+        <a href="#create-path">Create path</a>
+        <a href="#memory">Memory</a>
+        <a href="#open-world">Open-world ABI</a>
+        <a href="#other-apps">Other apps</a>
+        <a href="#compat">Compatibility</a>
+        <a href="#gaps">Remaining</a>
+        <a href="#method">Method</a>
+      </div>
+    </nav>
+
+    <div class="shell">
+      <header class="hero">
+        <p class="eyebrow">Closed-world keyed app · 15-block CPU · 15 Aug 2026</p>
+        <h1>SolidLil versus SolidJS</h1>
+        <p class="lede">
+          Pairwise comparison after fixing SolidLil algorithms that did extra work
+          Solid does not. LilScript is a behavior superset of JS: with the same
+          identity matching, remaining differences should be compression, not slower
+          logic. Lower is better on every size and time ratio.
+        </p>
+        <div class="pills">
+          <span class="pill">Solid 1.9.3 keyed</span>
+          <span class="pill">SolidLil 0.1.0 keyed</span>
+          <span class="pill">Chrome 151 · Apple M3 Pro · 4× CPU throttle</span>
+          <span class="pill">15 blocks · seed 20260814</span>
+        </div>
+      </header>
+
+      <section class="stats" id="headline">
+        <article class="stat primary">
+          <span>Keyed JS Brotli-11</span>
+          <strong>0.91×</strong>
+          <small>3,956 B vs 4,358 B · 9% smaller</small>
+        </article>
+        <article class="stat">
+          <span>CPU geometric mean · total</span>
+          <strong>0.97×</strong>
+          <small>9 workloads · median of 15 blocks</small>
+        </article>
+        <article class="stat">
+          <span>CPU geometric mean · script</span>
+          <strong>0.79×</strong>
+          <small>Swap 0.45× · clear 0.92× · create 1.14×</small>
+        </article>
+        <article class="stat">
+          <span>Create 1k DOM shape</span>
+          <strong>1k clones</strong>
+          <small>Same cloneNode path as Solid · 0 createElement</small>
+        </article>
+      </section>
+
+      <section class="races" id="races">
+        <article class="race">
+          <h3>Race 1 — open-world Core ABI</h3>
+          <p>
+            Reusable <code>solid-js</code> replacement. Export names stay stable.
+            Core is 118 B smaller under Brotli-11 (8,433 vs 8,551). That is a
+            library-surface result, not a claim that every app compresses better.
+          </p>
+        </article>
+        <article class="race">
+          <h3>Race 2 — closed-world keyed app</h3>
+          <p>
+            Whole program, compiler <code>size-first</code>, Brotli-11. Unused APIs
+            disappear and retained names may be mangled. This is the
+            mission-aligned test for “replace Solid in an application.”
+          </p>
+        </article>
+      </section>
+
+      <p class="warn">
+        Do not mix the races. Open-world Core −118 B is not evidence that the keyed
+        app won on compression. The keyed app is a different artifact, scored after
+        whole-program shrinking. CPU below is SolidLil
+        <code>checkpoint-closed-v5.json</code> versus Solid
+        <code>checkpoint-solid-same-session.json</code>, 15 blocks, Chrome 151.
+      </p>
+
+      <section class="panel" id="keyed-size">
+        <div class="panel-head">
+          <h2>Closed-world keyed bundle</h2>
+          <p>
+            js-framework-benchmark keyed implementation. SolidLil is the compiler’s
+            own <code>js-module</code> artifact of <code>adapter/src/main.lilx</code>
+            — no Terser, Oxc, or Lilpack minify. Solid is the pinned upstream
+            <code>keyed/solid</code> <code>dist/main.js</code>.
+          </p>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Codec</th>
+                <th class="num">SolidLil</th>
+                <th class="num">Solid</th>
+                <th class="num">Ratio</th>
+                <th class="num">Delta</th>
+              </tr>
+            </thead>
+            <tbody id="size-body"></tbody>
+          </table>
+        </div>
+        <p class="note">
+          Gzip-9 and Brotli-11 via Node zlib / official Brotli quality 11.
+          Production config is compiler <code>size-first</code> level 15; the compiler
+          owns mangling, DCE, and known-DOM lowering. Terser is not part of the
+          artifact. SolidLil sha256 <code>6ceb02045eb1ce23…</code> · Solid
+          <code>9a7954aedff39e0f…</code>.
+        </p>
+      </section>
+
+      <section class="panel" id="compression">
+        <div class="panel-head">
+          <h2>Compression-level tradeoff</h2>
+          <p>
+            Same closed-world adapter graph, same compiler. Production is the
+            compiler artifact with no post-minifier. The old Lilpack+Terser row is
+            diagnostic only: Terser was DCE-ing unused host imports and pretty-printed
+            Vite output, which the compiler now does itself. CPU on this page is still
+            the previous Terser-spelled bundle (<code>checkpoint-closed-v5.json</code>);
+            algorithms did not change, but that hash is not this artifact.
+          </p>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Config</th>
+                <th>Post-minifier</th>
+                <th class="num">Raw</th>
+                <th class="num">Gzip-9</th>
+                <th class="num">Brotli-11</th>
+                <th class="num">vs Solid Brotli</th>
+              </tr>
+            </thead>
+            <tbody id="compression-body"></tbody>
+          </table>
+        </div>
+        <p class="note">
+          Compiler <code>size-first</code> is 3,956 B Brotli — smaller than Solid
+          (4,358) and smaller than the historical Lilpack+Terser diagnostic (3,964).
+          Late unread-global DCE now ignores loads in dead functions, so write-only
+          scheduler, suspense, and task bindings (including the <code>queueMicrotask</code>
+          alias) disappear. Gzip is 4,494 vs Terser 4,493. Raw is larger because the
+          Brotli search selected <code>function</code> spelling.
+        </p>
+      </section>
+
+      <section class="panel" id="keyed-cpu">
+        <div class="panel-head">
+          <h2>Keyed CPU — same session, 15 blocks</h2>
+          <p>
+            Upstream Playwright runner, Chrome 151, 4× CPU throttling, workload-specific
+            warmups. Values are medians in milliseconds. Ratio is SolidLil / Solid.
+            Bootstrap 95% CI is on each side’s median, not on the ratio.
+            Script “was” is the previous template-cloned bundle before the algorithm
+            fixes (<code>checkpoint-closed-v3.json</code>). The measured SolidLil
+            checkpoint is still <code>checkpoint-closed-v5.json</code> from the
+            Terser-spelled production bundle; this page’s size row is the new
+            compiler-only hash and was not re-timed.
+          </p>
+        </div>
+        <div class="tabs" role="tablist">
+          <button type="button" data-metric="total" aria-pressed="true">Total</button>
+          <button type="button" data-metric="script">Script</button>
+          <button type="button" data-metric="paint">Paint</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Workload</th>
+                <th class="num">SolidLil</th>
+                <th class="num">Solid</th>
+                <th class="num">Ratio</th>
+                <th>Relative</th>
+              </tr>
+            </thead>
+            <tbody id="cpu-body"></tbody>
+          </table>
+        </div>
+        <p class="note" id="cpu-note"></p>
+      </section>
+
+      <section class="panel" id="diagnosis">
+        <div class="panel-head">
+          <h2>Wrong work, not a compression tax</h2>
+          <p>
+            LilScript should match Solid’s observable identity matching and then
+            compress. The 1.57× swap / 1.31× remove / 1.28× clear gaps were extra
+            algorithm work. Size-first packing did not cause them.
+          </p>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Symptom</th>
+                <th>Cause</th>
+                <th>Kind</th>
+                <th>Fix</th>
+                <th class="num">Script after</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Swap 1.57×</td>
+                <td>Keyed <code>mapArray</code> rebuilt a 998-entry Map for two swapped rows; DOM reconciler allocated a 1,000-node Set first</td>
+                <td>Wrong algorithm</td>
+                <td>Two-mismatch swap on mapped arrays; DOM swap before Set</td>
+                <td class="num win">0.45×</td>
+              </tr>
+              <tr>
+                <td>Remove 1.31×</td>
+                <td>Same Map rebuild for a single deleted key; app rebuilt the row list with a full push loop</td>
+                <td>Wrong algorithm</td>
+                <td>Remove-one slice/concat; <code>node.remove()</code> without a Set</td>
+                <td class="num win">0.49×</td>
+              </tr>
+              <tr>
+                <td>Clear 1.28×</td>
+                <td>Effect queue was O(n²) FIFO shift; every dispose scanned the free-id list even when the array tail was still live</td>
+                <td>Wrong algorithm</td>
+                <td>O(1) head index; compact only when the last slot is disposed</td>
+                <td class="num win">0.92×</td>
+              </tr>
+              <tr>
+                <td>Create produced 0 rows</td>
+                <td><code>DomRegion.current</code> aliased <code>mapped</code>; create pushed in place; identity equal-array skip skipped <code>insertBefore</code></td>
+                <td>Wrong algorithm</td>
+                <td>Create allocates a new mapped array so replace sees 0 → 1,000</td>
+                <td class="num">correct</td>
+              </tr>
+              <tr>
+                <td>Create 1k still 1.14×</td>
+                <td>Per-row <code>createRoot</code> + label effect + delegated clicks. DOM shape already matches Solid (<code>cloneNode</code>)</td>
+                <td>Remaining shape</td>
+                <td>Not a compression-level switch; same work, slightly heavier owners</td>
+                <td class="num">1.14×</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel" id="create-path">
+        <div class="panel-head">
+          <h2>Create / clear DOM operations</h2>
+          <p>
+            Instrumented <code>createElement</code>, <code>cloneNode</code>, and friends
+            during one Create 1,000 and one Clear after page load. Template construction
+            happens at module init and is excluded from the create counts.
+          </p>
+        </div>
+        <div class="two">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Create 1,000 rows</th>
+                  <th class="num">SolidLil</th>
+                  <th class="num">Solid</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td><code>cloneNode</code></td><td class="num">1,000</td><td class="num">1,000</td></tr>
+                <tr><td><code>textContent =</code></td><td class="num">1,000</td><td class="num">1,000</td></tr>
+                <tr><td><code>insertBefore</code></td><td class="num">1,000</td><td class="num">1,000</td></tr>
+                <tr><td><code>createElement</code></td><td class="num win">0</td><td class="num">1</td></tr>
+                <tr><td><code>setAttribute</code> / <code>appendChild</code></td><td class="num">0</td><td class="num">0</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Clear 1,000 rows</th>
+                  <th class="num">SolidLil</th>
+                  <th class="num">Solid</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td><code>textContent = ""</code></td><td class="num">1</td><td class="num">1</td></tr>
+                <tr><td><code>appendChild</code> (re-attach marker)</td><td class="num">1</td><td class="num">0</td></tr>
+                <tr><td><code>node.remove()</code> × 1,000</td><td class="num win">0</td><td class="num win">0</td></tr>
+              </tbody>
+            </table>
+            <p class="note" style="padding-left: 24px;">
+              DOM shape already matched Solid after templates. Algorithm fixes
+              moved create 1k script from 3.10 ms (1.19×) to 2.97 ms (1.14×) and
+              create 10k from 26.9 ms (1.06×) to 26.5 ms (1.04×). Remaining create
+              cost is per-row owners, not <code>createElement</code>.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="memory">
+        <div class="panel-head">
+          <h2>Memory</h2>
+          <p id="memory-blurb">
+            Upstream <code>performance.measureUserAgentSpecificMemory</code> after forced GC.
+            Units are MB. Same Chrome. Not re-run on the v5 algorithm-fix bundle
+            (directional, n = 3).
+          </p>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Workload</th>
+                <th class="num">SolidLil</th>
+                <th class="num">Solid</th>
+                <th class="num">Ratio</th>
+              </tr>
+            </thead>
+            <tbody id="memory-body"></tbody>
+          </table>
+        </div>
+        <p class="note" id="memory-note"></p>
+      </section>
+
+      <section class="panel" id="cold">
+        <div class="panel-head">
+          <h2>Cold page load</h2>
+          <p>Fresh browser context, empty cache. Navigation timing and first-paint. n = 5. SolidLil is slightly faster to first paint, consistent with the smaller Brotli payload.</p>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Metric</th>
+                <th class="num">SolidLil</th>
+                <th class="num">Solid</th>
+                <th class="num">Ratio</th>
+              </tr>
+            </thead>
+            <tbody id="cold-body"></tbody>
+          </table>
+        </div>
+        <p class="note" id="cold-note"></p>
+      </section>
+
+      <section class="panel" id="open-world">
+        <div class="panel-head">
+          <h2>Open-world distribution surfaces</h2>
+          <p>
+            Published ESM entries that keep Solid’s public export names. Gate metric is
+            Brotli-11. Raw and gzip are diagnostics. From
+            <code>labs/solid-client</code> evidence published 14 Aug 2026.
+            Solid-js 1.9.13 at <code>3be495ce</code>.
+          </p>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Surface</th>
+                <th>Exports</th>
+                <th class="num">SolidLil Brotli</th>
+                <th class="num">Solid Brotli</th>
+                <th class="num">Ratio</th>
+                <th>Eligible</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Core</td><td>54</td>
+                <td class="num">8,433</td><td class="num">8,551</td>
+                <td class="num win">0.986</td>
+                <td class="win">yes · −118 B</td>
+              </tr>
+              <tr>
+                <td>Store</td><td>8</td>
+                <td class="num">4,231</td><td class="num">4,286</td>
+                <td class="num win">0.987</td>
+                <td class="win">yes · −55 B</td>
+              </tr>
+              <tr>
+                <td>Client Web</td><td>46</td>
+                <td class="num">10,643</td><td class="num">10,859</td>
+                <td class="num win">0.980</td>
+                <td class="win">yes · −216 B</td>
+              </tr>
+              <tr>
+                <td>Full Web compatibility</td><td>73</td>
+                <td class="num">11,667</td><td class="num">11,655</td>
+                <td class="num lose">1.001</td>
+                <td class="lose">no · +12 B · SSR/hydration names</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="note">
+          Client Web excludes SSR and hydration. The 73-export full Web row is a
+          compatibility diagnostic, not folded into the client claim.
+        </p>
+      </section>
+
+      <section class="panel" id="other-apps">
+        <div class="panel-head">
+          <h2>Other closed-world application artifacts</h2>
+          <p>Whole-program apps, not package ABIs. Same Brotli-11 gate. Lab evidence from 14 Aug 2026.</p>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Artifact</th>
+                <th class="num">SolidLil Brotli</th>
+                <th class="num">Solid Brotli</th>
+                <th class="num">Ratio</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Counter · Vite</td>
+                <td class="num">3,799</td><td class="num">4,466</td>
+                <td class="num win">0.851</td>
+                <td>Warm CPU 0.68× · wall 0.66×</td>
+              </tr>
+              <tr>
+                <td>Counter · Closure ADVANCED</td>
+                <td class="num">3,836</td><td class="num">4,329</td>
+                <td class="num win">0.886</td>
+                <td>Warm CPU 0.67× · wall 0.65×</td>
+              </tr>
+              <tr>
+                <td>Complete client LSX fixture</td>
+                <td class="num">10,741</td><td class="num">12,560</td>
+                <td class="num win">0.855</td>
+                <td>Warm CPU 0.979× · 14.5% smaller</td>
+              </tr>
+              <tr>
+                <td>Keyed js-framework-benchmark</td>
+                <td class="num">4,056</td><td class="num">4,358</td>
+                <td class="num win">0.931</td>
+                <td>This page’s primary app · compiler size-first, no Terser</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="grid3">
+          <div class="mini">
+            <span>LSX fixture warm CPU</span>
+            <strong class="win">0.979×</strong>
+            <small>32 paired blocks · 95% CI [0.970, 0.988] · non-inferiority 1.03</small>
+          </div>
+          <div class="mini">
+            <span>LSX live JS-heap delta</span>
+            <strong>+32 KB</strong>
+            <small>Candidate minus Solid after 4 forced GCs. RSS still lower.</small>
+          </div>
+          <div class="mini">
+            <span>LSX retained heap</span>
+            <strong>1.04×</strong>
+            <small>789 KB vs 757 KB on the integrated fixture</small>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="compat">
+        <div class="panel-head">
+          <h2>Compatibility and exclusions</h2>
+          <p>Runtime parity is gated separately from JSX/LSX compiler parity.</p>
+        </div>
+        <div class="two pad">
+          <div>
+            <h3 style="margin: 12px 0 0; font-size: 16px;">In scope and passing</h3>
+            <ul class="plain">
+              <li>469 / 469 unchanged upstream Solid candidate tests (26 files).</li>
+              <li>135 / 135 Core, Web, and Store exports with differential evidence.</li>
+              <li>LSX: components, spreads, For / Index / Show / Switch, Dynamic, Portal, SVG/MathML, Suspense, ErrorBoundary, unmount.</li>
+              <li>Keyed browser contract: create, update, select, swap, remove, clear.</li>
+            </ul>
+          </div>
+          <div>
+            <h3 style="margin: 12px 0 0; font-size: 16px;">Explicitly excluded</h3>
+            <ul class="plain">
+              <li>SSR and hydration — need a coordinated server runtime.</li>
+              <li>C / native backends — no Solid Promise / exception ABI yet.</li>
+              <li>Full 73-export Web bundle as a size win (currently +12 B Brotli).</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="gaps">
+        <div class="panel-head">
+          <h2>Where SolidLil still pays</h2>
+          <p>
+            After the algorithm fixes, script geometric mean is 0.79× Solid.
+            The only create-path remainder is per-row owner/effect setup. Paint
+            still dominates create, so total is 1.01×.
+          </p>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Gap</th>
+                <th class="num">Script ratio</th>
+                <th class="num">Total ratio</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Create 1k</td>
+                <td class="num">1.14×</td>
+                <td class="num">1.01×</td>
+                <td>Same 1k <code>cloneNode</code> as Solid. Extra is per-row root/effect bookkeeping.</td>
+              </tr>
+              <tr>
+                <td>Create 10k</td>
+                <td class="num">1.04×</td>
+                <td class="num">1.01×</td>
+                <td>Same shape, larger n. Paint-equal.</td>
+              </tr>
+              <tr>
+                <td>Keyed JS Brotli</td>
+                <td class="num win">0.91×</td>
+                <td class="num"></td>
+                <td>Fast paths added bytes versus the 0.80× template-only bundle. Still smaller than Solid.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="note">
+          Swap, remove, replace, append, select, update, and clear are at or below
+          Solid on script. Select stays faster because it toggles <code>classList</code>
+          instead of Solid’s per-row <code>createSelector</code>.
+        </p>
+      </section>
+
+      <section class="panel" id="method">
+        <div class="panel-head">
+          <h2>Methodology</h2>
+        </div>
+        <div class="pad">
+          <dl class="meta">
+            <dt>CPU</dt>
+            <dd>js-framework-benchmark upstream Playwright implementation. 15 randomized blocks, seed 20260814, Chrome 151.0.7922.138, 4× throttling, workload warmups. SolidLil checkpoint <code>checkpoint-closed-v5.json</code> (14:33 UTC). Solid <code>checkpoint-solid-same-session.json</code> (12:12 UTC). Sequential, not interleaved. v3 is the pre-fix template-cloned baseline.</dd>
+            <dt>Size (keyed)</dt>
+            <dd>Direct file length of <code>dist/main.js</code>. gzip level 9, Brotli quality 11. Production row is the compiler <code>size-first</code> artifact with no post-minifier. Variant rows in <code>artifacts/compression-variants/sizes.json</code>.</dd>
+            <dt>Size (library / LSX)</dt>
+            <dd><code>web/src/client-runtime-results.json</code> and <code>docs/solid-client-runtime.md</code>, generated 14 Aug 2026. Not re-run today.</dd>
+            <dt>DOM ops</dt>
+            <dd>Prototype wrappers around <code>Document</code> / <code>Node</code> / <code>Element</code> during one create and one clear click after <code>networkidle</code>.</dd>
+            <dt>Memory</dt>
+            <dd>3 blocks, current bundles, <code>checkpoint-memory-solidlil-v3.json</code> / <code>checkpoint-memory-solid-v3.json</code>. Forced GC + <code>measureUserAgentSpecificMemory</code>.</dd>
+            <dt>Cold</dt>
+            <dd>5 blocks, <code>checkpoint-cold-solidlil-v3.json</code> / <code>checkpoint-cold-solid-v3.json</code>.</dd>
+            <dt>Hardware</dt>
+            <dd>Apple M3 Pro, 12 logical CPUs, 18 GB, Darwin 24.6.0 arm64.</dd>
+            <dt>Solid versions</dt>
+            <dd>Keyed app: upstream <code>solid-v1.9.3-keyed</code>. Open-world lab: <code>solid-js@1.9.13</code> (<code>3be495ce</code>).</dd>
+          </dl>
+        </div>
+      </section>
+
+      <footer>
+        Generated from local checkpoints on 15 Aug 2026. Open this file in a browser.
+        Companion field report: <a href="./report.html">report.html</a>.
+      </footer>
+    </div>
+
+    <script>
+      const DATA = {
+        size: [
+          { codec: "Raw", lil: 11733, sol: 11563 },
+          { codec: "Gzip-9", lil: 4494, sol: 4812 },
+          { codec: "Brotli-11", lil: 3956, sol: 4358 },
+        ],
+        gmean: { script: 0.7922, total: 0.9667 },
+        compression: [
+          { config: "size-first compiler", terser: "none", raw: 11733, gzip: 4494, brotli: 3956 },
+          { config: "size-first + Terser (diagnostic)", terser: "historical", raw: 11127, gzip: 4493, brotli: 3964 },
+          { config: "solid-js (upstream)", terser: "—", raw: 11563, gzip: 4812, brotli: 4358 },
+        ],
+        cpu: [
+          { id: "01_run1k", label: "Create 1,000 rows",
+            script: { lil: 2.966, sol: 2.600, lilCi: [2.925, 2.996], solCi: [2.553, 2.631], v3: 3.104 },
+            total: { lil: 24.831, sol: 24.607, lilCi: [24.719, 25.181], solCi: [24.266, 25.575] },
+            paint: { lil: 21.323, sol: 21.446, lilCi: [21.200, 21.460], solCi: [21.170, 22.192] } },
+          { id: "02_replace1k", label: "Replace 1,000 rows",
+            script: { lil: 5.158, sol: 5.486, lilCi: [5.098, 5.219], solCi: [5.424, 5.644], v3: 6.268 },
+            total: { lil: 27.583, sol: 27.871, lilCi: [27.418, 27.675], solCi: [27.533, 28.255] },
+            paint: { lil: 21.788, sol: 21.802, lilCi: [21.754, 21.942], solCi: [21.596, 22.033] } },
+          { id: "03_update10th1k_x16", label: "Update every 10th row ×16",
+            script: { lil: 1.191, sol: 1.471, lilCi: [1.147, 1.302], solCi: [1.032, 1.636], v3: 1.562 },
+            total: { lil: 15.750, sol: 16.187, lilCi: [15.518, 16.142], solCi: [15.651, 18.234] },
+            paint: { lil: 12.336, sol: 12.665, lilCi: [12.134, 12.393], solCi: [12.323, 14.067] } },
+          { id: "04_select1k", label: "Select a row",
+            script: { lil: 0.570, sol: 0.782, lilCi: [0.127, 0.835], solCi: [0.577, 1.047], v3: 0.626 },
+            total: { lil: 4.279, sol: 4.871, lilCi: [4.014, 4.523], solCi: [4.543, 5.449] },
+            paint: { lil: 2.827, sol: 3.124, lilCi: [2.630, 3.266], solCi: [2.972, 3.861] } },
+          { id: "05_swap1k", label: "Swap two rows",
+            script: { lil: 0.536, sol: 1.195, lilCi: [0.291, 0.806], solCi: [0.946, 1.662], v3: 1.871 },
+            total: { lil: 16.392, sol: 17.331, lilCi: [15.698, 16.475], solCi: [16.904, 18.492] },
+            paint: { lil: 13.919, sol: 14.127, lilCi: [13.305, 14.460], solCi: [13.607, 14.732] } },
+          { id: "06_remove-one-1k", label: "Remove one row",
+            script: { lil: 0.252, sol: 0.514, lilCi: [0.151, 0.343], solCi: [0.441, 0.530], v3: 0.671 },
+            total: { lil: 12.905, sol: 13.328, lilCi: [12.786, 13.191], solCi: [13.238, 13.896] },
+            paint: { lil: 11.707, sol: 11.864, lilCi: [11.563, 12.024], solCi: [11.644, 12.400] } },
+          { id: "07_create10k", label: "Create 10,000 rows",
+            script: { lil: 26.533, sol: 25.498, lilCi: [26.181, 27.014], solCi: [25.411, 25.920], v3: 26.930 },
+            total: { lil: 277.727, sol: 276.247, lilCi: [276.714, 281.744], solCi: [275.445, 279.887] },
+            paint: { lil: 241.495, sol: 241.453, lilCi: [240.526, 244.142], solCi: [239.630, 245.339] } },
+          { id: "08_create1k-after1k_x2", label: "Append 1,000 rows ×2",
+            script: { lil: 3.054, sol: 3.298, lilCi: [3.023, 3.122], solCi: [3.271, 3.382], v3: 2.936 },
+            total: { lil: 29.156, sol: 29.356, lilCi: [28.961, 29.541], solCi: [28.828, 30.603] },
+            paint: { lil: 25.072, sol: 24.886, lilCi: [24.899, 25.273], solCi: [24.554, 25.476] } },
+          { id: "09_clear1k_x8", label: "Clear 1,000 rows ×8",
+            script: { lil: 9.030, sol: 9.851, lilCi: [8.892, 9.293], solCi: [9.691, 10.087], v3: 12.582 },
+            total: { lil: 11.518, sol: 12.191, lilCi: [11.070, 11.933], solCi: [11.848, 13.000] },
+            paint: { lil: 1.408, sol: 1.931, lilCi: [0.741, 1.855], solCi: [1.813, 2.154] } },
+        ],
+        memory: [
+          { label: "Ready (empty table)", lil: 1.072, sol: 1.056 },
+          { label: "1,000 rows live", lil: 3.320, sol: 3.168 },
+          { label: "After 5 create/clear cycles", lil: 1.394, sol: 1.270 },
+        ],
+        memoryMeta: "n = 3 · 15 Aug 2026 · v3 template-cloned bundles · MB via measureUserAgentSpecificMemory after forced GC",
+        cold: [
+          { label: "DOMContentLoaded", lil: 46.655, sol: 51.175 },
+          { label: "Load event", lil: 55.185, sol: 57.450 },
+          { label: "First paint", lil: 71.845, sol: 75.120 },
+        ],
+        coldMeta: "n = 5 · fresh context, empty cache · same Chrome as CPU",
+      };
+
+      const fmt = (n, d = 3) =>
+        n >= 100 ? n.toLocaleString("en-US", { maximumFractionDigits: 0 })
+        : n.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+
+      const ratioClass = (r) => (r < 0.98 ? "win" : r > 1.05 ? "lose" : "tie");
+
+      function renderSize() {
+        document.getElementById("size-body").innerHTML = DATA.size.map((row) => {
+          const ratio = row.lil / row.sol;
+          const delta = row.lil - row.sol;
+          return `<tr>
+            <td>${row.codec}</td>
+            <td class="num">${fmt(row.lil, 0)}</td>
+            <td class="num">${fmt(row.sol, 0)}</td>
+            <td class="num ${ratioClass(ratio)}">${ratio.toFixed(3)}×</td>
+            <td class="num ${delta < 0 ? "win" : "lose"}">${delta.toLocaleString("en-US")} B</td>
+          </tr>`;
+        }).join("");
+      }
+
+      function renderCpu(metric) {
+        const max = Math.max(...DATA.cpu.map((row) => Math.max(row[metric].lil, row[metric].sol)));
+        document.getElementById("cpu-body").innerHTML = DATA.cpu.map((row) => {
+          const cell = row[metric];
+          const ratio = cell.lil / cell.sol;
+          const width = (100 * cell.lil / max).toFixed(1);
+          const ci = cell.lilCi
+            ? `<div style="color:var(--faint);font-size:11px">CI ${cell.lilCi[0].toFixed(2)}–${cell.lilCi[1].toFixed(2)} vs ${cell.solCi[0].toFixed(2)}–${cell.solCi[1].toFixed(2)}</div>`
+            : "";
+          const prior = metric === "script" && cell.v3
+            ? `<div style="color:var(--faint);font-size:11px">was ${cell.v3.toFixed(2)} ms before algorithm fixes</div>`
+            : "";
+          return `<tr>
+            <td>${row.label}${ci}${prior}</td>
+            <td class="num">${fmt(cell.lil)}</td>
+            <td class="num">${fmt(cell.sol)}</td>
+            <td class="num ${ratioClass(ratio)}">${ratio.toFixed(3)}×</td>
+            <td><div class="bar"><i style="width:${width}%;background:${ratio > 1.05 ? "var(--rose)" : ratio < 0.98 ? "var(--lime)" : "var(--mint)"}"></i></div></td>
+          </tr>`;
+        }).join("");
+        const g = metric === "paint" ? null : DATA.gmean[metric];
+        document.getElementById("cpu-note").textContent = g
+          ? `Geometric mean of median ratios: ${g.toFixed(3)}× on ${metric}. n = 15 per cell. Bars are SolidLil absolute time, not the ratio.`
+          : `n = 15 per cell. Paint is layout/raster after script; create/replace are paint-dominated, so total ratios sit near 1.00 even when script differs.`;
+      }
+
+      function renderCompression() {
+        const body = document.getElementById("compression-body");
+        if (!body || !DATA.compression) return;
+        const solid = DATA.compression.find((row) => row.config.startsWith("solid"));
+        body.innerHTML = DATA.compression.map((row) => {
+          const ratio = row.brotli / solid.brotli;
+          const production = row.config === "size-first compiler";
+          return `<tr>
+            <td>${row.config}${production ? " · CPU measured" : ""}</td>
+            <td>${row.terser}</td>
+            <td class="num">${fmt(row.raw, 0)}</td>
+            <td class="num">${fmt(row.gzip, 0)}</td>
+            <td class="num">${fmt(row.brotli, 0)}</td>
+            <td class="num ${ratioClass(ratio)}">${ratio.toFixed(3)}×</td>
+          </tr>`;
+        }).join("");
+      }
+
+      function renderMemory() {
+        document.getElementById("memory-body").innerHTML = DATA.memory.map((row) => {
+          const ratio = row.lil / row.sol;
+          return `<tr>
+            <td>${row.label}</td>
+            <td class="num">${row.lil.toFixed(3)} MB</td>
+            <td class="num">${row.sol.toFixed(3)} MB</td>
+            <td class="num ${ratioClass(ratio)}">${ratio.toFixed(3)}×</td>
+          </tr>`;
+        }).join("");
+        document.getElementById("memory-note").textContent = DATA.memoryMeta;
+      }
+
+      function renderCold() {
+        const body = document.getElementById("cold-body");
+        if (!DATA.cold) return;
+        body.innerHTML = DATA.cold.map((row) => {
+          const ratio = row.lil / row.sol;
+          return `<tr>
+            <td>${row.label}</td>
+            <td class="num">${fmt(row.lil)} ms</td>
+            <td class="num">${fmt(row.sol)} ms</td>
+            <td class="num ${ratioClass(ratio)}">${ratio.toFixed(3)}×</td>
+          </tr>`;
+        }).join("");
+        document.getElementById("cold-note").textContent = DATA.coldMeta || "";
+      }
+
+      renderSize();
+      renderCompression();
+      renderCpu("total");
+      renderMemory();
+      renderCold();
+
+      document.querySelectorAll(".tabs button").forEach((button) => {
+        button.addEventListener("click", () => {
+          document.querySelectorAll(".tabs button").forEach((other) => {
+            other.setAttribute("aria-pressed", String(other === button));
+          });
+          renderCpu(button.dataset.metric);
+        });
+      });
+    </script>
+  </body>
+</html>

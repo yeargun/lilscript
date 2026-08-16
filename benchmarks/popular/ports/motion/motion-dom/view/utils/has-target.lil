@@ -1,0 +1,18 @@
+import { callMethod1 } from "../../dom-host";
+
+export bool hasTarget(JsValue target, JsValue targets) {
+  if (!callMethod1(targets, "has", target).truthy()) {
+    return false;
+  }
+  JsValue value = callMethod1(targets, "get", target);
+  if (!value.truthy()) {
+    return false;
+  }
+  if (!value.isObject()) {
+    return false;
+  }
+  for (string key in value) {
+    return true;
+  }
+  return false;
+}

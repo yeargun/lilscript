@@ -1,0 +1,204 @@
+import extern {
+  windowSelf,
+  windowDocument,
+  documentElementOf,
+  objectToStringTag,
+  functionToString,
+  objectHasOwn,
+  getPrototypeOf,
+  typeOf,
+  isNullish,
+  isUndefined,
+  isFalse,
+  stringify,
+  jsAssume,
+  createEmptyObject,
+  createNullProtoObject,
+  createArray,
+  arrayPush,
+  arrayPop,
+  arraySlice,
+  arrayIndexOf,
+  arraySort,
+  arraySplice,
+  arrayConcatApply,
+  arrayFlat,
+  arrayIsArray,
+  objectConstructor,
+  call0,
+  call1,
+  call2,
+  call3,
+  call4,
+  apply,
+  isFunctionValue,
+  isWindowValue,
+  objectKeys,
+  mathRandom,
+  stringReplace,
+  stringReplace2,
+  stringMatch,
+  stringSplit,
+  arrayJoin,
+  regexTest,
+  regexExec,
+  setProp,
+  getProp,
+  deleteProp,
+  hasProp,
+  objectBox,
+  defineIterator,
+  getArrayIterator,
+  noop,
+  throwError,
+  throwTypeError,
+  jsUndefined,
+  scheduleTimeout,
+  consoleWarn3,
+  nodeNameOf,
+  getNodeType,
+  getTextContent,
+  getNodeValue,
+  getNamespaceURI,
+  getOwnerDocument,
+  objectCreate,
+  setLength,
+  newRegexp,
+  defineConfigurable,
+  unaryPlus,
+  getAttribute,
+  setAttribute,
+  removeAttribute,
+  createElement,
+  appendChild,
+  matchesSelector,
+  dateNow,
+  parseIntRadix,
+  stringReplaceFirst,
+  addEventListener,
+  removeEventListener,
+  scheduleTimeoutMs,
+  clearTimeoutId,
+  throwValue,
+  arrayShift,
+  arrayUnshift,
+  stringSlice,
+  stringIndexOf,
+  newDOMParser,
+  parseHexEscape,
+  stringFromCharCode1,
+  stringFromCharCode2,
+  mathRound,
+  mathCeil,
+  mathMax,
+  mathMin,
+  parseFloatValue,
+  isFiniteValue,
+  encodeURIComponentValue,
+  newXMLHttpRequest,
+  mathCos,
+  mathPI,
+  requestAnimationFrameOrNull
+} from "./js-host.ts";
+
+export extern JsValue windowSelf();
+export extern JsValue windowDocument();
+export extern JsValue documentElementOf(JsValue doc);
+export extern string objectToStringTag(JsValue value);
+export extern string functionToString(JsValue value);
+export extern bool objectHasOwn(JsValue obj, string key);
+export extern JsValue getPrototypeOf(JsValue value);
+export extern string typeOf(JsValue value);
+export extern bool isNullish(JsValue value);
+export extern bool isUndefined(JsValue value);
+export extern bool isFalse(JsValue value);
+export extern string stringify(JsValue value);
+export extern T jsAssume<T>(JsValue value);
+export extern void debugLog(JsValue value);
+export extern JsValue createEmptyObject();
+export extern JsValue createNullProtoObject();
+export extern JsValue createArray();
+export extern float arrayPush(JsValue arr, JsValue item);
+export extern JsValue arrayPop(JsValue arr);
+export extern JsValue arraySlice(JsValue arr, float start = 0.0, float end = 9007199254740991.0);
+export extern float arrayIndexOf(JsValue arr, JsValue elem, float fromIndex = 0.0);
+export extern JsValue arraySort(JsValue arr, JsValue? compare = null);
+export extern JsValue arraySplice(JsValue arr, float start, float deleteCount = 9007199254740991.0, JsValue? item = null);
+export extern JsValue arrayConcatApply(JsValue target, JsValue arrays);
+export extern JsValue arrayFlat(JsValue array);
+export extern bool arrayIsArray(JsValue value);
+export extern JsValue objectConstructor();
+export extern JsValue call0(JsValue fn, JsValue thisArg);
+export extern JsValue call1(JsValue fn, JsValue thisArg, JsValue a);
+export extern JsValue call2(JsValue fn, JsValue thisArg, JsValue a, JsValue b);
+export extern JsValue call3(JsValue fn, JsValue thisArg, JsValue a, JsValue b, JsValue c);
+export extern JsValue call4(JsValue fn, JsValue thisArg, JsValue a, JsValue b, JsValue c, JsValue d);
+export extern JsValue apply(JsValue fn, JsValue thisArg, JsValue args);
+export extern bool isFunctionValue(JsValue obj);
+export extern bool isWindowValue(JsValue obj);
+export extern string[] objectKeys(JsValue obj);
+export extern float mathRandom();
+export extern string stringReplace(string s, Regex pattern, string | func(string)->string replacement);
+export extern string stringReplace2(string s, Regex pattern, func(string, string)->string replacement);
+export extern JsValue stringMatch(string s, Regex pattern);
+export extern string[] stringSplit(string s, string sep);
+export extern string arrayJoin(JsValue arr, string sep);
+export extern bool regexTest(Regex re, string s);
+export extern JsValue regexExec(Regex re, string s);
+export extern void setProp(JsValue obj, string key, JsValue value);
+export extern JsValue getProp(JsValue obj, string key);
+export extern void deleteProp(JsValue obj, string key);
+export extern bool hasProp(JsValue obj, string key);
+export extern JsValue objectBox(JsValue value);
+export extern void defineIterator(JsValue obj, JsValue iterator);
+export extern JsValue getArrayIterator();
+export extern void noop();
+export extern void throwError(string msg);
+export extern void throwTypeError(string msg);
+export extern JsValue jsUndefined();
+export extern void scheduleTimeout(JsValue fn);
+export extern void consoleWarn3(JsValue a, JsValue b, JsValue c);
+export extern JsValue nodeNameOf(JsValue elem);
+export extern JsValue getNodeType(JsValue elem);
+export extern JsValue getTextContent(JsValue elem);
+export extern JsValue getNodeValue(JsValue elem);
+export extern JsValue getNamespaceURI(JsValue elem);
+export extern JsValue getOwnerDocument(JsValue elem);
+export extern JsValue objectCreate(JsValue proto);
+export extern void setLength(JsValue obj, float length);
+export extern Regex newRegexp(string pattern, string flags = "");
+export extern void defineConfigurable(JsValue obj, JsValue key, JsValue value);
+export extern float unaryPlus(JsValue value);
+export extern JsValue getAttribute(JsValue elem, string name);
+export extern void setAttribute(JsValue elem, string name, string value);
+export extern void removeAttribute(JsValue elem, string name);
+export extern JsValue createElement(JsValue doc, string tag);
+export extern JsValue appendChild(JsValue parent, JsValue child);
+export extern bool matchesSelector(JsValue elem, string selector);
+export extern float dateNow();
+export extern float parseIntRadix(string value, float radix);
+export extern string stringReplaceFirst(string s, string search, string replacement);
+export extern void addEventListener(JsValue target, string eventName, JsValue handler, bool capture = false);
+export extern void removeEventListener(JsValue target, string eventName, JsValue handler, bool capture = false);
+export extern JsValue scheduleTimeoutMs(JsValue fn, float ms);
+export extern void clearTimeoutId(JsValue id);
+export extern void throwValue(JsValue error);
+export extern JsValue arrayShift(JsValue arr);
+export extern float arrayUnshift(JsValue arr, JsValue item);
+export extern string stringSlice(string s, float start, float end = 9007199254740991.0);
+export extern float stringIndexOf(string s, string search, float fromIndex = 0.0);
+export extern JsValue newDOMParser();
+export extern float parseHexEscape(string hexDigits);
+export extern string stringFromCharCode1(float a);
+export extern string stringFromCharCode2(float a, float b);
+export extern float mathRound(float value);
+export extern float mathCeil(float value);
+export extern float mathMax(float a, float b);
+export extern float mathMin(float a, float b);
+export extern float parseFloatValue(string value);
+export extern bool isFiniteValue(float value);
+export extern string encodeURIComponentValue(string value);
+export extern JsValue newXMLHttpRequest();
+export extern float mathCos(float value);
+export extern float mathPI();
+export extern JsValue requestAnimationFrameOrNull(JsValue fn);

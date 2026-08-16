@@ -1,0 +1,11 @@
+export class GlobalProjectionState {
+  bool hasAnimatedSinceResize;
+  bool hasEverUpdated;
+
+  init() {
+    this.hasAnimatedSinceResize = true;
+    this.hasEverUpdated = false;
+  }
+}
+
+export GlobalProjectionState globalProjectionState = new GlobalProjectionState();

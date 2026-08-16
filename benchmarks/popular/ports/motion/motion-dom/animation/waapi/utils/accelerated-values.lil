@@ -1,0 +1,6 @@
+export Set<string> acceleratedValues = new Set<string>();
+acceleratedValues.add("opacity");
+acceleratedValues.add("clipPath");
+acceleratedValues.add("filter");
+acceleratedValues.add("transform");
+acceleratedValues.add("backgroundColor");

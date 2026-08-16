@@ -1,0 +1,10 @@
+import { jsUndefined } from "./js-host.lil";
+
+export extern JsValue UNDEFINED;
+
+export JsValue a() {
+  return JS.undefined();
+}
+export JsValue b() {
+  return UNDEFINED;
+}

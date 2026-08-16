@@ -1,0 +1,7 @@
+import { processEvents, renderResult } from "./pipeline";
+
+int runEventAnalytics() {
+  return renderResult(processEvents());
+}
+
+print(runEventAnalytics());

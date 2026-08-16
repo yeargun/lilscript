@@ -1,0 +1,8 @@
+import { supportedWaapiEasing } from "./supported";
+
+export string? mapEasingToNativeEasing(string? easing, float _duration) {
+  if (easing == null) {
+    return null;
+  }
+  return supportedWaapiEasing.get(easing);
+}

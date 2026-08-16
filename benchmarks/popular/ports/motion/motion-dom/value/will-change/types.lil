@@ -1,0 +1,3 @@
+export class WillChange {
+  void add(string name) {}
+}

@@ -1,0 +1,43 @@
+import { stringMatch, stringSplit, stringTrim } from "../../string-host";
+
+export bool isCSSVariableName(JsValue? key = null) {
+  if (key == null) {
+    return false;
+  }
+  if (key is string) {
+    return key.startsWith("--");
+  }
+  return false;
+}
+
+Regex singleCssVariableRegex = new Regex(
+  "var\\(--(?:[\\w-]+\\s*|[\\w-]+\\s*,(?:\\s*[^)(\\s]|\\s*\\((?:[^)(]|\\([^)(]*\\))*\\))+\\s*)\\)$",
+  "iu"
+);
+
+export bool isCSSVariableToken(JsValue? value = null) {
+  if (value == null) {
+    return false;
+  }
+  if (!(value is string)) {
+    return false;
+  }
+  if (!value.startsWith("var(--")) {
+    return false;
+  }
+  string[] parts = stringSplit(value, "/*");
+  string cleaned = stringTrim(parts[0]);
+  JsValue matched = stringMatch(cleaned, singleCssVariableRegex);
+  return matched.truthy();
+}
+
+export bool containsCSSVariable(JsValue? value = null) {
+  if (value == null) {
+    return false;
+  }
+  if (!(value is string)) {
+    return false;
+  }
+  string[] parts = stringSplit(value, "/*");
+  return parts[0].includes("var(--");
+}

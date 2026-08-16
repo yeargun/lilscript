@@ -1,0 +1,32 @@
+import { interpolate, InterpolateOptions } from "./interpolate";
+
+export class TransformOptions {
+  bool clampValues;
+  (func(float)->float)[]? ease;
+
+  init(bool clampValues = true, (func(float)->float)[]? ease = null) {
+    this.clampValues = clampValues;
+    this.ease = ease;
+  }
+}
+
+export func(float)->float transformRange(
+  float[] inputRange,
+  float[] outputRange,
+  TransformOptions? options = null
+) {
+  InterpolateOptions? interpolateOptions = null;
+  if (options != null) {
+    interpolateOptions = new InterpolateOptions(options.clampValues, options.ease);
+  }
+  return interpolate(inputRange, outputRange, interpolateOptions);
+}
+
+export float transform(
+  float inputValue,
+  float[] inputRange,
+  float[] outputRange,
+  TransformOptions? options = null
+) {
+  return transformRange(inputRange, outputRange, options)(inputValue);
+}

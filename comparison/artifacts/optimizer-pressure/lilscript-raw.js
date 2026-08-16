@@ -1,0 +1,1 @@
+console.log(4);console.log(84);console.log(42);var $="application-build-identifier";console.log($);console.log($);console.log($)

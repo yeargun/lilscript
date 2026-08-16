@@ -1,0 +1,150 @@
+{
+  "schemaVersion": 1,
+  "provenance": {
+    "generatedAt": "2026-08-15T12:06:53.826Z",
+    "upstreamRepository": "https://github.com/krausest/js-framework-benchmark.git",
+    "upstreamCommit": "afe7c118dd217ccae4c10813613ac0d7566b1ef1",
+    "lilscriptCommit": "51ee9b9a5aec927a83179f3409188573ae39aa8c",
+    "compilerSha256": "2983ed413371a51dc9fc2c030d5d24ae4d31e5a592090f1461d295cfe7fa1a83",
+    "node": "v24.11.1",
+    "chrome": "Google Chrome 151.0.7922.138",
+    "platform": "darwin 24.6.0 arm64",
+    "cpu": "Apple M3 Pro",
+    "logicalCpuCount": 12,
+    "totalMemoryBytes": 19327352832
+  },
+  "configuration": {
+    "runner": "upstream Playwright implementation",
+    "browser": "installed Google Chrome",
+    "blocks": 1,
+    "seed": 20260814,
+    "cpuThrottling": true,
+    "warmups": "upstream workload-specific warmupCount",
+    "memoryCollection": "forceGC + performance.measureUserAgentSpecificMemory",
+    "coldLoad": "fresh browser context with an empty cache",
+    "brotliQuality": 11,
+    "frameworkFilter": "solidlil",
+    "measurementFingerprint": "b7d79a382a6a7dcb1e465b7efc46c14f64fcd82aa044b89e7b16f2ddc035f40e"
+  },
+  "sizes": {},
+  "samples": [
+    {
+      "phase": "cpu",
+      "block": 0,
+      "workload": "05_swap1k",
+      "framework": "solidlil-v0.1.0-keyed",
+      "elapsedMs": 2378,
+      "value": {
+        "total": 19.743,
+        "script": 2.72,
+        "paint": 14.14
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 0,
+      "workload": "02_replace1k",
+      "framework": "solidlil-v0.1.0-keyed",
+      "elapsedMs": 1939,
+      "value": {
+        "total": 27.819,
+        "script": 5.981,
+        "paint": 21.22
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 0,
+      "workload": "03_update10th1k_x16",
+      "framework": "solidlil-v0.1.0-keyed",
+      "elapsedMs": 1666,
+      "value": {
+        "total": 16.901,
+        "script": 1.479,
+        "paint": 13.148
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 0,
+      "workload": "09_clear1k_x8",
+      "framework": "solidlil-v0.1.0-keyed",
+      "elapsedMs": 1871,
+      "value": {
+        "total": 14.815,
+        "script": 11.93,
+        "paint": 0.61
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 0,
+      "workload": "06_remove-one-1k",
+      "framework": "solidlil-v0.1.0-keyed",
+      "elapsedMs": 1780,
+      "value": {
+        "total": 13.856,
+        "script": 1.005,
+        "paint": 11.954
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 0,
+      "workload": "04_select1k",
+      "framework": "solidlil-v0.1.0-keyed",
+      "elapsedMs": 1593,
+      "value": {
+        "total": 3.978,
+        "script": 0.116,
+        "paint": 3.708
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 0,
+      "workload": "07_create10k",
+      "framework": "solidlil-v0.1.0-keyed",
+      "elapsedMs": 2435,
+      "value": {
+        "total": 277.248,
+        "script": 26.632,
+        "paint": 240.414
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 0,
+      "workload": "01_run1k",
+      "framework": "solidlil-v0.1.0-keyed",
+      "elapsedMs": 1812,
+      "value": {
+        "total": 24.253,
+        "script": 3.006,
+        "paint": 20.744
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 0,
+      "workload": "08_create1k-after1k_x2",
+      "framework": "solidlil-v0.1.0-keyed",
+      "elapsedMs": 1879,
+      "value": {
+        "total": 29.502,
+        "script": 2.805,
+        "paint": 25.679
+      },
+      "warnings": []
+    }
+  ],
+  "completedAt": "2026-08-15T12:07:11.570Z"
+}

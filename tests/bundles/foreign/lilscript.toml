@@ -1,0 +1,11 @@
+[optimization]
+preset = "maximum"
+
+[javascript]
+candidate_search = "off"
+
+[bundle]
+mode = "split"
+min_chunk_bytes = 1
+max_chunks = 8
+shared_min_imports = 2

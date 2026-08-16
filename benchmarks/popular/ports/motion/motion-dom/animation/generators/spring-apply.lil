@@ -1,0 +1,24 @@
+import { secondsToMilliseconds } from "../../../motion-utils/time-conversion";
+import { SpringInput, spring } from "./spring";
+import { createGeneratorEasing } from "./utils/create-generator-easing";
+import { ValueAnimationTransition } from "../types";
+
+export ValueAnimationTransition springApplyToOptions(ValueAnimationTransition options) {
+  SpringInput input = new SpringInput(
+    [0.0, 100.0],
+    options.stiffness,
+    options.damping,
+    options.mass,
+    options.velocity,
+    options.duration,
+    null,
+    null,
+    options.restSpeed,
+    options.restDelta
+  );
+  auto easing = createGeneratorEasing(input, 100.0, (SpringInput opts) => spring(opts));
+  options.ease = easing.ease;
+  options.duration = secondsToMilliseconds(easing.duration);
+  options.type = "keyframes";
+  return options;
+}

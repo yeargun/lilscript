@@ -1,0 +1,41 @@
+extern string algorithmString(int index);
+extern int algorithmCount();
+
+pure int keywordCode(string value) {
+  if (value == "alpha") { return 11; }
+  if (value == "beta") { return 17; }
+  if (value == "gamma") { return 23; }
+  if (value == "delta") { return 29; }
+  if (value == "epsilon") { return 31; }
+  return 3;
+}
+
+pure int prefixCode(string value) {
+  if (value.startsWith("pre-")) { return 7; }
+  if (value.startsWith("post-")) { return 13; }
+  if (value.startsWith("internal-")) { return 19; }
+  return 1;
+}
+
+pure int tokenScore(string value, int index) {
+  return keywordCode(value) + prefixCode(value) + value.length * (index + 1);
+}
+
+pure string scoreLabel(int score) {
+  int group = ((score % 4) + 4) % 4;
+  if (group == 0) { return "dictionary-even-zero"; }
+  if (group == 1) { return "dictionary-even-one"; }
+  if (group == 2) { return "dictionary-odd-two"; }
+  return "dictionary-odd-three";
+}
+
+int dictionaryScore() {
+  int total = 0;
+  for (int index = 0; index < algorithmCount(); index++) {
+    total += tokenScore(algorithmString(index), index);
+  }
+  print(scoreLabel(total));
+  return total;
+}
+
+print(dictionaryScore());

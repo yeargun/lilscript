@@ -1,0 +1,46 @@
+import { addUniqueItem, removeItem } from "../../../motion-utils/array";
+import { compareByDepth, WithDepth } from "./compare-by-depth";
+
+export class FlatTree {
+  WithDepth[] children;
+  bool isDirty;
+
+  init() {
+    this.children = [];
+    this.isDirty = false;
+  }
+
+  void add(WithDepth child) {
+    addUniqueItem(this.children, child);
+    this.isDirty = true;
+  }
+
+  void remove(WithDepth child) {
+    removeItem(this.children, child);
+    this.isDirty = true;
+  }
+
+  void sortChildren() {
+    int n = this.children.length;
+    for (int i = 1; i < n; i++) {
+      WithDepth key = this.children[i];
+      int j = i - 1;
+      while (j >= 0 && compareByDepth(this.children[j], key) > 0) {
+        this.children[j + 1] = this.children[j];
+        j = j - 1;
+      }
+      this.children[j + 1] = key;
+    }
+  }
+
+  void each(func(WithDepth)->void callback) {
+    if (this.isDirty) {
+      this.sortChildren();
+    }
+    this.isDirty = false;
+    int n = this.children.length;
+    for (int i = 0; i < n; i++) {
+      callback(this.children[i]);
+    }
+  }
+}

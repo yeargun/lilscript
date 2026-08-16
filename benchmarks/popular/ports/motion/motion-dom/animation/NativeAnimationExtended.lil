@@ -1,0 +1,91 @@
+import { clamp } from "../../motion-utils/clamp";
+import { time } from "../frameloop/sync-time";
+import { setStyle } from "../render/dom/style-set";
+import { JSAnimation, JSAnimationOptions } from "./JSAnimation";
+import { NativeAnimation } from "./NativeAnimation";
+import { replaceTransitionType } from "./utils/replace-transition-type-keyframes";
+import { replaceStringEasing } from "./waapi/utils/unsupported-easing";
+import { callMethod1, callMethod2, setProp } from "../dom-host";
+import { MotionValue } from "../value/index";
+import extern { identity as asMotionValue } from "../cast-host.ts";
+
+extern MotionValue asMotionValue(JsValue value);
+
+float sampleDelta = 10.0;
+
+JsValue prepareExtendedOptions(JsValue options) {
+  replaceStringEasing(options);
+  replaceTransitionType(options);
+  return options;
+}
+
+export class NativeAnimationExtended extends NativeAnimation {
+  init(JsValue options) {
+    super(prepareExtendedOptions(options));
+    JsValue startTime = options["startTime"];
+    if (startTime is float) {
+      JsValue autoplay = options["autoplay"];
+      bool shouldAutoplay = true;
+      if (autoplay is bool) {
+        shouldAutoplay = autoplay;
+      }
+      if (shouldAutoplay) {
+        this.startTime = startTime;
+      }
+    }
+    this.options = options;
+    NativeAnimationExtended self = this;
+    this.updateMotionValueHook = (JsValue? value) => {
+      self.applyMotionValueUpdate(value);
+    };
+  }
+
+  void applyMotionValueUpdate(JsValue? value = null) {
+    JsValue options = this.options;
+    JsValue motionValue = options["motionValue"];
+    if (!motionValue.truthy()) {
+      return;
+    }
+    if (value != null) {
+      asMotionValue(motionValue).set(value);
+      return;
+    }
+    Record<JsValue> sampleOptions = record{};
+    for (string key in options) {
+      if (key != "motionValue" && key != "onUpdate" && key != "onComplete" && key != "element") {
+        sampleOptions[key] = options[key];
+      }
+    }
+    sampleOptions["autoplay"] = false;
+    JSAnimationOptions jsOptions = new JSAnimationOptions([], 0.0, null, null, null, null);
+    jsOptions.extra = sampleOptions;
+    JSAnimation sampleAnimation = new JSAnimation(jsOptions);
+    float start = 0.0;
+    float? startTimeOpt = this.startTime;
+    if (startTimeOpt != null) {
+      start = startTimeOpt;
+    }
+    float sampleTime = sampleDelta;
+    float elapsed = time.now() - start;
+    if (elapsed > sampleTime) {
+      sampleTime = elapsed;
+    }
+    float delta = clamp(0.0, sampleDelta, sampleTime - sampleDelta);
+    JsValue current = sampleAnimation.sample(sampleTime).value;
+    JsValue name = options["name"];
+    JsValue element = options["element"];
+    if (element.truthy()) {
+      if (name is string) {
+        string nameStr = name;
+        setStyle(element, nameStr, current);
+      }
+    }
+    float prevTime = sampleTime - delta;
+    if (prevTime < 0.0) {
+      prevTime = 0.0;
+    }
+    JsValue previous = sampleAnimation.sample(prevTime).value;
+    callMethod2(motionValue, "setWithVelocity", previous, current);
+    sampleAnimation.stop();
+  }
+}

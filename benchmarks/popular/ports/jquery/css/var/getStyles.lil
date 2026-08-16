@@ -1,0 +1,15 @@
+import {
+  windowSelf,
+  call1
+} from "../../js-host.lil";
+
+export JsValue getStyles(JsValue elem) {
+  JsValue doc = JS.and(elem, elem["ownerDocument"]);
+  JsValue view = doc["defaultView"];
+
+  if (!view.truthy() || !view["opener"].truthy()) {
+    view = windowSelf();
+  }
+
+  return JS.invoke(view, "getComputedStyle", elem);
+}

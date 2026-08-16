@@ -1,0 +1,112 @@
+import { buildHTMLStyles } from "../../html/utils/build-styles";
+import { buildSVGPath } from "./path";
+
+export string[] cssStyleProperties = [
+  "transform",
+  "opacity",
+  "offsetDistance",
+  "offsetPath",
+  "offsetRotate",
+  "offsetAnchor"
+];
+
+export void buildSVGAttrs(
+  JsValue state,
+  JsValue latestValues,
+  bool isSVGTag,
+  JsValue? transformTemplate = null,
+  JsValue? styleProp = null
+) {
+  JsValue latest = record{};
+  JsValue attrX = null;
+  JsValue attrY = null;
+  JsValue attrScale = null;
+  JsValue pathLength = null;
+  JsValue pathSpacing = 1.0;
+  JsValue pathOffset = 0.0;
+  for (string key in latestValues) {
+    if (key == "attrX") {
+      attrX = latestValues[key];
+    } else if (key == "attrY") {
+      attrY = latestValues[key];
+    } else if (key == "attrScale") {
+      attrScale = latestValues[key];
+    } else if (key == "pathLength") {
+      pathLength = latestValues[key];
+    } else if (key == "pathSpacing") {
+      pathSpacing = latestValues[key];
+    } else if (key == "pathOffset") {
+      pathOffset = latestValues[key];
+    } else {
+      latest[key] = latestValues[key];
+    }
+  }
+  buildHTMLStyles(state, latest, transformTemplate);
+  if (isSVGTag) {
+    if (state["style"]["viewBox"].truthy()) {
+      state["attrs"]["viewBox"] = state["style"]["viewBox"];
+    }
+    return;
+  }
+  state["attrs"] = state["style"];
+  state["style"] = record{};
+  JsValue attrs = state["attrs"];
+  JsValue style = state["style"];
+  for (int i = 0; i < cssStyleProperties.length; i++) {
+    string key = cssStyleProperties[i];
+    JsValue val = attrs[key];
+    bool defined =
+      (val is float) ||
+      (val is string) ||
+      (val is bool) ||
+      val.isArray() ||
+      (val.isObject() && val.truthy());
+    if (defined) {
+      style[key] = val;
+      attrs[key] = null;
+    }
+  }
+  if (style["transform"].truthy() || attrs["transformOrigin"].truthy()) {
+    JsValue origin = attrs["transformOrigin"];
+    if (!(origin is float) && !(origin is string)) {
+      origin = "50% 50%";
+    }
+    style["transformOrigin"] = origin;
+    attrs["transformOrigin"] = null;
+  }
+  if (style["transform"].truthy()) {
+    JsValue box = "fill-box";
+    if (styleProp != null && styleProp.isObject()) {
+      JsValue tb = styleProp["transformBox"];
+      if (tb is string) {
+        box = tb;
+      }
+    }
+    style["transformBox"] = box;
+    attrs["transformBox"] = null;
+  }
+  if ((attrX is float) || (attrX is string)) {
+    attrs["x"] = attrX;
+  }
+  if ((attrY is float) || (attrY is string)) {
+    attrs["y"] = attrY;
+  }
+  if ((attrScale is float) || (attrScale is string)) {
+    attrs["scale"] = attrScale;
+  }
+  if ((pathLength is float) || (pathLength is string)) {
+    float length = 0.0;
+    float spacing = 1.0;
+    float offset = 0.0;
+    if (pathLength is float) {
+      length = pathLength;
+    }
+    if (pathSpacing is float) {
+      spacing = pathSpacing;
+    }
+    if (pathOffset is float) {
+      offset = pathOffset;
+    }
+    buildSVGPath(attrs, length, spacing, offset, false);
+  }
+}

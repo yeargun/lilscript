@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Astro control · Parcel Market</title>
+    <style>
+      :root {
+        --ink: #1d211d;
+        --paper: #f5f1e8;
+        --muted: #72766e;
+        --line: rgba(29, 33, 29, 0.17);
+        --acid: #dce957;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        color: var(--ink);
+        background: var(--paper);
+        font: 15px/1.5 Inter, ui-sans-serif, system-ui, sans-serif;
+      }
+      .banner {
+        padding: 10px 20px;
+        background: #1d211d;
+        color: #f5f1e8;
+        font-size: 11px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      .banner b { color: var(--acid); font-weight: 800; }
+      header {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+        height: 72px;
+        padding: 0 28px;
+        border-bottom: 1px solid var(--line);
+      }
+      header strong { letter-spacing: -0.03em; }
+      header p { margin: 0; color: var(--muted); font-size: 12px; text-align: center; }
+      header span { justify-self: end; font-size: 12px; color: var(--muted); }
+      main { padding: 28px; }
+      h1 { margin: 0 0 8px; font-size: 34px; letter-spacing: -0.04em; }
+      h1 em { font-style: italic; font-weight: 500; }
+      .lead { max-width: 42em; color: var(--muted); }
+      .sizes {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 1px;
+        margin: 28px 0;
+        background: var(--line);
+        border: 1px solid var(--line);
+      }
+      .sizes div { padding: 14px 16px; background: #fff; }
+      .sizes b { display: block; font-size: 22px; letter-spacing: -0.04em; }
+      .sizes span { color: var(--muted); font-size: 11px; text-transform: uppercase; }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+      }
+      article {
+        padding: 16px;
+        border: 1px solid var(--line);
+        background: #fff;
+      }
+      article small { color: var(--muted); }
+      article h3 { margin: 8px 0 0; font-size: 16px; }
+      @media (max-width: 700px) {
+        .grid, .sizes { grid-template-columns: 1fr; }
+        header { grid-template-columns: 1fr; height: auto; padding: 16px 20px; gap: 6px; }
+        header p, header span { justify-self: start; text-align: left; }
+      }
+    </style>
+  </head>
+  <body>
+    <p class="banner"><b>Astro control</b> · measured production JavaScript · not the live Lastro app</p>
+    <header>
+      <strong>parcel market</strong>
+      <p>Independent objects for daily life</p>
+      <span>Astro 4 · Vite 8.2.1</span>
+    </header>
+    <main>
+      <h1>Useful things,<br /><em>chosen slowly.</em></h1>
+      <p class="lead">
+        This frame is the accessibility-matched Astro control: same CSS, same six
+        listings, same interaction contract. The live binary is not hosted here.
+        Sizes below are the published JavaScript payload.
+      </p>
+      <div class="sizes">
+        <div><b>2,672 B</b><span>Brotli-11 · primary</span></div>
+        <div><b>3,132 B</b><span>gzip-9 · diagnostic</span></div>
+        <div><b>8,801 B</b><span>Raw JavaScript</span></div>
+      </div>
+      <div class="grid">
+        <article><small>Paper goods · Mori Studio</small><h3>Field Notes Set</h3></article>
+        <article><small>Kitchen · North Foundry</small><h3>Pour-over No. 2</h3></article>
+        <article><small>Everyday · Kindred Cloth</small><h3>Linen Market Bag</h3></article>
+        <article><small>Home ritual · Quiet Hours</small><h3>Sunday Incense</h3></article>
+        <article><small>Home · Wax &amp; Wane</small><h3>Studio Candle</h3></article>
+        <article><small>Objects · Common Signal</small><h3>Pocket Radio</h3></article>
+      </div>
+    </main>
+  </body>
+</html>

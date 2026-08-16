@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="SolidLil implementation scope, LSX compilation path, behavior evidence, and bundle-size comparison with SolidJS."
+    />
+    <title>SolidLil | LilScript</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body class="content-page project-page">
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <header class="site-header">
+      <a class="wordmark" href="/" aria-label="LilScript home"
+        ><span class="wordmark-mark" aria-hidden="true">L</span
+        ><span>LilScript</span></a
+      ><button
+        class="nav-toggle icon-button"
+        type="button"
+        aria-label="Toggle navigation"
+        aria-expanded="false"
+      >
+        <i data-lucide="menu" aria-hidden="true"></i>
+      </button>
+      <nav class="site-nav" aria-label="Primary navigation"></nav>
+    </header>
+    <main id="main-content" class="project-main content-width">
+      <nav class="project-switcher" aria-label="Project pages">
+        <a href="/lilastro.html">Lilastro</a><a href="/lastro.html">Lastro</a
+        ><a class="active" aria-current="page" href="/solidlil.html">SolidLil</a
+        ><a href="/delivery.html">Lilpack</a>
+      </nav>
+      <section class="project-hero">
+        <div>
+          <span class="status-tag implemented"
+            >Runtime + client LSX parity</span
+          >
+          <p class="eyebrow">Reactive UI runtime</p>
+          <h1>SolidLil</h1>
+          <p class="lead">
+            A Solid-compatible browser core, Web module, and Store module backed
+            by a Lilscript reactive engine, with complete differential coverage
+            for the declared client-rendering LSX contract.
+          </p>
+          <div class="hero-actions">
+            <a class="primary-link" href="/demos.html#solidlil-keyed"
+              >Compare with SolidJS<i
+                data-lucide="arrow-right"
+                aria-hidden="true"
+              ></i></a
+            ><a class="secondary-link" href="#runtime-comparison"
+              >Read Brotli surfaces</a
+            >
+          </div>
+        </div>
+        <aside class="project-fact">
+          <strong>Compatibility statement</strong>
+          <p>
+            The pinned complete browser entries expose and verify 135/135 public
+            exports and pass 469/469 unchanged upstream tests. A separate
+            differential gate verifies all 21/21 in-scope client LSX families.
+            The 46-export client Web target excludes hydration and SSR; the full
+            73-export compatibility bundle remains visible and independently
+            verified.
+          </p>
+        </aside>
+      </section>
+
+      <section class="project-section" aria-labelledby="solidlil-path">
+        <div class="section-heading">
+          <p class="eyebrow">Two independent gates</p>
+          <h2 id="solidlil-path">Runtime parity does not waive LSX parity</h2>
+          <p>
+            The reusable <code>solid-js</code>, <code>solid-js/web</code>, and
+            <code>solid-js/store</code> browser entries are checked
+            independently from LSX syntax lowering. Both live in this monorepo;
+            both the public runtime gate and the 21/21 client LSX gate pass.
+            Hydration and SSR remain outside this client-only claim.
+            Compare them as demos:
+            <a href="/demos.html#solidlil-api">API vs SolidJS</a>,
+            <a href="/demos.html#solidlil-lsx">LSX vs JSX</a>,
+            and
+            <a href="/demos.html#solidlil-keyed">the keyed app</a>.
+          </p>
+        </div>
+        <div class="responsibility-grid">
+          <article>
+            <span>Runtime</span>
+            <h3>Unchanged upstream tests</h3>
+            <p>
+              The pinned Solid test files resolve their public entries to
+              SolidLil without source edits. Core, Web, and Store behavior all
+              remain in scope.
+            </p>
+          </article>
+          <article>
+            <span>LSX</span>
+            <h3>Explicit feature ledger</h3>
+            <p>
+              JSX-shaped Lilscript UI syntax is credited only where lowering and
+              differential runtime evidence both exist.
+            </p>
+          </article>
+          <article>
+            <span>Fairness</span>
+            <h3>Brotli before victory labels</h3>
+            <p>
+              Every exact surface shows official and SolidLil Brotli-11 bytes
+              first. A behavior pass can still be an optimization loss.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section
+        class="project-section"
+        id="runtime-comparison"
+        aria-labelledby="solidlil-runtime-title"
+        data-solid-runtime-results
+      ></section>
+
+      <section
+        class="project-section"
+        aria-labelledby="solidlil-lsx-title"
+        data-solid-lsx-parity
+      ></section>
+
+      <section
+        class="project-section"
+        aria-labelledby="solidlil-lsx-size-title"
+        data-solid-lsx-size
+      ></section>
+
+      <section
+        class="project-section"
+        id="comparison"
+        aria-labelledby="solidlil-comparison"
+      >
+        <div class="section-heading">
+          <p class="eyebrow">Archived served-app result</p>
+          <h2 id="solidlil-comparison">Historical todolist snapshot</h2>
+          <p>
+            The table counts the full served todolist application in the checked
+            sibling-worktree snapshot. It stays visible as historical evidence
+            but cannot satisfy the new integrated parity gate.
+          </p>
+        </div>
+        <div class="compact-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Artifact</th>
+                <th>Brotli-11 · primary</th>
+                <th>gzip-9</th>
+                <th>Raw</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th>Solid todolist</th>
+                <td>5,479 B</td>
+                <td>6,077 B</td>
+                <td>15,456 B</td>
+              </tr>
+              <tr class="lilscript-row">
+                <th>SolidLil LSX todolist</th>
+                <td>3,722 B</td>
+                <td>4,226 B</td>
+                <td>10,590 B</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="comparison-note">
+          The archived SolidLil LSX app is 32.1% smaller Brotli, 30.5% smaller
+          gzip, and 31.5% smaller raw. This is an application result within the
+          old implemented slice, not current full Solid or LSX compatibility.
+        </p>
+      </section>
+
+      <section
+        class="project-section split-explanation"
+        aria-labelledby="solidlil-evidence"
+      >
+        <div>
+          <p class="eyebrow">Behavior evidence</p>
+          <h2 id="solidlil-evidence">Parity includes teardown</h2>
+          <p>
+            The candidate passes 469/469 unchanged upstream tests across 26
+            files. A second 112-case Lilscript corpus passes maximum and
+            disabled optimization on the JavaScript target: 224 compiler/runtime
+            executions. C/native are excluded because they do not yet implement
+            the JavaScript exception and Promise semantics required by Solid.
+          </p>
+        </div>
+        <div class="plain-note">
+          <strong>Lifecycle and memory</strong>
+          <p>
+            The deterministic gate covers idempotent unmount, stale disposers
+            after slot reuse, keyed/indexed row cleanup, and resources resolving
+            after disposal. After warmup, SolidLil holds a stable eight-owner /
+            sixteen-effect high-water; every slot is returned and the pending
+            queue is empty.
+          </p>
+        </div>
+      </section>
+
+      <section
+        class="project-section"
+        aria-labelledby="solidlil-api-title"
+        data-solid-api-parity
+      ></section>
+
+      <section
+        class="project-section scope-section"
+        aria-labelledby="solidlil-scope"
+      >
+        <div>
+          <p class="eyebrow">Included today</p>
+          <h2 id="solidlil-scope">Verified browser runtime</h2>
+          <ul>
+            <li>Exact Core, Web, and Store export inventories</li>
+            <li>
+              Ownership, errors, resources, transitions, Suspense, scheduling,
+              and context
+            </li>
+            <li>
+              DOM insertion, events, control flow, portals, teardown, and store
+              proxies
+            </li>
+            <li>
+              Public-safe open-world ESM and export-mangled closed-world runtime
+              builds
+            </li>
+          </ul>
+        </div>
+        <div>
+          <p class="eyebrow">Explicit exclusions</p>
+          <h2>Server-coupled systems</h2>
+          <ul>
+            <li>
+              SSR templates, streaming, serialization, and server resources
+            </li>
+            <li>True hydration markers, event replay, and mismatch recovery</li>
+            <li>Exhaustive type-level and ecosystem-package compatibility</li>
+            <li>
+              Claims beyond the pinned browser runtime and declared 21-family
+              client LSX contract
+            </li>
+          </ul>
+        </div>
+      </section>
+    </main>
+    <footer class="site-footer content-width">
+      <span>SolidLil runtime experiment</span
+      ><a href="/libraries.html">Full library evidence</a>
+    </footer>
+    <script type="module" src="/src/solidlil.js"></script>
+  </body>
+</html>

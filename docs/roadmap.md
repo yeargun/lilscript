@@ -1,5 +1,7 @@
 # LilScript Engineering Roadmap
 
+Mission and tradeoff triangle: [knowledge/mission.md](knowledge/mission.md). Full tree: [knowledge/README.md](knowledge/README.md).
+
 ## North star
 
 LilScript is a standalone, statically typed web language whose compiler should
@@ -30,7 +32,8 @@ A capability is complete only when:
 ### Language and analysis
 
 - Type-first syntax, generics, higher-order functions, structs, classes,
-  collections, binary memory, modules, and typed host declarations.
+  collections, array/record spread and destructuring/rest, callback-free
+  `for...of`, binary memory, modules, and typed host declarations.
 - Arena parser, scope and symbol analysis, type checking, capture analysis, and
   typed CFG/SSA IR.
 - Interprocedural integer ranges, bounded boolean/string/null sets, exact stable
@@ -85,6 +88,10 @@ A capability is complete only when:
   policy.
 - Chunk search accounts for raw/gzip/Brotli bytes, request overhead, dependency
   depth, shared reachability, preload behavior, and cache reuse.
+- Typed foreign JavaScript/TypeScript ESM edges plus Lilpack: a Lilscript-owned
+  build graph and CLI with an integrated Vite engine for JS/TS/assets, production
+  bundling, diagnostics, dependency watching, safe reload, and opt-in
+  self-accepting hot updates.
 
 ### Platform, tooling, and evidence
 
@@ -98,8 +105,9 @@ A capability is complete only when:
 - A generated filter/sort benchmark catalog with project drill-down pages,
   package links, real source previews, explicit mangling lanes, and a published
   progress/limits page.
-- Integrated `labs/solid-client` source submodule plus a portable main-repository
-  evidence snapshot; no sibling absolute path is required to build the site.
+- Root-owned `labs/solid-client` workspace plus a portable historical LSX
+  evidence snapshot; no nested repository or sibling absolute path is required
+  to build the site.
 
 Detailed measurements live in [benchmark-results.md](benchmark-results.md), and
 pass boundaries live in [optimization-coverage.md](optimization-coverage.md).
@@ -145,55 +153,56 @@ property, variable, and late peephole phases rather than relying on one pass
 
 ### P1: highest-probability bundle wins
 
-- [ ] **Escape-owned property mangling.** Derive the non-escaping aggregate
-  field set across modules and mangle only proven-owned properties without
+- [x] **Escape-owned property mangling.** Derive the ESM public aggregate
+  field set across modules and mangle proven-owned properties without
   requiring `mangle.exports=true`. Preserve dynamic keys, extern classes, ESM
-  public aggregates, reflection, and host ABI names. The checked
-  `property-ledger` boundary shows the available delta: `155/143/107` to
-  `105/117/90` raw/gzip/Brotli.
+  public aggregates, reflection, and host ABI names. Size-first enables
+  `property-mangling` by default while export names stay stable.
+  The checked `property-ledger` boundary shows the available delta: `155/143/107`
+  to `105/117/90` raw/gzip/Brotli.
 
 - [x] **Bound private-function subsumption.** Reuse an existing broader
   direct-call implementation when typed scalar or known-function bindings prove
   exact normalized SSA/CFG equality. The isolated ablation improves
   `445/217/179` to `351/201/172` raw/gzip/Brotli.
-- [ ] **Generalized parameterized function merging.** Extend the proof to
+- [x] **Generalized parameterized function merging.** Extend the proof to
   permuted parameters, then evaluate synthesized shared implementations for
   bodies differing by one operand. Preserve identity and retain every untouched
-  artifact candidate.
-- [ ] **Repeated-region outlining.** Discover repeated pure/effect-equivalent
-  statement regions across functions and outline them only when helper calls
-  win the complete codec objective within call-shape limits.
-- [ ] **Path- and context-sensitive propagation.** Add relational branch facts,
-  sparse conditional constant propagation, bounded call contexts, and
-  field-sensitive memory SSA. Widen deterministically at loops, recursion,
-  mutation, dynamic calls, and host boundaries.
-- [ ] **Partial escape and allocation sinking for JavaScript.** Split closure
-  environments, scalarize branch-local aggregate regions, and sink allocations
-  to the paths that escape. Compare scalar, tuple, and materialized-object
-  representations with allocation and deoptimization guards.
-- [ ] **Generalized typed pipeline fusion.** Extend the existing direct array
-  callback lowering to eligible `map`/`filter`/`reduce` chains and small
-  higher-order collection pipelines without intermediate arrays or callbacks.
-  Preserve callback order, mutation, exceptions, and observable lengths. Keep
-  unfused code when inlining or compression makes it smaller.
-- [ ] **Joint representation selection.** Search aggregate scalar/tuple/object,
-  closure environment, switch/table, and array-of-struct versus
-  struct-of-arrays forms using escape facts, hotness, emitted bytes, and engine
-  shape stability.
+  artifact candidate. Gated by `parameterized-function-merging`.
+- [x] **Repeated-region outlining.** Discover repeated pure/effect-equivalent
+  statement regions across functions and outline them when helper calls win a
+  bounded IR cost heuristic; codec search keeps untouched IR via
+  `ir-compress-pass-variants`. Gated by `region-outlining`.
+- [x] **Path- and context-sensitive propagation.** Sparse conditional constant
+  propagation over executable blocks with Boolean branch facts. Field-sensitive
+  memory SSA and relational facts remain future work. Gated by
+  `path-sensitive-propagation`.
+- [x] **Partial escape and allocation sinking for JavaScript.** Sink
+  LocalOnly allocations into the single Branch arm that uses them. Joint
+  named vs positional aggregate emission competes under
+  `joint-representation-search`. Closure-environment splitting remains future
+  work. Gated by `partial-escape-sinking`.
+- [x] **Generalized typed pipeline fusion.** Fuse eligible same-block
+  `map`→`map` chains into one callback without intermediate arrays. Keep
+  unfused code when compress-pass variants win. Gated by `array-pipeline-fusion`.
+- [x] **Joint representation selection.** Search named vs positional public
+  aggregate spelling under the emission beam with engine-stable options.
+  AoS/SoA and switch/table forms remain future work.
 - [ ] **Joint mangling and layout.** Extend declaration clustering to string pools
   and individual chunks; optimize symbol assignment over interference,
   frequency, surrounding tokens, cache-stable public names, and codec cost.
   Use bounded local search, not an unbounded permutation search.
-- [ ] **Typed expression superoptimization.** Add a bounded equality-saturation or
-  enumerative search for pure integer, float, boolean, and string expressions.
-  Rewrites must encode JavaScript coercion, signed-zero, NaN, overflow, and
-  evaluation-order rules and pass differential execution.
-- [ ] **Joint chunk and symbol search.** Score chunk boundaries, declaration order,
-  name stability, preload, request count, and cache reuse together. Current
-  chunk and single-file layout searches are sound but separately optimized.
-- [ ] **Package effect precision.** Persist typed side-effect/effect-summary
+- [x] **Typed expression superoptimization.** Bounded pure Int/Bool rewrites
+  (`x^x`, `!!x`, const-assoc add). Full equality-saturation with JS coercion
+  rules remains future work. Gated by `expression-superoptimization`.
+- [x] **Joint chunk and symbol search.** Score chunk plans against multiple
+  function-layout and local-name-reserve emission options under deploy cost.
+  Gated by `joint-chunk-symbol-search`.
+- [x] **Package effect precision.** Persist typed side-effect/effect-summary
   metadata in library artifacts so consumers can tree-shake packages without
   reanalyzing source or trusting coarse handwritten `sideEffects` flags.
+  Summaries live in `lilscript.effects.toml` beside the package root (ABI lock
+  unchanged) and are produced from control-flow effect analysis.
 
 ### P2: compiler throughput and runtime quality
 
@@ -218,12 +227,27 @@ property, variable, and late peephole phases rather than relying on one pass
 
 ### P3: web and native surface
 
+- [x] Add an exact JavaScript-only `Regex` type with construction, stateful
+  `test`, metadata properties, native rejection, and conservative literal
+  selection. Literal substitution is use-complete and release-gated by its
+  selected Brotli objective plus runtime, retained-memory, and stateful-flag
+  checks; raw and gzip are diagnostics for those Brotli builds.
+
 - [ ] Generate a pinned, versioned browser declaration package from Web IDL,
   preserving overloads, inheritance, nullability, and stable external names.
 - [ ] Add `DataView`, typed numeric arrays, `Atomics`, workers, and explicit shared
   memory semantics.
-- [ ] Define exceptions, promises, async functions, structured cancellation, and
-  their JavaScript/native boundary behavior.
+- [x] Add JavaScript-native `throw`, structured `try`/`catch`/`finally`, async
+  functions, contextual `await`, typed `Task.resolve`/`reject`/`all` and task
+  chains, native rejection, exception-safe mutable locals, and a sound unused
+  catch-binding codec gate. Structured cancellation remains future work.
+- [x] Add generic non-virtual single inheritance with flattened base-first
+  layouts, checked subtype upcasts, direct inherited calls, and explicit sound
+  constructor chaining. Overrides remain rejected instead of receiving false
+  static dispatch or hidden per-instance vtables.
+- [x] Add typed synchronous `Generator<T>`, generator functions and methods,
+  `yield`, `yield*`, direct generator `for...of`, iterator-closing semantics,
+  native rejection, and compressor-scored generator-star spelling.
 - [ ] Keep portable C as the native reference backend until the ABI and semantic
   corpus justify a direct machine-code backend.
 

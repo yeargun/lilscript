@@ -1,0 +1,6 @@
+export bool isElementTracking(JsValue? options = null) {
+  if (options == null || !options.isObject()) {
+    return false;
+  }
+  return options["target"] != null || options["offset"] != null;
+}

@@ -1,0 +1,1 @@
+var e=0,g=7;for(;e<5e3;++e)g=(g*3|0)+1|0;console.log(g)

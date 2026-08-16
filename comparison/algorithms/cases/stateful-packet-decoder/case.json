@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "stateful-packet-decoder",
+  "title": "Cross-module packet state recovery",
+  "hypothesis": "A multi-stage hexadecimal packet parser makes character classification, helper reuse, state transitions, early exits, and checksum spelling compete as one whole-program decision.",
+  "tier": "medium-structural",
+  "boundary": "runtime-host-script",
+  "structure": { "functions": 11, "modules": 2, "hostBoundaries": 1, "callDepth": 5 },
+  "opportunities": ["control-flow-structuring", "state-machine", "helper-sharing", "cross-module-inlining", "branch-folding", "loop-spelling"],
+  "expectations": { "raw": "le", "gzip9": "le", "brotli11": "le" },
+  "vectors": [
+    { "name": "complete", "ints": [], "strings": ["A3:1f,7;B:20,4;"], "expected": "-1543565344\n" },
+    { "name": "spaces", "ints": [], "strings": ["1a:ff,9; 2B:10,3; C:7d,5;"], "expected": "133160594\n" },
+    { "name": "comment-stop", "ints": [], "strings": ["FE:12,8;9:AB,1#ignored:FFFF,9;"], "expected": "-508048729\n" }
+  ]
+}

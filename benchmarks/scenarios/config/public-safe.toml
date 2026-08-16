@@ -6,6 +6,7 @@ priority = "size-first"
 optimization_level = 15
 cost_model = "brotli"
 candidate_search = "production"
+strip_console = false
 
 [mangle]
 identifiers = true

@@ -1,0 +1,4 @@
+import { camelToDash } from "../../render/dom/utils/camel-to-dash";
+
+export string optimizedAppearDataId = "framerAppearId";
+export string optimizedAppearDataAttribute = `data-${camelToDash(optimizedAppearDataId)}`;

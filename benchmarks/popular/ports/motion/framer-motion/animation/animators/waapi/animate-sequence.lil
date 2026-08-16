@@ -1,0 +1,31 @@
+import { GroupAnimationWithThen } from "../../../../motion-dom/animation/GroupAnimationWithThen";
+import { mapKeys } from "../../../../motion-dom/dom-host";
+import { createAnimationsFromSequence } from "../../sequence/create";
+import { ResolvedAnimationDefinition } from "../../sequence/types";
+import { animateElements } from "./animate-elements";
+
+export GroupAnimationWithThen animateSequence(
+  JsValue definition,
+  JsValue? options = null
+) {
+  JsValue[] animations = [];
+  Map<JsValue, ResolvedAnimationDefinition> sequenceMap =
+    createAnimationsFromSequence(definition, options);
+  JsValue[] elements = mapKeys(sequenceMap);
+  for (int i = 0; i < elements.length; i++) {
+    JsValue element = elements[i];
+    ResolvedAnimationDefinition? resolvedOpt = sequenceMap.get(element);
+    if (resolvedOpt != null) {
+      ResolvedAnimationDefinition resolved = resolvedOpt;
+      JsValue[] elementAnimations = animateElements(
+        element,
+        resolved.keyframes,
+        resolved.transition
+      );
+      for (int j = 0; j < elementAnimations.length; j++) {
+        animations.push(elementAnimations[j]);
+      }
+    }
+  }
+  return new GroupAnimationWithThen(animations);
+}

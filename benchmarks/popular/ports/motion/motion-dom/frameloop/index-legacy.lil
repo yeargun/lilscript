@@ -1,0 +1,30 @@
+import { cancelFrame, frame } from "./index";
+import { stepsOrder } from "./order";
+import { Batcher, FrameData } from "./types";
+
+export Batcher sync = frame;
+
+class CancelSync {
+  Map<string, func(func(FrameData)->void)->void> entries;
+
+  init() {
+    this.entries = new Map<string, func(func(FrameData)->void)->void>();
+    int i = 0;
+    while (i < stepsOrder.length) {
+      string key = stepsOrder[i];
+      this.entries.set(key, (func(FrameData)->void process) => {
+        cancelFrame(process);
+      });
+      i = i + 1;
+    }
+  }
+
+  void call(string key, func(FrameData)->void process) {
+    (func(func(FrameData)->void)->void)? fn = this.entries.get(key);
+    if (fn != null) {
+      fn(process);
+    }
+  }
+}
+
+export CancelSync cancelSync = new CancelSync();

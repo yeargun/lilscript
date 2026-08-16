@@ -1,0 +1,78 @@
+import { warning } from "../../../motion-utils/errors";
+import { hex } from "../../value/types/color/hex";
+import { hsla } from "../../value/types/color/hsla";
+import { hslaToRgba } from "../../value/types/color/hsla-to-rgba";
+import { rgba } from "../../value/types/color/rgba";
+import { isHslaShape, isRgbaShape, hslaFromJs, rgbaFromJs } from "../../value/types/color/shape";
+import { HSLA, RGBA, ValueType } from "../../value/types/types";
+import { mixImmediate } from "./immediate";
+import { mixNumber } from "./number";
+
+export float mixLinearColor(float from, float to, float v) {
+  float fromExpo = from * from;
+  float expo = v * (to * to - fromExpo) + fromExpo;
+  if (expo < 0.0) {
+    return 0.0;
+  }
+  return expo.sqrt();
+}
+
+ValueType[] colorTypes = [hex, rgba, hsla];
+
+ValueType? getColorType(JsValue v) {
+  int i = 0;
+  while (i < colorTypes.length) {
+    if (colorTypes[i].test(v)) {
+      return colorTypes[i];
+    }
+    i = i + 1;
+  }
+  return null;
+}
+
+RGBA | bool asRGBA(JsValue colorValue) {
+  ValueType? type = getColorType(colorValue);
+  warning(
+    type != null,
+    `'${colorValue}' is not an animatable color. Use the equivalent color code instead.`,
+    "color-not-animatable"
+  );
+  if (type == null) {
+    return false;
+  }
+  JsValue model = type.parse(colorValue);
+  if (type == hsla) {
+    if (isHslaShape(model)) {
+      return hslaToRgba(hslaFromJs(model));
+    }
+  }
+  if (isRgbaShape(model)) {
+    return rgbaFromJs(model);
+  }
+  return false;
+}
+
+export func(float)->string mixColor(JsValue from, JsValue to) {
+  RGBA | bool fromRGBA = asRGBA(from);
+  RGBA | bool toRGBA = asRGBA(to);
+  if (fromRGBA is bool || toRGBA is bool) {
+    return (float p) => {
+      JsValue result = mixImmediate(from, to)(p);
+      return `${result}`;
+    };
+  }
+  RGBA fromColor = fromRGBA;
+  RGBA toColor = toRGBA;
+  RGBA blended = new RGBA(fromColor.red, fromColor.green, fromColor.blue, fromColor.alpha);
+  return (float v) => {
+    blended.red = mixLinearColor(fromColor.red, toColor.red, v);
+    blended.green = mixLinearColor(fromColor.green, toColor.green, v);
+    blended.blue = mixLinearColor(fromColor.blue, toColor.blue, v);
+    blended.alpha = mixNumber(fromColor.alpha, toColor.alpha, v);
+    (func(JsValue)->JsValue)? transform = rgba.transform;
+    if (transform != null) {
+      return `${transform(blended)}`;
+    }
+    return "";
+  };
+}

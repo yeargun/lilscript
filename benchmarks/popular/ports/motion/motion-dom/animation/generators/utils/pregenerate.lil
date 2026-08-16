@@ -1,0 +1,31 @@
+import { millisecondsToSeconds } from "../../../../motion-utils/time-conversion";
+import { AnimationState } from "../../animation-state";
+
+export class KeyframesMetadata {
+  float[] keyframes;
+  float duration;
+
+  init(float[] keyframes, float duration) {
+    this.keyframes = keyframes;
+    this.duration = duration;
+  }
+}
+
+float timeStep = 10.0;
+float maxDuration = 10000.0;
+
+export KeyframesMetadata pregenerateKeyframes(func(float)->AnimationState next) {
+  float timestamp = timeStep;
+  AnimationState state = next(0.0);
+  float[] keyframes = [state.value];
+  while (!state.done && timestamp < maxDuration) {
+    state = next(timestamp);
+    keyframes.push(state.value);
+    timestamp = timestamp + timeStep;
+  }
+  float duration = timestamp - timeStep;
+  if (keyframes.length == 1) {
+    keyframes.push(state.value);
+  }
+  return new KeyframesMetadata(keyframes, millisecondsToSeconds(duration));
+}

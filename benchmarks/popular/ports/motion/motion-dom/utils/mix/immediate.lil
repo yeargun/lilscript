@@ -1,0 +1,8 @@
+export func(float)->JsValue mixImmediate(JsValue a, JsValue b) {
+  return (float p) => {
+    if (p > 0.0) {
+      return b;
+    }
+    return a;
+  };
+}

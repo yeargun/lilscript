@@ -1,0 +1,90 @@
+import { isHTMLElement } from "../../../../../motion-dom/utils/is-html-element";
+import { getElementTagName, callMethod0 } from "../../../../../motion-dom/dom-host";
+
+export class InsetPoint {
+  float x;
+  float y;
+
+  init(float x = 0.0, float y = 0.0) {
+    this.x = x;
+    this.y = y;
+  }
+}
+
+export InsetPoint calcInset(JsValue element, JsValue container) {
+  InsetPoint inset = new InsetPoint();
+  JsValue? current = element;
+
+  while (current != null && current != container) {
+    JsValue node = current;
+    if (isHTMLElement(node)) {
+      JsValue offsetLeft = node["offsetLeft"];
+      JsValue offsetTop = node["offsetTop"];
+      if (offsetLeft is float) {
+        inset.x = inset.x + offsetLeft;
+      }
+      if (offsetTop is float) {
+        inset.y = inset.y + offsetTop;
+      }
+      current = node["offsetParent"];
+    } else {
+      string tag = getElementTagName(node);
+      if (tag == "svg" || tag == "SVG") {
+        JsValue svgBox = callMethod0(node, "getBoundingClientRect");
+        current = node["parentElement"];
+        if (current == null) {
+          break;
+        }
+        JsValue parentNode = current;
+        JsValue parentBox = callMethod0(parentNode, "getBoundingClientRect");
+        if (svgBox.truthy() && parentBox.truthy()) {
+          JsValue left = svgBox["left"];
+          JsValue parentLeft = parentBox["left"];
+          JsValue top = svgBox["top"];
+          JsValue parentTop = parentBox["top"];
+          if (left is float) {
+            if (parentLeft is float) {
+              inset.x = inset.x + (left - parentLeft);
+            }
+          }
+          if (top is float) {
+            if (parentTop is float) {
+              inset.y = inset.y + (top - parentTop);
+            }
+          }
+        }
+      } else {
+        JsValue getBBox = node["getBBox"];
+        if (getBBox.truthy()) {
+          JsValue box = callMethod0(node, "getBBox");
+          if (box.truthy()) {
+            JsValue x = box["x"];
+            JsValue y = box["y"];
+            if (x is float) {
+              inset.x = inset.x + x;
+            }
+            if (y is float) {
+              inset.y = inset.y + y;
+            }
+          }
+          JsValue? svg = null;
+          JsValue? parent = node["parentNode"];
+          while (svg == null && parent != null) {
+            JsValue parentNode = parent;
+            string parentTag = getElementTagName(parentNode);
+            if (parentTag == "svg" || parentTag == "SVG") {
+              svg = parentNode;
+            } else {
+              parent = parentNode["parentNode"];
+            }
+          }
+          current = svg;
+        } else {
+          break;
+        }
+      }
+    }
+  }
+
+  return inset;
+}

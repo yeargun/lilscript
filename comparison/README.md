@@ -18,6 +18,22 @@ Run every program and regenerate the aggregate report:
 comparison/run-all.sh
 ```
 
+Paired LilScript vs Terser/Oxc/esbuild micro cases live under `cases/`. The
+durable catalog is materialized into reviewable folder-per-case build artifacts,
+then gated for stdout plus independent raw, gzip, and Brotli size:
+
+```sh
+node comparison/cases/run.mjs
+```
+
+Escalating multi-function algorithms with fixed runtime vectors, structural
+metadata, module graphs, and Terser/Oxc/esbuild/Vite frontiers live under
+`algorithms/`:
+
+```sh
+node comparison/algorithms/run.mjs
+```
+
 Ready-to-run generated JavaScript, emitted C, Closure ADVANCED output, and
 macOS ARM64 native executables are checked in under `comparison/artifacts`.
 Validate those snapshots without rebuilding either compiler with:
@@ -40,6 +56,8 @@ JavaScript, LilScript native output, and independently compiled LilScript C all 
 checked-in expected output.
 
 The reports measure actual generated files without removing trailing bytes.
-Raw UTF-8, gzip level 9, and Brotli quality 11 sizes are recorded. These cases
+LilScript is compiled independently for raw, gzip, and Brotli; each objective
+artifact is gated only on its matching metric against Closure. A Brotli-selected
+artifact may be larger raw or gzip without failing the Brotli objective. These cases
 test specific language and optimization categories; they are evidence over the
 listed corpus, not a claim about every possible JavaScript program.

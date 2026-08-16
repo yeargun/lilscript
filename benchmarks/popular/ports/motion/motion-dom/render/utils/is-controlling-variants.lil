@@ -1,0 +1,26 @@
+import { isAnimationControls } from "./is-animation-controls";
+import { isVariantLabel } from "./is-variant-label";
+import { variantProps } from "./variant-props";
+
+export bool isControllingVariants(JsValue props) {
+  if (isAnimationControls(props["animate"])) {
+    return true;
+  }
+  for (int i = 0; i < variantProps.length; i++) {
+    string name = variantProps[i];
+    JsValue prop = props[name];
+    if (prop.truthy() || (prop is float) || (prop is bool) || (prop is string)) {
+      if (isVariantLabel(prop)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+export bool isVariantNode(JsValue props) {
+  if (isControllingVariants(props)) {
+    return true;
+  }
+  return props["variants"].truthy();
+}

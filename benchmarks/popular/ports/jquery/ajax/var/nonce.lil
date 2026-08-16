@@ -1,0 +1,13 @@
+import {
+  dateNow
+} from "../../js-host.lil";
+
+struct NonceBag {
+  float guid;
+}
+
+JsValue makeNonce() {
+  return NonceBag{dateNow()};
+}
+
+export JsValue nonce = makeNonce();

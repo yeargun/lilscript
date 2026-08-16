@@ -1,0 +1,12 @@
+import { supportsScrollTimeline, supportsViewTimeline } from "../../../../../motion-dom/utils/supports/scroll-timeline";
+import { hasWindow } from "../../../../../motion-dom/dom-host";
+
+export bool canUseNativeTimeline(JsValue? target = null) {
+  if (!hasWindow()) {
+    return false;
+  }
+  if (target != null) {
+    return supportsViewTimeline();
+  }
+  return supportsScrollTimeline();
+}

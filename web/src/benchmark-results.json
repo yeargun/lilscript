@@ -1,7 +1,27 @@
 {
+  "schemaVersion": 2,
   "metadata": {
-    "generatedAt": "2026-08-09T09:31:48.356Z",
-    "compilerRevision": "85ef5bc",
+    "generatedAt": "2026-08-14T13:02:56.079Z",
+    "compilerRevision": "51ee9b9",
+    "compiler": {
+      "path": "target/release/lilscript",
+      "version": "lilscript 0.1.0",
+      "sha256": "d7f718ea39e9c63292beb566d73678f09af47eb7db85d597bd33e276f96c08f3"
+    },
+    "objectiveConfigs": {
+      "raw": {
+        "path": "comparison/cases/configs/raw.toml",
+        "sha256": "df63eb68d859480a8f5112fad4a5bca5ece943019d36de7c00a886653da9d92a"
+      },
+      "gzip": {
+        "path": "comparison/cases/configs/gzip.toml",
+        "sha256": "2deac84f1ce2a3b5f5b31a115638fd433656cd25a187e577c48e72c11c76b533"
+      },
+      "brotli": {
+        "path": "comparison/cases/configs/brotli.toml",
+        "sha256": "573cf69cd87d38a0a4c4b7b9492b99895122bd6a95e14b117af8ebec945f5a81"
+      }
+    },
     "node": "v24.11.1",
     "vite": "8.2.1",
     "esbuild": "0.28.1",
@@ -10,8 +30,42 @@
     "mitt": "3.0.1",
     "motion": "13.0.0",
     "system": "darwin 24.6.0 arm64",
-    "warmups": 0,
-    "samples": 1
+    "warmups": 5,
+    "samples": 25,
+    "runtimeObjective": "brotli",
+    "objectiveContract": {
+      "raw": "raw-config artifact measured as raw UTF-8",
+      "gzip": "gzip-config artifact measured as gzip level 9",
+      "brotli": "brotli-config artifact measured as Brotli quality 11",
+      "diagnosticCrossMetricsMayLose": true
+    },
+    "codecs": {
+      "implementation": "lilscript-codec",
+      "schemaVersion": 1,
+      "scorer": {
+        "path": "target/release/lilscript-codec",
+        "sha256": "a753756ba32a49c3539a5b59d440e40d713cfa4d044c53a7fdb01277eb2dfbc1",
+        "bytes": 1804816
+      },
+      "gzip9": {
+        "encoder": "upstream-stock-zlib-c",
+        "libraryVersion": "1.3.1",
+        "cargoPackage": "libz-sys",
+        "cargoPackageVersion": "1.1.24",
+        "level": 9,
+        "mtime": 0
+      },
+      "brotli11": {
+        "encoder": "official-google-brotli-c",
+        "libraryVersion": "1.1.0",
+        "cargoPackage": "compu-brotli-sys",
+        "cargoPackageVersion": "1.1.0",
+        "quality": 11,
+        "lgwin": 22,
+        "mode": "generic"
+      },
+      "nodeCodecsAreDiagnosticOnly": true
+    }
   },
   "results": [
     {
@@ -28,9 +82,9 @@
           "id": "reference",
           "label": "Reference JS bundle",
           "raw": 1151,
-          "gzip": 458,
+          "gzip": 452,
           "brotli": 375,
-          "medianMs": 3.6170410000000004
+          "medianMs": 3.5142499999999472
         },
         {
           "id": "esbuild",
@@ -38,31 +92,64 @@
           "raw": 523,
           "gzip": 302,
           "brotli": 259,
-          "medianMs": 3.2225829999999984
+          "medianMs": 3.3485840000000167
         },
         {
           "id": "closure",
           "label": "JS Closure ADVANCED",
-          "raw": 468,
+          "raw": 469,
           "gzip": 295,
-          "brotli": 242,
-          "medianMs": 3.2837500000000013
+          "brotli": 245,
+          "medianMs": 3.309333000000038
         },
         {
           "id": "hand",
           "label": "JS hand-specialized",
           "raw": 245,
-          "gzip": 194,
+          "gzip": 192,
           "brotli": 170,
-          "medianMs": 2.9534999999999982
+          "medianMs": 2.9648750000000064
         },
         {
           "id": "lilscript",
-          "label": "LilScript",
-          "raw": 386,
-          "gzip": 258,
-          "brotli": 216,
-          "medianMs": 3.110042
+          "label": "LilScript objective builds",
+          "raw": 453,
+          "gzip": 260,
+          "brotli": 217,
+          "runtimeObjective": "brotli",
+          "objectiveArtifacts": [
+            {
+              "objective": "raw",
+              "gateMetric": "raw",
+              "config": "comparison/cases/configs/raw.toml",
+              "file": "reactive-store/lilscript-raw.js",
+              "behaviorVerified": true,
+              "raw": 453,
+              "gzip": 261,
+              "brotli": 226
+            },
+            {
+              "objective": "gzip",
+              "gateMetric": "gzip",
+              "config": "comparison/cases/configs/gzip.toml",
+              "file": "reactive-store/lilscript-gzip.js",
+              "behaviorVerified": true,
+              "raw": 453,
+              "gzip": 260,
+              "brotli": 226
+            },
+            {
+              "objective": "brotli",
+              "gateMetric": "brotli",
+              "config": "comparison/cases/configs/brotli.toml",
+              "file": "reactive-store/lilscript-brotli.js",
+              "behaviorVerified": true,
+              "raw": 481,
+              "gzip": 269,
+              "brotli": 217
+            }
+          ],
+          "medianMs": 3.0641669999999976
         }
       ],
       "ecosystem": {
@@ -72,10 +159,10 @@
           "assets/index-DVPqLfDU.js",
           "index.html"
         ],
-        "raw": 4884,
-        "gzip": 1924,
+        "raw": 4885,
+        "gzip": 1916,
         "brotli": 1737,
-        "medianMs": 22.846958
+        "medianMs": 22.514084000000025
       }
     },
     {
@@ -84,7 +171,7 @@
       "expected": "events:975625712:9718960",
       "source": {
         "reference": 910,
-        "lilscript": 1010,
+        "lilscript": 1022,
         "hand": 113
       },
       "artifacts": [
@@ -92,41 +179,74 @@
           "id": "reference",
           "label": "Reference JS bundle",
           "raw": 1029,
-          "gzip": 389,
+          "gzip": 387,
           "brotli": 317,
-          "medianMs": 1.9407499999999995
+          "medianMs": 1.8375420000000133
         },
         {
           "id": "esbuild",
           "label": "Reference JS esbuild",
           "raw": 499,
-          "gzip": 275,
+          "gzip": 274,
           "brotli": 239,
-          "medianMs": 1.679499999999999
+          "medianMs": 1.7491249999999923
         },
         {
           "id": "closure",
           "label": "JS Closure ADVANCED",
-          "raw": 344,
-          "gzip": 238,
-          "brotli": 192,
-          "medianMs": 1.6647499999999997
+          "raw": 345,
+          "gzip": 239,
+          "brotli": 195,
+          "medianMs": 1.666041999999976
         },
         {
           "id": "hand",
           "label": "JS hand-specialized",
           "raw": 112,
-          "gzip": 125,
+          "gzip": 124,
           "brotli": 102,
-          "medianMs": 0.7342499999999994
+          "medianMs": 0.6678750000000377
         },
         {
           "id": "lilscript",
-          "label": "LilScript",
-          "raw": 292,
-          "gzip": 210,
-          "brotli": 169,
-          "medianMs": 1.5849999999999973
+          "label": "LilScript objective builds",
+          "raw": 257,
+          "gzip": 199,
+          "brotli": 162,
+          "runtimeObjective": "brotli",
+          "objectiveArtifacts": [
+            {
+              "objective": "raw",
+              "gateMetric": "raw",
+              "config": "comparison/cases/configs/raw.toml",
+              "file": "event-pipeline/lilscript-raw.js",
+              "behaviorVerified": true,
+              "raw": 257,
+              "gzip": 206,
+              "brotli": 172
+            },
+            {
+              "objective": "gzip",
+              "gateMetric": "gzip",
+              "config": "comparison/cases/configs/gzip.toml",
+              "file": "event-pipeline/lilscript-gzip.js",
+              "behaviorVerified": true,
+              "raw": 282,
+              "gzip": 199,
+              "brotli": 175
+            },
+            {
+              "objective": "brotli",
+              "gateMetric": "brotli",
+              "config": "comparison/cases/configs/brotli.toml",
+              "file": "event-pipeline/lilscript-brotli.js",
+              "behaviorVerified": true,
+              "raw": 284,
+              "gzip": 204,
+              "brotli": 162
+            }
+          ],
+          "medianMs": 1.6399999999999864
         }
       ],
       "ecosystem": {
@@ -136,10 +256,10 @@
           "assets/index-C8ji9Tfp.js",
           "index.html"
         ],
-        "raw": 690,
-        "gzip": 471,
+        "raw": 691,
+        "gzip": 469,
         "brotli": 382,
-        "medianMs": 7.433291999999998
+        "medianMs": 6.900833000000006
       }
     },
     {
@@ -158,39 +278,72 @@
           "raw": 1196,
           "gzip": 481,
           "brotli": 438,
-          "medianMs": 11.345125000000001
+          "medianMs": 10.477708000000007
         },
         {
           "id": "esbuild",
           "label": "Reference JS esbuild",
           "raw": 521,
-          "gzip": 320,
+          "gzip": 318,
           "brotli": 291,
-          "medianMs": 10.951791999999998
+          "medianMs": 10.455041999999992
         },
         {
           "id": "closure",
           "label": "JS Closure ADVANCED",
-          "raw": 497,
-          "gzip": 313,
-          "brotli": 290,
-          "medianMs": 10.936042
+          "raw": 498,
+          "gzip": 312,
+          "brotli": 292,
+          "medianMs": 10.641582999999855
         },
         {
           "id": "hand",
           "label": "JS hand-specialized",
           "raw": 409,
-          "gzip": 273,
+          "gzip": 274,
           "brotli": 257,
-          "medianMs": 10.051375
+          "medianMs": 9.874459000000002
         },
         {
           "id": "lilscript",
-          "label": "LilScript",
-          "raw": 427,
-          "gzip": 304,
-          "brotli": 266,
-          "medianMs": 10.045374999999993
+          "label": "LilScript objective builds",
+          "raw": 416,
+          "gzip": 291,
+          "brotli": 262,
+          "runtimeObjective": "brotli",
+          "objectiveArtifacts": [
+            {
+              "objective": "raw",
+              "gateMetric": "raw",
+              "config": "comparison/cases/configs/raw.toml",
+              "file": "binary-telemetry/lilscript-raw.js",
+              "behaviorVerified": true,
+              "raw": 416,
+              "gzip": 310,
+              "brotli": 286
+            },
+            {
+              "objective": "gzip",
+              "gateMetric": "gzip",
+              "config": "comparison/cases/configs/gzip.toml",
+              "file": "binary-telemetry/lilscript-gzip.js",
+              "behaviorVerified": true,
+              "raw": 439,
+              "gzip": 291,
+              "brotli": 271
+            },
+            {
+              "objective": "brotli",
+              "gateMetric": "brotli",
+              "config": "comparison/cases/configs/brotli.toml",
+              "file": "binary-telemetry/lilscript-brotli.js",
+              "behaviorVerified": true,
+              "raw": 444,
+              "gzip": 299,
+              "brotli": 262
+            }
+          ],
+          "medianMs": 10.334915999999964
         }
       ]
     },
@@ -208,41 +361,74 @@
           "id": "reference",
           "label": "Reference JS bundle",
           "raw": 878,
-          "gzip": 388,
+          "gzip": 387,
           "brotli": 327,
-          "medianMs": 1.3810830000000003
+          "medianMs": 0.9784999999999968
         },
         {
           "id": "esbuild",
           "label": "Reference JS esbuild",
           "raw": 352,
-          "gzip": 251,
+          "gzip": 248,
           "brotli": 208,
-          "medianMs": 1.1994170000000004
+          "medianMs": 0.9841250000000059
         },
         {
           "id": "closure",
           "label": "JS Closure ADVANCED",
-          "raw": 328,
-          "gzip": 250,
-          "brotli": 206,
-          "medianMs": 1.1579999999999995
+          "raw": 329,
+          "gzip": 251,
+          "brotli": 207,
+          "medianMs": 0.9157079999999951
         },
         {
           "id": "hand",
           "label": "JS hand-specialized",
           "raw": 123,
-          "gzip": 122,
+          "gzip": 120,
           "brotli": 112,
-          "medianMs": 0.653416
+          "medianMs": 0.5580000000000069
         },
         {
           "id": "lilscript",
-          "label": "LilScript",
-          "raw": 227,
-          "gzip": 188,
-          "brotli": 157,
-          "medianMs": 1.042833
+          "label": "LilScript objective builds",
+          "raw": 222,
+          "gzip": 178,
+          "brotli": 151,
+          "runtimeObjective": "brotli",
+          "objectiveArtifacts": [
+            {
+              "objective": "raw",
+              "gateMetric": "raw",
+              "config": "comparison/cases/configs/raw.toml",
+              "file": "module-pricing/lilscript-raw.js",
+              "behaviorVerified": true,
+              "raw": 222,
+              "gzip": 180,
+              "brotli": 164
+            },
+            {
+              "objective": "gzip",
+              "gateMetric": "gzip",
+              "config": "comparison/cases/configs/gzip.toml",
+              "file": "module-pricing/lilscript-gzip.js",
+              "behaviorVerified": true,
+              "raw": 222,
+              "gzip": 178,
+              "brotli": 164
+            },
+            {
+              "objective": "brotli",
+              "gateMetric": "brotli",
+              "config": "comparison/cases/configs/brotli.toml",
+              "file": "module-pricing/lilscript-brotli.js",
+              "behaviorVerified": true,
+              "raw": 225,
+              "gzip": 183,
+              "brotli": 151
+            }
+          ],
+          "medianMs": 0.9529169999999993
         }
       ]
     },
@@ -260,49 +446,82 @@
           "id": "reference",
           "label": "Reference JS bundle",
           "raw": 2149,
-          "gzip": 792,
+          "gzip": 788,
           "brotli": 713,
-          "medianMs": 1.3327080000000002
+          "medianMs": 1.0092500000000086
         },
         {
           "id": "esbuild",
           "label": "Reference JS esbuild",
           "raw": 688,
-          "gzip": 436,
+          "gzip": 433,
           "brotli": 395,
-          "medianMs": 1.1953750000000003
+          "medianMs": 0.9759999999999991
         },
         {
           "id": "closure",
           "label": "JS Closure ADVANCED",
-          "raw": 594,
-          "gzip": 416,
-          "brotli": 373,
-          "medianMs": 1.0528750000000002
+          "raw": 595,
+          "gzip": 412,
+          "brotli": 375,
+          "medianMs": 0.9070830000000001
         },
         {
           "id": "hand",
           "label": "JS hand-specialized",
           "raw": 127,
-          "gzip": 132,
+          "gzip": 130,
           "brotli": 111,
-          "medianMs": 0.8197080000000003
+          "medianMs": 0.6277919999999995
         },
         {
           "id": "lilscript",
-          "label": "LilScript",
-          "raw": 462,
-          "gzip": 323,
-          "brotli": 280,
-          "medianMs": 1.0705419999999997
+          "label": "LilScript objective builds",
+          "raw": 456,
+          "gzip": 308,
+          "brotli": 278,
+          "runtimeObjective": "brotli",
+          "objectiveArtifacts": [
+            {
+              "objective": "raw",
+              "gateMetric": "raw",
+              "config": "comparison/cases/configs/raw.toml",
+              "file": "motion-values/lilscript-raw.js",
+              "behaviorVerified": true,
+              "raw": 456,
+              "gzip": 319,
+              "brotli": 297
+            },
+            {
+              "objective": "gzip",
+              "gateMetric": "gzip",
+              "config": "comparison/cases/configs/gzip.toml",
+              "file": "motion-values/lilscript-gzip.js",
+              "behaviorVerified": true,
+              "raw": 454,
+              "gzip": 308,
+              "brotli": 288
+            },
+            {
+              "objective": "brotli",
+              "gateMetric": "brotli",
+              "config": "comparison/cases/configs/brotli.toml",
+              "file": "motion-values/lilscript-brotli.js",
+              "behaviorVerified": true,
+              "raw": 459,
+              "gzip": 315,
+              "brotli": 278
+            }
+          ],
+          "medianMs": 0.8016660000000115
         },
         {
           "id": "lilscript-specialized",
           "label": "LilScript specialized source (diagnostic)",
           "raw": 124,
-          "gzip": 133,
-          "brotli": 101,
-          "medianMs": 0.7939579999999999
+          "gzip": 130,
+          "brotli": 100,
+          "medianMs": 0.5969159999999931
         }
       ],
       "ecosystem": {
@@ -312,10 +531,10 @@
           "assets/index-CZj057qH.js",
           "index.html"
         ],
-        "raw": 10571,
-        "gzip": 4546,
+        "raw": 10572,
+        "gzip": 4535,
         "brotli": 4152,
-        "medianMs": 2.807707999999998
+        "medianMs": 2.2553330000000074
       }
     }
   ]

@@ -1,0 +1,5 @@
+import {
+  createEmptyObject
+} from "../js-host.lil";
+
+export JsValue class2type = JS.object();

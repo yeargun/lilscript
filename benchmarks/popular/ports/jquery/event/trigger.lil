@@ -1,0 +1,236 @@
+import { emptyArray } from "../alloc.lil";
+import { jQuery, each, makeArray } from "../core";
+import { document } from "../var/document";
+import { dataPriv } from "../data/var/dataPriv";
+import { acceptData } from "../data/var/acceptData";
+import { isFunction } from "../var/isFunction";
+import { isWindow } from "../var/isWindow";
+import { hasOwn } from "../var/hasOwn";
+import { Event } from "../event";
+import {
+  arraySort,
+  arrayPop,
+  arrayShift,
+  arrayJoin,
+  newRegexp,
+  regexTest,
+  windowSelf,
+  addEventListener,
+  removeEventListener
+} from "../js-host.lil";
+
+Regex rfocusMorph = new Regex("^(?:focusinfocus|focusoutblur)$");
+JsValue emptySpecial = JS.object();
+
+struct SimulateOverrides {
+  string type;
+  bool isSimulated;
+}
+
+JsValue stopPropagationCallback(JsValue e) {
+  JS.invoke(e, "stopPropagation");
+  return JS.undefined();
+}
+
+export JsValue trigger(JsValue eventArg, JsValue dataArg = null, JsValue elemArg = null, bool onlyHandlers = false) {
+  JsValue elem = JS.or(elemArg, document);
+  JsValue cur = elem;
+  JsValue lastElement = elem;
+  JsValue tmp = elem;
+  JsValue[] eventPath = [elem];
+
+  if (elem["nodeType"] == 3.0 || elem["nodeType"] == 8.0) {
+    return JS.undefined();
+  }
+
+  JsValue type = eventArg;
+  if (hasOwn(eventArg, "type")) {
+    type = eventArg["type"];
+  }
+
+  JsValue namespaces = emptyArray();
+  if (hasOwn(eventArg, "namespace")) {
+    namespaces = JS.invoke(eventArg["namespace"], "split", ".");
+  }
+
+  if (JS.regexTest(rfocusMorph, JS.string(JS.add(type, jQuery["event"]["triggered"])))) {
+    return JS.undefined();
+  }
+
+  if (!JS.strictEqual(JS.invoke(type, "indexOf", "."), -1.0)) {
+    namespaces = JS.invoke(type, "split", ".");
+    type = JS.shift(namespaces);
+    JS.sort(namespaces);
+  }
+
+  JsValue ontype = false;
+  if (JS.strictEqual(JS.invoke(type, "indexOf", ":"), -1.0)) {
+    ontype = JS.add("on", type);
+  }
+
+  JsValue event = eventArg;
+  if (!eventArg[jQuery["expando"]].truthy()) {
+    JsValue propsArg = false;
+    if (JS.typeOf(eventArg) == "object") {
+      propsArg = eventArg;
+    }
+    event = Event(type, propsArg);
+  }
+
+  if (onlyHandlers) {
+    event["isTrigger"] = 2.0;
+  } else {
+    event["isTrigger"] = 3.0;
+  }
+  event["namespace"] = JS.join(namespaces, ".");
+  if (event["namespace"].truthy()) {
+    event["rnamespace"] = newRegexp(
+      "(^|\\.)" + JS.join(namespaces, "\\.(?:.*\\.|)") + "(\\.|$)"
+    );
+  } else {
+    event["rnamespace"] = null;
+  }
+
+  event["result"] = JS.undefined();
+  if (!event["target"].truthy()) {
+    event["target"] = elem;
+  }
+
+  JsValue data = [event];
+  if (dataArg != null) {
+    data = makeArray(dataArg, data);
+  }
+
+  JsValue specialForType = JS.or(jQuery["event"]["special"][type], emptySpecial);
+
+  if (
+    !onlyHandlers &&
+    specialForType["trigger"].truthy() &&
+    JS.isFalse(JS.apply(specialForType["trigger"], elem, data))
+  ) {
+    return JS.undefined();
+  }
+
+  JsValue bubbleType = type;
+  if (!onlyHandlers && !specialForType["noBubble"].truthy() && !isWindow(elem)) {
+    bubbleType = JS.or(specialForType["delegateType"], type);
+    if (!JS.regexTest(rfocusMorph, JS.string(JS.add(bubbleType, type)))) {
+      cur = cur["parentNode"];
+    }
+    while (cur.truthy()) {
+      eventPath.push(cur);
+      tmp = cur;
+      cur = cur["parentNode"];
+    }
+    if (tmp == JS.or(elem["ownerDocument"], document)) {
+      eventPath.push(JS.or(JS.or(tmp["defaultView"], tmp["parentWindow"]), windowSelf()));
+    }
+  }
+
+  int i = 0;
+  int pathLen = eventPath.length;
+  while (i < pathLen) {
+    cur = eventPath[i];
+    i = i + 1;
+    if (JS.invoke(event, "isPropagationStopped").truthy()) {
+      break;
+    }
+    lastElement = cur;
+    if (i > 1) {
+      event["type"] = bubbleType;
+    } else {
+      event["type"] = JS.or(specialForType["bindType"], type);
+    }
+
+    JsValue events = dataPriv.get(cur, "events");
+    JsValue handle = JS.undefined();
+    if (events.truthy() && events[event["type"]].truthy()) {
+      handle = dataPriv.get(cur, "handle");
+    }
+    if (handle.truthy()) {
+      JS.apply(handle, cur, data);
+    }
+
+    if (ontype.truthy()) {
+      handle = cur[ontype];
+      if (handle.truthy() && handle["apply"].truthy() && acceptData(cur)) {
+        event["result"] = JS.apply(handle, cur, data);
+        if (JS.isFalse(event["result"])) {
+          JS.invoke(event, "preventDefault");
+        }
+      }
+    }
+  }
+  event["type"] = type;
+
+  if (!onlyHandlers && !JS.invoke(event, "isDefaultPrevented").truthy()) {
+    JsValue defaultFn = specialForType["_default"];
+    bool allowNative = true;
+    if (defaultFn.truthy()) {
+      allowNative = JS.isFalse(JS.apply(defaultFn, JS.pop(eventPath), data));
+    }
+    if (allowNative && acceptData(elem)) {
+      JsValue nativeMethod = elem[type];
+      if (ontype.truthy() && isFunction(nativeMethod) && !isWindow(elem)) {
+        tmp = elem[ontype];
+        if (tmp.truthy()) {
+          elem[ontype] = null;
+        }
+        jQuery["event"]["triggered"] = type;
+
+        string typeName = JS.string(type);
+        if (JS.invoke(event, "isPropagationStopped").truthy()) {
+          addEventListener(lastElement, typeName, stopPropagationCallback);
+        }
+        JS.call(nativeMethod, elem);
+        if (JS.invoke(event, "isPropagationStopped").truthy()) {
+          removeEventListener(lastElement, typeName, stopPropagationCallback);
+        }
+
+        jQuery["event"]["triggered"] = JS.undefined();
+        if (tmp.truthy()) {
+          elem[ontype] = tmp;
+        }
+      }
+    }
+  }
+
+  return event["result"];
+}
+
+export void simulate(string type, JsValue elem, JsValue event) {
+  JsValue merged = jQuery["extend"](
+    Event(JS.undefined(), null),
+    event,
+    SimulateOverrides{type, true}
+  );
+  trigger(merged, null, elem);
+}
+
+JsValue fnTrigger(JsValue self, JsValue args) {
+  JsValue type = args[0];
+  JsValue data = args[1];
+  return each(self, JS.method0((JsValue el) => {
+    trigger(type, data, el);
+    return JS.undefined();
+  }));
+}
+
+JsValue fnTriggerHandler(JsValue self, JsValue args) {
+  JsValue elem = self[0];
+  if (elem.truthy()) {
+    return trigger(args[0], args[1], elem, true);
+  }
+  return JS.undefined();
+}
+
+void install() {
+  jQuery["event"]["trigger"] = trigger;
+  jQuery["event"]["simulate"] = simulate;
+  jQuery["fn"]["trigger"] = JS.methodRest(fnTrigger);
+  jQuery["fn"]["triggerHandler"] = JS.methodRest(fnTriggerHandler);
+}
+
+install();
+
+export { jQuery };

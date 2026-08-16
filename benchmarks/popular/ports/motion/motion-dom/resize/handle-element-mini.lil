@@ -1,0 +1,134 @@
+import {
+  createResizeObserver,
+  observeResize,
+  unobserveResize,
+  readBorderBoxSize,
+  getProp,
+  documentQuerySelectorAll,
+  isEventTarget,
+  arrayFromNullable
+} from "../dom-host";
+import { ResizeInfo } from "./types";
+import extern {
+  weakMapCreate,
+  weakMapSet,
+  weakMapGet as weakMapGetHandlers
+} from "../weak-host.ts";
+
+extern JsValue weakMapCreate();
+extern void weakMapSet(JsValue map, JsValue key, JsValue value);
+extern ((func(JsValue, ResizeInfo)->void)[])? weakMapGetHandlers(
+  JsValue map,
+  JsValue key
+);
+
+JsValue resizeHandlers = weakMapCreate();
+JsValue? observer = null;
+
+float sizeAxis(JsValue target, JsValue? borderBoxSize, string boxKey, string offsetKey) {
+  float? fromBox = readBorderBoxSize(borderBoxSize, boxKey);
+  if (fromBox != null) {
+    return fromBox;
+  }
+  JsValue value = getProp(target, offsetKey);
+  if (value is float) {
+    return value;
+  }
+  return 0.0;
+}
+
+JsValue[] resolveTargets(JsValue? target) {
+  if (target == null) {
+    return [];
+  }
+  if (isEventTarget(target)) {
+    return [target];
+  }
+  if (target is string) {
+    return documentQuerySelectorAll(target);
+  }
+  return arrayFromNullable(target);
+}
+
+void notifyTarget(JsValue entry) {
+  JsValue target = entry["target"];
+  JsValue? borderBoxSize = entry["borderBoxSize"];
+  (func(JsValue, ResizeInfo)->void)[]? handlers = weakMapGetHandlers(resizeHandlers, target);
+  if (handlers == null) {
+    return;
+  }
+  ResizeInfo info = new ResizeInfo(
+    sizeAxis(target, borderBoxSize, "inlineSize", "offsetWidth"),
+    sizeAxis(target, borderBoxSize, "blockSize", "offsetHeight")
+  );
+  int i = 0;
+  while (i < handlers.length) {
+    handlers[i](target, info);
+    i = i + 1;
+  }
+}
+
+void notifyAll(JsValue entries) {
+  if (!entries.isArray()) {
+    return;
+  }
+  int i = 0;
+  int len = entries.length.toInt();
+  while (i < len) {
+    notifyTarget(entries[i]);
+    i = i + 1;
+  }
+}
+
+(func(JsValue, ResizeInfo)->void)[] handlersFor(JsValue element) {
+  (func(JsValue, ResizeInfo)->void)[]? existing = weakMapGetHandlers(resizeHandlers, element);
+  if (existing != null) {
+    return existing;
+  }
+  (func(JsValue, ResizeInfo)->void)[] created = [];
+  weakMapSet(resizeHandlers, element, created);
+  return created;
+}
+
+export func()->void resizeElement(
+  JsValue? target,
+  func(JsValue, ResizeInfo)->void handler
+) {
+  if (observer == null) {
+    observer = createResizeObserver(notifyAll);
+  }
+  JsValue[] elements = resolveTargets(target);
+  int i = 0;
+  while (i < elements.length) {
+    JsValue element = elements[i];
+    (func(JsValue, ResizeInfo)->void)[] elementHandlers = handlersFor(element);
+    if (elementHandlers.indexOf(handler) == -1) {
+      elementHandlers.push(handler);
+    }
+    JsValue? obs = observer;
+    if (obs != null) {
+      observeResize(obs, element);
+    }
+    i = i + 1;
+  }
+  return () => {
+    int j = 0;
+    while (j < elements.length) {
+      JsValue element = elements[j];
+      (func(JsValue, ResizeInfo)->void)[]? elementHandlers = weakMapGetHandlers(resizeHandlers, element);
+      if (elementHandlers != null) {
+        int index = elementHandlers.indexOf(handler);
+        if (index > -1) {
+          elementHandlers.splice(index, 1);
+        }
+        if (elementHandlers.length == 0) {
+          JsValue? obs = observer;
+          if (obs != null) {
+            unobserveResize(obs, element);
+          }
+        }
+      }
+      j = j + 1;
+    }
+  };
+}

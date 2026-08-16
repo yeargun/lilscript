@@ -1,0 +1,11 @@
+export class WithDepth {
+  int depth;
+
+  init(int depth = 0) {
+    this.depth = depth;
+  }
+}
+
+export int compareByDepth(WithDepth a, WithDepth b) {
+  return a.depth - b.depth;
+}

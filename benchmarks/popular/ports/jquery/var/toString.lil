@@ -1,0 +1,5 @@
+import {
+  objectToStringTag
+} from "../js-host.lil";
+
+export func(JsValue)->string toString = objectToStringTag;

@@ -1,0 +1,33 @@
+import { support } from "./support";
+
+export struct Wrap {
+  float depth;
+  string open;
+  string close;
+}
+
+Wrap theadWrap = Wrap{1.0, "<table>", "</table>"};
+Wrap colWrap = Wrap{2.0, "<table><colgroup>", "</colgroup></table>"};
+Wrap trWrap = Wrap{2.0, "<table><tbody>", "</tbody></table>"};
+Wrap tdWrap = Wrap{3.0, "<table><tbody><tr>", "</tr></tbody></table>"};
+Wrap defaultWrap = Wrap{0.0, "", ""};
+Wrap optionWrap = Wrap{1.0, "<select multiple='multiple'>", "</select>"};
+
+export Wrap wrapForTag(string tag) {
+  if (tag == "td" || tag == "th") {
+    return tdWrap;
+  }
+  if (tag == "tr") {
+    return trWrap;
+  }
+  if (tag == "col") {
+    return colWrap;
+  }
+  if (tag == "thead" || tag == "tbody" || tag == "tfoot" || tag == "colgroup" || tag == "caption") {
+    return theadWrap;
+  }
+  if (!support["option"].truthy() && (tag == "option" || tag == "optgroup")) {
+    return optionWrap;
+  }
+  return defaultWrap;
+}

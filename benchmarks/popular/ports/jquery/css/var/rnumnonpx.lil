@@ -1,0 +1,3 @@
+import { pnum } from "../../var/pnum";
+
+export Regex rnumnonpx = new Regex("^(" + pnum + ")(?!px)[a-z%]+$", "i");

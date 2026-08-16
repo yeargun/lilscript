@@ -1,0 +1,3 @@
+export bool isObject(JsValue value) {
+  return value.isObject() && value.truthy();
+}

@@ -1,0 +1,80 @@
+export class FrameData {
+  float delta;
+  float timestamp;
+  bool isProcessing;
+
+  init(float delta = 0.0, float timestamp = 0.0, bool isProcessing = false) {
+    this.delta = delta;
+    this.timestamp = timestamp;
+    this.isProcessing = isProcessing;
+  }
+}
+
+export class Step {
+  func(func(FrameData)->void, bool, bool)->func(FrameData)->void schedule;
+  func(func(FrameData)->void)->void cancel;
+  func(FrameData)->void process;
+
+  init(
+    func(func(FrameData)->void, bool, bool)->func(FrameData)->void schedule,
+    func(func(FrameData)->void)->void cancel,
+    func(FrameData)->void process
+  ) {
+    this.schedule = schedule;
+    this.cancel = cancel;
+    this.process = process;
+  }
+}
+
+export class Batcher {
+  func(func(FrameData)->void, bool, bool)->func(FrameData)->void setup;
+  func(func(FrameData)->void, bool, bool)->func(FrameData)->void read;
+  func(func(FrameData)->void, bool, bool)->func(FrameData)->void resolveKeyframes;
+  func(func(FrameData)->void, bool, bool)->func(FrameData)->void preUpdate;
+  func(func(FrameData)->void, bool, bool)->func(FrameData)->void update;
+  func(func(FrameData)->void, bool, bool)->func(FrameData)->void preRender;
+  func(func(FrameData)->void, bool, bool)->func(FrameData)->void render;
+  func(func(FrameData)->void, bool, bool)->func(FrameData)->void postRender;
+
+  init() {
+    this.setup = (func(FrameData)->void p, bool keepAlive = false, bool immediate = false) => p;
+    this.read = this.setup;
+    this.resolveKeyframes = this.setup;
+    this.preUpdate = this.setup;
+    this.update = this.setup;
+    this.preRender = this.setup;
+    this.render = this.setup;
+    this.postRender = this.setup;
+  }
+}
+
+export class Steps {
+  Step setup;
+  Step read;
+  Step resolveKeyframes;
+  Step preUpdate;
+  Step update;
+  Step preRender;
+  Step render;
+  Step postRender;
+
+  init(
+    Step setup,
+    Step read,
+    Step resolveKeyframes,
+    Step preUpdate,
+    Step update,
+    Step preRender,
+    Step render,
+    Step postRender
+  ) {
+    this.setup = setup;
+    this.read = read;
+    this.resolveKeyframes = resolveKeyframes;
+    this.preUpdate = preUpdate;
+    this.update = update;
+    this.preRender = preRender;
+    this.render = render;
+    this.postRender = postRender;
+  }
+}

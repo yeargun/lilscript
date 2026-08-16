@@ -1,0 +1,4 @@
+export JsValue emptyArray() {
+  JsValue[] a = [];
+  return a;
+}

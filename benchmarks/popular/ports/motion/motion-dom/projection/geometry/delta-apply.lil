@@ -1,0 +1,220 @@
+import { Axis, Box, Delta, Point } from "../../../motion-utils/types/geometry";
+import { mixNumber } from "../../utils/mix/number";
+import { hasTransform } from "../utils/has-transform";
+
+extern float parseFloat(string value);
+
+export float scalePoint(float point, float scale, float originPoint) {
+  float distanceFromOrigin = point - originPoint;
+  float scaled = scale * distanceFromOrigin;
+  return originPoint + scaled;
+}
+
+export float applyPointDelta(
+  float point,
+  float translate,
+  float scale,
+  float originPoint,
+  float? boxScale = null
+) {
+  float result = point;
+  if (boxScale != null) {
+    result = scalePoint(result, boxScale, originPoint);
+  }
+  return scalePoint(result, scale, originPoint) + translate;
+}
+
+export void applyAxisDelta(
+  Axis axis,
+  float translate,
+  float scale,
+  float originPoint,
+  float? boxScale = null
+) {
+  axis.min = applyPointDelta(axis.min, translate, scale, originPoint, boxScale);
+  axis.max = applyPointDelta(axis.max, translate, scale, originPoint, boxScale);
+}
+
+export void applyBoxDelta(Box box, Delta delta) {
+  applyAxisDelta(box.x, delta.x.translate, delta.x.scale, delta.x.originPoint);
+  applyAxisDelta(box.y, delta.y.translate, delta.y.scale, delta.y.originPoint);
+}
+
+float TREE_SCALE_SNAP_MIN = 0.999999999999;
+float TREE_SCALE_SNAP_MAX = 1.0000000000001;
+
+export void translateAxis(Axis axis, float distance) {
+  axis.min = axis.min + distance;
+  axis.max = axis.max + distance;
+}
+
+export void transformAxis(
+  Axis axis,
+  float? axisTranslate = null,
+  float? axisScale = null,
+  float? boxScale = null,
+  float axisOrigin = 0.5
+) {
+  float originPoint = mixNumber(axis.min, axis.max, axisOrigin);
+  float translate = 0.0;
+  float scale = 1.0;
+  if (axisTranslate != null) {
+    translate = axisTranslate;
+  }
+  if (axisScale != null) {
+    scale = axisScale;
+  }
+  applyAxisDelta(axis, translate, scale, originPoint, boxScale);
+}
+
+float? resolveAxisTranslate(JsValue? value, Axis axis) {
+  if (value == null) {
+    return null;
+  }
+  if (value is string) {
+    return (parseFloat(value) / 100.0) * (axis.max - axis.min);
+  }
+  if (value is float) {
+    return value;
+  }
+  return null;
+}
+
+float? asFloat(JsValue? value) {
+  if (value == null) {
+    return null;
+  }
+  if (value is float) {
+    return value;
+  }
+  return null;
+}
+
+export void transformBox(
+  Box box,
+  Record<JsValue> transform,
+  Box? sourceBox = null
+) {
+  Box resolveBox = box;
+  if (sourceBox != null) {
+    resolveBox = sourceBox;
+  }
+  float ox = asFloat(transform.originX) ?? 0.5;
+  float oy = asFloat(transform.originY) ?? 0.5;
+  transformAxis(
+    box.x,
+    resolveAxisTranslate(transform.x, resolveBox.x),
+    asFloat(transform.scaleX),
+    asFloat(transform.scale),
+    ox
+  );
+  transformAxis(
+    box.y,
+    resolveAxisTranslate(transform.y, resolveBox.y),
+    asFloat(transform.scaleY),
+    asFloat(transform.scale),
+    oy
+  );
+}
+
+export class ProjectionTreeNode {
+  Delta? projectionDelta;
+  JsValue? options;
+  JsValue? scroll;
+  bool isRoot;
+  Record<JsValue> latestValues;
+  Box? layoutBox;
+
+  init() {
+    this.projectionDelta = null;
+    this.options = null;
+    this.scroll = null;
+    this.isRoot = false;
+    this.latestValues = record{};
+    this.layoutBox = null;
+  }
+}
+
+bool isDisplayContents(JsValue? options) {
+  if (options == null) {
+    return false;
+  }
+  JsValue opts = options;
+  JsValue visualElement = opts["visualElement"];
+  if (!visualElement.truthy()) {
+    return false;
+  }
+  JsValue props = visualElement["props"];
+  if (!props.truthy()) {
+    return false;
+  }
+  JsValue style = props["style"];
+  if (!style.truthy()) {
+    return false;
+  }
+  JsValue display = style["display"];
+  if (display is string) {
+    return display == "contents";
+  }
+  return false;
+}
+
+export void applyTreeDeltas(
+  Box box,
+  Point treeScale,
+  ProjectionTreeNode[] treePath,
+  bool isSharedTransition = false
+) {
+  int treeLength = treePath.length;
+  if (treeLength == 0) {
+    return;
+  }
+
+  treeScale.x = 1.0;
+  treeScale.y = 1.0;
+
+  for (int i = 0; i < treeLength; i++) {
+    ProjectionTreeNode node = treePath[i];
+    Delta? delta = node.projectionDelta;
+
+    if (isDisplayContents(node.options)) {
+      continue;
+    }
+
+    if (isSharedTransition && node.options != null && node.scroll != null && !node.isRoot) {
+      JsValue optionsVal = node.options;
+      JsValue scrollVal = node.scroll;
+      JsValue layoutScroll = optionsVal["layoutScroll"];
+      if (layoutScroll.truthy()) {
+        JsValue offset = scrollVal["offset"];
+        if (offset.truthy()) {
+          JsValue ox = offset["x"];
+          JsValue oy = offset["y"];
+          if (ox is float) {
+            translateAxis(box.x, 0.0 - ox);
+          }
+          if (oy is float) {
+            translateAxis(box.y, 0.0 - oy);
+          }
+        }
+      }
+    }
+
+    if (delta != null) {
+      treeScale.x = treeScale.x * delta.x.scale;
+      treeScale.y = treeScale.y * delta.y.scale;
+      applyBoxDelta(box, delta);
+    }
+
+    if (isSharedTransition && hasTransform(node.latestValues)) {
+      transformBox(box, node.latestValues, node.layoutBox);
+    }
+  }
+
+  if (treeScale.x < TREE_SCALE_SNAP_MAX && treeScale.x > TREE_SCALE_SNAP_MIN) {
+    treeScale.x = 1.0;
+  }
+  if (treeScale.y < TREE_SCALE_SNAP_MAX && treeScale.y > TREE_SCALE_SNAP_MIN) {
+    treeScale.y = 1.0;
+  }
+}

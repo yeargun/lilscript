@@ -1,0 +1,19 @@
+int measure(int seed) {
+    Record<int> values = record{"10": seed + 10, "2": seed + 2, alpha: seed + 1, beta: seed + 3, gamma: seed + 5};
+    Record<int> patch = record{beta: seed + 7, delta: seed + 9};
+    Object.assign(values, patch);
+    string[] keys = Object.keys(values);
+    int[] entries = Object.values(values);
+    string json = JSON.stringify(values);
+    int score = keys.length + entries.length + json.length + entries[0] + entries[3];
+    if (Object.hasOwn(values, "delta")) {
+        score += 1;
+    }
+    return score;
+}
+
+int total = 0;
+for (int i = 0; i < 3000; i++) {
+    total += measure(i % 97);
+}
+print(total);

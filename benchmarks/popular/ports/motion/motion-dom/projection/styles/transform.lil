@@ -1,0 +1,111 @@
+import { Delta, Point } from "../../../motion-utils/types/geometry";
+
+float? asFloat(JsValue? value = null) {
+  if (value == null) {
+    return null;
+  }
+  if (value is float) {
+    return value;
+  }
+  return null;
+}
+
+string appendTransform(string transform, string part) {
+  return transform + part;
+}
+
+export string buildProjectionTransform(
+  Delta delta,
+  Point treeScale,
+  JsValue? latestTransform = null
+) {
+  string transform = "";
+
+  float xTranslate = delta.x.translate / treeScale.x;
+  float yTranslate = delta.y.translate / treeScale.y;
+  float zTranslate = 0.0;
+  if (latestTransform != null) {
+    float? zOpt = asFloat(latestTransform["z"]);
+    if (zOpt != null) {
+      zTranslate = zOpt;
+    }
+  }
+
+  if (xTranslate != 0.0 || yTranslate != 0.0 || zTranslate != 0.0) {
+    transform = `translate3d(${xTranslate}px, ${yTranslate}px, ${zTranslate}px) `;
+  }
+
+  if (treeScale.x != 1.0 || treeScale.y != 1.0) {
+    transform = appendTransform(
+      transform,
+      `scale(${1.0 / treeScale.x}, ${1.0 / treeScale.y}) `
+    );
+  }
+
+  if (latestTransform != null) {
+    float? transformPerspective = asFloat(latestTransform["transformPerspective"]);
+    float? rotate = asFloat(latestTransform["rotate"]);
+    float? pathRotation = asFloat(latestTransform["pathRotation"]);
+    float? rotateX = asFloat(latestTransform["rotateX"]);
+    float? rotateY = asFloat(latestTransform["rotateY"]);
+    float? skewX = asFloat(latestTransform["skewX"]);
+    float? skewY = asFloat(latestTransform["skewY"]);
+
+    if (transformPerspective != null) {
+      float tp = transformPerspective;
+      if (tp != 0.0) {
+        transform = `perspective(${tp}px) ${transform}`;
+      }
+    }
+    if (rotate != null) {
+      float r = rotate;
+      if (r != 0.0) {
+        transform = appendTransform(transform, `rotate(${r}deg) `);
+      }
+    }
+    if (pathRotation != null) {
+      float pr = pathRotation;
+      if (pr != 0.0) {
+        transform = appendTransform(transform, `rotate(${pr}deg) `);
+      }
+    }
+    if (rotateX != null) {
+      float rx = rotateX;
+      if (rx != 0.0) {
+        transform = appendTransform(transform, `rotateX(${rx}deg) `);
+      }
+    }
+    if (rotateY != null) {
+      float ry = rotateY;
+      if (ry != 0.0) {
+        transform = appendTransform(transform, `rotateY(${ry}deg) `);
+      }
+    }
+    if (skewX != null) {
+      float sx = skewX;
+      if (sx != 0.0) {
+        transform = appendTransform(transform, `skewX(${sx}deg) `);
+      }
+    }
+    if (skewY != null) {
+      float sy = skewY;
+      if (sy != 0.0) {
+        transform = appendTransform(transform, `skewY(${sy}deg) `);
+      }
+    }
+  }
+
+  float elementScaleX = delta.x.scale * treeScale.x;
+  float elementScaleY = delta.y.scale * treeScale.y;
+  if (elementScaleX != 1.0 || elementScaleY != 1.0) {
+    transform = appendTransform(
+      transform,
+      `scale(${elementScaleX}, ${elementScaleY})`
+    );
+  }
+
+  if (transform.length == 0) {
+    return "none";
+  }
+  return transform;
+}

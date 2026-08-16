@@ -1,0 +1,40 @@
+import {
+  AnimationScope,
+  SelectorCache,
+  resolveElements
+} from "../../../motion-dom/utils/resolve-elements";
+import { isDOMKeyframes } from "../utils/is-dom-keyframes";
+import { arrayFromNullable, isNodeList } from "../../../motion-dom/dom-host";
+
+export JsValue[] resolveSubjects(
+  JsValue? subject = null,
+  JsValue? keyframes = null,
+  AnimationScope? scope = null,
+  SelectorCache? selectorCache = null
+) {
+  if (subject == null) {
+    return [];
+  }
+
+  if ((subject is string) && isDOMKeyframes(keyframes)) {
+    return resolveElements(subject, scope, selectorCache);
+  }
+
+  if (isNodeList(subject)) {
+    return arrayFromNullable(subject);
+  }
+
+  if (subject.isArray()) {
+    JsValue[] filtered = [];
+    int len = subject.length.toInt();
+    for (int i = 0; i < len; i++) {
+      JsValue item = subject[i];
+      if (item.truthy()) {
+        filtered.push(item);
+      }
+    }
+    return filtered;
+  }
+
+  return [subject];
+}

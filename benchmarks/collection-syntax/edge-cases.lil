@@ -1,0 +1,24 @@
+int calls = 0;
+int[] once() {
+    calls++;
+    return [];
+}
+
+auto [missing, , alsoMissing, ...emptyRest] = once();
+print(missing ?? 7);
+print(alsoMissing ?? 8);
+print(emptyRest.length);
+print(calls);
+
+int[] base = [1, 2];
+int[] copy = [0, ...base, 3];
+base[0] = 9;
+print(copy.join(","));
+
+Record<int> source = record{"10": 10, "2": 2, __proto__: 4, a: 1, b: 3};
+auto {"2": two, __proto__: proto, ...remaining} = source;
+source.a = 9;
+print(two ?? 0);
+print(proto ?? 0);
+print(remaining.toString ?? 6);
+print(JSON.stringify(remaining));

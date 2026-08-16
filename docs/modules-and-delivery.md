@@ -1,8 +1,67 @@
 # Modules and Delivery
 
+Reasoning: [knowledge/language/modules-lazy.md](knowledge/language/modules-lazy.md), [knowledge/delivery](knowledge/delivery/README.md), [chunk planning](knowledge/compilation/chunk-planning.md). This page is the delivery contract.
+
 LilScript resolves a closed, typed module graph before SSA optimization. Static
 imports remain the default because they permit cross-file inlining, scalar
 replacement, and complete tree shaking without a runtime loader.
+
+## Foreign JavaScript and TypeScript
+
+LilScript stays at the root of a mixed application. A foreign ESM binding is
+declared separately from its type contract:
+
+```lilscript
+import extern { add as hostAdd } from "./host.ts";
+extern int hostAdd(int left, int right);
+
+print(hostAdd(20, 22));
+```
+
+`import extern` is resolved and owned by the LilScript module loader. Every
+local import requires a matching `extern` function, global, or class in that
+module. This keeps the SSA optimizer's host boundary explicit: foreign calls
+remain effectful unless an allowed `pure extern` contract says otherwise, host
+names stay exact, and native targets reject the JavaScript-only edge.
+Side-effect-only modules use `import extern "./setup.ts";` and need no binding
+contract.
+
+Relative `.js`, `.mjs`, `.ts`, `.mts`, `.jsx`, and `.tsx` imports are supported.
+The Lilscript compiler validates local sources and emits the original specifier
+as a native ESM edge. It does not parse TypeScript or pretend that type erasure
+is sufficient for the full language. Bare specifiers remain package edges.
+
+Lilpack owns the complete application graph. Its integrated Vite engine resolves
+foreign static and dynamic imports, npm packages, TypeScript, JSX/TSX, CSS,
+JSON, WebAssembly, workers, URLs, and assets using Vite's normal semantics. In a
+production build Vite tree-shakes and chunks that graph after Lilscript has
+finished closed-world linking, SSA optimization, and compression of the `.lil`
+side. The final hashed assets and `lilpack.manifest.json` are Lilpack output.
+
+Running `lilscript --target js-module` directly intentionally leaves foreign
+ESM edges in its output. Use Lilpack when a deployable mixed-language graph is
+required.
+
+## Lilpack development server
+
+The application development loop is exposed by Lilpack:
+
+```sh
+lilpack dev src/main.lil --root . --port 5173
+```
+
+Lilpack compiles the Lilscript entry as reusable ESM and registers every
+compiler-discovered `.lil`, config, lock, and profile input with Vite's watcher.
+Vite owns its transform cache, TypeScript and asset transforms, dependency
+optimizer, WebSocket update channel, browser client, and compile-error overlay.
+Production compressor candidate search is disabled in development.
+
+Vite invalidates the compiled entry when any linked `.lil` input changes. If the
+entry exports `hotAccept`, Lilpack installs a self-accepting boundary and invokes
+that function on the new module; exported `hotDispose` runs on the old module
+first. Both hooks currently take no parameters and return `void`. Without the
+contract, Vite uses its normal propagation and page-reload fallback. JS/TS and
+asset updates retain Vite's standard HMR behavior.
 
 ## Dynamic modules
 
@@ -19,8 +78,11 @@ import("./feature")
 ```
 
 `Task<T>` provides `then`, `catch`, and `finally`. A `then` callback receives
-`T`; a `catch` callback receives `ModuleLoadError`, whose stable fields are
-`specifier` and `message`. Promise flattening is reflected in the result type.
+`T`; a `catch` callback receives a general `JsValue` because async throws and
+`Task.reject` may reject with any non-void JavaScript value. The nullable
+`specifier` and `message` fields are available without assuming they exist.
+Failures synthesized by Lilpack's dynamic loader populate both fields. Promise
+flattening is reflected in the result type.
 `auto` is permitted for arrow parameters only when the callback has a contextual
 type.
 
@@ -45,6 +107,12 @@ to `Promise.resolve(namespace)` inside one artifact. `split` and
 `preserve-modules` emit real ESM chunks. Lazy roots and their lazy-only static
 dependencies are mandatory chunks; optional shared chunks are selected after
 whole-program optimization.
+
+In `split`, every optional eager/shared chunk must strictly lower complete
+deploy cost. Mandatory lazy chunks count toward `max_chunks`; compilation fails
+when the required lazy graph alone exceeds the configured cap. In
+`preserve-modules`, source-module identity is the contract, so split-mode
+size/count filters do not apply.
 
 The split planner measures every complete candidate deployment. Its score uses:
 

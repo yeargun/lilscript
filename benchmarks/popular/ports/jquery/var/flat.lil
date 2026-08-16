@@ -1,0 +1,7 @@
+import {
+  arrayFlat
+} from "../js-host.lil";
+
+export JsValue flat(JsValue array) {
+  return arrayFlat(array);
+}

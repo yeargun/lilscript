@@ -1,0 +1,191 @@
+import { animate } from "../../../../benchmarks/popular/ports/motion/framer-motion/animation/animate/element-spring";
+import {
+  documentQuerySelectorAll,
+  setProp,
+  addEventListener
+} from "../../../../benchmarks/popular/ports/motion/motion-dom/dom-host";
+
+string[] srcs = [
+  "https://images.unsplash.com/photo-1644186171024-1bacda31db33?q=80&w=500&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1573750328968-179cc634660a?q=80&w=500&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1611518757417-b5fa0838b12e?q=80&w=500&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1625690303837-654c9666d2d0?q=80&w=500&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1541869440787-abe7669a951a?q=80&w=500&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1611518050831-f945a6f6a1b3?q=80&w=500&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1602043469092-aa55df5a8aae?q=80&w=500&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1603993138561-9151852b44e1?q=80&w=500&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1611518016416-b544a3ee13ce?q=80&w=500&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1603993097397-89c963e325c7?q=80&w=500&auto=format&fit=crop"
+];
+
+float WIDTH = 300.0;
+float IDLE_WIDTH = 70.0;
+JsValue ease = [1.0, 0.0 - 0.03, 0.413, 0.965];
+
+int activeIndex = 3;
+bool isAnimating = false;
+int count = srcs.length;
+
+JsValue track = null;
+JsValue frame = null;
+JsValue[] slides = [];
+JsValue[] slots = [];
+JsValue[] dotEls = [];
+
+int absInt(int value) {
+  if (value < 0) {
+    return 0 - value;
+  }
+  return value;
+}
+
+float dirFor(int index, int active) {
+  if (index < active) {
+    return 1.0;
+  }
+  if (index > active) {
+    return 0.0 - 1.0;
+  }
+  return 0.0;
+}
+
+float widthFor(int index, int active) {
+  if (index == active) {
+    return WIDTH;
+  }
+  return IDLE_WIDTH;
+}
+
+void syncChrome() {
+  for (int i = 0; i < slots.length; i++) {
+    int z = count - absInt(activeIndex - i);
+    setProp(slots[i]["style"], "zIndex", `${z}`);
+    string cls = "dot";
+    if (i == activeIndex) {
+      cls = "dot active";
+    }
+    setProp(dotEls[i], "className", cls);
+  }
+}
+
+void applyInitial() {
+  for (int i = 0; i < slides.length; i++) {
+    float dir = dirFor(i, activeIndex);
+    float width = widthFor(i, activeIndex);
+    setProp(slides[i]["style"], "width", `${width}px`);
+    setProp(slides[i]["style"], "transform", `rotateY(${dir * 60.0}deg) rotateZ(${dir * 90.0}deg)`);
+  }
+  float x = 0.0 - IDLE_WIDTH * (0.0 + activeIndex);
+  setProp(track["style"], "transform", `translateX(${x}px)`);
+}
+
+void goTo(int index) {
+  if (isAnimating) {
+    return;
+  }
+  int next = index;
+  if (next < 0) {
+    next = 0;
+  }
+  if (next > count - 1) {
+    next = count - 1;
+  }
+  if (next == activeIndex) {
+    return;
+  }
+  int prevIndex = activeIndex;
+  activeIndex = next;
+  isAnimating = true;
+  syncChrome();
+
+  float fromX = 0.0 - IDLE_WIDTH * (0.0 + prevIndex);
+  float toX = 0.0 - IDLE_WIDTH * (0.0 + activeIndex);
+  animate(
+    track,
+    record{ x: [fromX, toX] },
+    record{ type: "spring", bounce: 0.2, duration: 0.8 }
+  );
+
+  for (int i = 0; i < slides.length; i++) {
+    float fromDir = dirFor(i, prevIndex);
+    float toDir = dirFor(i, activeIndex);
+    float fromWidth = widthFor(i, prevIndex);
+    float toWidth = widthFor(i, activeIndex);
+    animate(
+      slides[i],
+      record{
+        rotateY: [fromDir * 60.0, toDir * 60.0],
+        rotateZ: [fromDir * 90.0, toDir * 90.0],
+        width: [fromWidth, toWidth]
+      },
+      record{ type: "tween", duration: 0.8, ease: ease }
+    );
+  }
+
+  animate(
+    frame,
+    record{ scale: [1.0, 1.07, 1.0] },
+    record{
+      duration: 0.8,
+      ease: "easeInOut",
+      onComplete: () => {
+        isAnimating = false;
+      }
+    }
+  );
+}
+
+JsValue[] tracks = documentQuerySelectorAll("#track");
+JsValue[] frames = documentQuerySelectorAll("#frame");
+JsValue[] dotsRoots = documentQuerySelectorAll("#dots");
+if (tracks.length > 0 && frames.length > 0 && dotsRoots.length > 0) {
+  track = tracks[0];
+  frame = frames[0];
+  JsValue dotsRoot = dotsRoots[0];
+
+  string trackHtml = "";
+  string dotsHtml = "";
+  for (int i = 0; i < count; i++) {
+    int z = count - absInt(activeIndex - i);
+    trackHtml = `${trackHtml}<div class="slot" style="z-index:${z}"><div class="slide" data-index="${i}"><div class="photo" style="background-image:url('${srcs[i]}')"></div></div></div>`;
+    string activeClass = "";
+    if (i == activeIndex) {
+      activeClass = " active";
+    }
+    dotsHtml = `${dotsHtml}<div class="dot${activeClass}" data-index="${i}"></div>`;
+  }
+  setProp(track, "innerHTML", trackHtml);
+  setProp(dotsRoot, "innerHTML", dotsHtml);
+
+  slides = documentQuerySelectorAll(".slide");
+  slots = documentQuerySelectorAll(".slot");
+  dotEls = documentQuerySelectorAll(".dot");
+
+  applyInitial();
+
+  JsValue[] prevBtns = documentQuerySelectorAll("#prev");
+  JsValue[] nextBtns = documentQuerySelectorAll("#next");
+  if (prevBtns.length > 0) {
+    addEventListener(prevBtns[0], "click", (JsValue _e) => {
+      goTo(activeIndex - 1);
+    }, record{});
+  }
+  if (nextBtns.length > 0) {
+    addEventListener(nextBtns[0], "click", (JsValue _e) => {
+      goTo(activeIndex + 1);
+    }, record{});
+  }
+  JsValue[] photos = documentQuerySelectorAll(".photo");
+  for (int i = 0; i < photos.length; i++) {
+    int idx = i;
+    addEventListener(photos[i], "click", (JsValue _e) => {
+      goTo(idx);
+    }, record{});
+  }
+  for (int i = 0; i < dotEls.length; i++) {
+    int idx = i;
+    addEventListener(dotEls[i], "click", (JsValue _e) => {
+      goTo(idx);
+    }, record{});
+  }
+}

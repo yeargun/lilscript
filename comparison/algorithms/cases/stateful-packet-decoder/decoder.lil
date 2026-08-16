@@ -1,0 +1,70 @@
+pure bool isDigitCode(int code) {
+  return code >= 48 && code <= 57;
+}
+
+pure bool isHexLetter(int code) {
+  return (code >= 65 && code <= 70) || (code >= 97 && code <= 102);
+}
+
+pure int hexValue(int code) {
+  if (isDigitCode(code)) { return code - 48; }
+  if (code >= 65 && code <= 70) { return code - 55; }
+  if (isHexLetter(code)) { return code - 87; }
+  return -1;
+}
+
+pure int classifyCode(int code) {
+  if (isDigitCode(code)) { return 1; }
+  if (isHexLetter(code)) { return 2; }
+  if (code == 58) { return 3; }
+  if (code == 44) { return 4; }
+  if (code == 59) { return 5; }
+  return 0;
+}
+
+pure int advanceState(int state, int kind) {
+  if (kind == 5) { return 0; }
+  if (state == 0 && (kind == 1 || kind == 2)) { return 1; }
+  if (state == 1 && kind == 3) { return 2; }
+  if (state == 2 && (kind == 1 || kind == 2)) { return 3; }
+  if (state == 3 && kind == 4) { return 4; }
+  if (state == 4 && kind == 1) { return 5; }
+  return state;
+}
+
+pure int mixHeader(int checksum, int digit, int index) {
+  return (checksum * 17) ^ (digit + index * 3);
+}
+
+pure int mixPayload(int checksum, int digit, int state) {
+  return (checksum * 31) + digit * (state + 1);
+}
+
+pure int updateChecksum(int checksum, int state, int kind, int code, int index) {
+  int digit = hexValue(code);
+  if (digit < 0) { return checksum + kind; }
+  if (state == 1) { return mixHeader(checksum, digit, index); }
+  if (state == 3 || state == 4) { return mixPayload(checksum, digit, state); }
+  if (state == 5) { return checksum + digit * 7; }
+  return checksum + digit;
+}
+
+pure int finishPacket(int state, int checksum, int fields) {
+  return checksum ^ (state * 257 + fields * 41);
+}
+
+export pure int decodePacket(string input) {
+  int state = 0;
+  int checksum = 0;
+  int fields = 0;
+  for (int index = 0; index < input.length; index++) {
+    int code = input.charCodeAt(index);
+    if (code == 35) { break; }
+    if (code == 32) { continue; }
+    int kind = classifyCode(code);
+    state = advanceState(state, kind);
+    checksum = updateChecksum(checksum, state, kind, code, index);
+    if (kind == 5) { fields++; }
+  }
+  return finishPacket(state, checksum, fields);
+}

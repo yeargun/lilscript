@@ -1,0 +1,14 @@
+import { dataPriv } from "../data/var/dataPriv";
+
+export void setGlobalEval(JsValue elems, JsValue refElements = null) {
+  float i = 0.0;
+  float l = elems.length;
+
+  for (; i < l; i++) {
+    JsValue value = true;
+    if (refElements.truthy()) {
+      value = dataPriv.get(refElements[i], "globalEval");
+    }
+    dataPriv.set(elems[i], "globalEval", value);
+  }
+}

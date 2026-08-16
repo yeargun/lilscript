@@ -8,28 +8,34 @@ deterministic custom generators, randomness/distribution, and the 2147483648 cal
 step. mitt covers its complete default-export surface and observable runtime function
 shape. clsx preserves its default/named identity and recursive raw-JavaScript-value
 algorithm without a conversion facade. gl-matrix covers the complete ESM root namespace, every module export and alias,
-live `ARRAY_TYPE`, and `setMatrixArrayType` allocation behavior.
+live `ARRAY_TYPE`, and `setMatrixArrayType` allocation behavior. motion measures the selected Motion 13
+`mix`/`wrap`/`stagger`/`spring` surface used by the app (same equations as npm `motion@13`); full DOM
+package completeness remains the compatibility backlog (React entrypoints are out of scope).
 
 Each row uses the same app contract and Vite 8 settings. Adapter bytes are included.
-Publication additionally requires differential behavior, no raw or selected-codec
+Publication additionally requires differential behavior and no selected-codec
 size regression against either npm/Vite 8 or public-API-preserving Closure ADVANCED,
 and no material throughput or retained-memory regression. Gzip and Brotli remain
-visible because a build tuned for one may trade a few bytes in the other.
+visible, along with raw, as diagnostics because a build tuned for one may trade
+bytes in the others. The current publication objective is Brotli, so only the
+Brotli cell of the Brotli-selected LilScript artifact is size-gated.
 Closure ADVANCED receives generated externs for observable published properties, so
 it may optimize through the app but may not rename the API being compared.
 
 
-Solid / solidlil is a partial external row from `lilscript-solid-lab`: Solid JSX
-todolist vs solidlil LSX (`.lilx` → LilScript reactive + LilScript DOM), same todo
+Solid / solidlil is an archived sibling-worktree snapshot: Solid JSX todolist
+vs solidlil LSX (`.lilx` → LilScript reactive + LilScript DOM), same todo
 contract, Vite/oxc-minified full app JS. Brotli 3722 /
-5479 (solidlil / Solid; -32.1%). Raw/Terser/Closure columns are not measured in that lab lane.
+5479 (solidlil / Solid; -32.1%). The current integrated lab does not contain the LSX pipeline, so this row
+is historical evidence rather than a reproducible single-repository gate.
 
 The Solid/solidlil result above is an application benchmark, not a claim that the
 complete Solid package surface has been reimplemented.
 
-| Project | Raw JS | Terser | Closure (actual level) | npm Vite 8 | LilScript raw | LilScript Vite 8 | Brotli (Lil / npm) |
+| Project | Raw JS | Terser | Closure (actual level) | npm Vite 8 | LilScript pre-Vite (diagnostic triplet) | LilScript Vite (Brotli objective) | Brotli (Lil / npm) |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Nano ID | 1564 / gz 684 / br 603 | 719 / gz 445 / br 408 | ADVANCED: 750 / gz 461 / br 414 | 732 / gz 455 / br 409 | 1211 / gz 617 / br 549 | 729 / gz 456 / br 408 | 408 / 409 |
-| mitt | 1125 / gz 504 / br 452 | 511 / gz 314 / br 284 | ADVANCED: 595 / gz 339 / br 311 | 595 / gz 331 / br 300 | 1061 / gz 481 / br 432 | 595 / gz 329 / br 300 | 300 / 300 |
-| clsx | 1906 / gz 732 / br 665 | 1158 / gz 544 / br 490 | ADVANCED: 1158 / gz 555 / br 499 | 1156 / gz 541 / br 493 | 2012 / gz 741 / br 662 | 1153 / gz 538 / br 481 | 481 / 493 |
-| gl-matrix | 142374 / gz 22769 / br 17791 | 73693 / gz 17853 / br 14277 | ADVANCED: 73296 / gz 17863 / br 14328 | 73505 / gz 17722 / br 14330 | 118078 / gz 21307 / br 17259 | 68534 / gz 17168 / br 14056 | 14056 / 14330 |
+| Nano ID | 1564 / gz 681 / br 603 | 719 / gz 447 / br 408 | ADVANCED: 750 / gz 461 / br 414 | 732 / gz 456 / br 409 | 1223 / gz 619 / br 555 | 731 / gz 458 / br 409 | 409 / 409 |
+| mitt | 1125 / gz 503 / br 452 | 511 / gz 311 / br 284 | ADVANCED: 595 / gz 336 / br 311 | 595 / gz 331 / br 300 | 1066 / gz 485 / br 442 | 598 / gz 332 / br 300 | 300 / 300 |
+| clsx | 1906 / gz 735 / br 665 | 1158 / gz 539 / br 490 | ADVANCED: 1158 / gz 546 / br 499 | 1156 / gz 536 / br 493 | 2047 / gz 737 / br 662 | 1169 / gz 548 / br 502 | 502 / 493 |
+| gl-matrix | 142374 / gz 22693 / br 17791 | 73693 / gz 17744 / br 14277 | ADVANCED: 73296 / gz 17747 / br 14328 | 73505 / gz 17646 / br 14330 | 117592 / gz 21414 / br 17433 | 68503 / gz 17108 / br 14138 | 14138 / 14330 |
+| motion (mix/wrap/stagger/spring) | 30150 / gz 7852 / br 7116 | 10169 / gz 4500 / br 4081 | ADVANCED: 8908 / gz 4183 / br 3810 | 10356 / gz 4348 / br 4044 | 10332 / gz 3417 / br 2982 | 5495 / gz 2606 / br 2333 | 2333 / 4044 |

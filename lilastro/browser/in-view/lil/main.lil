@@ -1,0 +1,19 @@
+import { inView } from "../../../../benchmarks/popular/ports/motion/framer-motion/render/dom/viewport/index";
+import { animate } from "../../../../benchmarks/popular/ports/motion/framer-motion/animation/animate/element";
+import { documentQuerySelectorAll, setProp } from "../../../../benchmarks/popular/ports/motion/motion-dom/dom-host";
+
+void setStatus(string text) {
+  JsValue[] nodes = documentQuerySelectorAll("#status");
+  if (nodes.length > 0) {
+    setProp(nodes[0], "textContent", text);
+  }
+}
+
+inView("#box", (JsValue element, JsValue _entry) => {
+  setStatus("in");
+  animate(element, record{ opacity: 1.0 }, record{ duration: 0.2 });
+  return (JsValue _leaveEntry) => {
+    setStatus("out");
+    animate(element, record{ opacity: 0.2 }, record{ duration: 0.2 });
+  };
+});

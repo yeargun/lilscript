@@ -1,0 +1,48 @@
+import { resolveVariant } from "../../render/utils/resolve-dynamic-variants";
+import { animateTarget } from "./visual-element-target";
+import { animateVariant } from "./visual-element-variant";
+import { VisualElement } from "../../render/VisualElement";
+import { visualElementOf, withPromiseOf } from "../../cast";
+import { isFunction } from "../../dom-host";
+
+export Task<bool> animateVisualElement(
+  JsValue visualElement,
+  JsValue definition,
+  JsValue? options = null
+) {
+  JsValue opts = options;
+  if (opts == null) {
+    opts = record{};
+  }
+  VisualElement element = visualElementOf(visualElement);
+  element.notify("AnimationStart", definition);
+  Task<bool> animation = Task.resolve(true);
+  if (definition.isArray()) {
+    Task<bool>[] tasks = [];
+    int len = definition.length.toInt();
+    for (int i = 0; i < len; i++) {
+      tasks.push(animateVariant(visualElement, definition[i], opts));
+    }
+    animation = Task.all(tasks).then((bool[] _v) => true);
+  } else if (definition is string) {
+    animation = animateVariant(visualElement, definition, opts);
+  } else {
+    JsValue resolvedDefinition = definition;
+    if (isFunction(definition)) {
+      JsValue? resolved = resolveVariant(visualElement, definition, opts["custom"]);
+      if (resolved != null) {
+        resolvedDefinition = resolved;
+      }
+    }
+    JsValue[] controls = animateTarget(visualElement, resolvedDefinition, opts);
+    Task<bool>[] targetTasks = [];
+    for (int i = 0; i < controls.length; i++) {
+      targetTasks.push(withPromiseOf(controls[i]).finished());
+    }
+    animation = Task.all(targetTasks).then((bool[] _v) => true);
+  }
+  return animation.then((bool _done) => {
+    element.notify("AnimationComplete", definition);
+    return true;
+  });
+}

@@ -1,0 +1,88 @@
+import { getAsType } from "../../../value/types/utils/get-as-type";
+import { numberValueTypes } from "../../../value/types/maps/number";
+import { transformPropOrder } from "../../utils/keys-transform";
+import { callFn2, isFunction } from "../../../dom-host";
+import { stringTrim } from "../../../string-host";
+
+extern float parseFloat(string v);
+
+Record<string> translateAlias = record{};
+void initTranslateAlias() {
+  translateAlias["x"] = "translateX";
+  translateAlias["y"] = "translateY";
+  translateAlias["z"] = "translateZ";
+  translateAlias["transformPerspective"] = "perspective";
+}
+initTranslateAlias();
+
+export string buildTransform(
+  JsValue latestValues,
+  JsValue transform,
+  JsValue? transformTemplate = null
+) {
+  string transformString = "";
+  bool transformIsDefault = true;
+  int numTransforms = transformPropOrder.length;
+  for (int i = 0; i < numTransforms; i++) {
+    string key = transformPropOrder[i];
+    JsValue value = latestValues[key];
+    bool missing =
+      !(value is float) &&
+      !(value is string) &&
+      !(value is bool) &&
+      !value.isArray() &&
+      !(value.isObject() && value.truthy());
+    if (missing) {
+      continue;
+    }
+    bool valueIsDefault = true;
+    if (value is float) {
+      if (key.startsWith("scale")) {
+        valueIsDefault = value == 1.0;
+      } else {
+        valueIsDefault = value == 0.0;
+      }
+    } else {
+      float parsed = parseFloat(`${value}`);
+      if (key.startsWith("scale")) {
+        valueIsDefault = parsed == 1.0;
+      } else {
+        valueIsDefault = parsed == 0.0;
+      }
+    }
+    if (!valueIsDefault || transformTemplate != null) {
+      JsValue valueAsType = getAsType(value, numberValueTypes.get(key));
+      if (!valueIsDefault) {
+        transformIsDefault = false;
+        string transformName = key;
+        string? alias = translateAlias[key];
+        if (alias != null) {
+          transformName = alias;
+        }
+        transformString = transformString + `${transformName}(${valueAsType}) `;
+      }
+      if (transformTemplate != null) {
+        transform[key] = valueAsType;
+      }
+    }
+  }
+  JsValue pathRotation = latestValues["pathRotation"];
+  if (pathRotation.truthy()) {
+    transformIsDefault = false;
+    transformString =
+      transformString +
+      `rotate(${getAsType(pathRotation, numberValueTypes.get("pathRotation"))}) `;
+  }
+  transformString = stringTrim(transformString);
+  if (transformTemplate != null && isFunction(transformTemplate)) {
+    string emptyOrString = "";
+    if (!transformIsDefault) {
+      emptyOrString = transformString;
+    }
+    JsValue result = callFn2(transformTemplate, transform, emptyOrString);
+    transformString = `${result}`;
+  } else if (transformIsDefault) {
+    transformString = "none";
+  }
+  return transformString;
+}

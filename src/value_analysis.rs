@@ -1,4 +1,4 @@
-use ahash::{AHashMap, AHashSet};
+use crate::stable_hash::{StableHashMap as AHashMap, StableHashSet as AHashSet};
 
 use crate::ir::{
     ConstValue, ControlFlowFunction, ControlFlowModule, ControlFlowOp, ControlShape, ExportBinding,
@@ -104,7 +104,7 @@ impl FunctionIntegerFacts {
         self.ranges.get(&value).copied()
     }
 
-    pub fn ranges(&self) -> &AHashMap<ValueId, I32Range> {
+    pub(crate) fn ranges(&self) -> &AHashMap<ValueId, I32Range> {
         &self.ranges
     }
 
@@ -260,6 +260,12 @@ pub fn analyze_integer_values(module: &ControlFlowModule<'_>) -> IntegerValueAna
     let exported = module
         .exports
         .iter()
+        .chain(
+            module
+                .lazy_modules
+                .iter()
+                .flat_map(|module| module.exports.iter()),
+        )
         .filter_map(|export| match export.binding {
             ExportBinding::Function(function) => Some(function),
             _ => None,
@@ -376,6 +382,12 @@ pub fn analyze_finite_values(module: &ControlFlowModule<'_>) -> FiniteValueAnaly
     let exported = module
         .exports
         .iter()
+        .chain(
+            module
+                .lazy_modules
+                .iter()
+                .flat_map(|module| module.exports.iter()),
+        )
         .filter_map(|export| match export.binding {
             ExportBinding::Function(function) => Some(function),
             _ => None,
@@ -537,7 +549,7 @@ fn analyze_finite_function(
     return_values: &[FiniteSummary],
     field_values: &AHashMap<String, AHashMap<usize, FiniteSummary>>,
 ) -> LocalFiniteFacts {
-    let mut values = AHashMap::new();
+    let mut values = AHashMap::default();
     for (parameter, summary) in function.params.iter().zip(parameter_values) {
         if !matches!(summary, FiniteSummary::Bottom) {
             values.insert(parameter.value, summary.clone());
@@ -747,7 +759,7 @@ fn collect_finite_call_arguments(
 ) {
     for instruction in caller.blocks.iter().flat_map(|block| &block.instructions) {
         let (callee, arguments) = match &instruction.op {
-            ControlFlowOp::CallDirect { function, args } => (*function, args.clone()),
+            ControlFlowOp::CallDirect { function, args, .. } => (*function, args.clone()),
             ControlFlowOp::CallMethod {
                 receiver,
                 function,
@@ -843,7 +855,7 @@ fn default_class_field_values(
             _ => None,
         })
         .collect::<AHashSet<_>>();
-    let mut fields = AHashMap::new();
+    let mut fields = AHashMap::default();
     for layout in module.structs.iter().chain(&module.classes) {
         for field in &layout.fields {
             if finite_type(&field.ty) && unsafe_fields.contains(layout.name) {
@@ -943,17 +955,21 @@ fn analyze_function(
     field_ranges: &AHashMap<String, AHashMap<usize, I32Range>>,
     module: &ControlFlowModule<'_>,
 ) -> FunctionIntegerFacts {
-    let mut ranges = AHashMap::new();
+    let mut ranges = AHashMap::default();
     for (parameter, range) in function.params.iter().zip(parameter_ranges) {
         if let Some(range) = range {
             ranges.insert(parameter.value, *range);
         }
     }
-    seed_induction_ranges(function, &mut ranges);
-    let mut elidable_coercions = AHashSet::new();
+    let mut elidable_coercions = AHashSet::default();
 
     loop {
-        let mut changed = false;
+        // Bounds produced by ordinary instructions (for example, an array
+        // length or a direct int-returning call) are not known on the first
+        // pass. Re-seed at the top of each dataflow round so a later-known
+        // bound can establish the loop-header invariant before evaluating its
+        // update. The seeder only joins ranges, so this remains monotone.
+        let mut changed = seed_induction_ranges(function, &mut ranges);
         for phi in function.blocks.iter().flat_map(|block| &block.phis) {
             if phi.ty != Type::Int {
                 continue;
@@ -1108,7 +1124,7 @@ fn evaluate_integer_instruction(
                     min: 0,
                     max: 65_535,
                 }),
-                false,
+                true,
             ),
             Intrinsic::IntImul => (Some(I32Range::FULL), false),
             _ => (Some(I32Range::FULL), false),
@@ -1125,7 +1141,7 @@ fn collect_call_arguments(
 ) {
     for instruction in caller.blocks.iter().flat_map(|block| &block.instructions) {
         let (callee, arguments) = match &instruction.op {
-            ControlFlowOp::CallDirect { function, args } => (*function, args.clone()),
+            ControlFlowOp::CallDirect { function, args, .. } => (*function, args.clone()),
             ControlFlowOp::CallMethod {
                 receiver,
                 function,
@@ -1215,7 +1231,7 @@ fn default_class_field_ranges(
             _ => None,
         })
         .collect::<AHashSet<_>>();
-    let mut fields = AHashMap::new();
+    let mut fields = AHashMap::default();
     for layout in &module.classes {
         if !instantiated.contains(layout.name) || unsafe_fields.contains(layout.name) {
             continue;
@@ -1233,6 +1249,12 @@ fn aggregate_owners_exposed_to_untyped_code(module: &ControlFlowModule<'_>) -> A
     let exported_globals = module
         .exports
         .iter()
+        .chain(
+            module
+                .lazy_modules
+                .iter()
+                .flat_map(|module| module.exports.iter()),
+        )
         .filter_map(|export| match export.binding {
             ExportBinding::Global(symbol) => Some(symbol),
             _ => None,
@@ -1241,12 +1263,18 @@ fn aggregate_owners_exposed_to_untyped_code(module: &ControlFlowModule<'_>) -> A
     let exported_functions = module
         .exports
         .iter()
+        .chain(
+            module
+                .lazy_modules
+                .iter()
+                .flat_map(|module| module.exports.iter()),
+        )
         .filter_map(|export| match export.binding {
             ExportBinding::Function(function) => Some(function),
             _ => None,
         })
         .collect::<AHashSet<_>>();
-    let mut unsafe_owners = AHashSet::new();
+    let mut unsafe_owners = AHashSet::default();
     for global in module
         .globals
         .iter()
@@ -1286,9 +1314,11 @@ fn collect_aggregate_owners(ty: &Type<'_>, owners: &mut AHashSet<String>) {
             }
         }
         Type::Array(element)
+        | Type::Record(element)
         | Type::Set(element)
         | Type::Nullable(element)
-        | Type::Task(element) => {
+        | Type::Task(element)
+        | Type::Generator(element) => {
             collect_aggregate_owners(element, owners);
         }
         Type::Map(key, value) => {
@@ -1313,6 +1343,7 @@ fn collect_aggregate_owners(ty: &Type<'_>, owners: &mut AHashSet<String>) {
             collect_aggregate_owners(&function.signature.return_type, owners);
         }
         Type::Int
+        | Type::Enum(_)
         | Type::Float
         | Type::String
         | Type::Bool
@@ -1330,6 +1361,7 @@ fn collect_aggregate_owners(ty: &Type<'_>, owners: &mut AHashSet<String>) {
         | Type::Float32Array
         | Type::Float64Array
         | Type::Symbol
+        | Type::Regex
         | Type::ModuleNamespace(_)
         | Type::ModuleLoadError
         | Type::TypeParameter(_) => {}
@@ -1361,7 +1393,7 @@ fn aggregate_field_has_finite_type(
 }
 
 fn value_types<'src>(function: &ControlFlowFunction<'src>) -> AHashMap<ValueId, Type<'src>> {
-    let mut types = AHashMap::new();
+    let mut types = AHashMap::default();
     for parameter in &function.params {
         types.insert(parameter.value, parameter.ty.clone());
     }
@@ -1394,7 +1426,7 @@ fn indirectly_called_functions(module: &ControlFlowModule<'_>) -> AHashSet<Funct
 fn seed_induction_ranges(
     function: &ControlFlowFunction<'_>,
     ranges: &mut AHashMap<ValueId, I32Range>,
-) {
+) -> bool {
     let definitions = function
         .blocks
         .iter()
@@ -1405,68 +1437,91 @@ fn seed_induction_ranges(
         Some(ControlFlowOp::Const(ConstValue::Int(value))) => Some(*value),
         _ => None,
     };
-    for shape in &function.shapes {
-        let ControlShape::Loop { header, .. } = shape else {
-            continue;
-        };
-        let block = &function.blocks[header.0 as usize];
-        let Some(Terminator::Branch { condition, .. }) = block.terminator else {
-            continue;
-        };
-        let Some(ControlFlowOp::Binary { op, lhs, rhs }) = definitions.get(&condition) else {
-            continue;
-        };
-        let (phi_value, bound, ascending, inclusive) =
-            if block.phis.iter().any(|phi| phi.out == *lhs) {
-                let Some(bound) = constant(*rhs) else {
-                    continue;
-                };
-                match op {
-                    IrBinaryOp::Less => (*lhs, bound, true, false),
-                    IrBinaryOp::LessEq => (*lhs, bound, true, true),
-                    IrBinaryOp::Greater => (*lhs, bound, false, false),
-                    IrBinaryOp::GreaterEq => (*lhs, bound, false, true),
-                    _ => continue,
-                }
-            } else if block.phis.iter().any(|phi| phi.out == *rhs) {
-                let Some(bound) = constant(*lhs) else {
-                    continue;
-                };
-                match op {
-                    IrBinaryOp::Greater => (*rhs, bound, true, false),
-                    IrBinaryOp::GreaterEq => (*rhs, bound, true, true),
-                    IrBinaryOp::Less => (*rhs, bound, false, false),
-                    IrBinaryOp::LessEq => (*rhs, bound, false, true),
-                    _ => continue,
-                }
-            } else {
+    // A nested induction can be bounded by an enclosing induction rather than
+    // by a literal (`inner <= outer`). Seed literal-bounded loops first, then
+    // make at most one pass per loop shape so already-proven outer ranges can
+    // bound successively nested loops without turning this into an unbounded
+    // dataflow iteration.
+    let mut any_changed = false;
+    for _ in 0..function.shapes.len().max(1) {
+        let mut changed = false;
+        for shape in &function.shapes {
+            let ControlShape::Loop { header, .. } = shape else {
                 continue;
             };
-        let Some(phi) = block.phis.iter().find(|phi| phi.out == phi_value) else {
-            continue;
-        };
-        let initial = phi
-            .incoming
-            .iter()
-            .find_map(|(_, value)| constant(*value))
-            .or_else(|| {
-                (!ascending && bound >= i64::from(i32::MIN) && bound <= i64::from(i32::MAX))
-                    .then_some(i64::from(i32::MAX))
-            });
-        let Some(initial) = initial else {
-            continue;
-        };
-        let candidate = if ascending && initial <= bound {
-            I32Range::checked(initial, bound - i64::from(!inclusive))
-        } else if !ascending && initial >= bound {
-            I32Range::checked(bound + i64::from(!inclusive), initial)
-        } else {
-            None
-        };
-        if let Some(candidate) = candidate {
-            ranges.insert(phi_value, candidate);
+            let block = &function.blocks[header.0 as usize];
+            let Some(Terminator::Branch { condition, .. }) = block.terminator else {
+                continue;
+            };
+            let Some(ControlFlowOp::Binary { op, lhs, rhs }) = definitions.get(&condition) else {
+                continue;
+            };
+            let (phi_value, bound_value, ascending, inclusive) =
+                if block.phis.iter().any(|phi| phi.out == *lhs) {
+                    match op {
+                        IrBinaryOp::Less => (*lhs, *rhs, true, false),
+                        IrBinaryOp::LessEq => (*lhs, *rhs, true, true),
+                        IrBinaryOp::Greater => (*lhs, *rhs, false, false),
+                        IrBinaryOp::GreaterEq => (*lhs, *rhs, false, true),
+                        _ => continue,
+                    }
+                } else if block.phis.iter().any(|phi| phi.out == *rhs) {
+                    match op {
+                        IrBinaryOp::Greater => (*rhs, *lhs, true, false),
+                        IrBinaryOp::GreaterEq => (*rhs, *lhs, true, true),
+                        IrBinaryOp::Less => (*rhs, *lhs, false, false),
+                        IrBinaryOp::LessEq => (*rhs, *lhs, false, true),
+                        _ => continue,
+                    }
+                } else {
+                    continue;
+                };
+            let Some(bound) = constant(bound_value)
+                .map(I32Range::exact)
+                .or_else(|| ranges.get(&bound_value).copied())
+            else {
+                continue;
+            };
+            let Some(phi) = block.phis.iter().find(|phi| phi.out == phi_value) else {
+                continue;
+            };
+            let initial = phi
+                .incoming
+                .iter()
+                .find_map(|(_, value)| constant(*value))
+                .or_else(|| (!ascending).then_some(i64::from(i32::MAX)));
+            let Some(initial) = initial else {
+                continue;
+            };
+            let candidate = if ascending {
+                let maximum = bound.max - i64::from(!inclusive);
+                (initial <= maximum)
+                    .then(|| I32Range::checked(initial, maximum))
+                    .flatten()
+            } else {
+                let minimum = bound.min + i64::from(!inclusive);
+                (initial >= minimum)
+                    .then(|| I32Range::checked(minimum, initial))
+                    .flatten()
+            };
+            let Some(candidate) = candidate else {
+                continue;
+            };
+            let next = ranges
+                .get(&phi_value)
+                .copied()
+                .map_or(candidate, |current| current.join(candidate));
+            if ranges.get(&phi_value).copied() != Some(next) {
+                ranges.insert(phi_value, next);
+                changed = true;
+                any_changed = true;
+            }
+        }
+        if !changed {
+            break;
         }
     }
+    any_changed
 }
 
 fn join_known(values: impl IntoIterator<Item = Option<I32Range>>) -> Option<I32Range> {
@@ -1562,6 +1617,34 @@ mod tests {
         parse_source,
     };
 
+    fn unit_increment_outputs(function: &ControlFlowFunction<'_>) -> Vec<ValueId> {
+        let ones = function
+            .blocks
+            .iter()
+            .flat_map(|block| &block.instructions)
+            .filter_map(|instruction| match (instruction.out, &instruction.op) {
+                (Some(out), ControlFlowOp::Const(ConstValue::Int(1))) => Some(out),
+                _ => None,
+            })
+            .collect::<AHashSet<_>>();
+        function
+            .blocks
+            .iter()
+            .flat_map(|block| &block.instructions)
+            .filter_map(|instruction| match (instruction.out, &instruction.op) {
+                (
+                    Some(out),
+                    ControlFlowOp::Binary {
+                        op: IrBinaryOp::Add,
+                        lhs,
+                        rhs,
+                    },
+                ) if ones.contains(lhs) || ones.contains(rhs) => Some(out),
+                _ => None,
+            })
+            .collect()
+    }
+
     #[test]
     fn propagates_direct_call_arguments_and_returns() {
         let arena = Bump::new();
@@ -1600,6 +1683,118 @@ mod tests {
         assert_eq!(
             analysis.function(offset.id).return_range(),
             Some(I32Range { min: -4, max: 14 })
+        );
+    }
+
+    #[test]
+    fn proves_unit_updates_bounded_by_an_enclosing_induction() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "extern void consume(int value);for(int outer=1;outer<=10;outer++){for(int inner=1;inner<=outer;inner++){consume(inner);}}",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+        let options = OptimizationOptions {
+            inlining: false,
+            ..OptimizationOptions::default()
+        };
+        optimize_control_flow_with_options(&mut ir, &options, false).unwrap();
+        let analysis = analyze_integer_values(&ir);
+        let entry = &ir.functions[ir.entry.0 as usize];
+        let increments = unit_increment_outputs(entry);
+
+        assert_eq!(increments.len(), 2, "{entry:#?}");
+        assert!(
+            increments
+                .iter()
+                .all(|value| analysis.function(entry.id).can_elide_coercion(*value)),
+            "{entry:#?}"
+        );
+    }
+
+    #[test]
+    fn proves_unit_update_bounded_by_a_derived_array_length() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "extern int[] readValues();extern void consume(int value);int[] values=readValues();for(int index=0;index<values.length;index++){consume(index);}",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+        let options = OptimizationOptions {
+            inlining: false,
+            ..OptimizationOptions::default()
+        };
+        optimize_control_flow_with_options(&mut ir, &options, false).unwrap();
+        let analysis = analyze_integer_values(&ir);
+        let entry = &ir.functions[ir.entry.0 as usize];
+        let increments = unit_increment_outputs(entry);
+
+        assert_eq!(increments.len(), 1, "{entry:#?}");
+        assert!(
+            analysis
+                .function(entry.id)
+                .can_elide_coercion(increments[0]),
+            "{entry:#?}"
+        );
+    }
+
+    #[test]
+    fn keeps_inclusive_array_length_update_normalized_at_i32_max() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "extern int[] readValues();extern void consume(int value);int[] values=readValues();for(int index=2147483646;index<=values.length;index++){consume(index);}",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+        let options = OptimizationOptions {
+            inlining: false,
+            ..OptimizationOptions::default()
+        };
+        optimize_control_flow_with_options(&mut ir, &options, false).unwrap();
+        let analysis = analyze_integer_values(&ir);
+        let entry = &ir.functions[ir.entry.0 as usize];
+        let increments = unit_increment_outputs(entry);
+
+        assert_eq!(increments.len(), 1, "{entry:#?}");
+        assert!(
+            !analysis
+                .function(entry.id)
+                .can_elide_coercion(increments[0]),
+            "{entry:#?}"
+        );
+    }
+
+    #[test]
+    fn keeps_inclusive_i32_max_induction_update_normalized() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "extern void consume(int value);for(int index=2147483646;index<=2147483647;index++){consume(index);}",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+        let options = OptimizationOptions {
+            inlining: false,
+            ..OptimizationOptions::default()
+        };
+        optimize_control_flow_with_options(&mut ir, &options, false).unwrap();
+        let analysis = analyze_integer_values(&ir);
+        let entry = &ir.functions[ir.entry.0 as usize];
+        let increments = unit_increment_outputs(entry);
+
+        assert_eq!(increments.len(), 1, "{entry:#?}");
+        assert!(
+            !analysis
+                .function(entry.id)
+                .can_elide_coercion(increments[0]),
+            "{entry:#?}"
         );
     }
 
@@ -1643,6 +1838,116 @@ mod tests {
         let analysis = analyze_integer_values(&ir);
 
         assert_eq!(analysis.field_range("Box", 0), None);
+    }
+
+    #[test]
+    fn treats_lazy_exported_integer_parameters_as_full_public_inputs() {
+        let arena = Bump::new();
+        let program =
+            parse_source(&arena, "int echo(int value){return value;}print(echo(0));").unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+        let echo = ir
+            .functions
+            .iter()
+            .find(|function| function.name == Some("echo"))
+            .unwrap()
+            .id;
+        ir.lazy_modules.push(crate::ir::IrLazyModule {
+            id: 7,
+            source: "./feature.lil",
+            exports: vec![crate::ir::IrExport {
+                name: "echo",
+                binding: ExportBinding::Function(echo),
+                span: crate::span::Span::empty(0),
+            }],
+            span: crate::span::Span::empty(0),
+        });
+        let options = OptimizationOptions {
+            inlining: false,
+            ..OptimizationOptions::default()
+        };
+        optimize_control_flow_with_options(&mut ir, &options, true).unwrap();
+        let analysis = analyze_integer_values(&ir);
+        let echo = &ir.functions[echo.0 as usize];
+
+        assert_eq!(
+            analysis.function(echo.id).range(echo.params[0].value),
+            Some(I32Range::FULL)
+        );
+    }
+
+    #[test]
+    fn treats_lazy_exported_finite_parameters_as_unknown_public_inputs() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "string label(bool enabled){if(enabled){return \"on\";}return \"off\";}print(label(true));",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+        let label = ir
+            .functions
+            .iter()
+            .find(|function| function.name == Some("label"))
+            .unwrap()
+            .id;
+        ir.lazy_modules.push(crate::ir::IrLazyModule {
+            id: 7,
+            source: "./feature.lil",
+            exports: vec![crate::ir::IrExport {
+                name: "label",
+                binding: ExportBinding::Function(label),
+                span: crate::span::Span::empty(0),
+            }],
+            span: crate::span::Span::empty(0),
+        });
+        crate::optimizer::promote_locals_to_ssa(&mut ir).unwrap();
+        let analysis = analyze_finite_values(&ir);
+        let label = &ir.functions[label.0 as usize];
+
+        assert_eq!(
+            analysis.function(label.id).values(label.params[0].value),
+            None
+        );
+    }
+
+    #[test]
+    fn invalidates_aggregate_facts_crossing_lazy_exported_type_graphs() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "struct Box{int value;string label;}int read(Box box){return box.value;}Box box=Box{7,\"known\"};print(read(box));",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+        let read = ir
+            .functions
+            .iter()
+            .find(|function| function.name == Some("read"))
+            .unwrap()
+            .id;
+        ir.lazy_modules.push(crate::ir::IrLazyModule {
+            id: 7,
+            source: "./feature.lil",
+            exports: vec![crate::ir::IrExport {
+                name: "read",
+                binding: ExportBinding::Function(read),
+                span: crate::span::Span::empty(0),
+            }],
+            span: crate::span::Span::empty(0),
+        });
+        let options = OptimizationOptions {
+            inlining: false,
+            scalar_replacement: false,
+            ..OptimizationOptions::default()
+        };
+        optimize_control_flow_with_options(&mut ir, &options, true).unwrap();
+
+        assert_eq!(analyze_integer_values(&ir).field_range("Box", 0), None);
+        assert_eq!(analyze_finite_values(&ir).field_values("Box", 1), None);
     }
 
     #[test]

@@ -1,0 +1,9 @@
+{
+  "id": "production-12",
+  "description": "Level 12 production search, retaining a different phase/layout frontier",
+  "mode": "production",
+  "fingerprint": "2c8eeb3c5353eccdb502db50565965375c136c51cfdf45bd591aaeaba5253d92",
+  "configSha256": "c5f6fdf6e4978c387fc2367ce0e80c34c3f04f8693b89df7aa0724f3dd083f44",
+  "runtimeSha256": "fe6831469d5ceadee58ab039cd09225bcf0ab18c6043f38c5cab7151271ba904",
+  "runtimeRawBytes": 13726
+}

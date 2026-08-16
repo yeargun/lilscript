@@ -1,0 +1,1 @@
+var D=0,t=7;for(;D<5e3;++D)t=Math.imul(t,3)+1|0;console.log(t)

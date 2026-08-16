@@ -66,6 +66,7 @@ enum TokenKind {
     Template,
     Keyword,
     Punct,
+    Regex,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -199,7 +200,13 @@ pub fn optimize_generated_javascript(source: &str) -> Result<PeepholeResult, Jav
     let (code, merged_declarations) = merge_adjacent_declarations(&code)?;
     let (code, folded_assignment_guards) = fold_assignment_guards(&code)?;
     let (code, folded_expression_branches) = fold_expression_branches(&code)?;
+    let (code, folded_console_logs) = fold_console_log_conditionals(&code)?;
     let (code, folded_guard_returns) = fold_arrow_guard_returns(&code)?;
+    let (code, folded_return_tails) = fold_conditional_return_tails(&code)?;
+    let (code, folded_arrow_bodies) = fold_single_return_arrow_bodies(&code)?;
+    let (code, folded_negated_equalities) = fold_negated_equalities(&code)?;
+    let (code, reordered_var_declarators) = reorder_uninitialized_var_declarators(&code)?;
+    let (code, canonicalized_leaf_syntax) = canonicalize_leaf_syntax(&code)?;
     let final_tokens = if rewrites.is_empty()
         && rotated_loops == 0
         && !reused_binding
@@ -207,7 +214,13 @@ pub fn optimize_generated_javascript(source: &str) -> Result<PeepholeResult, Jav
         && merged_declarations == 0
         && folded_assignment_guards == 0
         && folded_expression_branches == 0
+        && folded_console_logs == 0
         && folded_guard_returns == 0
+        && folded_return_tails == 0
+        && folded_arrow_bodies == 0
+        && folded_negated_equalities == 0
+        && reordered_var_declarators == 0
+        && canonicalized_leaf_syntax == 0
     {
         tokens
     } else {
@@ -226,8 +239,352 @@ pub fn optimize_generated_javascript(source: &str) -> Result<PeepholeResult, Jav
             + merged_declarations
             + folded_assignment_guards
             + folded_expression_branches
-            + folded_guard_returns,
+            + folded_console_logs
+            + folded_guard_returns
+            + folded_return_tails
+            + folded_arrow_bodies
+            + folded_negated_equalities
+            + reordered_var_declarators
+            + canonicalized_leaf_syntax,
     })
+}
+
+/// Move declaration-only function-local `var` bindings before the initialized
+/// bindings in the same declaration while retaining initializer order.
+///
+/// ECMAScript instantiates every `var` binding as `undefined` before executing
+/// any initializer. An uninitialized declarator therefore performs no runtime
+/// operation at its textual position, including in a `for` initializer. This
+/// reorder preserves initializer order, suspension, exceptions, closure and
+/// direct-eval visibility, but can give gzip and Brotli a better declaration
+/// layout. Top-level declarations are excluded because script-mode `var` can
+/// create global-object properties in source order. The untouched artifact
+/// remains the other exact-codec leaf.
+///
+/// This deliberately refuses `let`/`const` (TDZ ordering is observable),
+/// destructuring, `for-in`/`for-of`, ASI-dependent boundaries, and comments in
+/// the separators whose association would otherwise move. The compact lexer
+/// cannot distinguish regex punctuation, so callers must provide the same
+/// emitter proof used by the other generated-syntax canonicalizations.
+fn reorder_uninitialized_var_declarators(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    if source.contains(['\u{2028}', '\u{2029}']) {
+        // ECMAScript treats both Unicode separators as line terminators. The
+        // compact lexer deliberately keeps them as punctuation, so fail
+        // closed instead of risking an ASI boundary.
+        return Ok((source.to_string(), 0));
+    }
+    let Some(tokens) = lex_certainly(source)? else {
+        return Ok((source.to_string(), 0));
+    };
+    let matching_close = matching_closers(&tokens);
+    let mut matching_open = vec![None; tokens.len()];
+    for (open, close) in matching_close.iter().enumerate() {
+        if let Some(close) = close {
+            matching_open[*close] = Some(open);
+        }
+    }
+    let function_bodies = (0..tokens.len())
+        .filter(|index| tokens[*index].text == "{")
+        .filter_map(|body| {
+            let end = matching_close[body]?;
+            if body
+                .checked_sub(1)
+                .is_some_and(|previous| tokens[previous].text == "=>")
+            {
+                return Some((body, end));
+            }
+            let close_params = body.checked_sub(1)?;
+            if tokens[close_params].text != ")" {
+                return None;
+            }
+            let open_params = matching_open[close_params]?;
+            function_header_precedes_parameters(&tokens, open_params).then_some((body, end))
+        })
+        .collect::<Vec<_>>();
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+
+    for var_index in 0..tokens.len() {
+        if tokens[var_index].text != "var"
+            || !tokens
+                .get(var_index + 1)
+                .is_some_and(|token| token.kind == TokenKind::Identifier)
+            // Top-level script `var` bindings can create global-object
+            // properties in declaration order. Function-local `var`
+            // bindings have no corresponding property-order observation.
+            || !function_bodies
+                .iter()
+                .any(|(start, end)| *start < var_index && var_index < *end)
+        {
+            continue;
+        }
+
+        let mut delimiters = Vec::<&str>::new();
+        let mut segment_start = var_index + 1;
+        let mut segments = Vec::<(usize, usize, bool)>::new();
+        let mut separator_commas = Vec::<usize>::new();
+        let mut cursor = segment_start;
+        let mut complete = false;
+        while cursor < tokens.len() {
+            if delimiters.is_empty()
+                && cursor > segment_start
+                && source[tokens[cursor - 1].end..tokens[cursor].start]
+                    .bytes()
+                    .any(|byte| matches!(byte, b'\n' | b'\r'))
+            {
+                // A line terminator can end the declaration through ASI. Do
+                // not consume a following comma expression while searching
+                // for a later explicit semicolon.
+                break;
+            }
+            match tokens[cursor].text {
+                "(" | "[" | "{" => delimiters.push(tokens[cursor].text),
+                ")" | "]" | "}" if !delimiters.is_empty() => {
+                    delimiters.pop();
+                }
+                "," if delimiters.is_empty() => {
+                    let Some(initialized) = simple_var_declarator(&tokens, segment_start, cursor)
+                    else {
+                        break;
+                    };
+                    segments.push((segment_start, cursor, initialized));
+                    separator_commas.push(cursor);
+                    segment_start = cursor + 1;
+                }
+                ";" if delimiters.is_empty() => {
+                    let Some(initialized) = simple_var_declarator(&tokens, segment_start, cursor)
+                    else {
+                        break;
+                    };
+                    segments.push((segment_start, cursor, initialized));
+                    complete = true;
+                    break;
+                }
+                // A multi-binding declaration cannot be a valid for-in/of
+                // initializer. Refusing here also prevents treating the
+                // iterable expression as part of a declarator.
+                "in" | "of" if delimiters.is_empty() => break,
+                // The generated candidate normally includes a semicolon.
+                // Do not infer line-sensitive ASI boundaries from token gaps.
+                ")" | "]" | "}" if delimiters.is_empty() => break,
+                _ => {}
+            }
+            cursor += 1;
+        }
+        if !complete || segments.len() < 2 {
+            continue;
+        }
+
+        let declaration_prefix = &source[tokens[var_index].end..tokens[segments[0].0].start];
+        if !declaration_prefix
+            .bytes()
+            .all(|byte| byte.is_ascii_whitespace())
+        {
+            continue;
+        }
+        let clean_separators = separator_commas.iter().enumerate().all(|(index, comma)| {
+            let left_end = tokens[segments[index].1 - 1].end;
+            let right_start = tokens[segments[index + 1].0].start;
+            tokens[*comma].start >= left_end
+                && tokens[*comma].end <= right_start
+                && source[left_end..right_start]
+                    .bytes()
+                    .all(|byte| byte == b',' || byte.is_ascii_whitespace())
+        });
+        if !clean_separators {
+            continue;
+        }
+
+        let first_initialized = segments.iter().position(|segment| segment.2);
+        let last_uninitialized = segments.iter().rposition(|segment| !segment.2);
+        if !first_initialized
+            .zip(last_uninitialized)
+            .is_some_and(|(initialized, uninitialized)| initialized < uninitialized)
+        {
+            continue;
+        }
+
+        let ordered = segments
+            .iter()
+            .filter(|segment| !segment.2)
+            .chain(segments.iter().filter(|segment| segment.2));
+        let replacement = ordered
+            .map(|(start, end, _)| &source[tokens[*start].start..tokens[*end - 1].end])
+            .collect::<Vec<_>>()
+            .join(",");
+        replacements.push((
+            tokens[segments[0].0].start,
+            tokens[segments.last().expect("multiple segments").1 - 1].end,
+            replacement,
+        ));
+    }
+
+    if replacements.is_empty() {
+        return Ok((source.to_string(), 0));
+    }
+    replacements.sort_unstable_by_key(|(start, end, _)| (*start, *end));
+    let mut retained = Vec::with_capacity(replacements.len());
+    let mut last_end = 0usize;
+    for replacement in replacements {
+        if replacement.0 >= last_end {
+            last_end = replacement.1;
+            retained.push(replacement);
+        }
+    }
+    let count = retained.len();
+    let mut output = source.to_string();
+    for (start, end, replacement) in retained.into_iter().rev() {
+        output.replace_range(start..end, &replacement);
+    }
+    Ok((output, count))
+}
+
+fn function_header_precedes_parameters(tokens: &[Token<'_>], open_params: usize) -> bool {
+    let Some(before_params) = open_params.checked_sub(1) else {
+        return false;
+    };
+    let function = if tokens[before_params].text == "function" {
+        // Anonymous ordinary functions and methods literally named
+        // `function` both introduce a function-local `var` scope.
+        Some(before_params)
+    } else if tokens[before_params].text == "*" {
+        before_params
+            .checked_sub(1)
+            .filter(|index| tokens[*index].text == "function")
+    } else if tokens[before_params].kind == TokenKind::Identifier {
+        let before_name = before_params.checked_sub(1);
+        before_name.and_then(|index| {
+            if tokens[index].text == "function" {
+                Some(index)
+            } else if tokens[index].text == "*" {
+                index
+                    .checked_sub(1)
+                    .filter(|function| tokens[*function].text == "function")
+            } else {
+                None
+            }
+        })
+    } else {
+        None
+    };
+    function.is_some_and(|index| {
+        !index
+            .checked_sub(1)
+            .is_some_and(|previous| matches!(tokens[previous].text, "." | "?." | "#"))
+    })
+}
+
+fn simple_var_declarator(tokens: &[Token<'_>], start: usize, end: usize) -> Option<bool> {
+    if start >= end || tokens[start].kind != TokenKind::Identifier {
+        return None;
+    }
+    match end - start {
+        1 => Some(false),
+        _ if tokens[start + 1].text == "=" => Some(true),
+        _ => None,
+    }
+}
+
+/// Canonicalize two grammar-local spellings emitted by the IR backend:
+/// `typeof(identifier)` and `object["IdentifierName"]`. The compact lexer does
+/// not distinguish division from regular-expression literals, so callers must
+/// prove that regex literals are absent before entering this pass. Quoted
+/// strings and templates are single tokens and exact byte-adjacency checks keep
+/// comments and escaped property keys outside every replacement.
+fn canonicalize_leaf_syntax(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    let Some(tokens) = lex_certainly(source)? else {
+        return Ok((source.to_string(), 0));
+    };
+    let matching_close = matching_closers(&tokens);
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+
+    for index in 0..tokens.len() {
+        if tokens[index].text == "typeof"
+            && tokens.get(index + 1).map(|token| token.text) == Some("(")
+            && matching_close[index + 1] == Some(index + 3)
+            && tokens
+                .get(index + 2)
+                .is_some_and(|token| token.kind == TokenKind::Identifier)
+            && tokens[index].end == tokens[index + 1].start
+            && tokens[index + 1].end == tokens[index + 2].start
+            && tokens[index + 2].end == tokens[index + 3].start
+            && !parenthesized_expression_has_postfix_continuation(&tokens, index + 3)
+        {
+            let mut replacement = format!("typeof {}", tokens[index + 2].text);
+            if tokens.get(index + 4).is_some_and(|next| {
+                next.start == tokens[index + 3].end
+                    && matches!(
+                        next.kind,
+                        TokenKind::Identifier | TokenKind::Keyword | TokenKind::Number
+                    )
+            }) {
+                replacement.push(' ');
+            }
+            replacements.push((tokens[index].start, tokens[index + 3].end, replacement));
+        }
+
+        if tokens[index].text != "["
+            || tokens.get(index + 1).map(|token| token.kind) != Some(TokenKind::String)
+            || tokens.get(index + 2).map(|token| token.text) != Some("]")
+            || tokens[index].end != tokens[index + 1].start
+            || tokens[index + 1].end != tokens[index + 2].start
+            || tokens.get(index.wrapping_sub(1)).map(|token| token.end) != Some(tokens[index].start)
+            || !tokens
+                .get(index.wrapping_sub(1))
+                .is_some_and(member_object_can_end_with)
+        {
+            continue;
+        }
+        let Some(property) = ascii_identifier_name_string(tokens[index + 1].text) else {
+            continue;
+        };
+        let mut replacement = format!(".{property}");
+        if tokens.get(index + 3).is_some_and(|next| {
+            next.start == tokens[index + 2].end
+                && matches!(
+                    next.kind,
+                    TokenKind::Identifier | TokenKind::Keyword | TokenKind::Number
+                )
+        }) {
+            replacement.push(' ');
+        }
+        replacements.push((tokens[index].start, tokens[index + 2].end, replacement));
+    }
+
+    if replacements.is_empty() {
+        return Ok((source.to_string(), 0));
+    }
+    replacements.sort_unstable_by_key(|(start, end, _)| (*start, *end));
+    replacements.dedup_by(|left, right| left.0 == right.0 && left.1 == right.1);
+    let count = replacements.len();
+    let mut output = source.to_string();
+    for (start, end, replacement) in replacements.into_iter().rev() {
+        output.replace_range(start..end, &replacement);
+    }
+    Ok((output, count))
+}
+
+fn member_object_can_end_with(token: &Token<'_>) -> bool {
+    token.kind == TokenKind::Identifier
+        || (token.kind == TokenKind::Keyword && matches!(token.text, "this" | "super"))
+}
+
+fn ascii_identifier_name_string(literal: &str) -> Option<&str> {
+    let bytes = literal.as_bytes();
+    if bytes.len() < 3
+        || !matches!(bytes[0], b'\'' | b'"')
+        || bytes.last().copied() != Some(bytes[0])
+    {
+        return None;
+    }
+    let identifier = &bytes[1..bytes.len() - 1];
+    if !is_identifier_start(identifier[0])
+        || !identifier[1..].iter().copied().all(is_identifier_continue)
+    {
+        return None;
+    }
+    Some(&literal[1..literal.len() - 1])
 }
 
 /// Fold a braced `if`/`else` whose arms contain only expression statements
@@ -236,14 +593,6 @@ pub fn optimize_generated_javascript(source: &str) -> Result<PeepholeResult, Jav
 /// candidate, so this raw-byte rewrite is never forced when gzip or Brotli
 /// prefers the structured spelling.
 fn fold_expression_branches(source: &str) -> Result<(String, usize), JavaScriptParseError> {
-    // This proposal is deliberately local. Large artifacts already exercise
-    // the structured/comma codegen beam, while reparsing and perturbing every
-    // branch there can crowd out stronger bounded candidates before final
-    // exact-codec selection.
-    const BYTE_LIMIT: usize = 16 * 1024;
-    if source.len() > BYTE_LIMIT {
-        return Ok((source.to_string(), 0));
-    }
     let tokens = lex(source)?;
     let mut matching_close = vec![None; tokens.len()];
     let mut stack = Vec::<usize>::new();
@@ -309,7 +658,14 @@ fn fold_expression_branches(source: &str) -> Result<(String, usize), JavaScriptP
         if tokens.get(else_close + 1).map(|token| token.text) == Some(";") {
             end = tokens[else_close + 1].end;
         }
-        let replacement = format!("{condition}?{then_value}:{else_value};");
+        let replacement = if let (Some(then_arg), Some(else_arg)) = (
+            single_console_log_argument(&then_value),
+            single_console_log_argument(&else_value),
+        ) {
+            format!("console.log({condition}?{then_arg}:{else_arg});")
+        } else {
+            format!("{condition}?{then_value}:{else_value};")
+        };
         if replacement.len() < end - tokens[if_index].start {
             replacements.push((tokens[if_index].start, end, replacement));
         }
@@ -381,6 +737,467 @@ fn expression_statement_sequence(
         1 => expressions.pop(),
         _ => Some(format!("({})", expressions.join(","))),
     }
+}
+
+fn single_console_log_argument(expression: &str) -> Option<&str> {
+    const PREFIX: &str = "console.log(";
+    if !expression.starts_with(PREFIX) || !expression.ends_with(')') {
+        return None;
+    }
+    let inner = &expression[PREFIX.len()..expression.len() - 1];
+    if inner.is_empty() {
+        return None;
+    }
+    let mut depth = 0i32;
+    for ch in inner.chars() {
+        match ch {
+            '(' | '[' | '{' => depth += 1,
+            ')' | ']' | '}' => depth -= 1,
+            ',' if depth == 0 => return None,
+            _ => {}
+        }
+        if depth < 0 {
+            return None;
+        }
+    }
+    (depth == 0).then_some(inner)
+}
+
+fn matching_closers(tokens: &[Token<'_>]) -> Vec<Option<usize>> {
+    let mut matching_close = vec![None; tokens.len()];
+    let mut stack = Vec::<usize>::new();
+    for (index, token) in tokens.iter().enumerate() {
+        match token.text {
+            "(" | "[" | "{" => stack.push(index),
+            ")" | "]" | "}" => {
+                let Some(open) = stack.pop() else {
+                    continue;
+                };
+                matching_close[open] = Some(index);
+            }
+            _ => {}
+        }
+    }
+    matching_close
+}
+
+/// Replace `!(left == right)` with `left != right` (and the strict/inverse
+/// forms) without changing operand evaluation. JavaScript defines both
+/// inequality operators as the logical inverse of their matching equality
+/// operation, so coercion, side effects, exceptions, and left-to-right order
+/// are identical. The surrounding candidate without this spelling remains in
+/// the compiler's exact-codec frontier.
+fn fold_negated_equalities(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    let Some(tokens) = lex_certainly(source)? else {
+        return Ok((source.to_string(), 0));
+    };
+    let matching_close = matching_closers(&tokens);
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut index = 0usize;
+
+    while index + 3 < tokens.len() {
+        if tokens[index].text != "!" || tokens[index + 1].text != "(" {
+            index += 1;
+            continue;
+        }
+        let open = index + 1;
+        let Some(close) = matching_close[open] else {
+            index += 1;
+            continue;
+        };
+        if close <= open + 2 {
+            index += 1;
+            continue;
+        }
+        if parenthesized_expression_has_postfix_continuation(&tokens, close)
+            || tokens
+                .get(index.wrapping_sub(1))
+                .is_some_and(|token| token.text == "new")
+            || matches!(tokens[open + 1].text, "{" | "function" | "class" | "async")
+        {
+            index += 1;
+            continue;
+        }
+        // The compact lexer deliberately does not distinguish division from
+        // regular-expression literals. A regex body may itself contain an
+        // equality token, so refuse the whole local rewrite rather than risk
+        // selecting an operator from inside `/.../`.
+        if tokens[open + 1..close]
+            .iter()
+            .any(|token| matches!(token.text, "/" | "/="))
+        {
+            index += 1;
+            continue;
+        }
+        let Some((operator_index, inverse)) = root_equality_inverse(&tokens[open + 1..close])
+        else {
+            index += 1;
+            continue;
+        };
+        let operator_index = open + 1 + operator_index;
+        let inner_start = tokens[open + 1].start;
+        let inner_end = tokens[close - 1].end;
+        let mut inverse_expression = String::with_capacity(inner_end - inner_start);
+        inverse_expression.push_str(&source[inner_start..tokens[operator_index].start]);
+        inverse_expression.push_str(inverse);
+        inverse_expression.push_str(&source[tokens[operator_index].end..inner_end]);
+        if equality_replacement_requires_grouping(&tokens, index, close) {
+            inverse_expression = format!("({inverse_expression})");
+        }
+        replacements.push((tokens[index].start, tokens[close].end, inverse_expression));
+        index = close + 1;
+    }
+
+    if replacements.is_empty() {
+        return Ok((source.to_string(), 0));
+    }
+    let count = replacements.len();
+    let mut output = source.to_string();
+    for (start, end, replacement) in replacements.into_iter().rev() {
+        output.replace_range(start..end, &replacement);
+    }
+    Ok((output, count))
+}
+
+/// Find the root equality operator of a parenthesized expression. Operators
+/// with lower precedence prove that equality is only a child, while equal
+/// precedence is left-associative and therefore makes the last equality token
+/// the root.
+fn root_equality_inverse(tokens: &[Token<'_>]) -> Option<(usize, &'static str)> {
+    let mut depth = 0usize;
+    let mut root = None;
+    for (index, token) in tokens.iter().enumerate() {
+        match token.text {
+            "(" | "[" | "{" => {
+                depth += 1;
+                continue;
+            }
+            ")" | "]" | "}" => {
+                depth = depth.checked_sub(1)?;
+                continue;
+            }
+            _ if depth != 0 => continue,
+            _ => {}
+        }
+
+        let inverse = match token.text {
+            "==" => Some("!="),
+            "!=" => Some("=="),
+            "===" => Some("!=="),
+            "!==" => Some("==="),
+            _ => None,
+        };
+        if let Some(inverse) = inverse {
+            root = Some((index, inverse));
+            continue;
+        }
+        if matches!(token.text, "?" | ":" | "=>" | "yield")
+            || infix_precedence(token.text).is_some_and(|(precedence, _, _)| precedence < 10)
+        {
+            return None;
+        }
+    }
+    (depth == 0).then_some(root).flatten()
+}
+
+fn parenthesized_expression_has_postfix_continuation(tokens: &[Token<'_>], close: usize) -> bool {
+    tokens.get(close + 1).is_some_and(|token| {
+        matches!(token.text, "(" | "[" | "." | "++" | "--" | "**")
+            || token.kind == TokenKind::Template
+            || (token.text == "?" && tokens.get(close + 2).is_some_and(|token| token.text == "."))
+    })
+}
+
+fn equality_replacement_requires_grouping(tokens: &[Token<'_>], bang: usize, close: usize) -> bool {
+    let tighter_or_equal = |token: &Token<'_>| {
+        infix_precedence(token.text).is_some_and(|(precedence, _, _)| precedence >= 10)
+    };
+    let prefix_parent = tokens.get(bang.wrapping_sub(1)).is_some_and(|token| {
+        matches!(
+            token.text,
+            "!" | "~" | "+" | "-" | "." | "typeof" | "void" | "delete" | "await" | "new"
+        ) || tighter_or_equal(token)
+    });
+    let postfix_parent = tokens
+        .get(close + 1)
+        .is_some_and(|token| tighter_or_equal(token));
+    prefix_parent || postfix_parent
+}
+
+/// Returns a codec candidate that spells function-body-leading generated
+/// declarations with `let` instead of `var`.
+///
+/// LilScript's IR emitter places a function's local declaration before every
+/// executable body operation, assigns every emitted local name uniquely, and
+/// cannot emit direct `eval` or `with`. Within that generated subset, the
+/// leading function block and the function's `var` scope are equivalent when
+/// the declaration has no initializer or only literal initializers. The
+/// spellings can still interact quite differently with a surrounding gzip or
+/// Brotli dictionary, so the compiler scores both complete programs.
+///
+/// This is intentionally a lexical, additive variant rather than a peephole
+/// rewrite. Strings, templates, and comments are never inspected, parameter
+/// lists must use the emitter's simple identifier form, declarations with a
+/// hoisting-sensitive initializer or later `var` are rejected, and callers
+/// always retain the original source as a candidate.
+pub(crate) fn function_leading_declaration_variant(source: &str) -> Option<String> {
+    let tokens = lex(source).ok()?;
+    let matching_close = matching_closers(&tokens);
+    let mut replacements = Vec::<(usize, usize)>::new();
+
+    for (function_index, token) in tokens.iter().enumerate() {
+        if token.text != "function" {
+            continue;
+        }
+
+        let mut cursor = function_index + 1;
+        if tokens.get(cursor).map(|token| token.text) == Some("*") {
+            cursor += 1;
+        }
+        if tokens.get(cursor).map(|token| token.kind) == Some(TokenKind::Identifier) {
+            cursor += 1;
+        }
+        if tokens.get(cursor).map(|token| token.text) != Some("(") {
+            continue;
+        }
+        let parameters_open = cursor;
+        let Some(parameters_close) = matching_close[parameters_open] else {
+            continue;
+        };
+        let simple_parameters = tokens[parameters_open + 1..parameters_close]
+            .iter()
+            .enumerate()
+            .all(|(index, token)| {
+                if index % 2 == 0 {
+                    token.kind == TokenKind::Identifier
+                } else {
+                    token.text == ","
+                }
+            });
+        if !simple_parameters {
+            continue;
+        }
+
+        let body_open = parameters_close + 1;
+        if tokens.get(body_open).map(|token| token.text) != Some("{") {
+            continue;
+        }
+        let Some(body_close) = matching_close[body_open] else {
+            continue;
+        };
+        let declaration_index = body_open + 1;
+        if declaration_index >= body_close || tokens[declaration_index].text != "var" {
+            continue;
+        }
+
+        let mut declaration_cursor = declaration_index + 1;
+        let mut declared_names = Vec::<&str>::new();
+        let mut declaration_end = None;
+        while declaration_cursor < body_close {
+            let Some(name) = tokens.get(declaration_cursor) else {
+                break;
+            };
+            if name.kind != TokenKind::Identifier
+                || declared_names.contains(&name.text)
+                || tokens[parameters_open + 1..parameters_close]
+                    .iter()
+                    .any(|parameter| parameter.text == name.text)
+            {
+                break;
+            }
+            declared_names.push(name.text);
+            declaration_cursor += 1;
+
+            if tokens.get(declaration_cursor).map(|token| token.text) == Some("=") {
+                declaration_cursor += 1;
+                let initializer_start = declaration_cursor;
+                while declaration_cursor < body_close
+                    && !matches!(tokens[declaration_cursor].text, "," | ";")
+                {
+                    declaration_cursor += 1;
+                }
+                if !is_hoist_independent_literal_initializer(
+                    &tokens[initializer_start..declaration_cursor],
+                ) {
+                    break;
+                }
+            }
+
+            match tokens.get(declaration_cursor).map(|token| token.text) {
+                Some(",") => declaration_cursor += 1,
+                Some(";") => {
+                    declaration_end = Some(declaration_cursor);
+                    break;
+                }
+                _ => break,
+            }
+        }
+        let Some(declaration_end) = declaration_end else {
+            continue;
+        };
+        if tokens[declaration_end + 1..body_close]
+            .iter()
+            .any(|token| token.text == "var")
+        {
+            continue;
+        }
+        // A following function/class declaration can legally merge with a
+        // `var` binding but conflicts with the lexical candidate. Generated
+        // code normally has neither here; rejecting the whole uncommon shape
+        // keeps the proof independent of declaration-instantiation rules.
+        if tokens[declaration_end + 1..body_close]
+            .iter()
+            .any(|token| matches!(token.text, "function" | "class"))
+        {
+            continue;
+        }
+
+        let replacement = (
+            tokens[declaration_index].start,
+            tokens[declaration_index].end,
+        );
+        if !replacements.contains(&replacement) {
+            replacements.push(replacement);
+        }
+    }
+
+    if replacements.is_empty() {
+        return None;
+    }
+    let mut variant = source.to_string();
+    for (start, end) in replacements.into_iter().rev() {
+        variant.replace_range(start..end, "let");
+    }
+    Some(variant)
+}
+
+fn is_hoist_independent_literal_initializer(tokens: &[Token<'_>]) -> bool {
+    match tokens {
+        [literal]
+            if matches!(literal.kind, TokenKind::Number | TokenKind::String)
+                || matches!(literal.text, "true" | "false" | "null") =>
+        {
+            true
+        }
+        [operator, literal]
+            if matches!(operator.text, "+" | "-") && literal.kind == TokenKind::Number =>
+        {
+            true
+        }
+        _ => false,
+    }
+}
+
+fn is_console_log_open(tokens: &[Token<'_>], index: usize) -> bool {
+    tokens.get(index).map(|token| token.text) == Some("console")
+        && tokens.get(index + 1).map(|token| token.text) == Some(".")
+        && tokens.get(index + 2).map(|token| token.text) == Some("log")
+        && tokens.get(index + 3).map(|token| token.text) == Some("(")
+}
+
+fn fold_console_log_conditionals(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut index = 0usize;
+    while index + 8 < tokens.len() {
+        if tokens[index].text != "?" || !is_console_log_open(&tokens, index + 1) {
+            index += 1;
+            continue;
+        }
+        let then_open = index + 4;
+        let Some(then_close) = matching_close[then_open] else {
+            index += 1;
+            continue;
+        };
+        if tokens.get(then_close + 1).map(|token| token.text) != Some(":")
+            || !is_console_log_open(&tokens, then_close + 2)
+        {
+            index += 1;
+            continue;
+        }
+        let else_open = then_close + 5;
+        let Some(else_close) = matching_close[else_open] else {
+            index += 1;
+            continue;
+        };
+        let next = tokens.get(else_close + 1).map(|token| token.text);
+        if next.is_some_and(|token| !matches!(token, ";" | "}" | "{")) {
+            index += 1;
+            continue;
+        }
+        let then_arg = source[tokens[then_open].end..tokens[then_close].start].to_string();
+        let else_arg = source[tokens[else_open].end..tokens[else_close].start].to_string();
+        if single_console_log_argument(&format!("console.log({then_arg})")).is_none()
+            || single_console_log_argument(&format!("console.log({else_arg})")).is_none()
+        {
+            index += 1;
+            continue;
+        }
+        let mut cond_start = 0usize;
+        let mut depth = 0i32;
+        let mut statement = true;
+        for token_index in (0..index).rev() {
+            match tokens[token_index].text {
+                ")" | "]" | "}" => depth += 1,
+                "(" | "[" | "{" => {
+                    if depth == 0 {
+                        if tokens[token_index].text != "{" {
+                            statement = false;
+                        }
+                        cond_start = token_index + 1;
+                        break;
+                    }
+                    depth -= 1;
+                }
+                ";" if depth == 0 => {
+                    cond_start = token_index + 1;
+                    break;
+                }
+                "," | ":" | "?" if depth == 0 => {
+                    statement = false;
+                    break;
+                }
+                _ => {}
+            }
+        }
+        if !statement {
+            index += 1;
+            continue;
+        }
+        let condition = source[tokens[cond_start].start..tokens[index].start].trim();
+        if condition.is_empty() {
+            index += 1;
+            continue;
+        }
+        let mut end = tokens[else_close].end;
+        if tokens.get(else_close + 1).map(|token| token.text) == Some(";") {
+            end = tokens[else_close + 1].end;
+        }
+        let replacement = format!("console.log({condition}?{then_arg}:{else_arg});");
+        if replacement.len() < end - tokens[cond_start].start {
+            replacements.push((tokens[cond_start].start, end, replacement));
+        }
+        index = else_close + 1;
+    }
+    if replacements.is_empty() {
+        return Ok((source.to_string(), 0));
+    }
+    replacements.sort_unstable_by_key(|(start, end, _)| (*start, *end));
+    let mut retained = Vec::new();
+    let mut last_end = 0;
+    for replacement in replacements {
+        if replacement.0 >= last_end {
+            last_end = replacement.1;
+            retained.push(replacement);
+        }
+    }
+    let count = retained.len();
+    let mut output = source.to_string();
+    for (start, end, replacement) in retained.into_iter().rev() {
+        output.replace_range(start..end, &replacement);
+    }
+    Ok((output, count))
 }
 
 /// Fold `value=expression;if(value){...}` into
@@ -534,13 +1351,19 @@ fn fold_arrow_guard_returns(source: &str) -> Result<(String, usize), JavaScriptP
             } else {
                 condition.to_string()
             };
-        let first = &source[tokens[first_return + 1].start..tokens[first_semicolon].start];
-        let first =
+        // Bare `return;` is a value-producing `undefined` arm once the two
+        // returns become one conditional expression. Never leave an empty
+        // grammar arm (`condition?:value`) in a codec-scored candidate.
+        let first = if first_return + 1 == first_semicolon {
+            "void 0".to_string()
+        } else {
+            let first = &source[tokens[first_return + 1].start..tokens[first_semicolon].start];
             if expression_has_top_level_token(&tokens[first_return + 1..first_semicolon], ",") {
                 format!("({first})")
             } else {
                 first.to_string()
-            };
+            }
+        };
         let second = &source[tokens[second_return + 1].start..tokens[second_end].start];
         let second = if expression_has_top_level_token(&tokens[second_return + 1..second_end], ",")
         {
@@ -606,6 +1429,288 @@ fn expression_has_top_level_token(tokens: &[Token<'_>], expected: &str) -> bool 
         }
     }
     false
+}
+
+/// Index of the token that ends the statement starting at `start`, and whether
+/// that token is the statement's own `;` rather than the enclosing block's `}`.
+fn statement_terminator(tokens: &[Token<'_>], start: usize) -> Option<(usize, bool)> {
+    let mut depth = 0usize;
+    for (index, token) in tokens.iter().enumerate().skip(start) {
+        match token.text {
+            "(" | "[" | "{" => depth += 1,
+            ")" | "]" | "}" => {
+                if depth == 0 {
+                    return Some((index, false));
+                }
+                depth -= 1;
+            }
+            ";" if depth == 0 => return Some((index, true)),
+            _ => {}
+        }
+    }
+    None
+}
+
+/// A `return` argument spelled as one conditional arm.
+///
+/// An absent argument is `undefined` once the two returns become one
+/// expression, and a top-level comma binds looser than a conditional arm.
+fn conditional_return_arm(source: &str, tokens: &[Token<'_>], start: usize, end: usize) -> String {
+    if start >= end {
+        return "void 0".to_string();
+    }
+    let text = &source[tokens[start].start..tokens[end - 1].end];
+    if expression_has_top_level_token(&tokens[start..end], ",") {
+        format!("({text})")
+    } else {
+        text.to_string()
+    }
+}
+
+fn spans_line_terminator(source: &str) -> bool {
+    source.contains(['\n', '\r', '\u{2028}', '\u{2029}'])
+}
+
+/// Collapse a guarded return and the return that follows it into a single
+/// conditional return.
+///
+/// `if(C)return A;return B` and `return C?A:B` evaluate `C`, then exactly one
+/// of `A` or `B`, and complete with the same value. Nothing else can run
+/// between them: the guarded arm returns, so the following statement is
+/// reached exactly when `C` is falsy.
+///
+/// The `if` must be a statement of the enclosing block. An `if` that is the
+/// unbraced body of a loop or a labelled statement is refused, because the
+/// fused return would then leave the loop on the first iteration instead of
+/// continuing it. An `else` arm is refused implicitly: the token after the
+/// guarded return is then `else` rather than `return`.
+///
+/// Longer ladders collapse one level per round, from the tail inward, so
+/// `if(C1)return A;if(C2)return B;return C` reaches `return C1?A:C2?B:C`
+/// through the right-associative spelling with no added parentheses.
+fn fold_conditional_return_tails(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    let mut output = source.to_string();
+    let mut folded = 0usize;
+    loop {
+        let Some(tokens) = lex_certainly(&output)? else {
+            return Ok((output, folded));
+        };
+        let matching_close = matching_closers(&tokens);
+        let mut replacements = Vec::<(usize, usize, String)>::new();
+
+        for guard in 0..tokens.len() {
+            if tokens[guard].text != "if" {
+                continue;
+            }
+            let condition_open = guard + 1;
+            if tokens.get(condition_open).map(|token| token.text) != Some("(") {
+                continue;
+            }
+            let Some(condition_close) = matching_close[condition_open] else {
+                continue;
+            };
+
+            // The guarded arm is a lone `return`, either bare or braced.
+            let braced = tokens.get(condition_close + 1).map(|token| token.text) == Some("{");
+            let guarded_return = if braced {
+                condition_close + 2
+            } else {
+                condition_close + 1
+            };
+            if tokens.get(guarded_return).map(|token| token.text) != Some("return") {
+                continue;
+            }
+            let Some((guarded_end, _)) = statement_terminator(&tokens, guarded_return + 1) else {
+                continue;
+            };
+            let next_statement = if braced {
+                let Some(brace_close) = matching_close[condition_close + 1] else {
+                    continue;
+                };
+                // Exactly one statement inside the braces, with at most a
+                // trailing `;`.
+                if guarded_end != brace_close
+                    && !(guarded_end + 1 == brace_close && tokens[guarded_end].text == ";")
+                {
+                    continue;
+                }
+                brace_close + 1
+            } else {
+                if tokens[guarded_end].text != ";" {
+                    continue;
+                }
+                guarded_end + 1
+            };
+            // An `else` arm belongs to this `if`, so the fused return replaces
+            // one whole statement with one whole statement and may sit
+            // wherever the `if` did. A fall-through tail is a separate
+            // statement of the enclosing block, so the `if` has to be one too:
+            // as the unbraced body of a loop or a labelled statement, the
+            // fused return would leave the loop instead of continuing it.
+            let alternative = tokens.get(next_statement).map(|token| token.text) == Some("else");
+            if !alternative
+                && guard.checked_sub(1).is_some_and(|previous| {
+                    !matches!(tokens[previous].text, "{" | "}" | ";" | "else")
+                })
+            {
+                continue;
+            }
+            let tail_braced =
+                alternative && tokens.get(next_statement + 1).map(|token| token.text) == Some("{");
+            let tail_return =
+                next_statement + usize::from(alternative) + usize::from(tail_braced);
+            if tokens.get(tail_return).map(|token| token.text) != Some("return") {
+                continue;
+            }
+            let Some((terminator, semicolon)) = statement_terminator(&tokens, tail_return + 1)
+            else {
+                continue;
+            };
+            // The replacement is an expression statement, so a braced arm's
+            // own `}` disappears with it.
+            let (tail_end, end) = if tail_braced {
+                let Some(brace_close) = matching_close[next_statement + 1] else {
+                    continue;
+                };
+                if terminator != brace_close
+                    && !(terminator + 1 == brace_close && tokens[terminator].text == ";")
+                {
+                    continue;
+                }
+                (terminator, tokens[brace_close].end)
+            } else if semicolon {
+                (terminator, tokens[terminator].end)
+            } else {
+                (terminator, tokens[terminator].start)
+            };
+
+            // `return` followed by a line terminator is already `return;`, so
+            // splicing across one would change what the argument is.
+            let start = tokens[guard].start;
+            if spans_line_terminator(&output[start..end]) {
+                continue;
+            }
+
+            let condition = &output[tokens[condition_open].end..tokens[condition_close].start];
+            let condition =
+                if conditional_test_needs_grouping(&tokens[condition_open + 1..condition_close]) {
+                    format!("({condition})")
+                } else {
+                    condition.to_string()
+                };
+            let guarded = conditional_return_arm(&output, &tokens, guarded_return + 1, guarded_end);
+            let tail = conditional_return_arm(&output, &tokens, tail_return + 1, tail_end);
+            let mut replacement = format!("return {condition}?{guarded}:{tail}");
+            if semicolon && !tail_braced {
+                replacement.push(';');
+            }
+            if replacement.len() < end - start {
+                replacements.push((start, end, replacement));
+            }
+        }
+
+        if replacements.is_empty() {
+            return Ok((output, folded));
+        }
+        // Fusing the tail first lets the guard before it fuse in the next
+        // round, so keep the rightmost of any overlapping pair.
+        replacements.sort_unstable_by_key(|(start, end, _)| (*start, *end));
+        let mut retained = Vec::<(usize, usize, String)>::new();
+        for replacement in replacements.into_iter().rev() {
+            if retained
+                .last()
+                .is_none_or(|(start, _, _)| replacement.1 <= *start)
+            {
+                retained.push(replacement);
+            }
+        }
+        folded += retained.len();
+        for (start, end, replacement) in retained {
+            output.replace_range(start..end, &replacement);
+        }
+    }
+}
+
+/// Spell an arrow whose body is a lone `return` as a concise body.
+///
+/// `=>{return X}` and `=>X` produce the same value. A body that begins with
+/// `{` would be read as a block, and a top-level comma binds looser than the
+/// arrow body, so both are parenthesized.
+fn fold_single_return_arrow_bodies(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    let Some(tokens) = lex_certainly(source)? else {
+        return Ok((source.to_string(), 0));
+    };
+    let matching_close = matching_closers(&tokens);
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+
+    for body_open in 1..tokens.len() {
+        if tokens[body_open].text != "{" || tokens[body_open - 1].text != "=>" {
+            continue;
+        }
+        let (Some(body_close), Some(value)) = (matching_close[body_open], tokens.get(body_open + 1))
+        else {
+            continue;
+        };
+        if value.text != "return" {
+            continue;
+        }
+        let Some((terminator, _)) = statement_terminator(&tokens, body_open + 2) else {
+            continue;
+        };
+        if terminator != body_close
+            && !(terminator + 1 == body_close && tokens[terminator].text == ";")
+        {
+            continue;
+        }
+        // `=>{}` already returns `undefined` in fewer bytes than `=>void 0`.
+        if body_open + 2 >= terminator {
+            continue;
+        }
+        let start = tokens[body_open].start;
+        let end = tokens[body_close].end;
+        if spans_line_terminator(&source[start..end]) {
+            continue;
+        }
+        let text = &source[tokens[body_open + 2].start..tokens[terminator - 1].end];
+        let replacement = if tokens[body_open + 2].text == "{"
+            || expression_has_top_level_token(&tokens[body_open + 2..terminator], ",")
+        {
+            format!("({text})")
+        } else {
+            text.to_string()
+        };
+        if replacement.len() < end - start {
+            replacements.push((start, end, replacement));
+        }
+    }
+
+    if replacements.is_empty() {
+        return Ok((source.to_string(), 0));
+    }
+    let retained = non_overlapping_ranges(replacements);
+    let count = retained.len();
+    let mut output = source.to_string();
+    for (start, end, replacement) in retained.into_iter().rev() {
+        output.replace_range(start..end, &replacement);
+    }
+    Ok((output, count))
+}
+
+/// Keep the outermost of any overlapping rewrite so nested candidates cannot
+/// splice into a range that already moved.
+fn non_overlapping_ranges(
+    mut replacements: Vec<(usize, usize, String)>,
+) -> Vec<(usize, usize, String)> {
+    replacements.sort_unstable_by_key(|(start, end, _)| (*start, *end));
+    let mut retained = Vec::<(usize, usize, String)>::new();
+    let mut last_end = 0;
+    for replacement in replacements {
+        if replacement.0 >= last_end {
+            last_end = replacement.1;
+            retained.push(replacement);
+        }
+    }
+    retained
 }
 
 fn merge_adjacent_declarations(source: &str) -> Result<(String, usize), JavaScriptParseError> {
@@ -750,22 +1855,22 @@ fn rotate_proven_initial_true_loops(source: &str) -> Result<(String, usize), Jav
                 _ => {}
             }
         }
-        let Some(final_semicolon) = top_level_semicolons.last().copied() else {
-            cursor = body_close + 1;
-            continue;
-        };
-        if final_semicolon + 1 != body_close {
-            cursor = body_close + 1;
-            continue;
-        }
+        // Standard-grammar emission may omit the update statement's final
+        // semicolon immediately before `}`. Treat the block close as the same
+        // statement boundary so this later peephole accepts both scored forms.
+        let terminal_semicolon = top_level_semicolons
+            .last()
+            .copied()
+            .filter(|semicolon| semicolon + 1 == body_close);
+        let final_end = terminal_semicolon.unwrap_or(body_close);
         let final_start = top_level_semicolons
             .iter()
             .rev()
-            .nth(1)
+            .nth(usize::from(terminal_semicolon.is_some()))
             .map_or(body_open + 1, |index| index + 1);
         if tokens.get(final_start).map(|token| token.text) != Some(name)
             || tokens.get(final_start + 1).map(|token| token.text) != Some("=")
-            || final_start + 2 >= final_semicolon
+            || final_start + 2 >= final_end
         {
             cursor = body_close + 1;
             continue;
@@ -779,7 +1884,7 @@ fn rotate_proven_initial_true_loops(source: &str) -> Result<(String, usize), Jav
         }
         replacement.push_str(retained_body);
         replacement.push_str("}while(");
-        replacement.push_str(&source[tokens[final_start + 2].start..tokens[final_semicolon].start]);
+        replacement.push_str(&source[tokens[final_start + 2].start..tokens[final_end].start]);
         replacement.push_str(");");
         let replaced_start = tokens[start].start;
         let replaced_end = tokens[body_close].end;
@@ -1129,6 +2234,19 @@ fn reuse_dead_var_binding(source: &str) -> Result<(String, bool), JavaScriptPars
             continue;
         };
         let first_name = tokens[first_var + 1].text;
+        // A use inside an already-created nested function remains live for as
+        // long as that closure can escape. Textual last-use alone is therefore
+        // insufficient: reusing the binding would mutate the closure's capture.
+        let captured_before_second = (first_var + 2..second_var).any(|index| {
+            tokens[index].kind == TokenKind::Identifier
+                && tokens[index].text == first_name
+                && function_bodies.iter().any(|(body, end, _, _)| {
+                    scope_start < *body && *body < index && index < *end && *end < scope_end
+                })
+        });
+        if captured_before_second {
+            continue;
+        }
         if tokens[second_var + 2..scope_end]
             .iter()
             .any(|token| token.kind == TokenKind::Identifier && token.text == first_name)
@@ -1330,10 +2448,7 @@ fn syntax_metrics(
                 && !matches!(pair[0].text, "if" | "for" | "while" | "switch" | "catch")
         })
         .count();
-    let parsed_nodes = parsed
-        .iter()
-        .map(|region| region.expression.node_count())
-        .sum::<usize>();
+    let parsed_nodes = non_overlapping_parsed_node_count(parsed);
     let expression_nesting = parsed
         .iter()
         .map(|region| region.expression.max_depth())
@@ -1385,6 +2500,26 @@ fn syntax_metrics(
         compile_cost,
         estimated_memory_bytes,
     }
+}
+
+fn non_overlapping_parsed_node_count(parsed: &[ParsedRegion<'_>]) -> usize {
+    // `parse_expression_regions` deliberately discovers nested suffixes as
+    // independent rewrite opportunities (notably every arm after `:` in a
+    // conditional chain). Those regions describe the same AST nodes and must
+    // not be summed for startup accounting. Regions are produced in ascending
+    // start-token order, and successfully parsed overlaps are nested, so the
+    // first interval is the maximal expression root; later contained roots are
+    // skipped while genuinely disjoint statement expressions remain additive.
+    let mut covered_until = 0;
+    let mut nodes = 0usize;
+    for region in parsed {
+        if region.start_token < covered_until {
+            continue;
+        }
+        nodes = nodes.saturating_add(region.expression.node_count());
+        covered_until = region.end_token;
+    }
+    nodes
 }
 
 fn apply_rewrites(source: &str, rewrites: &[Rewrite]) -> String {
@@ -1821,9 +2956,61 @@ fn validate_delimiters(tokens: &[Token<'_>]) -> Result<usize, JavaScriptParseErr
     Ok(maximum)
 }
 
+/// How a still-open delimiter was opened. Only the distinction that decides
+/// whether a `/` after the matching closer starts a regular expression or a
+/// division is tracked.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum GroupKind {
+    /// `(` of `if`/`while`/`for`/`with`/`switch`/`catch`. A statement — and
+    /// therefore a regular-expression literal — may follow its `)`.
+    ControlHeader,
+    /// Any other `(`: a call argument list, parameter list, or grouping. Its
+    /// `)` ends an expression, so a following `/` is division.
+    Expression,
+    Bracket,
+    Brace,
+}
+
+/// A lexed token stream plus whether every `/` in it was classified from an
+/// unambiguous predecessor.
+///
+/// Regex-versus-division is decided by the previous significant token. Every
+/// predecessor this emitter produces resolves exactly — `)` through the group
+/// stack, `]`/`++`/`--`/identifiers/literals as division, and every other
+/// operator or statement keyword as a regex start. The single genuinely
+/// ambiguous predecessor in the grammar is `}`, which ends a block (statement
+/// position, regex) or an object/function expression (division). That case is
+/// reported rather than guessed, so punctuation-shaped rewrites can refuse a
+/// stream they cannot prove they read correctly.
+#[derive(Debug, Clone)]
+struct LexedSource<'src> {
+    tokens: Vec<Token<'src>>,
+    slash_classification_certain: bool,
+}
+
 fn lex(source: &str) -> Result<Vec<Token<'_>>, JavaScriptParseError> {
+    Ok(lex_classified(source)?.tokens)
+}
+
+/// Lex only when every `/` was classified from an unambiguous predecessor.
+///
+/// Punctuation-shaped rewrites select operators positionally, so a `/` read as
+/// division when it opened a regular-expression body (or the reverse) would
+/// corrupt the artifact. Returning `None` keeps the caller's input untouched.
+fn lex_certainly(source: &str) -> Result<Option<Vec<Token<'_>>>, JavaScriptParseError> {
+    let lexed = lex_classified(source)?;
+    Ok(lexed
+        .slash_classification_certain
+        .then_some(lexed.tokens))
+}
+
+fn lex_classified(source: &str) -> Result<LexedSource<'_>, JavaScriptParseError> {
     let bytes = source.as_bytes();
     let mut tokens = Vec::with_capacity(source.len() / 2);
+    let mut groups = Vec::<GroupKind>::new();
+    // A program starts at statement position, where `/` opens a regex.
+    let mut regex_allowed = true;
+    let mut slash_classification_certain = true;
     let mut cursor = 0;
     while cursor < bytes.len() {
         let byte = bytes[cursor];
@@ -1859,25 +3046,97 @@ fn lex(source: &str) -> Result<Vec<Token<'_>>, JavaScriptParseError> {
             while cursor < bytes.len() && is_identifier_continue(bytes[cursor]) {
                 cursor += 1;
             }
-            if is_keyword(&source[start..cursor]) {
+            let word = &source[start..cursor];
+            if is_keyword(word) {
+                // Only the value keywords end an expression. Every other
+                // keyword introduces one, so a following `/` opens a regex.
+                regex_allowed = !matches!(word, "this" | "super" | "true" | "false" | "null");
                 TokenKind::Keyword
             } else {
+                regex_allowed = false;
                 TokenKind::Identifier
             }
         } else if byte.is_ascii_digit()
             || (byte == b'.' && bytes.get(cursor + 1).is_some_and(u8::is_ascii_digit))
         {
             cursor = scan_number(bytes, cursor);
+            regex_allowed = false;
             TokenKind::Number
         } else if matches!(byte, b'\'' | b'"') {
             cursor = scan_quoted(bytes, cursor, byte)?;
+            regex_allowed = false;
             TokenKind::String
         } else if byte == b'`' {
-            cursor = scan_quoted(bytes, cursor, byte)?;
+            cursor = scan_template(bytes, cursor)?;
+            regex_allowed = false;
             TokenKind::Template
+        } else if byte == b'/' && regex_allowed {
+            match scan_regex(bytes, cursor) {
+                Some(end) => {
+                    cursor = end;
+                    regex_allowed = false;
+                    TokenKind::Regex
+                }
+                // A body that runs past a line terminator is not a regular
+                // expression. Fall back to punctuation and record that this
+                // `/` was not read with certainty.
+                None => {
+                    slash_classification_certain = false;
+                    cursor += punctuation_width(&source[cursor..]);
+                    regex_allowed = true;
+                    TokenKind::Punct
+                }
+            }
         } else {
             let width = punctuation_width(&source[cursor..]);
+            let text = &source[cursor..cursor + width];
             cursor += width;
+            match text {
+                "(" => {
+                    let header = tokens.last().is_some_and(|token: &Token<'_>| {
+                        token.kind == TokenKind::Keyword
+                            && matches!(
+                                token.text,
+                                "if" | "while" | "for" | "with" | "switch" | "catch"
+                            )
+                    });
+                    groups.push(if header {
+                        GroupKind::ControlHeader
+                    } else {
+                        GroupKind::Expression
+                    });
+                    regex_allowed = true;
+                }
+                "[" => {
+                    groups.push(GroupKind::Bracket);
+                    regex_allowed = true;
+                }
+                "{" => {
+                    groups.push(GroupKind::Brace);
+                    regex_allowed = true;
+                }
+                ")" | "]" | "}" => {
+                    let opened = groups.pop();
+                    regex_allowed = match opened {
+                        Some(GroupKind::ControlHeader) => true,
+                        Some(GroupKind::Expression | GroupKind::Bracket) => false,
+                        // A block's `}` sits at statement position, an object
+                        // or function expression's `}` does not. Assume the
+                        // statement reading and flag the stream only when a
+                        // `/` actually depends on the guess.
+                        Some(GroupKind::Brace) | None => {
+                            if next_significant_byte(bytes, cursor) == Some(b'/') {
+                                slash_classification_certain = false;
+                            }
+                            true
+                        }
+                    };
+                }
+                // A postfix update ends an expression; nothing else that this
+                // arm can see does.
+                "++" | "--" => {}
+                _ => regex_allowed = true,
+            }
             TokenKind::Punct
         };
         tokens.push(Token {
@@ -1887,7 +3146,81 @@ fn lex(source: &str) -> Result<Vec<Token<'_>>, JavaScriptParseError> {
             end: cursor,
         });
     }
-    Ok(tokens)
+    Ok(LexedSource {
+        tokens,
+        slash_classification_certain,
+    })
+}
+
+/// Skip whitespace and comments to report the next code byte after `cursor`.
+fn next_significant_byte(bytes: &[u8], mut cursor: usize) -> Option<u8> {
+    while cursor < bytes.len() {
+        let byte = bytes[cursor];
+        if byte.is_ascii_whitespace() {
+            cursor += 1;
+            continue;
+        }
+        if byte == b'/' && bytes.get(cursor + 1) == Some(&b'/') {
+            cursor += 2;
+            while cursor < bytes.len() && !matches!(bytes[cursor], b'\n' | b'\r') {
+                cursor += 1;
+            }
+            continue;
+        }
+        if byte == b'/' && bytes.get(cursor + 1) == Some(&b'*') {
+            cursor += 2;
+            while cursor + 1 < bytes.len() && &bytes[cursor..cursor + 2] != b"*/" {
+                cursor += 1;
+            }
+            cursor = (cursor + 2).min(bytes.len());
+            continue;
+        }
+        return Some(byte);
+    }
+    None
+}
+
+/// Scan a regular-expression literal body and flags from its opening `/`.
+///
+/// `\` escapes the next character, a `[...]` class holds an unescaped `/`, and
+/// a line terminator inside the body means this `/` was not a regex after all.
+fn scan_regex(bytes: &[u8], start: usize) -> Option<usize> {
+    let mut cursor = start + 1;
+    let mut in_class = false;
+    loop {
+        let byte = *bytes.get(cursor)?;
+        match byte {
+            b'\n' | b'\r' => return None,
+            b'\\' => {
+                // A trailing backslash cannot escape a line terminator here.
+                if matches!(bytes.get(cursor + 1), None | Some(b'\n') | Some(b'\r')) {
+                    return None;
+                }
+                cursor += 2;
+            }
+            b'[' => {
+                in_class = true;
+                cursor += 1;
+            }
+            b']' => {
+                in_class = false;
+                cursor += 1;
+            }
+            b'/' if !in_class => {
+                cursor += 1;
+                break;
+            }
+            _ => cursor += 1,
+        }
+    }
+    // An empty body lexes as a line comment, never as a regex.
+    if cursor == start + 2 {
+        return None;
+    }
+    while cursor < bytes.len() && is_identifier_continue(bytes[cursor]) {
+        cursor += 1;
+    }
+    Some(cursor)
 }
 
 fn scan_quoted(bytes: &[u8], start: usize, quote: u8) -> Result<usize, JavaScriptParseError> {
@@ -1911,6 +3244,54 @@ fn scan_quoted(bytes: &[u8], start: usize, quote: u8) -> Result<usize, JavaScrip
     })
 }
 
+fn scan_template(bytes: &[u8], start: usize) -> Result<usize, JavaScriptParseError> {
+    let mut cursor = start + 1;
+    while cursor < bytes.len() {
+        match bytes[cursor] {
+            b'\\' => cursor = (cursor + 2).min(bytes.len()),
+            b'`' => return Ok(cursor + 1),
+            b'$' if bytes.get(cursor + 1) == Some(&b'{') => {
+                cursor = scan_template_expression(bytes, cursor + 2, start)?;
+            }
+            _ => cursor += 1,
+        }
+    }
+    Err(JavaScriptParseError {
+        offset: start,
+        message: "unterminated template literal",
+    })
+}
+
+fn scan_template_expression(
+    bytes: &[u8],
+    mut cursor: usize,
+    template_start: usize,
+) -> Result<usize, JavaScriptParseError> {
+    let mut brace_depth = 1usize;
+    while cursor < bytes.len() {
+        match bytes[cursor] {
+            b'\'' | b'"' => cursor = scan_quoted(bytes, cursor, bytes[cursor])?,
+            b'`' => cursor = scan_template(bytes, cursor)?,
+            b'{' => {
+                brace_depth += 1;
+                cursor += 1;
+            }
+            b'}' => {
+                brace_depth -= 1;
+                cursor += 1;
+                if brace_depth == 0 {
+                    return Ok(cursor);
+                }
+            }
+            _ => cursor += 1,
+        }
+    }
+    Err(JavaScriptParseError {
+        offset: template_start,
+        message: "unterminated template interpolation",
+    })
+}
+
 fn scan_number(bytes: &[u8], start: usize) -> usize {
     let mut cursor = start;
     while cursor < bytes.len() {
@@ -1928,15 +3309,67 @@ fn scan_number(bytes: &[u8], start: usize) -> usize {
 }
 
 fn punctuation_width(source: &str) -> usize {
-    const PUNCTUATION: [&str; 31] = [
-        ">>>=", "===", "!==", "**=", "<<=", ">>=", ">>>", "&&=", "||=", "??=", "=>", "++", "--",
-        "**", "<<", ">>", "<=", ">=", "==", "!=", "&&", "||", "??", "+=", "-=", "*=", "/=", "%=",
-        "&=", "|=", "^=",
-    ];
-    PUNCTUATION
-        .iter()
-        .find(|punctuation| source.starts_with(**punctuation))
-        .map_or(1, |punctuation| punctuation.len())
+    let bytes = source.as_bytes();
+    match bytes.first().copied() {
+        Some(b'>') => match bytes.get(1).copied() {
+            Some(b'>') => match bytes.get(2).copied() {
+                Some(b'>') if bytes.get(3) == Some(&b'=') => 4,
+                Some(b'>' | b'=') => 3,
+                _ => 2,
+            },
+            Some(b'=') => 2,
+            _ => 1,
+        },
+        Some(b'=') => match bytes.get(1).copied() {
+            Some(b'=') if bytes.get(2) == Some(&b'=') => 3,
+            Some(b'=' | b'>') => 2,
+            _ => 1,
+        },
+        Some(b'!') => match bytes.get(1).copied() {
+            Some(b'=') if bytes.get(2) == Some(&b'=') => 3,
+            Some(b'=') => 2,
+            _ => 1,
+        },
+        Some(b'*') => match bytes.get(1).copied() {
+            Some(b'*') if bytes.get(2) == Some(&b'=') => 3,
+            Some(b'*' | b'=') => 2,
+            _ => 1,
+        },
+        Some(b'<') => match bytes.get(1).copied() {
+            Some(b'<') if bytes.get(2) == Some(&b'=') => 3,
+            Some(b'<' | b'=') => 2,
+            _ => 1,
+        },
+        Some(b'&') => match bytes.get(1).copied() {
+            Some(b'&') if bytes.get(2) == Some(&b'=') => 3,
+            Some(b'&' | b'=') => 2,
+            _ => 1,
+        },
+        Some(b'|') => match bytes.get(1).copied() {
+            Some(b'|') if bytes.get(2) == Some(&b'=') => 3,
+            Some(b'|' | b'=') => 2,
+            _ => 1,
+        },
+        Some(b'?') => match bytes.get(1).copied() {
+            Some(b'?') if bytes.get(2) == Some(&b'=') => 3,
+            Some(b'?') => 2,
+            _ => 1,
+        },
+        Some(b'+') => match bytes.get(1).copied() {
+            Some(b'+' | b'=') => 2,
+            _ => 1,
+        },
+        Some(b'-') => match bytes.get(1).copied() {
+            Some(b'-' | b'=') => 2,
+            _ => 1,
+        },
+        Some(b'/' | b'%' | b'^') => match bytes.get(1).copied() {
+            Some(b'=') => 2,
+            _ => 1,
+        },
+        Some(_) => source.chars().next().map_or(1, char::len_utf8),
+        None => 1,
+    }
 }
 
 const fn is_identifier_start(byte: u8) -> bool {
@@ -2000,7 +3433,169 @@ fn is_keyword(identifier: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{analyze_generated_javascript, optimize_generated_javascript};
+    use super::{
+        analyze_generated_javascript, function_leading_declaration_variant, lex,
+        non_overlapping_parsed_node_count, optimize_generated_javascript,
+        parse_expression_regions, punctuation_width, reorder_uninitialized_var_declarators,
+        PeepholeResult,
+    };
+
+    const LEGACY_PUNCTUATION: [&str; 31] = [
+        ">>>=", "===", "!==", "**=", "<<=", ">>=", ">>>", "&&=", "||=", "??=", "=>", "++", "--",
+        "**", "<<", ">>", "<=", ">=", "==", "!=", "&&", "||", "??", "+=", "-=", "*=", "/=", "%=",
+        "&=", "|=", "^=",
+    ];
+
+    fn legacy_punctuation_width(source: &str) -> usize {
+        LEGACY_PUNCTUATION
+            .iter()
+            .find(|punctuation| source.starts_with(**punctuation))
+            .map_or_else(
+                || source.chars().next().map_or(1, char::len_utf8),
+                |punctuation| punctuation.len(),
+            )
+    }
+
+    fn assert_punctuation_width_matches_legacy(source: &str) {
+        assert_eq!(
+            punctuation_width(source),
+            legacy_punctuation_width(source),
+            "punctuation dispatch differed for {source:?}"
+        );
+    }
+
+    fn assert_operator_alphabet_equivalence(source: &mut String, remaining: usize) {
+        if !source.is_empty() {
+            assert_punctuation_width_matches_legacy(source);
+        }
+        if remaining == 0 {
+            return;
+        }
+        for byte in b"=!*<>&|?+-/%^" {
+            source.push(char::from(*byte));
+            assert_operator_alphabet_equivalence(source, remaining - 1);
+            source.pop();
+        }
+    }
+
+    fn optimize_emitted_without_regex_literals(source: &str) -> PeepholeResult {
+        optimize_generated_javascript(source).unwrap()
+    }
+
+    fn run_javascript(source: &str) -> String {
+        let output = std::process::Command::new("node")
+            .arg("-e")
+            .arg(source)
+            .output()
+            .expect("node must execute generated JavaScript");
+        assert!(
+            output.status.success(),
+            "node failed:\n{}\nsource:\n{source}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        String::from_utf8(output.stdout).expect("node stdout must be UTF-8")
+    }
+
+    #[test]
+    fn punctuation_dispatch_recognizes_every_legacy_operator() {
+        for punctuation in LEGACY_PUNCTUATION {
+            assert_eq!(
+                punctuation_width(punctuation),
+                punctuation.len(),
+                "failed to consume all of {punctuation:?}"
+            );
+            assert_punctuation_width_matches_legacy(punctuation);
+            assert_punctuation_width_matches_legacy(&format!("{punctuation}suffix"));
+        }
+    }
+
+    #[test]
+    fn punctuation_dispatch_matches_every_strict_prefix_and_ambiguous_munch() {
+        assert_punctuation_width_matches_legacy("");
+        for punctuation in LEGACY_PUNCTUATION {
+            for prefix_width in 0..punctuation.len() {
+                assert_punctuation_width_matches_legacy(&punctuation[..prefix_width]);
+            }
+        }
+
+        let mut source = String::with_capacity(4);
+        assert_operator_alphabet_equivalence(&mut source, 4);
+
+        for (source, expected) in [
+            (">>>=", 4),
+            (">>>==", 4),
+            (">>>>", 3),
+            (">>=", 3),
+            (">>==", 3),
+            (">>", 2),
+            ("====", 3),
+            ("!===", 3),
+            ("**==", 3),
+            ("&&==", 3),
+            ("||==", 3),
+            ("??==", 3),
+        ] {
+            assert_eq!(punctuation_width(source), expected, "{source:?}");
+            assert_punctuation_width_matches_legacy(source);
+        }
+    }
+
+    #[test]
+    fn punctuation_dispatch_preserves_single_character_and_unicode_fallbacks() {
+        for byte in 0_u8..=127 {
+            let source = char::from(byte).to_string();
+            assert_punctuation_width_matches_legacy(&source);
+        }
+
+        for source in [
+            "a",
+            ".25",
+            ";tail",
+            "~value",
+            "@decorator",
+            "é",
+            "×next",
+            "中=value",
+            "🦀>>>=",
+            "\u{80}",
+            "…",
+            "é===",
+            ">é",
+            "=🦀",
+        ] {
+            assert_punctuation_width_matches_legacy(source);
+        }
+        for (source, expected) in [("é", 2), ("中=value", 3), ("🦀>>>=", 4)] {
+            assert_eq!(punctuation_width(source), expected, "{source:?}");
+        }
+    }
+
+    #[test]
+    fn variants_only_simple_function_leading_generated_declarations() {
+        let source = "var a='function(){var no=1}';let b=function*(){var c=1;yield c};function d(e,f){var g=-2,h;return g+h}";
+        assert_eq!(
+            function_leading_declaration_variant(source).as_deref(),
+            Some("var a='function(){var no=1}';let b=function*(){let c=1;yield c};function d(e,f){let g=-2,h;return g+h}")
+        );
+
+        for rejected in [
+            "function defaults(a=1){var b=1;return b}",
+            "function parameter(a){var a=1;return a}",
+            "function self(){var a=a||1;return a}",
+            "function call(){var a=read();return a}",
+            "function redeclared(){var a=1;var a=2;return a}",
+            "function hoisted(){var a=1;function a(){}return a}",
+            "function nested(){if(x){var a=1}return a}",
+            "function header(){for(var a=0;a<1;a++)use(a)}",
+            "function text(){return `var a=${value}`}",
+        ] {
+            assert_eq!(
+                function_leading_declaration_variant(rejected),
+                None,
+                "{rejected}"
+            );
+        }
+    }
 
     #[test]
     fn rewrites_only_complete_parsed_assignment_statements() {
@@ -2022,6 +3617,190 @@ mod tests {
         let optimized = optimize_generated_javascript(source).unwrap();
         assert_eq!(optimized.code, source);
         assert_eq!(optimized.rewrites, 0);
+    }
+
+    #[test]
+    fn negated_equality_folds_loose_and_strict_without_reordering_operands() {
+        let optimized = optimize_emitted_without_regex_literals(
+            "let a=!(left()==right()),b=!(left()===right()),c=!(left()!=right()),d=!(left()!==right());use(a,b,c,d)",
+        );
+
+        assert_eq!(
+            optimized.code,
+            "let a=left()!=right(),b=left()!==right(),c=left()==right(),d=left()===right();use(a,b,c,d)"
+        );
+        assert_eq!(optimized.rewrites, 4);
+    }
+
+    #[test]
+    fn negated_equality_groups_under_tighter_parents_and_refuses_non_roots() {
+        let optimized = optimize_emitted_without_regex_literals(
+            "let a=1+!(left()==right()),b=typeof !(left()===right()),c=!(left()==right()&&guard()),d=!(x==/a==b/.test(s));use(a,b,c,d)",
+        );
+
+        assert_eq!(
+            optimized.code,
+            "let a=1+(left()!=right()),b=typeof (left()!==right()),c=!(left()==right()&&guard()),d=x!=/a==b/.test(s);use(a,b,c,d)"
+        );
+        assert_eq!(optimized.rewrites, 3);
+    }
+
+    #[test]
+    fn negated_equality_refuses_postfix_yield_and_ambiguous_expression_starts() {
+        let source = "!(x==y).z;!(x==y)(z);!(x==y)[z];!(x==y)?.z;!(x==y)`tag`;!(x==y)++;!(x==y)--;!(x==y)**z;new !(x==y);function* g(){return !(yield x==y)};!({}==x);!(function(){}==x);!(class{}==x);!(async function(){}==x)";
+        let optimized = optimize_emitted_without_regex_literals(source);
+
+        assert_eq!(optimized.code, source);
+        assert_eq!(optimized.rewrites, 0);
+    }
+
+    #[test]
+    fn negated_equality_requires_proof_that_regex_literals_are_absent() {
+        let source = "let a=/!(x==y)/,b=/prefix!(x===y)suffix/;use(a,b)";
+        let optimized = optimize_generated_javascript(source).unwrap();
+
+        assert_eq!(optimized.code, source);
+        assert_eq!(optimized.rewrites, 0);
+    }
+
+    #[test]
+    fn canonicalizes_exact_typeof_identifiers_and_ascii_string_members() {
+        let optimized = optimize_emitted_without_regex_literals(
+            "let a=typeof(value)==\"number\",b=object[\"scrollTop\"],c=this['default'],d=typeof(value)instanceof Object;use(a,b,c,d)",
+        );
+
+        assert_eq!(
+            optimized.code,
+            "let a=typeof value==\"number\",b=object.scrollTop,c=this.default,d=typeof value instanceof Object;use(a,b,c,d)"
+        );
+        assert_eq!(optimized.rewrites, 4);
+    }
+
+    #[test]
+    fn reorders_only_uninitialized_var_declarators_before_initializers() {
+        let source = "function run(){var log=[],first=(log.push('first'),1),empty,second=(log.push('second'),2),later;var stable,tail=3;return [empty,first,later,second,stable,tail,log.join(',')]}console.log(JSON.stringify(run()))";
+        let optimized = optimize_emitted_without_regex_literals(source);
+
+        assert_eq!(
+            optimized.code,
+            "function run(){var empty,later,stable,log=[],first=(log.push('first'),1),second=(log.push('second'),2),tail=3;return [empty,first,later,second,stable,tail,log.join(',')]}console.log(JSON.stringify(run()))"
+        );
+        assert_eq!(run_javascript(&optimized.code), run_javascript(source));
+    }
+
+    #[test]
+    fn var_declarator_reordering_preserves_hoisting_and_for_initializer_order() {
+        let source = "let log=[];function run(){var observed=(log.push('first'),typeof later),later;for(var start=(log.push('second'),0),unused,index=(log.push('third'),start);index<1;index++){log.push(observed)}return [later,unused,log.join(',')]}console.log(JSON.stringify(run()))";
+        let optimized = optimize_emitted_without_regex_literals(source);
+
+        assert!(
+            optimized
+                .code
+                .contains("var later,observed=(log.push('first'),typeof later)"),
+            "{}",
+            optimized.code
+        );
+        assert!(
+            optimized.code.contains(
+                "for(var unused,start=(log.push('second'),0),index=(log.push('third'),start);"
+            ),
+            "{}",
+            optimized.code
+        );
+        assert_eq!(run_javascript(&optimized.code), run_javascript(source));
+    }
+
+    #[test]
+    fn var_declarator_reordering_refuses_tdz_destructuring_and_ambiguous_boundaries() {
+        let source = "var top=read(),laterTop;var object={function:0};object.function;if(true){var initializedTop=read(),laterInTopBlock}var methodObject={function(){}};methodObject.function()\n{var initializedCallBlock=read(),laterCallBlock}function run(values){let initialized=read(),later;const first=read(),second=2;var {item}=source,plain;for(var key in source)use(key);for(var value of values)use(value);var kept=read(),/*keep*/empty;use(kept,empty,item,plain,initialized,later,first,second);var asi=read(),laterAsi\nuse(asi,laterAsi);var a=1,empty,b=2\nx,y;return y}use(top,laterTop,initializedTop,laterInTopBlock,initializedCallBlock,laterCallBlock)";
+        let (optimized, rewrites) = reorder_uninitialized_var_declarators(source).unwrap();
+
+        assert_eq!(optimized, source);
+        assert_eq!(rewrites, 0);
+
+        let unicode_asi = "function unicode(){var a=1,empty,b=2\u{2028}x,y;return y}";
+        assert_eq!(
+            reorder_uninitialized_var_declarators(unicode_asi)
+                .unwrap()
+                .0,
+            unicode_asi
+        );
+
+        let reorderable = "function plain(){var initialized=read(),empty;return [initialized,empty]}";
+        assert_eq!(
+            optimize_generated_javascript(reorderable).unwrap().code,
+            "function plain(){var empty,initialized=read();return [initialized,empty]}"
+        );
+    }
+
+    #[test]
+    fn canonical_member_syntax_separates_adjacent_keywords_and_preserves_comments() {
+        let source = "let a=object[\"item\"]instanceof Object,b=object[\"key\"]in container;for(object[\"slot\"]of values){}let c=object[\"key\"]/*keep*/in container";
+        let optimized = optimize_emitted_without_regex_literals(source);
+
+        assert_eq!(
+            optimized.code,
+            "let a=object.item instanceof Object,b=object.key in container;for(object.slot of values){}let c=object.key/*keep*/in container"
+        );
+        assert_eq!(optimized.rewrites, 4);
+
+        let runtime_source = "let object={item:{},key:\"present\",slot:0},container={present:true},values=[3,5],result=[];result.push(object[\"item\"]instanceof Object,object[\"key\"]in container,object[\"key\"]/*keep*/in container);for(object[\"slot\"]of values){result.push(object.slot)}console.log(JSON.stringify(result))";
+        let runtime_optimized = optimize_emitted_without_regex_literals(runtime_source);
+        assert_eq!(
+            run_javascript(&runtime_optimized.code),
+            run_javascript(runtime_source)
+        );
+    }
+
+    #[test]
+    fn canonical_leaf_syntax_refuses_ambiguous_or_non_exact_spellings() {
+        let source = "typeof(value).length;typeof(value)[\"length\"];typeof(value)();typeof(value)?.length;typeof(value)**2;typeof (value);typeof(/*keep*/value);object[\"not-valid\"];object[\"\\x66oo\"];object[\"é\"];object?.[\"safe\"];object /*keep*/[\"safe\"];call()[\"safe\"];[\"safe\"];if(flag)[\"safe\"];let text=`typeof(value) object[\"safe\"]`";
+        let optimized = optimize_emitted_without_regex_literals(source);
+
+        assert_eq!(optimized.code, source);
+        assert_eq!(optimized.rewrites, 0);
+
+        // A regex body holds the same character sequences the rewrite selects.
+        // The lexer reads each literal as one token, so only the spellings
+        // outside them fold.
+        let regex = "let a=/typeof(value)/,b=/object[\"safe\"]/;typeof(value);object[\"safe\"]";
+        let alongside_regex_literals = optimize_generated_javascript(regex).unwrap();
+        assert_eq!(
+            alongside_regex_literals.code,
+            "let a=/typeof(value)/,b=/object[\"safe\"]/;typeof value;object.safe"
+        );
+
+        // `}` is the one predecessor that does not decide `/` on its own: a
+        // block ends at statement position, an object or function expression
+        // does not. Refuse the whole artifact rather than guess.
+        let after_brace = "function f(){}/re/.test(source);typeof(value)";
+        assert_eq!(
+            optimize_generated_javascript(after_brace).unwrap().code,
+            after_brace
+        );
+    }
+
+    #[test]
+    fn canonical_leaf_syntax_preserves_runtime_property_and_typeof_behavior() {
+        let source = "let reads=[],object=new Proxy({value:7,default:9},{get(target,key){reads.push(key);return target[key]}});let result=[typeof(object),object[\"value\"],object[\"default\"]];console.log(JSON.stringify([result,reads]))";
+        let optimized = optimize_emitted_without_regex_literals(source);
+
+        assert!(
+            optimized.code.contains("typeof object"),
+            "{}",
+            optimized.code
+        );
+        assert!(
+            optimized.code.contains("object.value"),
+            "{}",
+            optimized.code
+        );
+        assert!(
+            optimized.code.contains("object.default"),
+            "{}",
+            optimized.code
+        );
+        assert_eq!(run_javascript(&optimized.code), run_javascript(source));
     }
 
     #[test]
@@ -2095,6 +3874,7 @@ mod tests {
         for source in [
             "function f(){var a=first();var b=second();use(b=>a+b)}",
             "function f(){var a=first();var b=second();use((b)=>a+b)}",
+            "function f(){var a=first();save(()=>{use(a)});var b=second();return b}",
         ] {
             let (optimized, reused) = super::reuse_dead_var_binding(source).unwrap();
             assert!(!reused, "{optimized}");
@@ -2108,11 +3888,11 @@ mod tests {
         let optimized = optimize_generated_javascript(source).unwrap();
 
         assert!(
-            optimized.code.contains("var b=second(x),i=0,tmp"),
+            optimized.code.contains("var tmp,b=second(x),i=0"),
             "{}",
             optimized.code
         );
-        assert!(!optimized.code.contains("a=second(x),i=0,tmp"));
+        assert!(!optimized.code.contains("a=second(x)"));
     }
 
     #[test]
@@ -2144,18 +3924,15 @@ mod tests {
         .unwrap();
         assert_eq!(
             optimized.code,
-            "let f=a=>a?1:b=>{return b},q=a=>{return b=>{var x=0,g=1;return b+g}};function g(){var x;use(x)}"
+            "let f=a=>a?1:b=>b,q=a=>b=>{var x=0,g=1;return b+g};function g(){var x;use(x)}"
         );
-        assert_eq!(optimized.rewrites, 4);
+        assert_eq!(optimized.rewrites, 6);
 
         let optimized = optimize_generated_javascript(
             "let f=(a,b)=>{var e;if(a)return b;return e=>{if(e)return e;return b}};",
         )
         .unwrap();
-        assert_eq!(
-            optimized.code,
-            "let f=(a,b)=>a?b:e=>{if(e)return e;return b};"
-        );
+        assert_eq!(optimized.code, "let f=(a,b)=>a?b:e=>e?e:b;");
     }
 
     #[test]
@@ -2168,6 +3945,12 @@ mod tests {
             optimized.code,
             "function f(a){var c;do{c=work(a)}while(c<12);return c}"
         );
+
+        let omitted_terminal_semicolon = optimize_generated_javascript(
+            "function f(a){var b,c;b=!0;while(b){c=work(a);b=c<12}return c}",
+        )
+        .unwrap();
+        assert_eq!(omitted_terminal_semicolon.code, optimized.code);
 
         for source in [
             "function f(){var a=true;while(a){if(read())continue;a=read()}}",
@@ -2191,14 +3974,82 @@ mod tests {
     }
 
     #[test]
+    fn folds_guarded_returns_and_their_tails_into_one_conditional_return() {
+        for (source, expected) in [
+            ("function f(a){if(a)return 1;return 2}", "function f(a){return a?1:2}"),
+            (
+                "function f(a,b){if(a)return 1;if(b)return 2;return 3}",
+                "function f(a,b){return a?1:b?2:3}",
+            ),
+            ("function f(a){if(a){return 1}return 2}", "function f(a){return a?1:2}"),
+            ("function f(a){if(a)return;return 2}", "function f(a){return a?void 0:2}"),
+            ("function f(a){if(a)return 1;else return 2}", "function f(a){return a?1:2}"),
+            ("function f(a){if(a)return 1;else{return 2}}", "function f(a){return a?1:2}"),
+            (
+                "function f(a,b){while(a)if(b)return 1;else return 2}",
+                "function f(a,b){while(a)return b?1:2}",
+            ),
+            (
+                "function f(a,b){if(a){if(b)return 1;return 2}return 3}",
+                "function f(a,b){return a?b?1:2:3}",
+            ),
+            ("function f(a,b){if(a=b)return 1;return 2}", "function f(a,b){return (a=b)?1:2}"),
+            ("function f(a,b){if(a)return b,1;return 2}", "function f(a,b){return a?(b,1):2}"),
+            (
+                "function f(a){if(/x/.test(a))return 1;return 2}",
+                "function f(a){return /x/.test(a)?1:2}",
+            ),
+        ] {
+            assert_eq!(optimize_generated_javascript(source).unwrap().code, expected);
+        }
+    }
+
+    #[test]
+    fn refuses_return_tails_that_are_not_the_next_statement_of_the_same_block() {
+        for source in [
+            // The `if` is the loop body: fusing the tail into it would leave
+            // the loop on the first iteration.
+            "function f(a,b){while(b)if(a)return 1;return 2}",
+            "function f(a,b){for(;b;)if(a)return 1;return 2}",
+            "function f(a,b){l:if(a)return 1;return 2}",
+            // Another statement runs between the two returns.
+            "function f(a,b){if(a)return 1;b();return 2}",
+            // The guarded arm is not a lone return.
+            "function f(a,b){if(a){b();return 1}return 2}",
+            "function f(a,b){if(a)return 1;else{b();return 2}}",
+        ] {
+            assert_eq!(optimize_generated_javascript(source).unwrap().code, source);
+        }
+    }
+
+    #[test]
+    fn conditional_return_fusion_preserves_loop_and_ladder_behavior() {
+        let source = "function classify(n){if(n<0)return\"negative\";if(n==0)return\"zero\";return\"positive\"}function scan(values){var i=0;while(i<values.length){if(values[i]>2)return i;i++}return -1}var out=[];for(var n of[-1,0,7])out.push(classify(n));out.push(scan([1,2,3]),scan([1,1,1]));console.log(JSON.stringify(out))";
+        let optimized = optimize_generated_javascript(source).unwrap();
+
+        assert!(
+            optimized.code.contains("return n<0?\"negative\":n==0?\"zero\":\"positive\""),
+            "{}",
+            optimized.code
+        );
+        assert_eq!(run_javascript(&optimized.code), run_javascript(source));
+    }
+
+    #[test]
     fn folds_arrow_guard_returns_into_conditional_bodies() {
         let optimized = optimize_generated_javascript(
             "let f=(a,b)=>{if(a==b)return a;return c=>{if(c)return b;return a}};use(f)",
         )
         .unwrap();
+        assert_eq!(optimized.code, "let f=(a,b)=>a==b?a:c=>c?b:a;use(f)");
+
+        let undefined_arm = optimize_generated_javascript(
+            "let f=(condition,fallback)=>{if(condition)return;return fallback()};use(f)",
+        )
+        .unwrap();
         assert_eq!(
-            optimized.code,
-            "let f=(a,b)=>a==b?a:c=>{if(c)return b;return a};use(f)"
+            undefined_arm.code,
+            "let f=(condition,fallback)=>condition?void 0:fallback();use(f)"
         );
     }
 
@@ -2223,13 +4074,36 @@ mod tests {
             "function f(x){x?(first(),second()):(third(),fourth());}"
         );
 
+        let optimized = optimize_generated_javascript(
+            "function f(x){if(x){console.log(1)}else{console.log(0)}}",
+        )
+        .unwrap();
+        assert_eq!(optimized.code, "function f(x){console.log(x?1:0);}");
+
+        let optimized = optimize_generated_javascript(
+            "q.call(r,\"a\")?console.log(1):console.log(0);q.call(r,\"b\")?console.log(1):console.log(0)",
+        )
+        .unwrap();
+        assert_eq!(
+            optimized.code,
+            "console.log(q.call(r,\"a\")?1:0);console.log(q.call(r,\"b\")?1:0);"
+        );
+
         for source in [
-            "function f(a){if(a){return 1}else{return 2}}",
             "function f(a){if(a){let b=1;use(b)}else{use(a)}}",
             "function f(a){if(a)use(a);else use(0)}",
         ] {
             assert_eq!(optimize_generated_javascript(source).unwrap().code, source);
         }
+
+        // Two returning arms are a conditional return, not a conditional
+        // sequence, so the dedicated fold owns them.
+        assert_eq!(
+            optimize_generated_javascript("function f(a){if(a){return 1}else{return 2}}")
+                .unwrap()
+                .code,
+            "function f(a){return a?1:2}"
+        );
     }
 
     #[test]
@@ -2272,6 +4146,39 @@ mod tests {
     }
 
     #[test]
+    fn startup_metrics_count_overlapping_expression_regions_once() {
+        let tokens = lex("a?b:c?d:e?f:g").unwrap();
+        let parsed = parse_expression_regions(&tokens);
+        let overlapping_sum = parsed
+            .iter()
+            .map(|region| region.expression.node_count())
+            .sum::<usize>();
+        let non_overlapping = non_overlapping_parsed_node_count(&parsed);
+
+        assert!(
+            parsed.len() > 1,
+            "expected nested conditional suffix regions"
+        );
+        assert!(non_overlapping < overlapping_sum);
+        assert_eq!(non_overlapping, parsed[0].expression.node_count());
+        let metrics = analyze_generated_javascript("a?b:c?d:e?f:g").unwrap();
+        assert!(metrics.ast_nodes <= metrics.tokens, "{metrics:?}");
+    }
+
+    #[test]
+    fn startup_metrics_still_add_disjoint_expression_regions() {
+        let tokens = lex("a+b;c*d").unwrap();
+        let parsed = parse_expression_regions(&tokens);
+        let independent_sum = parsed
+            .iter()
+            .map(|region| region.expression.node_count())
+            .sum::<usize>();
+
+        assert_eq!(parsed.len(), 2, "{parsed:?}");
+        assert_eq!(non_overlapping_parsed_node_count(&parsed), independent_sum);
+    }
+
+    #[test]
     fn nesting_metric_includes_expression_depth_without_delimiters() {
         let shallow = analyze_generated_javascript("a?b:c").unwrap();
         let deep = analyze_generated_javascript("a?b?c?d:e:f:g").unwrap();
@@ -2293,6 +4200,16 @@ mod tests {
             .unwrap(),
             "let z='a';z=obj.z+1e-7;console.log(`${z}`)"
         );
+    }
+
+    #[test]
+    fn scans_unicode_in_nested_template_interpolations_without_splitting_utf8() {
+        let source = "let f=a=>`${show(`value × ${a}`)}`;console.log(f(2))";
+        let metrics = analyze_generated_javascript(source).unwrap();
+        assert!(metrics.tokens > 5, "{metrics:?}");
+
+        let optimized = optimize_generated_javascript(source).unwrap();
+        assert!(optimized.code.contains('×'), "{}", optimized.code);
     }
 
     #[test]

@@ -1,10 +1,12 @@
 # aggregate-model
 
-LilScript 0.1.0 vs Closure Compiler v20260803 ADVANCED.
+LilScript 0.1.0 vs Closure Compiler v20260804 ADVANCED.
 
-| Compiler | Raw | Gzip-9 | Brotli-11 |
+Each LilScript column comes from a separate build optimized for that exact objective. Cross-metric sizes of those artifacts are diagnostic only.
+
+| Compiler/objective | Raw | Gzip-9 | Brotli-11 |
 | --- | ---: | ---: | ---: |
-| LilScript | 87 | 83 | 78 |
-| Closure | 249 | 172 | 137 |
+| LilScript objective builds | 74 | 67 | 55 |
+| Closure | 240 | 165 | 150 |
 
 Winners: raw **LilScript**, gzip **LilScript**, Brotli **LilScript**.

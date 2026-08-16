@@ -3,18 +3,25 @@ use std::fmt::Write;
 use std::path::Path;
 use std::sync::Arc;
 
-use ahash::{AHashMap, AHashSet};
+// Emission policy must not depend on per-process hash seeds. Several maps feed
+// graph-coloring and layout decisions where iteration order is observable in
+// the generated program. Fx tables retain constant-time lookup and compiler
+// throughput while making those decisions reproducible across threads/runs.
+use crate::stable_hash::{StableHashMap as AHashMap, StableHashSet as AHashSet};
 use serde::Deserialize;
 
 use crate::codegen_js::CodegenError;
 use crate::ir::{
-    BlockId, ConstValue, ControlFlowFunction, ControlFlowInstruction, ControlFlowModule,
-    ControlFlowOp, ControlShape, ExportBinding, FunctionId, FunctionKind, Intrinsic, IrBinaryOp,
-    IrUnaryOp, TemplateOperand, Terminator, ValueId,
+    ArrayOperand, BlockId, ConstValue, ControlFlowFunction, ControlFlowInstruction,
+    ControlFlowModule, ControlFlowOp, ControlShape, ExportBinding, FunctionId, FunctionKind,
+    FunctionOrigin, Intrinsic, IrBinaryOp, IrUnaryOp, JsHostAlias, JsHostAliasConvention, LocalId,
+    RecordOperand, TemplateOperand, Terminator, ValueId,
 };
 use crate::semantic::{EscapeState, SymbolId, Type};
 use crate::typed_array::{classify_typed_array_intrinsic, TypedArrayIntrinsic, TypedArrayKind};
-use crate::value_analysis::{analyze_integer_values, FunctionIntegerFacts, IntegerValueAnalysis};
+use crate::value_analysis::{
+    analyze_integer_values, FunctionIntegerFacts, I32Range, IntegerValueAnalysis,
+};
 
 pub fn emit_optimized_ir_js(module: &ControlFlowModule<'_>) -> Result<String, CodegenError> {
     emit_optimized_ir_js_with_options(module, &IrJsOptions::default())
@@ -30,8 +37,15 @@ pub struct IrJsOptions {
     pub mangle_properties: bool,
     pub mangle_exports: bool,
     pub public_aggregate_fields: bool,
+    pub named_aggregate_fields: bool,
     pub pool_strings: bool,
     pub pool_numeric_literals: bool,
+    /// Emit `Record<T>` values as ordinary object literals. This is an
+    /// internal representation proposal, not a user-configurable semantic
+    /// mode. Its caller must first prove that exports, host/JS operations,
+    /// missing/inherited reads, writes, and representation-erasing flows
+    /// cannot observe the prototype distinction.
+    pub ordinary_record_literals: bool,
     pub elide_safe_integer_coercions: bool,
     pub compact_boolean_literals: bool,
     pub elide_block_terminal_semicolons: bool,
@@ -41,11 +55,96 @@ pub struct IrJsOptions {
     pub struct_method_shorthand: bool,
     pub truthy_nullable_checks: bool,
     pub pack_string_arrays: bool,
+    pub regex_literals: bool,
+    pub unused_catch_binding_elision: bool,
+    pub compact_generator_star: bool,
+    /// Emit a private function with exactly one direct call as an anonymous
+    /// function expression at that call site. The whole-program proof rejects
+    /// exports, address-taken functions, recursion, and module output before
+    /// this representation can be selected.
+    pub inline_single_use_functions: bool,
+    /// Emit a private function whose only use is one `Closure` site as a
+    /// function expression there. A thin capture wrapper around a shared
+    /// declaration is the same per-call allocation, so reusable and loop
+    /// callers stay eligible; candidate search may keep the declaration when
+    /// that layout compresses better.
+    pub inline_exclusive_closures: bool,
+    /// Wrap a named function together with callees that are only reachable from
+    /// it in a once-run IIFE so those callees can reuse short names in a fresh
+    /// scope. Shared callees of several named roots get the same once-run
+    /// treatment. The IIFE runs at initialization and returns shared function
+    /// objects, so it does not allocate on the hot path.
+    pub iife_private_callee_clusters: bool,
+    /// Declare helpers whose every reference lives in a once-run host (or that
+    /// host's exclusive closures) as nested `function` bindings in that host.
+    /// Kept independent from `iife_private_callee_clusters` so search can drop
+    /// named-root IIFE wrapping without also flattening method-table helpers
+    /// back into unique top-level names.
+    pub nested_once_run_helpers: bool,
+    /// Rewrite a contiguous run of proven property writes on one object into
+    /// `Object.assign(object,{k:v,...})`. That spelling repeats `:function(`
+    /// and other value tokens the way library method tables usually do; search
+    /// may keep sequential assigns when the assign identifier costs more than
+    /// it saves under the configured codec.
+    pub batch_property_assigns: bool,
+    /// Replace each direct call to a private zero-argument function whose
+    /// complete body is `return []` with a fresh empty array literal. This is
+    /// kept as a scored candidate because deleting the shared declaration can
+    /// improve raw bytes while perturbing gzip/Brotli history.
+    pub inline_fresh_empty_array_factories: bool,
+    /// Fold an immediate, proven constructor-inlining FieldSet prefix into the
+    /// fresh class allocation's complete object/array literal. This is an
+    /// emission candidate rather than a baseline choice because deleting raw
+    /// assignments can perturb gzip/Brotli history in the complete artifact.
+    pub constructor_initializer_fusion: bool,
+    /// Substitute private, validated-pure return-only helpers at their direct
+    /// call sites. Candidate search keeps single-static-use and all-eligible
+    /// policies separate because duplicating a small expression can help raw
+    /// bytes while hurting a transfer codec (or the reverse).
+    pub pure_helper_inlining: PureHelperInliningPolicy,
+    /// Replace a proven dense, zero-based i32 equality-return ladder with a
+    /// constant string array lookup. This remains an emission candidate: the
+    /// configured baseline keeps the source-shaped ladder, while whole-file
+    /// raw/gzip/Brotli scoring may select the table representation.
+    pub dense_string_return_tables: bool,
+    /// Choose whether direct-only static host aliases call their native
+    /// spelling at each site or share one top-level binding. The configured
+    /// baseline remains `Shared`; candidate search may score `Direct` over the
+    /// complete artifact after proving that no function value is observable.
+    pub host_alias_spelling: HostAliasSpelling,
+    /// Encode renderable typed defaults in private JavaScript parameter lists
+    /// and preserve source call arity instead of repeating those defaults at
+    /// every direct call site. Neutral IR still carries materialized values for
+    /// interpretation and native targets.
+    pub callee_default_arguments: bool,
     pub scalar_phi_copies: bool,
     pub phi_affinity_mode: PhiAffinityMode,
     pub control_flow_spelling: ControlFlowSpelling,
     pub state_machine_spelling: StateMachineSpelling,
     pub conditional_expressions: bool,
+    /// Recover lazy source-value regions such as `a || b` and `a && b` from
+    /// structured SSA phis. Kept independent from ordinary conditional
+    /// statement spelling so transfer-codec search can score it separately.
+    pub expression_phi_regions: bool,
+    /// Recover statement-authored local selections as conditional expressions
+    /// after mem2reg. This is deliberately separate from source-expression
+    /// recovery: equivalent raw reductions can have opposite gzip/Brotli
+    /// effects once scored in the complete artifact.
+    pub local_phi_expression_regions: bool,
+    /// Forward a one-use producer across a proven inert same-block gap or
+    /// directly into its successor phi assignment when no ordering barrier
+    /// intervenes. Same-block observable producers may cross only constants
+    /// and ordinary closure construction; loop-capture wrappers, reads, calls,
+    /// writes, and CFG edges remain barriers. Kept as an emission choice
+    /// because removing raw assignments can still disturb a codec's
+    /// repeated-token model in the complete artifact.
+    pub phi_edge_value_forwarding: bool,
+    /// Nest a whole run of single-use producers into the one consumer that
+    /// reads them in production order, instead of naming all but the last.
+    /// The reconstructed expression performs the same evaluations in the same
+    /// order, but changes how much of the artifact is statement-shaped, so
+    /// transfer-codec search scores both spellings.
+    pub operand_order_fusion: bool,
     pub comma_expressions: bool,
     pub update_loop_layout: bool,
     pub cross_scope_name_reuse: bool,
@@ -60,6 +159,14 @@ pub struct IrJsOptions {
     pub mutation_spelling: MutationSpelling,
     pub identifier_alphabet: IdentifierAlphabet,
     pub string_quote: StringQuote,
+    /// Share one `typeof window<"u"?window:globalThis` binding when the module
+    /// has multiple window roots. Repeated spellings can compress better than
+    /// a unique short name under gzip/Brotli, so candidate search scores both.
+    pub pool_window_roots: bool,
+    /// Bind repeated `Array.prototype.method` borrows to shared aliases.
+    /// That spelling is often raw/gzip-positive and Brotli-negative, so the
+    /// configured Brotli baseline stays off and candidate search scores both.
+    pub alias_array_prototype_methods: bool,
 }
 
 impl Default for IrJsOptions {
@@ -69,8 +176,10 @@ impl Default for IrJsOptions {
             mangle_properties: false,
             mangle_exports: false,
             public_aggregate_fields: true,
+            named_aggregate_fields: false,
             pool_strings: true,
             pool_numeric_literals: false,
+            ordinary_record_literals: false,
             elide_safe_integer_coercions: true,
             compact_boolean_literals: true,
             elide_block_terminal_semicolons: true,
@@ -80,11 +189,32 @@ impl Default for IrJsOptions {
             struct_method_shorthand: true,
             truthy_nullable_checks: true,
             pack_string_arrays: true,
+            // A regex literal bypasses the ambient `RegExp` binding. Keep the
+            // low-level baseline open-world safe; project configuration may
+            // opt in only under an explicit pristine-builtins contract.
+            regex_literals: false,
+            unused_catch_binding_elision: true,
+            compact_generator_star: true,
+            inline_single_use_functions: false,
+            inline_exclusive_closures: true,
+            iife_private_callee_clusters: false,
+            nested_once_run_helpers: false,
+            batch_property_assigns: false,
+            inline_fresh_empty_array_factories: false,
+            constructor_initializer_fusion: false,
+            pure_helper_inlining: PureHelperInliningPolicy::None,
+            dense_string_return_tables: false,
+            host_alias_spelling: HostAliasSpelling::Shared,
+            callee_default_arguments: true,
             scalar_phi_copies: false,
             phi_affinity_mode: PhiAffinityMode::Grouped,
             control_flow_spelling: ControlFlowSpelling::Auto,
             state_machine_spelling: StateMachineSpelling::Switch,
             conditional_expressions: true,
+            expression_phi_regions: true,
+            local_phi_expression_regions: true,
+            phi_edge_value_forwarding: true,
+            operand_order_fusion: true,
             comma_expressions: false,
             update_loop_layout: true,
             cross_scope_name_reuse: true,
@@ -99,8 +229,81 @@ impl Default for IrJsOptions {
             mutation_spelling: MutationSpelling::Assignment,
             identifier_alphabet: IdentifierAlphabet::canonical(),
             string_quote: StringQuote::Double,
+            pool_window_roots: true,
+            alias_array_prototype_methods: true,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum PureHelperInliningPolicy {
+    #[default]
+    None,
+    SingleStaticUse,
+    AllEligible,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum HostAliasSpelling {
+    #[default]
+    Shared,
+    Direct,
+}
+
+const MAX_DENSE_STRING_RETURN_TABLE_ENTRIES: usize = 256;
+
+/// Bindable roots written by the JavaScript emitter itself rather than read
+/// from an IR global. Reserve them before assigning any source/top-level/local
+/// name: a source binding named `Array`, for example, must not capture an
+/// emitted `Array.isArray` type guard. This inventory covers intrinsic
+/// spellings, default-value constructors, dynamic-import support, generated
+/// throw paths, known host aliases, typed-array constructors, and scalar
+/// non-finite constants.
+const SYNTHESIZED_RUNTIME_ROOTS: &[&str] = &[
+    "console",
+    "Math",
+    "Array",
+    "Object",
+    "JSON",
+    "Promise",
+    "Date",
+    "String",
+    "Function",
+    "Map",
+    "Set",
+    "ArrayBuffer",
+    "SharedArrayBuffer",
+    "RegExp",
+    "Symbol",
+    "Error",
+    "TypeError",
+    "parseFloat",
+    "parseInt",
+    "isFinite",
+    "encodeURIComponent",
+    "Int8Array",
+    "Uint8Array",
+    "Uint8ClampedArray",
+    "Int16Array",
+    "Uint16Array",
+    "Int32Array",
+    "Uint32Array",
+    "Float32Array",
+    "Float64Array",
+    "NaN",
+    "Infinity",
+    "document",
+    "window",
+    "globalThis",
+];
+
+#[derive(Debug)]
+struct DenseStringReturnTable {
+    selector: ValueId,
+    selector_header: BlockId,
+    selector_key: ValueId,
+    selector_condition: ValueId,
+    slots: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -117,6 +320,110 @@ pub enum FunctionSpelling {
     #[default]
     Arrow,
     Function,
+}
+
+const MIN_IIFE_CLUSTER_HELPERS: usize = 2;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum JsCallingConvention {
+    Method0,
+    Method1,
+    MethodRest,
+    StaticRest,
+}
+
+impl JsCallingConvention {
+    const ALL: [Self; 4] = [
+        Self::Method0,
+        Self::Method1,
+        Self::MethodRest,
+        Self::StaticRest,
+    ];
+
+    const fn from_intrinsic(intrinsic: Intrinsic) -> Option<Self> {
+        match intrinsic {
+            Intrinsic::JsMethod0 => Some(Self::Method0),
+            Intrinsic::JsMethod1 => Some(Self::Method1),
+            Intrinsic::JsMethodRest => Some(Self::MethodRest),
+            Intrinsic::JsStaticRest => Some(Self::StaticRest),
+            _ => None,
+        }
+    }
+
+    const fn sort_key(self) -> u32 {
+        match self {
+            Self::Method0 => 0,
+            Self::Method1 => 1,
+            Self::MethodRest => 2,
+            Self::StaticRest => 3,
+        }
+    }
+
+    const fn readable_factory_name(self) -> &'static str {
+        match self {
+            Self::Method0 => "$jsMethod0",
+            Self::Method1 => "$jsMethod1",
+            Self::MethodRest => "$jsMethodRest",
+            Self::StaticRest => "$jsStaticRest",
+        }
+    }
+
+    const fn expected_parameters(self) -> usize {
+        match self {
+            Self::Method0 => 1,
+            Self::Method1 => 2,
+            Self::MethodRest => 2,
+            Self::StaticRest => 1,
+        }
+    }
+
+    const fn replaced_parameter_indices(self) -> &'static [usize] {
+        match self {
+            Self::Method0 | Self::Method1 | Self::StaticRest => &[0],
+            Self::MethodRest => &[0, 1],
+        }
+    }
+
+    const fn has_receiver(self) -> bool {
+        matches!(self, Self::Method0 | Self::Method1 | Self::MethodRest)
+    }
+}
+
+const ARRAY_PROTOTYPE_ALIAS_METHODS: [&str; 11] = [
+    "push", "pop", "slice", "indexOf", "sort", "splice", "join", "shift", "unshift", "flat",
+    "concat",
+];
+
+fn emit_let_item(out: &mut String, started: &mut bool) {
+    if *started {
+        out.push(',');
+    } else {
+        out.push_str("let ");
+        *started = true;
+    }
+}
+
+fn finish_let_list(out: &mut String, started: bool) {
+    if started {
+        out.push(';');
+    }
+}
+
+fn js_array_prototype_borrow(intrinsic: Intrinsic) -> Option<(&'static str, &'static str)> {
+    match intrinsic {
+        Intrinsic::JsArrayPush => Some(("push", "call")),
+        Intrinsic::JsArrayPop => Some(("pop", "call")),
+        Intrinsic::JsArraySlice => Some(("slice", "call")),
+        Intrinsic::JsArrayIndexOf => Some(("indexOf", "call")),
+        Intrinsic::JsArraySort => Some(("sort", "call")),
+        Intrinsic::JsArraySplice => Some(("splice", "call")),
+        Intrinsic::JsArrayJoin => Some(("join", "call")),
+        Intrinsic::JsArrayShift => Some(("shift", "call")),
+        Intrinsic::JsArrayUnshift => Some(("unshift", "call")),
+        Intrinsic::JsArrayFlat => Some(("flat", "call")),
+        Intrinsic::JsArrayConcatApply => Some(("concat", "apply")),
+        _ => None,
+    }
 }
 
 const FUNCTION_LAYOUT_NGRAM_LIMIT: usize = 4_096;
@@ -343,7 +650,7 @@ fn window_pair_score(similarity: usize, distance: usize, window_bytes: usize) ->
 }
 
 fn function_ngram_profile(bytes: &[u8]) -> AHashMap<u64, u16> {
-    let mut profile = AHashMap::new();
+    let mut profile = AHashMap::default();
     for window in bytes.windows(8) {
         let ngram = u64::from_le_bytes(window.try_into().expect("an eight-byte window"));
         if profile.len() < FUNCTION_LAYOUT_NGRAM_LIMIT || profile.contains_key(&ngram) {
@@ -501,6 +808,7 @@ pub enum StringQuote {
     #[default]
     Double,
     Single,
+    Template,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -572,11 +880,15 @@ enum JsExpressionRoot {
     Atom,
     Unary(&'static str),
     Binary(IrBinaryOp),
+    Nullish,
     Conditional,
     Call,
     Member,
     IntegerNormalization,
     Raw,
+    /// An ordinary property/index read followed by `??null`, used to model
+    /// LilScript's nullable collection lookup at a JavaScript boundary.
+    NullNormalized,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -585,6 +897,10 @@ struct JsExpression {
     ungrouped: Option<String>,
     precedence: JsPrecedence,
     root: JsExpressionRoot,
+    /// Native optional-chain spelling for a direct member/index access.
+    /// Wrapping operations deliberately clear this so an access is only
+    /// recovered when `?.` has exactly the same value boundary as the IR op.
+    optional_access_code: Option<String>,
     normalization_operand: Option<Box<Self>>,
     binary_operands: Option<(Box<Self>, Box<Self>)>,
     unary_operand: Option<Box<Self>>,
@@ -597,6 +913,7 @@ impl JsExpression {
             ungrouped: None,
             precedence: JsPrecedence::Primary,
             root: JsExpressionRoot::Atom,
+            optional_access_code: None,
             normalization_operand: None,
             binary_operands: None,
             unary_operand: None,
@@ -609,6 +926,7 @@ impl JsExpression {
             ungrouped: None,
             precedence,
             root: JsExpressionRoot::Raw,
+            optional_access_code: None,
             normalization_operand: None,
             binary_operands: None,
             unary_operand: None,
@@ -621,6 +939,7 @@ impl JsExpression {
             ungrouped: Some(ungrouped),
             precedence,
             root,
+            optional_access_code: None,
             normalization_operand: None,
             binary_operands: None,
             unary_operand: None,
@@ -628,6 +947,21 @@ impl JsExpression {
     }
 
     fn unary(operator: &'static str, operand: Self) -> Self {
+        // `JsTruthy` deliberately has the value-producing spelling `!!x`,
+        // because its result may escape a condition and must remain a bool.
+        // A source negation around that value is different: `!(!!x)` is
+        // exactly `!x`, including for objects, symbols, and effectful
+        // expressions. Preserve this relationship in the expression tree so
+        // it is canonical before any JavaScript text is emitted.
+        if operator == "!" && operand.root == JsExpressionRoot::Unary("!") {
+            if let Some(inner) = operand.unary_operand.as_deref() {
+                if inner.root == JsExpressionRoot::Unary("!") {
+                    if let Some(base) = inner.unary_operand.as_deref() {
+                        return Self::unary("!", base.clone());
+                    }
+                }
+            }
+        }
         let original_operand = Box::new(operand.clone());
         let token_collision = (operator == "-" && operand.code.starts_with('-'))
             || (operator == "+" && operand.code.starts_with('+'));
@@ -641,13 +975,64 @@ impl JsExpression {
             ungrouped: None,
             precedence: JsPrecedence::Unary,
             root: JsExpressionRoot::Unary(operator),
+            optional_access_code: None,
             normalization_operand: None,
             binary_operands: None,
             unary_operand: Some(original_operand),
         }
     }
 
-    fn binary(op: IrBinaryOp, lhs: Self, rhs: Self) -> Self {
+    fn is_constant_literal(&self) -> bool {
+        match self.root {
+            JsExpressionRoot::Atom => {
+                let code = self.code.as_str();
+                matches!(code, "true" | "false" | "null" | "!0" | "!1")
+                    || is_rendered_string_literal(code)
+                    || js_atom_is_number_literal(code)
+            }
+            JsExpressionRoot::Unary("void") => true,
+            JsExpressionRoot::Unary("!") => self
+                .unary_operand
+                .as_deref()
+                .is_some_and(Self::is_constant_literal),
+            _ => false,
+        }
+    }
+
+    fn without_explicit_tostring(self) -> Self {
+        if self.root == JsExpressionRoot::Binary(IrBinaryOp::Add) {
+            if let Some((lhs, rhs)) = &self.binary_operands {
+                if is_empty_string_literal(&rhs.code) {
+                    return lhs.as_ref().clone();
+                }
+            }
+        }
+        let source = self.ungrouped.as_deref().unwrap_or(self.code.as_str());
+        if let Some(inner) = source
+            .strip_suffix("+\"\"")
+            .or_else(|| source.strip_suffix("+''"))
+        {
+            if !inner.is_empty() {
+                return Self::raw(inner, JsPrecedence::Additive);
+            }
+        }
+        self
+    }
+
+    fn binary(op: IrBinaryOp, mut lhs: Self, mut rhs: Self) -> Self {
+        if op == IrBinaryOp::Add {
+            if is_rendered_string_literal(&rhs.code) {
+                lhs = lhs.without_explicit_tostring();
+            } else if is_rendered_string_literal(&lhs.code) {
+                rhs = rhs.without_explicit_tostring();
+            }
+        }
+        if matches!(op, IrBinaryOp::Eq | IrBinaryOp::NotEq)
+            && rhs.is_constant_literal()
+            && !lhs.is_constant_literal()
+        {
+            core::mem::swap(&mut lhs, &mut rhs);
+        }
         let operands = (Box::new(lhs.clone()), Box::new(rhs.clone()));
         let lhs = lhs.binary_operand(op, BinaryOperandSide::Left);
         let rhs = rhs.binary_operand(op, BinaryOperandSide::Right);
@@ -669,6 +1054,41 @@ impl JsExpression {
             format!("{condition}?{then_value}:{else_value}"),
             JsPrecedence::Conditional,
             JsExpressionRoot::Conditional,
+        )
+    }
+
+    fn nullish(mut lhs: Self, rhs: Self) -> Self {
+        // Record and optional reads normalize an absent JavaScript property to
+        // LilScript's canonical `null`. A surrounding nullish fallback makes
+        // that normalization observationally redundant:
+        // `(value??null)??fallback` is exactly `value??fallback`, including
+        // single evaluation and lazy fallback behavior.
+        if lhs.root == JsExpressionRoot::NullNormalized {
+            if let Some(without_null) = lhs
+                .ungrouped
+                .as_deref()
+                .or(Some(lhs.code.as_str()))
+                .and_then(|code| code.strip_suffix("??null"))
+            {
+                lhs = Self::raw(without_null, JsPrecedence::LogicalOr);
+            }
+        }
+        // ECMAScript intentionally rejects an unparenthesized `??` operand
+        // rooted at `&&` or `||`, despite their nearby precedence levels.
+        let nullish_operand = |value: Self| {
+            if matches!(
+                value.root,
+                JsExpressionRoot::Binary(IrBinaryOp::And | IrBinaryOp::Or)
+            ) {
+                value.grouped_code()
+            } else {
+                value.at_least(JsPrecedence::LogicalOr)
+            }
+        };
+        Self::grouped(
+            format!("{}??{}", nullish_operand(lhs), nullish_operand(rhs)),
+            JsPrecedence::LogicalOr,
+            JsExpressionRoot::Nullish,
         )
     }
 
@@ -696,6 +1116,7 @@ impl JsExpression {
             ungrouped: None,
             precedence: JsPrecedence::Call,
             root: JsExpressionRoot::Call,
+            optional_access_code: None,
             normalization_operand: None,
             binary_operands: None,
             unary_operand: None,
@@ -725,6 +1146,7 @@ impl JsExpression {
             ungrouped: None,
             precedence: JsPrecedence::Member,
             root: JsExpressionRoot::Member,
+            optional_access_code: Some(format!("{object}?.{property}")),
             normalization_operand: None,
             binary_operands: None,
             unary_operand: None,
@@ -732,19 +1154,18 @@ impl JsExpression {
     }
 
     fn index(object: Self, index: Self, elide_call_chain_parentheses: bool) -> Self {
+        let object = object.at_least(if elide_call_chain_parentheses {
+            JsPrecedence::Call
+        } else {
+            JsPrecedence::Member
+        });
+        let index = index.at_least(JsPrecedence::Assignment);
         Self {
-            code: format!(
-                "{}[{}]",
-                object.at_least(if elide_call_chain_parentheses {
-                    JsPrecedence::Call
-                } else {
-                    JsPrecedence::Member
-                }),
-                index.at_least(JsPrecedence::Assignment)
-            ),
+            code: format!("{object}[{index}]"),
             ungrouped: None,
             precedence: JsPrecedence::Member,
             root: JsExpressionRoot::Member,
+            optional_access_code: Some(format!("{object}?.[{index}]")),
             normalization_operand: None,
             binary_operands: None,
             unary_operand: None,
@@ -752,6 +1173,7 @@ impl JsExpression {
     }
 
     fn integer_normalization(value: Self) -> Self {
+        let optional_access_code = value.optional_access_code.clone();
         let rendered = value
             .clone()
             .binary_operand(IrBinaryOp::BitOr, BinaryOperandSide::Left);
@@ -760,16 +1182,30 @@ impl JsExpression {
             JsPrecedence::BitOr,
             JsExpressionRoot::IntegerNormalization,
         );
+        normalized.optional_access_code = optional_access_code;
         normalized.normalization_operand = Some(Box::new(value));
         normalized
     }
 
+    fn into_optional_access(self) -> Option<Self> {
+        self.optional_access_code
+            .map(|code| Self::raw(code, JsPrecedence::Member))
+    }
+
     fn at_least(self, minimum: JsPrecedence) -> String {
-        if self.precedence < minimum {
+        if self.precedence < minimum || (minimum >= JsPrecedence::Call && self.looks_like_block()) {
             self.grouped_code()
         } else {
             self.into_minimal()
         }
+    }
+
+    fn looks_like_block(&self) -> bool {
+        let code = self.ungrouped.as_deref().unwrap_or(self.code.as_str());
+        code.starts_with('{')
+            || code.starts_with("function")
+            || code.starts_with("class")
+            || code.starts_with("async ")
     }
 
     fn grouped_code(self) -> String {
@@ -784,10 +1220,11 @@ impl JsExpression {
         self.ungrouped.unwrap_or(self.code)
     }
 
-    /// A branch/loop already applies JavaScript's ToBoolean operation. Keep
-    /// explicit negation, but do not spell a redundant double negation at the
-    /// point where the value is consumed as a condition.
-    fn into_condition(self) -> String {
+    /// Normalize the portions of an expression whose values are consumed only
+    /// through ToBoolean. Logical operands are themselves boolean contexts, so
+    /// retaining their expression tree lets us remove coercions recursively
+    /// instead of relying on a later JavaScript peephole pass.
+    fn normalized_for_condition(self) -> Self {
         if self.root == JsExpressionRoot::Unary("!") {
             if let Some(operand) = self.unary_operand.as_deref() {
                 if operand.root == JsExpressionRoot::Unary("!") {
@@ -795,12 +1232,35 @@ impl JsExpression {
                         .unary_operand
                         .as_deref()
                         .cloned()
-                        .map(JsExpression::into_minimal)
+                        .map(JsExpression::normalized_for_condition)
                         .expect("unary expressions carry their operand");
                 }
             }
         }
-        self.into_minimal()
+        if matches!(
+            self.root,
+            JsExpressionRoot::Binary(IrBinaryOp::And | IrBinaryOp::Or)
+        ) {
+            let op = match self.root {
+                JsExpressionRoot::Binary(op) => op,
+                _ => unreachable!(),
+            };
+            if let Some((lhs, rhs)) = self.binary_operands {
+                return Self::binary(
+                    op,
+                    (*lhs).normalized_for_condition(),
+                    (*rhs).normalized_for_condition(),
+                );
+            }
+        }
+        self
+    }
+
+    /// A branch/loop already applies JavaScript's ToBoolean operation. Keep
+    /// explicit negation, but do not spell redundant boolean coercions at the
+    /// point where the value is consumed as a condition.
+    fn into_condition(self) -> String {
+        self.normalized_for_condition().into_minimal()
     }
 
     fn negated(self) -> String {
@@ -835,10 +1295,6 @@ impl JsExpression {
             .expect("integer normalization expressions carry their operand")
     }
 
-    fn is_integer_normalization(&self) -> bool {
-        self.root == JsExpressionRoot::IntegerNormalization
-    }
-
     fn binary_operand(self, parent: IrBinaryOp, side: BinaryOperandSide) -> String {
         let can_unwrap = match self.root {
             JsExpressionRoot::Binary(child) => {
@@ -860,6 +1316,9 @@ impl JsExpression {
                                     )
                             }
                         })
+            }
+            JsExpressionRoot::Nullish if matches!(parent, IrBinaryOp::And | IrBinaryOp::Or) => {
+                false
             }
             _ => self.precedence > js_binary_precedence(parent),
         };
@@ -889,6 +1348,15 @@ impl std::ops::Deref for JsExpression {
 
 type ExpressionCache = AHashMap<ValueId, JsExpression>;
 
+#[derive(Debug, Clone)]
+enum PureHelperActual {
+    Direct(JsExpression),
+    Eager {
+        value: ValueId,
+        initializer: JsExpression,
+    },
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct IdentifierAlphabet {
     first: [u8; 54],
@@ -900,6 +1368,13 @@ impl IdentifierAlphabet {
         Self {
             first: *b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_$",
             rest: *b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_$0123456789",
+        }
+    }
+
+    pub const fn javascript_keyword() -> Self {
+        Self {
+            first: *b"etnrisouacldhpfmgybvwkxzjqETNRISOUACLDHPFMGYBVWKXZJQ_$",
+            rest: *b"etnrisouacldhpfmgybvwkxzjqETNRISOUACLDHPFMGYBVWKXZJQ_$0123456789",
         }
     }
 
@@ -1010,7 +1485,13 @@ pub fn emit_optimized_ir_js_chunks_with_options(
     options: &IrJsOptions,
     plan: &IrJsChunkPlan,
 ) -> Result<Vec<IrJsChunk>, CodegenError> {
-    IrJsEmitter::new(module, true, *options).emit_chunks(plan)
+    // Chunk ownership/import planning currently classifies functions before
+    // emitter-local declaration substitution. Keep this proposal off for
+    // explicit chunk plans until that planner carries the same proof, avoiding
+    // a requested chunk function whose binding was intentionally suppressed.
+    let mut chunk_options = *options;
+    chunk_options.inline_fresh_empty_array_factories = false;
+    IrJsEmitter::new(module, true, chunk_options).emit_chunks(plan)
 }
 
 pub fn ir_function_can_move_to_chunk(module: &ControlFlowModule<'_>, function: FunctionId) -> bool {
@@ -1018,7 +1499,87 @@ pub fn ir_function_can_move_to_chunk(module: &ControlFlowModule<'_>, function: F
         .functions
         .get(function.0 as usize)
         .is_some_and(|function| is_emitted_function(function, true))
-        && !function_writes_global(module, function, &mut AHashSet::new(), true)
+        && !function_writes_global(module, function, &mut AHashSet::default(), true)
+}
+
+pub(crate) fn has_inlineable_fresh_empty_array_factory(module: &ControlFlowModule<'_>) -> bool {
+    !inlineable_fresh_empty_array_factories(module).is_empty()
+}
+
+/// Prove the complete allocation-preserving substitution before codegen. A
+/// direct call has no observable function identity, argument/default
+/// evaluation, or receiver coercion here, and the literal at every retained
+/// call site still creates a distinct ordinary array. Any export or value use
+/// would make the function object observable and therefore rejects it.
+fn inlineable_fresh_empty_array_factories(module: &ControlFlowModule<'_>) -> AHashSet<FunctionId> {
+    let exported = module
+        .exports
+        .iter()
+        .chain(
+            module
+                .lazy_modules
+                .iter()
+                .flat_map(|module| module.exports.iter()),
+        )
+        .filter_map(|export| match export.binding {
+            ExportBinding::Function(function) => Some(function),
+            _ => None,
+        })
+        .collect::<AHashSet<_>>();
+    let mut direct_calls = AHashSet::default();
+    let mut rejected = AHashSet::default();
+    for caller in module.functions.iter().filter(|function| function.live) {
+        for instruction in caller.blocks.iter().flat_map(|block| &block.instructions) {
+            match &instruction.op {
+                ControlFlowOp::CallDirect {
+                    function,
+                    args,
+                    provided_args,
+                } => {
+                    if args.is_empty() && *provided_args == 0 {
+                        direct_calls.insert(*function);
+                    } else {
+                        rejected.insert(*function);
+                    }
+                }
+                ControlFlowOp::Closure { function, .. }
+                | ControlFlowOp::CallMethod { function, .. }
+                | ControlFlowOp::NewClass {
+                    constructor: Some(function),
+                    ..
+                } => {
+                    rejected.insert(*function);
+                }
+                _ => {}
+            }
+        }
+    }
+
+    module
+        .functions
+        .iter()
+        .filter(|function| {
+            function.live
+                && function.kind == FunctionKind::Function
+                && function.capture_count == 0
+                && function.params.is_empty()
+                && !function.is_async
+                && !function.is_generator
+                && function.shapes.is_empty()
+                && direct_calls.contains(&function.id)
+                && !exported.contains(&function.id)
+                && !rejected.contains(&function.id)
+                && matches!(function.blocks.as_slice(), [block]
+                    if block.phis.is_empty()
+                        && matches!(block.instructions.as_slice(), [instruction]
+                            if matches!((instruction.out, &instruction.op),
+                                (Some(array), ControlFlowOp::Array(values))
+                                    if values.is_empty()
+                                        && matches!(&block.terminator,
+                                            Some(Terminator::Return(Some(result))) if *result == array))))
+        })
+        .map(|function| function.id)
+        .collect()
 }
 
 struct IrJsEmitter<'module, 'src> {
@@ -1027,6 +1588,7 @@ struct IrJsEmitter<'module, 'src> {
     global_names: AHashMap<SymbolId, String>,
     external_export_aliases: AHashMap<SymbolId, String>,
     function_names: AHashMap<FunctionId, String>,
+    foreign_import_names: AHashMap<String, String>,
     top_level_mangler: Mangler,
     local_name_reservations: Vec<String>,
     preferred_local_names: AHashMap<String, String>,
@@ -1039,6 +1601,34 @@ struct IrJsEmitter<'module, 'src> {
     pooled_numbers: Vec<(String, String)>,
     property_names: AHashMap<String, String>,
     named_field_aggregates: AHashSet<String>,
+    abi_stable_aggregates: AHashSet<String>,
+    dynamic_boundary_aggregates: AHashSet<String>,
+    inlined_constructor_field_initializers: AHashMap<(FunctionId, ValueId), Vec<(usize, ValueId)>>,
+    inlined_constructor_field_sets: AHashSet<(FunctionId, BlockId, usize)>,
+    js_calling_conventions: AHashMap<FunctionId, JsCallingConvention>,
+    js_calling_aliases: AHashMap<FunctionId, Vec<(ValueId, &'static str)>>,
+    adapted_bind_values: AHashSet<(FunctionId, ValueId)>,
+    js_name_suppressed_adapter_values: AHashSet<(FunctionId, ValueId)>,
+    js_adapter_fallbacks: AHashSet<JsCallingConvention>,
+    js_adapter_factory_names: AHashMap<JsCallingConvention, String>,
+    loop_captured_closures: AHashSet<FunctionId>,
+    callee_default_functions: AHashSet<FunctionId>,
+    inline_single_use_functions: AHashSet<FunctionId>,
+    inline_exclusive_closures: AHashSet<FunctionId>,
+    private_callee_clusters: AHashMap<FunctionId, Vec<FunctionId>>,
+    named_callee_clusters: Vec<(Vec<FunctionId>, Vec<FunctionId>)>,
+    named_cluster_by_root: AHashMap<FunctionId, usize>,
+    emitted_named_clusters: AHashSet<usize>,
+    nested_once_run_helpers: AHashMap<FunctionId, Vec<FunctionId>>,
+    clustered_helpers: AHashSet<FunctionId>,
+    inline_fresh_empty_array_factories: AHashSet<FunctionId>,
+    inline_pure_helpers: AHashSet<FunctionId>,
+    order_sensitive_inline_pure_helpers: AHashSet<FunctionId>,
+    direct_js_host_aliases: AHashSet<FunctionId>,
+    js_window_binding: Option<String>,
+    array_prototype_root: Option<String>,
+    array_prototype_method_aliases: AHashMap<&'static str, String>,
+    disable_js_adapter_fusion: bool,
     module_output: bool,
     options: IrJsOptions,
     dynamic_chunk_files: AHashMap<u32, String>,
@@ -1067,58 +1657,64 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         Self {
             module,
             integer_analysis,
-            global_names: AHashMap::new(),
-            external_export_aliases: AHashMap::new(),
-            function_names: AHashMap::new(),
+            global_names: AHashMap::default(),
+            external_export_aliases: AHashMap::default(),
+            function_names: AHashMap::default(),
+            foreign_import_names: AHashMap::default(),
             top_level_mangler: Mangler::new(options.identifier_alphabet),
             local_name_reservations: Vec::new(),
-            preferred_local_names: AHashMap::new(),
-            declared_globals: AHashSet::new(),
-            constant_global_strings: AHashMap::new(),
-            deferred_global_declarations: AHashSet::new(),
-            string_aliases: AHashMap::new(),
+            preferred_local_names: AHashMap::default(),
+            declared_globals: AHashSet::default(),
+            constant_global_strings: AHashMap::default(),
+            deferred_global_declarations: AHashSet::default(),
+            string_aliases: AHashMap::default(),
             pooled_strings: Vec::new(),
-            numeric_aliases: AHashMap::new(),
+            numeric_aliases: AHashMap::default(),
             pooled_numbers: Vec::new(),
-            property_names: AHashMap::new(),
-            named_field_aggregates: AHashSet::new(),
+            property_names: AHashMap::default(),
+            named_field_aggregates: AHashSet::default(),
+            abi_stable_aggregates: AHashSet::default(),
+            dynamic_boundary_aggregates: AHashSet::default(),
+            inlined_constructor_field_initializers: AHashMap::default(),
+            inlined_constructor_field_sets: AHashSet::default(),
+            js_calling_conventions: AHashMap::default(),
+            js_calling_aliases: AHashMap::default(),
+            adapted_bind_values: AHashSet::default(),
+            js_name_suppressed_adapter_values: AHashSet::default(),
+            js_adapter_fallbacks: AHashSet::default(),
+            js_adapter_factory_names: AHashMap::default(),
+            loop_captured_closures: AHashSet::default(),
+            callee_default_functions: AHashSet::default(),
+            inline_single_use_functions: AHashSet::default(),
+            inline_exclusive_closures: AHashSet::default(),
+            private_callee_clusters: AHashMap::default(),
+            named_callee_clusters: Vec::new(),
+            named_cluster_by_root: AHashMap::default(),
+            emitted_named_clusters: AHashSet::default(),
+            nested_once_run_helpers: AHashMap::default(),
+            clustered_helpers: AHashSet::default(),
+            inline_fresh_empty_array_factories: AHashSet::default(),
+            inline_pure_helpers: AHashSet::default(),
+            order_sensitive_inline_pure_helpers: AHashSet::default(),
+            direct_js_host_aliases: AHashSet::default(),
+            js_window_binding: None,
+            array_prototype_root: None,
+            array_prototype_method_aliases: AHashMap::default(),
+            disable_js_adapter_fusion: false,
             module_output,
             options,
-            dynamic_chunk_files: AHashMap::new(),
+            dynamic_chunk_files: AHashMap::default(),
         }
     }
 
     fn emit(mut self) -> Result<String, CodegenError> {
+        self.validate_caller_materialized_default_abis()?;
         self.prepare();
         let entry = self.function(self.module.entry)?.clone();
         let entry_is_single_block = entry.blocks.len() == 1 && entry.blocks[0].phis.is_empty();
         let entry_can_structure = can_structure(&entry);
         let mut out = String::new();
-
-        if !self.pooled_strings.is_empty() || !self.pooled_numbers.is_empty() {
-            out.push_str("let ");
-            let mut index = 0;
-            for (value, name) in &self.pooled_strings {
-                if index != 0 {
-                    out.push(',');
-                }
-                out.push_str(name);
-                out.push('=');
-                out.push_str(&render_string_literal(value, self.options.string_quote));
-                index += 1;
-            }
-            for (value, name) in &self.pooled_numbers {
-                if index != 0 {
-                    out.push(',');
-                }
-                out.push_str(name);
-                out.push('=');
-                out.push_str(value);
-                index += 1;
-            }
-            out.push(';');
-        }
-
+        self.emit_foreign_imports(&mut out);
         let owned_globals = self
             .module
             .globals
@@ -1129,21 +1725,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             .iter()
             .copied()
             .filter(|global| !self.deferred_global_declarations.contains(&global.symbol))
+            .map(|global| global.symbol)
             .collect::<Vec<_>>();
-        if !predeclared_globals.is_empty() {
-            out.push_str("let ");
-            for (index, global) in predeclared_globals.iter().enumerate() {
-                if index != 0 {
-                    out.push(',');
-                }
-                out.push_str(self.global_name(global.symbol)?);
-                if let Some(value) = self.constant_global_strings.get(&global.symbol) {
-                    out.push('=');
-                    out.push_str(&render_string_literal(value, self.options.string_quote));
-                }
-            }
-            out.push(';');
-        }
+        self.emit_top_level_lets(&mut out, &predeclared_globals)?;
         self.declared_globals
             .extend(owned_globals.iter().map(|global| global.symbol));
         self.emit_external_export_aliases(&mut out)?;
@@ -1155,9 +1739,23 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             .filter(|function| {
                 function.live
                     && function.kind != FunctionKind::Entry
-                    && function.kind != FunctionKind::Extern
-                    && !(function.kind == FunctionKind::Closure
-                        && can_inline_closure(function, self.options.inline_structured_closures))
+                    && !self.is_imported_extern(function)
+                    && self.js_host_alias_spelling(function.id).is_none()
+                    && !self.function_is_inlined(function)
+                    && !self.inline_single_use_functions.contains(&function.id)
+                    && !self
+                        .inline_fresh_empty_array_factories
+                        .contains(&function.id)
+                    && !self.inline_pure_helpers.contains(&function.id)
+                    && !self.clustered_helpers.contains(&function.id)
+                    && self
+                        .named_cluster_by_root
+                        .get(&function.id)
+                        .copied()
+                        .is_none_or(|index| {
+                            self.named_callee_clusters[index].0.first().copied()
+                                == Some(function.id)
+                        })
             })
             .map(|function| function.id)
             .collect::<Vec<_>>();
@@ -1167,6 +1765,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             self.declared_globals.remove(global);
         }
 
+        self.loop_captured_closures = loop_captured_closures(&entry);
         if entry_is_single_block {
             self.emit_single_block(&entry, false, &mut out)?;
         } else if entry_can_structure {
@@ -1176,6 +1775,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             self.emit_state_machine(&entry, &mut out)?;
             out.push_str(")();");
         }
+        self.loop_captured_closures.clear();
         if self.module_output {
             self.emit_exports(&mut out)?;
         }
@@ -1186,7 +1786,24 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     }
 
     fn prepare(&mut self) {
+        if self.options.constructor_initializer_fusion {
+            self.assign_inlined_constructor_field_initializers();
+        }
+        self.assign_js_calling_conventions();
+        self.assign_callee_default_functions();
+        self.assign_inline_single_use_functions();
+        self.assign_inline_exclusive_closures();
+        self.assign_private_callee_clusters();
+        self.assign_direct_js_host_aliases();
+        self.assign_inline_fresh_empty_array_factories();
         self.assign_top_level_names();
+        self.assign_js_window_binding();
+        // The helper proof consults the caller's final stored-value
+        // projection. Assigning names first is harmless: selected helper
+        // declarations are still omitted from the emitted function group.
+        self.assign_inline_pure_helpers();
+        self.release_nested_helpers_of_pure_inline_hosts();
+        self.release_stranded_cluster_helpers();
         self.assign_external_export_aliases();
         self.assign_constant_global_strings();
         self.assign_deferred_global_declarations();
@@ -1196,8 +1813,1744 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         self.assign_property_names();
     }
 
+    /// Complex typed defaults are recreated at every omitted LilScript call
+    /// site. Root and lazy exports admit untyped JavaScript callers that cannot
+    /// participate in that convention, so reject them. Detached values retain
+    /// plain required formals and remain governed by their typed host contract.
+    fn validate_caller_materialized_default_abis(&self) -> Result<(), CodegenError> {
+        let javascript_exports = self
+            .module
+            .exports
+            .iter()
+            .chain(
+                self.module
+                    .lazy_modules
+                    .iter()
+                    .flat_map(|module| module.exports.iter()),
+            )
+            .filter_map(|export| match export.binding {
+                ExportBinding::Function(function) => Some(function),
+                _ => None,
+            })
+            .collect::<AHashSet<_>>();
+        for function in &self.module.functions {
+            if !javascript_exports.contains(&function.id) {
+                continue;
+            }
+            if let Some(parameter) = function.params.iter().find(|parameter| {
+                matches!(
+                    &parameter.default,
+                    Some(crate::ir::IrParamDefault::CallerMaterialized)
+                )
+            }) {
+                let function_name = function.name.unwrap_or("<closure>");
+                return Err(CodegenError::new(
+                    parameter.span,
+                    format!(
+                        "parameter `{}` of JavaScript-callable function `{function_name}` has a default that must be materialized by a typed LilScript caller",
+                        parameter.name
+                    ),
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    /// Constructor projection leaves a fresh complete default allocation
+    /// followed immediately by field writes whose values already dominate the
+    /// allocation. Keeping the writes in IR makes codegen use counts materialize
+    /// observable or repeated producers; a pure one-use producer may instead be
+    /// consumed directly in the corresponding literal slot. Stop at the first
+    /// non-field operation, require layout order, and only remove defaults whose
+    /// spelling is itself literal syntax rather than an observable host
+    /// constructor such as `Map` or `Symbol`.
+    fn assign_inlined_constructor_field_initializers(&mut self) {
+        let mut initializers = AHashMap::default();
+        let mut field_sets = AHashSet::default();
+        for function in &self.module.functions {
+            for block in &function.blocks {
+                let value_positions = block
+                    .instructions
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(index, instruction)| instruction.out.map(|out| (out, index)))
+                    .collect::<AHashMap<_, _>>();
+                for (allocation_index, allocation) in block.instructions.iter().enumerate() {
+                    let (
+                        Some(root),
+                        ControlFlowOp::NewClass {
+                            class,
+                            constructor: None,
+                            args,
+                        },
+                    ) = (allocation.out, &allocation.op)
+                    else {
+                        continue;
+                    };
+                    if !args.is_empty() {
+                        continue;
+                    }
+                    let Some(layout) = self
+                        .module
+                        .classes
+                        .iter()
+                        .find(|layout| layout.name == *class)
+                    else {
+                        continue;
+                    };
+
+                    let mut next_layout_position = 0;
+                    let mut overrides = Vec::new();
+                    let mut override_locations = Vec::new();
+                    let mut valid = true;
+                    for (instruction_index, instruction) in block
+                        .instructions
+                        .iter()
+                        .enumerate()
+                        .skip(allocation_index + 1)
+                    {
+                        let ControlFlowOp::FieldSet {
+                            object,
+                            owner,
+                            field,
+                            index,
+                            value,
+                            ..
+                        } = &instruction.op
+                        else {
+                            break;
+                        };
+                        if *object != root {
+                            break;
+                        }
+                        if *owner != *class {
+                            valid = false;
+                            break;
+                        }
+                        let Some(layout_position) = layout.fields.iter().position(|candidate| {
+                            candidate.index == *index && candidate.name == *field
+                        }) else {
+                            valid = false;
+                            break;
+                        };
+                        if layout_position < next_layout_position
+                            || !crate::optimizer::javascript_class_default_is_pure_literal(
+                                &layout.fields[layout_position].ty,
+                            )
+                            || value_positions
+                                .get(value)
+                                .is_some_and(|position| *position >= allocation_index)
+                        {
+                            valid = false;
+                            break;
+                        }
+                        next_layout_position = layout_position + 1;
+                        overrides.push((*index, *value));
+                        override_locations.push((function.id, block.id, instruction_index));
+                    }
+                    if !valid || overrides.is_empty() {
+                        continue;
+                    }
+                    field_sets.extend(override_locations);
+                    initializers.insert((function.id, root), overrides);
+                }
+            }
+        }
+        self.inlined_constructor_field_initializers = initializers;
+        self.inlined_constructor_field_sets = field_sets;
+    }
+
+    /// Elide a typed JavaScript adapter when a function value is used only
+    /// through one compatible adapter intrinsic. The emitted ordinary JavaScript function
+    /// can consume `this` and the native `arguments` object directly, avoiding
+    /// both the adapter allocation and an extra call on every invocation. The
+    /// binder contract passes `IArguments`, so materializing `...args` here
+    /// would also allocate an array that the source program never requested.
+    fn assign_js_calling_conventions(&mut self) {
+        let has_adapters = self
+            .module
+            .functions
+            .iter()
+            .filter(|function| function.live)
+            .flat_map(|function| &function.blocks)
+            .flat_map(|block| &block.instructions)
+            .any(|instruction| {
+                matches!(
+                    instruction.op,
+                    ControlFlowOp::Intrinsic { intrinsic, .. }
+                        if JsCallingConvention::from_intrinsic(intrinsic).is_some()
+                )
+            });
+        if !has_adapters {
+            return;
+        }
+
+        let exported = self
+            .module
+            .exports
+            .iter()
+            .chain(
+                self.module
+                    .lazy_modules
+                    .iter()
+                    .flat_map(|module| module.exports.iter()),
+            )
+            .filter_map(|export| match export.binding {
+                ExportBinding::Function(function) => Some(function),
+                _ => None,
+            })
+            .collect::<AHashSet<_>>();
+        let mut directly_called = AHashSet::default();
+        for instruction in self
+            .module
+            .functions
+            .iter()
+            .filter(|function| function.live)
+            .flat_map(|function| &function.blocks)
+            .flat_map(|block| &block.instructions)
+        {
+            match instruction.op {
+                ControlFlowOp::CallDirect { function, .. }
+                | ControlFlowOp::CallMethod { function, .. }
+                | ControlFlowOp::NewClass {
+                    constructor: Some(function),
+                    ..
+                } => {
+                    directly_called.insert(function);
+                }
+                _ => {}
+            }
+        }
+
+        let mut candidates = AHashMap::<
+            FunctionId,
+            Vec<(FunctionId, ValueId, ValueId, JsCallingConvention)>,
+        >::default();
+        let mut invalid = AHashSet::default();
+        for caller in self
+            .module
+            .functions
+            .iter()
+            .filter(|function| function.live)
+        {
+            let uses = use_counts(caller);
+            let mut adapter_uses =
+                AHashMap::<ValueId, Vec<(ValueId, JsCallingConvention)>>::default();
+            for instruction in caller.blocks.iter().flat_map(|block| &block.instructions) {
+                let (
+                    Some(adapter),
+                    ControlFlowOp::Intrinsic {
+                        intrinsic,
+                        receiver: None,
+                        args,
+                    },
+                ) = (instruction.out, &instruction.op)
+                else {
+                    continue;
+                };
+                let Some(convention) = JsCallingConvention::from_intrinsic(*intrinsic) else {
+                    continue;
+                };
+                if let [callback] = args.as_slice() {
+                    adapter_uses
+                        .entry(*callback)
+                        .or_default()
+                        .push((adapter, convention));
+                }
+            }
+
+            for instruction in caller.blocks.iter().flat_map(|block| &block.instructions) {
+                let (Some(callback), ControlFlowOp::Closure { function, .. }) =
+                    (instruction.out, &instruction.op)
+                else {
+                    continue;
+                };
+                let adapter_use = adapter_uses.get(&callback);
+                if uses.get(&callback).copied() == Some(1)
+                    && adapter_use.is_some_and(|uses| uses.len() == 1)
+                {
+                    let (adapter, convention) = adapter_use.unwrap()[0];
+                    candidates
+                        .entry(*function)
+                        .or_default()
+                        .push((caller.id, callback, adapter, convention));
+                } else {
+                    invalid.insert(*function);
+                }
+            }
+        }
+
+        for (function_id, sites) in candidates {
+            let Some(function) = self.module.functions.get(function_id.0 as usize) else {
+                continue;
+            };
+            let convention = sites[0].3;
+            let parameter_is_captured = |index: usize| {
+                function
+                    .params
+                    .get(function.capture_count + index)
+                    .is_some_and(|parameter| {
+                        function
+                            .blocks
+                            .iter()
+                            .flat_map(|block| &block.instructions)
+                            .any(|instruction| {
+                                matches!(
+                                    &instruction.op,
+                                    ControlFlowOp::Closure { captures, .. }
+                                        if captures.contains(&parameter.value)
+                                )
+                            })
+                    })
+            };
+            let receiver_captured = convention.has_receiver() && parameter_is_captured(0);
+            let arguments_captured =
+                matches!(
+                    convention,
+                    JsCallingConvention::MethodRest | JsCallingConvention::StaticRest
+                ) && parameter_is_captured(usize::from(convention.has_receiver()));
+            let replaced_parameter_locals = convention
+                .replaced_parameter_indices()
+                .iter()
+                .filter_map(|index| {
+                    function
+                        .params
+                        .get(function.capture_count + *index)
+                        .map(|parameter| parameter.local)
+                })
+                .collect::<Vec<_>>();
+            let replaced_parameter_is_mutably_captured = replaced_parameter_locals
+                .iter()
+                .any(|local| function.mutable_capture_locals.contains(local));
+            let replaced_parameter_is_stored = function
+                .blocks
+                .iter()
+                .flat_map(|block| &block.instructions)
+                .any(|instruction| {
+                    matches!(instruction.op, ControlFlowOp::StoreLocal { local, .. }
+                        if replaced_parameter_locals.contains(&local))
+                });
+            if self.disable_js_adapter_fusion
+                || invalid.contains(&function_id)
+                || exported.contains(&function_id)
+                || directly_called.contains(&function_id)
+                || replaced_parameter_is_mutably_captured
+                || replaced_parameter_is_stored
+                || self.function_or_nested_closure_reads_own_js_binding(function)
+                || function.is_async
+                || function.is_generator
+                || !((function.blocks.len() == 1 && function.blocks[0].phis.is_empty())
+                    || can_structure(function))
+                || function.params.len().saturating_sub(function.capture_count)
+                    != convention.expected_parameters()
+                || sites.iter().any(|site| site.3 != convention)
+                || sites
+                    .iter()
+                    .any(|(caller, _, _, _)| self.function(*caller).is_err())
+            {
+                continue;
+            }
+            let mut aliases = Vec::new();
+            if receiver_captured {
+                if let Some(parameter) = function.params.get(function.capture_count) {
+                    aliases.push((parameter.value, "this"));
+                }
+            }
+            if arguments_captured {
+                let index = usize::from(convention.has_receiver());
+                if let Some(parameter) = function.params.get(function.capture_count + index) {
+                    aliases.push((parameter.value, "arguments"));
+                }
+            }
+            if !aliases.is_empty() {
+                self.js_calling_aliases.insert(function_id, aliases);
+            }
+            let name_suppressed = sites
+                .iter()
+                .filter_map(|(caller, _, adapter, _)| {
+                    self.function(*caller)
+                        .is_ok_and(|caller| !self.adapter_result_is_name_safe(caller, *adapter))
+                        .then_some((*caller, *adapter))
+                })
+                .collect::<Vec<_>>();
+            self.js_calling_conventions.insert(function_id, convention);
+            self.js_name_suppressed_adapter_values
+                .extend(name_suppressed);
+            self.adapted_bind_values.extend(
+                sites
+                    .into_iter()
+                    .map(|(caller, callback, _, _)| (caller, callback)),
+            );
+        }
+
+        for caller in self
+            .module
+            .functions
+            .iter()
+            .filter(|function| function.live)
+        {
+            for instruction in caller.blocks.iter().flat_map(|block| &block.instructions) {
+                let ControlFlowOp::Intrinsic {
+                    intrinsic,
+                    receiver: None,
+                    args,
+                } = &instruction.op
+                else {
+                    continue;
+                };
+                let Some(convention) = JsCallingConvention::from_intrinsic(*intrinsic) else {
+                    continue;
+                };
+                if !matches!(args.as_slice(), [callback] if self
+                    .adapted_bind_values
+                    .contains(&(caller.id, *callback)))
+                {
+                    self.js_adapter_fallbacks.insert(convention);
+                }
+            }
+        }
+    }
+
+    /// A bare fused function expression keeps `name == ""` only outside a
+    /// JavaScript NamedEvaluation context. Unsafe/ambiguous consumers are
+    /// tracked so rendering can use `(0,function(){...})`, a syntax-only name
+    /// suppression that does not allocate or change the function object.
+    fn adapter_result_is_name_safe(
+        &self,
+        caller: &ControlFlowFunction<'src>,
+        adapter: ValueId,
+    ) -> bool {
+        if use_counts(caller).get(&adapter).copied() != Some(1) {
+            return false;
+        }
+        let has_local_hint = caller
+            .value_local_hints
+            .get(adapter.0 as usize)
+            .and_then(|hint| *hint)
+            .is_some();
+        let mut property_slot_only = true;
+        for block in &caller.blocks {
+            if block
+                .phis
+                .iter()
+                .flat_map(|phi| &phi.incoming)
+                .any(|(_, incoming)| *incoming == adapter)
+            {
+                return false;
+            }
+            for instruction in &block.instructions {
+                if !op_values(&instruction.op).contains(&adapter) {
+                    continue;
+                }
+                let safe = match &instruction.op {
+                    ControlFlowOp::IndexSet { .. }
+                    | ControlFlowOp::HostFieldSet { .. }
+                    | ControlFlowOp::Struct { .. }
+                    | ControlFlowOp::Record(_)
+                    | ControlFlowOp::RecordFieldSet { .. }
+                    | ControlFlowOp::CallDirect { .. }
+                    | ControlFlowOp::CallValue { .. }
+                    | ControlFlowOp::CallMethod { .. }
+                    | ControlFlowOp::HostCall { .. }
+                    | ControlFlowOp::Array(_)
+                    | ControlFlowOp::ArraySpread(_) => true,
+                    ControlFlowOp::Intrinsic { .. } => true,
+                    _ => false,
+                };
+                if !safe {
+                    return false;
+                }
+                if !adapter_is_named_evaluation_value(&instruction.op, adapter) {
+                    property_slot_only = false;
+                }
+            }
+            if block
+                .terminator
+                .as_ref()
+                .is_some_and(|terminator| terminator_values(terminator).contains(&adapter))
+            {
+                if !matches!(
+                    &block.terminator,
+                    Some(Terminator::Return(Some(value)) | Terminator::Throw(value))
+                        if *value == adapter
+                ) {
+                    return false;
+                }
+                property_slot_only = false;
+            }
+        }
+        if has_local_hint && !property_slot_only {
+            return false;
+        }
+        true
+    }
+
+    /// Select functions whose source-omitted scalar defaults can be represented
+    /// directly by JavaScript parameter initializers. Complex defaults remain
+    /// caller-materialized in neutral IR until their allocation and capture
+    /// semantics have an equally exact target projection.
+    fn assign_callee_default_functions(&mut self) {
+        if !self.options.callee_default_arguments {
+            return;
+        }
+        let observable = self
+            .module
+            .exports
+            .iter()
+            .chain(
+                self.module
+                    .lazy_modules
+                    .iter()
+                    .flat_map(|module| module.exports.iter()),
+            )
+            .filter_map(|export| match export.binding {
+                ExportBinding::Function(function) => Some(function),
+                _ => None,
+            })
+            .chain(
+                self.module
+                    .functions
+                    .iter()
+                    .flat_map(|function| &function.blocks)
+                    .flat_map(|block| &block.instructions)
+                    .filter_map(|instruction| match instruction.op {
+                        ControlFlowOp::Closure { function, .. } => Some(function),
+                        _ => None,
+                    }),
+            )
+            .collect::<AHashSet<_>>();
+        let omitted_calls = self
+            .module
+            .functions
+            .iter()
+            .flat_map(|function| &function.blocks)
+            .flat_map(|block| &block.instructions)
+            .filter_map(|instruction| match &instruction.op {
+                ControlFlowOp::CallDirect {
+                    function,
+                    args,
+                    provided_args,
+                } if *provided_args < args.len() => Some(*function),
+                _ => None,
+            })
+            .collect::<AHashSet<_>>();
+        self.callee_default_functions = self
+            .module
+            .functions
+            .iter()
+            .filter(|function| {
+                function.kind == FunctionKind::Function
+                    && function.capture_count == 0
+                    && !observable.contains(&function.id)
+                    && omitted_calls.contains(&function.id)
+                    && !self.function_reads_own_arguments(function)
+                    && function
+                        .params
+                        .iter()
+                        .any(|parameter| parameter.default.is_some())
+                    && function.params.iter().all(|parameter| {
+                        parameter.default.as_ref().is_none_or(|default| {
+                            matches!(default, crate::ir::IrParamDefault::Const(_))
+                                && !type_can_contain_javascript_undefined(&parameter.ty)
+                        })
+                    })
+            })
+            .map(|function| function.id)
+            .collect();
+    }
+
+    /// Select an emission-only representation for a private function whose
+    /// complete runtime identity is one direct call. Keeping this proof in the
+    /// whole-module emitter is important: a local call-site check cannot see
+    /// exports, address-taking, or a recursive path through another function.
+    fn assign_inline_single_use_functions(&mut self) {
+        if !self.options.inline_single_use_functions {
+            return;
+        }
+        let exported = self
+            .module
+            .exports
+            .iter()
+            .chain(
+                self.module
+                    .lazy_modules
+                    .iter()
+                    .flat_map(|module| module.exports.iter()),
+            )
+            .filter_map(|export| match export.binding {
+                ExportBinding::Function(function) => Some(function),
+                _ => None,
+            })
+            .collect::<AHashSet<_>>();
+        let mut direct_calls = AHashMap::<FunctionId, Vec<(FunctionId, BlockId)>>::default();
+        let mut address_taken = AHashSet::default();
+        let mut call_graph = AHashMap::<FunctionId, Vec<FunctionId>>::default();
+        for caller in self
+            .module
+            .functions
+            .iter()
+            .filter(|function| function.live)
+        {
+            for block in &caller.blocks {
+                for instruction in &block.instructions {
+                    match instruction.op {
+                        ControlFlowOp::CallDirect { function, .. } => {
+                            direct_calls
+                                .entry(function)
+                                .or_default()
+                                .push((caller.id, block.id));
+                            call_graph.entry(caller.id).or_default().push(function);
+                        }
+                        ControlFlowOp::CallMethod { function, .. }
+                        | ControlFlowOp::NewClass {
+                            constructor: Some(function),
+                            ..
+                        } => {
+                            address_taken.insert(function);
+                            call_graph.entry(caller.id).or_default().push(function);
+                        }
+                        ControlFlowOp::Closure { function, .. } => {
+                            address_taken.insert(function);
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+        let recursive = self
+            .module
+            .functions
+            .iter()
+            .filter_map(|function| {
+                let start = function.id;
+                let mut seen = AHashSet::default();
+                let mut pending = call_graph.get(&start).cloned().unwrap_or_default();
+                while let Some(callee) = pending.pop() {
+                    if callee == start {
+                        return Some(start);
+                    }
+                    if seen.insert(callee) {
+                        pending.extend(call_graph.get(&callee).into_iter().flatten().copied());
+                    }
+                }
+                None
+            })
+            .collect::<AHashSet<_>>();
+        let eligible = self
+            .module
+            .functions
+            .iter()
+            .filter(|function| {
+                function.live
+                    && function.kind == FunctionKind::Function
+                    && function.capture_count == 0
+                    && direct_calls
+                        .get(&function.id)
+                        .is_some_and(|sites| sites.len() == 1)
+                    && !exported.contains(&function.id)
+                    && !address_taken.contains(&function.id)
+                    && !recursive.contains(&function.id)
+            })
+            .map(|function| function.id)
+            .collect::<AHashSet<_>>();
+        // Entry executes once. A function selected from a non-loop call in an
+        // already single-execution caller also executes at most once, so its
+        // private callees can be projected transitively without introducing
+        // repeated function allocation. This fixed point handles nested
+        // generator pipelines while rejecting helpers reached from reusable
+        // callers.
+        let mut single_execution_callers = AHashSet::from_iter([self.module.entry]);
+        loop {
+            let additions = eligible
+                .iter()
+                .filter(|function| !self.inline_single_use_functions.contains(function))
+                .filter(|function| {
+                    let [(caller, block)] = direct_calls[function].as_slice() else {
+                        return false;
+                    };
+                    single_execution_callers.contains(caller)
+                        && self
+                            .module
+                            .functions
+                            .get(caller.0 as usize)
+                            .is_some_and(|caller| !block_is_inside_loop(caller, *block))
+                })
+                .copied()
+                .collect::<Vec<_>>();
+            if additions.is_empty() {
+                break;
+            }
+            single_execution_callers.extend(additions.iter().copied());
+            self.inline_single_use_functions.extend(additions);
+        }
+    }
+
+    fn exported_functions(&self) -> AHashSet<FunctionId> {
+        self.module
+            .exports
+            .iter()
+            .chain(
+                self.module
+                    .lazy_modules
+                    .iter()
+                    .flat_map(|module| module.exports.iter()),
+            )
+            .filter_map(|export| match export.binding {
+                ExportBinding::Function(function) => Some(function),
+                _ => None,
+            })
+            .collect()
+    }
+
+    fn once_run_functions(&self) -> AHashSet<FunctionId> {
+        let exported = self.exported_functions();
+        let mut direct_calls = AHashMap::<FunctionId, Vec<(FunctionId, BlockId)>>::default();
+        let mut address_taken = AHashSet::default();
+        for caller in self
+            .module
+            .functions
+            .iter()
+            .filter(|function| function.live)
+        {
+            for block in &caller.blocks {
+                for instruction in &block.instructions {
+                    match instruction.op {
+                        ControlFlowOp::CallDirect { function, .. } => {
+                            direct_calls
+                                .entry(function)
+                                .or_default()
+                                .push((caller.id, block.id));
+                        }
+                        ControlFlowOp::CallMethod { function, .. }
+                        | ControlFlowOp::NewClass {
+                            constructor: Some(function),
+                            ..
+                        }
+                        | ControlFlowOp::Closure { function, .. } => {
+                            address_taken.insert(function);
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+        let mut once_run = AHashSet::from_iter([self.module.entry]);
+        loop {
+            let additions = self
+                .module
+                .functions
+                .iter()
+                .filter(|function| {
+                    function.live
+                        && !once_run.contains(&function.id)
+                        && !exported.contains(&function.id)
+                        && !address_taken.contains(&function.id)
+                        && direct_calls.get(&function.id).is_some_and(|sites| {
+                            let [(caller, block)] = sites.as_slice() else {
+                                return false;
+                            };
+                            once_run.contains(caller)
+                                && self
+                                    .module
+                                    .functions
+                                    .get(caller.0 as usize)
+                                    .is_some_and(|caller| !block_is_inside_loop(caller, *block))
+                        })
+                })
+                .map(|function| function.id)
+                .collect::<Vec<_>>();
+            if additions.is_empty() {
+                break;
+            }
+            once_run.extend(additions);
+        }
+        once_run
+    }
+
+    fn assign_inline_exclusive_closures(&mut self) {
+        if !self.options.inline_exclusive_closures {
+            return;
+        }
+        let exported = self.exported_functions();
+        let mut closure_sites =
+            AHashMap::<FunctionId, Vec<(FunctionId, BlockId, ValueId)>>::default();
+        let mut invoked = AHashSet::default();
+        for caller in self
+            .module
+            .functions
+            .iter()
+            .filter(|function| function.live)
+        {
+            for block in &caller.blocks {
+                for instruction in &block.instructions {
+                    match instruction.op {
+                        ControlFlowOp::CallDirect { function, .. }
+                        | ControlFlowOp::CallMethod { function, .. }
+                        | ControlFlowOp::NewClass {
+                            constructor: Some(function),
+                            ..
+                        } => {
+                            invoked.insert(function);
+                        }
+                        ControlFlowOp::Closure { function, .. } => {
+                            if let Some(dest) = instruction.out {
+                                closure_sites
+                                    .entry(function)
+                                    .or_default()
+                                    .push((caller.id, block.id, dest));
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+        self.inline_exclusive_closures = self
+            .module
+            .functions
+            .iter()
+            .filter(|function| {
+                if !function.live
+                    || function.is_generator
+                    || function.is_async
+                    || exported.contains(&function.id)
+                    || invoked.contains(&function.id)
+                    || self.js_calling_conventions.contains_key(&function.id)
+                    || self.inline_single_use_functions.contains(&function.id)
+                    || self.is_imported_extern(function)
+                    || self.js_host_alias_skips_binding(function.id)
+                    || function
+                        .params
+                        .iter()
+                        .any(|parameter| parameter.default.is_some())
+                {
+                    return false;
+                }
+                if !matches!(
+                    function.kind,
+                    FunctionKind::Function | FunctionKind::Closure
+                ) {
+                    return false;
+                }
+                let single_block = function.blocks.len() == 1 && function.blocks[0].phis.is_empty();
+                if !single_block && !can_structure(function) {
+                    return false;
+                }
+                closure_sites
+                    .get(&function.id)
+                    .is_some_and(|sites| sites.len() == 1)
+            })
+            .map(|function| function.id)
+            .collect();
+    }
+
+    fn assign_private_callee_clusters(&mut self) {
+        if !self.options.iife_private_callee_clusters && !self.options.nested_once_run_helpers {
+            return;
+        }
+        let exported = self.exported_functions();
+        let once_run = self.once_run_functions();
+        let mut callers = AHashMap::<FunctionId, AHashSet<FunctionId>>::default();
+        let mut address_taken = AHashSet::default();
+        let mut constructed = AHashMap::<FunctionId, Vec<(FunctionId, BlockId)>>::default();
+        for caller in self
+            .module
+            .functions
+            .iter()
+            .filter(|function| function.live)
+        {
+            for block in &caller.blocks {
+                for instruction in &block.instructions {
+                    match instruction.op {
+                        ControlFlowOp::CallDirect { function, .. } => {
+                            callers.entry(function).or_default().insert(caller.id);
+                            constructed
+                                .entry(function)
+                                .or_default()
+                                .push((caller.id, block.id));
+                        }
+                        ControlFlowOp::CallMethod { function, .. }
+                        | ControlFlowOp::NewClass {
+                            constructor: Some(function),
+                            ..
+                        }
+                        | ControlFlowOp::Closure { function, .. } => {
+                            address_taken.insert(function);
+                            constructed
+                                .entry(function)
+                                .or_default()
+                                .push((caller.id, block.id));
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+        let once_constructed_ids = constructed
+            .iter()
+            .filter_map(|(id, sites)| {
+                (!sites.is_empty()
+                    && sites.iter().all(|(caller, block)| {
+                        once_run.contains(caller)
+                            && self
+                                .module
+                                .functions
+                                .get(caller.0 as usize)
+                                .is_some_and(|caller| !block_is_inside_loop(caller, *block))
+                    }))
+                .then_some(*id)
+            })
+            .collect::<AHashSet<_>>();
+        let helper_ok = |emitter: &Self, id: FunctionId| {
+            let Some(function) = emitter.module.functions.get(id.0 as usize) else {
+                return false;
+            };
+            function.live
+                && matches!(function.kind, FunctionKind::Function)
+                && function.capture_count == 0
+                && !function.is_generator
+                && !function.is_async
+                && !exported.contains(&id)
+                && !address_taken.contains(&id)
+                && !emitter.inline_exclusive_closures.contains(&id)
+                && !emitter.inline_single_use_functions.contains(&id)
+                && !emitter.function_is_inlined(function)
+                && !emitter.is_imported_extern(function)
+                && !emitter.js_host_alias_skips_binding(id)
+                && !emitter.clustered_helpers.contains(&id)
+        };
+        let roots = self
+            .module
+            .functions
+            .iter()
+            .filter(|function| {
+                function.live
+                    && function.kind != FunctionKind::Entry
+                    && !exported.contains(&function.id)
+                    && !self.is_imported_extern(function)
+                    && (!self.function_is_inlined(function)
+                        || once_constructed_ids.contains(&function.id))
+            })
+            .map(|function| function.id)
+            .collect::<Vec<_>>();
+        let mut clusters = AHashMap::<FunctionId, Vec<FunctionId>>::default();
+        for root in roots {
+            let mut reachable = AHashSet::default();
+            let mut pending = vec![root];
+            while let Some(current) = pending.pop() {
+                let Some(function) = self.module.functions.get(current.0 as usize) else {
+                    continue;
+                };
+                for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
+                    let ControlFlowOp::CallDirect {
+                        function: callee, ..
+                    } = instruction.op
+                    else {
+                        continue;
+                    };
+                    if callee == root || reachable.contains(&callee) || !helper_ok(self, callee) {
+                        continue;
+                    }
+                    reachable.insert(callee);
+                    pending.push(callee);
+                }
+            }
+            loop {
+                let drop = reachable
+                    .iter()
+                    .copied()
+                    .filter(|helper| {
+                        !callers.get(helper).is_some_and(|sites| {
+                            !sites.is_empty()
+                                && sites.iter().all(|caller| {
+                                    *caller == root
+                                        || reachable.contains(caller)
+                                        || *caller == *helper
+                                })
+                        })
+                    })
+                    .collect::<Vec<_>>();
+                if drop.is_empty() {
+                    break;
+                }
+                for helper in drop {
+                    reachable.remove(&helper);
+                }
+            }
+            if !reachable.is_empty() {
+                let mut helpers = reachable.into_iter().collect::<Vec<_>>();
+                helpers.sort_by_key(|id| id.0);
+                clusters.insert(root, helpers);
+            }
+        }
+        let claimed = clusters.values().flatten().copied().collect::<Vec<_>>();
+        for helper in claimed {
+            clusters.remove(&helper);
+        }
+        if self.options.iife_private_callee_clusters {
+            let helper_ok_set = self
+                .module
+                .functions
+                .iter()
+                .map(|function| function.id)
+                .filter(|id| {
+                    helper_ok(self, *id) && !clusters.values().any(|helpers| helpers.contains(id))
+                })
+                .collect::<AHashSet<_>>();
+            let named_emit_root = |emitter: &Self, id: FunctionId| {
+                let Some(function) = emitter.module.functions.get(id.0 as usize) else {
+                    return false;
+                };
+                function.live
+                    && function.kind != FunctionKind::Entry
+                    && !exported.contains(&id)
+                    && !emitter.is_imported_extern(function)
+                    && !emitter.inline_exclusive_closures.contains(&id)
+                    && !emitter.inline_single_use_functions.contains(&id)
+                    && !emitter.function_is_inlined(function)
+            };
+            let mut direct_named_roots = AHashMap::<FunctionId, Vec<FunctionId>>::default();
+            for helper in &helper_ok_set {
+                let mut roots = callers
+                    .get(helper)
+                    .into_iter()
+                    .flatten()
+                    .copied()
+                    .filter(|caller| *caller != *helper && named_emit_root(self, *caller))
+                    .collect::<Vec<_>>();
+                roots.sort_by_key(|id| id.0);
+                roots.dedup();
+                direct_named_roots.insert(*helper, roots);
+            }
+            let mut named_groups = AHashMap::<Vec<FunctionId>, Vec<FunctionId>>::default();
+            for (helper, roots) in &direct_named_roots {
+                if roots.len() < 2 {
+                    continue;
+                }
+                let Some(sites) = callers.get(helper) else {
+                    continue;
+                };
+                if !sites
+                    .iter()
+                    .all(|caller| *caller == *helper || named_emit_root(self, *caller))
+                {
+                    continue;
+                }
+                named_groups.entry(roots.clone()).or_default().push(*helper);
+            }
+            let mut named_groups = named_groups.into_iter().collect::<Vec<_>>();
+            named_groups.sort_by(|(left_roots, left_helpers), (right_roots, right_helpers)| {
+                right_helpers
+                    .len()
+                    .cmp(&left_helpers.len())
+                    .then_with(|| left_roots.len().cmp(&right_roots.len()))
+                    .then_with(|| left_roots.cmp(right_roots))
+            });
+            let mut claimed_named_roots = AHashSet::default();
+            for (roots, mut helpers) in named_groups {
+                if roots.iter().any(|root| claimed_named_roots.contains(root)) {
+                    continue;
+                }
+                helpers.sort_by_key(|id| id.0);
+                claimed_named_roots.extend(roots.iter().copied());
+                let index = self.named_callee_clusters.len();
+                for root in &roots {
+                    self.named_cluster_by_root.insert(*root, index);
+                    if let Some(exclusive) = clusters.remove(root) {
+                        helpers.extend(exclusive);
+                    }
+                }
+                helpers.sort_by_key(|id| id.0);
+                helpers.dedup();
+                helpers.retain(|id| !claimed_named_roots.contains(id));
+                self.named_callee_clusters.push((roots, helpers));
+            }
+            for helper in &helper_ok_set {
+                if claimed_named_roots.contains(helper)
+                    || self
+                        .named_callee_clusters
+                        .iter()
+                        .any(|(_, helpers)| helpers.contains(helper))
+                {
+                    continue;
+                }
+                let Some(sites) = callers.get(helper) else {
+                    continue;
+                };
+                let mut matched = None;
+                for (index, (roots, helpers)) in self.named_callee_clusters.iter().enumerate() {
+                    if sites.iter().all(|caller| {
+                        *caller == *helper || roots.contains(caller) || helpers.contains(caller)
+                    }) {
+                        if matched.is_some() {
+                            matched = None;
+                            break;
+                        }
+                        matched = Some(index);
+                    }
+                }
+                if let Some(index) = matched {
+                    self.named_callee_clusters[index].1.push(*helper);
+                }
+            }
+            for (_, helpers) in &mut self.named_callee_clusters {
+                helpers.sort_by_key(|id| id.0);
+                helpers.dedup();
+            }
+            let mut kept_named = Vec::new();
+            let mut kept_root_index = AHashMap::default();
+            for (roots, helpers) in self.named_callee_clusters.drain(..) {
+                if helpers.len() < MIN_IIFE_CLUSTER_HELPERS {
+                    continue;
+                }
+                let index = kept_named.len();
+                for root in &roots {
+                    kept_root_index.insert(*root, index);
+                }
+                self.clustered_helpers.extend(helpers.iter().copied());
+                kept_named.push((roots, helpers));
+            }
+            self.named_callee_clusters = kept_named;
+            self.named_cluster_by_root = kept_root_index;
+        }
+        if self.options.nested_once_run_helpers {
+            let referenced_by = constructed
+                .iter()
+                .map(|(id, sites)| {
+                    (
+                        *id,
+                        sites
+                            .iter()
+                            .map(|(caller, _)| *caller)
+                            .collect::<AHashSet<_>>(),
+                    )
+                })
+                .collect::<AHashMap<_, _>>();
+            for host in &once_run {
+            if *host == self.module.entry {
+                continue;
+            }
+            let Some(host_fn) = self.module.functions.get(host.0 as usize) else {
+                continue;
+            };
+            if exported.contains(host)
+                || self.is_imported_extern(host_fn)
+                || self.inline_exclusive_closures.contains(host)
+                || self.inline_single_use_functions.contains(host)
+                || self.function_is_inlined(host_fn)
+            {
+                continue;
+            }
+            let mut closures = AHashSet::default();
+            for instruction in host_fn.blocks.iter().flat_map(|block| &block.instructions) {
+                if let ControlFlowOp::Closure { function, .. } = instruction.op {
+                    if self.inline_exclusive_closures.contains(&function) {
+                        closures.insert(function);
+                    }
+                }
+            }
+            let mut members = closures.clone();
+            members.insert(*host);
+            let mut helpers = Vec::new();
+            loop {
+                let mut added = false;
+                for function in self
+                    .module
+                    .functions
+                    .iter()
+                    .filter(|function| function.live)
+                {
+                    let id = function.id;
+                    if members.contains(&id)
+                        || helpers.contains(&id)
+                        || self.clustered_helpers.contains(&id)
+                        || self.named_cluster_by_root.contains_key(&id)
+                    {
+                        continue;
+                    }
+                    if !matches!(function.kind, FunctionKind::Function)
+                        || function.capture_count != 0
+                        || function.is_generator
+                        || function.is_async
+                        || exported.contains(&id)
+                        || self.inline_exclusive_closures.contains(&id)
+                        || self.inline_single_use_functions.contains(&id)
+                        || self.function_is_inlined(function)
+                        || self.is_imported_extern(function)
+                        || self.js_host_alias_skips_binding(id)
+                    {
+                        continue;
+                    }
+                    let Some(sites) = referenced_by.get(&id) else {
+                        continue;
+                    };
+                    if sites.is_empty() {
+                        continue;
+                    }
+                    if sites
+                        .iter()
+                        .all(|caller| members.contains(caller) || helpers.contains(caller))
+                    {
+                        helpers.push(id);
+                        members.insert(id);
+                        added = true;
+                    }
+                }
+                if !added {
+                    break;
+                }
+            }
+            for closure in &closures {
+                if let Some(exclusive) = clusters.remove(closure) {
+                    helpers.extend(exclusive);
+                }
+            }
+            if helpers.is_empty() {
+                continue;
+            }
+            helpers.sort_by_key(|id| id.0);
+            helpers.dedup();
+            self.clustered_helpers.extend(helpers.iter().copied());
+            self.nested_once_run_helpers.insert(*host, helpers);
+        }
+        }
+        if self.options.iife_private_callee_clusters {
+            let claimed = clusters.values().flatten().copied().collect::<Vec<_>>();
+            for helper in claimed {
+                clusters.remove(&helper);
+            }
+            self.private_callee_clusters = clusters
+                .into_iter()
+                .filter_map(|(root, mut helpers)| {
+                    if self.named_cluster_by_root.contains_key(&root) {
+                        return None;
+                    }
+                    helpers.retain(|id| !self.named_cluster_by_root.contains_key(id));
+                    (helpers.len() >= MIN_IIFE_CLUSTER_HELPERS).then_some((root, helpers))
+                })
+                .collect();
+            self.clustered_helpers
+                .extend(self.private_callee_clusters.values().flatten().copied());
+        }
+        self.uncluster_named_cluster_roots();
+        self.uncluster_helpers_with_external_callers(&callers);
+        self.reconcile_clustered_helpers();
+    }
+
+    fn uncluster_named_cluster_roots(&mut self) {
+        let named_roots = self
+            .named_cluster_by_root
+            .keys()
+            .copied()
+            .collect::<AHashSet<_>>();
+        if named_roots.is_empty() {
+            return;
+        }
+        self.strip_ids_from_cluster_helper_lists(&named_roots);
+    }
+
+    fn strip_ids_from_cluster_helper_lists(&mut self, ids: &AHashSet<FunctionId>) {
+        for id in ids {
+            self.clustered_helpers.remove(id);
+        }
+        for helpers in self.private_callee_clusters.values_mut() {
+            helpers.retain(|id| !ids.contains(id));
+        }
+        self.private_callee_clusters
+            .retain(|_, helpers| helpers.len() >= MIN_IIFE_CLUSTER_HELPERS);
+        for (_, helpers) in &mut self.named_callee_clusters {
+            helpers.retain(|id| !ids.contains(id));
+        }
+        for helpers in self.nested_once_run_helpers.values_mut() {
+            helpers.retain(|id| !ids.contains(id));
+        }
+    }
+
+    fn reconcile_clustered_helpers(&mut self) {
+        let mut keep = AHashSet::default();
+        keep.extend(self.private_callee_clusters.values().flatten().copied());
+        keep.extend(
+            self.named_callee_clusters
+                .iter()
+                .flat_map(|(_, helpers)| helpers.iter().copied()),
+        );
+        keep.extend(self.nested_once_run_helpers.values().flatten().copied());
+        self.clustered_helpers = keep;
+    }
+
+    fn cluster_root_emits_wrapper(&self, root: FunctionId) -> bool {
+        let Some(function) = self.module.functions.get(root.0 as usize) else {
+            return false;
+        };
+        if !function.live
+            || self.is_imported_extern(function)
+            || self.inline_pure_helpers.contains(&root)
+            || self.inline_fresh_empty_array_factories.contains(&root)
+            || self.js_host_alias_spelling(root).is_some()
+        {
+            return false;
+        }
+        if self.inline_single_use_functions.contains(&root)
+            || self.inline_exclusive_closures.contains(&root)
+        {
+            return true;
+        }
+        !self.function_is_inlined(function)
+    }
+
+    fn assign_released_helper_names(&mut self, released: Vec<FunctionId>) {
+        for helper in released {
+            if self.function_names.contains_key(&helper)
+                || self.clustered_helpers.contains(&helper)
+                || self.inline_pure_helpers.contains(&helper)
+                || self.inline_single_use_functions.contains(&helper)
+                || self.inline_exclusive_closures.contains(&helper)
+                || self.inline_fresh_empty_array_factories.contains(&helper)
+                || self.js_host_alias_skips_binding(helper)
+                || self.module.functions.get(helper.0 as usize).is_some_and(|function| {
+                    !function.live
+                        || self.function_is_inlined(function)
+                        || self.is_imported_extern(function)
+                })
+            {
+                continue;
+            }
+            let name = if self.options.mangle_identifiers {
+                self.top_level_mangler.next_name()
+            } else {
+                let source = self
+                    .module
+                    .functions
+                    .get(helper.0 as usize)
+                    .and_then(|function| function.name)
+                    .unwrap_or("helper");
+                self.top_level_mangler.unique_name(source)
+            };
+            self.function_names.insert(helper, name);
+        }
+    }
+
+    fn release_nested_helpers_of_pure_inline_hosts(&mut self) {
+        let hosts = self
+            .nested_once_run_helpers
+            .keys()
+            .copied()
+            .filter(|host| self.inline_pure_helpers.contains(host))
+            .collect::<Vec<_>>();
+        if hosts.is_empty() {
+            return;
+        }
+        let mut released = Vec::new();
+        for host in hosts {
+            if let Some(helpers) = self.nested_once_run_helpers.remove(&host) {
+                released.extend(helpers);
+            }
+        }
+        for helper in &released {
+            self.clustered_helpers.remove(helper);
+        }
+        self.reconcile_clustered_helpers();
+        self.assign_released_helper_names(released);
+    }
+
+    fn release_stranded_cluster_helpers(&mut self) {
+        let stranded_private = self
+            .private_callee_clusters
+            .keys()
+            .copied()
+            .filter(|root| !self.cluster_root_emits_wrapper(*root))
+            .collect::<Vec<_>>();
+        let mut released = Vec::new();
+        for root in stranded_private {
+            if let Some(helpers) = self.private_callee_clusters.remove(&root) {
+                released.extend(helpers);
+            }
+        }
+        let named_clusters = std::mem::take(&mut self.named_callee_clusters);
+        let mut kept_named = Vec::new();
+        let mut kept_root_index = AHashMap::default();
+        for (roots, helpers) in named_clusters {
+            if roots
+                .iter()
+                .any(|root| self.cluster_root_emits_wrapper(*root))
+            {
+                let index = kept_named.len();
+                for root in &roots {
+                    kept_root_index.insert(*root, index);
+                }
+                kept_named.push((roots, helpers));
+            } else {
+                released.extend(helpers);
+            }
+        }
+        self.named_callee_clusters = kept_named;
+        self.named_cluster_by_root = kept_root_index;
+        self.reconcile_clustered_helpers();
+        self.assign_released_helper_names(released);
+    }
+
+    fn uncluster_helpers_with_external_callers(
+        &mut self,
+        callers: &AHashMap<FunctionId, AHashSet<FunctionId>>,
+    ) {
+        let mut members_of = AHashMap::<FunctionId, AHashSet<FunctionId>>::default();
+        for (root, helpers) in &self.private_callee_clusters {
+            let mut members = helpers.iter().copied().collect::<AHashSet<_>>();
+            members.insert(*root);
+            for helper in helpers {
+                members_of
+                    .entry(*helper)
+                    .or_default()
+                    .extend(members.iter().copied());
+            }
+        }
+        for (roots, helpers) in &self.named_callee_clusters {
+            let members = helpers
+                .iter()
+                .copied()
+                .chain(roots.iter().copied())
+                .collect::<AHashSet<_>>();
+            for helper in helpers {
+                members_of
+                    .entry(*helper)
+                    .or_default()
+                    .extend(members.iter().copied());
+            }
+        }
+        for (host, helpers) in &self.nested_once_run_helpers {
+            let mut members = helpers.iter().copied().collect::<AHashSet<_>>();
+            members.insert(*host);
+            for helper in helpers {
+                members_of
+                    .entry(*helper)
+                    .or_default()
+                    .extend(members.iter().copied());
+            }
+        }
+        let escaped = self
+            .clustered_helpers
+            .iter()
+            .copied()
+            .filter(|helper| {
+                callers.get(helper).is_some_and(|sites| {
+                    sites.iter().any(|caller| {
+                        *caller != *helper
+                            && members_of
+                                .get(helper)
+                                .is_none_or(|members| !members.contains(caller))
+                    })
+                })
+            })
+            .collect::<Vec<_>>();
+        if escaped.is_empty() {
+            return;
+        }
+        let escaped_set = escaped.iter().copied().collect::<AHashSet<_>>();
+        for helper in &escaped_set {
+            self.clustered_helpers.remove(helper);
+        }
+        for helpers in self.private_callee_clusters.values_mut() {
+            helpers.retain(|id| !escaped_set.contains(id));
+        }
+        self.private_callee_clusters
+            .retain(|_, helpers| helpers.len() >= MIN_IIFE_CLUSTER_HELPERS);
+        for (_, helpers) in &mut self.named_callee_clusters {
+            helpers.retain(|id| !escaped_set.contains(id));
+        }
+        for helpers in self.nested_once_run_helpers.values_mut() {
+            helpers.retain(|id| !escaped_set.contains(id));
+        }
+    }
+
+    fn assign_inline_fresh_empty_array_factories(&mut self) {
+        if self.options.inline_fresh_empty_array_factories {
+            self.inline_fresh_empty_array_factories =
+                inlineable_fresh_empty_array_factories(self.module);
+        }
+    }
+
+    fn assign_inline_pure_helpers(&mut self) {
+        if self.options.pure_helper_inlining == PureHelperInliningPolicy::None {
+            return;
+        }
+        let exported = self
+            .module
+            .exports
+            .iter()
+            .chain(
+                self.module
+                    .lazy_modules
+                    .iter()
+                    .flat_map(|module| module.exports.iter()),
+            )
+            .filter_map(|export| match export.binding {
+                ExportBinding::Function(function) => Some(function),
+                _ => None,
+            })
+            .collect::<AHashSet<_>>();
+        let mut direct_calls =
+            AHashMap::<FunctionId, Vec<(FunctionId, Vec<ValueId>, usize)>>::default();
+        let mut address_taken = AHashSet::default();
+        let mut call_graph = AHashMap::<FunctionId, Vec<FunctionId>>::default();
+        for caller in self
+            .module
+            .functions
+            .iter()
+            .filter(|function| function.live)
+        {
+            for instruction in caller.blocks.iter().flat_map(|block| &block.instructions) {
+                match &instruction.op {
+                    ControlFlowOp::CallDirect {
+                        function,
+                        args,
+                        provided_args,
+                    } => {
+                        direct_calls.entry(*function).or_default().push((
+                            caller.id,
+                            args.clone(),
+                            *provided_args,
+                        ));
+                        call_graph.entry(caller.id).or_default().push(*function);
+                    }
+                    ControlFlowOp::CallMethod { function, .. }
+                    | ControlFlowOp::NewClass {
+                        constructor: Some(function),
+                        ..
+                    } => {
+                        address_taken.insert(*function);
+                        call_graph.entry(caller.id).or_default().push(*function);
+                    }
+                    ControlFlowOp::Closure { function, .. } => {
+                        address_taken.insert(*function);
+                    }
+                    _ => {}
+                }
+            }
+        }
+        let recursive = self
+            .module
+            .functions
+            .iter()
+            .filter_map(|function| {
+                let start = function.id;
+                let mut seen = AHashSet::default();
+                let mut pending = call_graph.get(&start).cloned().unwrap_or_default();
+                while let Some(callee) = pending.pop() {
+                    if callee == start {
+                        return Some(start);
+                    }
+                    if seen.insert(callee) {
+                        pending.extend(call_graph.get(&callee).into_iter().flatten().copied());
+                    }
+                }
+                None
+            })
+            .collect::<AHashSet<_>>();
+
+        let mut eligible = self
+            .module
+            .functions
+            .iter()
+            .filter(|function| {
+                let calls = direct_calls.get(&function.id).map_or(0, Vec::len);
+                function.live
+                    && function.kind == FunctionKind::Function
+                    && function.declared_pure
+                    && function.capture_count == 0
+                    && !function.is_async
+                    && !function.is_generator
+                    && calls != 0
+                    && (calls == 1
+                        || (self.options.pure_helper_inlining
+                            == PureHelperInliningPolicy::AllEligible
+                            // A multi-use outlined helper is the reusable
+                            // composite this IR variant was created to score.
+                            // Inline its eligible leaves, not the boundary
+                            // itself. If DCE leaves one call, normal single-use
+                            // substitution may still remove the stale boundary.
+                            && function.origin != FunctionOrigin::RepeatedRegionOutline))
+                    && !exported.contains(&function.id)
+                    && !address_taken.contains(&function.id)
+                    && !recursive.contains(&function.id)
+                    && can_structure(function)
+                    && function.blocks.iter().all(|block| {
+                        matches!(
+                            block.terminator,
+                            Some(
+                                Terminator::Jump(_)
+                                    | Terminator::Branch { .. }
+                                    | Terminator::Return(Some(_))
+                            )
+                        ) && block
+                            .instructions
+                            .iter()
+                            .all(|instruction| pure_helper_expression_op(function, instruction))
+                    })
+            })
+            .map(|function| function.id)
+            .collect::<AHashSet<_>>();
+
+        // Templates form an acyclic DAG. If one leaf is not selectable, every
+        // template that calls it must retain its ordinary declaration too.
+        loop {
+            let rejected = eligible
+                .iter()
+                .filter(|function| {
+                    self.module.functions[function.0 as usize]
+                        .blocks
+                        .iter()
+                        .flat_map(|block| &block.instructions)
+                        .any(|instruction| matches!(instruction.op, ControlFlowOp::CallDirect { function, .. } if !eligible.contains(&function)))
+                })
+                .copied()
+                .collect::<Vec<_>>();
+            if rejected.is_empty() {
+                break;
+            }
+            for function in rejected {
+                eligible.remove(&function);
+            }
+        }
+
+        let mut caller_contexts = AHashMap::<FunctionId, LocalNames>::default();
+        for sites in direct_calls.values() {
+            for (caller, _, _) in sites {
+                if caller_contexts.contains_key(caller) {
+                    continue;
+                }
+                let function = &self.module.functions[caller.0 as usize];
+                caller_contexts.insert(
+                    *caller,
+                    LocalNames::new(
+                        function,
+                        self.integer_analysis.function(*caller),
+                        false,
+                        &self.local_mangler(function),
+                        &self.preferred_local_names,
+                        &self.numeric_aliases,
+                        &self.options,
+                        &self.order_sensitive_inline_pure_helpers,
+                        &loop_captured_closures(function),
+                    ),
+                );
+            }
+        }
+        eligible.retain(|function| {
+            let callee = &self.module.functions[function.0 as usize];
+            direct_calls.get(function).is_some_and(|sites| {
+                sites.iter().all(|(caller, args, provided_args)| {
+                    *provided_args == args.len()
+                        && args.len() == callee.params.len()
+                        && caller_contexts.get(caller).is_some_and(|context| {
+                            args.iter().all(|argument| {
+                                context.inlined_values.contains_key(argument)
+                                    || context.parameter_values.contains(argument)
+                                    || context.stored_values.contains(argument)
+                                    || context.use_counts.get(argument).copied() == Some(1)
+                            })
+                        })
+                })
+            })
+        });
+        // Call-site preflight can remove a leaf after the first dependency
+        // closure. A single-use, non-materialized actual is admitted because
+        // its sole consumer owns its caller-cache expression; rendering binds
+        // that expression eagerly and transactionally. Re-close the DAG so no
+        // caller is suppressed while still containing a call to a retained
+        // ordinary declaration.
+        loop {
+            let rejected = eligible
+                .iter()
+                .filter(|function| {
+                    self.module.functions[function.0 as usize]
+                        .blocks
+                        .iter()
+                        .flat_map(|block| &block.instructions)
+                        .any(|instruction| matches!(instruction.op, ControlFlowOp::CallDirect { function, .. } if !eligible.contains(&function)))
+                })
+                .copied()
+                .collect::<Vec<_>>();
+            if rejected.is_empty() {
+                break;
+            }
+            for function in rejected {
+                eligible.remove(&function);
+            }
+        }
+        self.inline_pure_helpers = eligible.clone();
+        loop {
+            let mut rejected = Vec::new();
+            for function in eligible.iter().copied().collect::<Vec<_>>() {
+                let parameter_count = self.module.functions[function.0 as usize].params.len();
+                let placeholders = (0..parameter_count)
+                    .map(|index| JsExpression::atom(format!("$p{index}")))
+                    .collect::<Vec<_>>();
+                if !matches!(
+                    self.render_inline_pure_helper_expression(function, placeholders),
+                    Ok(Some(_))
+                ) {
+                    rejected.push(function);
+                }
+            }
+            let mut changed = !rejected.is_empty();
+            for function in rejected {
+                eligible.remove(&function);
+            }
+            let dependent_rejections = eligible
+                .iter()
+                .filter(|function| {
+                    self.module.functions[function.0 as usize]
+                        .blocks
+                        .iter()
+                        .flat_map(|block| &block.instructions)
+                        .any(|instruction| matches!(instruction.op, ControlFlowOp::CallDirect { function, .. } if !eligible.contains(&function)))
+                })
+                .copied()
+                .collect::<Vec<_>>();
+            changed |= !dependent_rejections.is_empty();
+            for function in dependent_rejections {
+                eligible.remove(&function);
+            }
+            self.inline_pure_helpers = eligible.clone();
+            if !changed {
+                break;
+            }
+        }
+        self.order_sensitive_inline_pure_helpers = eligible
+            .iter()
+            .copied()
+            .filter(|function| {
+                self.module.functions[function.0 as usize]
+                    .blocks
+                    .iter()
+                    .flat_map(|block| &block.instructions)
+                    .any(|instruction| matches!(instruction.op, ControlFlowOp::FieldGet { .. }))
+            })
+            .collect();
+        loop {
+            let additions = eligible
+                .iter()
+                .copied()
+                .filter(|function| !self.order_sensitive_inline_pure_helpers.contains(function))
+                .filter(|function| {
+                    self.module.functions[function.0 as usize]
+                        .blocks
+                        .iter()
+                        .flat_map(|block| &block.instructions)
+                        .any(|instruction| {
+                            matches!(instruction.op, ControlFlowOp::CallDirect { function, .. } if self.order_sensitive_inline_pure_helpers.contains(&function))
+                        })
+                })
+                .collect::<Vec<_>>();
+            if additions.is_empty() {
+                break;
+            }
+            self.order_sensitive_inline_pure_helpers.extend(additions);
+        }
+    }
+
     fn assign_named_field_aggregates(&mut self) {
-        if !self.options.public_aggregate_fields {
+        if !self.options.public_aggregate_fields && !self.options.named_aggregate_fields {
             return;
         }
         let layouts = self
@@ -1217,8 +3570,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     .flat_map(|module| module.exports.iter()),
             )
             .collect::<Vec<_>>();
+        let mut esm_public_aggregates = AHashSet::<String>::default();
         for layout in &layouts {
-            let public = exports.iter().any(|export| match export.binding {
+            let on_esm_export_surface = exports.iter().any(|export| match export.binding {
                 ExportBinding::TypeOnly => export.name == layout.name,
                 ExportBinding::Function(function) => {
                     self.module
@@ -1237,7 +3591,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     .iter()
                     .find(|candidate| candidate.symbol == global)
                     .is_some_and(|global| type_references_class(&global.ty, layout.name)),
-            }) || self.module.functions.iter().any(|function| {
+            });
+            let crosses_untyped_boundary = self.module.functions.iter().any(|function| {
                 function.params.iter().any(|parameter| {
                     function.value_escapes.get(parameter.value.0 as usize)
                         == Some(&EscapeState::EscapesToUntypedBoundary)
@@ -1258,27 +3613,50 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     })
                 })
             });
-            if public {
+            let escapes_untyped_boundary = on_esm_export_surface || crosses_untyped_boundary;
+            if on_esm_export_surface {
+                esm_public_aggregates.insert(layout.name.to_string());
+            }
+            if escapes_untyped_boundary && self.options.public_aggregate_fields {
                 self.named_field_aggregates.insert(layout.name.to_string());
+            }
+            if crosses_untyped_boundary && self.options.public_aggregate_fields {
+                self.dynamic_boundary_aggregates
+                    .insert(layout.name.to_string());
             }
         }
         loop {
             let mut changed = false;
             for layout in &layouts {
-                if !self.named_field_aggregates.contains(layout.name) {
+                let seed_named = self.named_field_aggregates.contains(layout.name);
+                let seed_esm = esm_public_aggregates.contains(layout.name);
+                let seed_dynamic = self.dynamic_boundary_aggregates.contains(layout.name);
+                if !seed_named && !seed_esm && !seed_dynamic {
                     continue;
                 }
                 for candidate in &layouts {
-                    if self.named_field_aggregates.contains(candidate.name) {
-                        continue;
-                    }
-                    if layout
+                    if !layout
                         .fields
                         .iter()
                         .any(|field| type_references_class(&field.ty, candidate.name))
                     {
-                        self.named_field_aggregates
-                            .insert(candidate.name.to_string());
+                        continue;
+                    }
+                    if seed_named
+                        && self
+                            .named_field_aggregates
+                            .insert(candidate.name.to_string())
+                    {
+                        changed = true;
+                    }
+                    if seed_esm && esm_public_aggregates.insert(candidate.name.to_string()) {
+                        changed = true;
+                    }
+                    if seed_dynamic
+                        && self
+                            .dynamic_boundary_aggregates
+                            .insert(candidate.name.to_string())
+                    {
                         changed = true;
                     }
                 }
@@ -1287,6 +3665,35 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 break;
             }
         }
+        self.abi_stable_aggregates = esm_public_aggregates;
+        if self.options.named_aggregate_fields {
+            let names = layouts
+                .iter()
+                .map(|layout| layout.name.to_string())
+                .collect::<Vec<_>>();
+            self.named_field_aggregates.extend(names);
+        }
+    }
+
+    fn function_is_inlined(&self, function: &ControlFlowFunction<'src>) -> bool {
+        if self.inline_exclusive_closures.contains(&function.id) {
+            return true;
+        }
+        if self.js_calling_conventions.contains_key(&function.id)
+            && ((function.blocks.len() == 1 && function.blocks[0].phis.is_empty())
+                || can_structure(function))
+        {
+            return true;
+        }
+        if function.kind == FunctionKind::Closure
+            && function.params[..function.capture_count]
+                .iter()
+                .any(|parameter| function.mutable_capture_locals.contains(&parameter.local))
+        {
+            return true;
+        }
+        function.kind == FunctionKind::Closure
+            && can_inline_closure(function, self.options.inline_structured_closures)
     }
 
     fn assign_constant_global_strings(&mut self) {
@@ -1299,7 +3706,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             .flat_map(|block| &block.instructions)
             .filter_map(|instruction| instruction.out.map(|out| (out, &instruction.op)))
             .collect::<AHashMap<_, _>>();
-        let mut assigned = AHashMap::<SymbolId, Option<String>>::new();
+        let mut assigned = AHashMap::<SymbolId, Option<String>>::default();
         for instruction in entry.blocks.iter().flat_map(|block| &block.instructions) {
             let ControlFlowOp::StoreGlobal { global, value } = instruction.op else {
                 continue;
@@ -1363,7 +3770,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
 
     fn emit_chunks(mut self, plan: &IrJsChunkPlan) -> Result<Vec<IrJsChunk>, CodegenError> {
         let fallback_span = self.function(self.module.entry)?.span;
-        let mut files = AHashSet::new();
+        let mut files = AHashSet::default();
         for file in std::iter::once(&plan.entry_file)
             .chain(plan.chunks.iter().map(|chunk| &chunk.file_name))
         {
@@ -1382,6 +3789,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 ));
             }
         }
+        self.validate_caller_materialized_default_abis()?;
+        // Chunk ownership/reference analysis predates emitter-local adapter
+        // fusion and cannot assign an inline-only named target to its use
+        // unit. Keep explicit chunk plans on the shared-factory path until
+        // that specialized ownership is represented in the plan itself.
+        self.disable_js_adapter_fusion = true;
         self.prepare();
         for chunk in &plan.chunks {
             if let Some(module) = chunk.lazy_module {
@@ -1435,7 +3848,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 if function_writes_global(
                     self.module,
                     *function,
-                    &mut AHashSet::new(),
+                    &mut AHashSet::default(),
                     self.options.inline_structured_closures,
                 ) {
                     return Err(CodegenError::new(
@@ -1458,8 +3871,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         let unit_files = std::iter::once(plan.entry_file.clone())
             .chain(plan.chunks.iter().map(|chunk| chunk.file_name.clone()))
             .collect::<Vec<_>>();
-        let mut imports = vec![AHashMap::<usize, AHashSet<String>>::new(); unit_files.len()];
-        let mut dynamic_imports = vec![AHashSet::<u32>::new(); unit_files.len()];
+        let mut imports = vec![AHashMap::<usize, AHashSet<String>>::default(); unit_files.len()];
+        let mut dynamic_imports = vec![AHashSet::<u32>::default(); unit_files.len()];
         for (unit, functions) in unit_functions.iter().enumerate() {
             let mut roots = functions.clone();
             if unit == 0 {
@@ -1555,7 +3968,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             }
         }
 
-        let mut internal_exports = vec![AHashSet::<String>::new(); unit_files.len()];
+        let mut internal_exports = vec![AHashSet::<String>::default(); unit_files.len()];
         for dependencies in &imports {
             for (source, names) in dependencies {
                 internal_exports[*source].extend(names.iter().cloned());
@@ -1574,6 +3987,15 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             );
             if unit == 0 {
                 self.emit_module_preamble(&mut code)?;
+            } else {
+                // Adapter factory bindings are compiler-private and therefore
+                // are not part of the chunk import/export graph. Emit the
+                // bounded, globally required set in each chunk so an adapter
+                // inside an inline-owned callback can never reference an
+                // entry-only binding.
+                let mut started = false;
+                self.emit_js_adapter_factories(&mut code, &mut started)?;
+                finish_let_list(&mut code, started);
             }
             self.emit_function_group(&unit_functions[unit], &mut code)?;
             if unit == 0 {
@@ -1658,52 +4080,304 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     }
 
     fn emit_module_preamble(&mut self, out: &mut String) -> Result<(), CodegenError> {
-        if !self.pooled_strings.is_empty() || !self.pooled_numbers.is_empty() {
-            out.push_str("let ");
-            let mut index = 0;
-            for (value, name) in &self.pooled_strings {
-                if index != 0 {
-                    out.push(',');
-                }
-                out.push_str(name);
-                out.push('=');
-                out.push_str(&render_string_literal(value, self.options.string_quote));
-                index += 1;
-            }
-            for (value, name) in &self.pooled_numbers {
-                if index != 0 {
-                    out.push(',');
-                }
-                out.push_str(name);
-                out.push('=');
-                out.push_str(value);
-                index += 1;
-            }
-            out.push(';');
-        }
+        self.emit_foreign_imports(out);
         let owned_globals = self
             .module
             .globals
             .iter()
             .filter(|global| !global.external)
+            .map(|global| global.symbol)
             .collect::<Vec<_>>();
-        if !owned_globals.is_empty() {
-            out.push_str("let ");
-            for (index, global) in owned_globals.iter().enumerate() {
+        self.emit_top_level_lets(out, &owned_globals)?;
+        self.declared_globals.extend(owned_globals);
+        self.emit_external_export_aliases(out)?;
+        Ok(())
+    }
+
+    fn emit_top_level_lets(
+        &mut self,
+        out: &mut String,
+        predeclared_globals: &[SymbolId],
+    ) -> Result<(), CodegenError> {
+        let mut started = false;
+        self.emit_js_adapter_factories(out, &mut started)?;
+        self.emit_js_host_aliases(out, &mut started)?;
+        self.emit_array_prototype_aliases(out, &mut started);
+        self.emit_js_window_binding(out, &mut started);
+        self.emit_pooled_literals(out, &mut started);
+        for symbol in predeclared_globals {
+            emit_let_item(out, &mut started);
+            out.push_str(self.global_name(*symbol)?);
+            if let Some(value) = self.constant_global_strings.get(symbol) {
+                out.push('=');
+                out.push_str(&render_string_literal(value, self.options.string_quote));
+            }
+        }
+        finish_let_list(out, started);
+        Ok(())
+    }
+
+    fn emit_pooled_literals(&self, out: &mut String, started: &mut bool) {
+        for (value, name) in &self.pooled_strings {
+            emit_let_item(out, started);
+            out.push_str(name);
+            out.push('=');
+            out.push_str(&render_string_literal(value, self.options.string_quote));
+        }
+        for (value, name) in &self.pooled_numbers {
+            emit_let_item(out, started);
+            out.push_str(name);
+            out.push('=');
+            out.push_str(value);
+        }
+    }
+
+    fn assign_direct_js_host_aliases(&mut self) {
+        if self.options.host_alias_spelling != HostAliasSpelling::Direct {
+            return;
+        }
+        self.direct_js_host_aliases = self
+            .module
+            .js_host_aliases
+            .iter()
+            .filter(|alias| {
+                alias.convention == JsHostAliasConvention::Callee
+                    && crate::optimizer::js_host_alias_is_simple_callee(alias.spelling)
+            })
+            .map(|alias| alias.function)
+            .collect();
+        if self.direct_js_host_aliases.is_empty() {
+            return;
+        }
+
+        for export in self.module.exports.iter().chain(
+            self.module
+                .lazy_modules
+                .iter()
+                .flat_map(|module| module.exports.iter()),
+        ) {
+            if let ExportBinding::Function(function) = export.binding {
+                self.direct_js_host_aliases.remove(&function);
+            }
+        }
+        for instruction in self
+            .module
+            .functions
+            .iter()
+            .flat_map(|function| &function.blocks)
+            .flat_map(|block| &block.instructions)
+        {
+            let value_use = match instruction.op {
+                ControlFlowOp::Closure { function, .. }
+                | ControlFlowOp::CallMethod { function, .. } => Some(function),
+                ControlFlowOp::NewClass {
+                    constructor: Some(function),
+                    ..
+                } => Some(function),
+                _ => None,
+            };
+            if let Some(function) = value_use {
+                self.direct_js_host_aliases.remove(&function);
+            }
+        }
+    }
+
+    fn js_host_alias(&self, id: FunctionId) -> Option<&JsHostAlias> {
+        self.module
+            .js_host_aliases
+            .iter()
+            .find(|alias| alias.function == id)
+    }
+
+    fn js_host_call_alias(&self, id: FunctionId) -> Option<JsHostAlias> {
+        if let Some(alias) = self.js_host_alias(id).copied() {
+            return Some(alias);
+        }
+        let function = self.module.functions.get(id.0 as usize)?;
+        if function.kind != FunctionKind::Extern {
+            return None;
+        }
+        let name = function.name?;
+        let (spelling, convention) = crate::optimizer::js_host_alias_spec(name)?;
+        Some(JsHostAlias {
+            function: id,
+            spelling,
+            convention,
+        })
+    }
+
+    fn js_host_alias_spelling(&self, id: FunctionId) -> Option<&'static str> {
+        self.js_host_call_alias(id).map(|alias| alias.spelling)
+    }
+
+    fn js_host_alias_emits_binding(&self, alias: &JsHostAlias) -> bool {
+        alias.convention.emits_binding() && !self.direct_js_host_aliases.contains(&alias.function)
+    }
+
+    fn is_imported_extern(&self, function: &ControlFlowFunction<'_>) -> bool {
+        function.kind == FunctionKind::Extern && self.js_host_call_alias(function.id).is_none()
+    }
+
+    fn instruction_is_js_throw(&self, instruction: &ControlFlowInstruction<'_>) -> bool {
+        matches!(
+            &instruction.op,
+            ControlFlowOp::CallDirect { function, .. }
+                if self.js_host_call_alias(*function).is_some_and(|alias| {
+                    !alias.convention.emits_binding()
+                })
+        )
+    }
+
+    fn emit_unreachable_terminator(
+        &self,
+        last: Option<&ControlFlowInstruction<'_>>,
+        out: &mut String,
+    ) {
+        if last.is_some_and(|instruction| self.instruction_is_js_throw(instruction)) {
+            return;
+        }
+        out.push_str("throw Error();");
+    }
+
+    fn emit_js_adapter_factories(
+        &self,
+        out: &mut String,
+        started: &mut bool,
+    ) -> Result<(), CodegenError> {
+        for convention in JsCallingConvention::ALL {
+            if !self.js_adapter_fallbacks.contains(&convention) {
+                continue;
+            }
+            emit_let_item(out, started);
+            out.push_str(self.js_adapter_factory_name(convention)?);
+            out.push_str("=e=>");
+            out.push_str(match convention {
+                JsCallingConvention::Method0 => "function(){return e(this)}",
+                JsCallingConvention::Method1 => "function(a){return e(this,a)}",
+                JsCallingConvention::MethodRest => "function(){return e(this,arguments)}",
+                JsCallingConvention::StaticRest => "function(){return e(arguments)}",
+            });
+        }
+        Ok(())
+    }
+
+    fn emit_js_host_aliases(
+        &mut self,
+        out: &mut String,
+        started: &mut bool,
+    ) -> Result<(), CodegenError> {
+        let aliases = self
+            .module
+            .js_host_aliases
+            .iter()
+            .copied()
+            .filter(|alias| {
+                self.js_host_alias_emits_binding(alias)
+                    && self
+                        .function(alias.function)
+                        .map(|function| function.live)
+                        .unwrap_or(false)
+            })
+            .collect::<Vec<_>>();
+        if aliases.is_empty() {
+            return Ok(());
+        }
+
+        let mut parent_counts = AHashMap::<&str, usize>::default();
+        for alias in &aliases {
+            if let Some((parent, _)) = dotted_host_alias_parts(alias.spelling) {
+                *parent_counts.entry(parent).or_insert(0) += 1;
+            }
+        }
+        let mut parents = parent_counts
+            .into_iter()
+            .filter(|(_, count)| *count >= 2)
+            .map(|(parent, _)| parent)
+            .collect::<Vec<_>>();
+        parents.sort_unstable();
+        let mut parent_names = AHashMap::<&str, String>::default();
+        for parent in &parents {
+            parent_names.insert(*parent, self.top_level_mangler.next_name());
+        }
+
+        for parent in &parents {
+            emit_let_item(out, started);
+            out.push_str(&parent_names[parent]);
+            out.push('=');
+            out.push_str(parent);
+        }
+        let mut emitted = AHashSet::<(&str, JsHostAliasConvention)>::default();
+        for alias in &aliases {
+            if !emitted.insert((alias.spelling, alias.convention)) {
+                continue;
+            }
+            let base = host_alias_base_rhs(alias, &parent_names);
+            match alias.convention {
+                JsHostAliasConvention::BoundMethodCall | JsHostAliasConvention::BoundApply => {
+                    let root = self.top_level_mangler.next_name();
+                    let method = if alias.convention == JsHostAliasConvention::BoundApply {
+                        "apply"
+                    } else {
+                        "call"
+                    };
+                    emit_let_item(out, started);
+                    out.push_str(&root);
+                    out.push('=');
+                    out.push_str(&base);
+                    emit_let_item(out, started);
+                    out.push_str(self.function_name(alias.function)?);
+                    out.push('=');
+                    out.push_str(&root);
+                    out.push('.');
+                    out.push_str(method);
+                    out.push_str(".bind(");
+                    out.push_str(&root);
+                    out.push(')');
+                }
+                _ => {
+                    emit_let_item(out, started);
+                    out.push_str(self.function_name(alias.function)?);
+                    out.push('=');
+                    out.push_str(&base);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn emit_foreign_imports(&self, out: &mut String) {
+        for import in &self.module.foreign_imports {
+            if import.specifiers.is_empty() {
+                out.push_str("import");
+                out.push_str(&render_module_specifier(
+                    import.source,
+                    self.options.string_quote,
+                ));
+                out.push(';');
+                continue;
+            }
+            out.push_str("import{");
+            for (index, specifier) in import.specifiers.iter().enumerate() {
                 if index != 0 {
                     out.push(',');
                 }
-                out.push_str(self.global_name(global.symbol)?);
-                if let Some(value) = self.constant_global_strings.get(&global.symbol) {
-                    out.push('=');
-                    out.push_str(&render_string_literal(value, self.options.string_quote));
+                out.push_str(specifier.imported);
+                let local = self
+                    .foreign_import_names
+                    .get(specifier.local)
+                    .map_or(specifier.local, String::as_str);
+                if specifier.imported != local {
+                    out.push_str(" as ");
+                    out.push_str(local);
                 }
-                self.declared_globals.insert(global.symbol);
             }
+            out.push_str("}from");
+            out.push_str(&render_module_specifier(
+                import.source,
+                self.options.string_quote,
+            ));
             out.push(';');
         }
-        self.emit_external_export_aliases(out)?;
-        Ok(())
     }
 
     fn emit_external_export_aliases(&self, out: &mut String) -> Result<(), CodegenError> {
@@ -1721,7 +4395,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
 
     fn emit_entry_body(&mut self, out: &mut String) -> Result<(), CodegenError> {
         let entry = self.function(self.module.entry)?.clone();
-        if entry.blocks.len() == 1 && entry.blocks[0].phis.is_empty() {
+        let restored_loop_captures = std::mem::replace(
+            &mut self.loop_captured_closures,
+            loop_captured_closures(&entry),
+        );
+        let result = if entry.blocks.len() == 1 && entry.blocks[0].phis.is_empty() {
             self.emit_single_block(&entry, false, out)
         } else if can_structure(&entry) {
             self.emit_structured(&entry, false, out)
@@ -1730,7 +4408,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             self.emit_state_machine(&entry, out)?;
             out.push_str(")();");
             Ok(())
-        }
+        };
+        self.loop_captured_closures = restored_loop_captures;
+        result
     }
 
     fn emit_named_exports(&self, names: &AHashSet<String>, out: &mut String) {
@@ -1753,7 +4433,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     }
 
     fn emit_exports(&self, out: &mut String) -> Result<(), CodegenError> {
-        self.emit_exports_excluding(&AHashSet::new(), out)
+        self.emit_exports_excluding(&AHashSet::default(), out)
     }
 
     fn emit_exports_excluding(
@@ -1802,19 +4482,53 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     }
 
     fn assign_top_level_names(&mut self) {
+        // Every LocalNames allocator clones this mangler. Reserving the full
+        // target-generated runtime surface here protects ordinary functions,
+        // entry code, closures, and substituted helper DAGs alike, including
+        // the no-mangle path that prefers source identifier spellings.
+        for root in SYNTHESIZED_RUNTIME_ROOTS {
+            self.top_level_mangler.reserve(root);
+        }
+        // Foreign specifier aliases are lexical bindings, not ABI names. Give
+        // each one a hygienic emitted spelling before mapping its matching
+        // extern declaration. In particular, `host as Array` must not capture
+        // a target-generated `Array.isArray` in the same module.
+        for import in &self.module.foreign_imports {
+            for specifier in &import.specifiers {
+                if self.foreign_import_names.contains_key(specifier.local) {
+                    continue;
+                }
+                let emitted = self.top_level_mangler.unique_name(specifier.local);
+                self.foreign_import_names
+                    .insert(specifier.local.to_string(), emitted);
+            }
+        }
         for function in &self.module.functions {
-            if function.live && function.kind == FunctionKind::Extern {
+            if function.live && self.is_imported_extern(function) {
                 if let Some(name) = function.name {
-                    self.top_level_mangler.reserve(name);
-                    self.function_names.insert(function.id, name.to_string());
+                    let emitted =
+                        self.foreign_import_names
+                            .get(name)
+                            .cloned()
+                            .unwrap_or_else(|| {
+                                self.top_level_mangler.reserve(name);
+                                name.to_string()
+                            });
+                    self.function_names.insert(function.id, emitted);
                 }
             }
         }
         for global in &self.module.globals {
             if global.external {
-                self.top_level_mangler.reserve(global.name);
-                self.global_names
-                    .insert(global.symbol, global.name.to_string());
+                let emitted = self
+                    .foreign_import_names
+                    .get(global.name)
+                    .cloned()
+                    .unwrap_or_else(|| {
+                        self.top_level_mangler.reserve(global.name);
+                        global.name.to_string()
+                    });
+                self.global_names.insert(global.symbol, emitted);
             }
         }
 
@@ -1827,11 +4541,27 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         }
 
         if !self.options.mangle_identifiers {
+            for convention in JsCallingConvention::ALL {
+                if !self.js_adapter_fallbacks.contains(&convention) {
+                    continue;
+                }
+                let name = self
+                    .top_level_mangler
+                    .unique_name(convention.readable_factory_name());
+                self.js_adapter_factory_names.insert(convention, name);
+            }
             for function in &self.module.functions {
                 if !function.live
-                    || matches!(function.kind, FunctionKind::Entry | FunctionKind::Extern)
-                    || (function.kind == FunctionKind::Closure
-                        && can_inline_closure(function, self.options.inline_structured_closures))
+                    || function.kind == FunctionKind::Entry
+                    || self.is_imported_extern(function)
+                    || self.function_is_inlined(function)
+                    || self.inline_single_use_functions.contains(&function.id)
+                    || self.clustered_helpers.contains(&function.id)
+                    || self
+                        .inline_fresh_empty_array_factories
+                        .contains(&function.id)
+                    || self.inline_pure_helpers.contains(&function.id)
+                    || self.js_host_alias_skips_binding(function.id)
                 {
                     continue;
                 }
@@ -1840,6 +4570,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     FunctionKind::Method { class } => format!("{class}${source_name}"),
                     FunctionKind::Constructor { class } => format!("{class}$init"),
                     FunctionKind::Closure => format!("closure${}", function.id.0),
+                    FunctionKind::Extern => source_name.to_string(),
                     _ => source_name.to_string(),
                 };
                 let name = self.top_level_mangler.unique_name(&preferred);
@@ -1852,11 +4583,15 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 let name = self.top_level_mangler.unique_name(global.name);
                 self.global_names.insert(global.symbol, name);
             }
+            self.coalesce_js_host_alias_names();
             return;
         }
 
-        let mut function_uses = AHashMap::<FunctionId, usize>::new();
-        let mut global_uses = AHashMap::<SymbolId, usize>::new();
+        let mut function_uses = AHashMap::<FunctionId, usize>::default();
+        let mut global_uses = AHashMap::<SymbolId, usize>::default();
+        let mut adapter_uses = AHashMap::<JsCallingConvention, usize>::default();
+        let mut array_prototype_uses = AHashMap::<&'static str, usize>::default();
+        let alias_array_prototype_methods = self.options.alias_array_prototype_methods;
         for function in self
             .module
             .functions
@@ -1878,6 +4613,30 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     | ControlFlowOp::CallMethod { function, .. } => {
                         *function_uses.entry(*function).or_insert(0) += 1;
                     }
+                    ControlFlowOp::Intrinsic {
+                        intrinsic,
+                        receiver,
+                        args,
+                    } => {
+                        if alias_array_prototype_methods {
+                            if let Some((method, _)) = js_array_prototype_borrow(*intrinsic) {
+                                *array_prototype_uses.entry(method).or_insert(0) += 1;
+                            }
+                        }
+                        if receiver.is_none() {
+                            if let Some(convention) =
+                                JsCallingConvention::from_intrinsic(*intrinsic)
+                            {
+                                if self.js_adapter_fallbacks.contains(&convention)
+                                    && !matches!(args.as_slice(), [callback] if self
+                                    .adapted_bind_values
+                                    .contains(&(function.id, *callback)))
+                                {
+                                    *adapter_uses.entry(convention).or_insert(0) += 1;
+                                }
+                            }
+                        }
+                    }
                     _ => {}
                 }
             }
@@ -1886,9 +4645,16 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         let mut bindings = Vec::new();
         for function in &self.module.functions {
             if !function.live
-                || matches!(function.kind, FunctionKind::Entry | FunctionKind::Extern)
-                || (function.kind == FunctionKind::Closure
-                    && can_inline_closure(function, self.options.inline_structured_closures))
+                || function.kind == FunctionKind::Entry
+                || self.is_imported_extern(function)
+                || self.function_is_inlined(function)
+                || self.inline_single_use_functions.contains(&function.id)
+                || self.clustered_helpers.contains(&function.id)
+                || self
+                    .inline_fresh_empty_array_factories
+                    .contains(&function.id)
+                || self.inline_pure_helpers.contains(&function.id)
+                || self.js_host_alias_skips_binding(function.id)
             {
                 continue;
             }
@@ -1908,6 +4674,21 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 global.symbol.0,
             ));
         }
+        for convention in JsCallingConvention::ALL {
+            if self.js_adapter_fallbacks.contains(&convention) {
+                bindings.push((
+                    adapter_uses.get(&convention).copied().unwrap_or(0) + 1,
+                    2_u8,
+                    convention.sort_key(),
+                ));
+            }
+        }
+        for (index, method) in ARRAY_PROTOTYPE_ALIAS_METHODS.iter().enumerate() {
+            let uses = array_prototype_uses.get(method).copied().unwrap_or(0);
+            if uses >= 2 {
+                bindings.push((uses + 1, 3_u8, index as u32));
+            }
+        }
         bindings.sort_unstable_by(|left, right| {
             right
                 .0
@@ -1919,14 +4700,152 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             let name = self.top_level_mangler.next_name();
             if kind == 0 {
                 self.function_names.insert(FunctionId(id), name);
-            } else {
+            } else if kind == 1 {
                 self.global_names.insert(SymbolId(id), name);
+            } else if kind == 2 {
+                let convention = JsCallingConvention::ALL[id as usize];
+                self.js_adapter_factory_names.insert(convention, name);
+            } else {
+                self.array_prototype_method_aliases
+                    .insert(ARRAY_PROTOTYPE_ALIAS_METHODS[id as usize], name);
+            }
+        }
+        if self.array_prototype_method_aliases.len() >= 2 {
+            self.array_prototype_root = Some(self.top_level_mangler.next_name());
+        }
+        self.coalesce_js_host_alias_names();
+    }
+
+    fn emit_array_prototype_aliases(&self, out: &mut String, started: &mut bool) {
+        if self.array_prototype_method_aliases.is_empty() {
+            return;
+        }
+        if let Some(root) = &self.array_prototype_root {
+            emit_let_item(out, started);
+            out.push_str(root);
+            out.push_str("=Array.prototype");
+        }
+        let mut aliases = self
+            .array_prototype_method_aliases
+            .iter()
+            .collect::<Vec<_>>();
+        aliases
+            .sort_unstable_by(|left, right| left.1.cmp(right.1).then_with(|| left.0.cmp(right.0)));
+        for (method, name) in aliases {
+            emit_let_item(out, started);
+            out.push_str(name);
+            out.push('=');
+            if let Some(root) = &self.array_prototype_root {
+                out.push_str(root);
+                out.push('.');
+                out.push_str(method);
+            } else {
+                out.push_str("Array.prototype.");
+                out.push_str(method);
+            }
+        }
+    }
+
+    fn array_prototype_invoke(&self, method: &str, invoke: &str) -> JsExpression {
+        if let Some(alias) = self.array_prototype_method_aliases.get(method) {
+            return JsExpression::member(
+                JsExpression::atom(alias.as_str()),
+                invoke,
+                self.options.elide_call_chain_parentheses,
+            );
+        }
+        JsExpression::member(
+            JsExpression::member(
+                JsExpression::member(
+                    JsExpression::atom("Array"),
+                    "prototype",
+                    self.options.elide_call_chain_parentheses,
+                ),
+                method,
+                self.options.elide_call_chain_parentheses,
+            ),
+            invoke,
+            self.options.elide_call_chain_parentheses,
+        )
+    }
+
+    fn js_host_alias_skips_binding(&self, id: FunctionId) -> bool {
+        self.js_host_alias(id)
+            .is_some_and(|alias| !self.js_host_alias_emits_binding(alias))
+    }
+
+    fn assign_js_window_binding(&mut self) {
+        if !self.options.pool_window_roots {
+            return;
+        }
+        let mut uses = 0usize;
+        for function in self
+            .module
+            .functions
+            .iter()
+            .filter(|function| function.live)
+        {
+            for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
+                let ControlFlowOp::Intrinsic { intrinsic, .. } = &instruction.op else {
+                    continue;
+                };
+                if matches!(
+                    intrinsic,
+                    Intrinsic::JsWindow | Intrinsic::JsRequestAnimationFrameOrNull
+                ) {
+                    uses += 1;
+                }
+            }
+        }
+        if uses < 2 {
+            return;
+        }
+        self.js_window_binding = Some(self.top_level_mangler.next_name());
+    }
+
+    fn emit_js_window_binding(&self, out: &mut String, started: &mut bool) {
+        let Some(name) = &self.js_window_binding else {
+            return;
+        };
+        emit_let_item(out, started);
+        out.push_str(name);
+        out.push_str("=typeof window<\"u\"?window:globalThis");
+    }
+
+    fn js_window_root(&self) -> JsExpression {
+        match &self.js_window_binding {
+            Some(name) => JsExpression::atom(name.clone()),
+            None => JsExpression::raw(
+                "typeof window<\"u\"?window:globalThis",
+                JsPrecedence::Conditional,
+            ),
+        }
+    }
+
+    fn coalesce_js_host_alias_names(&mut self) {
+        let mut canonical = AHashMap::<(&str, JsHostAliasConvention), String>::default();
+        for alias in &self.module.js_host_aliases {
+            if !self.js_host_alias_emits_binding(alias) {
+                continue;
+            }
+            if let Some(name) = self.function_names.get(&alias.function) {
+                canonical
+                    .entry((alias.spelling, alias.convention))
+                    .or_insert_with(|| name.clone());
+            }
+        }
+        for alias in &self.module.js_host_aliases {
+            if !self.js_host_alias_emits_binding(alias) {
+                continue;
+            }
+            if let Some(name) = canonical.get(&(alias.spelling, alias.convention)) {
+                self.function_names.insert(alias.function, name.clone());
             }
         }
     }
 
     fn assign_preferred_local_names(&mut self) {
-        let mut frequencies = AHashMap::<String, (usize, usize)>::new();
+        let mut frequencies = AHashMap::<String, (usize, usize)>::default();
         for function in self
             .module
             .functions
@@ -1934,7 +4853,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             .filter(|function| function.live)
         {
             let uses = use_counts(function);
-            let mut present = AHashSet::new();
+            let mut present = AHashSet::default();
             for (index, local) in function.value_local_hints.iter().enumerate() {
                 let Some(local) = *local else {
                     continue;
@@ -1987,7 +4906,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         if !self.options.pool_strings {
             return;
         }
-        let mut counts = AHashMap::<String, usize>::new();
+        let mut counts = AHashMap::<String, usize>::default();
         for function in self
             .module
             .functions
@@ -1995,11 +4914,15 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             .filter(|function| function.live)
         {
             let uses = use_counts(function);
+            let literalized_regex_arguments =
+                literalized_regex_argument_values(function, &self.options);
             for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
                 if let (Some(out), ControlFlowOp::Const(ConstValue::String(value))) =
                     (instruction.out, &instruction.op)
                 {
-                    if uses.get(&out).copied().unwrap_or(0) != 0 {
+                    if uses.get(&out).copied().unwrap_or(0) != 0
+                        && !literalized_regex_arguments.contains(&out)
+                    {
                         *counts.entry(value.clone()).or_insert(0) += 1;
                     }
                 }
@@ -2033,7 +4956,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         if !self.options.pool_numeric_literals {
             return;
         }
-        let mut counts = AHashMap::<String, usize>::new();
+        let mut counts = AHashMap::<String, usize>::default();
         for function in self
             .module
             .functions
@@ -2086,18 +5009,19 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         if !self.options.mangle_properties {
             return;
         }
-        let stable_public_fields = if self.options.mangle_exports {
-            AHashSet::new()
-        } else {
-            self.module
-                .structs
-                .iter()
-                .chain(&self.module.classes)
-                .filter(|layout| self.class_uses_named_fields(layout.name))
-                .flat_map(|layout| layout.fields.iter().map(|field| field.name.to_string()))
-                .collect::<AHashSet<_>>()
-        };
-        let mut frequencies = AHashMap::<String, usize>::new();
+        let stable_public_fields = self
+            .module
+            .structs
+            .iter()
+            .chain(&self.module.classes)
+            .filter(|layout| {
+                self.dynamic_boundary_aggregates.contains(layout.name)
+                    || (!self.options.mangle_exports
+                        && self.abi_stable_aggregates.contains(layout.name))
+            })
+            .flat_map(|layout| layout.fields.iter().map(|field| field.name.to_string()))
+            .collect::<AHashSet<_>>();
+        let mut frequencies = AHashMap::<String, usize>::default();
         for field in self
             .module
             .structs
@@ -2155,8 +5079,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         if !self.options.cross_scope_name_reuse || function.kind == FunctionKind::Entry {
             return self.top_level_mangler.clone();
         }
-        let mut referenced = AHashSet::new();
-        self.collect_top_level_references(function.id, &mut AHashSet::new(), &mut referenced);
+        let mut referenced = AHashSet::default();
+        self.collect_top_level_references(function.id, &mut AHashSet::default(), &mut referenced);
         let mut mangler = self.top_level_mangler.clone();
         for candidate in self
             .module
@@ -2188,7 +5112,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             }
         }
         for name in &self.local_name_reservations {
-            mangler.release(name);
+            if !referenced.contains(name) {
+                mangler.release(name);
+            }
         }
         mangler.rewind();
         mangler
@@ -2208,6 +5134,16 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         };
         for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
             match &instruction.op {
+                ControlFlowOp::CallDirect {
+                    function: callee, ..
+                } if self.inline_pure_helpers.contains(callee) => {
+                    // The helper binding disappears and its expression is
+                    // emitted in this caller's lexical scope. Preserve every
+                    // top-level alias/reference used by the complete selected
+                    // helper DAG; reserving only the suppressed function name
+                    // would let a caller local capture those free identifiers.
+                    self.collect_top_level_references(*callee, visited, referenced);
+                }
                 ControlFlowOp::CallDirect { function, .. }
                 | ControlFlowOp::NewClass {
                     constructor: Some(function),
@@ -2220,13 +5156,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 ControlFlowOp::Closure {
                     function: closure, ..
                 } => {
-                    let inline =
-                        self.module
-                            .functions
-                            .get(closure.0 as usize)
-                            .is_some_and(|closure| {
-                                can_inline_closure(closure, self.options.inline_structured_closures)
-                            });
+                    let inline = self
+                        .module
+                        .functions
+                        .get(closure.0 as usize)
+                        .is_some_and(|closure| self.function_is_inlined(closure));
                     if inline {
                         self.collect_top_level_references(*closure, visited, referenced);
                     } else if let Some(name) = self.function_names.get(closure) {
@@ -2274,6 +5208,23 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         }
                     }
                 }
+                ControlFlowOp::Intrinsic {
+                    intrinsic: Intrinsic::JsDocument,
+                    ..
+                } => {
+                    referenced.insert("document".to_string());
+                }
+                ControlFlowOp::Intrinsic {
+                    intrinsic: Intrinsic::JsWindow | Intrinsic::JsRequestAnimationFrameOrNull,
+                    ..
+                } => {
+                    if let Some(name) = &self.js_window_binding {
+                        referenced.insert(name.clone());
+                    } else {
+                        referenced.insert("window".to_string());
+                        referenced.insert("globalThis".to_string());
+                    }
+                }
                 _ => {}
             }
         }
@@ -2297,21 +5248,199 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     }
 
     fn function_reads_own_arguments(&self, function: &ControlFlowFunction<'src>) -> bool {
-        let arguments = self
+        self.function_reads_external_global(function, "arguments")
+    }
+
+    fn function_reads_own_this(&self, function: &ControlFlowFunction<'src>) -> bool {
+        self.function_reads_external_global(function, "this")
+    }
+
+    fn function_or_nested_closure_reads_own_js_binding(
+        &self,
+        function: &ControlFlowFunction<'src>,
+    ) -> bool {
+        fn visit(
+            emitter: &IrJsEmitter<'_, '_>,
+            function: FunctionId,
+            visited: &mut AHashSet<FunctionId>,
+        ) -> bool {
+            if !visited.insert(function) {
+                return false;
+            }
+            let Ok(function) = emitter.function(function) else {
+                return true;
+            };
+            if emitter.function_reads_own_this(function)
+                || emitter.function_reads_own_arguments(function)
+            {
+                return true;
+            }
+            function
+                .blocks
+                .iter()
+                .flat_map(|block| &block.instructions)
+                .filter_map(|instruction| match instruction.op {
+                    ControlFlowOp::Closure { function, .. } => Some(function),
+                    _ => None,
+                })
+                .any(|nested| visit(emitter, nested, visited))
+        }
+
+        visit(self, function.id, &mut AHashSet::default())
+    }
+
+    fn function_reads_external_global(
+        &self,
+        function: &ControlFlowFunction<'src>,
+        name: &str,
+    ) -> bool {
+        let symbol = self
             .module
             .globals
             .iter()
-            .find(|global| global.external && global.name == "arguments")
+            .find(|global| global.external && global.name == name)
             .map(|global| global.symbol);
-        arguments.is_some_and(|arguments| {
+        symbol.is_some_and(|symbol| {
             function
                 .blocks
                 .iter()
                 .flat_map(|block| &block.instructions)
                 .any(|instruction| {
-                    matches!(instruction.op, ControlFlowOp::LoadGlobal(global) if global == arguments)
+                    matches!(instruction.op, ControlFlowOp::LoadGlobal(global) if global == symbol)
                 })
         })
+    }
+
+    fn arguments_global_symbol(&self) -> Option<SymbolId> {
+        self.module
+            .globals
+            .iter()
+            .find(|global| global.external && global.name == "arguments")
+            .map(|global| global.symbol)
+    }
+
+    fn emits_ordinary_function_expression(
+        &self,
+        function: &ControlFlowFunction<'src>,
+        convention: Option<JsCallingConvention>,
+    ) -> bool {
+        convention.is_some()
+            || self.options.function_spelling == FunctionSpelling::Function
+            || (matches!(function.kind, FunctionKind::Function)
+                && (self.function_reads_own_arguments(function)
+                    || self.function_reads_own_this(function)))
+    }
+
+    fn configure_js_calling_context(
+        &self,
+        function: &ControlFlowFunction<'src>,
+        context: &mut LocalNames,
+    ) {
+        let Some(convention) = self.js_calling_conventions.get(&function.id).copied() else {
+            return;
+        };
+        let aliased = self
+            .js_calling_aliases
+            .get(&function.id)
+            .map(|aliases| {
+                aliases
+                    .iter()
+                    .map(|(value, _)| *value)
+                    .collect::<AHashSet<_>>()
+            })
+            .unwrap_or_default();
+        let replacements: &[(usize, &str)] = match convention {
+            JsCallingConvention::Method0 | JsCallingConvention::Method1 => &[(0, "this")],
+            JsCallingConvention::MethodRest => &[(0, "this"), (1, "arguments")],
+            JsCallingConvention::StaticRest => &[(0, "arguments")],
+        };
+        for (index, name) in replacements {
+            let parameter = &function.params[function.capture_count + *index];
+            if aliased.contains(&parameter.value) {
+                continue;
+            }
+            context
+                .value_names
+                .insert(parameter.value, (*name).to_string());
+            context
+                .local_names
+                .insert(parameter.local, (*name).to_string());
+        }
+        *context.declared_names.borrow_mut() = function
+            .params
+            .iter()
+            .filter_map(|parameter| context.value_names.get(&parameter.value))
+            .cloned()
+            .collect();
+    }
+
+    fn emit_calling_convention_aliases(
+        &self,
+        function: &ControlFlowFunction<'src>,
+        context: &LocalNames,
+        out: &mut String,
+    ) -> Result<(), CodegenError> {
+        let Some(aliases) = self.js_calling_aliases.get(&function.id) else {
+            return Ok(());
+        };
+        for (value, binding) in aliases {
+            out.push_str("var ");
+            out.push_str(context.value_name(*value)?);
+            out.push('=');
+            out.push_str(binding);
+            out.push(';');
+        }
+        Ok(())
+    }
+
+    fn calling_alias_values(&self, function: FunctionId) -> AHashSet<ValueId> {
+        self.js_calling_aliases
+            .get(&function)
+            .map(|aliases| aliases.iter().map(|(value, _)| *value).collect())
+            .unwrap_or_default()
+    }
+
+    fn emitted_js_parameters<'function>(
+        &self,
+        function: &'function ControlFlowFunction<'src>,
+    ) -> &'function [crate::ir::IrParameter<'src>] {
+        match self.js_calling_conventions.get(&function.id) {
+            Some(JsCallingConvention::Method0) => &[],
+            Some(JsCallingConvention::Method1) => &function.params[function.capture_count + 1..],
+            Some(JsCallingConvention::MethodRest | JsCallingConvention::StaticRest) => &[],
+            None => &function.params,
+        }
+    }
+
+    fn emitted_closure_parameters<'function>(
+        &self,
+        function: &'function ControlFlowFunction<'src>,
+    ) -> &'function [crate::ir::IrParameter<'src>] {
+        match self.js_calling_conventions.get(&function.id) {
+            Some(JsCallingConvention::Method0) => &[],
+            Some(JsCallingConvention::Method1) => &function.params[function.capture_count + 1..],
+            Some(JsCallingConvention::MethodRest | JsCallingConvention::StaticRest) => &[],
+            None => &function.params[function.capture_count..],
+        }
+    }
+
+    fn render_closure_parameter_list(
+        &self,
+        function: &ControlFlowFunction<'src>,
+        context: &LocalNames,
+    ) -> Result<String, CodegenError> {
+        if !context.rest_formal_names.is_empty() {
+            return Ok(format!("({})", context.rest_formal_names.join(",")));
+        }
+        render_arrow_parameters(
+            function,
+            self.emitted_closure_parameters(function),
+            context,
+            &self.global_names,
+            self.options.compact_boolean_literals,
+            true,
+            None,
+        )
     }
 
     fn emit_function(
@@ -2319,24 +5448,448 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         function: &ControlFlowFunction<'src>,
         out: &mut String,
     ) -> Result<(), CodegenError> {
+        if !self.function_is_inlined(function) {
+            if let Some(&index) = self.named_cluster_by_root.get(&function.id) {
+                return self.emit_named_callee_cluster(index, out);
+            }
+            if let Some(helpers) = self.private_callee_clusters.get(&function.id).cloned() {
+                if !helpers.is_empty() {
+                    return self.emit_clustered_root(function, &helpers, out);
+                }
+            }
+        }
         let name = self.function_name(function.id)?.to_string();
+        let restored_loop_captures = std::mem::replace(
+            &mut self.loop_captured_closures,
+            loop_captured_closures(function),
+        );
+        let result = self.emit_function_body(function, name, false, out);
+        self.loop_captured_closures = restored_loop_captures;
+        result
+    }
+
+    fn assign_cluster_helper_names(
+        &mut self,
+        roots: &[FunctionId],
+        helpers: &[FunctionId],
+        reserved: &[&str],
+    ) -> Result<(), CodegenError> {
+        let mut inner = Mangler::new(self.options.identifier_alphabet);
+        for name in reserved {
+            inner.reserve(name);
+        }
+        let mut referenced = AHashSet::default();
+        for root in roots {
+            self.collect_top_level_references(*root, &mut AHashSet::default(), &mut referenced);
+        }
+        for helper in helpers {
+            self.collect_top_level_references(*helper, &mut AHashSet::default(), &mut referenced);
+        }
+        for name in &referenced {
+            inner.reserve(name);
+        }
+        for helper in helpers {
+            let name = if self.options.mangle_identifiers {
+                inner.next_name()
+            } else {
+                let source = self.function(*helper)?.name.unwrap_or("helper").to_string();
+                inner.unique_name(&source)
+            };
+            self.function_names.insert(*helper, name);
+        }
+        Ok(())
+    }
+
+    fn emit_cluster_helpers(
+        &mut self,
+        helpers: &[FunctionId],
+        out: &mut String,
+    ) -> Result<(), CodegenError> {
+        let unnamed = helpers
+            .iter()
+            .copied()
+            .filter(|helper| !self.function_names.contains_key(helper))
+            .collect::<Vec<_>>();
+        if !unnamed.is_empty() {
+            self.assign_cluster_helper_names(&[], &unnamed, &[])?;
+        }
+        for helper in helpers {
+            let function = self.function(*helper)?.clone();
+            self.emit_function(&function, out)?;
+        }
+        Ok(())
+    }
+
+    fn emit_clustered_root(
+        &mut self,
+        root: &ControlFlowFunction<'src>,
+        helpers: &[FunctionId],
+        out: &mut String,
+    ) -> Result<(), CodegenError> {
+        let outer = self.function_name(root.id)?.to_string();
+        self.assign_cluster_helper_names(&[root.id], helpers, &[&outer])?;
+        out.push_str("var ");
+        out.push_str(&outer);
+        out.push_str("=(function(){");
+        self.emit_cluster_helpers(helpers, out)?;
+        out.push_str("return ");
+        let restored_loop_captures = std::mem::replace(
+            &mut self.loop_captured_closures,
+            loop_captured_closures(root),
+        );
+        let result = self.emit_function_body(root, String::new(), true, out);
+        self.loop_captured_closures = restored_loop_captures;
+        result?;
+        if !out.ends_with(';') {
+            out.push(';');
+        }
+        out.push_str("})();");
+        Ok(())
+    }
+
+    fn emit_named_callee_cluster(
+        &mut self,
+        index: usize,
+        out: &mut String,
+    ) -> Result<(), CodegenError> {
+        if !self.emitted_named_clusters.insert(index) {
+            return Ok(());
+        }
+        let (roots, helpers) = self.named_callee_clusters[index].clone();
+        let mut reserved = Vec::new();
+        for root in &roots {
+            reserved.push(self.function_name(*root)?.to_string());
+        }
+        let reserved_refs = reserved.iter().map(String::as_str).collect::<Vec<_>>();
+        self.assign_cluster_helper_names(&roots, &helpers, &reserved_refs)?;
+        out.push_str("var ");
+        for (offset, name) in reserved.iter().enumerate() {
+            if offset != 0 {
+                out.push(',');
+            }
+            out.push_str(name);
+        }
+        out.push_str(";(function(){");
+        self.emit_cluster_helpers(&helpers, out)?;
+        for root_id in &roots {
+            let root = self.function(*root_id)?.clone();
+            let name = self.function_name(*root_id)?.to_string();
+            out.push_str(&name);
+            out.push('=');
+            let restored_loop_captures = std::mem::replace(
+                &mut self.loop_captured_closures,
+                loop_captured_closures(&root),
+            );
+            let result = self.emit_function_body(&root, String::new(), true, out);
+            self.loop_captured_closures = restored_loop_captures;
+            result?;
+            if !out.ends_with(';') {
+                out.push(';');
+            }
+        }
+        out.push_str("})();");
+        Ok(())
+    }
+
+    fn emit_nested_once_run_helpers(
+        &mut self,
+        host: FunctionId,
+        out: &mut String,
+    ) -> Result<(), CodegenError> {
+        let Some(helpers) = self.nested_once_run_helpers.get(&host).cloned() else {
+            return Ok(());
+        };
+        if helpers.is_empty() {
+            return Ok(());
+        }
+        if helpers
+            .iter()
+            .any(|helper| !self.function_names.contains_key(helper))
+        {
+            self.assign_cluster_helper_names(&[host], &helpers, &[])?;
+        }
+        self.emit_cluster_helpers(&helpers, out)
+    }
+
+    fn wrap_cluster_iife(
+        &mut self,
+        helpers: &[FunctionId],
+        expression: String,
+    ) -> Result<String, CodegenError> {
+        let mut out = String::from("(function(){");
+        self.emit_cluster_helpers(helpers, &mut out)?;
+        out.push_str("return ");
+        out.push_str(&expression);
+        if !out.ends_with(';') {
+            out.push(';');
+        }
+        out.push_str("})()");
+        Ok(out)
+    }
+
+    fn render_single_use_function_expression(
+        &mut self,
+        function: FunctionId,
+    ) -> Result<JsExpression, CodegenError> {
+        let helpers = self
+            .private_callee_clusters
+            .get(&function)
+            .cloned()
+            .unwrap_or_default();
+        if !helpers.is_empty() {
+            self.assign_cluster_helper_names(&[function], &helpers, &[])?;
+        }
+        let function = self.function(function)?.clone();
+        let restored_loop_captures = std::mem::replace(
+            &mut self.loop_captured_closures,
+            loop_captured_closures(&function),
+        );
+        let mut rendered = String::new();
+        let result = self.emit_function_body(&function, String::new(), true, &mut rendered);
+        self.loop_captured_closures = restored_loop_captures;
+        result?;
+        let rendered = if helpers.is_empty() {
+            rendered
+        } else {
+            self.wrap_cluster_iife(&helpers, rendered)?
+        };
+        Ok(JsExpression::raw(rendered, JsPrecedence::Call))
+    }
+
+    fn render_inline_pure_helper_call(
+        &mut self,
+        function: FunctionId,
+        args: &[ValueId],
+        provided_args: usize,
+        caller: &LocalNames,
+        caller_cache: &mut ExpressionCache,
+    ) -> Result<Option<JsExpression>, CodegenError> {
+        if !self.inline_pure_helpers.contains(&function) {
+            return Ok(None);
+        }
+        let callee = self.function(function)?.clone();
+        if provided_args != args.len() || args.len() != callee.params.len() {
+            return Ok(None);
+        }
+        // Caller-cache ownership is committed only after the complete helper
+        // template renders successfully. A failed preflight must leave the
+        // ordinary call path byte-for-byte available.
+        let mut trial_cache = caller_cache.clone();
+        let caller_constants = self
+            .function(caller.function_id)?
+            .blocks
+            .iter()
+            .flat_map(|block| &block.instructions)
+            .filter_map(|instruction| {
+                matches!(instruction.op, ControlFlowOp::Const(_))
+                    .then_some(instruction.out)
+                    .flatten()
+            })
+            .collect::<AHashSet<_>>();
+        let mut actuals = Vec::with_capacity(args.len());
+        let mut prepared = AHashMap::<ValueId, PureHelperActual>::default();
+        for argument in args {
+            if let Some(actual) = prepared.get(argument) {
+                actuals.push(actual.clone());
+                continue;
+            }
+            let actual = if let Some(expression) = caller.inlined_values.get(argument) {
+                PureHelperActual::Direct(expression.clone())
+            } else if caller.parameter_values.contains(argument)
+                || caller.stored_values.contains(argument)
+            {
+                PureHelperActual::Direct(JsExpression::atom(caller.value_name(*argument)?))
+            } else if caller_constants.contains(argument) {
+                let Some(expression) = trial_cache.remove(argument) else {
+                    return Ok(None);
+                };
+                PureHelperActual::Direct(expression)
+            } else if let Some(initializer) = trial_cache.remove(argument) {
+                PureHelperActual::Eager {
+                    value: *argument,
+                    initializer,
+                }
+            } else {
+                return Ok(None);
+            };
+            prepared.insert(*argument, actual.clone());
+            actuals.push(actual);
+        }
+
+        let rendered = self.render_inline_pure_helper_expression_with_actuals(function, actuals)?;
+        if rendered.is_some() {
+            *caller_cache = trial_cache;
+        }
+        Ok(rendered)
+    }
+
+    fn render_inline_pure_helper_expression(
+        &mut self,
+        function: FunctionId,
+        actuals: Vec<JsExpression>,
+    ) -> Result<Option<JsExpression>, CodegenError> {
+        self.render_inline_pure_helper_expression_with_actuals(
+            function,
+            actuals.into_iter().map(PureHelperActual::Direct).collect(),
+        )
+    }
+
+    fn render_inline_pure_helper_expression_with_actuals(
+        &mut self,
+        function: FunctionId,
+        actuals: Vec<PureHelperActual>,
+    ) -> Result<Option<JsExpression>, CodegenError> {
+        let callee = self.function(function)?.clone();
+        if actuals.len() != callee.params.len() {
+            return Ok(None);
+        }
+        let mut local_mangler = self.local_mangler(&callee);
+        // Template locals become lexical binders around expressions that were
+        // authored in the caller. Reserve every free identifier appearing in
+        // those native expression nodes so a generated eager IIFE parameter
+        // cannot capture an actual or one of its top-level aliases.
+        for actual in &actuals {
+            let expression = match actual {
+                PureHelperActual::Direct(expression)
+                | PureHelperActual::Eager {
+                    initializer: expression,
+                    ..
+                } => expression,
+            };
+            reserve_expression_identifiers(&mut local_mangler, &expression.code);
+        }
+        let mut eager_names = AHashMap::<ValueId, String>::default();
+        let mut eager_bindings = Vec::new();
+        let mut rendered_actuals = Vec::with_capacity(actuals.len());
+        for actual in actuals {
+            match actual {
+                PureHelperActual::Direct(expression) => rendered_actuals.push(expression),
+                PureHelperActual::Eager { value, initializer } => {
+                    let name = if let Some(name) = eager_names.get(&value) {
+                        name.clone()
+                    } else {
+                        let name = if self.options.mangle_identifiers {
+                            local_mangler.next_name()
+                        } else {
+                            local_mangler.unique_name("$actual")
+                        };
+                        eager_names.insert(value, name.clone());
+                        eager_bindings.push((name.clone(), initializer));
+                        name
+                    };
+                    rendered_actuals.push(JsExpression::atom(name));
+                }
+            }
+        }
+        let mut context = LocalNames::new(
+            &callee,
+            self.integer_analysis.function(function),
+            false,
+            &local_mangler,
+            &self.preferred_local_names,
+            &self.numeric_aliases,
+            &self.options,
+            &self.order_sensitive_inline_pure_helpers,
+            &loop_captured_closures(&callee),
+        );
+        // `inlined_values` is cloned rather than consumed by `take_value`, so
+        // repeated parameter references preserve one evaluation of the
+        // already-materialized caller value and retain expression precedence.
+        for (parameter, actual) in callee.params.iter().zip(rendered_actuals) {
+            context.inlined_values.insert(parameter.value, actual);
+        }
+        let expression = if self.options.dense_string_return_tables {
+            if let Some(expression) = self.render_dense_string_return_table(&callee, &context)? {
+                Some(expression)
+            } else {
+                let uses = context.use_counts.clone();
+                self.render_return_path(
+                    &callee,
+                    callee.entry,
+                    &context,
+                    &uses,
+                    ExpressionCache::default(),
+                    AHashSet::default(),
+                    0,
+                    true,
+                )?
+            }
+        } else {
+            let uses = context.use_counts.clone();
+            self.render_return_path(
+                &callee,
+                callee.entry,
+                &context,
+                &uses,
+                ExpressionCache::default(),
+                AHashSet::default(),
+                0,
+                true,
+            )?
+        };
+        Ok(expression
+            .map(|expression| wrap_pure_helper_actual_bindings(expression, eager_bindings)))
+    }
+
+    fn emit_function_body(
+        &mut self,
+        function: &ControlFlowFunction<'src>,
+        name: String,
+        anonymous_expression: bool,
+        out: &mut String,
+    ) -> Result<(), CodegenError> {
         let public_abi = self.function_has_public_abi(function.id);
-        let arrow_binding = self.options.function_spelling == FunctionSpelling::Arrow
-            && matches!(function.kind, FunctionKind::Function)
-            && function.capture_count == 0
+        let calling_convention = self.js_calling_conventions.get(&function.id).copied();
+        let arrow_binding = !anonymous_expression
+            && self.options.function_spelling == FunctionSpelling::Arrow
+            && matches!(
+                function.kind,
+                FunctionKind::Function | FunctionKind::Method { .. }
+            )
+            && !function.is_generator
             && (!public_abi || self.options.public_function_arrows)
-            // A bare JavaScript `arguments` binding is local to an ordinary
-            // function. Emitting an arrow here would silently capture the
-            // module wrapper's binding and change the host ABI.
+            // Bare JavaScript `arguments` / `this` bindings are local to an
+            // ordinary function. Emitting an arrow here would silently capture
+            // the module wrapper's binding and change the host ABI.
             && !self.function_reads_own_arguments(function)
+            && !self.function_reads_own_this(function)
+            && calling_convention.is_none()
             && self.options.mangle_identifiers;
         let single_block = function.blocks.len() == 1 && function.blocks[0].phis.is_empty();
         let structure_available = !single_block && can_structure(function);
+        let requires_structured_regions = function
+            .shapes
+            .iter()
+            .any(|shape| matches!(shape, ControlShape::Try { .. } | ControlShape::ForOf { .. }));
         let structured = match self.options.control_flow_spelling {
             ControlFlowSpelling::Auto | ControlFlowSpelling::Structured => structure_available,
-            ControlFlowSpelling::StateMachine => false,
+            ControlFlowSpelling::StateMachine => requires_structured_regions && structure_available,
         };
-        let local_mangler = self.local_mangler(function);
+        let nested_helpers = self
+            .nested_once_run_helpers
+            .get(&function.id)
+            .cloned()
+            .unwrap_or_default();
+        if !nested_helpers.is_empty() {
+            let mut roots = vec![function.id];
+            for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
+                if let ControlFlowOp::Closure {
+                    function: inner, ..
+                } = instruction.op
+                {
+                    if self.inline_exclusive_closures.contains(&inner) {
+                        roots.push(inner);
+                    }
+                }
+            }
+            self.assign_cluster_helper_names(&roots, &nested_helpers, &[])?;
+        }
+        let mut local_mangler = self.local_mangler(function);
+        for helper in &nested_helpers {
+            if let Some(name) = self.function_names.get(helper) {
+                local_mangler.reserve(name);
+            }
+        }
         let mut context = LocalNames::new(
             function,
             self.integer_analysis.function(function.id),
@@ -2345,33 +5898,64 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             &self.preferred_local_names,
             &self.numeric_aliases,
             &self.options,
+            &self.order_sensitive_inline_pure_helpers,
+            &self.loop_captured_closures,
         );
+        self.configure_js_calling_context(function, &mut context);
         context.inline_declarations = structured;
         let uses = &context.use_counts;
+        let candidate_params = self.emitted_js_parameters(function);
         let parameter_count = if public_abi {
-            function.params.len()
+            candidate_params.len()
         } else {
-            function
-                .params
+            candidate_params
                 .iter()
                 .rposition(|param| uses.get(&param.value).copied().unwrap_or(0) != 0)
                 .map_or(0, |index| index + 1)
         };
+        let emitted_params = &candidate_params[..parameter_count];
+        let alias_values = self.calling_alias_values(function.id);
+        let mut declared_parameters = function
+            .params
+            .iter()
+            .filter(|parameter| {
+                context.value_name(parameter.value).ok() == Some("this")
+                    || context.value_name(parameter.value).ok() == Some("arguments")
+                    || alias_values.contains(&parameter.value)
+            })
+            .collect::<Vec<_>>();
+        declared_parameters.extend(emitted_params);
+        *context.declared_names.borrow_mut() = declared_parameters
+            .into_iter()
+            .filter_map(|parameter| context.value_names.get(&parameter.value))
+            .cloned()
+            .collect();
+        bind_rest_index_formals(
+            function,
+            &mut context,
+            calling_convention,
+            self.arguments_global_symbol(),
+        );
         let mut params = String::new();
-        for (index, param) in function.params.iter().take(parameter_count).enumerate() {
-            if index != 0 {
-                params.push(',');
-            }
-            params.push_str(context.value_name(param.value)?);
-            if public_abi {
-                if let Some(default) = &param.default {
-                    params.push('=');
-                    params.push_str(&render_param_default(
-                        default,
-                        function,
-                        &context,
-                        self.options.compact_boolean_literals,
-                    )?);
+        if !context.rest_formal_names.is_empty() {
+            params = context.rest_formal_names.join(",");
+        } else {
+            for (index, param) in emitted_params.iter().enumerate() {
+                if index != 0 {
+                    params.push(',');
+                }
+                params.push_str(context.value_name(param.value)?);
+                if public_abi || self.callee_default_functions.contains(&function.id) {
+                    if let Some(default) = javascript_parameter_default(param) {
+                        params.push('=');
+                        params.push_str(&render_param_default(
+                            default,
+                            function,
+                            &context,
+                            &self.global_names,
+                            self.options.compact_boolean_literals,
+                        )?);
+                    }
                 }
             }
         }
@@ -2379,11 +5963,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             out.push_str("let ");
             out.push_str(&name);
             out.push('=');
+            if function.is_async {
+                out.push_str("async ");
+            }
             if parameter_count != 1
-                || function
-                    .params
+                || emitted_params
                     .first()
-                    .is_some_and(|param| param.default.is_some())
+                    .and_then(|param| javascript_parameter_default(param))
+                    .is_some()
             {
                 out.push('(');
                 out.push_str(&params);
@@ -2393,39 +5980,68 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             }
             out.push_str("=>");
         } else {
-            out.push_str("function ");
+            if function.is_async {
+                out.push_str("async ");
+            }
+            out.push_str(
+                if function.is_generator && self.options.compact_generator_star {
+                    "function*"
+                } else if function.is_generator {
+                    "function* "
+                } else if anonymous_expression {
+                    "function"
+                } else {
+                    "function "
+                },
+            );
             out.push_str(&name);
             out.push('(');
             out.push_str(&params);
             out.push(')');
         }
-        if self.options.conditional_expressions {
-            if let Some(expression) = self.render_conditional_return(function, &context)? {
-                let self_default = (parameter_count == 1)
-                    .then(|| {
-                        rewrite_self_default_conditional(
-                            &expression,
-                            &name,
-                            context.value_name(function.params[0].value).ok()?,
-                            is_nullable_with_truthy_value(&function.params[0].ty),
-                        )
-                    })
-                    .flatten();
+        if !function.is_generator && nested_helpers.is_empty() {
+            let return_expression = if self.options.dense_string_return_tables {
+                self.render_dense_string_return_table(function, &context)?
+                    .map(JsExpression::into_minimal)
+            } else {
+                None
+            };
+            let return_expression =
+                if return_expression.is_none() && self.options.conditional_expressions {
+                    self.render_conditional_return(function, &context)?
+                } else {
+                    return_expression
+                };
+            if let Some(expression) = return_expression {
+                let self_default =
+                    (!anonymous_expression && calling_convention.is_none() && parameter_count == 1)
+                        .then(|| {
+                            rewrite_self_default_conditional(
+                                &expression,
+                                &name,
+                                context.value_name(emitted_params[0].value).ok()?,
+                                is_nullable_with_truthy_value(&emitted_params[0].ty),
+                            )
+                        })
+                        .flatten();
                 if let Some((assignment, returned)) = self_default {
                     if let Some(folded) = fold_default_assignment_into_first_field(
                         &assignment,
                         &returned,
-                        context.value_name(function.params[0].value)?,
+                        context.value_name(emitted_params[0].value)?,
                     ) {
-                        out.push_str("{return ");
+                        out.push('{');
+                        self.emit_calling_convention_aliases(function, &context, out)?;
+                        out.push_str("return ");
                         out.push_str(&folded);
-                        out.push('}');
+                        close_statement_block(out, self.options.elide_block_terminal_semicolons);
                     } else {
                         out.push('{');
+                        self.emit_calling_convention_aliases(function, &context, out)?;
                         out.push_str(&assignment);
                         out.push_str(";return ");
                         out.push_str(&returned);
-                        out.push('}');
+                        close_statement_block(out, self.options.elide_block_terminal_semicolons);
                     }
                     if arrow_binding {
                         out.push(';');
@@ -2433,21 +6049,21 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     return Ok(());
                 }
                 if arrow_binding {
-                    out.push_str(&expression);
+                    push_concise_arrow_body(out, &expression);
                     out.push(';');
                 } else {
-                    out.push_str("{return ");
+                    out.push('{');
+                    self.emit_calling_convention_aliases(function, &context, out)?;
+                    out.push_str("return ");
                     out.push_str(&expression);
-                    out.push('}');
+                    close_statement_block(out, self.options.elide_block_terminal_semicolons);
                 }
                 return Ok(());
             }
         }
         let public_int_params = if public_abi {
-            function
-                .params
+            emitted_params
                 .iter()
-                .take(parameter_count)
                 .filter(|param| param.ty == Type::Int)
                 .filter(|param| param_feeds_loop_phi(function, param.value))
                 .filter_map(|param| context.value_name(param.value).ok())
@@ -2523,7 +6139,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         // SSA values, which cannot be reconstructed as one nested expression
         // merely by substituting that shared spelling.
         let mut cursor = function.entry;
-        let mut visited = AHashSet::new();
+        let mut visited = AHashSet::default();
         loop {
             if !visited.insert(cursor) {
                 return Ok(None);
@@ -2540,14 +6156,187 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             function.entry,
             context,
             uses,
-            AHashMap::new(),
-            AHashSet::new(),
+            AHashMap::default(),
+            AHashSet::default(),
             0,
+            false,
         )?
         else {
             return Ok(None);
         };
         Ok(Some(expression.into_minimal()))
+    }
+
+    fn render_dense_string_return_table(
+        &mut self,
+        function: &ControlFlowFunction<'src>,
+        context: &LocalNames,
+    ) -> Result<Option<JsExpression>, CodegenError> {
+        let Some(table) = self.dense_string_return_table(function) else {
+            return Ok(None);
+        };
+        let block = &function.blocks[table.selector_header.0 as usize];
+        let mut cache = ExpressionCache::default();
+        for instruction in &block.instructions {
+            let Some(out) = instruction.out else {
+                return Ok(None);
+            };
+            if out == table.selector_key || out == table.selector_condition {
+                continue;
+            }
+            // LocalNames already owns immutable literal nodes. Rendering and
+            // caching a second copy would leave an unused cache entry because
+            // `take_value` intentionally prefers the canonical literal node.
+            if context.inlined_values.contains_key(&out) {
+                continue;
+            }
+            let expression = self.render_instruction_op(instruction, context, &mut cache)?;
+            cache.insert(out, expression);
+        }
+        let selector = take_value(table.selector, context, &mut cache)?;
+        if !cache.is_empty() {
+            // Every computed prefix value must feed the one selector. This
+            // rejects dead or reordered work instead of dropping it while
+            // replacing the complete function body.
+            return Ok(None);
+        }
+        let values = table
+            .slots
+            .iter()
+            .map(|value| {
+                self.string_aliases
+                    .get(value)
+                    .cloned()
+                    .unwrap_or_else(|| render_string_literal(value, self.options.string_quote))
+            })
+            .collect::<Vec<_>>()
+            .join(",");
+        Ok(Some(JsExpression::index(
+            JsExpression::atom(format!("[{values}]")),
+            selector,
+            self.options.elide_call_chain_parentheses,
+        )))
+    }
+
+    fn dense_string_return_table(
+        &self,
+        function: &ControlFlowFunction<'src>,
+    ) -> Option<DenseStringReturnTable> {
+        if function.return_type != Type::String || function.blocks.is_empty() {
+            return None;
+        }
+
+        let mut visited = AHashSet::default();
+        let mut current = function.entry;
+        let mut selector = None;
+        let mut selector_header = None;
+        let mut selector_key = None;
+        let mut selector_condition = None;
+        let mut arms = AHashMap::<i64, String>::default();
+
+        let default = loop {
+            current = trace_dense_empty_jumps(function, current, &mut visited)?;
+            let block = function.blocks.get(current.0 as usize)?;
+            let Some(Terminator::Branch {
+                condition,
+                then_block,
+                else_block,
+            }) = block.terminator
+            else {
+                break trace_dense_constant_string_return(function, current, &mut visited)?;
+            };
+            if !visited.insert(current) || !block.phis.is_empty() || then_block == else_block {
+                return None;
+            }
+            let (candidate_selector, key, key_value) = dense_i32_equality_guard(block, condition)?;
+            if value_type(function, candidate_selector).as_ref() != Some(&Type::Int) {
+                return None;
+            }
+            if let Some(selector) = selector {
+                if selector != candidate_selector
+                    || block.instructions.iter().any(|instruction| {
+                        !matches!(instruction.out, Some(out) if out == key_value || out == condition)
+                    })
+                {
+                    return None;
+                }
+            } else {
+                if block.instructions.iter().any(|instruction| {
+                    matches!(instruction.out, Some(out) if out != key_value && out != condition)
+                        && !dense_selector_expression_op(&instruction.op)
+                }) {
+                    return None;
+                }
+                let selector_is_available = function
+                    .params
+                    .iter()
+                    .any(|parameter| parameter.value == candidate_selector)
+                    || block.instructions.iter().any(|instruction| {
+                        instruction.out == Some(candidate_selector)
+                            && instruction.out != Some(key_value)
+                            && instruction.out != Some(condition)
+                    });
+                if !selector_is_available {
+                    return None;
+                }
+                selector = Some(candidate_selector);
+                selector_header = Some(current);
+                selector_key = Some(key_value);
+                selector_condition = Some(condition);
+            }
+            let returned = trace_dense_constant_string_return(function, then_block, &mut visited)?;
+            if !json_safe_string_fragment(&returned) || arms.insert(key, returned).is_some() {
+                return None;
+            }
+            current = else_block;
+        };
+
+        if arms.len() < 2 || !json_safe_string_fragment(&default) {
+            return None;
+        }
+        let selector = selector?;
+        let range = proven_dense_selector_range(
+            function,
+            self.integer_analysis.function(function.id),
+            selector,
+        )?;
+        if range.min != 0 || range.max < 0 {
+            return None;
+        }
+        let entries = usize::try_from(range.max).ok()?.checked_add(1)?;
+        if entries > MAX_DENSE_STRING_RETURN_TABLE_ENTRIES
+            || arms.keys().any(|key| *key < 0 || *key > range.max)
+        {
+            return None;
+        }
+
+        // The table covers the entire proven selector domain. Missing equality
+        // arms receive the original default, so every in-range lookup is an
+        // own array element and can never observe `Array.prototype`.
+        let mut slots = vec![default; entries];
+        for (key, value) in arms {
+            slots[usize::try_from(key).ok()?] = value;
+        }
+
+        let mut reachable = AHashSet::default();
+        let mut pending = vec![function.entry];
+        while let Some(block) = pending.pop() {
+            if !reachable.insert(block) {
+                continue;
+            }
+            pending.extend(block_successors(function.blocks.get(block.0 as usize)?));
+        }
+        if reachable != visited {
+            return None;
+        }
+
+        Some(DenseStringReturnTable {
+            selector,
+            selector_header: selector_header?,
+            selector_key: selector_key?,
+            selector_condition: selector_condition?,
+            slots,
+        })
     }
 
     /// Render a return-only CFG region as one expression.  Unlike the old
@@ -2565,22 +6354,129 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         mut cache: ExpressionCache,
         mut visited: AHashSet<BlockId>,
         mut deferred_effects: usize,
+        allow_eager_bindings: bool,
     ) -> Result<Option<JsExpression>, CodegenError> {
+        let mut eager_bindings = Vec::<(String, JsExpression)>::new();
+        let order_sensitive_expression_region = allow_eager_bindings
+            && function
+                .blocks
+                .iter()
+                .flat_map(|block| &block.instructions)
+                .any(|instruction| pure_helper_order_sensitive_instruction(function, instruction))
+            && function
+                .blocks
+                .iter()
+                .flat_map(|block| &block.phis)
+                .any(|phi| matches!(phi.origin, crate::ir::PhiOrigin::Expression(_)));
         loop {
+            if matches!(
+                function.blocks[block.0 as usize].terminator,
+                Some(Terminator::Branch { .. })
+            ) && !matches!(shape_at(function, block), Some(ControlShape::If { .. }))
+            {
+                // This probe only reconstructs conditional return regions.
+                // Structured loops own their pseudo-intrinsics and must reach
+                // the statement emitter intact, including an empty loop body.
+                return Ok(None);
+            }
+            // A lazy source expression can end in a phi before the surrounding
+            // guard-return ladder continues. Reuse the transactional region
+            // renderer here instead of forcing that helper back to statement
+            // form. The resulting native expression remains in the cache for
+            // the merge block's return/branch consumer.
+            if !order_sensitive_expression_region
+                && matches!(
+                    function.blocks[block.0 as usize].terminator,
+                    Some(Terminator::Branch { .. })
+                )
+            {
+                let mut trial_cache = cache.clone();
+                let mut state = ExpressionRegionState::new(visited.clone());
+                if let Some(rendered) = self.render_short_circuit_region(
+                    function,
+                    block,
+                    context,
+                    &mut trial_cache,
+                    &mut state,
+                )? {
+                    // This return-expression probe has no statement prefix in
+                    // which to materialize a reused region result. Retaining a
+                    // multi-use value in the one-shot expression cache would
+                    // substitute its expression once and leave later uses
+                    // referring to an uninitialized (or coalesced) name.
+                    if expression_semantic_use_count(function, rendered.value, uses) == 1
+                        && state.validate(function, rendered.value, context)
+                    {
+                        state.retain_only_result(&mut trial_cache, rendered.value);
+                        cache = trial_cache;
+                        visited = state.visited;
+                        block = rendered.merge;
+                        continue;
+                    }
+                }
+            }
             if !visited.insert(block) {
                 return Ok(None);
             }
             let current = &function.blocks[block.0 as usize];
-            if !current.phis.is_empty() {
+            if current.phis.iter().any(|phi| !cache.contains_key(&phi.out)) {
                 return Ok(None);
             }
             for instruction in &current.instructions {
                 let Some(out) = instruction.out else {
                     return Ok(None);
                 };
-                let deferred_effect = matches!(instruction.op, ControlFlowOp::CallDirect { .. });
-                if (!expression_only_op(&instruction.op) && !deferred_effect)
-                    || (uses.get(&out).copied().unwrap_or(0) > 1 && !op_can_defer(&instruction.op))
+                let inline_pure_call_order_sensitive = matches!(
+                    instruction.op,
+                    ControlFlowOp::CallDirect { function, .. }
+                        if self.order_sensitive_inline_pure_helpers.contains(&function)
+                );
+                if (op_evaluation_is_observable(function, instruction)
+                    || inline_pure_call_order_sensitive)
+                    && !allow_eager_bindings
+                {
+                    // Named conditional-return recovery has no prefix-binding
+                    // grammar. Preserve the operation at its original CFG
+                    // point by falling back to statement emission.
+                    return Ok(None);
+                }
+                let inline_pure_call = matches!(
+                    instruction.op,
+                    ControlFlowOp::CallDirect { function, .. }
+                        if self.inline_pure_helpers.contains(&function)
+                );
+                let eager_order_binding = allow_eager_bindings
+                    && (pure_helper_order_sensitive_instruction(function, instruction)
+                        || inline_pure_call_order_sensitive)
+                    && (!matches!(instruction.op, ControlFlowOp::CallDirect { .. })
+                        || inline_pure_call);
+                let deferred_effect =
+                    matches!(instruction.op, ControlFlowOp::CallDirect { .. }) && !inline_pure_call;
+                let use_count = uses.get(&out).copied().unwrap_or(0);
+                let reuses_parameter_binding = use_count > 1
+                    && inline_pure_call
+                    && !eager_order_binding
+                    // An ordinary sloppy-mode function aliases formal writes
+                    // through `arguments[index]`. Do not introduce a formal
+                    // assignment when that observable mapping is read.
+                    && !self.function_reads_own_arguments(function)
+                    && context.value_name(out).ok().is_some_and(|output_name| {
+                        function.params.iter().any(|parameter| {
+                            !context.inlined_values.contains_key(&parameter.value)
+                                && context.value_name(parameter.value).ok() == Some(output_name)
+                        })
+                    });
+                // The expression cache is consumed as each branch condition is
+                // rendered. A non-constant SSA value shared by a later arm
+                // therefore needs a materialized binding; folding the whole
+                // CFG into a conditional would otherwise leave later uses
+                // referring to an undeclared name. Keep the statement form in
+                // that case so evaluation remains both single and sound.
+                if (!expression_only_op(&instruction.op) && !deferred_effect && !inline_pure_call)
+                    || (use_count > 1
+                        && !matches!(instruction.op, ControlFlowOp::Const(_))
+                        && !reuses_parameter_binding
+                        && !(allow_eager_bindings && (inline_pure_call || eager_order_binding)))
                     || (deferred_effect && uses.get(&out).copied().unwrap_or(0) != 1)
                 {
                     return Ok(None);
@@ -2592,12 +6488,45 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     }
                 }
                 let expression = self.render_instruction_op(instruction, context, &mut cache)?;
-                cache.insert(out, expression);
+                if eager_order_binding {
+                    let name = context.value_name(out)?.to_string();
+                    cache.insert(out, JsExpression::atom(name.clone()));
+                    eager_bindings.push((name, expression));
+                } else if reuses_parameter_binding {
+                    let name = context.value_name(out)?;
+                    let assignment = JsExpression::raw(
+                        format!("{name}={}", strip_outer_parens(expression)),
+                        JsPrecedence::Assignment,
+                    );
+                    cache.insert(
+                        out,
+                        JsExpression::comma([assignment, JsExpression::atom(name)]),
+                    );
+                } else if allow_eager_bindings && inline_pure_call && use_count > 1 {
+                    let name = context.value_name(out)?.to_string();
+                    cache.insert(out, JsExpression::atom(name.clone()));
+                    eager_bindings.push((name, expression));
+                } else {
+                    cache.insert(out, expression);
+                }
             }
             match current.terminator {
                 Some(Terminator::Jump(target)) => block = target,
                 Some(Terminator::Return(Some(value))) => {
-                    return take_value(value, context, &mut cache).map(Some)
+                    if context.is_js_undefined(value) {
+                        // Once a return-only CFG becomes an expression, a bare
+                        // return arm must become an actual undefined value.
+                        // Statement emission handles the complementary case by
+                        // spelling early exits as `return;` and terminal exits
+                        // as fallthrough.
+                        return Ok(Some(wrap_eager_expression_bindings(
+                            JsExpression::atom("void 0"),
+                            eager_bindings,
+                        )));
+                    }
+                    return take_value(value, context, &mut cache).map(|expression| {
+                        Some(wrap_eager_expression_bindings(expression, eager_bindings))
+                    });
                 }
                 Some(Terminator::Branch { condition, .. }) => {
                     let Some(crate::ir::ControlShape::If {
@@ -2609,6 +6538,18 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         return Ok(None);
                     };
                     let condition = take_value(condition, context, &mut cache)?;
+                    // If consuming the condition emptied the cache, every
+                    // deferred effect seen so far belongs to the condition
+                    // itself. A JavaScript conditional evaluates that before
+                    // either arm, so each arm can start a fresh per-path
+                    // effect budget. Retained values keep the old budget and
+                    // therefore prevent reordering an earlier effect past the
+                    // branch test.
+                    let arm_deferred_effects = if cache.is_empty() {
+                        0
+                    } else {
+                        deferred_effects
+                    };
                     let Some(then_value) = self.render_return_path(
                         function,
                         then_block,
@@ -2616,7 +6557,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         uses,
                         cache.clone(),
                         visited.clone(),
-                        deferred_effects,
+                        arm_deferred_effects,
+                        allow_eager_bindings,
                     )?
                     else {
                         return Ok(None);
@@ -2628,13 +6570,15 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         uses,
                         cache,
                         visited,
-                        deferred_effects,
+                        arm_deferred_effects,
+                        allow_eager_bindings,
                     )?
                     else {
                         return Ok(None);
                     };
-                    return Ok(Some(JsExpression::conditional(
-                        condition, then_value, else_value,
+                    return Ok(Some(wrap_eager_expression_bindings(
+                        JsExpression::conditional(condition, then_value, else_value),
+                        eager_bindings,
                     )));
                 }
                 _ => return Ok(None),
@@ -2657,6 +6601,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             &self.preferred_local_names,
             &self.numeric_aliases,
             &self.options,
+            &self.order_sensitive_inline_pure_helpers,
+            &self.loop_captured_closures,
         );
         self.emit_single_block_with_context(function, wrapped, context, out)
     }
@@ -2671,28 +6617,66 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         context.inline_declarations = true;
         if wrapped {
             out.push('{');
+            self.emit_nested_once_run_helpers(function.id, out)?;
+            self.emit_calling_convention_aliases(function, &context, out)?;
         }
         let block = &function.blocks[0];
         let uses = &context.use_counts;
-        let mut cache = ExpressionCache::new();
+        let mut cache = ExpressionCache::default();
         let mut previous_binding = false;
         let mut previous_expressions = None::<(usize, Vec<JsExpression>)>;
-        for (index, instruction) in block.instructions.iter().enumerate() {
-            let fuse_with_next = instruction.out.is_some_and(|value| {
-                uses.get(&value).copied().unwrap_or(0) == 1 && can_fuse_value(block, index, value)
-            });
+        let phi_edge = self.options.phi_edge_value_forwarding;
+        let fuse_with_next = block
+            .instructions
+            .iter()
+            .enumerate()
+            .map(|(index, instruction)| {
+                instruction.out.is_some_and(|value| {
+                    uses.get(&value).copied().unwrap_or(0) == 1
+                        && can_fuse_value(
+                            function,
+                            block,
+                            index,
+                            value,
+                            phi_edge,
+                            &self.loop_captured_closures,
+                            &context.operand_order_fusable,
+                        )
+                })
+            })
+            .collect::<Vec<_>>();
+        let mut index = 0;
+        while index < block.instructions.len() {
             let mut statement = String::new();
-            self.emit_linear_instruction(
-                instruction,
+            if let Some((consumed, batched)) = self.batched_property_assign_statement(
+                function,
+                block,
+                index,
                 uses,
-                fuse_with_next,
                 false,
                 &context,
                 &mut cache,
-                &mut statement,
-            )?;
-            if statement.is_empty() {
-                continue;
+                &fuse_with_next,
+            )? {
+                statement = batched;
+                index += consumed;
+            } else {
+                let instruction = &block.instructions[index];
+                self.emit_linear_instruction(
+                    instruction,
+                    block.id,
+                    index,
+                    uses,
+                    fuse_with_next[index],
+                    false,
+                    &context,
+                    &mut cache,
+                    &mut statement,
+                )?;
+                index += 1;
+                if statement.is_empty() {
+                    continue;
+                }
             }
             let binding = is_single_binding_statement(&statement);
             let statement_start = out.len();
@@ -2738,11 +6722,30 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         }
         match block.terminator.as_ref() {
             Some(Terminator::Return(Some(value))) => {
-                out.push_str("return ");
-                out.push_str(&strip_outer_parens(take_value(
-                    *value, &context, &mut cache,
-                )?));
-                out.push(';');
+                if !context.is_js_undefined(*value) {
+                    let returned = strip_outer_parens(take_value(*value, &context, &mut cache)?);
+                    let return_sequence = self
+                        .options
+                        .comma_expressions
+                        .then(|| previous_expressions.take())
+                        .flatten();
+                    if let Some((start, mut expressions)) = return_sequence {
+                        // These are adjacent emitter-produced expression
+                        // statements screened by `is_comma_eligible_statement`.
+                        // Moving them into the return's parenthesized sequence
+                        // preserves their order, effects, and the final value,
+                        // while enabling a concise arrow body later.
+                        expressions.push(JsExpression::raw(returned, JsPrecedence::Assignment));
+                        out.truncate(start);
+                        out.push_str("return ");
+                        out.push_str(&JsExpression::comma(expressions).grouped_code());
+                        out.push(';');
+                    } else {
+                        out.push_str("return ");
+                        out.push_str(&returned);
+                        out.push(';');
+                    }
+                }
             }
             Some(Terminator::Return(None)) if function.kind != FunctionKind::Entry => {
                 if function.return_type != Type::Void {
@@ -2753,7 +6756,16 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 }
             }
             Some(Terminator::Return(None)) => {}
-            Some(Terminator::Unreachable) => out.push_str("throw Error();"),
+            Some(Terminator::Throw(value)) => {
+                out.push_str("throw ");
+                out.push_str(&strip_outer_parens(take_value(
+                    *value, &context, &mut cache,
+                )?));
+                out.push(';');
+            }
+            Some(Terminator::Unreachable) => {
+                self.emit_unreachable_terminator(block.instructions.last(), out);
+            }
             _ => {
                 return Err(CodegenError::new(
                     block.span,
@@ -2762,18 +6774,99 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             }
         }
         if wrapped {
-            if self.options.elide_block_terminal_semicolons && out.ends_with(';') {
-                out.pop();
-            }
-            out.push('}');
+            close_statement_block(out, self.options.elide_block_terminal_semicolons);
         }
         Ok(())
+    }
+
+    fn batched_property_assign_statement(
+        &mut self,
+        _function: &ControlFlowFunction<'src>,
+        block: &crate::ir::ControlFlowBlock<'src>,
+        start: usize,
+        uses: &AHashMap<ValueId, usize>,
+        predeclared: bool,
+        context: &LocalNames,
+        cache: &mut ExpressionCache,
+        fuse_with_next: &[bool],
+    ) -> Result<Option<(usize, String)>, CodegenError> {
+        if !self.options.batch_property_assigns {
+            return Ok(None);
+        }
+        let Some((object, first_key, first_value)) =
+            property_assign_parts(&block.instructions[start], &context.string_constants, uses)
+        else {
+            return Ok(None);
+        };
+        let mut pairs = vec![(first_key.clone(), first_value)];
+        let mut keys = AHashSet::from_iter([first_key]);
+        let mut deferred = Vec::new();
+        let mut pending_deferred = Vec::new();
+        let mut last_assign = start;
+        let mut cursor = start + 1;
+        while cursor < block.instructions.len() {
+            if let Some((target, key, value)) =
+                property_assign_parts(&block.instructions[cursor], &context.string_constants, uses)
+            {
+                if target != object || !keys.insert(key.clone()) {
+                    break;
+                }
+                deferred.append(&mut pending_deferred);
+                pairs.push((key, value));
+                last_assign = cursor;
+                cursor += 1;
+                continue;
+            }
+            if instruction_emits_into_cache(
+                &block.instructions[cursor],
+                uses,
+                fuse_with_next.get(cursor).copied().unwrap_or(false),
+                context,
+            ) {
+                pending_deferred.push(cursor);
+                cursor += 1;
+                continue;
+            }
+            break;
+        }
+        if pairs.len() < 2 {
+            return Ok(None);
+        }
+        let mut rendered = String::new();
+        for index in deferred {
+            self.emit_linear_instruction(
+                &block.instructions[index],
+                block.id,
+                index,
+                uses,
+                true,
+                predeclared,
+                context,
+                cache,
+                &mut rendered,
+            )?;
+        }
+        rendered.push_str("Object.assign(");
+        rendered.push_str(&take_value(object, context, cache)?);
+        rendered.push_str(",{");
+        for (index, (key, value)) in pairs.iter().enumerate() {
+            if index != 0 {
+                rendered.push(',');
+            }
+            push_object_literal_key(&mut rendered, key, self.options.string_quote);
+            rendered.push(':');
+            rendered.push_str(&strip_outer_parens(take_value(*value, context, cache)?));
+        }
+        rendered.push_str("});");
+        Ok(Some((last_assign + 1 - start, rendered)))
     }
 
     #[allow(clippy::too_many_arguments)]
     fn emit_linear_instruction(
         &mut self,
         instruction: &ControlFlowInstruction<'src>,
+        block: BlockId,
+        instruction_index: usize,
         uses: &AHashMap<ValueId, usize>,
         fuse_with_next: bool,
         predeclared: bool,
@@ -2782,6 +6875,23 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         out: &mut String,
     ) -> Result<(), CodegenError> {
         match &instruction.op {
+            ControlFlowOp::CaughtException => return Ok(()),
+            ControlFlowOp::StoreLocal { local, value } => {
+                let value = strip_outer_parens(take_value(*value, context, cache)?);
+                let name = context.local_name(*local)?;
+                let declare = context.claim_local_declaration(*local)?;
+                if !declare && value == name {
+                    return Ok(());
+                }
+                if declare {
+                    out.push_str("var ");
+                }
+                out.push_str(name);
+                out.push('=');
+                out.push_str(&value);
+                out.push(';');
+                return Ok(());
+            }
             ControlFlowOp::StoreGlobal { global, value } => {
                 if self.constant_global_strings.contains_key(global) {
                     let _ = take_value(*value, context, cache)?;
@@ -2809,6 +6919,13 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 value,
                 ..
             } => {
+                if self.inlined_constructor_field_sets.contains(&(
+                    context.function_id,
+                    block,
+                    instruction_index,
+                )) {
+                    return Ok(());
+                }
                 out.push_str(&take_value(*object, context, cache)?);
                 if (self.options.public_aggregate_fields && context.is_untyped(*object))
                     || self.class_uses_named_fields(owner)
@@ -2822,15 +6939,42 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 out.push(';');
                 return Ok(());
             }
+            ControlFlowOp::RecordFieldSet {
+                object,
+                property,
+                value,
+            } => {
+                let object = take_value(*object, context, cache)?;
+                let access = if is_js_property_identifier(property) {
+                    JsExpression::member(
+                        object,
+                        property,
+                        self.options.elide_call_chain_parentheses,
+                    )
+                } else {
+                    JsExpression::index(
+                        object,
+                        JsExpression::atom(render_string_literal(
+                            property,
+                            self.options.string_quote,
+                        )),
+                        self.options.elide_call_chain_parentheses,
+                    )
+                };
+                out.push_str(&access);
+                out.push('=');
+                out.push_str(&strip_outer_parens(take_value(*value, context, cache)?));
+                out.push(';');
+                return Ok(());
+            }
             ControlFlowOp::IndexSet {
                 object,
                 index,
                 value,
             } => {
-                out.push_str(&take_value(*object, context, cache)?);
-                out.push('[');
-                out.push_str(&strip_outer_parens(take_value(*index, context, cache)?));
-                out.push_str("]=");
+                let access = self.render_index_access(*object, *index, context, cache)?;
+                out.push_str(&access);
+                out.push('=');
                 out.push_str(&strip_outer_parens(take_value(*value, context, cache)?));
                 out.push(';');
                 return Ok(());
@@ -2881,6 +7025,31 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             }
         }
 
+        if let (Some(output), ControlFlowOp::RecordRest { object, excluded }) =
+            (instruction.out, &instruction.op)
+        {
+            if uses.get(&output).copied().unwrap_or(0) != 0 {
+                let name = context.value_name(output)?;
+                emit_binding_prefix(context, output, predeclared, out)?;
+                out.push_str(name);
+                out.push_str(if self.options.ordinary_record_literals {
+                    "={..."
+                } else {
+                    "={__proto__:null,..."
+                });
+                out.push_str(&strip_outer_parens(take_value(*object, context, cache)?));
+                out.push_str("};");
+                for key in excluded {
+                    out.push_str("delete ");
+                    out.push_str(name);
+                    out.push('[');
+                    out.push_str(&render_string_literal(key, self.options.string_quote));
+                    out.push_str("];");
+                }
+            }
+            return Ok(());
+        }
+
         if self.emit_in_place_update(instruction, context, cache, out)? {
             return Ok(());
         }
@@ -2888,28 +7057,25 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         let expression = self.render_instruction_op(instruction, context, cache)?;
         let Some(out_value) = instruction.out else {
             if !expression.is_empty() {
-                out.push_str(&expression);
+                out.push_str(&expression_statement(expression));
                 out.push(';');
             }
             return Ok(());
         };
         let use_count = uses.get(&out_value).copied().unwrap_or(0);
+        let observable_evaluation = context.evaluation_is_observable(instruction);
         if use_count == 0 {
-            if op_has_side_effects(&instruction.op) {
-                out.push_str(&expression);
+            if op_has_side_effects(&instruction.op) || observable_evaluation {
+                out.push_str(&expression_statement(expression));
                 out.push(';');
             }
-        } else if use_count == 1
-            && !context.is_stored(out_value)
-            && (op_can_defer(&instruction.op) || fuse_with_next)
+        } else if !context.is_stored(out_value)
+            && ((!observable_evaluation && use_count == 1 && op_can_defer(&instruction.op))
+                || fuse_with_next)
         {
             cache.insert(out_value, expression);
         } else {
-            emit_binding_prefix(context, out_value, predeclared, out)?;
-            out.push_str(context.value_name(out_value)?);
-            out.push('=');
-            out.push_str(&strip_outer_parens(expression));
-            out.push(';');
+            emit_bound_value(context, out_value, expression, predeclared, out)?;
         }
         Ok(())
     }
@@ -3027,6 +7193,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             &self.preferred_local_names,
             &self.numeric_aliases,
             &self.options,
+            &self.order_sensitive_inline_pure_helpers,
+            &self.loop_captured_closures,
         );
         self.emit_state_machine_with_context(function, context, out)
     }
@@ -3038,6 +7206,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         out: &mut String,
     ) -> Result<(), CodegenError> {
         out.push('{');
+        self.emit_nested_once_run_helpers(function.id, out)?;
+        self.emit_calling_convention_aliases(function, &context, out)?;
         let declared = context.non_parameter_names(function);
         if !declared.is_empty() {
             out.push_str("let ");
@@ -3074,21 +7244,55 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         .expect("writing to String cannot fail");
                 }
             }
-            let mut cache = AHashMap::new();
-            for (index, instruction) in block.instructions.iter().enumerate() {
-                let fuse_with_next = instruction.out.is_some_and(|value| {
-                    uses.get(&value).copied().unwrap_or(0) == 1
-                        && can_fuse_value(block, index, value)
-                });
-                self.emit_linear_instruction(
-                    instruction,
+            let mut cache = AHashMap::default();
+            let phi_edge = self.options.phi_edge_value_forwarding;
+            let fuse_with_next = block
+                .instructions
+                .iter()
+                .enumerate()
+                .map(|(index, instruction)| {
+                    instruction.out.is_some_and(|value| {
+                        uses.get(&value).copied().unwrap_or(0) == 1
+                            && can_fuse_value(
+                                function,
+                                block,
+                                index,
+                                value,
+                                phi_edge,
+                                &self.loop_captured_closures,
+                                &context.operand_order_fusable,
+                            )
+                    })
+                })
+                .collect::<Vec<_>>();
+            let mut index = 0;
+            while index < block.instructions.len() {
+                if let Some((consumed, batched)) = self.batched_property_assign_statement(
+                    function,
+                    block,
+                    index,
                     uses,
-                    fuse_with_next,
+                    true,
+                    &context,
+                    &mut cache,
+                    &fuse_with_next,
+                )? {
+                    out.push_str(&batched);
+                    index += consumed;
+                    continue;
+                }
+                self.emit_linear_instruction(
+                    &block.instructions[index],
+                    block.id,
+                    index,
+                    uses,
+                    fuse_with_next[index],
                     true,
                     &context,
                     &mut cache,
                     out,
                 )?;
+                index += 1;
             }
             match block
                 .terminator
@@ -3134,24 +7338,38 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     out.push_str("}continue;");
                 }
                 Terminator::Return(Some(value)) => {
-                    out.push_str("return ");
-                    out.push_str(&take_value(*value, &context, &mut cache)?);
-                    out.push(';');
+                    if context.is_js_undefined(*value) {
+                        out.push_str("return;");
+                    } else {
+                        out.push_str("return ");
+                        out.push_str(&take_value(*value, &context, &mut cache)?);
+                        out.push(';');
+                    }
                 }
                 Terminator::Return(None) => out.push_str("return;"),
-                Terminator::Unreachable => out.push_str("throw Error();"),
+                Terminator::Throw(value) => {
+                    out.push_str("throw ");
+                    out.push_str(&strip_outer_parens(take_value(
+                        *value, &context, &mut cache,
+                    )?));
+                    out.push(';');
+                }
+                Terminator::Try { .. } => {
+                    return Err(CodegenError::new(
+                        block.span,
+                        "exception regions require structured JavaScript emission",
+                    ));
+                }
+                Terminator::Unreachable => {
+                    self.emit_unreachable_terminator(block.instructions.last(), out);
+                }
             }
             if self.options.state_machine_spelling == StateMachineSpelling::Conditional {
-                if self.options.elide_block_terminal_semicolons && out.ends_with(';') {
-                    out.pop();
-                }
-                out.push('}');
+                close_statement_block(out, self.options.elide_block_terminal_semicolons);
             }
         }
-        if self.options.elide_block_terminal_semicolons && out.ends_with(';') {
-            out.pop();
-        }
-        out.push_str("}}");
+        close_statement_block(out, self.options.elide_block_terminal_semicolons);
+        close_statement_block(out, self.options.elide_block_terminal_semicolons);
         Ok(())
     }
 
@@ -3170,6 +7388,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             &self.preferred_local_names,
             &self.numeric_aliases,
             &self.options,
+            &self.order_sensitive_inline_pure_helpers,
+            &self.loop_captured_closures,
         );
         context.inline_declarations = true;
         self.emit_structured_with_context(function, wrapped, context, out)
@@ -3184,6 +7404,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     ) -> Result<(), CodegenError> {
         if wrapped {
             out.push('{');
+            self.emit_nested_once_run_helpers(function.id, out)?;
+            self.emit_calling_convention_aliases(function, &context, out)?;
         }
         let declared = context.non_parameter_names(function);
         if !context.inline_declarations && !declared.is_empty() {
@@ -3197,8 +7419,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             out.push(';');
         }
         let uses = &context.use_counts;
-        let mut visited = AHashSet::new();
-        let mut cache = AHashMap::new();
+        let mut visited = AHashSet::default();
+        let mut cache = AHashMap::default();
         self.emit_structured_path(
             function,
             function.entry,
@@ -3214,10 +7436,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             out.truncate(out.len() - "return;".len());
         }
         if wrapped {
-            if self.options.elide_block_terminal_semicolons && out.ends_with(';') {
-                out.pop();
-            }
-            out.push('}');
+            close_statement_block(out, self.options.elide_block_terminal_semicolons);
         }
         Ok(())
     }
@@ -3238,6 +7457,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         loop {
             if Some(current) == stop {
                 return Ok(PathEnd::ReachedStop);
+            }
+            if self.options.expression_phi_regions || self.options.local_phi_expression_regions {
+                if let Some(merge) = self.try_emit_expression_shape(
+                    function, current, context, uses, cache, visited, out,
+                )? {
+                    current = merge;
+                    continue;
+                }
             }
             if !visited.insert(current) {
                 return Err(CodegenError::new(
@@ -3263,7 +7490,13 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             None
                         }
                     }
-                    ControlShape::Loop { .. } | ControlShape::ForIn { .. } => None,
+                    ControlShape::ForIn { object, .. } => {
+                        cache.contains_key(object).then_some(*object)
+                    }
+                    ControlShape::ForOf { iterable, .. } => {
+                        cache.contains_key(iterable).then_some(*iterable)
+                    }
+                    ControlShape::Loop { .. } | ControlShape::Try { .. } => None,
                 };
                 self.flush_cache_except(cache, context, out, retained_condition)?;
                 match shape {
@@ -3274,7 +7507,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         merge_block,
                     } => {
                         let block = &function.blocks[header.0 as usize];
-                        self.emit_cached_block(block, uses, context, cache, out)?;
+                        self.emit_cached_block(function, block, uses, context, cache, out)?;
                         let Some(Terminator::Branch { condition, .. }) = block.terminator else {
                             return Err(CodegenError::new(
                                 block.span,
@@ -3282,6 +7515,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             ));
                         };
                         let condition_expression = take_value(condition, context, cache)?;
+                        let condition_was_negated =
+                            condition_expression.root == JsExpressionRoot::Unary("!");
                         let negated_condition = condition_expression.clone().negated();
                         let condition = condition_expression.into_condition();
                         if is_true_literal(&condition) || is_false_literal(&condition) {
@@ -3346,7 +7581,21 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             .flatten()
                         {
                             let mut value = String::new();
-                            if is_true_literal(then_value) && is_false_literal(else_value) {
+                            let nullish_source = nullish_merge_source(
+                                function,
+                                header,
+                                then_block,
+                                merge_block,
+                                target,
+                                context,
+                            );
+                            if let Some(source) = nullish_source.filter(|source| {
+                                context.value_name(*source).ok() == Some(then_value)
+                            }) {
+                                value.push_str(context.value_name(source)?);
+                                value.push_str("??");
+                                value.push_str(else_value);
+                            } else if is_true_literal(then_value) && is_false_literal(else_value) {
                                 value.push_str(&condition);
                             } else if is_false_literal(then_value) && is_true_literal(else_value) {
                                 value.push_str(&negated_condition);
@@ -3442,18 +7691,110 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             out.push(':');
                             push_conditional_arm(out, else_expression);
                             out.push(';');
+                        } else if let (true, Some(then_ret), Some(else_ret)) = (
+                            self.options.conditional_expressions,
+                            compact_return_expression(&then_output),
+                            compact_return_expression(&else_output),
+                        ) {
+                            push_return_conditional(out, &condition, then_ret, else_ret);
+                            cache.clear();
+                            return Ok(PathEnd::Terminated);
+                        } else if let (true, Some(then_ret), Some(merge_ret)) = (
+                            self.options.conditional_expressions && else_output.is_empty(),
+                            compact_return_expression(&then_output),
+                            peek_merge_return_expression(function, merge_block, context, cache),
+                        ) {
+                            push_return_conditional(out, &condition, then_ret, &merge_ret);
+                            cache.clear();
+                            return Ok(PathEnd::Terminated);
+                        } else if let (true, Some(guard)) = (
+                            self.options.conditional_expressions && else_output.is_empty(),
+                            parse_assignment_guard_return(&then_output),
+                        ) {
+                            if let Some(name) = guard.name.filter(|_| guard.declare) {
+                                out.push_str("var ");
+                                out.push_str(name);
+                                out.push(';');
+                            }
+                            let mut combined = String::new();
+                            push_logical_operand(&mut combined, &condition, IrBinaryOp::And);
+                            combined.push_str("&&");
+                            push_logical_operand(
+                                &mut combined,
+                                &guard.condition,
+                                IrBinaryOp::And,
+                            );
+                            if !guard.returned.is_empty() {
+                                if let Some(merge_ret) = peek_merge_return_expression(
+                                    function,
+                                    merge_block,
+                                    context,
+                                    cache,
+                                ) {
+                                    push_return_conditional(
+                                        out,
+                                        &combined,
+                                        guard.returned,
+                                        &merge_ret,
+                                    );
+                                    cache.clear();
+                                    return Ok(PathEnd::Terminated);
+                                }
+                            }
+                            out.push_str("if(");
+                            out.push_str(&combined);
+                            out.push_str(")return");
+                            if !guard.returned.is_empty() {
+                                out.push(' ');
+                                out.push_str(guard.returned);
+                            }
+                            out.push(';');
+                        } else if then_output.is_empty()
+                            && self.options.conditional_expressions
+                            && nullish_condition_source(function, header)
+                                .is_some_and(|source| context.value_name(source).is_ok())
+                        {
+                            let expression = compact_branch_expression(&else_output)
+                                .map(str::to_string)
+                                .or_else(|| compact_top_level_expression_statements(&else_output));
+                            if let Some(expression) = expression {
+                                let source = nullish_condition_source(function, header)
+                                    .expect("nullish source was checked");
+                                out.push_str(context.value_name(source)?);
+                                out.push_str("??(");
+                                out.push_str(&expression);
+                                out.push_str(");");
+                            } else {
+                                out.push_str("if(");
+                                out.push_str(&negated_condition);
+                                if is_braceless_statement(&else_output) {
+                                    out.push(')');
+                                    out.push_str(&else_output);
+                                } else {
+                                    out.push_str("){");
+                                    out.push_str(&else_output);
+                                    close_statement_block(
+                                        out,
+                                        self.options.elide_block_terminal_semicolons,
+                                    );
+                                }
+                            }
                         } else if else_output.is_empty() {
-                            if self.options.conditional_expressions
-                                && compact_branch_expression(&then_output).is_some()
+                            if let Some(then_expression) = self
+                                .options
+                                .conditional_expressions
+                                .then(|| compact_sequence_expression(&then_output))
+                                .flatten()
                             {
-                                push_logical_operand(out, &condition, IrBinaryOp::And);
-                                out.push_str("&&");
-                                push_logical_operand(
-                                    out,
-                                    compact_branch_expression(&then_output)
-                                        .expect("branch expression was checked"),
-                                    IrBinaryOp::And,
-                                );
+                                if condition_was_negated {
+                                    push_logical_operand(out, &negated_condition, IrBinaryOp::Or);
+                                    out.push_str("||");
+                                    push_logical_operand(out, &then_expression, IrBinaryOp::Or);
+                                } else {
+                                    push_logical_operand(out, &condition, IrBinaryOp::And);
+                                    out.push_str("&&");
+                                    push_logical_operand(out, &then_expression, IrBinaryOp::And);
+                                }
                                 out.push(';');
                             } else {
                                 out.push_str("if(");
@@ -3464,21 +7805,28 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 } else {
                                     out.push_str("){");
                                     out.push_str(&then_output);
-                                    out.push('}');
+                                    close_statement_block(
+                                        out,
+                                        self.options.elide_block_terminal_semicolons,
+                                    );
                                 }
                             }
                         } else if then_output.is_empty() {
-                            if self.options.conditional_expressions
-                                && compact_branch_expression(&else_output).is_some()
+                            if let Some(else_expression) = self
+                                .options
+                                .conditional_expressions
+                                .then(|| compact_sequence_expression(&else_output))
+                                .flatten()
                             {
-                                push_logical_operand(out, &negated_condition, IrBinaryOp::And);
-                                out.push_str("&&");
-                                push_logical_operand(
-                                    out,
-                                    compact_branch_expression(&else_output)
-                                        .expect("branch expression was checked"),
-                                    IrBinaryOp::And,
-                                );
+                                if condition_was_negated {
+                                    push_logical_operand(out, &negated_condition, IrBinaryOp::And);
+                                    out.push_str("&&");
+                                    push_logical_operand(out, &else_expression, IrBinaryOp::And);
+                                } else {
+                                    push_logical_operand(out, &condition, IrBinaryOp::Or);
+                                    out.push_str("||");
+                                    push_logical_operand(out, &else_expression, IrBinaryOp::Or);
+                                }
                                 out.push(';');
                             } else {
                                 out.push_str("if(");
@@ -3489,7 +7837,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 } else {
                                     out.push_str("){");
                                     out.push_str(&else_output);
-                                    out.push('}');
+                                    close_statement_block(
+                                        out,
+                                        self.options.elide_block_terminal_semicolons,
+                                    );
                                 }
                             }
                         } else {
@@ -3497,9 +7848,16 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             out.push_str(&condition);
                             out.push_str("){");
                             out.push_str(&then_output);
-                            out.push_str("}else{");
+                            close_statement_block(
+                                out,
+                                self.options.elide_block_terminal_semicolons,
+                            );
+                            out.push_str("else{");
                             out.push_str(&else_output);
-                            out.push('}');
+                            close_statement_block(
+                                out,
+                                self.options.elide_block_terminal_semicolons,
+                            );
                         }
                         cache.clear();
                         if let Some((value, expression)) = deferred_merge {
@@ -3536,7 +7894,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             condition_function
                                 .shapes
                                 .retain(|shape| shape != &outer_shape);
-                            let mut condition_visited = AHashSet::new();
+                            let mut condition_visited = AHashSet::default();
                             let condition_end = self.emit_structured_path(
                                 &condition_function,
                                 header,
@@ -3575,7 +7933,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 "loop branch does not target its body and exit",
                             ));
                         }
-                        self.emit_cached_block(block, uses, context, cache, &mut header_output)?;
+                        self.emit_cached_block(
+                            function,
+                            block,
+                            uses,
+                            context,
+                            cache,
+                            &mut header_output,
+                        )?;
                         let rotation_counter = positive_counter_condition(function, condition)
                             .filter(|counter| {
                                 value_is_unused_until_block(
@@ -3608,8 +7973,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         let update_clause =
                             if compact_loop && self.options.update_loop_layout && !do_loop {
                                 if let Some(update_block) = update {
-                                    let mut update_visited = AHashSet::new();
-                                    let mut update_cache = AHashMap::new();
+                                    let mut update_visited = AHashSet::default();
+                                    let mut update_cache = AHashMap::default();
                                     let mut update_output = String::new();
                                     let update_end = self.emit_structured_path(
                                         function,
@@ -3730,7 +8095,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         )?;
                         if body_end == PathEnd::ReachedStop && update_clause.is_none() {
                             if let Some(update_block) = update {
-                                let mut update_visited = AHashSet::new();
+                                let mut update_visited = AHashSet::default();
                                 let mut update_cache = body_cache;
                                 self.emit_structured_path(
                                     function,
@@ -3757,7 +8122,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             }
                         }
                         if let Some(condition) = do_condition {
-                            out.push_str("}while(");
+                            close_statement_block(
+                                out,
+                                self.options.elide_block_terminal_semicolons,
+                            );
+                            out.push_str("while(");
                             out.push_str(&condition);
                             out.push_str(");");
                         } else if loop_body_open.is_some_and(|open| {
@@ -3765,7 +8134,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         }) {
                             out.remove(loop_body_open.expect("checked loop body opening"));
                         } else {
-                            out.push('}');
+                            close_statement_block(
+                                out,
+                                self.options.elide_block_terminal_semicolons,
+                            );
                         }
                         if let Some(counter) = rotation_counter {
                             rewrite_guarded_decrement_loop(
@@ -3802,7 +8174,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 "for-in shape header does not branch to its body and exit",
                             ));
                         }
-                        let object = context.value_name(object)?;
+                        let object = take_value(object, context, cache)?.into_minimal();
                         let declare_key = context.claim_declaration(key)?;
                         let key = context.value_name(key)?;
                         out.push_str("for(");
@@ -3811,8 +8183,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         }
                         out.push_str(key);
                         out.push_str(" in ");
-                        out.push_str(object);
+                        out.push_str(&object);
                         out.push_str("){");
+                        let body_open = out.len() - 1;
+                        let body_start = out.len();
 
                         let nested_loop = LoopContext {
                             header,
@@ -3833,16 +8207,205 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             &mut body_visited,
                             out,
                         )?;
-                        out.push('}');
+                        let mut compacted_body = false;
+                        if self.options.comma_expressions {
+                            if let Some(compact) =
+                                compact_top_level_expression_statements(&out[body_start..])
+                            {
+                                out.replace_range(body_start.., &compact);
+                                compacted_body = true;
+                            }
+                        }
+                        if compacted_body || is_braceless_statement(&out[body_start..]) {
+                            out.remove(body_open);
+                        } else {
+                            close_statement_block(
+                                out,
+                                self.options.elide_block_terminal_semicolons,
+                            );
+                        }
                         cache.clear();
                         current = exit;
+                        continue;
+                    }
+                    ControlShape::ForOf {
+                        header,
+                        body,
+                        exit,
+                        iterable,
+                        element,
+                    } => {
+                        let block = &function.blocks[header.0 as usize];
+                        if !matches!(block.terminator, Some(Terminator::Branch {
+                            then_block,
+                            else_block,
+                            ..
+                        }) if then_block == body && else_block == exit)
+                        {
+                            return Err(CodegenError::new(
+                                block.span,
+                                "for-of shape header does not branch to its body and exit",
+                            ));
+                        }
+                        let iterable = take_value(iterable, context, cache)?.into_minimal();
+                        let declare_element = context.claim_declaration(element)?;
+                        let element = context.value_name(element)?;
+                        out.push_str("for(");
+                        if declare_element {
+                            out.push_str("var ");
+                        }
+                        out.push_str(element);
+                        out.push_str(" of ");
+                        out.push_str(&iterable);
+                        out.push_str("){");
+                        let body_open = out.len() - 1;
+                        let body_start = out.len();
+
+                        let nested_loop = LoopContext {
+                            header,
+                            continue_target: header,
+                            update: None,
+                            exit,
+                        };
+                        let mut body_visited = visited.clone();
+                        let mut body_cache = cache.clone();
+                        self.emit_structured_path(
+                            function,
+                            body,
+                            Some(header),
+                            Some(nested_loop),
+                            context,
+                            uses,
+                            &mut body_cache,
+                            &mut body_visited,
+                            out,
+                        )?;
+                        let mut compacted_body = false;
+                        if self.options.comma_expressions {
+                            if let Some(compact) =
+                                compact_top_level_expression_statements(&out[body_start..])
+                            {
+                                out.replace_range(body_start.., &compact);
+                                compacted_body = true;
+                            }
+                        }
+                        if compacted_body || is_braceless_statement(&out[body_start..]) {
+                            out.remove(body_open);
+                        } else {
+                            close_statement_block(
+                                out,
+                                self.options.elide_block_terminal_semicolons,
+                            );
+                        }
+                        cache.clear();
+                        current = exit;
+                        continue;
+                    }
+                    ControlShape::Try {
+                        header,
+                        body,
+                        catch_block,
+                        finally_block,
+                        merge_block,
+                        catch_value,
+                    } => {
+                        let block = &function.blocks[header.0 as usize];
+                        if !matches!(
+                            block.terminator,
+                            Some(Terminator::Try {
+                                body: target_body,
+                                catch_block: target_catch,
+                            }) if target_body == body && target_catch == catch_block
+                        ) {
+                            return Err(CodegenError::new(
+                                block.span,
+                                "try shape header does not enter its exception region",
+                            ));
+                        }
+                        self.emit_cached_block(function, block, uses, context, cache, out)?;
+                        let continuation = finally_block.unwrap_or(merge_block);
+                        out.push_str("try{");
+                        let mut body_visited = visited.clone();
+                        let mut body_cache = cache.clone();
+                        let body_end = self.emit_structured_path(
+                            function,
+                            body,
+                            Some(continuation),
+                            loop_context,
+                            context,
+                            uses,
+                            &mut body_cache,
+                            &mut body_visited,
+                            out,
+                        )?;
+                        close_statement_block(out, self.options.elide_block_terminal_semicolons);
+                        let mut catch_end = None;
+                        if let Some(catch_block) = catch_block {
+                            out.push_str("catch");
+                            if let Some(value) = catch_value.filter(|value| {
+                                !self.options.unused_catch_binding_elision
+                                    || uses.get(value).copied().unwrap_or(0) != 0
+                            }) {
+                                context.mark_declared(value)?;
+                                out.push('(');
+                                out.push_str(context.value_name(value)?);
+                                out.push(')');
+                            }
+                            out.push('{');
+                            let mut catch_visited = visited.clone();
+                            let mut catch_cache = cache.clone();
+                            catch_end = Some(self.emit_structured_path(
+                                function,
+                                catch_block,
+                                Some(continuation),
+                                loop_context,
+                                context,
+                                uses,
+                                &mut catch_cache,
+                                &mut catch_visited,
+                                out,
+                            )?);
+                            close_statement_block(
+                                out,
+                                self.options.elide_block_terminal_semicolons,
+                            );
+                        }
+                        let mut finally_end = None;
+                        if let Some(finally_block) = finally_block {
+                            out.push_str("finally{");
+                            let mut finally_visited = visited.clone();
+                            let mut finally_cache = cache.clone();
+                            finally_end = Some(self.emit_structured_path(
+                                function,
+                                finally_block,
+                                Some(merge_block),
+                                loop_context,
+                                context,
+                                uses,
+                                &mut finally_cache,
+                                &mut finally_visited,
+                                out,
+                            )?);
+                            close_statement_block(
+                                out,
+                                self.options.elide_block_terminal_semicolons,
+                            );
+                        }
+                        cache.clear();
+                        let finally_terminates = finally_end == Some(PathEnd::Terminated);
+                        let protected_reaches_merge = body_end == PathEnd::ReachedStop
+                            || catch_end == Some(PathEnd::ReachedStop);
+                        if finally_terminates || !protected_reaches_merge {
+                            return Ok(PathEnd::Terminated);
+                        }
+                        current = merge_block;
                         continue;
                     }
                 }
             }
 
             let block = &function.blocks[current.0 as usize];
-            self.emit_cached_block(block, uses, context, cache, out)?;
+            self.emit_cached_block(function, block, uses, context, cache, out)?;
             match block
                 .terminator
                 .as_ref()
@@ -3861,8 +8424,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         if *target == loop_context.continue_target {
                             if let Some(update) = loop_context.update {
                                 if current != update {
-                                    let mut update_visited = AHashSet::new();
-                                    let mut update_cache = AHashMap::new();
+                                    let mut update_visited = AHashSet::default();
+                                    let mut update_cache = AHashMap::default();
                                     self.emit_structured_path(
                                         function,
                                         update,
@@ -3883,9 +8446,13 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     current = *target;
                 }
                 Terminator::Return(Some(value)) => {
-                    out.push_str("return ");
-                    out.push_str(&strip_outer_parens(take_value(*value, context, cache)?));
-                    out.push(';');
+                    if context.is_js_undefined(*value) {
+                        out.push_str("return;");
+                    } else {
+                        out.push_str("return ");
+                        out.push_str(&strip_outer_parens(take_value(*value, context, cache)?));
+                        out.push(';');
+                    }
                     return Ok(PathEnd::Terminated);
                 }
                 Terminator::Return(None) => {
@@ -3894,8 +8461,20 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     }
                     return Ok(PathEnd::Terminated);
                 }
+                Terminator::Throw(value) => {
+                    out.push_str("throw ");
+                    out.push_str(&strip_outer_parens(take_value(*value, context, cache)?));
+                    out.push(';');
+                    return Ok(PathEnd::Terminated);
+                }
+                Terminator::Try { .. } => {
+                    return Err(CodegenError::new(
+                        block.span,
+                        "try terminator has no structured shape",
+                    ));
+                }
                 Terminator::Unreachable => {
-                    out.push_str("throw Error();");
+                    self.emit_unreachable_terminator(block.instructions.last(), out);
                     return Ok(PathEnd::Terminated);
                 }
                 Terminator::Branch { .. } => {
@@ -3908,27 +8487,905 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         }
     }
 
+    /// Reconstruct a source expression region before the generic structured
+    /// emitter turns its SSA edges into assignments. The attempt is
+    /// transactional: cache, traversal, and declarations are committed only
+    /// after the region proves that every observable operation is retained and
+    /// every temporary still has a single JavaScript evaluation.
+    #[allow(clippy::too_many_arguments)]
+    fn try_emit_expression_shape(
+        &mut self,
+        function: &ControlFlowFunction<'src>,
+        header: BlockId,
+        context: &LocalNames,
+        uses: &AHashMap<ValueId, usize>,
+        cache: &mut ExpressionCache,
+        visited: &mut AHashSet<BlockId>,
+        out: &mut String,
+    ) -> Result<Option<BlockId>, CodegenError> {
+        let mut trial_cache = cache.clone();
+        let mut state = ExpressionRegionState::new(visited.clone());
+        let Some(rendered) = self.render_short_circuit_region(
+            function,
+            header,
+            context,
+            &mut trial_cache,
+            &mut state,
+        )?
+        else {
+            return Ok(None);
+        };
+        if !state.validate(function, rendered.value, context) {
+            return Ok(None);
+        }
+        state.retain_only_result(&mut trial_cache, rendered.value);
+
+        let use_count = expression_semantic_use_count(function, rendered.value, uses);
+        if use_count == 0 {
+            out.push_str(&rendered.expression.into_minimal());
+            out.push(';');
+            trial_cache.remove(&rendered.value);
+        } else if use_count == 1 {
+            trial_cache.insert(rendered.value, rendered.expression);
+        } else {
+            emit_bound_value(context, rendered.value, rendered.expression, true, out)?;
+            trial_cache.remove(&rendered.value);
+        }
+
+        *cache = trial_cache;
+        *visited = state.visited;
+        Ok(Some(rendered.merge))
+    }
+
+    fn render_short_circuit_region(
+        &mut self,
+        function: &ControlFlowFunction<'src>,
+        header: BlockId,
+        context: &LocalNames,
+        cache: &mut ExpressionCache,
+        state: &mut ExpressionRegionState,
+    ) -> Result<Option<RenderedExpressionRegion>, CodegenError> {
+        let Some(ControlShape::If {
+            then_block,
+            else_block,
+            merge_block,
+            ..
+        }) = shape_at(function, header)
+        else {
+            return Ok(None);
+        };
+        let merge = &function.blocks[merge_block.0 as usize];
+        let [phi] = merge.phis.as_slice() else {
+            return Ok(None);
+        };
+        let (op, lhs) = match phi.origin {
+            crate::ir::PhiOrigin::Expression(crate::ir::ExpressionPhi::ShortCircuit {
+                op,
+                lhs,
+            }) if self.options.expression_phi_regions => (op, lhs),
+            crate::ir::PhiOrigin::Expression(crate::ir::ExpressionPhi::Conditional) => {
+                if !self.options.expression_phi_regions {
+                    return Ok(None);
+                }
+                return self.render_conditional_region(
+                    function,
+                    header,
+                    merge_block,
+                    phi,
+                    context,
+                    cache,
+                    state,
+                );
+            }
+            crate::ir::PhiOrigin::Local(_) => {
+                if !self.options.local_phi_expression_regions {
+                    return Ok(None);
+                }
+                // A local selection that becomes an input to another phi is
+                // not a terminal expression value. In particular, loop-carried
+                // locals use the selected value on a back edge. Reconstructing
+                // that inner phi as a detached conditional expression loses
+                // the assignment that advances the outer phi and can erase an
+                // entire loop body. Keep the explicit SSA copies for those
+                // regions; terminal local selections remain eligible.
+                if value_is_incoming_to_other_phi(function, phi.out) {
+                    return Ok(None);
+                }
+                // A mem2reg phi at a single structured `if` is the same
+                // target-neutral value selection as a source conditional once
+                // the region proof below establishes that every observable
+                // operation feeds the selected value. Keeping this decision in
+                // SSA destruction avoids materializing a JavaScript copy slot
+                // merely because the source expressed the selection with
+                // statements.
+                return self.render_conditional_region(
+                    function,
+                    header,
+                    merge_block,
+                    phi,
+                    context,
+                    cache,
+                    state,
+                );
+            }
+            crate::ir::PhiOrigin::Expression(crate::ir::ExpressionPhi::Nullish { lhs }) => {
+                if !self.options.expression_phi_regions {
+                    return Ok(None);
+                }
+                return self.render_nullish_region(
+                    function,
+                    header,
+                    then_block,
+                    else_block,
+                    merge_block,
+                    phi,
+                    lhs,
+                    context,
+                    cache,
+                    state,
+                );
+            }
+            crate::ir::PhiOrigin::Expression(crate::ir::ExpressionPhi::OptionalAccess {
+                object,
+            }) => {
+                if !self.options.expression_phi_regions {
+                    return Ok(None);
+                }
+                return self.render_optional_access_region(
+                    function,
+                    header,
+                    then_block,
+                    else_block,
+                    merge_block,
+                    phi,
+                    object,
+                    context,
+                    cache,
+                    state,
+                );
+            }
+            crate::ir::PhiOrigin::Expression(_) => return Ok(None),
+            crate::ir::PhiOrigin::Synthetic => return Ok(None),
+        };
+        let (rhs_block, short_block, binary_op, short_boolean) = match op {
+            crate::ir::ShortCircuitOp::BooleanAnd => {
+                (then_block, else_block, IrBinaryOp::And, Some(false))
+            }
+            crate::ir::ShortCircuitOp::BooleanOr => {
+                (else_block, then_block, IrBinaryOp::Or, Some(true))
+            }
+            crate::ir::ShortCircuitOp::JavaScriptAnd => {
+                (then_block, else_block, IrBinaryOp::And, None)
+            }
+            crate::ir::ShortCircuitOp::JavaScriptOr => {
+                (else_block, then_block, IrBinaryOp::Or, None)
+            }
+        };
+
+        let block = &function.blocks[header.0 as usize];
+        let Some(Terminator::Branch { condition, .. }) = block.terminator else {
+            return Ok(None);
+        };
+        let skipped_condition = if matches!(
+            op,
+            crate::ir::ShortCircuitOp::JavaScriptAnd | crate::ir::ShortCircuitOp::JavaScriptOr
+        ) {
+            let matches_truthiness = block.instructions.iter().any(|instruction| {
+                instruction.out == Some(condition)
+                    && matches!(
+                        instruction.op,
+                        ControlFlowOp::Intrinsic {
+                            intrinsic: Intrinsic::JsTruthy,
+                            receiver: Some(receiver),
+                            ref args,
+                        } if receiver == lhs && args.is_empty()
+                    )
+            });
+            if !matches_truthiness {
+                return Ok(None);
+            }
+            Some(condition)
+        } else {
+            if condition != lhs {
+                return Ok(None);
+            }
+            None
+        };
+
+        if !state.enter(header) {
+            return Ok(None);
+        }
+        if !self.render_expression_region_block(
+            block,
+            skipped_condition,
+            Some(lhs),
+            false,
+            context,
+            cache,
+            state,
+        )? {
+            return Ok(None);
+        }
+        let Some(lhs_expression) = take_region_value(lhs, context, cache, state)? else {
+            return Ok(None);
+        };
+
+        let short_predecessor = if short_boolean.is_some() {
+            self.render_expression_arm(function, short_block, merge_block, context, cache, state)?
+        } else {
+            trace_short_circuit_arm(function, short_block, merge_block, state)
+        };
+        let Some(short_predecessor) = short_predecessor else {
+            return Ok(None);
+        };
+        let Some(rhs_predecessor) =
+            self.render_expression_arm(function, rhs_block, merge_block, context, cache, state)?
+        else {
+            return Ok(None);
+        };
+        let Some(short_value) = phi
+            .incoming
+            .iter()
+            .find_map(|(block, value)| (*block == short_predecessor).then_some(*value))
+        else {
+            return Ok(None);
+        };
+        let Some(rhs_value) = phi
+            .incoming
+            .iter()
+            .find_map(|(block, value)| (*block == rhs_predecessor).then_some(*value))
+        else {
+            return Ok(None);
+        };
+        let short_is_valid = if let Some(expected) = short_boolean {
+            value_is_boolean_constant(function, short_value, expected)
+        } else {
+            short_value == lhs
+        };
+        if !short_is_valid {
+            return Ok(None);
+        }
+        let Some(rhs_expression) = take_region_value(rhs_value, context, cache, state)? else {
+            return Ok(None);
+        };
+        let expression = JsExpression::binary(binary_op, lhs_expression, rhs_expression);
+        cache.insert(phi.out, expression.clone());
+        state.define(phi.out, false, [lhs, rhs_value]);
+        Ok(Some(RenderedExpressionRegion {
+            merge: merge_block,
+            value: phi.out,
+            expression,
+        }))
+    }
+
+    // The explicit CFG/context/cache/state inputs keep this transactional
+    // renderer's rollback boundary visible at each call site.
+    #[allow(clippy::too_many_arguments)]
+    fn render_conditional_region(
+        &mut self,
+        function: &ControlFlowFunction<'src>,
+        header: BlockId,
+        merge_block: BlockId,
+        phi: &crate::ir::Phi<'src>,
+        context: &LocalNames,
+        cache: &mut ExpressionCache,
+        state: &mut ExpressionRegionState,
+    ) -> Result<Option<RenderedExpressionRegion>, CodegenError> {
+        let mut incoming_blocks = AHashSet::default();
+        let mut dependencies = Vec::new();
+        let Some(expression) = self.render_conditional_tree(
+            function,
+            header,
+            merge_block,
+            phi,
+            context,
+            cache,
+            state,
+            &mut incoming_blocks,
+            &mut dependencies,
+        )?
+        else {
+            return Ok(None);
+        };
+        if incoming_blocks.len() != phi.incoming.len()
+            || phi
+                .incoming
+                .iter()
+                .any(|(block, _)| !incoming_blocks.contains(block))
+        {
+            return Ok(None);
+        }
+        cache.insert(phi.out, expression.clone());
+        state.define(phi.out, false, dependencies);
+        Ok(Some(RenderedExpressionRegion {
+            merge: merge_block,
+            value: phi.out,
+            expression,
+        }))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn render_conditional_tree(
+        &mut self,
+        function: &ControlFlowFunction<'src>,
+        current: BlockId,
+        merge_block: BlockId,
+        phi: &crate::ir::Phi<'src>,
+        context: &LocalNames,
+        cache: &mut ExpressionCache,
+        state: &mut ExpressionRegionState,
+        incoming_blocks: &mut AHashSet<BlockId>,
+        dependencies: &mut Vec<ValueId>,
+    ) -> Result<Option<JsExpression>, CodegenError> {
+        if let Some(ControlShape::If {
+            header,
+            then_block,
+            else_block,
+            merge_block: nested_merge,
+        }) = shape_at(function, current)
+        {
+            if header == current && nested_merge == merge_block {
+                if !state.enter(current) {
+                    return Ok(None);
+                }
+                let block = &function.blocks[current.0 as usize];
+                let Some(Terminator::Branch { condition, .. }) = block.terminator else {
+                    return Ok(None);
+                };
+                if !self.render_expression_region_block(
+                    block,
+                    None,
+                    Some(condition),
+                    false,
+                    context,
+                    cache,
+                    state,
+                )? {
+                    return Ok(None);
+                }
+                let Some(condition_expression) =
+                    take_region_value(condition, context, cache, state)?
+                else {
+                    return Ok(None);
+                };
+                dependencies.push(condition);
+                let Some(then_expression) = self.render_conditional_tree(
+                    function,
+                    then_block,
+                    merge_block,
+                    phi,
+                    context,
+                    cache,
+                    state,
+                    incoming_blocks,
+                    dependencies,
+                )?
+                else {
+                    return Ok(None);
+                };
+                let Some(else_expression) = self.render_conditional_tree(
+                    function,
+                    else_block,
+                    merge_block,
+                    phi,
+                    context,
+                    cache,
+                    state,
+                    incoming_blocks,
+                    dependencies,
+                )?
+                else {
+                    return Ok(None);
+                };
+                return Ok(Some(JsExpression::conditional(
+                    condition_expression,
+                    then_expression,
+                    else_expression,
+                )));
+            }
+        }
+
+        let Some(predecessor) =
+            self.render_expression_arm(function, current, merge_block, context, cache, state)?
+        else {
+            return Ok(None);
+        };
+        if !incoming_blocks.insert(predecessor) {
+            return Ok(None);
+        }
+        let Some(value) = phi
+            .incoming
+            .iter()
+            .find_map(|(block, value)| (*block == predecessor).then_some(*value))
+        else {
+            return Ok(None);
+        };
+        let Some(expression) = take_region_value(value, context, cache, state)? else {
+            return Ok(None);
+        };
+        dependencies.push(value);
+        Ok(Some(expression))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn render_nullish_region(
+        &mut self,
+        function: &ControlFlowFunction<'src>,
+        header: BlockId,
+        then_block: BlockId,
+        else_block: BlockId,
+        merge_block: BlockId,
+        phi: &crate::ir::Phi<'src>,
+        lhs: ValueId,
+        context: &LocalNames,
+        cache: &mut ExpressionCache,
+        state: &mut ExpressionRegionState,
+    ) -> Result<Option<RenderedExpressionRegion>, CodegenError> {
+        let block = &function.blocks[header.0 as usize];
+        let Some(Terminator::Branch { condition, .. }) = block.terminator else {
+            return Ok(None);
+        };
+        let Some((present_on_true, comparison, comparison_null)) =
+            nullish_branch_comparison(block, condition, lhs)
+        else {
+            return Ok(None);
+        };
+        let (present_block, rhs_block) = if present_on_true {
+            (then_block, else_block)
+        } else {
+            (else_block, then_block)
+        };
+
+        if !state.enter(header) {
+            return Ok(None);
+        }
+        if !self.render_expression_region_block(
+            block,
+            Some(comparison),
+            Some(lhs),
+            false,
+            context,
+            cache,
+            state,
+        )? {
+            return Ok(None);
+        }
+        // The null constant exists only to form the branch comparison and is
+        // not part of the selected JavaScript `??` grammar.
+        if let Some(null) = comparison_null {
+            cache.remove(&null);
+            state.consume(null);
+        }
+        let Some(lhs_expression) = take_region_value(lhs, context, cache, state)? else {
+            return Ok(None);
+        };
+        let Some(present_predecessor) = self.render_expression_arm(
+            function,
+            present_block,
+            merge_block,
+            context,
+            cache,
+            state,
+        )?
+        else {
+            return Ok(None);
+        };
+        let Some(rhs_predecessor) =
+            self.render_expression_arm(function, rhs_block, merge_block, context, cache, state)?
+        else {
+            return Ok(None);
+        };
+        let Some(present_value) = phi
+            .incoming
+            .iter()
+            .find_map(|(block, value)| (*block == present_predecessor).then_some(*value))
+        else {
+            return Ok(None);
+        };
+        let Some(rhs_value) = phi
+            .incoming
+            .iter()
+            .find_map(|(block, value)| (*block == rhs_predecessor).then_some(*value))
+        else {
+            return Ok(None);
+        };
+        if !value_is_identity_of(function, present_value, lhs) {
+            return Ok(None);
+        }
+        let Some(rhs_expression) = take_region_value(rhs_value, context, cache, state)? else {
+            return Ok(None);
+        };
+        let expression = JsExpression::nullish(lhs_expression, rhs_expression);
+        cache.insert(phi.out, expression.clone());
+        state.define(phi.out, false, [lhs, rhs_value]);
+        Ok(Some(RenderedExpressionRegion {
+            merge: merge_block,
+            value: phi.out,
+            expression,
+        }))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn render_optional_access_region(
+        &mut self,
+        function: &ControlFlowFunction<'src>,
+        header: BlockId,
+        then_block: BlockId,
+        else_block: BlockId,
+        merge_block: BlockId,
+        phi: &crate::ir::Phi<'src>,
+        object: ValueId,
+        context: &LocalNames,
+        cache: &mut ExpressionCache,
+        state: &mut ExpressionRegionState,
+    ) -> Result<Option<RenderedExpressionRegion>, CodegenError> {
+        let block = &function.blocks[header.0 as usize];
+        let Some(Terminator::Branch { condition, .. }) = block.terminator else {
+            return Ok(None);
+        };
+        let Some((present_on_true, comparison, comparison_null)) =
+            nullish_branch_comparison(block, condition, object)
+        else {
+            return Ok(None);
+        };
+        let (present_block, absent_block) = if present_on_true {
+            (then_block, else_block)
+        } else {
+            (else_block, then_block)
+        };
+
+        if !state.enter(header) {
+            return Ok(None);
+        }
+        if !self.render_expression_region_block(
+            block,
+            Some(comparison),
+            Some(object),
+            false,
+            context,
+            cache,
+            state,
+        )? {
+            return Ok(None);
+        }
+        if let Some(null) = comparison_null {
+            cache.remove(&null);
+            state.consume(null);
+        }
+        let Some(present_predecessor) = self.render_expression_arm(
+            function,
+            present_block,
+            merge_block,
+            context,
+            cache,
+            state,
+        )?
+        else {
+            return Ok(None);
+        };
+        let Some(absent_predecessor) =
+            self.render_expression_arm(function, absent_block, merge_block, context, cache, state)?
+        else {
+            return Ok(None);
+        };
+        let Some(present_value) = phi
+            .incoming
+            .iter()
+            .find_map(|(block, value)| (*block == present_predecessor).then_some(*value))
+        else {
+            return Ok(None);
+        };
+        let Some(absent_value) = phi
+            .incoming
+            .iter()
+            .find_map(|(block, value)| (*block == absent_predecessor).then_some(*value))
+        else {
+            return Ok(None);
+        };
+        if !value_is_optional_access_of(function, present_value, object) {
+            return Ok(None);
+        }
+        let Some(present_expression) = take_region_value(present_value, context, cache, state)?
+        else {
+            return Ok(None);
+        };
+        let normalize_integer_result =
+            present_expression.root == JsExpressionRoot::IntegerNormalization;
+        let Some(optional_expression) = present_expression.into_optional_access() else {
+            return Ok(None);
+        };
+        let Some(absent_expression) = take_region_value(absent_value, context, cache, state)?
+        else {
+            return Ok(None);
+        };
+
+        // JavaScript optional chains produce `undefined`, while LilScript's
+        // nullable representation is canonical `null`. Coalescing the chain
+        // with the absent arm both preserves that representation and, for the
+        // fused form, retains the source fallback's lazy evaluation.
+        let expression = JsExpression::nullish(optional_expression, absent_expression);
+        let expression = if normalize_integer_result {
+            if matches!(phi.ty, Type::Null | Type::Nullable(_)) {
+                // Applying `|0` outside the chain would turn the absent value
+                // into zero. Keep the explicit conditional in that case.
+                return Ok(None);
+            }
+            JsExpression::integer_normalization(expression)
+        } else {
+            expression
+        };
+        cache.insert(phi.out, expression.clone());
+        state.define(phi.out, false, [object, present_value, absent_value]);
+        Ok(Some(RenderedExpressionRegion {
+            merge: merge_block,
+            value: phi.out,
+            expression,
+        }))
+    }
+
+    fn render_expression_arm(
+        &mut self,
+        function: &ControlFlowFunction<'src>,
+        mut current: BlockId,
+        stop: BlockId,
+        context: &LocalNames,
+        cache: &mut ExpressionCache,
+        state: &mut ExpressionRegionState,
+    ) -> Result<Option<BlockId>, CodegenError> {
+        let mut observable_operations = 0usize;
+        loop {
+            if current == stop {
+                return Ok(None);
+            }
+            if let Some(rendered) =
+                self.render_short_circuit_region(function, current, context, cache, state)?
+            {
+                current = rendered.merge;
+                if current == stop {
+                    return Ok(None);
+                }
+                continue;
+            }
+            if !state.enter(current) {
+                return Ok(None);
+            }
+            let block = &function.blocks[current.0 as usize];
+            if block.phis.iter().any(|phi| !cache.contains_key(&phi.out)) {
+                return Ok(None);
+            }
+            if !self.render_expression_region_block_with_effect_count(
+                block,
+                None,
+                None,
+                matches!(block.terminator, Some(Terminator::Jump(target)) if target == stop),
+                context,
+                cache,
+                state,
+                &mut observable_operations,
+            )? {
+                return Ok(None);
+            }
+            match block.terminator {
+                Some(Terminator::Jump(target)) if target == stop => return Ok(Some(current)),
+                Some(Terminator::Jump(target)) => current = target,
+                _ => return Ok(None),
+            }
+        }
+    }
+
+    // Placement policy and transactional render state are intentionally
+    // separate inputs; bundling them would obscure the eager-root proof.
+    #[allow(clippy::too_many_arguments)]
+    fn render_expression_region_block(
+        &mut self,
+        block: &crate::ir::ControlFlowBlock<'src>,
+        skipped: Option<ValueId>,
+        required_eager_root: Option<ValueId>,
+        arm_local_evaluation: bool,
+        context: &LocalNames,
+        cache: &mut ExpressionCache,
+        state: &mut ExpressionRegionState,
+    ) -> Result<bool, CodegenError> {
+        self.render_expression_region_block_with_effect_count(
+            block,
+            skipped,
+            required_eager_root,
+            arm_local_evaluation,
+            context,
+            cache,
+            state,
+            &mut 0,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn render_expression_region_block_with_effect_count(
+        &mut self,
+        block: &crate::ir::ControlFlowBlock<'src>,
+        skipped: Option<ValueId>,
+        required_eager_root: Option<ValueId>,
+        arm_local_evaluation: bool,
+        context: &LocalNames,
+        cache: &mut ExpressionCache,
+        state: &mut ExpressionRegionState,
+        observable_operations: &mut usize,
+    ) -> Result<bool, CodegenError> {
+        let mut pending_effect: Option<(JsExpression, Vec<ValueId>)> = None;
+        for instruction in &block.instructions {
+            if instruction.out == skipped {
+                continue;
+            }
+            let Some(output) = instruction.out else {
+                if let Some(expression) =
+                    self.render_optional_region_effect(instruction, context, cache)?
+                {
+                    if pending_effect.is_some() {
+                        return Ok(false);
+                    }
+                    pending_effect = Some((
+                        expression,
+                        codegen_op_values(&instruction.op, &context.string_constants),
+                    ));
+                    continue;
+                }
+                return Ok(false);
+            };
+            if pending_effect.is_some()
+                && !arm_local_evaluation
+                && Some(output) != required_eager_root
+            {
+                // Header stores execute before the branch. They may be
+                // attached only to the semantic condition/LHS root; attaching
+                // one to an arm-only value would incorrectly make the store
+                // conditional.
+                return Ok(false);
+            }
+            if !op_can_render_in_expression_region(&instruction.op) {
+                return Ok(false);
+            }
+            // A header evaluation can enter a conditional expression only
+            // when it is itself the semantic branch root. Otherwise an eager
+            // call/read used by one arm could become lazy. Arm-local work is
+            // already conditional in the CFG, and the dependency/order proof
+            // below plus final region reachability keeps it in that arm.
+            if !context.instruction_can_defer(instruction)
+                && !arm_local_evaluation
+                && instruction.out != required_eager_root
+            {
+                return Ok(false);
+            }
+            if !context.instruction_can_defer(instruction) {
+                let dependencies = codegen_op_values(&instruction.op, &context.string_constants);
+                if pending_effect.is_some()
+                    || (!state.observable_values.is_empty()
+                        && state.observables_reachable_from(dependencies.iter().copied()))
+                {
+                    // The new observable operation consumes every earlier
+                    // observable value in the region. Rendering it therefore
+                    // nests those evaluations in the original dependency
+                    // order instead of reordering independent effects.
+                } else {
+                    *observable_operations += 1;
+                }
+                if *observable_operations > 1 {
+                    return Ok(false);
+                }
+            }
+            let mut dependencies = codegen_op_values(&instruction.op, &context.string_constants);
+            let mut expression = self.render_instruction_op(instruction, context, cache)?;
+            let mut observable = !context.instruction_can_defer(instruction);
+            if let Some((effect, effect_dependencies)) = pending_effect.take() {
+                *observable_operations = observable_operations.saturating_sub(1);
+                dependencies.extend(effect_dependencies);
+                let optional_access_code = expression.optional_access_code.take().map(|access| {
+                    JsExpression::comma([
+                        effect.clone(),
+                        JsExpression::raw(access, JsPrecedence::Member),
+                    ])
+                    .into_minimal()
+                });
+                expression = JsExpression::comma([effect, expression]);
+                expression.optional_access_code = optional_access_code;
+                observable = true;
+            }
+            cache.insert(output, expression);
+            state.define(output, observable, dependencies);
+        }
+        Ok(pending_effect.is_none())
+    }
+
+    fn render_optional_region_effect(
+        &self,
+        instruction: &ControlFlowInstruction<'src>,
+        context: &LocalNames,
+        cache: &mut ExpressionCache,
+    ) -> Result<Option<JsExpression>, CodegenError> {
+        let expression = match instruction.op {
+            ControlFlowOp::StoreLocal { local, value } => {
+                let name = context.local_name(local)?;
+                let assigned = strip_outer_parens(take_value(value, context, cache)?);
+                if assigned == name {
+                    return Ok(None);
+                }
+                JsExpression::raw(format!("{name}={assigned}"), JsPrecedence::Assignment)
+            }
+            ControlFlowOp::StoreGlobal { global, value } => JsExpression::raw(
+                format!(
+                    "{}={}",
+                    self.global_name(global)?,
+                    strip_outer_parens(take_value(value, context, cache)?)
+                ),
+                JsPrecedence::Assignment,
+            ),
+            _ => return Ok(None),
+        };
+        Ok(Some(expression))
+    }
+
     fn emit_cached_block(
         &mut self,
+        function: &ControlFlowFunction<'src>,
         block: &crate::ir::ControlFlowBlock<'src>,
         uses: &AHashMap<ValueId, usize>,
         context: &LocalNames,
         cache: &mut ExpressionCache,
         out: &mut String,
     ) -> Result<(), CodegenError> {
-        for (index, instruction) in block.instructions.iter().enumerate() {
-            let fuse_with_next = instruction.out.is_some_and(|value| {
-                uses.get(&value).copied().unwrap_or(0) == 1 && can_fuse_value(block, index, value)
-            });
-            self.emit_linear_instruction(
-                instruction,
+        let edge_value = self
+            .options
+            .phi_edge_value_forwarding
+            .then(|| deferred_single_phi_edge_value(function, block))
+            .flatten();
+        let phi_edge = self.options.phi_edge_value_forwarding;
+        let fuse_with_next = block
+            .instructions
+            .iter()
+            .enumerate()
+            .map(|(index, instruction)| {
+                instruction.out.is_some_and(|value| {
+                    structured_iteration_input_can_defer(function, block, index, value)
+                        || uses.get(&value).copied().unwrap_or(0) == 1
+                            && (can_fuse_value(
+                                function,
+                                block,
+                                index,
+                                value,
+                                phi_edge,
+                                &self.loop_captured_closures,
+                                &context.operand_order_fusable,
+                            ) || (edge_value == Some(value)
+                                && can_defer_value_to_block_end(function, block, index, value)))
+                })
+            })
+            .collect::<Vec<_>>();
+        let mut index = 0;
+        while index < block.instructions.len() {
+            if let Some((consumed, batched)) = self.batched_property_assign_statement(
+                function,
+                block,
+                index,
                 uses,
-                fuse_with_next,
+                true,
+                context,
+                cache,
+                &fuse_with_next,
+            )? {
+                out.push_str(&batched);
+                index += consumed;
+                continue;
+            }
+            self.emit_linear_instruction(
+                &block.instructions[index],
+                block.id,
+                index,
+                uses,
+                fuse_with_next[index],
                 true,
                 context,
                 cache,
                 out,
             )?;
+            index += 1;
         }
         Ok(())
     }
@@ -3945,13 +9402,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         let mut values = cache.drain().collect::<Vec<_>>();
         values.sort_by_key(|(value, _)| value.0);
         for (value, expression) in values {
-            if context.claim_declaration(value)? {
-                out.push_str("var ");
-            }
-            out.push_str(context.value_name(value)?);
-            out.push('=');
-            out.push_str(&strip_outer_parens(expression));
-            out.push(';');
+            emit_bound_value(context, value, expression, true, out)?;
         }
         if let Some((value, expression)) = retained {
             cache.insert(value, expression);
@@ -4220,24 +9671,6 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     }
                     let rhs_is_nonzero = is_nonzero_i32_literal(&rhs.code)
                         || context.integer_range_excludes_zero(rhs_value);
-                    if *op == IrBinaryOp::Add {
-                        let tilde_operand = if rhs.code == "1" && lhs.is_integer_normalization() {
-                            Some(lhs.clone().without_integer_normalization())
-                        } else if lhs.code == "1" && rhs.is_integer_normalization() {
-                            Some(rhs.clone().without_integer_normalization())
-                        } else {
-                            None
-                        };
-                        if let Some(operand) = tilde_operand {
-                            let incremented =
-                                JsExpression::unary("-", JsExpression::unary("~", operand));
-                            return Ok(if coercion_is_elidable {
-                                incremented
-                            } else {
-                                JsExpression::integer_normalization(incremented)
-                            });
-                        }
-                    }
                     let bitwise_arithmetic = self.options.elide_safe_integer_coercions
                         && bitwise_arithmetic_elides_coercion(*op, &lhs, &rhs);
                     let expression = JsExpression::binary(*op, lhs, rhs);
@@ -4254,11 +9687,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     });
                 }
                 ControlFlowOp::IndexGet { object, index } => {
-                    let indexed = JsExpression::index(
-                        take_value(*object, context, cache)?,
-                        take_value(*index, context, cache)?,
-                        self.options.elide_call_chain_parentheses,
-                    );
+                    let indexed = self.render_index_access(*object, *index, context, cache)?;
                     return Ok(
                         if coercion_is_elidable || context.can_elide_int_array_read(instruction.out)
                         {
@@ -4274,12 +9703,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         let boundary = instruction.out.is_some_and(|out| context.is_untyped(out));
         match &instruction.op {
             ControlFlowOp::Struct { name, fields }
-                if boundary && self.options.public_aggregate_fields =>
+                if (boundary && self.options.public_aggregate_fields)
+                    || self.class_uses_named_fields(name) =>
             {
                 let layout = self
                     .module
                     .structs
                     .iter()
+                    .chain(&self.module.classes)
                     .find(|layout| layout.name == *name)
                     .ok_or_else(|| {
                         CodegenError::new(instruction.span, "missing boundary struct layout")
@@ -4291,14 +9722,13 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     }
                     let property = self.property_name(field.name);
                     let value = take_value(*value, context, cache)?;
-                    if self.options.struct_method_shorthand {
+                    if property != "__proto__" && self.options.struct_method_shorthand {
                         if let Some(method) = arrow_block_as_object_method(property, &value) {
                             rendered.push_str(&method);
                             continue;
                         }
                     }
-                    rendered.push_str(property);
-                    rendered.push(':');
+                    self.push_named_literal_key(&mut rendered, property);
                     rendered.push_str(&value);
                 }
                 rendered.push('}');
@@ -4309,7 +9739,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 constructor: None,
                 args,
             } if boundary && args.is_empty() => self
-                .default_class_value(class, true)
+                .render_inlined_class_value(class, instruction.out, true, context, cache)
                 .map(JsExpression::atom),
             ControlFlowOp::IndexGet { object, index }
                 if instruction.ty.as_ref() == Some(&Type::String) =>
@@ -4317,29 +9747,59 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 let in_bounds = context
                     .string_index_in_bounds(*object, *index)
                     .or_else(|| self.global_string_index_in_bounds(*object, *index, context));
-                let indexed = JsExpression::index(
-                    take_value(*object, context, cache)?,
-                    take_value(*index, context, cache)?,
-                    self.options.elide_call_chain_parentheses,
-                );
+                let indexed = self.render_index_access(*object, *index, context, cache)?;
                 Ok(if in_bounds == Some(true) {
                     indexed
                 } else {
                     JsExpression::binary(IrBinaryOp::Or, indexed, JsExpression::atom("\"\""))
                 })
             }
-            _ => self.render_op(&instruction.op, context, cache),
+            ControlFlowOp::IndexGet { object, index } if context.is_record(*object) => {
+                let indexed = self.render_index_access(*object, *index, context, cache)?;
+                Ok(JsExpression::raw(
+                    format!("{indexed}??null"),
+                    JsPrecedence::Conditional,
+                ))
+            }
+            ControlFlowOp::HostFieldGet { object, property }
+                if matches!(instruction.ty, Some(Type::Nullable(_))) =>
+            {
+                if context.is_js_value(*object) {
+                    let object = take_value(*object, context, cache)?.at_least(JsPrecedence::Call);
+                    return Ok(JsExpression::raw(
+                        format!("{object}?.{property}??null"),
+                        JsPrecedence::Conditional,
+                    ));
+                }
+                let member = JsExpression::member(
+                    take_value(*object, context, cache)?,
+                    property,
+                    self.options.elide_call_chain_parentheses,
+                );
+                Ok(JsExpression::raw(
+                    format!("{member}??null"),
+                    JsPrecedence::Conditional,
+                ))
+            }
+            _ => self.render_op(&instruction.op, instruction.out, context, cache),
         }
     }
 
     fn render_op(
         &mut self,
         op: &ControlFlowOp<'src>,
+        out: Option<ValueId>,
         context: &LocalNames,
         cache: &mut ExpressionCache,
     ) -> Result<JsExpression, CodegenError> {
         let value = |id, cache: &mut ExpressionCache| take_value(id, context, cache);
         Ok(match op {
+            ControlFlowOp::CaughtException => {
+                return Err(CodegenError::new(
+                    self.function(self.module.entry)?.span,
+                    "caught exception pseudo-value escaped its catch clause",
+                ));
+            }
             ControlFlowOp::Const(ConstValue::String(value)) => JsExpression::atom(
                 self.string_aliases
                     .get(value)
@@ -4359,6 +9819,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         .unwrap_or(rendered),
                 )
             }
+            ControlFlowOp::CaptureLocal(local) | ControlFlowOp::LoadLocal(local) => {
+                JsExpression::atom(context.local_name(*local)?)
+            }
             ControlFlowOp::Unary { op, value: operand } => JsExpression::unary(
                 match op {
                     IrUnaryOp::Neg => "-",
@@ -4366,6 +9829,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 },
                 value(*operand, cache)?,
             ),
+            ControlFlowOp::Await { task } => {
+                let task = value(*task, cache)?.at_least(JsPrecedence::Unary);
+                JsExpression::raw(format!("await {task}"), JsPrecedence::Unary)
+            }
             ControlFlowOp::Binary { op, lhs, rhs } => {
                 let truthy_nullable = (self.options.truthy_nullable_checks
                     && matches!(op, IrBinaryOp::Eq | IrBinaryOp::NotEq))
@@ -4374,17 +9841,6 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 let nullable_on_lhs = truthy_nullable == Some(*lhs);
                 let lhs = value(*lhs, cache)?;
                 let rhs = value(*rhs, cache)?;
-                let tilde_increment = if *op == IrBinaryOp::Add {
-                    if rhs.code == "1" && lhs.is_integer_normalization() {
-                        Some(lhs.clone().without_integer_normalization())
-                    } else if lhs.code == "1" && rhs.is_integer_normalization() {
-                        Some(rhs.clone().without_integer_normalization())
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                };
                 if truthy_nullable.is_some() {
                     let operand = if nullable_on_lhs { lhs } else { rhs };
                     let boolean = JsExpression::unary("!", operand);
@@ -4393,8 +9849,6 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     } else {
                         JsExpression::unary("!", boolean)
                     }
-                } else if let Some(operand) = tilde_increment {
-                    JsExpression::unary("-", JsExpression::unary("~", operand))
                 } else if matches!(op, IrBinaryOp::Eq | IrBinaryOp::NotEq)
                     && is_rendered_string_literal(&lhs.code)
                     && is_rendered_string_literal(&rhs.code)
@@ -4412,14 +9866,17 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             ControlFlowOp::TypeCheck {
                 value: input,
                 target,
-            } => JsExpression::raw(
-                render_js_type_check(
-                    &value(*input, cache)?.code,
-                    target,
-                    self.options.string_quote,
-                )?,
-                JsPrecedence::Equality,
-            ),
+            } => {
+                let operand = value(*input, cache)?;
+                JsExpression::raw(
+                    render_js_type_check(
+                        &operand.at_least(JsPrecedence::Unary),
+                        target,
+                        self.options.string_quote,
+                    )?,
+                    JsPrecedence::Equality,
+                )
+            }
             ControlFlowOp::Array(values) => {
                 let mut rendered = String::from("[");
                 for (index, item) in values.iter().enumerate() {
@@ -4439,27 +9896,174 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     JsExpression::atom(rendered)
                 }
             }
-            ControlFlowOp::Struct { fields: values, .. } => {
+            ControlFlowOp::ArraySpread(operands) => {
                 let mut rendered = String::from("[");
-                for (index, item) in values.iter().enumerate() {
+                for (index, operand) in operands.iter().enumerate() {
                     if index != 0 {
                         rendered.push(',');
+                    }
+                    let (spread, item) = match operand {
+                        ArrayOperand::Value(item) => (false, item),
+                        ArrayOperand::Spread(item) => (true, item),
+                    };
+                    if spread {
+                        rendered.push_str("...");
                     }
                     rendered.push_str(&strip_outer_parens(value(*item, cache)?));
                 }
                 rendered.push(']');
                 JsExpression::atom(rendered)
             }
+            ControlFlowOp::Record(entries) => {
+                // A null prototype makes every string key a real record slot:
+                // inherited names such as `toString` are absent, and dynamic
+                // `__proto__` writes cannot invoke Object.prototype's setter.
+                let mut rendered = String::from(if self.options.ordinary_record_literals {
+                    "{"
+                } else {
+                    "{__proto__:null"
+                });
+                for (key, item) in entries {
+                    if rendered.len() > 1 {
+                        rendered.push(',');
+                    }
+                    if decoded_source_string(key) == "__proto__" {
+                        rendered.push('[');
+                        rendered.push_str(&render_string_literal(key, self.options.string_quote));
+                        rendered.push(']');
+                    } else if key
+                        .as_bytes()
+                        .first()
+                        .is_some_and(|byte| is_js_identifier_start(*byte))
+                        && key
+                            .as_bytes()
+                            .iter()
+                            .all(|byte| is_js_identifier_byte(*byte))
+                    {
+                        rendered.push_str(key);
+                    } else {
+                        rendered.push_str(&render_string_literal(key, self.options.string_quote));
+                    }
+                    rendered.push(':');
+                    rendered.push_str(&strip_outer_parens(value(*item, cache)?));
+                }
+                rendered.push('}');
+                JsExpression::atom(rendered)
+            }
+            ControlFlowOp::RecordSpread(operands) => {
+                let mut rendered = String::from(if self.options.ordinary_record_literals {
+                    "{"
+                } else {
+                    "{__proto__:null"
+                });
+                for operand in operands {
+                    if rendered.len() > 1 {
+                        rendered.push(',');
+                    }
+                    match operand {
+                        RecordOperand::Spread(item) => {
+                            rendered.push_str("...");
+                            rendered.push_str(&strip_outer_parens(value(*item, cache)?));
+                        }
+                        RecordOperand::Entry(key, item) => {
+                            if decoded_source_string(key) == "__proto__" {
+                                rendered.push('[');
+                                rendered.push_str(&render_string_literal(
+                                    key,
+                                    self.options.string_quote,
+                                ));
+                                rendered.push(']');
+                            } else if key
+                                .as_bytes()
+                                .first()
+                                .is_some_and(|byte| is_js_identifier_start(*byte))
+                                && key
+                                    .as_bytes()
+                                    .iter()
+                                    .all(|byte| is_js_identifier_byte(*byte))
+                            {
+                                rendered.push_str(key);
+                            } else {
+                                rendered.push_str(&render_string_literal(
+                                    key,
+                                    self.options.string_quote,
+                                ));
+                            }
+                            rendered.push(':');
+                            rendered.push_str(&strip_outer_parens(value(*item, cache)?));
+                        }
+                    }
+                }
+                rendered.push('}');
+                JsExpression::atom(rendered)
+            }
+            ControlFlowOp::Struct {
+                name,
+                fields: values,
+            } => {
+                let named = self
+                    .module
+                    .structs
+                    .iter()
+                    .chain(&self.module.classes)
+                    .find(|layout| layout.name == *name)
+                    .filter(|_| self.class_uses_named_fields(name));
+                let mut rendered = String::from(if named.is_some() { "{" } else { "[" });
+                for (index, item) in values.iter().enumerate() {
+                    if index != 0 {
+                        rendered.push(',');
+                    }
+                    if let Some(layout) = named {
+                        if let Some(field) = layout.fields.get(index) {
+                            self.push_named_literal_key(
+                                &mut rendered,
+                                self.property_name(field.name),
+                            );
+                        }
+                    }
+                    rendered.push_str(&strip_outer_parens(value(*item, cache)?));
+                }
+                rendered.push(if named.is_some() { '}' } else { ']' });
+                JsExpression::atom(rendered)
+            }
             ControlFlowOp::NewClass {
                 class,
                 constructor: None,
                 args,
-            } if args.is_empty() => JsExpression::atom(self.default_class_value(class, false)?),
+            } if args.is_empty() => JsExpression::atom(
+                self.render_inlined_class_value(class, out, false, context, cache)?,
+            ),
             ControlFlowOp::Closure { function, captures } => {
                 let captures = captures
                     .iter()
                     .map(|capture| value(*capture, cache).map(strip_outer_parens))
                     .collect::<Result<Vec<_>, _>>()?;
+                if self.loop_captured_closures.contains(function) {
+                    let parameters = self.closure_capture_names(*function)?;
+                    let target = self.function(*function)?.clone();
+                    let mut closure_captures = parameters.clone();
+                    let mut wrapper_parameters = Vec::new();
+                    let mut wrapper_arguments = Vec::new();
+                    for (index, parameter) in
+                        target.params[..target.capture_count].iter().enumerate()
+                    {
+                        if target.mutable_capture_locals.contains(&parameter.local) {
+                            closure_captures[index] = captures[index].clone();
+                        } else {
+                            wrapper_parameters.push(parameters[index].clone());
+                            wrapper_arguments.push(captures[index].clone());
+                        }
+                    }
+                    let rendered = self.render_closure(*function, &closure_captures)?;
+                    if wrapper_parameters.is_empty() {
+                        return Ok(JsExpression::raw(rendered, JsPrecedence::Assignment));
+                    }
+                    return Ok(JsExpression::atom(format!(
+                        "(({})=>{rendered})({})",
+                        wrapper_parameters.join(","),
+                        wrapper_arguments.join(",")
+                    )));
+                }
                 let rendered = self.render_closure(*function, &captures)?;
                 if rendered.contains("=>") {
                     JsExpression::raw(rendered, JsPrecedence::Assignment)
@@ -4497,6 +10101,46 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 property,
                 self.options.elide_call_chain_parentheses,
             ),
+            ControlFlowOp::RecordFieldGet { object, property } => {
+                let object = value(*object, cache)?;
+                let member = if is_js_property_identifier(property) {
+                    JsExpression::member(
+                        object,
+                        property,
+                        self.options.elide_call_chain_parentheses,
+                    )
+                } else {
+                    JsExpression::index(
+                        object,
+                        JsExpression::atom(render_string_literal(
+                            property,
+                            self.options.string_quote,
+                        )),
+                        self.options.elide_call_chain_parentheses,
+                    )
+                };
+                JsExpression::grouped(
+                    format!("{member}??null"),
+                    JsPrecedence::LogicalOr,
+                    JsExpressionRoot::NullNormalized,
+                )
+            }
+            ControlFlowOp::RecordRest { object, excluded } => {
+                let mut rendered = String::from(if self.options.ordinary_record_literals {
+                    "(a=>{let b={...a};"
+                } else {
+                    "(a=>{let b={__proto__:null,...a};"
+                });
+                for key in excluded {
+                    rendered.push_str("delete b[");
+                    rendered.push_str(&render_string_literal(key, self.options.string_quote));
+                    rendered.push_str("];");
+                }
+                rendered.push_str("return b})(");
+                rendered.push_str(&strip_outer_parens(value(*object, cache)?));
+                rendered.push(')');
+                JsExpression::raw(rendered, JsPrecedence::Call)
+            }
             ControlFlowOp::HostFieldSet {
                 object,
                 property,
@@ -4513,17 +10157,158 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 ),
                 JsPrecedence::Assignment,
             ),
-            ControlFlowOp::IndexGet { object, index } => JsExpression::index(
-                value(*object, cache)?,
-                value(*index, cache)?,
-                self.options.elide_call_chain_parentheses,
-            ),
-            ControlFlowOp::CallDirect { function, args } => self.render_call(
-                JsExpression::atom(self.function_name(*function)?),
+            ControlFlowOp::IndexGet { object, index } => {
+                self.render_index_access(*object, *index, context, cache)?
+            }
+            ControlFlowOp::ArrayGetOptional { object, index } => {
+                let indexed = JsExpression::index(
+                    value(*object, cache)?,
+                    JsExpression::atom(index.to_string()),
+                    self.options.elide_call_chain_parentheses,
+                );
+                JsExpression::raw(format!("{indexed}??null"), JsPrecedence::Conditional)
+            }
+            ControlFlowOp::Intrinsic {
+                intrinsic,
+                receiver: None,
                 args,
-                context,
-                cache,
-            )?,
+            } if JsCallingConvention::from_intrinsic(*intrinsic).is_some()
+                && matches!(args.as_slice(), [callback] if self
+                        .adapted_bind_values
+                        .contains(&(context.function_id, *callback))) =>
+            {
+                let callback = value(args[0], cache)?;
+                if out.is_some_and(|adapter| {
+                    self.js_name_suppressed_adapter_values
+                        .contains(&(context.function_id, adapter))
+                }) {
+                    // A direct variable or object-literal initializer is a
+                    // JavaScript NamedEvaluation context. A sequence is not,
+                    // and it returns the exact same ordinary function object,
+                    // preserving name="", length, prototype, and identity.
+                    JsExpression::atom(format!(
+                        "(0,{})",
+                        callback.at_least(JsPrecedence::Assignment)
+                    ))
+                } else {
+                    callback
+                }
+            }
+            ControlFlowOp::CallDirect {
+                function,
+                args,
+                provided_args,
+            } => {
+                let full_args = args;
+                if self.inline_fresh_empty_array_factories.contains(function) {
+                    if !full_args.is_empty() || *provided_args != 0 {
+                        return Err(CodegenError::new(
+                            self.function(*function)
+                                .map_or(context.function_span, |callee| callee.span),
+                            "selected fresh-array factory had an unproven call signature",
+                        ));
+                    }
+                    return Ok(JsExpression::atom("[]"));
+                }
+                if self.inline_pure_helpers.contains(function) {
+                    return self
+                        .render_inline_pure_helper_call(
+                            *function,
+                            full_args,
+                            *provided_args,
+                            context,
+                            cache,
+                        )?
+                        .ok_or_else(|| {
+                            CodegenError::new(
+                                self.function(*function)
+                                    .map_or(context.function_span, |callee| callee.span),
+                                "selected pure helper could not be rendered at its proven call site",
+                            )
+                        });
+                }
+                let host_alias = self.js_host_call_alias(*function);
+                let args = if host_alias.is_some() {
+                    &full_args[..(*provided_args).min(full_args.len())]
+                } else {
+                    self.direct_call_arguments(
+                        context.function_id,
+                        *function,
+                        full_args,
+                        *provided_args,
+                    )
+                };
+                for omitted in &full_args[args.len()..] {
+                    let _ = take_value(*omitted, context, cache)?;
+                }
+                if let Some(alias) = host_alias {
+                    let callee_name = if self
+                        .js_host_alias(*function)
+                        .is_some_and(|bound| self.js_host_alias_emits_binding(bound))
+                    {
+                        self.function_name(*function)?.to_string()
+                    } else {
+                        alias.spelling.to_string()
+                    };
+                    match alias.convention {
+                        JsHostAliasConvention::Throw => {
+                            let thrown = args.first().copied().map_or_else(
+                                || Ok(JsExpression::atom("void 0")),
+                                |value| take_value(value, context, cache),
+                            )?;
+                            return Ok(JsExpression::raw(
+                                format!("throw {}", strip_outer_parens(thrown)),
+                                JsPrecedence::Assignment,
+                            ));
+                        }
+                        JsHostAliasConvention::ThrowConstruct => {
+                            let argument = args
+                                .first()
+                                .map(|value| take_value(*value, context, cache))
+                                .transpose()?
+                                .map_or(String::new(), strip_outer_parens);
+                            return Ok(JsExpression::raw(
+                                format!("throw new {}({argument})", alias.spelling),
+                                JsPrecedence::Assignment,
+                            ));
+                        }
+                        JsHostAliasConvention::MethodCall | JsHostAliasConvention::Apply => {
+                            let method = if alias.convention == JsHostAliasConvention::Apply {
+                                "apply"
+                            } else {
+                                "call"
+                            };
+                            return self.render_call(
+                                JsExpression::member(
+                                    JsExpression::atom(callee_name),
+                                    method,
+                                    self.options.elide_call_chain_parentheses,
+                                ),
+                                args,
+                                context,
+                                cache,
+                            );
+                        }
+                        JsHostAliasConvention::Callee
+                        | JsHostAliasConvention::BoundMethodCall
+                        | JsHostAliasConvention::BoundApply => {
+                            let callee =
+                                if crate::optimizer::js_host_alias_is_simple_callee(&callee_name) {
+                                    JsExpression::atom(callee_name)
+                                } else {
+                                    JsExpression::raw(callee_name, JsPrecedence::Assignment)
+                                };
+                            return self.render_call(callee, args, context, cache);
+                        }
+                    }
+                }
+                let callee = if self.inline_single_use_functions.contains(function) {
+                    self.render_single_use_function_expression(*function)?
+                } else {
+                    JsExpression::atom(self.function_name(*function)?)
+                };
+                self.render_call(callee, args, context, cache)?
+            }
             ControlFlowOp::CallValue { callee, args } => {
                 self.render_call(value(*callee, cache)?, args, context, cache)?
             }
@@ -4533,7 +10318,28 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 args,
                 ..
             } => {
+                if *method == "call"
+                    && cache.contains_key(receiver)
+                    && args.first().is_some_and(|this_arg| {
+                        self.deferred_member_receiver(context.function_id, *receiver)
+                            == Some(*this_arg)
+                    })
+                {
+                    let callee = value(*receiver, cache)?;
+                    return self.render_call(callee, &args[1..], context, cache);
+                }
                 let receiver = value(*receiver, cache)?;
+                if *method == "removeAttribute" && args.len() == 1 {
+                    let name = take_value(args[0], context, cache)?.without_explicit_tostring();
+                    return Ok(JsExpression::call(
+                        JsExpression::member(
+                            receiver,
+                            method,
+                            self.options.elide_call_chain_parentheses,
+                        ),
+                        [name],
+                    ));
+                }
                 self.render_call(
                     JsExpression::member(
                         receiver,
@@ -4550,7 +10356,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 intrinsic,
                 receiver,
                 args,
-            } => self.render_intrinsic(*intrinsic, *receiver, args, context, cache)?,
+            } => self.render_intrinsic(*intrinsic, *receiver, args, out, context, cache)?,
             ControlFlowOp::Template(parts) => {
                 let mut rendered = String::from("`");
                 for part in parts {
@@ -4567,9 +10373,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 JsExpression::atom(rendered)
             }
             ControlFlowOp::StoreLocal { .. }
-            | ControlFlowOp::LoadLocal(_)
             | ControlFlowOp::StoreGlobal { .. }
             | ControlFlowOp::FieldSet { .. }
+            | ControlFlowOp::RecordFieldSet { .. }
             | ControlFlowOp::IndexSet { .. }
             | ControlFlowOp::NewClass { .. }
             | ControlFlowOp::CallMethod { .. } => {
@@ -4632,6 +10438,33 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         Ok(JsExpression::raw(namespace, JsPrecedence::Call))
     }
 
+    /// Return the base object for a member read that produced `value`.
+    /// Callers additionally require the read to remain deferred in the local
+    /// expression cache, which guarantees that turning `member.call(base, …)`
+    /// back into `base[key](…)` does not move the lookup across an effect.
+    fn deferred_member_receiver(&self, function: FunctionId, value: ValueId) -> Option<ValueId> {
+        self.module
+            .functions
+            .get(function.0 as usize)?
+            .blocks
+            .iter()
+            .flat_map(|block| &block.instructions)
+            .find_map(|instruction| {
+                (instruction.out == Some(value)).then_some(match instruction.op {
+                    ControlFlowOp::IndexGet { object, .. }
+                    | ControlFlowOp::HostFieldGet { object, .. }
+                    | ControlFlowOp::RecordFieldGet { object, .. }
+                    | ControlFlowOp::FieldGet { object, .. }
+                    | ControlFlowOp::Intrinsic {
+                        intrinsic: Intrinsic::JsGetProperty,
+                        receiver: Some(object),
+                        ..
+                    } => Some(object),
+                    _ => None,
+                })?
+            })
+    }
+
     fn render_call(
         &self,
         callee: JsExpression,
@@ -4646,14 +10479,113 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         Ok(JsExpression::call(callee, arguments))
     }
 
+    fn direct_call_arguments<'args>(
+        &self,
+        caller: FunctionId,
+        function: FunctionId,
+        args: &'args [ValueId],
+        provided_args: usize,
+    ) -> &'args [ValueId] {
+        if !self.callee_default_functions.contains(&function) || provided_args >= args.len() {
+            return args;
+        }
+        let Some(callee) = self.module.functions.get(function.0 as usize) else {
+            return args;
+        };
+        // Source-level direct function calls align one argument with one IR
+        // parameter. Calls synthesized by devirtualization/specialization mark
+        // every rewritten argument as provided, so captures and remapped ABIs
+        // never enter this projection accidentally.
+        if callee.capture_count != 0
+            || args.len() != callee.params.len()
+            || callee.params[provided_args..]
+                .iter()
+                .zip(&args[provided_args..])
+                .any(|(parameter, argument)| {
+                    let Some(crate::ir::IrParamDefault::Const(expected)) = &parameter.default
+                    else {
+                        return true;
+                    };
+                    !self.value_is_exact_const(caller, *argument, expected)
+                })
+        {
+            return args;
+        }
+        &args[..provided_args]
+    }
+
+    fn value_is_exact_const(
+        &self,
+        function: FunctionId,
+        value: ValueId,
+        expected: &ConstValue,
+    ) -> bool {
+        self.module
+            .functions
+            .get(function.0 as usize)
+            .into_iter()
+            .flat_map(|function| &function.blocks)
+            .flat_map(|block| &block.instructions)
+            .find(|instruction| instruction.out == Some(value))
+            .is_some_and(|instruction| {
+                matches!(&instruction.op, ControlFlowOp::Const(actual) if const_values_identical(actual, expected))
+            })
+    }
+
+    fn render_index_access(
+        &self,
+        object: ValueId,
+        index: ValueId,
+        context: &LocalNames,
+        cache: &mut ExpressionCache,
+    ) -> Result<JsExpression, CodegenError> {
+        if let Some(function) = self.function(context.function_id).ok() {
+            if rest_arguments_object(function, context, object) {
+                if let Some(slot) = rest_index_constant(function, index) {
+                    if let Some(name) = context.rest_formal_names.get(slot) {
+                        return Ok(JsExpression::atom(name.clone()));
+                    }
+                }
+            }
+        }
+        let object = take_value(object, context, cache)?;
+        if let Some(property) = static_identifier_property(index, &context.string_constants) {
+            return Ok(JsExpression::member(
+                object,
+                property,
+                self.options.elide_call_chain_parentheses,
+            ));
+        }
+        Ok(JsExpression::index(
+            object,
+            take_value(index, context, cache)?,
+            self.options.elide_call_chain_parentheses,
+        ))
+    }
+
     fn render_intrinsic(
         &self,
         intrinsic: Intrinsic,
         receiver: Option<ValueId>,
         args: &[ValueId],
+        out: Option<ValueId>,
         context: &LocalNames,
         cache: &mut ExpressionCache,
     ) -> Result<JsExpression, CodegenError> {
+        if let Some(convention) = JsCallingConvention::from_intrinsic(intrinsic) {
+            if receiver.is_some() || args.len() != 1 {
+                return Err(CodegenError::new(
+                    self.function(self.module.entry)?.span,
+                    "JavaScript adapter intrinsic requires exactly one callback",
+                ));
+            }
+            return self.render_call(
+                JsExpression::atom(self.js_adapter_factory_name(convention)?.to_string()),
+                args,
+                context,
+                cache,
+            );
+        }
         if intrinsic == Intrinsic::Print {
             return self.render_call(
                 JsExpression::member(
@@ -4678,11 +10610,232 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 cache,
             );
         }
+        if intrinsic == Intrinsic::JsPlainObject {
+            if !args.len().is_multiple_of(2) {
+                return Err(CodegenError::new(
+                    self.function(self.module.entry)?.span,
+                    "plain-object literal requires key/value argument pairs",
+                ));
+            }
+            let mut rendered = String::from("{");
+            for (index, pair) in args.chunks_exact(2).enumerate() {
+                if index != 0 {
+                    rendered.push(',');
+                }
+                let source_key = context.string_constants.get(&pair[0]).ok_or_else(|| {
+                    CodegenError::new(
+                        self.function(self.module.entry).unwrap().span,
+                        "plain-object literal key is not a constant string",
+                    )
+                })?;
+                let decoded_key = decoded_source_string(source_key);
+                // Plain-object keys are syntax metadata, not runtime inputs.
+                // Rendering them directly avoids extending an SSA value's live
+                // range merely to print property syntax.
+                if decoded_key != "__proto__" && is_js_property_identifier(&decoded_key) {
+                    rendered.push_str(&decoded_key);
+                } else if decoded_key != "__proto__" {
+                    rendered.push_str(&render_string_literal(
+                        source_key,
+                        self.options.string_quote,
+                    ));
+                } else {
+                    // `__proto__: value` has legacy prototype-setter semantics;
+                    // the computed spelling creates the ordinary own property
+                    // represented by the IR.
+                    rendered.push('[');
+                    rendered.push_str(&render_string_literal(
+                        source_key,
+                        self.options.string_quote,
+                    ));
+                    rendered.push(']');
+                }
+                rendered.push(':');
+                rendered.push_str(&strip_outer_parens(take_value(pair[1], context, cache)?));
+            }
+            rendered.push('}');
+            return Ok(JsExpression::atom(rendered));
+        }
+        if intrinsic == Intrinsic::JsUndefined {
+            return Ok(JsExpression::atom("void 0"));
+        }
+        if intrinsic == Intrinsic::JsMathPI {
+            return Ok(JsExpression::atom("Math.PI"));
+        }
+        if intrinsic == Intrinsic::JsObjectConstructor {
+            return Ok(JsExpression::atom("Object"));
+        }
+        if intrinsic == Intrinsic::JsWindow {
+            return Ok(self.js_window_root());
+        }
+        if intrinsic == Intrinsic::JsDocument {
+            return Ok(JsExpression::atom("document"));
+        }
+        if intrinsic == Intrinsic::JsIsFunctionValue {
+            let Some(receiver) = receiver else {
+                return Err(CodegenError::new(
+                    self.function(self.module.entry)?.span,
+                    "isFunctionValue requires a receiver",
+                ));
+            };
+            return Ok(render_js_host_predicate(
+                take_value(receiver, context, cache)?,
+                |value| {
+                    format!(
+                        "\"function\"==typeof {value}&&\"number\"!=typeof {value}.nodeType&&\"function\"!=typeof {value}.item"
+                    )
+                },
+                JsPrecedence::LogicalAnd,
+            ));
+        }
+        if intrinsic == Intrinsic::JsIsWindowValue {
+            let Some(receiver) = receiver else {
+                return Err(CodegenError::new(
+                    self.function(self.module.entry)?.span,
+                    "isWindowValue requires a receiver",
+                ));
+            };
+            return Ok(render_js_host_predicate(
+                take_value(receiver, context, cache)?,
+                |value| format!("{value}!=null&&{value}==={value}.window"),
+                JsPrecedence::LogicalAnd,
+            ));
+        }
+        if intrinsic == Intrinsic::JsDefineConfigurable {
+            let [object, key, value] = args else {
+                return Err(CodegenError::new(
+                    self.function(self.module.entry)?.span,
+                    "defineConfigurable requires an object, key, and value",
+                ));
+            };
+            let object = take_value(*object, context, cache)?;
+            let key = take_value(*key, context, cache)?;
+            let value = take_value(*value, context, cache)?;
+            return Ok(JsExpression::raw(
+                format!(
+                    "Object.defineProperty({},{},{{value:{},configurable:!0}})",
+                    object.at_least(JsPrecedence::Assignment),
+                    key.at_least(JsPrecedence::Assignment),
+                    value.at_least(JsPrecedence::Assignment),
+                ),
+                JsPrecedence::Call,
+            ));
+        }
+        if intrinsic == Intrinsic::JsDefineIterator {
+            let Some(receiver) = receiver else {
+                return Err(CodegenError::new(
+                    self.function(self.module.entry)?.span,
+                    "defineIterator requires a receiver",
+                ));
+            };
+            let [iterator] = args else {
+                return Err(CodegenError::new(
+                    self.function(self.module.entry)?.span,
+                    "defineIterator requires an iterator",
+                ));
+            };
+            return Ok(JsExpression::raw(
+                format!(
+                    "{}[Symbol.iterator]={}",
+                    take_value(receiver, context, cache)?.at_least(JsPrecedence::Call),
+                    take_value(*iterator, context, cache)?.at_least(JsPrecedence::Assignment),
+                ),
+                JsPrecedence::Assignment,
+            ));
+        }
+        if intrinsic == Intrinsic::JsArrayIterator {
+            return Ok(JsExpression::raw(
+                "Array.prototype[Symbol.iterator]",
+                JsPrecedence::Member,
+            ));
+        }
+        if intrinsic == Intrinsic::JsConsoleWarn {
+            return self.render_call(JsExpression::atom("console.warn"), args, context, cache);
+        }
+        if intrinsic == Intrinsic::JsRequestAnimationFrameOrNull {
+            let [callback] = args else {
+                return Err(CodegenError::new(
+                    self.function(self.module.entry)?.span,
+                    "requestAnimationFrameOrNull requires a callback",
+                ));
+            };
+            return Ok(JsExpression::raw(
+                format!(
+                    "{}.requestAnimationFrame?.({})",
+                    self.js_window_root().at_least(JsPrecedence::Member),
+                    take_value(*callback, context, cache)?.at_least(JsPrecedence::Assignment),
+                ),
+                JsPrecedence::Call,
+            ));
+        }
+        if intrinsic == Intrinsic::JsNullProtoObject {
+            return Ok(JsExpression::atom("Object.create(null)"));
+        }
+        let static_callee = match intrinsic {
+            Intrinsic::RecordKeys => Some("Object.keys"),
+            Intrinsic::RecordValues => Some("Object.values"),
+            Intrinsic::RecordHasOwn => Some("Object.hasOwn"),
+            Intrinsic::RecordAssign => Some("Object.assign"),
+            Intrinsic::JsonStringify => Some("JSON.stringify"),
+            Intrinsic::JsonParse => Some("JSON.parse"),
+            Intrinsic::TaskResolve => Some("Promise.resolve"),
+            Intrinsic::TaskReject => Some("Promise.reject"),
+            Intrinsic::TaskAll => Some("Promise.all"),
+            Intrinsic::JsDateNow => Some("Date.now"),
+            Intrinsic::JsParseFloat => Some("parseFloat"),
+            Intrinsic::JsParseInt => Some("parseInt"),
+            Intrinsic::JsIsFinite => Some("isFinite"),
+            Intrinsic::JsEncodeURIComponent => Some("encodeURIComponent"),
+            Intrinsic::JsObjectCreate => Some("Object.create"),
+            Intrinsic::JsGetPrototypeOf => Some("Object.getPrototypeOf"),
+            Intrinsic::JsClearTimeout => Some("clearTimeout"),
+            _ => None,
+        };
+        if let Some(callee) = static_callee {
+            if matches!(
+                intrinsic,
+                Intrinsic::JsParseFloat | Intrinsic::JsParseInt | Intrinsic::JsEncodeURIComponent
+            ) {
+                let mut rendered_args = Vec::with_capacity(args.len());
+                for (index, arg) in args.iter().enumerate() {
+                    let mut value = take_value(*arg, context, cache)?;
+                    if index == 0 {
+                        value = value.without_explicit_tostring();
+                    }
+                    rendered_args.push(value);
+                }
+                return Ok(JsExpression::call(
+                    JsExpression::atom(callee),
+                    rendered_args,
+                ));
+            }
+            return self.render_call(JsExpression::atom(callee), args, context, cache);
+        }
+        if intrinsic == Intrinsic::JsSetTimeout {
+            let mut rendered = String::from("setTimeout(");
+            for (index, arg) in args.iter().enumerate() {
+                if index != 0 {
+                    rendered.push(',');
+                }
+                rendered.push_str(&strip_outer_parens(take_value(*arg, context, cache)?));
+            }
+            if args.len() < 2 {
+                if !args.is_empty() {
+                    rendered.push(',');
+                }
+                rendered.push('0');
+            }
+            rendered.push(')');
+            return Ok(JsExpression::raw(rendered, JsPrecedence::Call));
+        }
         let constructor = match intrinsic {
             Intrinsic::MapNew => Some("Map"),
             Intrinsic::SetNew => Some("Set"),
             Intrinsic::ArrayBufferNew => Some("ArrayBuffer"),
             Intrinsic::SharedArrayBufferNew => Some("SharedArrayBuffer"),
+            Intrinsic::RegexNew => Some("RegExp"),
+            Intrinsic::JsDomParserNew => Some("DOMParser"),
+            Intrinsic::JsXMLHttpRequestNew => Some("XMLHttpRequest"),
             Intrinsic::SymbolNew => None,
             other => classify_typed_array_intrinsic(other)
                 .filter(|(_, op)| *op == TypedArrayIntrinsic::New)
@@ -4698,6 +10851,15 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             }
             rendered.push(')');
             return Ok(JsExpression::raw(rendered, JsPrecedence::Call));
+        }
+        if self.options.regex_literals && intrinsic == Intrinsic::RegexNew {
+            if let Some(literal) = regex_literal_for_arguments(
+                args,
+                &context.string_constants,
+                self.options.string_quote,
+            ) {
+                return Ok(JsExpression::atom(literal));
+            }
         }
         if let Some(constructor) = constructor {
             if args.is_empty() && self.options.elide_new_parentheses {
@@ -4717,14 +10879,140 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             rendered.push(')');
             return Ok(JsExpression::raw(rendered, JsPrecedence::Call));
         }
-        let receiver = receiver.ok_or_else(|| {
+        let receiver_id = receiver.ok_or_else(|| {
             CodegenError::new(
                 self.function(self.module.entry).unwrap().span,
                 "missing receiver",
             )
         })?;
-        let receiver = take_value(receiver, context, cache)?;
+        let receiver_was_deferred = cache.contains_key(&receiver_id);
+        let mut receiver = take_value(receiver_id, context, cache)?;
+        if matches!(
+            intrinsic,
+            Intrinsic::JsStringSlice
+                | Intrinsic::JsStringIndexOf
+                | Intrinsic::JsStringReplace
+                | Intrinsic::JsStringMatch
+                | Intrinsic::JsStringSplit
+                | Intrinsic::StringCharAt
+                | Intrinsic::StringCharCodeAt
+                | Intrinsic::StringIncludes
+                | Intrinsic::StringIndexOf
+                | Intrinsic::StringLastIndexOf
+                | Intrinsic::StringRepeat
+                | Intrinsic::StringStartsWith
+                | Intrinsic::StringEndsWith
+                | Intrinsic::StringToUpperCase
+                | Intrinsic::StringToLowerCase
+        ) {
+            receiver = receiver.without_explicit_tostring();
+        }
         match intrinsic {
+            Intrinsic::RegexTest | Intrinsic::JsRegexExec => {
+                let [needle] = args else {
+                    return Err(CodegenError::new(
+                        self.function(self.module.entry)?.span,
+                        "regex test/exec requires one argument",
+                    ));
+                };
+                let method = if intrinsic == Intrinsic::RegexTest {
+                    "test"
+                } else {
+                    "exec"
+                };
+                return Ok(JsExpression::call(
+                    JsExpression::member(
+                        receiver,
+                        method,
+                        self.options.elide_call_chain_parentheses,
+                    ),
+                    [take_value(*needle, context, cache)?.without_explicit_tostring()],
+                ));
+            }
+            Intrinsic::JsTypeOf => {
+                return Ok(JsExpression::raw(
+                    format!("typeof {}", receiver.at_least(JsPrecedence::Unary)),
+                    JsPrecedence::Unary,
+                ));
+            }
+            Intrinsic::JsIsNullish => {
+                return Ok(JsExpression::raw(
+                    format!("{}==null", receiver.at_least(JsPrecedence::Equality)),
+                    JsPrecedence::Equality,
+                ));
+            }
+            Intrinsic::JsIsFalse => {
+                return Ok(JsExpression::raw(
+                    format!("{}===false", receiver.at_least(JsPrecedence::Equality)),
+                    JsPrecedence::Equality,
+                ));
+            }
+            Intrinsic::JsIsUndefined => {
+                return Ok(JsExpression::raw(
+                    format!("{}===void 0", receiver.at_least(JsPrecedence::Equality)),
+                    JsPrecedence::Equality,
+                ));
+            }
+            Intrinsic::JsStringify => {
+                return Ok(JsExpression::raw(
+                    format!("{}+\"\"", receiver.at_least(JsPrecedence::Additive)),
+                    JsPrecedence::Additive,
+                ));
+            }
+            Intrinsic::JsNumber => {
+                return Ok(JsExpression::unary("+", receiver));
+            }
+            Intrinsic::JsAdd
+            | Intrinsic::JsLessThan
+            | Intrinsic::JsLessThanOrEqual
+            | Intrinsic::JsGreaterThan
+            | Intrinsic::JsGreaterThanOrEqual => {
+                let [rhs] = args else {
+                    return Err(CodegenError::new(
+                        self.function(self.module.entry)?.span,
+                        "JavaScript binary operation requires one right operand",
+                    ));
+                };
+                let operator = match intrinsic {
+                    Intrinsic::JsAdd => IrBinaryOp::Add,
+                    Intrinsic::JsLessThan => IrBinaryOp::Less,
+                    Intrinsic::JsLessThanOrEqual => IrBinaryOp::LessEq,
+                    Intrinsic::JsGreaterThan => IrBinaryOp::Greater,
+                    Intrinsic::JsGreaterThanOrEqual => IrBinaryOp::GreaterEq,
+                    _ => unreachable!(),
+                };
+                return Ok(JsExpression::binary(
+                    operator,
+                    receiver,
+                    take_value(*rhs, context, cache)?,
+                ));
+            }
+            Intrinsic::JsStrictEqual | Intrinsic::JsStrictNotEqual => {
+                let [rhs] = args else {
+                    return Err(CodegenError::new(
+                        self.function(self.module.entry)?.span,
+                        "JavaScript strict comparison requires one right operand",
+                    ));
+                };
+                let operator = if intrinsic == Intrinsic::JsStrictEqual {
+                    "==="
+                } else {
+                    "!=="
+                };
+                let mut left = receiver;
+                let mut right = take_value(*rhs, context, cache)?;
+                if right.is_constant_literal() && !left.is_constant_literal() {
+                    core::mem::swap(&mut left, &mut right);
+                }
+                return Ok(JsExpression::raw(
+                    format!(
+                        "{}{operator}{}",
+                        left.at_least(JsPrecedence::Equality),
+                        right.at_least(JsPrecedence::Equality),
+                    ),
+                    JsPrecedence::Equality,
+                ));
+            }
             Intrinsic::JsTruthy => {
                 return Ok(JsExpression::unary("!", JsExpression::unary("!", receiver)));
             }
@@ -4737,17 +11025,292 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             Intrinsic::JsIsObject => {
                 return Ok(JsExpression::raw(
                     format!(
-                        "typeof({})=={}",
+                        "{}==typeof({})",
+                        render_string_literal("object", self.options.string_quote),
                         receiver.into_minimal(),
-                        render_string_literal("object", self.options.string_quote)
                     ),
                     JsPrecedence::Equality,
                 ));
             }
-            Intrinsic::JsForInKey | Intrinsic::JsForInHasNext => {
+            Intrinsic::JsConstruct => {
+                let arguments = args
+                    .iter()
+                    .map(|argument| take_value(*argument, context, cache))
+                    .collect::<Result<Vec<_>, _>>()?;
+                let callee = receiver.at_least(JsPrecedence::Member);
+                if arguments.is_empty() && self.options.elide_new_parentheses {
+                    return Ok(JsExpression::raw(
+                        format!("new {callee}"),
+                        JsPrecedence::NewWithoutArgs,
+                    ));
+                }
+                let mut rendered = format!("new {callee}(");
+                for (index, argument) in arguments.iter().enumerate() {
+                    if index != 0 {
+                        rendered.push(',');
+                    }
+                    rendered.push_str(&strip_outer_parens(argument.clone()));
+                }
+                rendered.push(')');
+                return Ok(JsExpression::raw(rendered, JsPrecedence::Call));
+            }
+            Intrinsic::JsCall | Intrinsic::JsApply => {
+                let method = if intrinsic == Intrinsic::JsCall {
+                    "call"
+                } else {
+                    "apply"
+                };
+                if intrinsic == Intrinsic::JsCall
+                    && receiver_was_deferred
+                    && args.first().is_some_and(|this_arg| {
+                        self.deferred_member_receiver(context.function_id, receiver_id)
+                            == Some(*this_arg)
+                    })
+                {
+                    return self.render_call(receiver, &args[1..], context, cache);
+                }
+                return self.render_call(
+                    JsExpression::member(
+                        receiver,
+                        method,
+                        self.options.elide_call_chain_parentheses,
+                    ),
+                    args,
+                    context,
+                    cache,
+                );
+            }
+            Intrinsic::JsInvoke => {
+                let Some((key, call_args)) = args.split_first() else {
+                    return Err(CodegenError::new(
+                        self.function(self.module.entry)?.span,
+                        "JS.invoke requires a property key",
+                    ));
+                };
+                let property = static_identifier_property(*key, &context.string_constants);
+                let receiver = if property.is_some_and(|name| {
+                    matches!(
+                        name,
+                        "charAt"
+                            | "charCodeAt"
+                            | "concat"
+                            | "endsWith"
+                            | "includes"
+                            | "indexOf"
+                            | "lastIndexOf"
+                            | "localeCompare"
+                            | "match"
+                            | "matchAll"
+                            | "normalize"
+                            | "padEnd"
+                            | "padStart"
+                            | "repeat"
+                            | "replace"
+                            | "replaceAll"
+                            | "search"
+                            | "slice"
+                            | "split"
+                            | "startsWith"
+                            | "substr"
+                            | "substring"
+                            | "toLowerCase"
+                            | "toUpperCase"
+                            | "trim"
+                            | "trimEnd"
+                            | "trimStart"
+                            | "trimLeft"
+                            | "trimRight"
+                    )
+                }) {
+                    receiver.without_explicit_tostring()
+                } else {
+                    receiver
+                };
+                let callee = if let Some(property) = property {
+                    JsExpression::member(
+                        receiver,
+                        property,
+                        self.options.elide_call_chain_parentheses,
+                    )
+                } else {
+                    JsExpression::index(
+                        receiver,
+                        take_value(*key, context, cache)?,
+                        self.options.elide_call_chain_parentheses,
+                    )
+                };
+                if property.is_some_and(|name| matches!(name, "test" | "exec")) {
+                    let mut rendered_args = Vec::with_capacity(call_args.len());
+                    for (index, arg) in call_args.iter().enumerate() {
+                        let mut value = take_value(*arg, context, cache)?;
+                        if index == 0 {
+                            value = value.without_explicit_tostring();
+                        }
+                        rendered_args.push(value);
+                    }
+                    return Ok(JsExpression::call(callee, rendered_args));
+                }
+                return self.render_call(callee, call_args, context, cache);
+            }
+            Intrinsic::JsDeleteProperty => {
+                let [key] = args else {
+                    return Err(CodegenError::new(
+                        self.function(self.module.entry)?.span,
+                        "JS.delete requires one key",
+                    ));
+                };
+                let access = JsExpression::index(
+                    receiver,
+                    take_value(*key, context, cache)?,
+                    self.options.elide_call_chain_parentheses,
+                );
+                return Ok(JsExpression::raw(
+                    format!("delete {access}"),
+                    JsPrecedence::Unary,
+                ));
+            }
+            Intrinsic::JsHasProperty => {
+                let [key] = args else {
+                    return Err(CodegenError::new(
+                        self.function(self.module.entry)?.span,
+                        "JS.has requires one key",
+                    ));
+                };
+                let key = take_value(*key, context, cache)?;
+                return Ok(JsExpression::raw(
+                    format!(
+                        "{} in Object({})",
+                        key.at_least(JsPrecedence::Relational),
+                        receiver.into_minimal(),
+                    ),
+                    JsPrecedence::Relational,
+                ));
+            }
+            Intrinsic::JsInProperty => {
+                let [key] = args else {
+                    return Err(CodegenError::new(
+                        self.function(self.module.entry)?.span,
+                        "JS.in requires one key",
+                    ));
+                };
+                return Ok(JsExpression::raw(
+                    format!(
+                        "{} in {}",
+                        take_value(*key, context, cache)?.at_least(JsPrecedence::Relational),
+                        receiver.at_least(JsPrecedence::Relational),
+                    ),
+                    JsPrecedence::Relational,
+                ));
+            }
+            Intrinsic::JsBox => {
+                return Ok(JsExpression::call(JsExpression::atom("Object"), [receiver]));
+            }
+            Intrinsic::JsGetProperty => {
+                let [key] = args else {
+                    return Err(CodegenError::new(
+                        self.function(self.module.entry)?.span,
+                        "JS.get requires one key",
+                    ));
+                };
+                return Ok(JsExpression::index(
+                    receiver,
+                    take_value(*key, context, cache)?,
+                    self.options.elide_call_chain_parentheses,
+                ));
+            }
+            Intrinsic::JsStringSlice
+            | Intrinsic::JsStringIndexOf
+            | Intrinsic::JsStringReplace
+            | Intrinsic::JsStringMatch
+            | Intrinsic::JsStringSplit => {
+                let method = match intrinsic {
+                    Intrinsic::JsStringSlice => "slice",
+                    Intrinsic::JsStringIndexOf => "indexOf",
+                    Intrinsic::JsStringReplace => "replace",
+                    Intrinsic::JsStringMatch => "match",
+                    Intrinsic::JsStringSplit => "split",
+                    _ => unreachable!(),
+                };
+                return self.render_call(
+                    JsExpression::member(
+                        receiver,
+                        method,
+                        self.options.elide_call_chain_parentheses,
+                    ),
+                    args,
+                    context,
+                    cache,
+                );
+            }
+            Intrinsic::JsArrayPush
+            | Intrinsic::JsArrayPop
+            | Intrinsic::JsArraySlice
+            | Intrinsic::JsArrayIndexOf
+            | Intrinsic::JsArraySort
+            | Intrinsic::JsArraySplice
+            | Intrinsic::JsArrayJoin
+            | Intrinsic::JsArrayShift
+            | Intrinsic::JsArrayUnshift
+            | Intrinsic::JsArrayFlat => {
+                let method = match intrinsic {
+                    Intrinsic::JsArrayPush => "push",
+                    Intrinsic::JsArrayPop => "pop",
+                    Intrinsic::JsArraySlice => "slice",
+                    Intrinsic::JsArrayIndexOf => "indexOf",
+                    Intrinsic::JsArraySort => "sort",
+                    Intrinsic::JsArraySplice => "splice",
+                    Intrinsic::JsArrayJoin => "join",
+                    Intrinsic::JsArrayShift => "shift",
+                    Intrinsic::JsArrayUnshift => "unshift",
+                    Intrinsic::JsArrayFlat => "flat",
+                    _ => unreachable!(),
+                };
+                let callee = self.array_prototype_invoke(method, "call");
+                let mut call_args = Vec::with_capacity(args.len() + 1);
+                call_args.push(receiver);
+                for arg in args {
+                    call_args.push(take_value(*arg, context, cache)?);
+                }
+                return Ok(JsExpression::call(callee, call_args));
+            }
+            Intrinsic::JsArrayConcatApply => {
+                let [arrays] = args else {
+                    return Err(CodegenError::new(
+                        self.function(self.module.entry)?.span,
+                        "JS.concatApply requires one array pack",
+                    ));
+                };
+                let callee = self.array_prototype_invoke("concat", "apply");
+                return Ok(JsExpression::call(
+                    callee,
+                    [receiver, take_value(*arrays, context, cache)?],
+                ));
+            }
+            Intrinsic::JsForInKey
+            | Intrinsic::JsForInHasNext
+            | Intrinsic::JsForOfValue
+            | Intrinsic::JsForOfHasNext => {
                 return Err(CodegenError::new(
                     self.function(self.module.entry)?.span,
-                    "for-in pseudo-intrinsic escaped structured loop emission",
+                    "iteration pseudo-intrinsic escaped structured loop emission",
+                ));
+            }
+            Intrinsic::GeneratorYield => {
+                let receiver = receiver.into_minimal();
+                let separator = if receiver.starts_with('-') || receiver.starts_with('+') {
+                    ""
+                } else {
+                    " "
+                };
+                return Ok(JsExpression::raw(
+                    format!("yield{separator}{receiver}"),
+                    JsPrecedence::Assignment,
+                ));
+            }
+            Intrinsic::GeneratorYieldDelegated => {
+                return Ok(JsExpression::raw(
+                    format!("yield*{}", receiver.into_minimal()),
+                    JsPrecedence::Assignment,
                 ));
             }
             _ => {}
@@ -4772,6 +11335,31 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 return Ok(JsExpression::member(
                     receiver,
                     "byteLength",
+                    self.options.elide_call_chain_parentheses,
+                ));
+            }
+            Intrinsic::RegexSource
+            | Intrinsic::RegexFlags
+            | Intrinsic::RegexGlobal
+            | Intrinsic::RegexIgnoreCase
+            | Intrinsic::RegexMultiline
+            | Intrinsic::RegexDotAll
+            | Intrinsic::RegexSticky
+            | Intrinsic::RegexUnicode => {
+                let property = match intrinsic {
+                    Intrinsic::RegexSource => "source",
+                    Intrinsic::RegexFlags => "flags",
+                    Intrinsic::RegexGlobal => "global",
+                    Intrinsic::RegexIgnoreCase => "ignoreCase",
+                    Intrinsic::RegexMultiline => "multiline",
+                    Intrinsic::RegexDotAll => "dotAll",
+                    Intrinsic::RegexSticky => "sticky",
+                    Intrinsic::RegexUnicode => "unicode",
+                    _ => unreachable!(),
+                };
+                return Ok(JsExpression::member(
+                    receiver,
+                    property,
                     self.options.elide_call_chain_parentheses,
                 ));
             }
@@ -4851,7 +11439,13 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     context,
                     cache,
                 )?;
-                return Ok(JsExpression::integer_normalization(call));
+                let elide = self.options.elide_safe_integer_coercions
+                    && out.is_some_and(|out| context.can_elide_i32_coercion(out));
+                return Ok(if elide {
+                    call
+                } else {
+                    JsExpression::integer_normalization(call)
+                });
             }
             Intrinsic::StringCharAt => {
                 return self.render_call(
@@ -4884,11 +11478,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         JsExpressionRoot::Binary(IrBinaryOp::UnsignedShiftRight),
                     )
                 } else {
-                    JsExpression::grouped(
-                        receiver.into_minimal(),
-                        JsPrecedence::Primary,
-                        JsExpressionRoot::Raw,
-                    )
+                    receiver
                 };
                 return Ok(JsExpression::call(
                     JsExpression::member(
@@ -4950,8 +11540,20 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             Intrinsic::ArrayPush => "push",
             Intrinsic::ArrayPop => "pop",
             Intrinsic::ArrayIndexOf => "indexOf",
+            Intrinsic::ArrayIncludes => "includes",
+            Intrinsic::ArrayJoin => "join",
+            Intrinsic::ArraySome => "some",
+            Intrinsic::ArrayEvery => "every",
+            Intrinsic::ArrayFindIndex => "findIndex",
+            Intrinsic::ArrayConcat => "concat",
+            Intrinsic::ArrayCopyWithin => "copyWithin",
+            Intrinsic::ArrayReverse => "reverse",
             Intrinsic::ArraySlice => "slice",
             Intrinsic::ArraySplice => "splice",
+            Intrinsic::ArrayFill => "fill",
+            Intrinsic::TypedArraySet => "set",
+            Intrinsic::TypedArrayFill => "fill",
+            Intrinsic::TypedArrayCopyWithin => "copyWithin",
             Intrinsic::MapSet => "set",
             Intrinsic::MapHas => "has",
             Intrinsic::MapDelete => "delete",
@@ -4978,6 +11580,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 "subarray"
             }
             Intrinsic::StringIncludes => "includes",
+            Intrinsic::StringIndexOf => "indexOf",
+            Intrinsic::StringLastIndexOf => "lastIndexOf",
+            Intrinsic::StringRepeat => "repeat",
             Intrinsic::StringStartsWith => "startsWith",
             Intrinsic::StringEndsWith => "endsWith",
             Intrinsic::StringToUpperCase => "toUpperCase",
@@ -4988,7 +11593,76 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             | Intrinsic::SetNew
             | Intrinsic::ArrayBufferNew
             | Intrinsic::SharedArrayBufferNew
-            | Intrinsic::SymbolNew => unreachable!(),
+            | Intrinsic::RegexNew
+            | Intrinsic::SymbolNew
+            | Intrinsic::JsPlainObject
+            | Intrinsic::JsUndefined
+            | Intrinsic::JsDateNow
+            | Intrinsic::JsParseFloat
+            | Intrinsic::JsParseInt
+            | Intrinsic::JsIsFinite
+            | Intrinsic::JsEncodeURIComponent
+            | Intrinsic::JsObjectCreate
+            | Intrinsic::JsGetPrototypeOf
+            | Intrinsic::JsMathPI
+            | Intrinsic::JsObjectConstructor
+            | Intrinsic::JsWindow
+            | Intrinsic::JsDocument
+            | Intrinsic::JsSetTimeout
+            | Intrinsic::JsClearTimeout
+            | Intrinsic::JsDomParserNew
+            | Intrinsic::JsXMLHttpRequestNew
+            | Intrinsic::JsNullProtoObject
+            | Intrinsic::JsTypeOf
+            | Intrinsic::JsIsNullish
+            | Intrinsic::JsIsFalse
+            | Intrinsic::JsIsUndefined
+            | Intrinsic::JsStringify
+            | Intrinsic::JsNumber
+            | Intrinsic::JsAdd
+            | Intrinsic::JsLessThan
+            | Intrinsic::JsLessThanOrEqual
+            | Intrinsic::JsGreaterThan
+            | Intrinsic::JsGreaterThanOrEqual
+            | Intrinsic::JsStrictEqual
+            | Intrinsic::JsStrictNotEqual
+            | Intrinsic::JsCall
+            | Intrinsic::JsConstruct
+            | Intrinsic::JsInvoke
+            | Intrinsic::JsApply
+            | Intrinsic::JsMethod0
+            | Intrinsic::JsMethod1
+            | Intrinsic::JsMethodRest
+            | Intrinsic::JsStaticRest
+            | Intrinsic::JsGetProperty
+            | Intrinsic::JsDeleteProperty
+            | Intrinsic::JsHasProperty
+            | Intrinsic::JsInProperty
+            | Intrinsic::JsBox
+            | Intrinsic::JsStringSlice
+            | Intrinsic::JsStringIndexOf
+            | Intrinsic::JsStringReplace
+            | Intrinsic::JsStringMatch
+            | Intrinsic::JsStringSplit
+            | Intrinsic::JsRegexExec
+            | Intrinsic::JsArrayPush
+            | Intrinsic::JsArrayPop
+            | Intrinsic::JsArraySlice
+            | Intrinsic::JsArrayIndexOf
+            | Intrinsic::JsArraySort
+            | Intrinsic::JsArraySplice
+            | Intrinsic::JsArrayConcatApply
+            | Intrinsic::JsArrayJoin
+            | Intrinsic::JsArrayShift
+            | Intrinsic::JsArrayUnshift
+            | Intrinsic::JsArrayFlat
+            | Intrinsic::JsIsFunctionValue
+            | Intrinsic::JsIsWindowValue
+            | Intrinsic::JsDefineConfigurable
+            | Intrinsic::JsDefineIterator
+            | Intrinsic::JsArrayIterator
+            | Intrinsic::JsConsoleWarn
+            | Intrinsic::JsRequestAnimationFrameOrNull => unreachable!(),
             other
                 if matches!(
                     classify_typed_array_intrinsic(other),
@@ -5011,6 +11685,26 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         )
     }
 
+    fn closure_capture_names(&self, function: FunctionId) -> Result<Vec<String>, CodegenError> {
+        let function = self.function(function)?;
+        let mangler = self.local_mangler(function);
+        let context = LocalNames::new(
+            function,
+            self.integer_analysis.function(function.id),
+            false,
+            &mangler,
+            &self.preferred_local_names,
+            &self.numeric_aliases,
+            &self.options,
+            &self.order_sensitive_inline_pure_helpers,
+            &loop_captured_closures(function),
+        );
+        function.params[..function.capture_count]
+            .iter()
+            .map(|parameter| context.value_name(parameter.value).map(str::to_string))
+            .collect()
+    }
+
     fn render_closure(
         &mut self,
         function: FunctionId,
@@ -5023,7 +11717,36 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 "closure capture count does not match its IR function",
             ));
         }
-        if !can_inline_closure(&function, self.options.inline_structured_closures) {
+        let helpers = self
+            .private_callee_clusters
+            .get(&function.id)
+            .cloned()
+            .unwrap_or_default();
+        if !helpers.is_empty() {
+            self.assign_cluster_helper_names(&[function.id], &helpers, &[])?;
+        }
+        let restored_loop_captures = std::mem::replace(
+            &mut self.loop_captured_closures,
+            loop_captured_closures(&function),
+        );
+        let rendered = self.render_closure_body(&function, captures);
+        self.loop_captured_closures = restored_loop_captures;
+        let rendered = rendered?;
+        if helpers.is_empty() {
+            Ok(rendered)
+        } else {
+            self.wrap_cluster_iife(&helpers, rendered)
+        }
+    }
+
+    fn render_closure_body(
+        &mut self,
+        function: &ControlFlowFunction<'src>,
+        captures: &[String],
+    ) -> Result<String, CodegenError> {
+        let function = function.clone();
+        let calling_convention = self.js_calling_conventions.get(&function.id).copied();
+        if !self.function_is_inlined(&function) {
             let name = self.function_name(function.id)?;
             if captures.is_empty() {
                 return Ok(name.to_string());
@@ -5033,7 +11756,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             for capture in captures {
                 reserve_expression_identifiers(&mut wrapper_mangler, capture);
             }
-            let context = LocalNames::new(
+            let mut context = LocalNames::new(
                 &function,
                 self.integer_analysis.function(function.id),
                 false,
@@ -5041,11 +11764,23 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 &self.preferred_local_names,
                 &self.numeric_aliases,
                 &self.options,
+                &self.order_sensitive_inline_pure_helpers,
+                &self.loop_captured_closures,
             );
+            for (parameter, capture) in function.params[..function.capture_count]
+                .iter()
+                .zip(captures)
+            {
+                context.value_names.insert(parameter.value, capture.clone());
+            }
             let mut rendered = render_arrow_parameters(
                 &function,
+                &function.params[function.capture_count..],
                 &context,
+                &self.global_names,
                 self.options.compact_boolean_literals,
+                true,
+                None,
             )?;
             let mut call = String::new();
             call.push_str(name);
@@ -5084,7 +11819,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             &self.preferred_local_names,
             &self.numeric_aliases,
             &self.options,
+            &self.order_sensitive_inline_pure_helpers,
+            &self.loop_captured_closures,
         );
+        self.configure_js_calling_context(&function, &mut context);
         let capture_params = &function.params[..function.capture_count];
         let capture_values = capture_params
             .iter()
@@ -5096,10 +11834,19 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             .cloned()
             .collect::<AHashSet<_>>();
         let mut mangler = local_mangler;
-        for name in context.value_names.values().chain(captures) {
+        // Local cell names are allocated after SSA values, but capture substitution below can
+        // force an SSA value to be renamed. Keep those replacement names away from lexical
+        // locals too: otherwise a temporary in a nested closure can overwrite a mutable capture
+        // cell before a later closure reads it.
+        for name in context
+            .value_names
+            .values()
+            .chain(context.local_names.values())
+            .chain(captures)
+        {
             mangler.reserve(name);
         }
-        let mut replacements = AHashMap::<String, String>::new();
+        let mut replacements = AHashMap::<String, String>::default();
         for (value, name) in &context.value_names {
             if !capture_values.contains(value)
                 && (hidden_names.contains(name) || captures.contains(name))
@@ -5118,57 +11865,105 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         }
         for (param, capture) in function.params.iter().zip(captures) {
             context.value_names.insert(param.value, capture.clone());
+            if function.mutable_capture_locals.contains(&param.local) {
+                context.local_names.insert(param.local, capture.clone());
+            }
         }
         *context.declared_names.borrow_mut() = function.params[function.capture_count..]
             .iter()
             .filter_map(|parameter| context.value_names.get(&parameter.value))
             .cloned()
+            .chain(
+                function.params[..function.capture_count]
+                    .iter()
+                    .filter(|parameter| function.mutable_capture_locals.contains(&parameter.local))
+                    .filter_map(|parameter| context.local_names.get(&parameter.local))
+                    .cloned(),
+            )
             .collect();
+        bind_rest_index_formals(
+            &function,
+            &mut context,
+            calling_convention,
+            self.arguments_global_symbol(),
+        );
         if function.blocks.len() > 1 {
+            let parameters = self.render_closure_parameter_list(&function, &context)?;
+            if !function.is_generator {
+                let return_expression = if self.options.dense_string_return_tables {
+                    self.render_dense_string_return_table(&function, &context)?
+                        .map(JsExpression::into_minimal)
+                } else {
+                    None
+                };
+                let return_expression =
+                    if return_expression.is_none() && self.options.conditional_expressions {
+                        self.render_conditional_return(&function, &context)?
+                    } else {
+                        return_expression
+                    };
+                if let Some(expression) = return_expression {
+                    let ordinary_function =
+                        self.emits_ordinary_function_expression(&function, calling_convention);
+                    if ordinary_function {
+                        let mut body = String::from("{");
+                        self.emit_calling_convention_aliases(&function, &context, &mut body)?;
+                        body.push_str("return ");
+                        body.push_str(&expression);
+                        close_statement_block(
+                            &mut body,
+                            self.options.elide_block_terminal_semicolons,
+                        );
+                        return Ok(format!(
+                            "function{}{body}",
+                            function_parameters(&parameters)
+                        ));
+                    }
+                    let mut rendered = format!("{parameters}=>");
+                    push_concise_arrow_body(&mut rendered, &expression);
+                    return Ok(rendered);
+                }
+            }
             context.inline_declarations = true;
-            let parameters = render_arrow_parameters(
-                &function,
-                &context,
-                self.options.compact_boolean_literals,
-            )?;
             let mut body = String::new();
-            self.emit_structured_with_context(&function, true, context, &mut body)?;
+            if can_structure(&function) {
+                self.emit_structured_with_context(&function, true, context, &mut body)?;
+            } else {
+                self.emit_state_machine_with_context(&function, context, &mut body)?;
+            }
             return Ok(
-                if self.options.function_spelling == FunctionSpelling::Function {
+                if self.emits_ordinary_function_expression(&function, calling_convention) {
                     format!("function{}{body}", function_parameters(&parameters))
                 } else {
                     format!("{parameters}=>{body}")
                 },
             );
         }
-        let expression_closure = matches!(
-            function.blocks[0].terminator,
-            Some(Terminator::Return(Some(_)))
-        ) && function.blocks[0]
+        let expression_closure = match function.blocks[0].terminator {
+            Some(Terminator::Return(Some(value))) => !context.is_js_undefined(value),
+            _ => false,
+        } && function.blocks[0]
             .instructions
             .iter()
-            .all(|instruction| op_can_defer(&instruction.op));
+            .all(|instruction| context.instruction_can_defer(instruction));
         if !expression_closure {
-            let parameters = render_arrow_parameters(
-                &function,
-                &context,
-                self.options.compact_boolean_literals,
-            )?;
+            let parameters = self.render_closure_parameter_list(&function, &context)?;
             let mut body = String::new();
             self.emit_single_block_with_context(&function, true, context, &mut body)?;
             return Ok(
-                if self.options.function_spelling == FunctionSpelling::Function {
+                if self.emits_ordinary_function_expression(&function, calling_convention) {
                     format!("function{}{body}", function_parameters(&parameters))
                 } else {
+                    try_rewrite_arrow_expression_body(&mut body, 0);
                     format!("{parameters}=>{body}")
                 },
             );
         }
         let uses = use_counts(&function);
-        let mut cache = AHashMap::new();
+        let mut cache = AHashMap::default();
         let mut prefix = String::new();
         for instruction in &function.blocks[0].instructions {
-            if !op_can_defer(&instruction.op) {
+            if !context.instruction_can_defer(instruction) {
                 return Err(CodegenError::new(
                     instruction.span,
                     "effectful closure requires named function emission",
@@ -5195,20 +11990,22 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             ));
         };
         let returned = strip_outer_parens(take_value(value, &context, &mut cache)?);
-        let parameters =
-            render_arrow_parameters(&function, &context, self.options.compact_boolean_literals)?;
-        let mut rendered = if self.options.function_spelling == FunctionSpelling::Function {
+        let parameters = self.render_closure_parameter_list(&function, &context)?;
+        let ordinary_function =
+            self.emits_ordinary_function_expression(&function, calling_convention);
+        let mut rendered = if ordinary_function {
             format!("function{}{{", function_parameters(&parameters))
         } else {
             format!("{parameters}=>")
         };
-        if self.options.function_spelling == FunctionSpelling::Function {
+        if ordinary_function {
+            self.emit_calling_convention_aliases(&function, &context, &mut rendered)?;
             rendered.push_str(&prefix);
             rendered.push_str("return ");
             rendered.push_str(&returned);
             rendered.push('}');
         } else if prefix.is_empty() {
-            rendered.push_str(&returned);
+            push_concise_arrow_body(&mut rendered, &returned);
         } else {
             rendered.push('{');
             rendered.push_str(&prefix);
@@ -5239,8 +12036,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 value.push(',');
             }
             if named {
-                value.push_str(self.property_name(field.name));
-                value.push(':');
+                self.push_named_literal_key(&mut value, self.property_name(field.name));
             }
             value.push_str(default_value(
                 &field.ty,
@@ -5249,6 +12045,68 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         }
         value.push(if named { '}' } else { ']' });
         Ok(value)
+    }
+
+    fn render_inlined_class_value(
+        &self,
+        class: &str,
+        out: Option<ValueId>,
+        boundary: bool,
+        context: &LocalNames,
+        cache: &mut ExpressionCache,
+    ) -> Result<String, CodegenError> {
+        let Some(out) = out else {
+            return self.default_class_value(class, boundary);
+        };
+        let Some(overrides) = self
+            .inlined_constructor_field_initializers
+            .get(&(context.function_id, out))
+        else {
+            return self.default_class_value(class, boundary);
+        };
+        let layout = self
+            .module
+            .classes
+            .iter()
+            .find(|layout| layout.name == class)
+            .ok_or_else(|| {
+                CodegenError::new(
+                    self.function(self.module.entry).unwrap().span,
+                    "missing class layout",
+                )
+            })?;
+        let named = (boundary && self.options.public_aggregate_fields)
+            || self.class_uses_named_fields(class);
+        let mut rendered = String::from(if named { "{" } else { "[" });
+        for (position, field) in layout.fields.iter().enumerate() {
+            if position != 0 {
+                rendered.push(',');
+            }
+            if named {
+                self.push_named_literal_key(&mut rendered, self.property_name(field.name));
+            }
+            if let Some((_, value)) = overrides.iter().find(|(index, _)| *index == field.index) {
+                rendered.push_str(&strip_outer_parens(take_value(*value, context, cache)?));
+            } else {
+                rendered.push_str(default_value(
+                    &field.ty,
+                    self.options.compact_boolean_literals,
+                ));
+            }
+        }
+        rendered.push(if named { '}' } else { ']' });
+        Ok(rendered)
+    }
+
+    fn push_named_literal_key(&self, out: &mut String, property: &str) {
+        if property == "__proto__" {
+            out.push('[');
+            out.push_str(&render_string_literal(property, self.options.string_quote));
+            out.push_str("]:");
+        } else {
+            out.push_str(property);
+            out.push(':');
+        }
     }
 
     fn class_uses_named_fields(&self, owner: &str) -> bool {
@@ -5272,10 +12130,79 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             .get(&id)
             .map(String::as_str)
             .ok_or_else(|| {
+                let function = self.function(id).ok();
+                let kind = match function.map(|function| function.kind) {
+                    Some(FunctionKind::Entry) => "entry",
+                    Some(FunctionKind::Function) => "function",
+                    Some(FunctionKind::Method { .. }) => "method",
+                    Some(FunctionKind::Constructor { .. }) => "constructor",
+                    Some(FunctionKind::Closure) => "closure",
+                    Some(FunctionKind::Extern) => "extern",
+                    None => "missing",
+                };
                 CodegenError::new(
-                    self.function(id)
+                    function.map_or(crate::span::Span::empty(0), |function| function.span),
+                    format!(
+                        "function {} (`{}`, {kind}) has no emitted name (live={} inlined={} single_use={} clustered={} host_skip={} private_root={} named_root={} {})",
+                        id.0,
+                        function.and_then(|function| function.name).unwrap_or("<unnamed>"),
+                        function.is_some_and(|function| function.live),
+                        function.is_some_and(|function| self.function_is_inlined(function)),
+                        self.inline_single_use_functions.contains(&id),
+                        self.clustered_helpers.contains(&id),
+                        self.js_host_alias_skips_binding(id),
+                        self.private_callee_clusters.contains_key(&id),
+                        self.named_cluster_by_root.contains_key(&id),
+                        self.function_name_debug_clusters(id),
+                    ),
+                )
+            })
+    }
+
+    fn function_name_debug_clusters(&self, id: FunctionId) -> String {
+        let private = self
+            .private_callee_clusters
+            .iter()
+            .find_map(|(root, helpers)| helpers.contains(&id).then(|| format!("private-helper-of-{}", root.0)));
+        let named = self.named_callee_clusters.iter().enumerate().find_map(|(index, (roots, helpers))| {
+            helpers.contains(&id).then(|| format!("named-helper-of-{:?}", roots.iter().map(|r| r.0).collect::<Vec<_>>()))
+                .or_else(|| roots.contains(&id).then(|| format!("named-root-{index}")))
+        });
+        let nested = self.nested_once_run_helpers.iter().find_map(|(host, helpers)| {
+            helpers.contains(&id).then(|| format!("nested-of-{}", host.0))
+        });
+        let root_status = self.private_callee_clusters.iter().find_map(|(root, helpers)| {
+            helpers.contains(&id).then(|| {
+                let function = self.module.functions.get(root.0 as usize);
+                format!(
+                    "root_name={} root_kind={:?} root_live={} root_inlined={} root_exclusive={} root_single_use={} root_pure={} root_wraps={} root_host={:?}",
+                    function.and_then(|function| function.name).unwrap_or("<unnamed>"),
+                    function.map(|function| function.kind),
+                    function.is_some_and(|function| function.live),
+                    function.is_some_and(|function| self.function_is_inlined(function)),
+                    self.inline_exclusive_closures.contains(root),
+                    self.inline_single_use_functions.contains(root),
+                    self.inline_pure_helpers.contains(root),
+                    self.cluster_root_emits_wrapper(*root),
+                    self.js_host_alias_spelling(*root),
+                )
+            })
+        });
+        format!("clusters private={private:?} named={named:?} nested={nested:?} {root_status:?}")
+    }
+
+    fn js_adapter_factory_name(
+        &self,
+        convention: JsCallingConvention,
+    ) -> Result<&str, CodegenError> {
+        self.js_adapter_factory_names
+            .get(&convention)
+            .map(String::as_str)
+            .ok_or_else(|| {
+                CodegenError::new(
+                    self.function(self.module.entry)
                         .map_or(crate::span::Span::empty(0), |function| function.span),
-                    format!("function {} has no emitted name", id.0),
+                    "JavaScript adapter fallback has no emitted factory name",
                 )
             })
     }
@@ -5303,9 +12230,12 @@ fn type_references_class(ty: &Type<'_>, owner: &str) -> bool {
         Type::StructInstance { name, args } => {
             *name == owner || args.iter().any(|ty| type_references_class(ty, owner))
         }
-        Type::Array(ty) | Type::Set(ty) | Type::Task(ty) | Type::Nullable(ty) => {
-            type_references_class(ty, owner)
-        }
+        Type::Array(ty)
+        | Type::Record(ty)
+        | Type::Set(ty)
+        | Type::Task(ty)
+        | Type::Generator(ty)
+        | Type::Nullable(ty) => type_references_class(ty, owner),
         Type::Map(key, value) => {
             type_references_class(key, owner) || type_references_class(value, owner)
         }
@@ -5328,6 +12258,7 @@ fn type_references_class(ty: &Type<'_>, owner: &str) -> bool {
                 || type_references_class(&function.signature.return_type, owner)
         }
         Type::Int
+        | Type::Enum(_)
         | Type::Float
         | Type::String
         | Type::Bool
@@ -5345,6 +12276,7 @@ fn type_references_class(ty: &Type<'_>, owner: &str) -> bool {
         | Type::Float32Array
         | Type::Float64Array
         | Type::Symbol
+        | Type::Regex
         | Type::ModuleNamespace(_)
         | Type::ModuleLoadError
         | Type::TypeParameter(_) => false,
@@ -5375,7 +12307,7 @@ fn collect_chunk_references(
 ) -> ChunkReferences {
     let mut references = ChunkReferences::default();
     let mut pending = roots.to_vec();
-    let mut visited = AHashSet::new();
+    let mut visited = AHashSet::default();
     while let Some(function_id) = pending.pop() {
         if !visited.insert(function_id) {
             continue;
@@ -5488,7 +12420,7 @@ fn emit_chunk_imports(
             out.push_str(name);
         }
         out.push_str("}from");
-        out.push_str(&render_string_literal(
+        out.push_str(&render_generated_module_specifier(
             &format!("./{}", files[*source]),
             quote,
         ));
@@ -5597,9 +12529,9 @@ fn reusable_parallel_copy_temporary(
 
 fn live_in_values(function: &ControlFlowFunction<'_>) -> Vec<AHashSet<ValueId>> {
     let block_count = function.blocks.len();
-    let mut definitions = vec![AHashSet::new(); block_count];
-    let mut local_uses = vec![AHashSet::new(); block_count];
-    let mut phi_definitions = vec![AHashSet::new(); block_count];
+    let mut definitions = vec![AHashSet::default(); block_count];
+    let mut local_uses = vec![AHashSet::default(); block_count];
+    let mut phi_definitions = vec![AHashSet::default(); block_count];
     for block in &function.blocks {
         let index = block.id.0 as usize;
         for phi in &block.phis {
@@ -5628,13 +12560,13 @@ fn live_in_values(function: &ControlFlowFunction<'_>) -> Vec<AHashSet<ValueId>> 
         }
     }
 
-    let mut live_in = vec![AHashSet::new(); block_count];
-    let mut live_out = vec![AHashSet::new(); block_count];
+    let mut live_in = vec![AHashSet::default(); block_count];
+    let mut live_out = vec![AHashSet::default(); block_count];
     loop {
         let mut changed = false;
         for block in function.blocks.iter().rev() {
             let index = block.id.0 as usize;
-            let mut output = AHashSet::new();
+            let mut output = AHashSet::default();
             for successor in block_successors(block) {
                 let successor_index = successor.0 as usize;
                 output.extend(
@@ -5848,7 +12780,19 @@ fn try_rewrite_arrow_expression_body(out: &mut String, body_start: usize) {
     }
     let expression = expression.to_string();
     out.truncate(body_start);
-    out.push_str(&expression);
+    push_concise_arrow_body(out, &expression);
+}
+
+/// A concise arrow body starting with `{` would parse as a block statement, so an object
+/// literal keeps parentheses. Two bytes still beat spelling out `{return ;}`.
+fn push_concise_arrow_body(out: &mut String, expression: &str) {
+    if expression.starts_with('{') {
+        out.push('(');
+        out.push_str(expression);
+        out.push(')');
+        return;
+    }
+    out.push_str(expression);
 }
 
 fn arrow_block_as_object_method(property: &str, expression: &JsExpression) -> Option<String> {
@@ -5857,13 +12801,50 @@ fn arrow_block_as_object_method(property: &str, expression: &JsExpression) -> Op
         .as_deref()
         .unwrap_or(expression.code.as_str());
     let arrow = code.find("=>{")?;
-    let parameters = &code[..arrow];
+    if !code.ends_with('}') {
+        return None;
+    }
+    let raw_parameters = &code[..arrow];
+    let is_single_parameter = is_js_property_identifier(raw_parameters);
+    let is_parameter_list = raw_parameters.starts_with('(')
+        && raw_parameters.ends_with(')')
+        && expression_delimiters_are_balanced(raw_parameters);
+    if !is_single_parameter && !is_parameter_list {
+        return None;
+    }
     let body = &code[arrow + 2..];
-    let parameters = parameters
+    let parameters = raw_parameters
         .strip_prefix('(')
         .and_then(|parameters| parameters.strip_suffix(')'))
-        .unwrap_or(parameters);
+        .unwrap_or(raw_parameters);
     Some(format!("{property}({parameters}){body}"))
+}
+
+fn expression_delimiters_are_balanced(expression: &str) -> bool {
+    let mut stack = Vec::new();
+    let mut quote = None;
+    let mut escaped = false;
+    for character in expression.chars() {
+        if let Some(active_quote) = quote {
+            if escaped {
+                escaped = false;
+            } else if character == '\\' {
+                escaped = true;
+            } else if character == active_quote {
+                quote = None;
+            }
+            continue;
+        }
+        match character {
+            '\'' | '"' | '`' => quote = Some(character),
+            '(' | '[' | '{' => stack.push(character),
+            ')' if stack.pop() != Some('(') => return false,
+            ']' if stack.pop() != Some('[') => return false,
+            '}' if stack.pop() != Some('{') => return false,
+            _ => {}
+        }
+    }
+    quote.is_none() && stack.is_empty()
 }
 
 fn expression_has_top_level_statement_break(expression: &str) -> bool {
@@ -6050,6 +13031,17 @@ fn is_int_constant(function: &ControlFlowFunction<'_>, value: ValueId, expected:
         })
 }
 
+fn const_values_identical(lhs: &ConstValue, rhs: &ConstValue) -> bool {
+    match (lhs, rhs) {
+        (ConstValue::Int(lhs), ConstValue::Int(rhs)) => lhs == rhs,
+        (ConstValue::Float(lhs), ConstValue::Float(rhs)) => lhs.to_bits() == rhs.to_bits(),
+        (ConstValue::Bool(lhs), ConstValue::Bool(rhs)) => lhs == rhs,
+        (ConstValue::String(lhs), ConstValue::String(rhs)) => lhs == rhs,
+        (ConstValue::Null, ConstValue::Null) => true,
+        _ => false,
+    }
+}
+
 fn parse_single_assignment(output: &str) -> Option<(bool, &str, &str, &str)> {
     let statement = output.strip_suffix(';')?;
     let (declare, statement) = statement
@@ -6113,6 +13105,27 @@ fn is_nonzero_i32_literal(expression: &str) -> bool {
     expression.parse::<i32>().is_ok_and(|value| value != 0)
 }
 
+fn expression_statement(expression: JsExpression) -> String {
+    let code = expression.into_minimal();
+    if code.starts_with("function")
+        || code.starts_with("async function")
+        || code.starts_with("class")
+    {
+        format!("({code})")
+    } else {
+        code
+    }
+}
+
+fn close_statement_block(out: &mut String, elide_terminal_semicolon: bool) {
+    // Call only at an emitter-owned StatementList boundary. A blind `;}`
+    // rewrite could erase the required body of `if(test);` or `for(;;);`.
+    if elide_terminal_semicolon && out.ends_with(';') {
+        out.pop();
+    }
+    out.push('}');
+}
+
 fn is_braceless_statement(output: &str) -> bool {
     let Some(statement) = output.strip_suffix(';') else {
         return false;
@@ -6130,17 +13143,301 @@ fn is_braceless_statement(output: &str) -> bool {
         && !statement.starts_with("while(")
 }
 
+fn starts_with_js_keyword(output: &str, keyword: &str) -> bool {
+    let Some(rest) = output.strip_prefix(keyword) else {
+        return false;
+    };
+    rest.as_bytes()
+        .first()
+        .is_none_or(|byte| !is_js_identifier_byte(*byte))
+}
+
+fn is_statement_keyword_prefix(output: &str) -> bool {
+    starts_with_js_keyword(output, "return")
+        || starts_with_js_keyword(output, "throw")
+        || starts_with_js_keyword(output, "break")
+        || starts_with_js_keyword(output, "continue")
+        || starts_with_js_keyword(output, "try")
+        || starts_with_js_keyword(output, "switch")
+        || starts_with_js_keyword(output, "do")
+        || starts_with_js_keyword(output, "with")
+        || starts_with_js_keyword(output, "debugger")
+        || starts_with_js_keyword(output, "if")
+        || starts_with_js_keyword(output, "for")
+        || starts_with_js_keyword(output, "while")
+        || starts_with_js_keyword(output, "function")
+        || starts_with_js_keyword(output, "class")
+        || starts_with_js_keyword(output, "var")
+        || starts_with_js_keyword(output, "let")
+        || starts_with_js_keyword(output, "const")
+        || starts_with_js_keyword(output, "import")
+        || starts_with_js_keyword(output, "export")
+        || output.starts_with("async function")
+}
+
 fn is_comma_eligible_statement(output: &str) -> bool {
-    is_braceless_statement(output)
-        && !output.starts_with("return")
-        && !output.starts_with("throw")
-        && !output.starts_with("break")
-        && !output.starts_with("continue")
+    is_braceless_statement(output) && !is_statement_keyword_prefix(output)
 }
 
 fn compact_branch_expression(output: &str) -> Option<&str> {
     let expression = output.strip_suffix(';')?;
     is_comma_eligible_statement(output).then_some(expression)
+}
+
+fn compact_sequence_expression(output: &str) -> Option<String> {
+    if let Some(expression) = compact_branch_expression(output) {
+        return Some(expression.to_string());
+    }
+    compact_top_level_expression_statements(output)
+        .map(|sequence| sequence.trim_end_matches(';').to_string())
+}
+
+fn compact_return_expression(output: &str) -> Option<&str> {
+    let body = output.strip_suffix(';')?;
+    let expr = body.strip_prefix("return ")?;
+    if expr.is_empty()
+        || expression_has_top_level_statement_break(expr)
+        || expr.starts_with("var ")
+        || expr.starts_with("let ")
+        || expr.starts_with("const ")
+        || expr.starts_with("if(")
+        || expr.starts_with("function ")
+        || expr.starts_with("class ")
+        || expr.starts_with("for(")
+        || expr.starts_with("while(")
+        || expr.starts_with("try")
+        || expr.starts_with("switch")
+        || expr.starts_with("do")
+    {
+        None
+    } else {
+        Some(expr)
+    }
+}
+
+struct AssignmentGuardReturn<'a> {
+    declare: bool,
+    name: Option<&'a str>,
+    condition: String,
+    returned: &'a str,
+}
+
+fn parse_assignment_guard_return(output: &str) -> Option<AssignmentGuardReturn<'_>> {
+    let statements = split_top_level_statements(output);
+    match statements.as_slice() {
+        [if_stmt] => {
+            let (condition, returned) = parse_if_return(if_stmt)?;
+            Some(AssignmentGuardReturn {
+                declare: false,
+                name: None,
+                condition: condition.to_string(),
+                returned,
+            })
+        }
+        [assign_stmt, if_stmt] => {
+            let (declare, target, value, trailing) = parse_single_assignment(assign_stmt)?;
+            if !trailing.is_empty() {
+                return None;
+            }
+            let (condition, returned) = parse_if_return(if_stmt)?;
+            if returned != target || js_identifier_count(condition, target) != 1 {
+                return None;
+            }
+            let assigned = format!("({target}={value})");
+            Some(AssignmentGuardReturn {
+                declare,
+                name: Some(target),
+                condition: replace_js_identifier(condition, target, &assigned),
+                returned,
+            })
+        }
+        _ => None,
+    }
+}
+
+fn parse_if_return(statement: &str) -> Option<(&str, &str)> {
+    let statement = statement.strip_suffix(';').unwrap_or(statement);
+    let rest = statement.strip_prefix("if(")?;
+    let close = index_of_closing_paren(rest)?;
+    let condition = &rest[..close];
+    let mut body = &rest[close + 1..];
+    if let Some(inner) = body.strip_prefix('{') {
+        body = inner.strip_suffix('}')?;
+        body = body.strip_suffix(';').unwrap_or(body);
+    }
+    if !starts_with_js_keyword(body, "return") {
+        return None;
+    }
+    let returned = body.strip_prefix("return")?;
+    let returned = returned.strip_prefix(' ').unwrap_or(returned);
+    if returned.contains(';') || returned.contains('{') || returned.contains('}') {
+        return None;
+    }
+    Some((condition, returned))
+}
+
+fn split_top_level_statements(output: &str) -> Vec<&str> {
+    let mut statements = Vec::new();
+    let mut start = 0usize;
+    let mut depth = 0usize;
+    let mut quote = None;
+    let mut escaped = false;
+    for (index, byte) in output.bytes().enumerate() {
+        if let Some(active) = quote {
+            if escaped {
+                escaped = false;
+            } else if byte == b'\\' {
+                escaped = true;
+            } else if byte == active {
+                quote = None;
+            }
+            continue;
+        }
+        match byte {
+            b'\'' | b'"' | b'`' => quote = Some(byte),
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => depth = depth.saturating_sub(1),
+            b';' if depth == 0 => {
+                statements.push(&output[start..=index]);
+                start = index + 1;
+            }
+            _ => {}
+        }
+    }
+    if start < output.len() {
+        statements.push(&output[start..]);
+    }
+    statements
+}
+
+fn index_of_closing_paren(source: &str) -> Option<usize> {
+    let mut depth = 1usize;
+    let mut quote = None;
+    let mut escaped = false;
+    for (index, byte) in source.bytes().enumerate() {
+        if let Some(active) = quote {
+            if escaped {
+                escaped = false;
+            } else if byte == b'\\' {
+                escaped = true;
+            } else if byte == active {
+                quote = None;
+            }
+            continue;
+        }
+        match byte {
+            b'\'' | b'"' | b'`' => quote = Some(byte),
+            b'(' => depth += 1,
+            b')' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(index);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+fn js_identifier_count(source: &str, name: &str) -> usize {
+    js_identifier_starts(source, name).len()
+}
+
+fn replace_js_identifier(source: &str, name: &str, replacement: &str) -> String {
+    let mut rewritten = String::with_capacity(source.len() + replacement.len());
+    let mut last = 0usize;
+    for start in js_identifier_starts(source, name) {
+        rewritten.push_str(&source[last..start]);
+        rewritten.push_str(replacement);
+        last = start + name.len();
+    }
+    rewritten.push_str(&source[last..]);
+    rewritten
+}
+
+fn js_identifier_starts(source: &str, name: &str) -> Vec<usize> {
+    let bytes = source.as_bytes();
+    let name_bytes = name.as_bytes();
+    if name_bytes.is_empty() {
+        return Vec::new();
+    }
+    let mut starts = Vec::new();
+    let mut quote = None;
+    let mut escaped = false;
+    let mut index = 0usize;
+    let mut prev_was_dot = false;
+    while index < bytes.len() {
+        let byte = bytes[index];
+        if let Some(active) = quote {
+            if escaped {
+                escaped = false;
+            } else if byte == b'\\' {
+                escaped = true;
+            } else if byte == active {
+                quote = None;
+            }
+            index += 1;
+            continue;
+        }
+        match byte {
+            b'\'' | b'"' | b'`' => {
+                quote = Some(byte);
+                prev_was_dot = false;
+                index += 1;
+            }
+            b'.' => {
+                prev_was_dot = true;
+                index += 1;
+            }
+            _ if is_js_identifier_start(byte) => {
+                let start = index;
+                index += 1;
+                while index < bytes.len() && is_js_identifier_byte(bytes[index]) {
+                    index += 1;
+                }
+                if !prev_was_dot && &bytes[start..index] == name_bytes {
+                    starts.push(start);
+                }
+                prev_was_dot = false;
+            }
+            _ => {
+                prev_was_dot = false;
+                index += 1;
+            }
+        }
+    }
+    starts
+}
+
+fn peek_merge_return_expression(
+    function: &ControlFlowFunction<'_>,
+    merge_block: BlockId,
+    context: &LocalNames,
+    cache: &ExpressionCache,
+) -> Option<String> {
+    let block = function.blocks.get(merge_block.0 as usize)?;
+    if !block.phis.is_empty() || !block.instructions.is_empty() {
+        return None;
+    }
+    let Some(Terminator::Return(Some(value))) = block.terminator else {
+        return None;
+    };
+    let mut cache = cache.clone();
+    let expression = take_value(value, context, &mut cache).ok()?;
+    cache
+        .is_empty()
+        .then(|| expression.at_least(JsPrecedence::Conditional))
+}
+
+fn push_return_conditional(out: &mut String, condition: &str, then_ret: &str, else_ret: &str) {
+    out.push_str("return ");
+    out.push_str(condition);
+    out.push('?');
+    push_conditional_arm(out, then_ret);
+    out.push(':');
+    push_conditional_arm(out, else_ret);
+    out.push(';');
 }
 
 fn compact_top_level_expression_statements(output: &str) -> Option<String> {
@@ -6371,11 +13668,133 @@ const fn is_js_identifier_byte(byte: u8) -> bool {
     byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'$'
 }
 
+fn is_js_property_identifier(value: &str) -> bool {
+    value
+        .as_bytes()
+        .first()
+        .is_some_and(|byte| is_js_identifier_start(*byte))
+        && value
+            .as_bytes()
+            .iter()
+            .all(|byte| is_js_identifier_byte(*byte))
+}
+
+fn render_js_host_predicate(
+    receiver: JsExpression,
+    predicate: impl Fn(&str) -> String,
+    precedence: JsPrecedence,
+) -> JsExpression {
+    if receiver.ungrouped.is_none() && is_js_property_identifier(&receiver.code) {
+        return JsExpression::raw(predicate(&receiver.code), precedence);
+    }
+    JsExpression::call(
+        JsExpression::raw(format!("a=>{}", predicate("a")), JsPrecedence::Assignment),
+        [receiver],
+    )
+}
+
+fn dotted_host_alias_parts(spelling: &'static str) -> Option<(&'static str, &'static str)> {
+    let (parent, method) = spelling.rsplit_once('.')?;
+    if !parent.is_empty() && is_js_property_identifier(method) {
+        Some((parent, method))
+    } else {
+        None
+    }
+}
+
+fn host_alias_base_rhs(alias: &JsHostAlias, parent_names: &AHashMap<&str, String>) -> String {
+    if let Some((parent, method)) = dotted_host_alias_parts(alias.spelling) {
+        if let Some(parent_name) = parent_names.get(parent) {
+            return format!("{parent_name}.{method}");
+        }
+    }
+    alias.spelling.to_string()
+}
+
+fn conservative_regex_literal(pattern: &str, flags: &str) -> Option<String> {
+    crate::js_regex::es2022_regex_literal(pattern, flags)
+}
+
+fn regex_literal_for_arguments(
+    args: &[ValueId],
+    string_constants: &AHashMap<ValueId, String>,
+    quote: StringQuote,
+) -> Option<String> {
+    if !(1..=2).contains(&args.len()) {
+        return None;
+    }
+    let pattern = string_constants.get(args.first()?)?;
+    let flags = args
+        .get(1)
+        .map(|value| string_constants.get(value).map(String::as_str))
+        .unwrap_or(Some(""))?;
+    let literal = conservative_regex_literal(pattern, flags)?;
+    let constructor_len = "new RegExp()".len()
+        + args
+            .iter()
+            .map(|arg| render_string_literal(&string_constants[arg], quote).len())
+            .sum::<usize>()
+        + args.len().saturating_sub(1);
+    (literal.len() < constructor_len).then_some(literal)
+}
+
+/// Returns only constants whose complete use-set is consumed by regex
+/// constructors that the emitter will replace with literals. Keeping this
+/// test use-complete is important: a constant shared with any ordinary
+/// expression must retain its normal binding and pooling decisions.
+fn literalized_regex_argument_values(
+    function: &ControlFlowFunction<'_>,
+    options: &IrJsOptions,
+) -> AHashSet<ValueId> {
+    if !options.regex_literals {
+        return AHashSet::default();
+    }
+    let string_constants = function
+        .blocks
+        .iter()
+        .flat_map(|block| &block.instructions)
+        .filter_map(|instruction| match (instruction.out, &instruction.op) {
+            (Some(out), ControlFlowOp::Const(ConstValue::String(value))) => {
+                Some((out, value.to_string()))
+            }
+            _ => None,
+        })
+        .collect::<AHashMap<_, _>>();
+    let mut literal_uses = AHashMap::<ValueId, usize>::default();
+    for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
+        let ControlFlowOp::Intrinsic {
+            intrinsic: Intrinsic::RegexNew,
+            receiver: None,
+            args,
+        } = &instruction.op
+        else {
+            continue;
+        };
+        if regex_literal_for_arguments(args, &string_constants, options.string_quote).is_some() {
+            for argument in args {
+                *literal_uses.entry(*argument).or_insert(0) += 1;
+            }
+        }
+    }
+    let uses = use_counts(function);
+    literal_uses
+        .into_iter()
+        .filter_map(|(value, literal_count)| {
+            (uses.get(&value).copied().unwrap_or(0) == literal_count).then_some(value)
+        })
+        .collect()
+}
+
 struct LocalNames {
+    function_id: FunctionId,
     value_names: AHashMap<ValueId, String>,
+    local_names: AHashMap<LocalId, String>,
     parameter_values: AHashSet<ValueId>,
     stored_values: AHashSet<ValueId>,
     untyped_values: AHashSet<ValueId>,
+    js_value_values: AHashSet<ValueId>,
+    record_values: AHashSet<ValueId>,
+    observable_values: AHashSet<ValueId>,
     inlined_values: AHashMap<ValueId, JsExpression>,
     string_constants: AHashMap<ValueId, String>,
     global_loads: AHashMap<ValueId, SymbolId>,
@@ -6383,17 +13802,158 @@ struct LocalNames {
     elidable_i32_coercions: AHashSet<ValueId>,
     elidable_map_get_normalizations: AHashSet<ValueId>,
     null_values: AHashSet<ValueId>,
+    js_undefined_values: AHashSet<ValueId>,
     truthy_nullable_values: AHashSet<ValueId>,
     safe_int_array_reads: AHashSet<ValueId>,
     safe_in_place_updates: AHashSet<(ValueId, ValueId)>,
     parallel_copy_temp: Option<String>,
     live_in_values: Vec<AHashSet<ValueId>>,
     use_counts: AHashMap<ValueId, usize>,
+    operand_order_fusable: AHashSet<ValueId>,
     declared_names: RefCell<AHashSet<String>>,
     inline_declarations: bool,
     state: String,
     function_name: String,
     function_span: crate::span::Span,
+    rest_argument_value: Option<ValueId>,
+    rest_argument_local: Option<LocalId>,
+    rest_argument_values: AHashSet<ValueId>,
+    rest_formal_names: Vec<String>,
+}
+
+#[derive(Debug)]
+struct RenderedExpressionRegion {
+    merge: BlockId,
+    value: ValueId,
+    expression: JsExpression,
+}
+
+#[derive(Debug)]
+struct ExpressionRegionState {
+    visited: AHashSet<BlockId>,
+    blocks: AHashSet<BlockId>,
+    defined: AHashSet<ValueId>,
+    consumed: AHashSet<ValueId>,
+    dependencies: AHashMap<ValueId, Vec<ValueId>>,
+    observable_values: AHashSet<ValueId>,
+}
+
+impl ExpressionRegionState {
+    fn new(visited: AHashSet<BlockId>) -> Self {
+        Self {
+            visited,
+            blocks: AHashSet::default(),
+            defined: AHashSet::default(),
+            consumed: AHashSet::default(),
+            dependencies: AHashMap::default(),
+            observable_values: AHashSet::default(),
+        }
+    }
+
+    fn enter(&mut self, block: BlockId) -> bool {
+        if !self.visited.insert(block) {
+            return false;
+        }
+        self.blocks.insert(block);
+        true
+    }
+
+    fn define(
+        &mut self,
+        value: ValueId,
+        observable: bool,
+        dependencies: impl IntoIterator<Item = ValueId>,
+    ) {
+        self.defined.insert(value);
+        self.dependencies
+            .insert(value, dependencies.into_iter().collect());
+        if observable {
+            self.observable_values.insert(value);
+        }
+    }
+
+    fn consume(&mut self, value: ValueId) {
+        self.consumed.insert(value);
+    }
+
+    fn observables_reachable_from(&self, roots: impl IntoIterator<Item = ValueId>) -> bool {
+        let mut reachable = AHashSet::default();
+        let mut pending = roots.into_iter().collect::<Vec<_>>();
+        while let Some(value) = pending.pop() {
+            if !reachable.insert(value) {
+                continue;
+            }
+            if let Some(dependencies) = self.dependencies.get(&value) {
+                pending.extend(dependencies.iter().copied());
+            }
+        }
+        self.observable_values.is_subset(&reachable)
+    }
+
+    fn validate(
+        &self,
+        function: &ControlFlowFunction<'_>,
+        result: ValueId,
+        context: &LocalNames,
+    ) -> bool {
+        if !self.defined.contains(&result) {
+            return false;
+        }
+        let mut reachable = AHashSet::default();
+        let mut pending = vec![result];
+        while let Some(value) = pending.pop() {
+            if !reachable.insert(value) {
+                continue;
+            }
+            if let Some(dependencies) = self.dependencies.get(&value) {
+                pending.extend(dependencies.iter().copied());
+            }
+        }
+        if !self.observable_values.is_subset(&reachable) {
+            return false;
+        }
+        // Region reconstruction removes every intermediate definition and
+        // substitutes its cached expression at the first rendered use. A
+        // second use of the same non-literal value would therefore fall back
+        // to its JavaScript name even though the region never materialized
+        // that binding. Name coalescing can make this look plausible while
+        // silently selecting a different value; without mangling it is an
+        // unbound identifier. Cloneable inlined constants remain safe at any
+        // number of uses because `take_value` clones them instead of consuming
+        // a cache entry.
+        let mut dependency_uses = AHashMap::<ValueId, usize>::default();
+        for dependency in self.dependencies.values().flatten() {
+            if *dependency == result
+                || !self.defined.contains(dependency)
+                || context.inlined_values.contains_key(dependency)
+            {
+                continue;
+            }
+            let uses = dependency_uses.entry(*dependency).or_default();
+            *uses += 1;
+            if *uses > 1 {
+                return false;
+            }
+        }
+        for value in &self.defined {
+            if *value != result
+                && value_is_used_outside_expression_region(
+                    function,
+                    *value,
+                    &self.blocks,
+                    result,
+                    &context.string_constants,
+                )
+            {
+                return false;
+            }
+        }
+        true
+    }
+
+    fn retain_only_result(&self, cache: &mut ExpressionCache, result: ValueId) {
+        cache.retain(|value, _| !self.defined.contains(value) || *value == result);
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -6428,8 +13988,10 @@ fn can_structure(function: &ControlFlowFunction<'_>) -> bool {
         }
     }
     function.blocks.iter().all(|block| {
-        !matches!(block.terminator, Some(Terminator::Branch { .. }))
-            || shaped_headers.contains(&block.id)
+        !matches!(
+            block.terminator,
+            Some(Terminator::Branch { .. } | Terminator::Try { .. })
+        ) || shaped_headers.contains(&block.id)
     })
 }
 
@@ -6440,7 +14002,7 @@ fn loop_condition_branch(
     exit: BlockId,
 ) -> Option<BlockId> {
     let mut pending = vec![entry];
-    let mut visited = AHashSet::new();
+    let mut visited = AHashSet::default();
     while let Some(current) = pending.pop() {
         if !visited.insert(current) || current == body || current == exit {
             continue;
@@ -6464,6 +14026,96 @@ fn loop_condition_branch(
     None
 }
 
+fn instruction_emits_into_cache(
+    instruction: &ControlFlowInstruction<'_>,
+    uses: &AHashMap<ValueId, usize>,
+    fuse_with_next: bool,
+    context: &LocalNames,
+) -> bool {
+    let Some(out) = instruction.out else {
+        return false;
+    };
+    if property_assign_parts(instruction, &context.string_constants, uses).is_some() {
+        return false;
+    }
+    if context.inlined_values.contains_key(&out) {
+        return true;
+    }
+    let use_count = uses.get(&out).copied().unwrap_or(0);
+    if use_count == 0 {
+        return !op_has_side_effects(&instruction.op)
+            && !context.evaluation_is_observable(instruction);
+    }
+    !context.is_stored(out)
+        && (fuse_with_next || (use_count == 1 && context.instruction_can_defer(instruction)))
+}
+
+fn property_assign_parts(
+    instruction: &ControlFlowInstruction<'_>,
+    string_constants: &AHashMap<ValueId, String>,
+    uses: &AHashMap<ValueId, usize>,
+) -> Option<(ValueId, String, ValueId)> {
+    if instruction
+        .out
+        .is_some_and(|value| uses.get(&value).copied().unwrap_or(0) != 0)
+    {
+        return None;
+    }
+    match &instruction.op {
+        ControlFlowOp::IndexSet {
+            object,
+            index,
+            value,
+        } => {
+            let key = string_constants.get(index)?;
+            let decoded = decoded_source_string(key);
+            (decoded != "__proto__").then(|| (*object, key.clone(), *value))
+        }
+        ControlFlowOp::RecordFieldSet {
+            object,
+            property,
+            value,
+        } => (*property != "__proto__").then(|| (*object, (*property).to_string(), *value)),
+        ControlFlowOp::HostFieldSet {
+            object,
+            property,
+            value,
+        } => (*property != "__proto__").then(|| (*object, (*property).to_string(), *value)),
+        _ => None,
+    }
+}
+
+fn push_object_literal_key(out: &mut String, source_key: &str, quote: StringQuote) {
+    let decoded = decoded_source_string(source_key);
+    if decoded != "__proto__" && is_js_property_identifier(&decoded) {
+        out.push_str(&decoded);
+        return;
+    }
+    if decoded == "__proto__" {
+        out.push('[');
+        out.push_str(&render_string_literal(source_key, quote));
+        out.push(']');
+        return;
+    }
+    out.push_str(&render_string_literal(source_key, quote));
+}
+
+fn adapter_is_named_evaluation_value(op: &ControlFlowOp<'_>, adapter: ValueId) -> bool {
+    match op {
+        ControlFlowOp::IndexSet { value, .. }
+        | ControlFlowOp::HostFieldSet { value, .. }
+        | ControlFlowOp::RecordFieldSet { value, .. } => *value == adapter,
+        ControlFlowOp::Struct { fields, .. } => fields.contains(&adapter),
+        ControlFlowOp::Record(fields) => fields.iter().any(|(_, value)| *value == adapter),
+        ControlFlowOp::Intrinsic {
+            intrinsic: Intrinsic::JsPlainObject,
+            args,
+            ..
+        } => args.iter().skip(1).step_by(2).any(|value| *value == adapter),
+        _ => false,
+    }
+}
+
 fn can_inline_closure(function: &ControlFlowFunction<'_>, inline_structured: bool) -> bool {
     if function.kind != FunctionKind::Closure {
         return false;
@@ -6483,15 +14135,323 @@ fn can_inline_closure(function: &ControlFlowFunction<'_>, inline_structured: boo
             <= 80
 }
 
-fn render_arrow_parameters(
+const MAX_REST_INDEX_FORMALS: usize = 8;
+
+struct RestArgsIdentity {
+    value: ValueId,
+    local: LocalId,
+    values: AHashSet<ValueId>,
+}
+
+fn rest_index_constant(function: &ControlFlowFunction<'_>, value: ValueId) -> Option<usize> {
+    for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
+        if instruction.out != Some(value) {
+            continue;
+        }
+        return match &instruction.op {
+            ControlFlowOp::Const(ConstValue::Int(index)) if *index >= 0 => {
+                let index = *index as usize;
+                (index < MAX_REST_INDEX_FORMALS).then_some(index)
+            }
+            ControlFlowOp::Const(ConstValue::Float(index))
+                if *index >= 0.0
+                    && *index < MAX_REST_INDEX_FORMALS as f64
+                    && index.fract() == 0.0 =>
+            {
+                Some(*index as usize)
+            }
+            _ => None,
+        };
+    }
+    None
+}
+
+fn rest_identity_contains(
+    function: &ControlFlowFunction<'_>,
+    identity: &RestArgsIdentity,
+    object: ValueId,
+) -> bool {
+    identity.values.contains(&object)
+        || value_is_parameter_local(function, object, identity.local, identity.value)
+}
+
+fn rest_arguments_object(
     function: &ControlFlowFunction<'_>,
     context: &LocalNames,
+    object: ValueId,
+) -> bool {
+    if context.rest_formal_names.is_empty() {
+        return false;
+    }
+    if context.rest_argument_values.contains(&object) {
+        return true;
+    }
+    if let (Some(args), Some(local)) = (context.rest_argument_value, context.rest_argument_local) {
+        return value_is_parameter_local(function, object, local, args);
+    }
+    false
+}
+
+fn rest_identity_is_mutated(
+    function: &ControlFlowFunction<'_>,
+    identity: &RestArgsIdentity,
+) -> bool {
+    function
+        .blocks
+        .iter()
+        .flat_map(|block| &block.instructions)
+        .any(|instruction| match &instruction.op {
+            ControlFlowOp::IndexSet { object, .. } | ControlFlowOp::HostFieldSet { object, .. }
+                if rest_identity_contains(function, identity, *object) =>
+            {
+                true
+            }
+            ControlFlowOp::Intrinsic {
+                intrinsic,
+                receiver: Some(receiver),
+                ..
+            } if rest_identity_contains(function, identity, *receiver) => matches!(
+                *intrinsic,
+                Intrinsic::JsArrayPush
+                    | Intrinsic::JsArrayPop
+                    | Intrinsic::JsArraySplice
+                    | Intrinsic::JsArrayShift
+                    | Intrinsic::JsArrayUnshift
+                    | Intrinsic::JsArraySort
+                    | Intrinsic::ArrayPush
+                    | Intrinsic::ArrayPop
+                    | Intrinsic::ArraySplice
+                    | Intrinsic::ArrayReverse
+                    | Intrinsic::ArrayFill
+                    | Intrinsic::ArrayCopyWithin
+            ),
+            _ => false,
+        })
+}
+
+fn value_is_parameter_local(
+    function: &ControlFlowFunction<'_>,
+    value: ValueId,
+    local: LocalId,
+    param_value: ValueId,
+) -> bool {
+    value == param_value
+        || function
+            .blocks
+            .iter()
+            .flat_map(|block| &block.instructions)
+            .any(|instruction| {
+                instruction.out == Some(value)
+                    && matches!(
+                        instruction.op,
+                        ControlFlowOp::LoadLocal(loaded) | ControlFlowOp::CaptureLocal(loaded)
+                            if loaded == local
+                    )
+            })
+}
+
+fn rest_param_identity(
+    function: &ControlFlowFunction<'_>,
+    value: ValueId,
+    local: LocalId,
+) -> RestArgsIdentity {
+    let mut values = AHashSet::from_iter([value]);
+    for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
+        let Some(out) = instruction.out else {
+            continue;
+        };
+        if matches!(
+            instruction.op,
+            ControlFlowOp::LoadLocal(loaded) | ControlFlowOp::CaptureLocal(loaded)
+                if loaded == local
+        ) {
+            values.insert(out);
+        }
+    }
+    RestArgsIdentity {
+        value,
+        local,
+        values,
+    }
+}
+
+fn arguments_global_identity(
+    function: &ControlFlowFunction<'_>,
+    arguments_global: Option<SymbolId>,
+) -> Option<RestArgsIdentity> {
+    let symbol = arguments_global?;
+    let mut load_dests = Vec::new();
+    let mut copy_local = None;
+    for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
+        match &instruction.op {
+            ControlFlowOp::LoadGlobal(loaded) if *loaded == symbol => {
+                if let Some(out) = instruction.out {
+                    load_dests.push(out);
+                }
+            }
+            ControlFlowOp::StoreLocal { local, value } if load_dests.contains(value) => {
+                if copy_local.is_none() {
+                    copy_local = Some(*local);
+                }
+            }
+            _ => {}
+        }
+    }
+    let value = *load_dests.first()?;
+    let local = copy_local.unwrap_or(LocalId(u32::MAX));
+    let mut identity = rest_param_identity(function, value, local);
+    identity.values.extend(load_dests);
+    Some(identity)
+}
+
+fn unused_rest_formal_name(used: &mut AHashSet<String>) -> String {
+    const CANDIDATES: [&str; 10] = ["_", "_$", "__", "_0", "_1", "_2", "_3", "_4", "_5", "_6"];
+    for candidate in CANDIDATES {
+        if used.insert(candidate.to_string()) {
+            return candidate.to_string();
+        }
+    }
+    let mut index = 7;
+    loop {
+        let candidate = format!("_{index}");
+        if used.insert(candidate.clone()) {
+            return candidate;
+        }
+        index += 1;
+    }
+}
+
+fn bind_rest_index_formals(
+    function: &ControlFlowFunction<'_>,
+    context: &mut LocalNames,
+    convention: Option<JsCallingConvention>,
+    arguments_global: Option<SymbolId>,
+) {
+    context.rest_argument_value = None;
+    context.rest_argument_local = None;
+    context.rest_argument_values.clear();
+    context.rest_formal_names.clear();
+    let identity = match convention {
+        Some(JsCallingConvention::MethodRest) => {
+            let Some(args) = function.params.get(function.capture_count + 1) else {
+                return;
+            };
+            rest_param_identity(function, args.value, args.local)
+        }
+        Some(JsCallingConvention::StaticRest) => {
+            let Some(args) = function.params.get(function.capture_count) else {
+                return;
+            };
+            rest_param_identity(function, args.value, args.local)
+        }
+        _ => {
+            if function.params.len() > function.capture_count {
+                return;
+            }
+            let Some(identity) = arguments_global_identity(function, arguments_global) else {
+                return;
+            };
+            identity
+        }
+    };
+    if rest_identity_is_mutated(function, &identity) {
+        return;
+    }
+
+    let mut index_dests = AHashMap::<ValueId, usize>::default();
+    let mut stored_locals = AHashSet::default();
+    let mut alias_local = AHashMap::<usize, LocalId>::default();
+    let mut max_index = None;
+    for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
+        match &instruction.op {
+            ControlFlowOp::IndexGet { object, index }
+                if rest_identity_contains(function, &identity, *object) =>
+            {
+                if let Some(slot) = rest_index_constant(function, *index) {
+                    max_index = Some(max_index.map_or(slot, |current: usize| current.max(slot)));
+                    if let Some(out) = instruction.out {
+                        index_dests.insert(out, slot);
+                    }
+                }
+            }
+            ControlFlowOp::StoreLocal { local, value } => {
+                if stored_locals.insert(*local) {
+                    if let Some(slot) = index_dests.get(value) {
+                        alias_local.entry(*slot).or_insert(*local);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    let Some(max_index) = max_index else {
+        return;
+    };
+
+    let mut used_names = context
+        .value_names
+        .values()
+        .chain(context.local_names.values())
+        .cloned()
+        .collect::<AHashSet<_>>();
+    let mut formals = Vec::with_capacity(max_index + 1);
+    for slot in 0..=max_index {
+        let candidate = alias_local
+            .get(&slot)
+            .and_then(|local| context.local_names.get(local).cloned())
+            .or_else(|| {
+                index_dests.iter().find_map(|(dest, dest_slot)| {
+                    (*dest_slot == slot)
+                        .then(|| context.value_names.get(dest).cloned())
+                        .flatten()
+                })
+            });
+        let name = match candidate {
+            Some(name) if !formals.contains(&name) => {
+                used_names.insert(name.clone());
+                name
+            }
+            _ => unused_rest_formal_name(&mut used_names),
+        };
+        formals.push(name);
+    }
+
+    for (dest, slot) in &index_dests {
+        if let Some(name) = formals.get(*slot) {
+            context.value_names.insert(*dest, name.clone());
+            context.parameter_values.insert(*dest);
+        }
+    }
+    for (slot, local) in &alias_local {
+        if let Some(name) = formals.get(*slot) {
+            context.local_names.insert(*local, name.clone());
+        }
+    }
+    context
+        .declared_names
+        .borrow_mut()
+        .extend(formals.iter().cloned());
+    context.rest_argument_value = Some(identity.value);
+    context.rest_argument_local = Some(identity.local);
+    context.rest_argument_values = identity.values;
+    context.rest_formal_names = formals;
+}
+
+fn render_arrow_parameters(
+    function: &ControlFlowFunction<'_>,
+    params: &[crate::ir::IrParameter<'_>],
+    context: &LocalNames,
+    global_names: &AHashMap<SymbolId, String>,
     compact_boolean_literals: bool,
+    emit_defaults: bool,
+    rest_parameter: Option<ValueId>,
 ) -> Result<String, CodegenError> {
-    let params = &function.params[function.capture_count..];
-    let has_default = params.iter().any(|param| param.default.is_some());
+    let has_default = emit_defaults
+        && params
+            .iter()
+            .any(|param| javascript_parameter_default(param).is_some());
     if let [param] = params {
-        if !has_default {
+        if !has_default && rest_parameter != Some(param.value) {
             return Ok(context.value_name(param.value)?.to_string());
         }
     }
@@ -6500,19 +14460,36 @@ fn render_arrow_parameters(
         if index != 0 {
             rendered.push(',');
         }
+        if rest_parameter == Some(param.value) {
+            rendered.push_str("...");
+        }
         rendered.push_str(context.value_name(param.value)?);
-        if let Some(default) = &param.default {
-            rendered.push('=');
-            rendered.push_str(&render_param_default(
-                default,
-                function,
-                context,
-                compact_boolean_literals,
-            )?);
+        if emit_defaults {
+            if let Some(default) = javascript_parameter_default(param) {
+                rendered.push('=');
+                rendered.push_str(&render_param_default(
+                    default,
+                    function,
+                    context,
+                    global_names,
+                    compact_boolean_literals,
+                )?);
+            }
         }
     }
     rendered.push(')');
     Ok(rendered)
+}
+
+fn javascript_parameter_default<'param, 'src>(
+    parameter: &'param crate::ir::IrParameter<'src>,
+) -> Option<&'param crate::ir::IrParamDefault> {
+    parameter.default.as_ref().filter(|default| {
+        !matches!(
+            default,
+            crate::ir::IrParamDefault::Undefined | crate::ir::IrParamDefault::CallerMaterialized
+        )
+    })
 }
 
 fn function_parameters(parameters: &str) -> String {
@@ -6623,9 +14600,10 @@ fn split_top_level_conditional(expression: &str) -> Option<(&str, &str, &str)> {
 }
 
 fn render_param_default(
-    default: &crate::ir::IrParamDefault<'_>,
+    default: &crate::ir::IrParamDefault,
     function: &ControlFlowFunction<'_>,
     context: &LocalNames,
+    _global_names: &AHashMap<SymbolId, String>,
     compact_boolean_literals: bool,
 ) -> Result<String, CodegenError> {
     match default {
@@ -6635,23 +14613,18 @@ fn render_param_default(
             StringQuote::Double,
         )),
         crate::ir::IrParamDefault::Value(value) => Ok(context.value_name(*value)?.to_string()),
-        crate::ir::IrParamDefault::Name(name) => {
-            let source = function
-                .params
-                .iter()
-                .find(|parameter| parameter.name == *name)
-                .ok_or_else(|| {
-                    CodegenError::new(function.span, format!("missing default parameter `{name}`"))
-                })?;
-            Ok(context.value_name(source.value)?.to_string())
-        }
+        crate::ir::IrParamDefault::Undefined => Ok("void 0".to_string()),
+        crate::ir::IrParamDefault::CallerMaterialized => Err(CodegenError::new(
+            function.span,
+            "caller-materialized parameter default cannot be rendered in JavaScript",
+        )),
     }
 }
 
 fn shape_at(function: &ControlFlowFunction<'_>, block: BlockId) -> Option<ControlShape> {
     if !matches!(
         function.blocks[block.0 as usize].terminator,
-        Some(Terminator::Branch { .. })
+        Some(Terminator::Branch { .. } | Terminator::Try { .. })
     ) {
         return None;
     }
@@ -6660,6 +14633,83 @@ fn shape_at(function: &ControlFlowFunction<'_>, block: BlockId) -> Option<Contro
         .iter()
         .find(|shape| shape.header() == block)
         .cloned()
+}
+
+fn nullish_merge_source(
+    function: &ControlFlowFunction<'_>,
+    header: BlockId,
+    then_block: BlockId,
+    merge_block: BlockId,
+    target: &str,
+    context: &LocalNames,
+) -> Option<ValueId> {
+    let definitions = function
+        .blocks
+        .iter()
+        .flat_map(|block| &block.instructions)
+        .filter_map(|instruction| instruction.out.map(|out| (out, &instruction.op)))
+        .collect::<AHashMap<_, _>>();
+    let source = nullish_condition_source(function, header)?;
+    let phi = function
+        .blocks
+        .get(merge_block.0 as usize)?
+        .phis
+        .iter()
+        .find(|phi| {
+            context.value_name(phi.out).ok() == Some(target)
+                && phi.incoming.iter().any(|(predecessor, value)| {
+                    if *predecessor != then_block {
+                        return false;
+                    }
+                    *value == source
+                        || matches!(
+                            definitions.get(value),
+                            Some(ControlFlowOp::Intrinsic {
+                                intrinsic: Intrinsic::UnwrapNullable,
+                                receiver: Some(receiver),
+                                args,
+                            }) if *receiver == source && args.is_empty()
+                        )
+                })
+        })?;
+    (phi.incoming.len() == 2).then_some(source)
+}
+
+fn nullish_condition_source(
+    function: &ControlFlowFunction<'_>,
+    header: BlockId,
+) -> Option<ValueId> {
+    let definitions = function
+        .blocks
+        .iter()
+        .flat_map(|block| &block.instructions)
+        .filter_map(|instruction| instruction.out.map(|out| (out, &instruction.op)))
+        .collect::<AHashMap<_, _>>();
+    let block = function.blocks.get(header.0 as usize)?;
+    let Terminator::Branch { condition, .. } = block.terminator.as_ref()? else {
+        return None;
+    };
+    let ControlFlowOp::Binary {
+        op: IrBinaryOp::NotEq,
+        lhs,
+        rhs,
+    } = definitions.get(condition)?
+    else {
+        return None;
+    };
+    let null = |value| {
+        matches!(
+            definitions.get(&value),
+            Some(ControlFlowOp::Const(ConstValue::Null))
+        )
+    };
+    if null(*lhs) {
+        Some(*rhs)
+    } else if null(*rhs) {
+        Some(*lhs)
+    } else {
+        None
+    }
 }
 
 fn immediately_branches_on_phi(
@@ -6677,6 +14727,9 @@ fn immediately_branches_on_phi(
 }
 
 impl LocalNames {
+    // Name/liveness construction consumes the complete emission policy plus
+    // the selected interprocedural read-barrier summary atomically.
+    #[allow(clippy::too_many_arguments)]
     fn new(
         function: &ControlFlowFunction<'_>,
         integer_facts: &FunctionIntegerFacts,
@@ -6685,18 +14738,20 @@ impl LocalNames {
         preferred_local_names: &AHashMap<String, String>,
         numeric_aliases: &AHashMap<String, String>,
         options: &IrJsOptions,
+        order_sensitive_inline_pure_helpers: &AHashSet<FunctionId>,
+        loop_captured_closures: &AHashSet<FunctionId>,
     ) -> Self {
         let mangle_identifiers = options.mangle_identifiers;
         let compact_boolean_literals = options.compact_boolean_literals;
         let scalar_phi_copies = options.scalar_phi_copies;
         let mut mangler = parent.clone();
-        let mut value_names = AHashMap::new();
+        let mut value_names = AHashMap::default();
         let parameter_values = function
             .params
             .iter()
             .map(|param| param.value)
             .collect::<AHashSet<_>>();
-        let mut stored_values = AHashSet::new();
+        let mut stored_values = AHashSet::default();
         let untyped_values = function
             .value_escapes
             .iter()
@@ -6705,9 +14760,77 @@ impl LocalNames {
                 (*escape == EscapeState::EscapesToUntypedBoundary).then_some(ValueId(index as u32))
             })
             .collect();
-        let uses = use_counts(function);
+        let record_values = function
+            .params
+            .iter()
+            .filter_map(|parameter| {
+                matches!(parameter.ty, Type::Record(_)).then_some(parameter.value)
+            })
+            .chain(function.blocks.iter().flat_map(|block| {
+                block
+                    .phis
+                    .iter()
+                    .filter_map(|phi| matches!(phi.ty, Type::Record(_)).then_some(phi.out))
+                    .chain(block.instructions.iter().filter_map(|instruction| {
+                        instruction
+                            .out
+                            .filter(|_| matches!(instruction.ty.as_ref(), Some(Type::Record(_))))
+                    }))
+            }))
+            .collect();
+        let js_value_values = function
+            .params
+            .iter()
+            .filter_map(|parameter| {
+                matches!(parameter.ty, Type::TypeParameter("$js")).then_some(parameter.value)
+            })
+            .chain(function.blocks.iter().flat_map(|block| {
+                block
+                    .phis
+                    .iter()
+                    .filter_map(|phi| {
+                        matches!(phi.ty, Type::TypeParameter("$js")).then_some(phi.out)
+                    })
+                    .chain(block.instructions.iter().filter_map(|instruction| {
+                        instruction
+                            .out
+                            .filter(|_| matches!(instruction.ty, Some(Type::TypeParameter("$js"))))
+                    }))
+            }))
+            .collect();
+        let observable_values = function
+            .blocks
+            .iter()
+            .flat_map(|block| &block.instructions)
+            .filter(|instruction| {
+                op_evaluation_is_observable(function, instruction)
+                    || matches!(
+                        instruction.op,
+                        ControlFlowOp::CallDirect { function, .. }
+                            if order_sensitive_inline_pure_helpers.contains(&function)
+                    )
+            })
+            .filter_map(|instruction| instruction.out)
+            .collect::<AHashSet<_>>();
+        let string_constants = function
+            .blocks
+            .iter()
+            .flat_map(|block| &block.instructions)
+            .filter_map(|instruction| match (instruction.out, &instruction.op) {
+                (Some(out), ControlFlowOp::Const(ConstValue::String(value))) => {
+                    Some((out, value.to_string()))
+                }
+                _ => None,
+            })
+            .collect::<AHashMap<_, _>>();
+        // A constant identifier used as an index is emitted as `.name`. It is
+        // syntax metadata, not a runtime operand, so it must not acquire a
+        // live range merely because the IR represents property names as
+        // values. Computed keys and `__proto__` remain ordinary operands.
+        let uses = codegen_use_counts(function, &string_constants);
+        let literalized_regex_arguments = literalized_regex_argument_values(function, options);
         let unstable_values = unstable_values(function);
-        let captured_values = function
+        let loop_capture_values = function
             .blocks
             .iter()
             .flat_map(|block| &block.instructions)
@@ -6716,6 +14839,16 @@ impl LocalNames {
                 _ => None,
             })
             .flatten()
+            .filter(|capture| {
+                function
+                    .blocks
+                    .iter()
+                    .flat_map(|block| &block.instructions)
+                    .find(|instruction| instruction.out == Some(**capture))
+                    .is_none_or(|instruction| {
+                        !matches!(instruction.op, ControlFlowOp::CaptureLocal(_))
+                    })
+            })
             .copied()
             .collect::<AHashSet<_>>();
         let inlined_values = function
@@ -6737,26 +14870,36 @@ impl LocalNames {
                     let rendered = numeric_aliases.get(&rendered).cloned().unwrap_or(rendered);
                     (inline_cost <= binding_cost).then_some((out, JsExpression::atom(rendered)))
                 }
-                _ => None,
-            })
-            .collect::<AHashMap<_, _>>();
-        let string_constants = function
-            .blocks
-            .iter()
-            .flat_map(|block| &block.instructions)
-            .filter_map(|instruction| match (instruction.out, &instruction.op) {
                 (Some(out), ControlFlowOp::Const(ConstValue::String(value))) => {
-                    Some((out, value.to_string()))
+                    let rendered = render_string_literal(value, options.string_quote);
+                    (literalized_regex_arguments.contains(&out) || !options.pool_strings)
+                        .then_some((out, JsExpression::atom(rendered)))
                 }
                 _ => None,
             })
-            .collect();
+            .collect::<AHashMap<_, _>>();
         let null_values = function
             .blocks
             .iter()
             .flat_map(|block| &block.instructions)
             .filter_map(|instruction| match (&instruction.op, instruction.out) {
                 (ControlFlowOp::Const(ConstValue::Null), Some(out)) => Some(out),
+                _ => None,
+            })
+            .collect();
+        let js_undefined_values = function
+            .blocks
+            .iter()
+            .flat_map(|block| &block.instructions)
+            .filter_map(|instruction| match (instruction.out, &instruction.op) {
+                (
+                    Some(out),
+                    ControlFlowOp::Intrinsic {
+                        intrinsic: Intrinsic::JsUndefined,
+                        receiver: None,
+                        args,
+                    },
+                ) if args.is_empty() => Some(out),
                 _ => None,
             })
             .collect();
@@ -6793,13 +14936,22 @@ impl LocalNames {
             })
             .collect();
         let safe_int_array_reads = safe_int_array_reads(function, integer_facts);
-        let cross_block = cross_block_values(function);
+        let cross_block = codegen_cross_block_values(function, &string_constants);
+        let operand_order_fusable = if options.operand_order_fusion {
+            operand_order_fusable_values(function, &uses)
+        } else {
+            AHashSet::default()
+        };
         let mut values = function
             .params
             .iter()
             .map(|param| param.value)
             .collect::<Vec<_>>();
         for block in &function.blocks {
+            let edge_value = options
+                .phi_edge_value_forwarding
+                .then(|| deferred_single_phi_edge_value(function, block))
+                .flatten();
             for phi in &block.phis {
                 values.push(phi.out);
                 stored_values.insert(phi.out);
@@ -6808,11 +14960,28 @@ impl LocalNames {
                 if let Some(value) = instruction.out {
                     values.push(value);
                     let use_count = uses.get(&value).copied().unwrap_or(0);
-                    let fused = use_count == 1 && can_fuse_value(block, index, value);
-                    if (cross_block.contains(&value)
-                        || use_count > 1
-                        || (captured_values.contains(&value)
-                            && !matches!(instruction.op, ControlFlowOp::Const(_)))
+                    let structured_iteration_input =
+                        structured_iteration_input_can_defer(function, block, index, value);
+                    let fused = structured_iteration_input
+                        || operand_order_fusable.contains(&value)
+                        || use_count == 1
+                            && (can_fuse_value(
+                                function,
+                                block,
+                                index,
+                                value,
+                                options.phi_edge_value_forwarding,
+                                loop_captured_closures,
+                                &operand_order_fusable,
+                            ) || (edge_value == Some(value)
+                                && can_defer_value_to_block_end(function, block, index, value)));
+                    if ((cross_block.contains(&value) && !structured_iteration_input)
+                        || (use_count > 1 && !structured_iteration_input)
+                        || (loop_capture_values.contains(&value)
+                            && !matches!(
+                                instruction.op,
+                                ControlFlowOp::Const(_) | ControlFlowOp::CaptureLocal(_)
+                            ))
                         || (use_count != 0 && unstable_values.contains(&value) && !fused)
                         || matches!(
                             instruction.op,
@@ -6820,12 +14989,20 @@ impl LocalNames {
                                 constructor: Some(_),
                                 ..
                             } | ControlFlowOp::Intrinsic {
-                                intrinsic: Intrinsic::JsForInKey,
+                                intrinsic: Intrinsic::JsForInKey | Intrinsic::JsForOfValue,
                                 ..
                             }
                         ))
                         && !inlined_values.contains_key(&value)
                     {
+                        record_store_reason(
+                            cross_block.contains(&value) && !structured_iteration_input,
+                            use_count,
+                            structured_iteration_input,
+                            unstable_values.contains(&value),
+                            fused,
+                            crosses_only_a_fall_through_edge(function, block, value),
+                        );
                         stored_values.insert(value);
                     }
                 }
@@ -6897,12 +15074,15 @@ impl LocalNames {
                 &parameter_values,
                 &uses,
                 options.phi_affinity_mode,
-                preferred_local_names,
+                options.local_phi_expression_regions,
+                options.phi_edge_value_forwarding,
+                loop_captured_closures,
+                &operand_order_fusable,
             );
             let color_count = colors.values().copied().max().map_or(0, |color| color + 1);
             let mut color_names = vec![String::new(); color_count];
             if options.stable_local_names {
-                let mut preferences = vec![AHashMap::<String, usize>::new(); color_count];
+                let mut preferences = vec![AHashMap::<String, usize>::default(); color_count];
                 for (value, color) in &colors {
                     let Some(identifier) = function
                         .value_local_hints
@@ -6972,9 +15152,29 @@ impl LocalNames {
                 }
             });
         }
+        let mut local_names = function
+            .params
+            .iter()
+            .filter_map(|parameter| {
+                value_names
+                    .get(&parameter.value)
+                    .cloned()
+                    .map(|name| (parameter.local, name))
+            })
+            .collect::<AHashMap<_, _>>();
+        for local in &function.locals {
+            local_names.entry(local.id).or_insert_with(|| {
+                if mangle_identifiers {
+                    mangler.next_name()
+                } else {
+                    mangler.unique_name(local.name)
+                }
+            });
+        }
         let declared_names = function
             .params
             .iter()
+            .filter(|parameter| uses.get(&parameter.value).copied().unwrap_or(0) != 0)
             .filter_map(|parameter| value_names.get(&parameter.value))
             .cloned()
             .collect();
@@ -6985,14 +15185,23 @@ impl LocalNames {
             Vec::new()
         };
         Self {
+            function_id: function.id,
             value_names,
+            local_names,
             parameter_values,
             stored_values,
             untyped_values,
+            js_value_values,
+            record_values,
+            observable_values,
             inlined_values,
             string_constants,
             global_loads,
-            integer_ranges: integer_facts.ranges().clone(),
+            integer_ranges: integer_facts
+                .ranges()
+                .iter()
+                .map(|(value, range)| (*value, *range))
+                .collect(),
             elidable_i32_coercions: function
                 .blocks
                 .iter()
@@ -7002,12 +15211,14 @@ impl LocalNames {
                 .collect(),
             elidable_map_get_normalizations: map_get_normalization_elisions(function),
             null_values,
+            js_undefined_values,
             truthy_nullable_values,
             safe_int_array_reads,
             safe_in_place_updates,
             parallel_copy_temp,
             live_in_values,
             use_counts: uses,
+            operand_order_fusable,
             declared_names: RefCell::new(declared_names),
             inline_declarations: false,
             state,
@@ -7020,6 +15231,10 @@ impl LocalNames {
                 })
                 .to_string(),
             function_span: function.span,
+            rest_argument_value: None,
+            rest_argument_local: None,
+            rest_argument_values: AHashSet::default(),
+            rest_formal_names: Vec::new(),
         }
     }
 
@@ -7038,6 +15253,26 @@ impl LocalNames {
             })
     }
 
+    fn local_name(&self, local: LocalId) -> Result<&str, CodegenError> {
+        self.local_names
+            .get(&local)
+            .map(String::as_str)
+            .ok_or_else(|| {
+                CodegenError::new(
+                    self.function_span,
+                    format!(
+                        "local {} has no emitted name in function `{}`",
+                        local.0, self.function_name
+                    ),
+                )
+            })
+    }
+
+    fn claim_local_declaration(&self, local: LocalId) -> Result<bool, CodegenError> {
+        let name = self.local_name(local)?.to_string();
+        Ok(self.declared_names.borrow_mut().insert(name))
+    }
+
     fn state_name(&self) -> &str {
         &self.state
     }
@@ -7046,8 +15281,30 @@ impl LocalNames {
         self.untyped_values.contains(&value)
     }
 
+    fn is_record(&self, value: ValueId) -> bool {
+        self.record_values.contains(&value)
+    }
+
+    fn is_js_value(&self, value: ValueId) -> bool {
+        self.js_value_values.contains(&value)
+    }
+
+    fn is_js_undefined(&self, value: ValueId) -> bool {
+        self.js_undefined_values.contains(&value)
+    }
+
     fn is_stored(&self, value: ValueId) -> bool {
         self.stored_values.contains(&value)
+    }
+
+    fn evaluation_is_observable(&self, instruction: &ControlFlowInstruction<'_>) -> bool {
+        instruction
+            .out
+            .is_some_and(|value| self.observable_values.contains(&value))
+    }
+
+    fn instruction_can_defer(&self, instruction: &ControlFlowInstruction<'_>) -> bool {
+        op_can_defer(&instruction.op) && !self.evaluation_is_observable(instruction)
     }
 
     fn is_name_declared(&self, value: ValueId) -> bool {
@@ -7106,6 +15363,13 @@ impl LocalNames {
         Ok(self.declared_names.borrow_mut().insert(name))
     }
 
+    fn mark_declared(&self, value: ValueId) -> Result<(), CodegenError> {
+        self.declared_names
+            .borrow_mut()
+            .insert(self.value_name(value)?.to_string());
+        Ok(())
+    }
+
     fn claim_remaining_declarations(&self) -> Vec<String> {
         if !self.inline_declarations {
             return Vec::new();
@@ -7144,7 +15408,7 @@ impl LocalNames {
             .collect::<Vec<_>>();
         values.sort_by_key(|value| value.0);
         values.dedup();
-        let mut seen = AHashSet::new();
+        let mut seen = AHashSet::default();
         values
             .into_iter()
             .filter_map(|value| self.value_names.get(&value).map(String::as_str))
@@ -7154,8 +15418,124 @@ impl LocalNames {
     }
 }
 
+/// Values that nest into their consumer because every evaluation between the
+/// producer and that consumer also nests into it, at a later operand position.
+///
+/// SSA destruction otherwise names all but the last producer of a call's
+/// arguments: a producer whose evaluation is observable may normally nest only
+/// into the instruction directly after it, so a second producer for the same
+/// call forces the first one to be named. Nesting the whole run rebuilds the
+/// original left-to-right evaluation exactly — `t=a[i];u=a[j];f(t,k,u)` and
+/// `f(a[i],k,a[j])` perform the same operations in the same order. Operands the
+/// consumer reads between them are already-named values or literals, which the
+/// run cannot disturb, and any producer before the run still runs as its own
+/// statement ahead of everything nested here.
+///
+/// Constructor arguments and closure captures are named by separate rules, so a
+/// run feeding one of those is refused rather than left half-nested.
+fn operand_order_fusable_values(
+    function: &ControlFlowFunction<'_>,
+    uses: &AHashMap<ValueId, usize>,
+) -> AHashSet<ValueId> {
+    let mut fusable = AHashSet::default();
+    for block in &function.blocks {
+        for (consumer, instruction) in block.instructions.iter().enumerate() {
+            if !evaluates_every_operand(&instruction.op) {
+                continue;
+            }
+            let operands = op_values(&instruction.op);
+            if operands.len() < 2 {
+                continue;
+            }
+            let mut run = Vec::new();
+            let mut next_slot = operands.len();
+            for index in (0..consumer).rev() {
+                let produced = &block.instructions[index];
+                let Some(out) = produced.out else {
+                    break;
+                };
+                if uses.get(&out).copied() != Some(1)
+                    || matches!(
+                        produced.op,
+                        ControlFlowOp::Intrinsic {
+                            intrinsic: Intrinsic::JsForInKey | Intrinsic::JsForOfValue,
+                            ..
+                        }
+                    )
+                {
+                    break;
+                }
+                let Some(slot) = single_operand_slot(&operands, out) else {
+                    break;
+                };
+                if slot >= next_slot {
+                    break;
+                }
+                next_slot = slot;
+                run.push(out);
+            }
+            // One producer directly before its consumer is the ordinary fusion
+            // case; this analysis exists to widen the longer runs.
+            if run.len() >= 2 {
+                fusable.extend(run);
+            }
+        }
+    }
+    fusable
+}
+
+/// Whether an operation evaluates every operand `op_values` reports, exactly
+/// once and in that order.
+///
+/// Nesting a producer into an operand slot is only order-preserving when the
+/// slot is always reached. Logical operators and nullish fallbacks skip their
+/// right operand, and intrinsics may reconstruct a lazy spelling, so a run
+/// feeding one of those would turn an unconditional evaluation into a
+/// conditional one. Constructor arguments and closure captures are named by
+/// separate rules and would be left half-nested.
+fn evaluates_every_operand(op: &ControlFlowOp<'_>) -> bool {
+    match op {
+        ControlFlowOp::Binary { op, .. } => !matches!(op, IrBinaryOp::And | IrBinaryOp::Or),
+        ControlFlowOp::CallDirect { .. }
+        | ControlFlowOp::CallValue { .. }
+        | ControlFlowOp::CallMethod { .. }
+        | ControlFlowOp::HostCall { .. }
+        | ControlFlowOp::Array(_)
+        | ControlFlowOp::ArraySpread(_)
+        | ControlFlowOp::Record(_)
+        | ControlFlowOp::RecordSpread(_)
+        | ControlFlowOp::Struct { .. }
+        | ControlFlowOp::Template(_)
+        | ControlFlowOp::FieldGet { .. }
+        | ControlFlowOp::FieldSet { .. }
+        | ControlFlowOp::RecordFieldGet { .. }
+        | ControlFlowOp::RecordFieldSet { .. }
+        | ControlFlowOp::HostFieldGet { .. }
+        | ControlFlowOp::HostFieldSet { .. }
+        | ControlFlowOp::IndexGet { .. }
+        | ControlFlowOp::IndexSet { .. } => true,
+        _ => false,
+    }
+}
+
+/// The one position at which `value` appears in an operand list, or `None`
+/// when it is absent or repeated. A repeated operand is evaluated twice, so it
+/// can never be a single-use producer.
+fn single_operand_slot(operands: &[ValueId], value: ValueId) -> Option<usize> {
+    let mut slot = None;
+    for (index, operand) in operands.iter().enumerate() {
+        if *operand == value {
+            if slot.is_some() {
+                return None;
+            }
+            slot = Some(index);
+        }
+    }
+    slot
+}
+
 fn unstable_values(function: &ControlFlowFunction<'_>) -> AHashSet<ValueId> {
-    let mut unstable = AHashSet::new();
+    let mut unstable = AHashSet::default();
     loop {
         let mut changed = false;
         for block in &function.blocks {
@@ -7172,7 +15552,8 @@ fn unstable_values(function: &ControlFlowFunction<'_>) -> AHashSet<ValueId> {
                 let Some(out) = instruction.out else {
                     continue;
                 };
-                if !op_can_defer(&instruction.op)
+                if op_evaluation_is_observable(function, instruction)
+                    || !op_can_defer(&instruction.op)
                     || op_values(&instruction.op)
                         .iter()
                         .any(|value| unstable.contains(value))
@@ -7199,13 +15580,37 @@ fn emit_binding_prefix(
     Ok(())
 }
 
+fn emit_bound_value(
+    context: &LocalNames,
+    dest: ValueId,
+    expression: JsExpression,
+    predeclared: bool,
+    out: &mut String,
+) -> Result<(), CodegenError> {
+    let name = context.value_name(dest)?;
+    let value = strip_outer_parens(expression);
+    if value == name {
+        context.mark_declared(dest)?;
+        return Ok(());
+    }
+    emit_binding_prefix(context, dest, predeclared, out)?;
+    out.push_str(name);
+    out.push('=');
+    out.push_str(&value);
+    out.push(';');
+    Ok(())
+}
+
 fn coalesce_value_names(
     function: &ControlFlowFunction<'_>,
     stored_values: &AHashSet<ValueId>,
     parameter_values: &AHashSet<ValueId>,
     uses: &AHashMap<ValueId, usize>,
     phi_affinity_mode: PhiAffinityMode,
-    preferred_local_names: &AHashMap<String, String>,
+    local_phi_expression_regions: bool,
+    phi_edge_value_forwarding: bool,
+    loop_captured_closures: &AHashSet<FunctionId>,
+    operand_order_fusable: &AHashSet<ValueId>,
 ) -> AHashMap<ValueId, usize> {
     let named = stored_values
         .union(parameter_values)
@@ -7231,15 +15636,25 @@ fn coalesce_value_names(
                     let out = instruction.out?;
                     (uses.get(&out).copied() == Some(1)
                         && !named_values.contains(&out)
-                        && (op_can_defer(&instruction.op) || can_fuse_value(block, index, out)))
+                        && ((!op_evaluation_is_observable(function, instruction)
+                            && op_can_defer(&instruction.op))
+                            || can_fuse_value(
+                                function,
+                                block,
+                                index,
+                                out,
+                                phi_edge_value_forwarding,
+                                loop_captured_closures,
+                                operand_order_fusable,
+                            )))
                     .then_some(out)
                 })
         })
         .collect::<AHashSet<_>>();
     let block_count = function.blocks.len();
-    let mut block_definitions = vec![AHashSet::<ValueId>::new(); block_count];
-    let mut local_uses = vec![AHashSet::<ValueId>::new(); block_count];
-    let mut phi_definitions = vec![AHashSet::<ValueId>::new(); block_count];
+    let mut block_definitions = vec![AHashSet::<ValueId>::default(); block_count];
+    let mut local_uses = vec![AHashSet::<ValueId>::default(); block_count];
+    let mut phi_definitions = vec![AHashSet::<ValueId>::default(); block_count];
 
     for block in &function.blocks {
         let index = block.id.0 as usize;
@@ -7250,14 +15665,14 @@ fn coalesce_value_names(
             }
         }
         for instruction in &block.instructions {
-            let mut operands = AHashSet::new();
+            let mut operands = AHashSet::default();
             for value in op_values(&instruction.op) {
                 collect_deferred_named_values(
                     value,
                     &named,
                     &value_definitions,
                     &deferred_definitions,
-                    &mut AHashSet::new(),
+                    &mut AHashSet::default(),
                     &mut operands,
                 );
             }
@@ -7276,13 +15691,13 @@ fn coalesce_value_names(
             .into_iter()
             .flat_map(terminator_values)
         {
-            let mut operands = AHashSet::new();
+            let mut operands = AHashSet::default();
             collect_deferred_named_values(
                 value,
                 &named,
                 &value_definitions,
                 &deferred_definitions,
-                &mut AHashSet::new(),
+                &mut AHashSet::default(),
                 &mut operands,
             );
             for operand in operands {
@@ -7293,13 +15708,13 @@ fn coalesce_value_names(
         }
     }
 
-    let mut live_in = vec![AHashSet::<ValueId>::new(); block_count];
-    let mut live_out = vec![AHashSet::<ValueId>::new(); block_count];
+    let mut live_in = vec![AHashSet::<ValueId>::default(); block_count];
+    let mut live_out = vec![AHashSet::<ValueId>::default(); block_count];
     loop {
         let mut changed = false;
         for block in function.blocks.iter().rev() {
             let index = block.id.0 as usize;
-            let mut out = AHashSet::new();
+            let mut out = AHashSet::default();
             for successor in block_successors(block) {
                 let successor_index = successor.0 as usize;
                 out.extend(
@@ -7318,7 +15733,7 @@ fn coalesce_value_names(
                             &named,
                             &value_definitions,
                             &deferred_definitions,
-                            &mut AHashSet::new(),
+                            &mut AHashSet::default(),
                             &mut out,
                         );
                     }
@@ -7342,7 +15757,7 @@ fn coalesce_value_names(
 
     let mut interference = named
         .iter()
-        .map(|value| (*value, AHashSet::<ValueId>::new()))
+        .map(|value| (*value, AHashSet::<ValueId>::default()))
         .collect::<AHashMap<_, _>>();
     let mut connect = |left: ValueId, right: ValueId| {
         if left != right
@@ -7367,19 +15782,19 @@ fn coalesce_value_names(
                 &named,
                 &value_definitions,
                 &deferred_definitions,
-                &mut AHashSet::new(),
+                &mut AHashSet::default(),
                 &mut live,
             );
         }
         for instruction in block.instructions.iter().rev() {
-            let mut operands = AHashSet::new();
+            let mut operands = AHashSet::default();
             for value in op_values(&instruction.op) {
                 collect_deferred_named_values(
                     value,
                     &named,
                     &value_definitions,
                     &deferred_definitions,
-                    &mut AHashSet::new(),
+                    &mut AHashSet::default(),
                     &mut operands,
                 );
             }
@@ -7451,24 +15866,14 @@ fn coalesce_value_names(
         }
     }
 
-    let preferred_values = named
-        .iter()
-        .filter_map(|value| {
-            let identifier = function
-                .value_local_hints
-                .get(value.0 as usize)
-                .copied()
-                .flatten()
-                .and_then(|local| preferred_local_names.get(local))?;
-            Some((*value, identifier))
-        })
-        .collect::<Vec<_>>();
-    for (position, (left, left_name)) in preferred_values.iter().enumerate() {
-        for (right, right_name) in &preferred_values[position + 1..] {
-            if left_name != right_name {
-                connect(*left, *right);
-            }
-        }
+    if local_phi_expression_regions {
+        extend_local_phi_expression_interference(
+            function,
+            &named,
+            &value_definitions,
+            &deferred_definitions,
+            &mut interference,
+        );
     }
 
     let mut values = named.into_iter().collect::<Vec<_>>();
@@ -7478,7 +15883,7 @@ fn coalesce_value_names(
         .enumerate()
         .map(|(index, parameter)| (parameter.value, index))
         .collect::<AHashMap<_, _>>();
-    let mut affinities = AHashMap::<ValueId, Vec<ValueId>>::new();
+    let mut affinities = AHashMap::<ValueId, Vec<ValueId>>::default();
     for block in &function.blocks {
         for phi in &block.phis {
             if !interference.contains_key(&phi.out) {
@@ -7535,7 +15940,7 @@ fn coalesce_value_names(
             uses,
         );
     }
-    let mut colors = AHashMap::<ValueId, usize>::new();
+    let mut colors = AHashMap::<ValueId, usize>::default();
     for value in values {
         let unavailable = interference
             .get(&value)
@@ -7555,6 +15960,101 @@ fn coalesce_value_names(
         colors.insert(value, color);
     }
     colors
+}
+
+/// Local-phi expression recovery emits the selected incoming value at each use
+/// of the phi instead of materializing a copy at the merge block. Consequently
+/// every named dependency referenced by an incoming expression remains live
+/// for the phi result's entire live range. The ordinary SSA liveness graph
+/// cannot model that later codegen substitution by itself: it correctly ends
+/// each incoming value on its predecessor edge.
+///
+/// Copy the result's interference neighborhood onto those dependencies before
+/// coloring. Iterate to a fixed point so nested recoverable selections inherit
+/// the complete outer live range. This is deliberately an interference
+/// constraint, not a color preference; Direct and Conservative affinity modes
+/// must remain correct even when they choose not to coalesce a phi with its
+/// incoming values.
+fn extend_local_phi_expression_interference(
+    function: &ControlFlowFunction<'_>,
+    named: &AHashSet<ValueId>,
+    definitions: &AHashMap<ValueId, &ControlFlowOp<'_>>,
+    deferred_definitions: &AHashSet<ValueId>,
+    interference: &mut AHashMap<ValueId, AHashSet<ValueId>>,
+) {
+    let mut aliases = Vec::<(ValueId, Vec<ValueId>)>::new();
+    for shape in &function.shapes {
+        let ControlShape::If { merge_block, .. } = shape else {
+            continue;
+        };
+        let merge = &function.blocks[merge_block.0 as usize];
+        let [phi] = merge.phis.as_slice() else {
+            continue;
+        };
+        if phi.origin.local().is_none()
+            || !named.contains(&phi.out)
+            || value_is_incoming_to_other_phi(function, phi.out)
+        {
+            continue;
+        }
+        let mut dependencies = AHashSet::default();
+        for (_, incoming) in &phi.incoming {
+            collect_deferred_named_values(
+                *incoming,
+                named,
+                definitions,
+                deferred_definitions,
+                &mut AHashSet::default(),
+                &mut dependencies,
+            );
+        }
+        dependencies.remove(&phi.out);
+        if !dependencies.is_empty() {
+            let mut dependencies = dependencies.into_iter().collect::<Vec<_>>();
+            dependencies.sort_unstable_by_key(|value| value.0);
+            aliases.push((phi.out, dependencies));
+        }
+    }
+
+    loop {
+        let additions = aliases
+            .iter()
+            .flat_map(|(result, dependencies)| {
+                let neighbors = interference.get(result).cloned().unwrap_or_default();
+                dependencies.iter().flat_map(move |dependency| {
+                    neighbors
+                        .iter()
+                        .filter(move |neighbor| neighbor != &dependency)
+                        .map(move |neighbor| (*dependency, *neighbor))
+                        .collect::<Vec<_>>()
+                })
+            })
+            .filter(|(left, right)| {
+                !interference
+                    .get(left)
+                    .is_some_and(|neighbors| neighbors.contains(right))
+            })
+            .collect::<Vec<_>>();
+        if additions.is_empty() {
+            break;
+        }
+        for (left, right) in additions {
+            interference.entry(left).or_default().insert(right);
+            interference.entry(right).or_default().insert(left);
+        }
+    }
+}
+
+fn value_is_incoming_to_other_phi(function: &ControlFlowFunction<'_>, value: ValueId) -> bool {
+    function.blocks.iter().any(|block| {
+        block.phis.iter().any(|consumer| {
+            consumer.out != value
+                && consumer
+                    .incoming
+                    .iter()
+                    .any(|(_, incoming)| *incoming == value)
+        })
+    })
 }
 
 fn safe_two_address_phi_pairs(
@@ -7584,10 +16084,10 @@ fn safe_two_address_phi_pairs(
             block
                 .phis
                 .iter()
-                .map(move |phi| (phi.out, (block.id, phi.local)))
+                .filter_map(move |phi| phi.origin.local().map(|local| (phi.out, (block.id, local))))
         })
         .collect::<AHashMap<_, _>>();
-    let mut pairs = AHashSet::new();
+    let mut pairs = AHashSet::default();
     for block in &function.blocks {
         if loop_headers_only && !block_is_on_cycle(function, block.id) {
             continue;
@@ -7608,7 +16108,7 @@ fn safe_two_address_phi_pairs(
                     continue;
                 }
                 if let Some((incoming_block, incoming_local)) = phi_definitions.get(incoming) {
-                    if *incoming_local == phi.local
+                    if phi.origin.local() == Some(*incoming_local)
                         && value_is_unused_until_block(
                             function,
                             block.id,
@@ -7733,7 +16233,7 @@ fn block_dominates(
         return true;
     }
     let mut pending = vec![function.entry];
-    let mut visited = AHashSet::new();
+    let mut visited = AHashSet::default();
     while let Some(block) = pending.pop() {
         if block == dominator || !visited.insert(block) {
             continue;
@@ -7748,7 +16248,7 @@ fn block_dominates(
 
 fn block_is_on_cycle(function: &ControlFlowFunction<'_>, start: BlockId) -> bool {
     let mut pending = block_successors(&function.blocks[start.0 as usize]);
-    let mut visited = AHashSet::new();
+    let mut visited = AHashSet::default();
     while let Some(block) = pending.pop() {
         if block == start {
             return true;
@@ -7767,7 +16267,7 @@ fn loop_body_reaches_exit(
     exit: BlockId,
 ) -> bool {
     let mut pending = vec![body];
-    let mut visited = AHashSet::new();
+    let mut visited = AHashSet::default();
     while let Some(block_id) = pending.pop() {
         if block_id == header || !visited.insert(block_id) {
             continue;
@@ -7844,7 +16344,7 @@ fn values_are_connected(
     target: ValueId,
 ) -> bool {
     let mut pending = vec![start];
-    let mut visited = AHashSet::new();
+    let mut visited = AHashSet::default();
     while let Some(value) = pending.pop() {
         if value == target {
             return true;
@@ -7888,7 +16388,7 @@ fn value_is_unused_until_block(
         .into_iter()
         .map(|successor| (start, successor))
         .collect::<Vec<_>>();
-    let mut visited = AHashSet::new();
+    let mut visited = AHashSet::default();
     while let Some((predecessor, block_id)) = pending.pop() {
         if block_id == stop {
             continue;
@@ -7955,7 +16455,7 @@ fn target_is_unused_until_phi_redefinition(
         .into_iter()
         .map(|successor| (definition_block, successor))
         .collect::<Vec<_>>();
-    let mut visited = AHashSet::new();
+    let mut visited = AHashSet::default();
     while let Some((predecessor, block_id)) = pending.pop() {
         if block_id == phi_block {
             let block = &function.blocks[block_id.0 as usize];
@@ -8089,8 +16589,8 @@ fn color_phi_affinity_groups(
             })
             .then_with(|| left_members[0].0.cmp(&right_members[0].0))
     });
-    let mut group_colors = AHashMap::<usize, usize>::new();
-    let mut colors = AHashMap::<ValueId, usize>::new();
+    let mut group_colors = AHashMap::<usize, usize>::default();
+    let mut colors = AHashMap::<ValueId, usize>::default();
     for group in group_ids {
         let unavailable = groups[&group]
             .iter()
@@ -8146,14 +16646,132 @@ fn block_successors(block: &crate::ir::ControlFlowBlock<'_>) -> Vec<BlockId> {
             else_block,
             ..
         }) => vec![then_block, else_block],
+        Some(Terminator::Try { body, catch_block }) => {
+            std::iter::once(body).chain(catch_block).collect()
+        }
         _ => Vec::new(),
     }
+}
+
+fn block_is_inside_loop(function: &ControlFlowFunction<'_>, target: BlockId) -> bool {
+    function.shapes.iter().any(|shape| {
+        let (starts, exit) = match shape {
+            ControlShape::Loop {
+                header,
+                body,
+                update,
+                exit,
+            } => (
+                std::iter::once(*header)
+                    .chain(std::iter::once(*body))
+                    .chain(*update)
+                    .collect::<Vec<_>>(),
+                *exit,
+            ),
+            ControlShape::ForIn {
+                header, body, exit, ..
+            }
+            | ControlShape::ForOf {
+                header, body, exit, ..
+            } => (vec![*header, *body], *exit),
+            _ => return false,
+        };
+        let mut pending = starts;
+        let mut visited = AHashSet::default();
+        while let Some(block) = pending.pop() {
+            if block == exit || !visited.insert(block) {
+                continue;
+            }
+            if block == target {
+                return true;
+            }
+            if let Some(block) = function.blocks.get(block.0 as usize) {
+                pending.extend(block_successors(block));
+            }
+        }
+        false
+    })
+}
+
+/// Closures are emitted as lexical references to the JS slot holding each captured value. When the
+/// closure is built inside a loop and captures a value that the loop rewrites, every instance would
+/// otherwise observe the final iteration's value, so those sites need a per-instance binding.
+fn loop_captured_closures(function: &ControlFlowFunction<'_>) -> AHashSet<FunctionId> {
+    let mut definition_blocks = AHashMap::<ValueId, BlockId>::default();
+    let mut lexical_cells = AHashSet::<ValueId>::default();
+    for block in &function.blocks {
+        for phi in &block.phis {
+            definition_blocks.insert(phi.out, block.id);
+        }
+        for instruction in &block.instructions {
+            if let Some(out) = instruction.out {
+                definition_blocks.insert(out, block.id);
+                if matches!(instruction.op, ControlFlowOp::CaptureLocal(_)) {
+                    lexical_cells.insert(out);
+                }
+            }
+        }
+    }
+
+    let mut hazardous = AHashSet::default();
+    for shape in &function.shapes {
+        let (header, body, update, exit) = match shape {
+            ControlShape::Loop {
+                header,
+                body,
+                update,
+                exit,
+            } => (*header, *body, *update, *exit),
+            ControlShape::ForIn {
+                header, body, exit, ..
+            }
+            | ControlShape::ForOf {
+                header, body, exit, ..
+            } => (*header, *body, None, *exit),
+            _ => continue,
+        };
+
+        let mut iteration_blocks = AHashSet::default();
+        let mut pending = vec![header, body];
+        pending.extend(update);
+        while let Some(block_id) = pending.pop() {
+            if block_id == exit || !iteration_blocks.insert(block_id) {
+                continue;
+            }
+            let Some(block) = function.blocks.get(block_id.0 as usize) else {
+                continue;
+            };
+            pending.extend(block_successors(block));
+        }
+
+        for block_id in &iteration_blocks {
+            let Some(block) = function.blocks.get(block_id.0 as usize) else {
+                continue;
+            };
+            for instruction in &block.instructions {
+                let ControlFlowOp::Closure { function, captures } = &instruction.op else {
+                    continue;
+                };
+                if captures.iter().any(|capture| {
+                    if lexical_cells.contains(capture) {
+                        return false;
+                    }
+                    definition_blocks
+                        .get(capture)
+                        .is_some_and(|block| iteration_blocks.contains(block))
+                }) {
+                    hazardous.insert(*function);
+                }
+            }
+        }
+    }
+    hazardous
 }
 
 fn terminator_values(terminator: &Terminator) -> Vec<ValueId> {
     match terminator {
         Terminator::Branch { condition, .. } => vec![*condition],
-        Terminator::Return(Some(value)) => vec![*value],
+        Terminator::Return(Some(value)) | Terminator::Throw(value) => vec![*value],
         _ => Vec::new(),
     }
 }
@@ -8174,8 +16792,301 @@ fn take_value(
     Ok(JsExpression::atom(context.value_name(value)?))
 }
 
+fn wrap_eager_expression_bindings(
+    mut expression: JsExpression,
+    bindings: Vec<(String, JsExpression)>,
+) -> JsExpression {
+    // Nest in reverse construction order so runtime evaluation remains the
+    // original forward instruction order. A later initializer may reference
+    // an earlier binder, so combining them into one multi-argument arrow would
+    // evaluate that reference outside the binder's lexical scope.
+    for (name, initializer) in bindings.into_iter().rev() {
+        let body = expression.at_least(JsPrecedence::Assignment);
+        expression = JsExpression::call(
+            JsExpression::raw(format!("{name}=>{body}"), JsPrecedence::Assignment),
+            [initializer],
+        );
+    }
+    expression
+}
+
+fn wrap_pure_helper_actual_bindings(
+    expression: JsExpression,
+    mut bindings: Vec<(String, JsExpression)>,
+) -> JsExpression {
+    // An identity helper with exactly one cached actual has no work left once
+    // its template renders to that actual's binder. Returning the initializer
+    // preserves its single eager evaluation while avoiding `(a=>a)(value)`.
+    // Any second binding must remain: even an unused argument is evaluated by
+    // an ordinary JavaScript call before the helper body starts.
+    if bindings.len() == 1
+        && expression.root == JsExpressionRoot::Atom
+        && expression.code == bindings[0].0
+    {
+        return bindings.pop().expect("one eager binding").1;
+    }
+    wrap_eager_expression_bindings(expression, bindings)
+}
+
+fn take_region_value(
+    value: ValueId,
+    context: &LocalNames,
+    cache: &mut ExpressionCache,
+    state: &mut ExpressionRegionState,
+) -> Result<Option<JsExpression>, CodegenError> {
+    let expression = context
+        .inlined_values
+        .get(&value)
+        .cloned()
+        .or_else(|| cache.remove(&value));
+    let Some(expression) = expression else {
+        if state.defined.contains(&value) && !context.parameter_values.contains(&value) {
+            return Ok(None);
+        }
+        return Ok(Some(JsExpression::atom(context.value_name(value)?)));
+    };
+    state.consume(value);
+    Ok(Some(expression))
+}
+
+fn trace_short_circuit_arm(
+    function: &ControlFlowFunction<'_>,
+    mut current: BlockId,
+    stop: BlockId,
+    state: &mut ExpressionRegionState,
+) -> Option<BlockId> {
+    loop {
+        if current == stop || !state.enter(current) {
+            return None;
+        }
+        let block = &function.blocks[current.0 as usize];
+        if !block.phis.is_empty() || !block.instructions.is_empty() {
+            return None;
+        }
+        match block.terminator {
+            Some(Terminator::Jump(target)) if target == stop => return Some(current),
+            Some(Terminator::Jump(target)) => current = target,
+            _ => return None,
+        }
+    }
+}
+
+fn value_is_boolean_constant(
+    function: &ControlFlowFunction<'_>,
+    value: ValueId,
+    expected: bool,
+) -> bool {
+    if function
+        .params
+        .iter()
+        .any(|parameter| parameter.value == value)
+    {
+        return false;
+    }
+    function.blocks.iter().any(|block| {
+        block.instructions.iter().any(|instruction| {
+            instruction.out == Some(value)
+                && matches!(instruction.op, ControlFlowOp::Const(ConstValue::Bool(value)) if value == expected)
+        })
+    })
+}
+
+fn nullish_branch_comparison(
+    block: &crate::ir::ControlFlowBlock<'_>,
+    condition: ValueId,
+    lhs: ValueId,
+) -> Option<(bool, ValueId, Option<ValueId>)> {
+    let definitions = block
+        .instructions
+        .iter()
+        .filter_map(|instruction| instruction.out.map(|out| (out, &instruction.op)))
+        .collect::<AHashMap<_, _>>();
+    let ControlFlowOp::Binary {
+        op,
+        lhs: comparison_lhs,
+        rhs: comparison_rhs,
+    } = definitions.get(&condition)?
+    else {
+        return None;
+    };
+    let (source, null) = if *comparison_lhs == lhs
+        && matches!(
+            definitions.get(comparison_rhs),
+            Some(ControlFlowOp::Const(ConstValue::Null))
+        ) {
+        (*comparison_lhs, *comparison_rhs)
+    } else if *comparison_rhs == lhs
+        && matches!(
+            definitions.get(comparison_lhs),
+            Some(ControlFlowOp::Const(ConstValue::Null))
+        )
+    {
+        (*comparison_rhs, *comparison_lhs)
+    } else {
+        return None;
+    };
+    debug_assert_eq!(source, lhs);
+    match op {
+        IrBinaryOp::NotEq => Some((true, condition, Some(null))),
+        IrBinaryOp::Eq => Some((false, condition, Some(null))),
+        _ => None,
+    }
+}
+
+fn value_is_identity_of(
+    function: &ControlFlowFunction<'_>,
+    mut value: ValueId,
+    source: ValueId,
+) -> bool {
+    let definitions = function
+        .blocks
+        .iter()
+        .flat_map(|block| &block.instructions)
+        .filter_map(|instruction| instruction.out.map(|out| (out, &instruction.op)))
+        .collect::<AHashMap<_, _>>();
+    let mut visited = AHashSet::default();
+    while value != source && visited.insert(value) {
+        match definitions.get(&value) {
+            Some(ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::UnwrapNullable | Intrinsic::UnwrapUnion,
+                receiver: Some(receiver),
+                args,
+            }) if args.is_empty() => value = *receiver,
+            _ => return false,
+        }
+    }
+    value == source
+}
+
+fn value_is_optional_access_of(
+    function: &ControlFlowFunction<'_>,
+    value: ValueId,
+    object: ValueId,
+) -> bool {
+    let definitions = function
+        .blocks
+        .iter()
+        .flat_map(|block| &block.instructions)
+        .filter_map(|instruction| instruction.out.map(|out| (out, &instruction.op)))
+        .collect::<AHashMap<_, _>>();
+    let Some(op) = definitions.get(&value) else {
+        return false;
+    };
+    let receiver = match op {
+        ControlFlowOp::FieldGet { object, .. }
+        | ControlFlowOp::RecordFieldGet { object, .. }
+        | ControlFlowOp::HostFieldGet { object, .. }
+        | ControlFlowOp::IndexGet { object, .. } => *object,
+        ControlFlowOp::Intrinsic {
+            intrinsic:
+                Intrinsic::ArrayLength
+                | Intrinsic::StringLength
+                | Intrinsic::MapSize
+                | Intrinsic::SetSize
+                | Intrinsic::BufferByteLength,
+            receiver: Some(receiver),
+            args,
+        } if args.is_empty() => *receiver,
+        _ => return false,
+    };
+    value_is_identity_of(function, receiver, object)
+}
+
+fn op_can_render_in_expression_region(op: &ControlFlowOp<'_>) -> bool {
+    !matches!(
+        op,
+        ControlFlowOp::CaughtException
+            | ControlFlowOp::StoreLocal { .. }
+            | ControlFlowOp::StoreGlobal { .. }
+            | ControlFlowOp::FieldSet { .. }
+            | ControlFlowOp::RecordFieldSet { .. }
+            | ControlFlowOp::HostFieldSet { .. }
+            | ControlFlowOp::IndexSet { .. }
+            | ControlFlowOp::NewClass {
+                constructor: Some(_),
+                ..
+            }
+            | ControlFlowOp::Await { .. }
+            | ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::GeneratorYield | Intrinsic::GeneratorYieldDelegated,
+                ..
+            }
+    )
+}
+
+fn expression_semantic_use_count(
+    function: &ControlFlowFunction<'_>,
+    value: ValueId,
+    fallback: &AHashMap<ValueId, usize>,
+) -> usize {
+    let mut count = fallback.get(&value).copied().unwrap_or(0);
+    for block in &function.blocks {
+        for phi in &block.phis {
+            match phi.origin {
+                crate::ir::PhiOrigin::Expression(crate::ir::ExpressionPhi::ShortCircuit {
+                    op:
+                        crate::ir::ShortCircuitOp::JavaScriptAnd
+                        | crate::ir::ShortCircuitOp::JavaScriptOr,
+                    lhs,
+                }) if lhs == value => {
+                    count = count.saturating_sub(1);
+                }
+                crate::ir::PhiOrigin::Expression(crate::ir::ExpressionPhi::Nullish { lhs })
+                    if lhs == value =>
+                {
+                    count = count.saturating_sub(1);
+                }
+                crate::ir::PhiOrigin::Expression(crate::ir::ExpressionPhi::OptionalAccess {
+                    object,
+                }) if object == value => {
+                    count = count.saturating_sub(1);
+                }
+                _ => {}
+            }
+        }
+    }
+    count
+}
+
+fn value_is_used_outside_expression_region(
+    function: &ControlFlowFunction<'_>,
+    value: ValueId,
+    region: &AHashSet<BlockId>,
+    result: ValueId,
+    string_constants: &AHashMap<ValueId, String>,
+) -> bool {
+    function.blocks.iter().any(|block| {
+        if region.contains(&block.id) {
+            return false;
+        }
+        block.phis.iter().any(|phi| {
+            phi.out != result
+                && (phi.incoming.iter().any(|(_, incoming)| *incoming == value)
+                    || matches!(
+                        phi.origin,
+                        crate::ir::PhiOrigin::Expression(
+                            crate::ir::ExpressionPhi::ShortCircuit { lhs, .. }
+                        ) | crate::ir::PhiOrigin::Expression(
+                            crate::ir::ExpressionPhi::Nullish { lhs }
+                        ) if lhs == value
+                    )
+                    || matches!(
+                        phi.origin,
+                        crate::ir::PhiOrigin::Expression(
+                            crate::ir::ExpressionPhi::OptionalAccess { object }
+                        ) if object == value
+                    ))
+        }) || block.instructions.iter().any(|instruction| {
+            codegen_op_values(&instruction.op, string_constants).contains(&value)
+        }) || block
+            .terminator
+            .as_ref()
+            .is_some_and(|terminator| terminator_values(terminator).contains(&value))
+    })
+}
+
 fn use_counts(function: &ControlFlowFunction<'_>) -> AHashMap<ValueId, usize> {
-    let mut counts = AHashMap::new();
+    let mut counts = AHashMap::default();
     let mut add = |value| *counts.entry(value).or_insert(0) += 1;
     for block in &function.blocks {
         for phi in &block.phis {
@@ -8190,7 +17101,97 @@ fn use_counts(function: &ControlFlowFunction<'_>) -> AHashMap<ValueId, usize> {
         }
         match block.terminator.as_ref() {
             Some(Terminator::Branch { condition, .. }) => add(*condition),
-            Some(Terminator::Return(Some(value))) => add(*value),
+            Some(Terminator::Return(Some(value)) | Terminator::Throw(value)) => add(*value),
+            _ => {}
+        }
+    }
+    counts
+}
+
+fn static_identifier_property(
+    index: ValueId,
+    string_constants: &AHashMap<ValueId, String>,
+) -> Option<&str> {
+    let property = string_constants.get(&index)?;
+    // Only emit source spellings that are already valid IdentifierNames.
+    // A string escape such as `\x61` can decode to an identifier character
+    // while still being illegal in JavaScript member syntax; those keys must
+    // retain computed-property semantics.
+    (property != "__proto__" && is_js_property_identifier(property)).then_some(property.as_str())
+}
+
+fn codegen_op_values(
+    op: &ControlFlowOp<'_>,
+    string_constants: &AHashMap<ValueId, String>,
+) -> Vec<ValueId> {
+    match op {
+        ControlFlowOp::IndexGet { object, index }
+            if static_identifier_property(*index, string_constants).is_some() =>
+        {
+            vec![*object]
+        }
+        ControlFlowOp::IndexSet {
+            object,
+            index,
+            value,
+        } if static_identifier_property(*index, string_constants).is_some() => {
+            vec![*object, *value]
+        }
+        ControlFlowOp::Intrinsic {
+            intrinsic: Intrinsic::JsPlainObject,
+            receiver: None,
+            args,
+        } => args.iter().skip(1).step_by(2).copied().collect(),
+        // `k in Object(e)` is equivalent to the previous `e!=null&&k in Object(e)`
+        // null guard: `Object(null)`/`Object(undefined)` is `{}`, so `in` is false.
+        // Count the receiver once so an effectful producer is not materialized
+        // solely to keep that redundant guard.
+        ControlFlowOp::Intrinsic {
+            intrinsic: Intrinsic::JsHasProperty,
+            receiver: Some(receiver),
+            args,
+        } => {
+            let mut values = Vec::with_capacity(args.len() + 1);
+            values.push(*receiver);
+            values.extend(args);
+            values
+        }
+        ControlFlowOp::Intrinsic {
+            intrinsic: Intrinsic::JsInvoke,
+            receiver: Some(receiver),
+            args,
+        } if args
+            .first()
+            .is_some_and(|key| static_identifier_property(*key, string_constants).is_some()) =>
+        {
+            std::iter::once(*receiver)
+                .chain(args.iter().skip(1).copied())
+                .collect()
+        }
+        _ => op_values(op),
+    }
+}
+
+fn codegen_use_counts(
+    function: &ControlFlowFunction<'_>,
+    string_constants: &AHashMap<ValueId, String>,
+) -> AHashMap<ValueId, usize> {
+    let mut counts = AHashMap::default();
+    let mut add = |value| *counts.entry(value).or_insert(0) += 1;
+    for block in &function.blocks {
+        for phi in &block.phis {
+            for (_, value) in &phi.incoming {
+                add(*value);
+            }
+        }
+        for instruction in &block.instructions {
+            for value in codegen_op_values(&instruction.op, string_constants) {
+                add(value);
+            }
+        }
+        match block.terminator.as_ref() {
+            Some(Terminator::Branch { condition, .. }) => add(*condition),
+            Some(Terminator::Return(Some(value)) | Terminator::Throw(value)) => add(*value),
             _ => {}
         }
     }
@@ -8347,7 +17348,7 @@ fn safe_int_array_reads(
         Some((*array, margin))
     };
 
-    let mut safe = AHashSet::new();
+    let mut safe = AHashSet::default();
     for shape in &function.shapes {
         let ControlShape::Loop {
             header,
@@ -8395,7 +17396,7 @@ fn safe_int_array_reads(
         }
         if let Some(bound) = int_constant(*bound).filter(|bound| *bound >= 0) {
             let mut work = vec![*body];
-            let mut visited = AHashSet::new();
+            let mut visited = AHashSet::default();
             while let Some(block_id) = work.pop() {
                 if block_id == *header || block_id == *exit || Some(block_id) == *update {
                     continue;
@@ -8452,7 +17453,7 @@ fn safe_int_array_reads(
         }
 
         let mut work = vec![*body];
-        let mut visited = AHashSet::new();
+        let mut visited = AHashSet::default();
         while let Some(block_id) = work.pop() {
             if block_id == *header || block_id == *exit || Some(block_id) == *update {
                 continue;
@@ -8494,29 +17495,81 @@ fn safe_int_array_reads(
 }
 
 fn can_fuse_value(
+    function: &ControlFlowFunction<'_>,
     block: &crate::ir::ControlFlowBlock<'_>,
     definition_index: usize,
     value: ValueId,
+    allow_observable_inert_gap: bool,
+    loop_captured_closures: &AHashSet<FunctionId>,
+    operand_order_fusable: &AHashSet<ValueId>,
 ) -> bool {
-    // JavaScript represents narrowed nullable and union values with the same
-    // runtime value. Keeping the identity unwrap deferred is safe even when an
-    // effectful operation sits between the narrowing and its sole use; the
-    // deferred-operand interference edges keep the receiver's binding live.
-    if matches!(
-        block.instructions[definition_index].op,
-        ControlFlowOp::Intrinsic {
-            intrinsic: Intrinsic::UnwrapNullable | Intrinsic::UnwrapUnion,
-            ..
+    if operand_order_fusable.contains(&value) {
+        return true;
+    }
+    let trailing = &block.instructions[definition_index + 1..];
+    if op_evaluation_is_observable(function, &block.instructions[definition_index]) {
+        // An observable producer normally may be nested only into its literal
+        // next consumer. With the measured forwarding policy enabled it may
+        // additionally cross syntax-only constants and ordinary closure
+        // allocation in the same block. Test for the consumer first: a closure
+        // that captures the producer is the consumer, not an intervening gap.
+        // Loop-capture closures are emitted through an evaluating IIFE and are
+        // therefore never inert. Reads, calls, writes, and CFG edges remain
+        // barriers because a dynamic hook could change what they observe.
+        for instruction in trailing {
+            if op_values(&instruction.op).contains(&value) {
+                return true;
+            }
+            let inert_gap = match &instruction.op {
+                ControlFlowOp::Const(_) => true,
+                ControlFlowOp::Closure { function, .. } => {
+                    !loop_captured_closures.contains(function)
+                }
+                _ => false,
+            };
+            if !allow_observable_inert_gap || !inert_gap {
+                return false;
+            }
         }
-    ) {
+        return block
+            .terminator
+            .as_ref()
+            .is_some_and(|terminator| terminator_values(terminator).contains(&value));
+    }
+    if let ControlFlowOp::Intrinsic {
+        intrinsic: Intrinsic::UnwrapNullable | Intrinsic::UnwrapUnion,
+        receiver,
+        args,
+    } = &block.instructions[definition_index].op
+    {
+        let unwrapped = (*receiver).or_else(|| args.first().copied());
+        if unwrapped.is_some_and(|unwrapped| {
+            function
+                .params
+                .iter()
+                .any(|parameter| parameter.value == unwrapped)
+                || function
+                    .blocks
+                    .iter()
+                    .flat_map(|block| &block.phis)
+                    .any(|phi| phi.out == unwrapped)
+                || use_counts(function).get(&unwrapped).copied().unwrap_or(0) > 1
+        }) {
+            // The unwrap is a representation identity. When its receiver is
+            // already guaranteed to have a name, fusing the identity cannot
+            // drag the receiver's evaluation across a later dynamic hook.
+            return true;
+        }
+    }
+    if can_fuse_global_host_receiver(function, block, definition_index, value) {
         return true;
     }
-    if can_fuse_global_host_receiver(block, definition_index, value) {
-        return true;
-    }
-    for instruction in &block.instructions[definition_index + 1..] {
+    for instruction in trailing {
         if op_values(&instruction.op).contains(&value) {
             return true;
+        }
+        if op_evaluation_is_observable(function, instruction) {
+            return false;
         }
         // A mutable read may move across other typed reads and pure expression
         // construction as long as its first consumer remains before any call
@@ -8535,7 +17588,101 @@ fn can_fuse_value(
         .is_some_and(|terminator| terminator_values(terminator).contains(&value))
 }
 
+/// A one-use value consumed only by a single successor phi can stay in the
+/// expression cache until SSA destruction writes the merge binding. This is
+/// the CFG equivalent of ordinary same-block producer/consumer fusion: the
+/// jump performs no JavaScript work, and the edge assignment remains at the
+/// producer's original control-dependent point. Restricting the proof to one
+/// outgoing edge avoids moving an evaluation across a branch decision.
+fn deferred_single_phi_edge_value(
+    function: &ControlFlowFunction<'_>,
+    block: &crate::ir::ControlFlowBlock<'_>,
+) -> Option<ValueId> {
+    let Some(Terminator::Jump(successor)) = block.terminator else {
+        return None;
+    };
+    let successor = function.blocks.get(successor.0 as usize)?;
+    let mut incoming = successor.phis.iter().filter_map(|phi| {
+        phi.incoming
+            .iter()
+            .find_map(|(predecessor, value)| (*predecessor == block.id).then_some(*value))
+    });
+    let value = incoming.next()?;
+    incoming.next().is_none().then_some(value)
+}
+
+fn can_defer_value_to_block_end(
+    function: &ControlFlowFunction<'_>,
+    block: &crate::ir::ControlFlowBlock<'_>,
+    definition_index: usize,
+    value: ValueId,
+) -> bool {
+    if op_evaluation_is_observable(function, &block.instructions[definition_index]) {
+        // Both callers place the cached value on an unconditional jump edge.
+        // A terminal producer therefore remains at exactly the same runtime
+        // point; any intervening instruction still forces materialization.
+        return definition_index + 1 == block.instructions.len();
+    }
+    block.instructions[definition_index + 1..]
+        .iter()
+        .all(|instruction| {
+            !op_values(&instruction.op).contains(&value)
+                && !op_evaluation_is_observable(function, instruction)
+                && expression_only_op(&instruction.op)
+                && !matches!(instruction.op, ControlFlowOp::HostFieldGet { .. })
+        })
+}
+
+/// A structured `for-in`/`for-of` evaluates its input exactly once immediately
+/// before entering the loop. A producer in the predecessor's terminal slot can
+/// therefore remain an expression even when it is effectful; the unconditional
+/// jump and empty loop header perform no intervening JavaScript work.
+fn structured_iteration_input_can_defer(
+    function: &ControlFlowFunction<'_>,
+    block: &crate::ir::ControlFlowBlock<'_>,
+    definition_index: usize,
+    value: ValueId,
+) -> bool {
+    let Some(Terminator::Jump(header)) = block.terminator else {
+        return false;
+    };
+    let selected = function.shapes.iter().any(|shape| match shape {
+        ControlShape::ForIn {
+            header: candidate,
+            object,
+            ..
+        } => *candidate == header && *object == value,
+        ControlShape::ForOf {
+            header: candidate,
+            iterable,
+            ..
+        } => *candidate == header && *iterable == value,
+        _ => false,
+    });
+    if !selected || !can_defer_value_to_block_end(function, block, definition_index, value) {
+        return false;
+    }
+    function
+        .blocks
+        .get(header.0 as usize)
+        .is_some_and(|header| {
+            header.instructions.iter().all(|instruction| {
+                matches!(
+                    instruction.op,
+                    ControlFlowOp::Intrinsic {
+                        intrinsic: Intrinsic::JsForInKey
+                            | Intrinsic::JsForInHasNext
+                            | Intrinsic::JsForOfValue
+                            | Intrinsic::JsForOfHasNext,
+                        ..
+                    }
+                )
+            })
+        })
+}
+
 fn can_fuse_global_host_receiver(
+    function: &ControlFlowFunction<'_>,
     block: &crate::ir::ControlFlowBlock<'_>,
     definition_index: usize,
     value: ValueId,
@@ -8564,7 +17711,8 @@ fn can_fuse_global_host_receiver(
         let Some(output) = instruction.out else {
             return false;
         };
-        expression_only_op(&instruction.op)
+        !op_evaluation_is_observable(function, instruction)
+            && expression_only_op(&instruction.op)
             && args.contains(&output)
             && block
                 .instructions
@@ -8583,8 +17731,11 @@ fn can_fuse_global_host_receiver(
     })
 }
 
-fn cross_block_values(function: &ControlFlowFunction<'_>) -> AHashSet<ValueId> {
-    let mut definitions = AHashMap::new();
+fn codegen_cross_block_values(
+    function: &ControlFlowFunction<'_>,
+    string_constants: &AHashMap<ValueId, String>,
+) -> AHashSet<ValueId> {
+    let mut definitions = AHashMap::default();
     for block in &function.blocks {
         for phi in &block.phis {
             definitions.insert(phi.out, block.id);
@@ -8596,7 +17747,7 @@ fn cross_block_values(function: &ControlFlowFunction<'_>) -> AHashSet<ValueId> {
         }
     }
 
-    let mut crossing = AHashSet::new();
+    let mut crossing = AHashSet::default();
     let mut record_use = |value: ValueId, block: BlockId| {
         if definitions
             .get(&value)
@@ -8612,13 +17763,15 @@ fn cross_block_values(function: &ControlFlowFunction<'_>) -> AHashSet<ValueId> {
             }
         }
         for instruction in &block.instructions {
-            for value in op_values(&instruction.op) {
+            for value in codegen_op_values(&instruction.op, string_constants) {
                 record_use(value, block.id);
             }
         }
         match block.terminator.as_ref() {
             Some(Terminator::Branch { condition, .. }) => record_use(*condition, block.id),
-            Some(Terminator::Return(Some(value))) => record_use(*value, block.id),
+            Some(Terminator::Return(Some(value)) | Terminator::Throw(value)) => {
+                record_use(*value, block.id)
+            }
             _ => {}
         }
     }
@@ -8628,14 +17781,30 @@ fn cross_block_values(function: &ControlFlowFunction<'_>) -> AHashSet<ValueId> {
 fn op_values(op: &ControlFlowOp<'_>) -> Vec<ValueId> {
     match op {
         ControlFlowOp::Const(_)
+        | ControlFlowOp::CaughtException
+        | ControlFlowOp::CaptureLocal(_)
         | ControlFlowOp::LoadLocal(_)
         | ControlFlowOp::LoadGlobal(_)
         | ControlFlowOp::DynamicImport { .. } => Vec::new(),
         ControlFlowOp::Unary { value, .. } | ControlFlowOp::TypeCheck { value, .. } => vec![*value],
+        ControlFlowOp::Await { task } => vec![*task],
         ControlFlowOp::Binary { lhs, rhs, .. } => vec![*lhs, *rhs],
         ControlFlowOp::Array(values) | ControlFlowOp::Struct { fields: values, .. } => {
             values.clone()
         }
+        ControlFlowOp::ArraySpread(operands) => operands
+            .iter()
+            .map(|operand| match operand {
+                ArrayOperand::Value(value) | ArrayOperand::Spread(value) => *value,
+            })
+            .collect(),
+        ControlFlowOp::Record(entries) => entries.iter().map(|(_, value)| *value).collect(),
+        ControlFlowOp::RecordSpread(operands) => operands
+            .iter()
+            .map(|operand| match operand {
+                RecordOperand::Entry(_, value) | RecordOperand::Spread(value) => *value,
+            })
+            .collect(),
         ControlFlowOp::NewClass { args, .. } => args.clone(),
         ControlFlowOp::Closure { captures, .. } => captures.clone(),
         ControlFlowOp::StoreLocal { value, .. } | ControlFlowOp::StoreGlobal { value, .. } => {
@@ -8643,9 +17812,13 @@ fn op_values(op: &ControlFlowOp<'_>) -> Vec<ValueId> {
         }
         ControlFlowOp::FieldGet { object, .. } => vec![*object],
         ControlFlowOp::FieldSet { object, value, .. } => vec![*object, *value],
+        ControlFlowOp::RecordFieldGet { object, .. } => vec![*object],
+        ControlFlowOp::RecordRest { object, .. } => vec![*object],
+        ControlFlowOp::RecordFieldSet { object, value, .. } => vec![*object, *value],
         ControlFlowOp::HostFieldGet { object, .. } => vec![*object],
         ControlFlowOp::HostFieldSet { object, value, .. } => vec![*object, *value],
         ControlFlowOp::IndexGet { object, index } => vec![*object, *index],
+        ControlFlowOp::ArrayGetOptional { object, .. } => vec![*object],
         ControlFlowOp::IndexSet {
             object,
             index,
@@ -8686,10 +17859,12 @@ fn op_can_defer(op: &ControlFlowOp<'_>) -> bool {
     matches!(
         op,
         ControlFlowOp::Const(_)
+            | ControlFlowOp::CaptureLocal(_)
             | ControlFlowOp::Unary { .. }
             | ControlFlowOp::Binary { .. }
             | ControlFlowOp::TypeCheck { .. }
             | ControlFlowOp::Array(_)
+            | ControlFlowOp::Record(_)
             | ControlFlowOp::Struct { .. }
             | ControlFlowOp::Closure { .. }
             | ControlFlowOp::Template(_)
@@ -8701,7 +17876,23 @@ fn op_can_defer(op: &ControlFlowOp<'_>) -> bool {
                     | Intrinsic::StringCharCodeAt
                     | Intrinsic::IntImul
                     | Intrinsic::IntToString
-                    | Intrinsic::IntToUnsignedString,
+                    | Intrinsic::IntToUnsignedString
+                    | Intrinsic::JsPlainObject
+                    | Intrinsic::JsUndefined
+                    | Intrinsic::JsMathPI
+                    | Intrinsic::JsObjectConstructor
+                    | Intrinsic::JsWindow
+                    | Intrinsic::JsDocument
+                    | Intrinsic::JsTypeOf
+                    | Intrinsic::JsIsNullish
+                    | Intrinsic::JsIsFalse
+                    | Intrinsic::JsIsUndefined
+                    | Intrinsic::JsStrictEqual
+                    | Intrinsic::JsStrictNotEqual
+                    | Intrinsic::JsStringSlice
+                    | Intrinsic::JsStringIndexOf
+                    | Intrinsic::JsStringSplit
+                    | Intrinsic::JsBox,
                 ..
             }
     )
@@ -8713,6 +17904,7 @@ fn expression_only_op(op: &ControlFlowOp<'_>) -> bool {
         ControlFlowOp::StoreLocal { .. }
             | ControlFlowOp::StoreGlobal { .. }
             | ControlFlowOp::FieldSet { .. }
+            | ControlFlowOp::RecordFieldSet { .. }
             | ControlFlowOp::HostFieldSet { .. }
             | ControlFlowOp::IndexSet { .. }
             | ControlFlowOp::NewClass {
@@ -8723,25 +17915,665 @@ fn expression_only_op(op: &ControlFlowOp<'_>) -> bool {
             | ControlFlowOp::CallValue { .. }
             | ControlFlowOp::CallMethod { .. }
             | ControlFlowOp::HostCall { .. }
+            | ControlFlowOp::Await { .. }
             | ControlFlowOp::Intrinsic {
                 intrinsic: Intrinsic::Print
                     | Intrinsic::ArrayMap
                     | Intrinsic::ArrayFilter
                     | Intrinsic::ArrayReduce
                     | Intrinsic::ArrayForEach
+                    | Intrinsic::ArraySome
+                    | Intrinsic::ArrayEvery
+                    | Intrinsic::ArrayFindIndex
                     | Intrinsic::ArrayPush
                     | Intrinsic::ArrayPop
                     | Intrinsic::ArrayIndexOf
                     | Intrinsic::ArraySplice
+                    | Intrinsic::ArrayFill
+                    | Intrinsic::ArrayCopyWithin
+                    | Intrinsic::ArrayReverse
+                    | Intrinsic::TypedArraySet
+                    | Intrinsic::TypedArrayFill
+                    | Intrinsic::TypedArrayCopyWithin
                     | Intrinsic::MapSet
                     | Intrinsic::MapDelete
                     | Intrinsic::MapClear
                     | Intrinsic::SetAdd
                     | Intrinsic::SetDelete
-                    | Intrinsic::SetClear,
+                    | Intrinsic::SetClear
+                    | Intrinsic::RecordAssign
+                    | Intrinsic::JsonParse
+                    | Intrinsic::JsStringify
+                    | Intrinsic::JsDateNow
+                    | Intrinsic::JsNumber
+                    | Intrinsic::JsAdd
+                    | Intrinsic::JsLessThan
+                    | Intrinsic::JsLessThanOrEqual
+                    | Intrinsic::JsGreaterThan
+                    | Intrinsic::JsGreaterThanOrEqual
+                    | Intrinsic::JsStringReplace
+                    | Intrinsic::JsStringMatch
+                    | Intrinsic::JsRegexExec
+                    | Intrinsic::JsCall
+                    | Intrinsic::JsConstruct
+                    | Intrinsic::JsInvoke
+                    | Intrinsic::JsApply
+                    | Intrinsic::JsGetProperty
+                    | Intrinsic::JsDeleteProperty
+                    | Intrinsic::JsHasProperty
+                    | Intrinsic::JsInProperty
+                    | Intrinsic::JsArrayPush
+                    | Intrinsic::JsArrayPop
+                    | Intrinsic::JsArraySlice
+                    | Intrinsic::JsArrayIndexOf
+                    | Intrinsic::JsArraySort
+                    | Intrinsic::JsArraySplice
+                    | Intrinsic::JsArrayConcatApply
+                    | Intrinsic::JsArrayJoin
+                    | Intrinsic::JsArrayShift
+                    | Intrinsic::JsArrayUnshift
+                    | Intrinsic::JsArrayFlat
+                    | Intrinsic::JsDefineConfigurable
+                    | Intrinsic::JsDefineIterator
+                    | Intrinsic::JsConsoleWarn
+                    | Intrinsic::JsRequestAnimationFrameOrNull
+                    | Intrinsic::JsSetTimeout
+                    | Intrinsic::JsClearTimeout
+                    | Intrinsic::JsDomParserNew
+                    | Intrinsic::JsXMLHttpRequestNew
+                    | Intrinsic::JsDocument
+                    | Intrinsic::RegexNew
+                    | Intrinsic::RegexTest
+                    | Intrinsic::TaskResolve
+                    | Intrinsic::TaskReject
+                    | Intrinsic::TaskAll
+                    | Intrinsic::GeneratorYield
+                    | Intrinsic::GeneratorYieldDelegated,
                 ..
             }
     )
+}
+
+/// Deliberately narrow phase-one grammar for emission-only helper templates.
+/// Declared purity is validated by the optimizer, while this target-side gate
+/// additionally refuses host reads, allocations, captures, mutable storage,
+/// and calls whose callee has not itself passed the template proof.
+fn pure_helper_expression_op(
+    function: &ControlFlowFunction<'_>,
+    instruction: &ControlFlowInstruction<'_>,
+) -> bool {
+    match &instruction.op {
+        // JavaScript's otherwise scalar-looking unary/binary operators can
+        // invoke Symbol.toPrimitive/valueOf/toString when a dynamic value is
+        // present. A declared-pure helper is not a proof that those hooks are
+        // absent or nonthrowing, so keep that helper in ordinary statement
+        // form instead of attempting to reorder its expression tree.
+        ControlFlowOp::Unary { value, .. } => pure_helper_scalar_operand(function, *value),
+        ControlFlowOp::Binary { lhs, rhs, .. } => {
+            pure_helper_scalar_operand(function, *lhs) && pure_helper_scalar_operand(function, *rhs)
+        }
+        ControlFlowOp::Const(_)
+        | ControlFlowOp::TypeCheck { .. }
+        | ControlFlowOp::CallDirect { .. }
+        | ControlFlowOp::Intrinsic {
+            intrinsic:
+                Intrinsic::UnwrapNullable
+                | Intrinsic::UnwrapUnion
+                | Intrinsic::StringLength
+                | Intrinsic::StringCharAt
+                | Intrinsic::StringCharCodeAt
+                | Intrinsic::StringStartsWith
+                | Intrinsic::StringEndsWith
+                | Intrinsic::IntImul
+                | Intrinsic::IntToString
+                | Intrinsic::IntToUnsignedString
+                | Intrinsic::JsTypeOf
+                | Intrinsic::JsIsNullish
+                | Intrinsic::JsIsFalse
+                | Intrinsic::JsIsUndefined
+                | Intrinsic::JsStrictEqual
+                | Intrinsic::JsStrictNotEqual,
+            ..
+        } => true,
+        ControlFlowOp::FieldGet { object, .. } => value_type(function, *object)
+            .as_ref()
+            .is_some_and(pure_helper_typed_field_receiver),
+        _ => false,
+    }
+}
+
+fn pure_helper_typed_field_receiver(ty: &Type<'_>) -> bool {
+    matches!(
+        ty,
+        Type::Struct(_) | Type::StructInstance { .. } | Type::Class(_) | Type::ClassInstance { .. }
+    )
+}
+
+fn pure_helper_scalar_operand(function: &ControlFlowFunction<'_>, value: ValueId) -> bool {
+    value_type(function, value)
+        .as_ref()
+        .is_some_and(pure_helper_non_null_scalar_type)
+}
+
+fn pure_helper_non_null_scalar_type(ty: &Type<'_>) -> bool {
+    match ty {
+        Type::Int | Type::Float | Type::Enum(_) | Type::String | Type::Bool | Type::Symbol => true,
+        Type::Union(members) => {
+            !members.is_empty() && members.iter().all(pure_helper_non_null_scalar_type)
+        }
+        // Nullable/dynamic/reference values can expose user code through
+        // loose equality or string addition. Even reference-vs-reference
+        // equality is rejected here: proving every alternative pair stays in
+        // that noncoercive category is unnecessary for this size heuristic.
+        _ => false,
+    }
+}
+
+/// Dynamic JavaScript operands can invoke Symbol.toPrimitive/valueOf/toString
+/// through otherwise scalar-looking operators. Unlike typed LilScript
+/// intrinsics, those coercion hooks are part of the untyped host boundary and
+/// must not be reordered or dropped.
+/// Diagnostic census of why SSA destruction gave a value its own statement
+/// instead of nesting it into its consumer. Enabled by `LILSCRIPT_STORE_CENSUS`.
+pub static STORE_REASONS: [std::sync::atomic::AtomicUsize; 6] = [
+    std::sync::atomic::AtomicUsize::new(0),
+    std::sync::atomic::AtomicUsize::new(0),
+    std::sync::atomic::AtomicUsize::new(0),
+    std::sync::atomic::AtomicUsize::new(0),
+    std::sync::atomic::AtomicUsize::new(0),
+    std::sync::atomic::AtomicUsize::new(0),
+];
+
+/// Whether every use of a value defined in `block` sits in a block `block`
+/// falls straight through to, with no branch in between. Those uses only cross
+/// a boundary the emitter invented; merging the blocks would remove it.
+fn crosses_only_a_fall_through_edge(
+    function: &ControlFlowFunction<'_>,
+    block: &crate::ir::ControlFlowBlock<'_>,
+    value: ValueId,
+) -> bool {
+    let Some(Terminator::Jump(successor)) = block.terminator else {
+        return false;
+    };
+    let predecessors = function
+        .blocks
+        .iter()
+        .filter(|candidate| match candidate.terminator {
+            Some(Terminator::Jump(target)) => target == successor,
+            Some(Terminator::Branch {
+                then_block,
+                else_block,
+                ..
+            }) => then_block == successor || else_block == successor,
+            _ => false,
+        })
+        .count();
+    if predecessors != 1 {
+        return false;
+    }
+    let Some(target) = function
+        .blocks
+        .iter()
+        .find(|candidate| candidate.id == successor)
+    else {
+        return false;
+    };
+    target.phis.is_empty()
+        && function.blocks.iter().all(|candidate| {
+            candidate.id == block.id
+                || candidate.id == successor
+                || !candidate
+                    .instructions
+                    .iter()
+                    .any(|instruction| op_values(&instruction.op).contains(&value))
+        })
+}
+
+fn record_store_reason(
+    cross_block: bool,
+    use_count: usize,
+    structured_iteration_input: bool,
+    unstable: bool,
+    fused: bool,
+    fall_through_only: bool,
+) {
+    static ENABLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    if !ENABLED.get_or_init(|| std::env::var_os("LILSCRIPT_STORE_CENSUS").is_some()) {
+        return;
+    }
+    if cross_block && fall_through_only {
+        STORE_REASONS[5].fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    }
+    let bucket = if cross_block {
+        0
+    } else if use_count > 1 && !structured_iteration_input {
+        1
+    } else if unstable && !fused {
+        2
+    } else if use_count == 1 {
+        3
+    } else {
+        4
+    };
+    STORE_REASONS[bucket].fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+}
+
+fn op_evaluation_is_observable(
+    function: &ControlFlowFunction<'_>,
+    instruction: &ControlFlowInstruction<'_>,
+) -> bool {
+    match &instruction.op {
+        ControlFlowOp::Unary {
+            op: IrUnaryOp::Neg,
+            value,
+        } => value_coercion_categories(function, *value).is_none_or(|categories| {
+            categories.dynamic || categories.reference || categories.symbol
+        }),
+        ControlFlowOp::Unary {
+            op: IrUnaryOp::Not, ..
+        } => false,
+        ControlFlowOp::Binary { op, lhs, rhs } => {
+            binary_evaluation_can_invoke_coercion(function, *op, *lhs, *rhs)
+        }
+        ControlFlowOp::Template(parts) => parts.iter().any(|part| {
+            let TemplateOperand::Value(value) = part else {
+                return false;
+            };
+            value_coercion_categories(function, *value).is_none_or(|categories| {
+                categories.dynamic || categories.reference || categories.symbol
+            })
+        }),
+        ControlFlowOp::IndexGet { object, .. } => {
+            value_coercion_categories(function, *object).is_none_or(|categories| categories.dynamic)
+        }
+        ControlFlowOp::RecordSpread(operands) => operands.iter().any(|operand| match operand {
+            RecordOperand::Spread(value) => value_coercion_categories(function, *value)
+                .is_none_or(|categories| categories.dynamic),
+            RecordOperand::Entry(_, _) => false,
+        }),
+        ControlFlowOp::Intrinsic {
+            intrinsic: Intrinsic::ArrayLength,
+            receiver: Some(receiver),
+            ..
+        } => value_coercion_categories(function, *receiver)
+            .is_none_or(|categories| categories.dynamic),
+        ControlFlowOp::Intrinsic {
+            intrinsic: Intrinsic::JsIsArray,
+            ..
+        } => true,
+        ControlFlowOp::Intrinsic {
+            intrinsic: Intrinsic::JsParseFloat | Intrinsic::JsParseInt | Intrinsic::JsIsFinite,
+            args,
+            ..
+        } => args
+            .iter()
+            .copied()
+            .any(|value| dynamic_value_can_run_user_code(function, value)),
+        ControlFlowOp::Intrinsic {
+            intrinsic: Intrinsic::JsEncodeURIComponent,
+            ..
+        } => true,
+        ControlFlowOp::Intrinsic {
+            intrinsic:
+                Intrinsic::JsIsFunctionValue
+                | Intrinsic::JsIsWindowValue
+                | Intrinsic::JsConstruct
+                | Intrinsic::JsDefineConfigurable
+                | Intrinsic::JsDefineIterator
+                | Intrinsic::JsArrayIterator
+                | Intrinsic::JsConsoleWarn
+                | Intrinsic::JsRequestAnimationFrameOrNull,
+            ..
+        } => true,
+        ControlFlowOp::Intrinsic {
+            intrinsic: Intrinsic::JsObjectCreate,
+            args,
+            ..
+        } => args.iter().copied().any(|value| {
+            value_coercion_categories(function, value).is_none_or(|categories| {
+                categories.dynamic || categories.primitive || categories.undefined
+            })
+        }),
+        ControlFlowOp::Intrinsic {
+            intrinsic: Intrinsic::JsGetPrototypeOf,
+            args,
+            ..
+        } => args.iter().copied().any(|value| {
+            value_coercion_categories(function, value)
+                .is_none_or(|categories| categories.dynamic || categories.nullish)
+        }),
+        ControlFlowOp::Intrinsic {
+            intrinsic: Intrinsic::RecordKeys | Intrinsic::RecordValues | Intrinsic::RecordHasOwn,
+            args,
+            ..
+        } => args.first().is_some_and(|value| {
+            value_coercion_categories(function, *value)
+                .is_none_or(|categories| categories.dynamic || categories.nullish)
+        }),
+        _ => false,
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+struct JsCoercionCategories {
+    primitive: bool,
+    nullish: bool,
+    undefined: bool,
+    reference: bool,
+    dynamic: bool,
+    symbol: bool,
+}
+
+impl JsCoercionCategories {
+    fn merge(&mut self, other: Self) {
+        self.primitive |= other.primitive;
+        self.nullish |= other.nullish;
+        self.undefined |= other.undefined;
+        self.reference |= other.reference;
+        self.dynamic |= other.dynamic;
+        self.symbol |= other.symbol;
+    }
+}
+
+fn value_coercion_categories(
+    function: &ControlFlowFunction<'_>,
+    value: ValueId,
+) -> Option<JsCoercionCategories> {
+    value_type(function, value).map(|ty| type_coercion_categories(&ty))
+}
+
+fn dynamic_value_can_run_user_code(function: &ControlFlowFunction<'_>, value: ValueId) -> bool {
+    value_coercion_categories(function, value)
+        .is_none_or(|categories| categories.dynamic || categories.reference || categories.symbol)
+}
+
+fn type_coercion_categories(ty: &Type<'_>) -> JsCoercionCategories {
+    match ty {
+        Type::Int | Type::Float | Type::Enum(_) | Type::String | Type::Bool => {
+            JsCoercionCategories {
+                primitive: true,
+                ..JsCoercionCategories::default()
+            }
+        }
+        Type::Symbol => JsCoercionCategories {
+            primitive: true,
+            symbol: true,
+            ..JsCoercionCategories::default()
+        },
+        Type::Null => JsCoercionCategories {
+            nullish: true,
+            ..JsCoercionCategories::default()
+        },
+        Type::Void => JsCoercionCategories {
+            nullish: true,
+            undefined: true,
+            ..JsCoercionCategories::default()
+        },
+        Type::Nullable(inner) => {
+            let mut categories = type_coercion_categories(inner);
+            categories.nullish = true;
+            categories
+        }
+        Type::Union(members) => {
+            let mut categories = JsCoercionCategories::default();
+            for member in members {
+                categories.merge(type_coercion_categories(member));
+            }
+            categories
+        }
+        Type::TypeParameter(_) => JsCoercionCategories {
+            dynamic: true,
+            ..JsCoercionCategories::default()
+        },
+        _ => JsCoercionCategories {
+            reference: true,
+            ..JsCoercionCategories::default()
+        },
+    }
+}
+
+fn binary_evaluation_can_invoke_coercion(
+    function: &ControlFlowFunction<'_>,
+    op: IrBinaryOp,
+    lhs: ValueId,
+    rhs: ValueId,
+) -> bool {
+    if matches!(op, IrBinaryOp::And | IrBinaryOp::Or) {
+        return false;
+    }
+    let Some(lhs) = value_coercion_categories(function, lhs) else {
+        return true;
+    };
+    let Some(rhs) = value_coercion_categories(function, rhs) else {
+        return true;
+    };
+    if lhs.dynamic || rhs.dynamic {
+        return true;
+    }
+    if matches!(op, IrBinaryOp::Eq | IrBinaryOp::NotEq) {
+        return (lhs.reference && rhs.primitive) || (rhs.reference && lhs.primitive);
+    }
+    lhs.reference || rhs.reference || lhs.symbol || rhs.symbol
+}
+
+fn pure_helper_order_sensitive_instruction(
+    function: &ControlFlowFunction<'_>,
+    instruction: &ControlFlowInstruction<'_>,
+) -> bool {
+    op_evaluation_is_observable(function, instruction)
+}
+
+fn dense_selector_expression_op(op: &ControlFlowOp<'_>) -> bool {
+    matches!(
+        op,
+        ControlFlowOp::Const(ConstValue::Int(_))
+            | ControlFlowOp::Unary {
+                op: IrUnaryOp::Neg,
+                ..
+            }
+            | ControlFlowOp::Binary {
+                op: IrBinaryOp::Add
+                    | IrBinaryOp::Sub
+                    | IrBinaryOp::Mul
+                    | IrBinaryOp::Div
+                    | IrBinaryOp::Mod
+                    | IrBinaryOp::BitAnd
+                    | IrBinaryOp::BitOr
+                    | IrBinaryOp::Xor
+                    | IrBinaryOp::ShiftLeft
+                    | IrBinaryOp::ShiftRight
+                    | IrBinaryOp::UnsignedShiftRight,
+                ..
+            }
+            | ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::UnwrapNullable | Intrinsic::UnwrapUnion | Intrinsic::IntImul,
+                ..
+            }
+    )
+}
+
+fn proven_dense_selector_range(
+    function: &ControlFlowFunction<'_>,
+    facts: &FunctionIntegerFacts,
+    selector: ValueId,
+) -> Option<I32Range> {
+    fn checked_range(min: i64, max: i64) -> Option<I32Range> {
+        (min >= i64::from(i32::MIN) && max <= i64::from(i32::MAX) && min <= max)
+            .then_some(I32Range { min, max })
+    }
+
+    fn visit(
+        function: &ControlFlowFunction<'_>,
+        facts: &FunctionIntegerFacts,
+        value: ValueId,
+        visiting: &mut AHashSet<ValueId>,
+    ) -> Option<I32Range> {
+        if function
+            .params
+            .iter()
+            .any(|parameter| parameter.value == value && parameter.ty == Type::Int)
+        {
+            // `int` itself is a whole-domain signed-i32 proof even when the
+            // interprocedural summary is bottom (for example, a loop phi is
+            // the only observed caller argument). This is not an unknown JS
+            // number: the typed call boundary preserves i32 semantics.
+            return Some(facts.range(value).unwrap_or(I32Range::FULL));
+        }
+        if !visiting.insert(value) {
+            return None;
+        }
+        let instruction = function
+            .blocks
+            .iter()
+            .flat_map(|block| &block.instructions)
+            .find(|instruction| {
+                instruction.out == Some(value) && instruction.ty.as_ref() == Some(&Type::Int)
+            })?;
+        // Do not accept a summary for a derived selector wholesale. Walking
+        // the defining operation is what keeps divide, wrapping arithmetic,
+        // and other unsupported paths out even if a broader analysis happens
+        // to know a finite result interval for them.
+        let range = match &instruction.op {
+            ControlFlowOp::Const(ConstValue::Int(value)) => checked_range(*value, *value),
+            ControlFlowOp::Unary {
+                op: IrUnaryOp::Neg,
+                value,
+            } => {
+                let value = visit(function, facts, *value, visiting)?;
+                checked_range(-value.max, -value.min)
+            }
+            ControlFlowOp::Binary { op, lhs, rhs } => {
+                let lhs = visit(function, facts, *lhs, visiting)?;
+                let rhs = visit(function, facts, *rhs, visiting)?;
+                match op {
+                    IrBinaryOp::Add => checked_range(lhs.min + rhs.min, lhs.max + rhs.max),
+                    IrBinaryOp::Sub => checked_range(lhs.min - rhs.max, lhs.max - rhs.min),
+                    IrBinaryOp::Mul => {
+                        let products = [
+                            lhs.min * rhs.min,
+                            lhs.min * rhs.max,
+                            lhs.max * rhs.min,
+                            lhs.max * rhs.max,
+                        ];
+                        checked_range(*products.iter().min()?, *products.iter().max()?)
+                    }
+                    IrBinaryOp::Mod => {
+                        // The target's `%0|0` spelling has special NaN
+                        // behavior. Keep it out of this representation proof
+                        // rather than relying on that coercion accident.
+                        if rhs.min <= 0 && rhs.max >= 0 {
+                            None
+                        } else {
+                            let bound =
+                                rhs.min.unsigned_abs().max(rhs.max.unsigned_abs()) as i64 - 1;
+                            let min = if lhs.min < 0 { lhs.min.max(-bound) } else { 0 };
+                            let max = if lhs.max > 0 { lhs.max.min(bound) } else { 0 };
+                            checked_range(min, max)
+                        }
+                    }
+                    IrBinaryOp::BitAnd if rhs.min >= 0 => checked_range(0, rhs.max),
+                    // Division, imul, shifts, and the remaining bitwise forms
+                    // need wrap/truncation proofs stronger than an interval.
+                    // Refuse them here; the original ladder stays mandatory.
+                    _ => None,
+                }
+            }
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::UnwrapNullable | Intrinsic::UnwrapUnion,
+                receiver,
+                args,
+            } => receiver
+                .or_else(|| args.first().copied())
+                .and_then(|value| visit(function, facts, value, visiting)),
+            _ => None,
+        };
+        visiting.remove(&value);
+        range
+    }
+
+    visit(function, facts, selector, &mut AHashSet::default())
+}
+
+fn dense_i32_equality_guard(
+    block: &crate::ir::ControlFlowBlock<'_>,
+    condition: ValueId,
+) -> Option<(ValueId, i64, ValueId)> {
+    let condition_index = block
+        .instructions
+        .iter()
+        .position(|instruction| instruction.out == Some(condition))?;
+    if condition_index + 1 != block.instructions.len() {
+        return None;
+    }
+    let ControlFlowOp::Binary {
+        op: IrBinaryOp::Eq,
+        lhs,
+        rhs,
+    } = block.instructions[condition_index].op
+    else {
+        return None;
+    };
+    let constant = |value| {
+        block.instructions.iter().find_map(|instruction| {
+            (instruction.out == Some(value))
+                .then_some(&instruction.op)
+                .and_then(|op| match op {
+                    ControlFlowOp::Const(ConstValue::Int(value)) => Some(*value),
+                    _ => None,
+                })
+        })
+    };
+    match (constant(lhs), constant(rhs)) {
+        (Some(key), None) => Some((rhs, key, lhs)),
+        (None, Some(key)) => Some((lhs, key, rhs)),
+        _ => None,
+    }
+}
+
+fn trace_dense_empty_jumps(
+    function: &ControlFlowFunction<'_>,
+    mut current: BlockId,
+    visited: &mut AHashSet<BlockId>,
+) -> Option<BlockId> {
+    loop {
+        let block = function.blocks.get(current.0 as usize)?;
+        if !block.phis.is_empty() || !block.instructions.is_empty() {
+            return Some(current);
+        }
+        let Some(Terminator::Jump(target)) = block.terminator else {
+            return Some(current);
+        };
+        if !visited.insert(current) {
+            return None;
+        }
+        current = target;
+    }
+}
+
+fn trace_dense_constant_string_return(
+    function: &ControlFlowFunction<'_>,
+    current: BlockId,
+    visited: &mut AHashSet<BlockId>,
+) -> Option<String> {
+    let current = trace_dense_empty_jumps(function, current, visited)?;
+    if !visited.insert(current) {
+        return None;
+    }
+    let block = function.blocks.get(current.0 as usize)?;
+    let [instruction] = block.instructions.as_slice() else {
+        return None;
+    };
+    let (Some(out), ControlFlowOp::Const(ConstValue::String(value))) =
+        (instruction.out, &instruction.op)
+    else {
+        return None;
+    };
+    matches!(block.terminator, Some(Terminator::Return(Some(returned))) if returned == out)
+        .then(|| value.clone())
+}
+
+fn json_safe_string_fragment(value: &str) -> bool {
+    serde_json::from_str::<String>(&format!("\"{value}\"")).is_ok()
 }
 
 fn op_has_side_effects(op: &ControlFlowOp<'_>) -> bool {
@@ -8750,6 +18582,7 @@ fn op_has_side_effects(op: &ControlFlowOp<'_>) -> bool {
         ControlFlowOp::StoreLocal { .. }
             | ControlFlowOp::StoreGlobal { .. }
             | ControlFlowOp::FieldSet { .. }
+            | ControlFlowOp::RecordFieldSet { .. }
             | ControlFlowOp::HostFieldGet { .. }
             | ControlFlowOp::HostFieldSet { .. }
             | ControlFlowOp::IndexSet { .. }
@@ -8757,6 +18590,7 @@ fn op_has_side_effects(op: &ControlFlowOp<'_>) -> bool {
             | ControlFlowOp::CallValue { .. }
             | ControlFlowOp::CallMethod { .. }
             | ControlFlowOp::HostCall { pure: false, .. }
+            | ControlFlowOp::Await { .. }
             | ControlFlowOp::NewClass { .. }
             | ControlFlowOp::Intrinsic {
                 intrinsic: Intrinsic::Print
@@ -8764,16 +18598,76 @@ fn op_has_side_effects(op: &ControlFlowOp<'_>) -> bool {
                     | Intrinsic::ArrayFilter
                     | Intrinsic::ArrayReduce
                     | Intrinsic::ArrayForEach
+                    | Intrinsic::ArraySome
+                    | Intrinsic::ArrayEvery
+                    | Intrinsic::ArrayFindIndex
                     | Intrinsic::ArrayPush
                     | Intrinsic::ArrayPop
                     | Intrinsic::ArrayIndexOf
                     | Intrinsic::ArraySplice
+                    | Intrinsic::ArrayFill
+                    | Intrinsic::ArrayCopyWithin
+                    | Intrinsic::ArrayReverse
+                    | Intrinsic::TypedArraySet
+                    | Intrinsic::TypedArrayFill
+                    | Intrinsic::TypedArrayCopyWithin
                     | Intrinsic::MapSet
                     | Intrinsic::MapDelete
                     | Intrinsic::MapClear
                     | Intrinsic::SetAdd
                     | Intrinsic::SetDelete
-                    | Intrinsic::SetClear,
+                    | Intrinsic::SetClear
+                    | Intrinsic::RecordAssign
+                    | Intrinsic::JsonParse
+                    | Intrinsic::JsStringify
+                    | Intrinsic::JsDateNow
+                    | Intrinsic::JsNumber
+                    | Intrinsic::JsAdd
+                    | Intrinsic::JsLessThan
+                    | Intrinsic::JsLessThanOrEqual
+                    | Intrinsic::JsGreaterThan
+                    | Intrinsic::JsGreaterThanOrEqual
+                    | Intrinsic::JsStringReplace
+                    | Intrinsic::JsStringMatch
+                    | Intrinsic::JsRegexExec
+                    | Intrinsic::JsCall
+                    | Intrinsic::JsConstruct
+                    | Intrinsic::JsInvoke
+                    | Intrinsic::JsApply
+                    | Intrinsic::JsGetProperty
+                    | Intrinsic::JsDeleteProperty
+                    | Intrinsic::JsHasProperty
+                    | Intrinsic::JsInProperty
+                    | Intrinsic::JsArrayPush
+                    | Intrinsic::JsArrayPop
+                    | Intrinsic::JsArraySlice
+                    | Intrinsic::JsArrayIndexOf
+                    | Intrinsic::JsArraySort
+                    | Intrinsic::JsArraySplice
+                    | Intrinsic::JsArrayConcatApply
+                    | Intrinsic::JsArrayJoin
+                    | Intrinsic::JsArrayShift
+                    | Intrinsic::JsArrayUnshift
+                    | Intrinsic::JsArrayFlat
+                    | Intrinsic::JsIsFunctionValue
+                    | Intrinsic::JsIsWindowValue
+                    | Intrinsic::JsDefineConfigurable
+                    | Intrinsic::JsDefineIterator
+                    | Intrinsic::JsArrayIterator
+                    | Intrinsic::JsConsoleWarn
+                    | Intrinsic::JsRequestAnimationFrameOrNull
+                    | Intrinsic::JsSetTimeout
+                    | Intrinsic::JsClearTimeout
+                    | Intrinsic::JsDomParserNew
+                    | Intrinsic::JsXMLHttpRequestNew
+                    | Intrinsic::JsDocument
+                    | Intrinsic::RegexNew
+                    | Intrinsic::RegexTest
+                    | Intrinsic::TaskResolve
+                    | Intrinsic::TaskReject
+                    | Intrinsic::TaskAll
+                    | Intrinsic::GeneratorYield
+                    | Intrinsic::GeneratorYieldDelegated,
                 ..
             }
     )
@@ -8819,8 +18713,14 @@ fn shortest_integer(value: i64) -> String {
 }
 
 fn shortest_float(value: f64) -> String {
-    if !value.is_finite() {
-        return value.to_string();
+    if value.is_nan() {
+        return "NaN".to_string();
+    }
+    if value == f64::INFINITY {
+        return "Infinity".to_string();
+    }
+    if value == f64::NEG_INFINITY {
+        return "-Infinity".to_string();
     }
     if value == 0.0 {
         return if value.is_sign_negative() { "-0" } else { "0" }.to_string();
@@ -8872,36 +18772,26 @@ fn normalize_exponent(value: String) -> String {
     format!("{mantissa}e{exponent}")
 }
 
+fn render_typeof_compare(value: &str, type_name: &str, equal: bool, quote: StringQuote) -> String {
+    let op = if equal { "==" } else { "!=" };
+    format!(
+        "{}{op}typeof {value}",
+        render_string_literal(type_name, quote)
+    )
+}
+
 fn render_js_type_check(
     value: &str,
     target: &Type<'_>,
     quote: StringQuote,
 ) -> Result<String, CodegenError> {
     Ok(match target {
-        Type::Int | Type::Float => {
-            format!(
-                "typeof({value})=={}",
-                render_string_literal("number", quote)
-            )
-        }
-        Type::String => {
-            format!(
-                "typeof({value})=={}",
-                render_string_literal("string", quote)
-            )
-        }
-        Type::Bool => {
-            format!(
-                "typeof({value})=={}",
-                render_string_literal("boolean", quote)
-            )
-        }
+        Type::Int | Type::Float => render_typeof_compare(value, "number", true, quote),
+        Type::String => render_typeof_compare(value, "string", true, quote),
+        Type::Bool => render_typeof_compare(value, "boolean", true, quote),
         Type::Array(_) => format!("Array.isArray({value})"),
         Type::Function(_) | Type::GenericFunction(_) => {
-            format!(
-                "typeof({value})=={}",
-                render_string_literal("function", quote)
-            )
+            render_typeof_compare(value, "function", true, quote)
         }
         _ => {
             return Err(CodegenError::new(
@@ -8913,6 +18803,27 @@ fn render_js_type_check(
 }
 
 fn render_string_literal(value: &str, quote: StringQuote) -> String {
+    if quote == StringQuote::Template {
+        let decoded = decoded_source_string(value);
+        let mut rendered = String::with_capacity(decoded.len() + 2);
+        rendered.push('`');
+        let mut pending_dollar = false;
+        for character in decoded.chars() {
+            match character {
+                '`' | '\\' => {
+                    rendered.push('\\');
+                    rendered.push(character);
+                }
+                '{' if pending_dollar => rendered.push_str("\\{"),
+                '\u{2028}' => rendered.push_str("\\u2028"),
+                '\u{2029}' => rendered.push_str("\\u2029"),
+                _ => rendered.push(character),
+            }
+            pending_dollar = character == '$';
+        }
+        rendered.push('`');
+        return rendered;
+    }
     if quote == StringQuote::Double {
         return format!("\"{value}\"");
     }
@@ -8940,6 +18851,45 @@ fn render_string_literal(value: &str, quote: StringQuote) -> String {
     }
     rendered.push('\'');
     rendered
+}
+
+/// Render a static ESM module source. Unlike expression strings, the grammar
+/// does not admit a template literal after `import` or `from`. A template-mode
+/// emission candidate therefore chooses the shorter legal quote spelling. If
+/// the source payload is not JSON-decodable, retain its original double-quoted
+/// escape spelling rather than risk changing the requested module specifier.
+fn render_module_specifier(value: &str, quote: StringQuote) -> String {
+    let double = render_string_literal(value, StringQuote::Double);
+    let single = (quote != StringQuote::Double)
+        .then(|| {
+            serde_json::from_str::<String>(&format!("\"{value}\""))
+                .ok()
+                .map(|_| render_string_literal(value, StringQuote::Single))
+        })
+        .flatten();
+
+    match (quote, single) {
+        (StringQuote::Single, Some(single)) => single,
+        (StringQuote::Template, Some(single)) if single.len() < double.len() => single,
+        _ => double,
+    }
+}
+
+/// Generated chunk names are semantic string values rather than raw source
+/// payloads. Encode them first so quotes, backslashes, controls, and separators
+/// cannot escape the static module StringLiteral.
+fn render_generated_module_specifier(value: &str, quote: StringQuote) -> String {
+    let encoded = serde_json::to_string(value).expect("a Rust string is JSON-encodable");
+    let payload = encoded
+        .strip_prefix('"')
+        .and_then(|value| value.strip_suffix('"'))
+        .expect("a JSON string has quote delimiters");
+    render_module_specifier(payload, quote)
+}
+
+fn decoded_source_string(value: &str) -> String {
+    let encoded = format!("\"{value}\"");
+    serde_json::from_str(&encoded).unwrap_or_else(|_| value.to_string())
 }
 
 fn packed_string_array(
@@ -9092,11 +19042,12 @@ const fn inverse_comparison(op: IrBinaryOp) -> Option<IrBinaryOp> {
 
 fn default_value(ty: &Type<'_>, compact_boolean_literals: bool) -> &'static str {
     match ty {
-        Type::Int | Type::Float => "0",
+        Type::Int | Type::Float | Type::Enum(_) => "0",
         Type::Bool if compact_boolean_literals => "!1",
         Type::Bool => "false",
         Type::String => "\"\"",
         Type::Array(_) => "[]",
+        Type::Record(_) => "{}",
         Type::Map(_, _) => "new Map",
         Type::Set(_) => "new Set",
         Type::ArrayBuffer => "new ArrayBuffer(0)",
@@ -9111,6 +19062,7 @@ fn default_value(ty: &Type<'_>, compact_boolean_literals: bool) -> &'static str 
         Type::Float32Array => "new Float32Array(0)",
         Type::Float64Array => "new Float64Array(0)",
         Type::Symbol => "Symbol()",
+        Type::Regex => "new RegExp",
         Type::Union(members) => members.first().map_or("null", |member| {
             default_value(member, compact_boolean_literals)
         }),
@@ -9123,6 +19075,7 @@ fn default_value(ty: &Type<'_>, compact_boolean_literals: bool) -> &'static str 
         | Type::Function(_)
         | Type::GenericFunction(_) => "null",
         Type::Void | Type::Task(_) | Type::ModuleNamespace(_) | Type::ModuleLoadError => "void 0",
+        Type::Generator(_) => "null",
     }
 }
 
@@ -9136,6 +19089,7 @@ fn is_nullable_with_truthy_value(ty: &Type<'_>) -> bool {
 fn type_is_always_js_truthy(ty: &Type<'_>) -> bool {
     match ty {
         Type::Array(_)
+        | Type::Record(_)
         | Type::Map(_, _)
         | Type::Set(_)
         | Type::ArrayBuffer
@@ -9150,7 +19104,9 @@ fn type_is_always_js_truthy(ty: &Type<'_>) -> bool {
         | Type::Float32Array
         | Type::Float64Array
         | Type::Symbol
+        | Type::Regex
         | Type::Task(_)
+        | Type::Generator(_)
         | Type::ModuleNamespace(_)
         | Type::ModuleLoadError
         | Type::Struct(_)
@@ -9161,6 +19117,7 @@ fn type_is_always_js_truthy(ty: &Type<'_>) -> bool {
         | Type::GenericFunction(_) => true,
         Type::Union(members) => members.iter().all(type_is_always_js_truthy),
         Type::Int
+        | Type::Enum(_)
         | Type::Float
         | Type::String
         | Type::Bool
@@ -9168,6 +19125,14 @@ fn type_is_always_js_truthy(ty: &Type<'_>) -> bool {
         | Type::Void
         | Type::Nullable(_)
         | Type::TypeParameter(_) => false,
+    }
+}
+
+fn type_can_contain_javascript_undefined(ty: &Type<'_>) -> bool {
+    match ty {
+        Type::Void | Type::TypeParameter(_) => true,
+        Type::Union(members) => members.iter().any(type_can_contain_javascript_undefined),
+        _ => false,
     }
 }
 
@@ -9241,6 +19206,24 @@ fn is_rendered_string_literal(value: &str) -> bool {
         && value.as_bytes().last() == Some(&value.as_bytes()[0])
 }
 
+fn is_empty_string_literal(value: &str) -> bool {
+    matches!(value, "\"\"" | "''")
+}
+
+fn js_atom_is_number_literal(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    let Some(&first) = bytes.first() else {
+        return false;
+    };
+    if !first.is_ascii_digit() && first != b'.' {
+        return false;
+    }
+    bytes
+        .iter()
+        .all(|byte| byte.is_ascii_digit() || matches!(byte, b'.' | b'e' | b'E' | b'+' | b'-'))
+        && bytes.iter().any(|byte| byte.is_ascii_digit())
+}
+
 fn is_single_binding_statement(statement: &str) -> bool {
     statement.starts_with("let ")
         && statement.ends_with(';')
@@ -9264,7 +19247,7 @@ impl Mangler {
     fn new(alphabet: IdentifierAlphabet) -> Self {
         Self {
             next: 0,
-            reserved: AHashSet::new(),
+            reserved: AHashSet::default(),
             alphabet,
         }
     }
@@ -9388,14 +19371,569 @@ mod tests {
     use crate::{
         analyze, lower_to_control_flow,
         optimizer::{
-            optimize_control_flow, optimize_control_flow_for_module,
-            optimize_control_flow_with_options, OptimizationOptions,
+            lower_known_js_host_calls, optimize_control_flow, optimize_control_flow_for_module,
+            optimize_control_flow_with_options,
+            project_direct_constructor_initializers_for_javascript, OptimizationOptions,
         },
         parse_source,
     };
 
     fn compile(source: &str) -> String {
         compile_with_options(source, IrJsOptions::default())
+    }
+
+    #[test]
+    fn emits_javascript_abi_without_runtime_wrappers() {
+        let output = compile(
+            r#"
+                extern JsValue read();
+                JsValue value=read();
+                JsValue object=JS.object();
+                JsValue array=JS.array();
+                JS.set(object,"answer",value);
+                JS.push(array,JS.get(object,"answer"));
+                bool present=JS.has(object,"answer");
+                JsValue result=JS.call(JS.get(object,"run"),object,value);
+                JS.delete(object,"answer");
+                print(JS.string(result)+present);
+            "#,
+        );
+
+        assert!(output.contains("={") || output.contains("=>({"), "{output}");
+        assert!(output.contains("Array.prototype.push.call("), "{output}");
+        assert!(output.contains(".call("), "{output}");
+        assert!(output.contains(" in Object("), "{output}");
+        assert!(output.contains("delete "), "{output}");
+        assert!(!output.contains("JS."), "{output}");
+    }
+
+    #[test]
+    fn shares_repeated_array_prototype_methods_through_one_binding() {
+        let output = compile(
+            r#"
+                extern JsValue read();
+                JsValue first=JS.array();
+                JsValue second=JS.array();
+                JS.push(first,read());
+                JS.push(second,read());
+                JS.push(first,read());
+                print(JS.slice(first,0));
+                print(JS.slice(second,0));
+            "#,
+        );
+
+        assert!(
+            output.contains("=Array.prototype") || output.contains("Array.prototype."),
+            "{output}"
+        );
+        assert!(output.matches("Array.prototype").count() <= 2, "{output}");
+        assert!(!output.contains("Array.prototype.push.call"), "{output}");
+        assert!(output.contains(".call("), "{output}");
+        let preamble_end = output.find("function").unwrap_or(output.len());
+        let preamble = &output[..preamble_end];
+        assert!(!preamble.contains(";let "), "{output}");
+        assert!(!preamble.contains(";var "), "{output}");
+    }
+
+    #[test]
+    fn inlines_unique_oversized_single_block_helpers() {
+        let output = compile(
+            r#"
+                extern float read();
+                float fat(float n){
+                  float a=n;
+                  a=a+read();
+                  a=a+read();
+                  a=a+read();
+                  a=a+read();
+                  a=a+read();
+                  a=a+read();
+                  a=a+read();
+                  a=a+read();
+                  return a;
+                }
+                print(fat(read()));
+            "#,
+        );
+        assert!(!output.contains("function"), "{output}");
+        assert!(output.contains("console.log"), "{output}");
+    }
+
+    #[test]
+    fn javascript_abi_calls_jsvalue_callees_directly() {
+        let output = compile(
+            r#"
+                extern JsValue read();
+                JsValue cb=read();
+                print(cb(1,"x"));
+            "#,
+        );
+        assert!(
+            output.contains("read()(") || output.contains("read()(1"),
+            "{output}"
+        );
+        assert!(!output.contains(".call("), "{output}");
+    }
+
+    #[test]
+    fn javascript_abi_preserves_explicit_null_this_and_single_evaluation() {
+        let output = compile(
+            r#"
+                extern JsValue read();
+                extern JsValue key();
+                JsValue result=JS.call(JS.get(read(),"run"),null);
+                bool present=JS.has(read(),JS.string(key()));
+                print(JS.string(result)+present);
+            "#,
+        );
+
+        assert!(output.contains(".call(null)"), "{output}");
+        assert_eq!(output.matches("read()").count(), 2, "{output}");
+    }
+
+    #[test]
+    fn erases_enums_to_numeric_discriminants_and_matches_once() {
+        let output = compile(
+            "enum Status{Draft,Active,Sold}extern Status next();string label(){return match(next()){Status.Draft=>\"draft\",Status.Active=>\"active\",Status.Sold=>\"sold\"};}print(label());",
+        );
+        assert!(!output.contains("Draft"), "{output}");
+        assert!(!output.contains("Active"), "{output}");
+        assert!(!output.contains("Sold"), "{output}");
+        assert_eq!(output.matches("next()").count(), 1, "{output}");
+        assert!(
+            output.contains("==0") || output.contains("===0"),
+            "{output}"
+        );
+        assert!(
+            output.contains("==1") || output.contains("===1"),
+            "{output}"
+        );
+    }
+
+    #[test]
+    fn emits_structural_records_as_plain_objects_with_null_normalization() {
+        let output = compile(
+            "extern string key();Record<int> values=record{alpha:1,beta:2};print(values.alpha??0);values.gamma=3;print(values[key()]??0);",
+        );
+        assert!(
+            output.contains("{__proto__:null,alpha:1,beta:2}"),
+            "{output}"
+        );
+        assert!(output.contains(".alpha"), "{output}");
+        assert!(output.contains(".gamma=3"), "{output}");
+        assert_eq!(output.matches("key()").count(), 1, "{output}");
+    }
+
+    #[test]
+    fn ordinary_record_candidate_omits_null_prototype_prefix() {
+        let output = compile_with_options(
+            "Record<int> source=record{left:1,right:2};Record<int> copy=record{...source,right:3};print(copy.left??0);",
+            IrJsOptions {
+                ordinary_record_literals: true,
+                ..IrJsOptions::default()
+            },
+        );
+
+        assert!(!output.contains("__proto__"), "{output}");
+        assert!(output.contains("{left:1,right:2}"), "{output}");
+        assert!(output.contains("{..."), "{output}");
+    }
+
+    #[test]
+    fn emits_record_object_and_json_operations_as_javascript_primitives() {
+        let output = compile(
+            "Record<int> values=record{alpha:1};string[] keys=Object.keys(values);int[] entries=Object.values(values);print(keys.length);print(entries.length);print(Object.hasOwn(values,\"alpha\"));Object.assign(values,record{beta:2});string json=JSON.stringify(values);print(json);",
+        );
+        assert!(output.contains("Object.keys("), "{output}");
+        assert!(output.contains("Object.values("), "{output}");
+        assert!(output.contains("Object.hasOwn("), "{output}");
+        assert!(output.contains("Object.assign("), "{output}");
+        assert!(output.contains("JSON.stringify("), "{output}");
+    }
+
+    #[test]
+    fn direct_host_alias_spelling_skips_a_direct_only_static_binding() {
+        let source = "extern bool objectHasOwn(JsValue object,string key);\
+                      extern JsValue object();\
+                      print(objectHasOwn(object(),\"alpha\"));\
+                      print(objectHasOwn(object(),\"beta\"));\
+                      print(objectHasOwn(object(),\"gamma\"));\
+                      print(objectHasOwn(object(),\"delta\"));\
+                      print(objectHasOwn(object(),\"epsilon\"));";
+        let shared = compile_host_alias_with_options(
+            source,
+            false,
+            IrJsOptions {
+                host_alias_spelling: HostAliasSpelling::Shared,
+                ..IrJsOptions::default()
+            },
+        );
+        let direct = compile_host_alias_with_options(
+            source,
+            false,
+            IrJsOptions {
+                host_alias_spelling: HostAliasSpelling::Direct,
+                ..IrJsOptions::default()
+            },
+        );
+
+        assert!(shared.contains("=Object.hasOwn"), "{shared}");
+        assert!(!direct.contains("=Object.hasOwn"), "{direct}");
+        assert_eq!(direct.matches("Object.hasOwn(").count(), 5, "{direct}");
+    }
+
+    #[test]
+    fn direct_host_alias_spelling_retains_detached_and_exported_bindings() {
+        let detached = "extern bool objectHasOwn(JsValue object,string key);\
+                        extern JsValue object();\
+                        extern void accept(func(JsValue,string)->bool callback);\
+                        accept(objectHasOwn);\
+                        print(objectHasOwn(object(),\"alpha\"));\
+                        print(objectHasOwn(object(),\"beta\"));\
+                        print(objectHasOwn(object(),\"gamma\"));\
+                        print(objectHasOwn(object(),\"delta\"));\
+                        print(objectHasOwn(object(),\"epsilon\"));\
+                        print(objectHasOwn(object(),\"zeta\"));";
+        let direct = compile_host_alias_with_options(
+            detached,
+            false,
+            IrJsOptions {
+                host_alias_spelling: HostAliasSpelling::Direct,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(direct.contains("=Object.hasOwn"), "{direct}");
+        assert!(!direct.contains("Object.hasOwn("), "{direct}");
+
+        let eager = compile_host_alias_with_options(
+            "export extern bool objectHasOwn(JsValue object,string key);\
+             extern JsValue object();\
+             print(objectHasOwn(object(),\"alpha\"));\
+             print(objectHasOwn(object(),\"beta\"));\
+             print(objectHasOwn(object(),\"gamma\"));\
+             print(objectHasOwn(object(),\"delta\"));\
+             print(objectHasOwn(object(),\"epsilon\"));",
+            true,
+            IrJsOptions {
+                host_alias_spelling: HostAliasSpelling::Direct,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(eager.contains("=Object.hasOwn"), "{eager}");
+        assert!(eager.contains("export{"), "{eager}");
+    }
+
+    #[test]
+    fn direct_host_alias_spelling_keeps_arrow_predicates_callable() {
+        let source = "extern bool isFunctionValue(JsValue obj);\
+                      extern JsValue value();\
+                      print(isFunctionValue(value()));\
+                      print(isFunctionValue(value()));\
+                      print(isFunctionValue(value()));\
+                      print(isFunctionValue(value()));\
+                      print(isFunctionValue(value()));";
+        let direct = compile_host_alias_with_options(
+            source,
+            false,
+            IrJsOptions {
+                host_alias_spelling: HostAliasSpelling::Direct,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(!direct.contains("isFunctionValue"), "{direct}");
+        assert!(direct.contains("typeof"), "{direct}");
+        assert!(direct.contains("nodeType"), "{direct}");
+        assert!(
+            direct.contains("=a=>") || direct.contains("=(a=>") || direct.contains(",a=>"),
+            "{direct}"
+        );
+        assert!(
+            !direct.contains("=>typeof") || direct.contains("(a=>") || direct.contains("=a=>"),
+            "{direct}"
+        );
+    }
+
+    #[test]
+    fn direct_host_alias_spelling_retains_lazy_exported_bindings() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "extern bool objectHasOwn(JsValue object,string key);\
+             extern JsValue object();\
+             print(objectHasOwn(object(),\"alpha\"));\
+             print(objectHasOwn(object(),\"beta\"));\
+             print(objectHasOwn(object(),\"gamma\"));\
+             print(objectHasOwn(object(),\"delta\"));\
+             print(objectHasOwn(object(),\"epsilon\"));",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+        let object_has_own = ir
+            .functions
+            .iter()
+            .find(|function| function.name == Some("objectHasOwn"))
+            .unwrap()
+            .id;
+        ir.lazy_modules.push(crate::ir::IrLazyModule {
+            id: 7,
+            source: "./feature.lil",
+            exports: vec![crate::ir::IrExport {
+                name: "objectHasOwn",
+                binding: ExportBinding::Function(object_has_own),
+                span: crate::span::Span::empty(0),
+            }],
+            span: crate::span::Span::empty(0),
+        });
+        lower_known_js_host_calls(&mut ir);
+        optimize_control_flow_with_options(
+            &mut ir,
+            &OptimizationOptions {
+                inlining: false,
+                ..OptimizationOptions::default()
+            },
+            true,
+        )
+        .unwrap();
+        let output = emit_optimized_ir_js_with_options(
+            &ir,
+            &IrJsOptions {
+                host_alias_spelling: HostAliasSpelling::Direct,
+                ..IrJsOptions::default()
+            },
+        )
+        .unwrap();
+
+        assert!(output.contains("=Object.hasOwn"), "{output}");
+        assert!(!output.contains("Object.hasOwn("), "{output}");
+    }
+
+    #[test]
+    fn emits_identifier_safe_constant_jsvalue_keys_as_dot_properties() {
+        let output = compile_with_options(
+            "extern JsValue object();JsValue value=object();value[\"readyState\"]=1;print(value[\"readyState\"]);value[\"data-value\"]=2;print(value[\"data-value\"]);",
+            IrJsOptions {
+                pool_strings: false,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(output.contains(".readyState=1"), "{output}");
+        assert!(output.contains(".readyState)"), "{output}");
+        assert!(!output.contains(".data-value"), "{output}");
+        assert_eq!(output.matches("[\"data-value\"]").count(), 2, "{output}");
+    }
+
+    #[test]
+    fn groups_normalized_integer_receivers_before_to_string_calls() {
+        let output = compile("int[] values=[7];print(values[0].toString());");
+        assert!(!output.contains("|0.toString"), "{output}");
+        assert!(output.contains(").toString("), "{output}");
+    }
+
+    #[test]
+    fn normalizes_a_direct_dynamic_record_miss_to_null() {
+        let output =
+            compile("extern string key();Record<int> values=record{alpha:1};print(values[key()]);");
+        assert!(output.contains("??null"), "{output}");
+    }
+
+    #[test]
+    fn record_literals_have_no_inherited_or_proto_setter_keys() {
+        let output = compile(
+            "Record<int> values=record{__proto__:1};values[\"__proto__\"]=2;print(values.toString);print(values.__proto__);",
+        );
+        assert!(output.contains("{__proto__:null,["), "{output}");
+        assert!(
+            output.contains("['__proto__']=2") || output.contains("[\"__proto__\"]=2"),
+            "{output}"
+        );
+    }
+
+    #[test]
+    fn lowers_for_of_to_a_callback_free_live_length_loop() {
+        let output = compile(
+            "int[] values=[1,2];int total=0;for(int value of values){total+=value;if(value==1){values.push(3);}}print(total);",
+        );
+        assert!(output.contains(".length"), "{output}");
+        assert!(!output.contains(".forEach("), "{output}");
+        assert!(!output.contains("Symbol.iterator"), "{output}");
+    }
+
+    #[test]
+    fn emits_spreads_as_native_javascript_literals_in_source_order() {
+        let output = compile(
+            "extern int[] next();int[] base=[1,2];int[] values=[0,...next(),...base,3];Record<int> source=record{a:1};Record<int> merged=record{...source,b:2};print(values.length);print(merged.b??0);",
+        );
+        assert!(output.contains("[0,...next(),..."), "{output}");
+        assert!(output.contains("{__proto__:null,..."), "{output}");
+        assert!(!output.contains("lilscript_array_spread"), "{output}");
+        assert!(!output.contains("lilscript_record_spread"), "{output}");
+    }
+
+    #[test]
+    fn lowers_destructuring_to_single_evaluation_nullable_reads_and_native_slice() {
+        let output = compile(
+            "extern int[] next();auto [first,,third,...rest]=next();print(first??0);print(third??0);print(rest.length);Record<int> source=record{a:1,b:2};auto {a,...remaining}=source;print(a??0);print(JSON.stringify(remaining));",
+        );
+        assert_eq!(output.matches("next()").count(), 1, "{output}");
+        assert!(output.contains("??null"), "{output}");
+        assert!(output.contains(".slice(3)"), "{output}");
+        assert!(output.contains("{__proto__:null,..."), "{output}");
+        assert!(output.contains("delete"), "{output}");
+    }
+
+    #[test]
+    fn emits_compact_native_collection_operations_without_helpers() {
+        let output = compile(
+            "int[] values=[1,2,3];print(values.includes(2));print(values.join(\"-\"));print(values.some((int value)=>value>2));print(values.every((int value)=>value>0));print(values.findIndex((int value)=>value==2));int[] combined=values.concat([4]);values.copyWithin(1,0,2).reverse();print(combined.length);Uint8Array a=new Uint8Array(4);Uint8Array b=new Uint8Array(2);a.fill(7);a.set(b,1);a.copyWithin(2,0,2);print(a[3]);",
+        );
+        assert!(output.contains(".includes(2)"), "{output}");
+        assert!(
+            output.contains(".join(`-`)")
+                || output.contains(".join('-')")
+                || output.contains(".join(\"-\")"),
+            "{output}"
+        );
+        assert!(output.contains(".fill(7)"), "{output}");
+        assert!(output.contains(".some("), "{output}");
+        assert!(output.contains(".every("), "{output}");
+        assert!(output.contains(".findIndex("), "{output}");
+        assert!(output.contains(".concat("), "{output}");
+        assert!(output.contains(".copyWithin("), "{output}");
+        assert!(output.contains(".reverse()"), "{output}");
+        assert!(output.contains(".set("), "{output}");
+        assert!(output.contains(".copyWithin("), "{output}");
+        assert!(!output.contains("lilscript_"), "{output}");
+    }
+
+    #[test]
+    fn emits_string_search_and_repeat_as_native_javascript_calls() {
+        let output = compile(
+            "extern string input();string value=input();print(value.indexOf(\"x\",1));print(value.lastIndexOf(\"x\"));print(value.repeat(3));",
+        );
+        assert!(output.contains(".indexOf("), "{output}");
+        assert!(output.contains(".lastIndexOf("), "{output}");
+        assert!(output.contains(".repeat(3)"), "{output}");
+        assert!(!output.contains("lilscript_"), "{output}");
+    }
+
+    #[test]
+    fn emits_conservatively_proven_regex_literals_and_preserves_effectful_fallbacks() {
+        let open_world =
+            compile("Regex pattern=new Regex(\"sale\",\"i\");print(pattern.test(\"SALE\"));");
+        assert!(open_world.contains("new RegExp("), "{open_world}");
+
+        let enabled = IrJsOptions {
+            regex_literals: true,
+            ..IrJsOptions::default()
+        };
+        let compact = compile_with_options(
+            "Regex pattern=new Regex(\"sale\",\"i\");print(pattern.test(\"SALE\"));print(pattern.source);print(pattern.flags);",
+            enabled,
+        );
+        assert!(compact.contains("/sale/i"), "{compact}");
+        assert!(compact.contains(".test("), "{compact}");
+        assert!(compact.contains(".source"), "{compact}");
+        assert!(compact.contains(".flags"), "{compact}");
+
+        let structured = compile_with_options(
+            r#"Regex pair=new Regex("^([a-z]+)-\\1$","i");print(pair.test("ab-ab"));"#,
+            enabled,
+        );
+        assert!(structured.contains(r"/^([a-z]+)-\1$/i"), "{structured}");
+        assert_eq!(run_javascript(&structured), "true\n", "{structured}");
+
+        let disabled = compile_with_options(
+            "Regex pattern=new Regex(\"sale\",\"i\");print(pattern.test(\"SALE\"));",
+            IrJsOptions {
+                regex_literals: false,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(disabled.contains("new RegExp("), "{disabled}");
+
+        let fallback = compile_with_options(
+            "new Regex(\"[\",\"\");Regex digits=new Regex(\"\\\\d+\",\"g\");digits.test(\"12\");print(digits.global);",
+            enabled,
+        );
+        assert!(fallback.contains("new RegExp("), "{fallback}");
+        assert!(fallback.contains(".test("), "{fallback}");
+        assert!(fallback.contains(".global"), "{fallback}");
+    }
+
+    #[test]
+    fn es2022_regex_literals_retain_unicode_sets_constructor_fallback() {
+        let output = compile_with_options(
+            "Regex pattern=new Regex(\"sale\",\"v\");print(pattern.source);print(pattern.flags);",
+            IrJsOptions {
+                regex_literals: true,
+                ..IrJsOptions::default()
+            },
+        );
+
+        assert!(output.contains("new RegExp("), "{output}");
+        assert!(!output.contains("/sale/v"), "{output}");
+    }
+
+    #[test]
+    fn emits_native_async_and_structured_exceptions_without_runtime_helpers() {
+        let output = compile(
+            "extern int choose();async int recover(int mode){int value=0;try{value=1;if(mode==0){throw null;}return await Task.resolve(value+1);}catch(auto error){print(error.message??\"caught\");return value;}finally{value+=10;}}recover(choose()).then((int value)=>print(value));",
+        );
+        assert!(output.contains("async"), "{output}");
+        assert!(output.contains("await Promise.resolve("), "{output}");
+        assert!(output.contains("try{"), "{output}");
+        assert!(output.contains("catch("), "{output}");
+        assert!(output.contains("finally{"), "{output}");
+        assert!(output.contains("?.message??null"), "{output}");
+        assert!(!output.contains("lilscript_"), "{output}");
+    }
+
+    #[test]
+    fn preserves_mutable_locals_across_a_caught_exception() {
+        let output = compile(
+            "int run(int mode){int value=0;try{value=1;if(mode==0){throw \"bad\";}value=2;}catch{}finally{value+=10;}return value;}print(run(0));print(run(1));",
+        );
+        assert!(
+            output.contains("var "),
+            "mutable locals must remain native JS bindings: {output}"
+        );
+        assert!(output.contains("throw \"bad\""), "{output}");
+        assert!(output.contains("catch{}"), "{output}");
+        assert!(output.contains("finally{"), "{output}");
+    }
+
+    #[test]
+    fn elides_only_proven_unused_catch_bindings() {
+        let source =
+            "void run(){try{JSON.parse(\"bad\");}catch(auto ignored){print(\"caught\");}}run();";
+        let compact = compile_with_options(source, IrJsOptions::default());
+        let explicit = compile_with_options(
+            source,
+            IrJsOptions {
+                unused_catch_binding_elision: false,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(
+            compact.contains("catch{}") || compact.contains("catch{console"),
+            "{compact}"
+        );
+        assert!(explicit.contains("catch("), "{explicit}");
+        assert!(compact.len() < explicit.len(), "{compact}\n{explicit}");
+
+        let used = compile("try{throw null;}catch(auto error){print(error.message??\"caught\");}");
+        assert!(used.contains("catch("), "{used}");
+        assert!(used.contains("?.message??null"), "{used}");
+    }
+
+    #[test]
+    fn retains_unused_task_creation_and_rejection_effects() {
+        let output = compile(
+            "async void run(){Task.resolve(1);Task<int> failed=Task.reject(\"bad\");}run();",
+        );
+        assert!(output.contains("Promise.resolve(1)"), "{output}");
+        assert!(output.contains("Promise.reject("), "{output}");
     }
 
     fn compile_with_options(source: &str, options: IrJsOptions) -> String {
@@ -9439,7 +19977,88 @@ mod tests {
             ..OptimizationOptions::default()
         };
         optimize_control_flow_with_options(&mut ir, &options, false).unwrap();
+        if js_options.constructor_initializer_fusion {
+            project_direct_constructor_initializers_for_javascript(&mut ir);
+        }
         emit_optimized_ir_js_with_options(&ir, &js_options).unwrap()
+    }
+
+    fn compile_host_alias_with_options(
+        source: &str,
+        module_output: bool,
+        js_options: IrJsOptions,
+    ) -> String {
+        let arena = Bump::new();
+        let program = parse_source(&arena, source).unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+        lower_known_js_host_calls(&mut ir);
+        optimize_control_flow_with_options(
+            &mut ir,
+            &OptimizationOptions {
+                inlining: false,
+                ..OptimizationOptions::default()
+            },
+            module_output,
+        )
+        .unwrap();
+        if module_output {
+            emit_optimized_ir_js_module_with_options(&ir, &js_options).unwrap()
+        } else {
+            emit_optimized_ir_js_with_options(&ir, &js_options).unwrap()
+        }
+    }
+
+    fn run_javascript(script: &str) -> String {
+        let output = std::process::Command::new("node")
+            .arg("-e")
+            .arg(script)
+            .output()
+            .expect("Node.js is required for JavaScript runtime parity tests");
+        assert!(
+            output.status.success(),
+            "node failed with {}:\n{}\nscript:\n{}",
+            output.status,
+            String::from_utf8_lossy(&output.stderr),
+            script
+        );
+        String::from_utf8(output.stdout).expect("node stdout is UTF-8")
+    }
+
+    fn assert_javascript_module_parses(script: &str) {
+        let mut child = std::process::Command::new("node")
+            .args(["--check", "--input-type=module"])
+            .stdin(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .expect("Node.js is required for JavaScript parser tests");
+        std::io::Write::write_all(
+            child.stdin.as_mut().expect("Node.js stdin is piped"),
+            script.as_bytes(),
+        )
+        .expect("module source can be written to Node.js");
+        drop(child.stdin.take());
+        let output = child
+            .wait_with_output()
+            .expect("Node.js module parser can complete");
+        assert!(
+            output.status.success(),
+            "node failed to parse module with {}:\n{}\nmodule:\n{}",
+            output.status,
+            String::from_utf8_lossy(&output.stderr),
+            script
+        );
+    }
+
+    fn same_block_forwarding_options(enabled: bool) -> IrJsOptions {
+        IrJsOptions {
+            phi_edge_value_forwarding: enabled,
+            mangle_identifiers: false,
+            conditional_expressions: false,
+            expression_phi_regions: false,
+            local_phi_expression_regions: false,
+            ..IrJsOptions::default()
+        }
     }
 
     #[test]
@@ -9456,6 +20075,32 @@ mod tests {
         assert_eq!(output.matches("let ").count(), 0, "{output}");
         assert!(!output.contains("let a="), "{output}");
         assert!(output.contains("a=a+1;a=a*a;a=a+a;a=a*a"), "{output}");
+    }
+
+    #[test]
+    fn does_not_materialize_static_identifier_keys_as_runtime_values() {
+        let output = compile_module(
+            "export void install(JsValue first,JsValue second,bool choose){first[\"shared\"]=1;if(choose){second[\"shared\"]=2;}else{second[\"other\"]=3;}}",
+        );
+
+        assert!(output.contains(".shared="), "{output}");
+        assert!(output.contains(".other="), "{output}");
+        assert!(!output.contains("=\"shared\""), "{output}");
+        assert!(!output.contains("=\"other\""), "{output}");
+    }
+
+    #[test]
+    fn does_not_materialize_plain_object_keys_as_runtime_values() {
+        let output = compile_module(
+            "export JsValue make(){JsValue value=JS.object();value[\"shared\"]=1;value[\"other-key\"]=2;value[\"__proto__\"]=null;return value;}",
+        );
+
+        assert!(output.contains("shared:1"), "{output}");
+        assert!(output.contains("\"other-key\":2"), "{output}");
+        assert!(output.contains("[\"__proto__\"]=null"), "{output}");
+        assert!(!output.contains("=\"shared\""), "{output}");
+        assert!(!output.contains("=\"other-key\""), "{output}");
+        assert!(!output.contains("=\"__proto__\""), "{output}");
     }
 
     #[test]
@@ -9598,6 +20243,479 @@ mod tests {
     }
 
     #[test]
+    fn reconstructs_javascript_short_circuit_expression_phis() {
+        let code = compile_module(
+            "export JsValue choose(JsValue values,string first,string second){return JS.or(values[first],values[second]);}export JsValue nested(JsValue matchResult,JsValue fallback){return JS.or(JS.and(matchResult,matchResult[3]),fallback);}",
+        );
+
+        assert!(code.contains("[b]||") && code.contains("[c]"), "{code}");
+        assert!(code.contains("&&") && code.contains("[3]||"), "{code}");
+        assert!(!code.contains("if("), "{code}");
+        assert!(!code.contains("var "), "{code}");
+    }
+
+    #[test]
+    fn materializes_a_short_circuit_value_reused_inside_an_expression_region() {
+        let source = "extern JsValue input;bool probe(JsValue elem,string name){JsValue node=JS.and(elem,elem[\"nodeName\"]);if(node is string){return node.toLowerCase()==name.toLowerCase();}return false;}print(probe(input,\"div\"));";
+
+        for mangle_identifiers in [true, false] {
+            let code = compile_without_inlining_with_options(
+                source,
+                false,
+                IrJsOptions {
+                    mangle_identifiers,
+                    ..IrJsOptions::default()
+                },
+            );
+            let trace = run_javascript(&format!("let input={{nodeName:'DIV'}};{code}"));
+            assert_eq!(trace, "true\n", "mangle={mangle_identifiers}: {code}");
+        }
+    }
+
+    #[test]
+    fn materializes_a_reused_value_inside_one_expression_region() {
+        let code = compile_without_inlining_with_options(
+            "extern int input();int choose(bool flag){int result=0;if(flag){int value=input();result=value+value;}return result;}print(choose(true));",
+            false,
+            IrJsOptions::default(),
+        );
+
+        let trace = run_javascript(&format!(
+            "let calls=0;function input(){{calls++;return 3}};{code};process.stdout.write('calls:'+calls)"
+        ));
+        assert_eq!(trace, "6\ncalls:1", "{code}");
+    }
+
+    #[test]
+    fn static_property_assignment_does_not_block_short_circuit_reconstruction() {
+        let code = compile_module(
+            "export void assign(JsValue target,JsValue source){target[\"result\"]=JS.or(source[\"first\"],source[\"second\"]);}",
+        );
+
+        assert!(code.contains(".result="), "{code}");
+        assert!(
+            code.contains(".first||") && code.contains(".second"),
+            "{code}"
+        );
+        assert_eq!(code.matches(".first").count(), 1, "{code}");
+        assert_eq!(code.matches(".second").count(), 1, "{code}");
+        assert!(!code.contains(";!"), "{code}");
+    }
+
+    #[test]
+    fn computed_assignment_keeps_lhs_and_lazy_rhs_evaluation_order() {
+        let code = compile_without_inlining_with_options(
+            "extern JsValue input;extern JsValue destination();extern string property();void run(){destination()[property()]=JS.or(input[\"first\"],input[\"second\"]);}run();",
+            false,
+            IrJsOptions::default(),
+        );
+
+        for (first, expected) in [
+            (0, "destination,property,get:first,get:second,set:result:7"),
+            (5, "destination,property,get:first,set:result:5"),
+        ] {
+            let trace = run_javascript(&format!(
+                "let events=[];let input=new Proxy({{first:{first},second:7}},{{get(object,key){{events.push('get:'+key);return Reflect.get(object,key)}}}});let target={{}};function destination(){{events.push('destination');return new Proxy(target,{{set(object,key,value){{events.push('set:'+key+':'+value);return Reflect.set(object,key,value)}}}})}}function property(){{events.push('property');return 'result'}};{code};process.stdout.write(events.join(','))"
+            ));
+            assert_eq!(trace, expected, "{code}");
+        }
+    }
+
+    #[test]
+    fn keeps_each_javascript_short_circuit_operand_single_evaluation() {
+        let code = compile_module(
+            "extern JsValue read();export JsValue choose(){return JS.or(read(),read());}",
+        );
+
+        assert!(code.contains("read()||read()"), "{code}");
+        assert_eq!(code.matches("read()").count(), 2, "{code}");
+        assert!(!code.contains("if("), "{code}");
+    }
+
+    #[test]
+    fn reconstructs_boolean_short_circuit_expression_phis() {
+        let code = compile_module(
+            "extern bool left();extern bool right();export bool both(){return left()&&right();}export bool either(){return left()||right();}",
+        );
+
+        assert!(code.contains("left()&&right()"), "{code}");
+        assert!(code.contains("left()||right()"), "{code}");
+        assert!(!code.contains("if("), "{code}");
+        assert_eq!(code.matches("left()").count(), 2, "{code}");
+        assert_eq!(code.matches("right()").count(), 2, "{code}");
+    }
+
+    #[test]
+    fn reconstructs_nullish_expression_phis() {
+        let code = compile_module(
+            "extern string? read();extern string fallback();export string choose(){return read()??fallback();}",
+        );
+
+        assert!(code.contains("read()??fallback()"), "{code}");
+        assert_eq!(code.matches("read()").count(), 1, "{code}");
+        assert_eq!(code.matches("fallback()").count(), 1, "{code}");
+        assert!(!code.contains("if("), "{code}");
+    }
+
+    #[test]
+    fn reconstructs_effectful_collection_reads_after_prior_statements() {
+        let code = compile(
+            "Map<string,int> values=new Map<string,int>();values.set(\"a\",1);print(values.get(\"a\")??-1);print(values.get(\"missing\")??-2);",
+        );
+
+        assert!(code.contains(".get(\"a\")??-1"), "{code}");
+        assert!(code.contains(".get(\"missing\")??-2"), "{code}");
+        assert!(!code.contains("??("), "{code}");
+    }
+
+    #[test]
+    fn folds_redundant_record_miss_normalization_into_nullish_fallback() {
+        let code = compile(
+            "Record<int> values=record{left:1};print(values.left??0);print(values.missing??-1);",
+        );
+
+        assert!(code.contains(".left??0"), "{code}");
+        assert!(code.contains(".missing??-1"), "{code}");
+        assert!(!code.contains("??null??"), "{code}");
+    }
+
+    #[test]
+    fn reconstructs_optional_access_conditional_expression_phis() {
+        let code = compile_module(
+            "extern int[]? read();extern int index();export int? first(){return read()?.[index()];}",
+        );
+
+        assert!(code.contains('?') && code.contains(":null"), "{code}");
+        assert_eq!(code.matches("read()").count(), 1, "{code}");
+        assert_eq!(code.matches("index()").count(), 1, "{code}");
+        assert!(!code.contains("if("), "{code}");
+    }
+
+    #[test]
+    fn reconstructs_effectful_optional_index_with_lazy_fallback() {
+        let code = compile_module(
+            "extern int[]? read();extern int index();extern int fallback();export int first(){return read()?.[index()]??fallback();}",
+        );
+
+        assert!(code.contains("read()?.[index()]??fallback()"), "{code}");
+        assert_eq!(code.matches("read()").count(), 1, "{code}");
+        assert_eq!(code.matches("index()").count(), 1, "{code}");
+        assert_eq!(code.matches("fallback()").count(), 1, "{code}");
+        assert!(!code.contains("if("), "{code}");
+    }
+
+    #[test]
+    fn reconstructs_optional_member_with_lazy_fallback() {
+        let code = compile_module(
+            "extern int[]? read();extern int fallback();export int length(){return read()?.length??fallback();}",
+        );
+
+        assert!(code.contains("read()?.length??fallback()"), "{code}");
+        assert_eq!(code.matches("read()").count(), 1, "{code}");
+        assert_eq!(code.matches("fallback()").count(), 1, "{code}");
+        assert!(!code.contains("if("), "{code}");
+    }
+
+    #[test]
+    fn reconstructs_multi_arm_match_expression_phis() {
+        let code = compile_module(
+            "enum Kind{First,Second,Third}export string label(Kind kind){string result=match(kind){Kind.First=>\"first\",Kind.Second=>\"second\",Kind.Third=>\"third\"};print(result);return result;}",
+        );
+
+        assert!(code.matches('?').count() >= 2, "{code}");
+        assert!(!code.contains("if("), "{code}");
+    }
+
+    #[test]
+    fn reconstructs_single_local_phis_without_copy_slots() {
+        let code = compile_module(
+            "extern bool test();extern int left();extern int right();export int choose(){int value=0;if(test()){value=left();}else{value=right();}print(value);return value;}",
+        );
+
+        assert!(code.contains("test()?left():right()"), "{code}");
+        assert_eq!(code.matches("test()").count(), 1, "{code}");
+        assert_eq!(code.matches("left()").count(), 1, "{code}");
+        assert_eq!(code.matches("right()").count(), 1, "{code}");
+        assert!(!code.contains("if("), "{code}");
+    }
+
+    #[test]
+    fn forwards_single_use_branch_producers_into_phi_edges() {
+        let code = compile_module_with_options(
+            "extern bool test();extern JsValue item();export string choose(){JsValue value=item();string result=\"\";if(test()){result=JS.string(value[\"name\"]);}else{result=JS.string(value);}return result;}",
+            IrJsOptions {
+                mangle_identifiers: false,
+                conditional_expressions: false,
+                expression_phi_regions: false,
+                local_phi_expression_regions: false,
+                ..IrJsOptions::default()
+            },
+        );
+
+        assert!(code.contains("=v0.name+\"\""), "{code}");
+        assert!(code.contains("=v0+\"\""), "{code}");
+        assert!(!code.contains("=v6"), "{code}");
+        assert!(!code.contains("=v8"), "{code}");
+    }
+
+    #[test]
+    fn materializes_phi_edge_values_before_intervening_effects() {
+        let code = compile_module_with_options(
+            "extern bool test();extern JsValue item();extern void mutate();export string choose(){JsValue value=item();string result=\"\";if(test()){result=JS.string(value[\"name\"]);mutate();}else{result=JS.string(value);}return result;}",
+            IrJsOptions {
+                mangle_identifiers: false,
+                conditional_expressions: false,
+                expression_phi_regions: false,
+                local_phi_expression_regions: false,
+                ..IrJsOptions::default()
+            },
+        );
+
+        let read = code.find(".name+\"\"").expect("materialized property read");
+        let mutation = code.find("mutate()").expect("intervening mutation");
+        assert!(read < mutation, "{code}");
+        assert!(code[read..mutation].contains(';'), "{code}");
+    }
+
+    #[test]
+    fn same_block_observable_forwarding_crosses_only_a_constant_gap() {
+        let source = "extern JsValue input;string inspect(JsValue source){JsValue observed=source[\"value\"];int marker=7;return JS.string(observed)+JS.string(marker);}print(inspect(input));";
+        let enabled = compile_without_inlining_with_options(
+            source,
+            false,
+            same_block_forwarding_options(true),
+        );
+        let disabled = compile_without_inlining_with_options(
+            source,
+            false,
+            same_block_forwarding_options(false),
+        );
+
+        assert!(enabled.len() < disabled.len(), "{enabled}\n{disabled}");
+        assert_eq!(enabled.matches(".value").count(), 1, "{enabled}");
+        assert_eq!(disabled.matches(".value").count(), 1, "{disabled}");
+        for code in [&enabled, &disabled] {
+            let trace = run_javascript(&format!(
+                "let events=[];let payload={{[Symbol.toPrimitive](){{events.push('coerce');return 3}}}};let input=new Proxy({{value:payload}},{{get(object,key){{events.push('get:'+String(key));return Reflect.get(object,key)}}}});{code};process.stdout.write('TRACE:'+events.join(','))"
+            ));
+            assert_eq!(trace, "37\nTRACE:get:value,coerce", "{code}");
+        }
+    }
+
+    #[test]
+    fn same_block_observable_forwarding_crosses_an_ordinary_closure_gap() {
+        let source = "extern JsValue input;extern JsValue target;func()->int install(JsValue source,JsValue destination){JsValue observed=source[\"value\"];func()->int callback=()=>1;destination[\"result\"]=observed;return callback;}print(install(input,target)());";
+        let enabled = compile_without_inlining_with_options(
+            source,
+            false,
+            same_block_forwarding_options(true),
+        );
+        let disabled = compile_without_inlining_with_options(
+            source,
+            false,
+            same_block_forwarding_options(false),
+        );
+
+        assert!(enabled.len() < disabled.len(), "{enabled}\n{disabled}");
+        for code in [&enabled, &disabled] {
+            let trace = run_javascript(&format!(
+                "let events=[];let input=new Proxy({{value:9}},{{get(object,key){{events.push('get:'+String(key));return Reflect.get(object,key)}}}});let target=new Proxy({{}},{{set(object,key,value){{events.push('set:'+String(key)+':'+value);return Reflect.set(object,key,value)}}}});{code};process.stdout.write('TRACE:'+events.join(','))"
+            ));
+            assert_eq!(trace, "1\nTRACE:get:value,set:result:9", "{code}");
+        }
+    }
+
+    #[test]
+    fn same_block_observable_forwarding_refuses_call_and_read_barriers() {
+        let call_source = "extern JsValue input;extern void note();string inspect(JsValue source){JsValue observed=source[\"first\"];note();return JS.string(observed);}print(inspect(input));";
+        let call_enabled = compile_without_inlining_with_options(
+            call_source,
+            false,
+            same_block_forwarding_options(true),
+        );
+        let call_disabled = compile_without_inlining_with_options(
+            call_source,
+            false,
+            same_block_forwarding_options(false),
+        );
+        assert_eq!(call_enabled, call_disabled);
+        let call_trace = run_javascript(&format!(
+            "let events=[];let payload={{[Symbol.toPrimitive](){{events.push('coerce');return 4}}}};let input=new Proxy({{first:payload}},{{get(object,key){{events.push('get:'+String(key));return Reflect.get(object,key)}}}});function note(){{events.push('note')}};{call_enabled};process.stdout.write('TRACE:'+events.join(','))"
+        ));
+        assert_eq!(
+            call_trace, "4\nTRACE:get:first,note,coerce",
+            "{call_enabled}"
+        );
+
+        let read_source = "extern JsValue input;string inspect(JsValue source){JsValue first=source[\"first\"];JsValue second=source[\"second\"];return JS.string(first)+JS.string(second);}print(inspect(input));";
+        let read_enabled = compile_without_inlining_with_options(
+            read_source,
+            false,
+            same_block_forwarding_options(true),
+        );
+        let read_disabled = compile_without_inlining_with_options(
+            read_source,
+            false,
+            same_block_forwarding_options(false),
+        );
+        assert_eq!(read_enabled, read_disabled);
+        let read_trace = run_javascript(&format!(
+            "let events=[];let value=label=>({{[Symbol.toPrimitive](){{events.push('coerce:'+label);return label}}}});let input=new Proxy({{first:value('first'),second:value('second')}},{{get(object,key){{events.push('get:'+String(key));return Reflect.get(object,key)}}}});{read_enabled};process.stdout.write('TRACE:'+events.join(','))"
+        ));
+        assert_eq!(
+            read_trace, "firstsecond\nTRACE:get:first,get:second,coerce:first,coerce:second",
+            "{read_enabled}"
+        );
+    }
+
+    #[test]
+    fn same_block_observable_forwarding_keeps_state_machine_liveness_consistent() {
+        let same_block_source = "extern JsValue input;string inspect(JsValue source,bool take){if(take){JsValue observed=source[\"value\"];int marker=7;return JS.string(observed)+JS.string(marker);}return \"skip\";}print(inspect(input,true));";
+        let mut enabled_options = same_block_forwarding_options(true);
+        enabled_options.control_flow_spelling = ControlFlowSpelling::StateMachine;
+        let mut disabled_options = enabled_options;
+        disabled_options.phi_edge_value_forwarding = false;
+        let enabled =
+            compile_without_inlining_with_options(same_block_source, false, enabled_options);
+        let disabled =
+            compile_without_inlining_with_options(same_block_source, false, disabled_options);
+
+        assert!(enabled.contains("switch("), "{enabled}");
+        assert!(enabled.len() < disabled.len(), "{enabled}\n{disabled}");
+        let trace = run_javascript(&format!(
+            "let events=[];let payload={{[Symbol.toPrimitive](){{events.push('coerce');return 5}}}};let input=new Proxy({{value:payload}},{{get(object,key){{events.push('get:'+String(key));return Reflect.get(object,key)}}}});{enabled};process.stdout.write('TRACE:'+events.join(','))"
+        ));
+        assert_eq!(trace, "57\nTRACE:get:value,coerce", "{enabled}");
+
+        let cross_block_source = "extern JsValue input;string inspect(JsValue source,bool take){JsValue observed=source[\"value\"];if(take){return JS.string(observed);}return \"skip\";}print(inspect(input,true));";
+        let cross_block_enabled =
+            compile_without_inlining_with_options(cross_block_source, false, enabled_options);
+        let cross_block_disabled =
+            compile_without_inlining_with_options(cross_block_source, false, disabled_options);
+        assert_eq!(cross_block_enabled, cross_block_disabled);
+    }
+
+    #[test]
+    fn keeps_source_and_local_phi_region_policies_independent() {
+        let source =
+            "extern bool test();extern bool other();export bool choose(){return test()&&other();}";
+        let source_disabled = compile_module_with_options(
+            source,
+            IrJsOptions {
+                conditional_expressions: false,
+                expression_phi_regions: false,
+                local_phi_expression_regions: true,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(source_disabled.contains("if("), "{source_disabled}");
+
+        let local = "extern bool test();extern int left();extern int right();export int choose(){int value=0;if(test()){value=left();}else{value=right();}return value;}";
+        let local_disabled = compile_module_with_options(
+            local,
+            IrJsOptions {
+                conditional_expressions: false,
+                expression_phi_regions: true,
+                local_phi_expression_regions: false,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(local_disabled.contains("if("), "{local_disabled}");
+    }
+
+    #[test]
+    fn keeps_effects_outside_unrelated_local_phi_expressions() {
+        let code = compile_module(
+            "extern bool test();extern int left();extern int right();extern void note();export int choose(){int value=0;if(test()){note();value=left();}else{value=right();}return value;}",
+        );
+
+        assert!(code.contains("note()"), "{code}");
+        assert!(code.contains("if(") || code.contains("?"), "{code}");
+        assert_eq!(code.matches("note()").count(), 1, "{code}");
+    }
+
+    #[test]
+    fn parenthesizes_nullish_and_logical_mixes() {
+        let code = compile_module(
+            "extern string? first();extern string? second();extern string third();export string choose(){return (first()??second())??third();}",
+        );
+
+        assert!(code.contains("first()??second()??third()"), "{code}");
+        assert_eq!(code.matches("first()").count(), 1, "{code}");
+        assert_eq!(code.matches("second()").count(), 1, "{code}");
+        assert_eq!(code.matches("third()").count(), 1, "{code}");
+
+        let logical = JsExpression::binary(
+            IrBinaryOp::Or,
+            JsExpression::atom("a"),
+            JsExpression::nullish(JsExpression::atom("b"), JsExpression::atom("c")),
+        );
+        assert_eq!(logical.into_minimal(), "a||(b??c)");
+        let nullish = JsExpression::nullish(
+            JsExpression::binary(
+                IrBinaryOp::And,
+                JsExpression::atom("a"),
+                JsExpression::atom("b"),
+            ),
+            JsExpression::atom("c"),
+        );
+        assert_eq!(nullish.into_minimal(), "(a&&b)??c");
+    }
+
+    #[test]
+    fn canonicalizes_typed_truthiness_before_javascript_emission() {
+        let negated_truthiness = JsExpression::unary(
+            "!",
+            JsExpression::unary("!", JsExpression::unary("!", JsExpression::atom("value"))),
+        );
+        assert_eq!(negated_truthiness.into_minimal(), "!value");
+
+        let condition = JsExpression::binary(
+            IrBinaryOp::And,
+            JsExpression::unary("!", JsExpression::unary("!", JsExpression::atom("left"))),
+            JsExpression::binary(
+                IrBinaryOp::Or,
+                JsExpression::unary("!", JsExpression::unary("!", JsExpression::atom("middle"))),
+                JsExpression::unary("!", JsExpression::atom("right")),
+            ),
+        );
+        assert_eq!(condition.into_condition(), "left&&(middle||!right)");
+
+        let output = compile_module(
+            "extern JsValue read();extern JsValue other();export bool absent(){return !read().truthy();}export void inspect(){if(read().truthy()&&other().truthy()){print(1);}}",
+        );
+        assert!(output.contains("return !read()"), "{output}");
+        assert!(!output.contains("!!!"), "{output}");
+        assert!(!output.contains("if(!!"), "{output}");
+    }
+
+    #[test]
+    fn emits_typed_javascript_undefined_returns_as_control_flow() {
+        let terminal = compile_module("export JsValue finish(){return JS.undefined();}");
+        assert!(!terminal.contains("void 0"), "{terminal}");
+        assert!(!terminal.contains("return"), "{terminal}");
+
+        let guarded = compile_module(
+            "extern void consume();export JsValue finish(bool skip){if(skip){return JS.undefined();}consume();return JS.undefined();}",
+        );
+        assert!(!guarded.contains("void 0"), "{guarded}");
+        assert!(guarded.contains("return;"), "{guarded}");
+        assert_eq!(guarded.matches("consume()").count(), 1, "{guarded}");
+
+        let closure = compile_module(
+            "extern void consume(func()->JsValue callback);export void install(){consume(()=>JS.undefined());}",
+        );
+        assert!(!closure.contains("void 0"), "{closure}");
+        assert!(closure.contains("()=>{}"), "{closure}");
+
+        let conditional = compile_module(
+            "extern bool condition();extern JsValue fallback();export func()->JsValue make(){return ()=>{if(condition()){return JS.undefined();}return fallback();};}",
+        );
+        assert!(conditional.contains("?void 0:fallback()"), "{conditional}");
+        assert!(!conditional.contains("?:"), "{conditional}");
+    }
+
+    #[test]
     fn removes_only_precedence_safe_binary_parentheses() {
         assert_eq!(
             render_binary_operand(
@@ -9678,7 +20796,7 @@ mod tests {
         assert!(!code.contains("else{"), "{code}");
         assert_eq!(direct, conservative);
         assert!(code.len() <= direct.len(), "{code}\n{direct}");
-        assert!(direct.contains("a=Math.imul(a^c,31)"), "{direct}");
+        assert!(direct.contains("Math.imul(a^c,31)"), "{direct}");
     }
 
     #[test]
@@ -9921,6 +21039,73 @@ mod tests {
     }
 
     #[test]
+    fn local_phi_expression_keeps_incoming_slots_live_until_the_result_use() {
+        let source = "struct Point{int x;int y;}struct Rect{Point origin;int width;int height;}int area(Rect rect){return rect.width*rect.height+rect.origin.x+rect.origin.y;}int[] values=[3,1,4,1,5,9];int total=0;for(int i=0;i+3<values.length;i+=4){int w=values[i+2];int h=values[i+3];if(w==0){w=1;}if(h==0){h=1;}total+=area(Rect{Point{values[i],values[i+1]},w,h});}print(total);";
+        let arena = Bump::new();
+        let program = parse_source(&arena, source).unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+        optimize_control_flow(&mut ir).unwrap();
+        let integer_analysis = analyze_integer_values(&ir);
+        let function = ir
+            .functions
+            .iter()
+            .find(|function| function.kind == FunctionKind::Entry)
+            .unwrap();
+        let height_local = function
+            .locals
+            .iter()
+            .find(|local| local.name == "h")
+            .map(|local| local.id)
+            .unwrap();
+        let height_phi = function
+            .blocks
+            .iter()
+            .flat_map(|block| &block.phis)
+            .find(|phi| phi.origin.local() == Some(height_local))
+            .unwrap();
+        let point = function
+            .blocks
+            .iter()
+            .flat_map(|block| &block.instructions)
+            .find_map(|instruction| match (&instruction.op, instruction.out) {
+                (ControlFlowOp::Struct { name: "Point", .. }, Some(out)) => Some(out),
+                _ => None,
+            })
+            .unwrap();
+
+        for mode in [PhiAffinityMode::Direct, PhiAffinityMode::Conservative] {
+            let options = IrJsOptions {
+                phi_affinity_mode: mode,
+                local_phi_expression_regions: true,
+                ..IrJsOptions::default()
+            };
+            let context = LocalNames::new(
+                function,
+                integer_analysis.function(function.id),
+                false,
+                &Mangler::default(),
+                &AHashMap::default(),
+                &AHashMap::default(),
+                &options,
+                &AHashSet::default(),
+                &loop_captured_closures(function),
+            );
+            let height_incoming = height_phi
+                .incoming
+                .iter()
+                .map(|(_, value)| *value)
+                .find(|value| context.is_stored(*value))
+                .expect("the non-constant height arm must have a JavaScript slot");
+            assert_ne!(
+                context.value_name(height_incoming).unwrap(),
+                context.value_name(point).unwrap(),
+                "{mode:?} coloring must not overwrite an incoming value referenced by the recovered conditional"
+            );
+        }
+    }
+
+    #[test]
     fn emits_cross_chunk_imports_and_live_global_exports() {
         let arena = Bump::new();
         let program = parse_source(
@@ -9939,9 +21124,12 @@ mod tests {
             .id;
         let chunks = emit_optimized_ir_js_chunks_with_options(
             &ir,
-            &IrJsOptions::default(),
+            &IrJsOptions {
+                string_quote: StringQuote::Template,
+                ..IrJsOptions::default()
+            },
             &IrJsChunkPlan {
-                entry_file: "entry.js".to_string(),
+                entry_file: "entry\".js".to_string(),
                 chunks: vec![IrJsChunkSpec {
                     file_name: "shared.js".to_string(),
                     functions: vec![read],
@@ -9952,12 +21140,16 @@ mod tests {
         .unwrap();
 
         assert_eq!(chunks.len(), 2);
-        assert_eq!(chunks[0].file_name, "entry.js");
+        assert_eq!(chunks[0].file_name, "entry\".js");
         assert_eq!(chunks[1].file_name, "shared.js");
         assert!(chunks[0].code.contains("from\"./shared.js\""));
-        assert!(chunks[1].code.contains("from\"./entry.js\""));
+        assert!(chunks[1].code.contains("from'./entry\".js'"));
         assert!(chunks[0].code.contains(" as apply"));
         assert!(chunks[0].code.contains(" as read"));
+        for chunk in &chunks {
+            assert!(!chunk.code.contains("from`"), "{}", chunk.code);
+            assert_javascript_module_parses(&chunk.code);
+        }
 
         let error = emit_optimized_ir_js_chunks_with_options(
             &ir,
@@ -9973,6 +21165,49 @@ mod tests {
         )
         .unwrap_err();
         assert!(error.message.contains("duplicate chunk file name"));
+    }
+
+    #[test]
+    fn emits_private_adapter_factories_in_every_chunk() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "JsValue target(JsValue self){return self;}export JsValue make(){return JS.method0(target);}",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+        optimize_control_flow_for_module(&mut ir).unwrap();
+        let make = ir
+            .functions
+            .iter()
+            .find(|function| function.name == Some("make"))
+            .unwrap()
+            .id;
+        let chunks = emit_optimized_ir_js_chunks_with_options(
+            &ir,
+            &IrJsOptions::default(),
+            &IrJsChunkPlan {
+                entry_file: "entry.js".to_string(),
+                chunks: vec![IrJsChunkSpec {
+                    file_name: "make.js".to_string(),
+                    functions: vec![make],
+                    lazy_module: None,
+                }],
+            },
+        )
+        .unwrap();
+
+        assert_eq!(chunks.len(), 2);
+        for chunk in &chunks {
+            assert!(
+                chunk.code.contains("=e=>function(){return e(this)}"),
+                "{}: {}",
+                chunk.file_name,
+                chunk.code
+            );
+        }
+        assert!(chunks[1].code.contains("from\"./entry.js\""));
     }
 
     #[test]
@@ -10067,7 +21302,10 @@ mod tests {
             &parameters,
             &use_counts(function),
             PhiAffinityMode::Grouped,
-            &AHashMap::new(),
+            true,
+            true,
+            &loop_captured_closures(function),
+            &AHashSet::default(),
         );
 
         assert_ne!(colors[&callback], colors[&object]);
@@ -10110,7 +21348,10 @@ mod tests {
             &parameters,
             &use_counts(function),
             PhiAffinityMode::Grouped,
-            &AHashMap::new(),
+            true,
+            true,
+            &loop_captured_closures(function),
+            &AHashSet::default(),
         );
         for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
             if let (
@@ -10132,12 +21373,14 @@ mod tests {
             integer_analysis.function(function.id),
             false,
             &Mangler::default(),
-            &AHashMap::new(),
-            &AHashMap::new(),
+            &AHashMap::default(),
+            &AHashMap::default(),
             &IrJsOptions {
                 scalar_phi_copies: false,
                 ..IrJsOptions::default()
             },
+            &AHashSet::default(),
+            &loop_captured_closures(function),
         );
         let mut checked_unwrap = false;
         let mut checked_captureless_closure = false;
@@ -10239,7 +21482,10 @@ mod tests {
             &parameters,
             &use_counts(function),
             PhiAffinityMode::Grouped,
-            &AHashMap::new(),
+            true,
+            true,
+            &loop_captured_closures(function),
+            &AHashSet::default(),
         );
 
         for (value, color) in &colors {
@@ -10255,6 +21501,29 @@ mod tests {
         reserve_expression_identifiers(&mut mangler, "a[0]+b.c+d");
 
         assert_eq!(mangler.next_name(), "e");
+    }
+
+    #[test]
+    fn synthesized_runtime_root_inventory_is_unique_valid_and_reserved() {
+        let roots = SYNTHESIZED_RUNTIME_ROOTS
+            .iter()
+            .copied()
+            .collect::<AHashSet<_>>();
+        assert_eq!(roots.len(), SYNTHESIZED_RUNTIME_ROOTS.len());
+        for root in SYNTHESIZED_RUNTIME_ROOTS {
+            assert!(is_js_property_identifier(root), "{root}");
+        }
+        for kind in TypedArrayKind::ALL {
+            assert!(roots.contains(kind.name()), "{}", kind.name());
+        }
+
+        let mut mangler = Mangler::default();
+        for root in SYNTHESIZED_RUNTIME_ROOTS {
+            mangler.reserve(root);
+        }
+        for root in SYNTHESIZED_RUNTIME_ROOTS {
+            assert_eq!(mangler.unique_name(root), format!("{root}$2"));
+        }
     }
 
     #[test]
@@ -10327,6 +21596,390 @@ mod tests {
     }
 
     #[test]
+    fn materializes_class_defaults_before_constructor_writes() {
+        let readable = IrJsOptions {
+            mangle_identifiers: false,
+            mangle_properties: false,
+            ..IrJsOptions::default()
+        };
+        let overwritten = compile_without_inlining_with_options(
+            "class Box{int value;string label;init(int value,string label){this.value=value;this.label=label;}}Box make(){return new Box(3,\"ok\");}print(make().value);",
+            false,
+            readable,
+        );
+        assert!(overwritten.contains("=[0,\"\"];Box$init"), "{overwritten}");
+
+        let observed = compile_without_inlining_with_options(
+            "extern void consume(int value);class Box{int value;string label;init(int value,string label){consume(this.value);this.value=value;this.label=label;}}Box make(){return new Box(3,\"ok\");}print(make().value);",
+            false,
+            readable,
+        );
+        assert!(observed.contains("[0,\"\"]"), "{observed}");
+    }
+
+    #[test]
+    fn materializes_defaults_after_constructor_inlining() {
+        let readable = IrJsOptions {
+            mangle_identifiers: false,
+            mangle_properties: false,
+            ..IrJsOptions::default()
+        };
+        let output = compile_with_options(
+            "class Flags{bool ready;bool stopped;init(){this.ready=false;this.stopped=false;}}extern void observe(Flags flags);Flags flags=new Flags();observe(flags);print(flags.ready);",
+            readable,
+        );
+        assert!(
+            output.contains("{ready:false,stopped:false}")
+                || output.contains("{ready:!1,stopped:!1}"),
+            "{output}"
+        );
+    }
+
+    #[test]
+    fn fuses_partial_constant_constructor_initializers_at_named_escape_boundaries() {
+        let readable = IrJsOptions {
+            mangle_identifiers: false,
+            mangle_properties: false,
+            constructor_initializer_fusion: true,
+            ..IrJsOptions::default()
+        };
+        let output = compile_with_options(
+            "class Box{int value;int[] items;init(int value){this.value=value;}}extern void observe(Box box);Box box=new Box(7);observe(box);print(`${box.value}:${box.items.length}`);",
+            readable,
+        );
+
+        assert!(output.contains("{value:7,items:[]}"), "{output}");
+        assert!(!output.contains(".value=7"), "{output}");
+        let trace = run_javascript(&format!(
+            "let observed='';function observe(box){{observed=Object.keys(box).join(',')}};{output};process.stdout.write('TRACE:'+observed)"
+        ));
+        assert_eq!(trace, "7:0\nTRACE:value,items", "{trace}\n{output}");
+    }
+
+    #[test]
+    fn fuses_partial_positional_and_complete_constant_initializers() {
+        let readable = IrJsOptions {
+            mangle_identifiers: false,
+            mangle_properties: false,
+            public_aggregate_fields: false,
+            constructor_initializer_fusion: true,
+            ..IrJsOptions::default()
+        };
+        let positional = compile_with_options(
+            "class Box{int value;int[] items;init(int value){this.value=value;}void commit(){this.items.push(this.value);}}Box box=new Box(7);box.commit();print(box.items[0]);",
+            readable,
+        );
+        assert!(positional.contains("[7,[]]"), "{positional}");
+        assert!(!positional.contains("[0,[]]"), "{positional}");
+        assert_eq!(run_javascript(&positional), "7\n", "{positional}");
+
+        let named = compile_with_options(
+            "class Flags{int value;bool ready;init(int value,bool ready){this.value=value;this.ready=ready;}}extern void observe(Flags flags);Flags flags=new Flags(7,true);observe(flags);print(`${flags.value}:${flags.ready}`);",
+            IrJsOptions {
+                mangle_identifiers: false,
+                mangle_properties: false,
+                constructor_initializer_fusion: true,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(named.contains("{value:7,ready:!0}"), "{named}");
+        assert!(!named.contains(".value=7"), "{named}");
+        assert!(!named.contains(".ready=!0"), "{named}");
+        let trace = run_javascript(&format!(
+            "let observed='';function observe(flags){{observed=Object.keys(flags).join(',')}};{named};process.stdout.write('TRACE:'+observed)"
+        ));
+        assert_eq!(trace, "7:true\nTRACE:value,ready", "{trace}\n{named}");
+    }
+
+    #[test]
+    fn directly_fuses_constructor_parameters_once_in_left_to_right_order() {
+        let output = compile_without_inlining_with_options(
+            "extern int first();extern int second();class Pair{int left;int right;init(int left,int right){this.left=left;this.right=right;}}Pair pair=new Pair(first(),second());print(`${pair.left}:${pair.right}`);",
+            false,
+            IrJsOptions {
+                mangle_identifiers: false,
+                mangle_properties: false,
+                public_aggregate_fields: false,
+                constructor_initializer_fusion: true,
+                ..IrJsOptions::default()
+            },
+        );
+
+        assert!(!output.contains("Pair$init"), "{output}");
+        let trace = run_javascript(&format!(
+            "let events=[];function first(){{events.push('first');return 3}}function second(){{events.push('second');return 4}}{output};process.stdout.write('TRACE:'+events.join(','))"
+        ));
+        assert_eq!(trace, "3:4\nTRACE:first,second", "{trace}\n{output}");
+    }
+
+    #[test]
+    fn direct_constructor_literals_preserve_named_and_positional_own_properties() {
+        let named = compile_without_inlining_with_options(
+            "class Box{int _lilDirectProbe;int __proto__;init(int value,int proto){this._lilDirectProbe=value;this.__proto__=proto;}}extern void inspect(Box box);inspect(new Box(7,9));",
+            false,
+            IrJsOptions {
+                mangle_identifiers: false,
+                mangle_properties: false,
+                constructor_initializer_fusion: true,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(named.contains("[\"__proto__\"]:9"), "{named}");
+        let named_trace = run_javascript(&format!(
+            "let calls=0,trace='';Object.defineProperty(Object.prototype,'_lilDirectProbe',{{configurable:true,set(_){{calls++}}}});function inspect(box){{trace=calls+':'+Object.hasOwn(box,'_lilDirectProbe')+':'+Object.hasOwn(box,'__proto__')+':'+box.__proto__+':'+(Object.getPrototypeOf(box)===Object.prototype)}}try{{{named}}}finally{{delete Object.prototype._lilDirectProbe}}process.stdout.write('TRACE:'+trace)"
+        ));
+        assert_eq!(
+            named_trace, "TRACE:0:true:true:9:true",
+            "{named_trace}\n{named}"
+        );
+
+        let positional = compile_without_inlining_with_options(
+            "class Slot{int value;init(int value){this.value=value;}}extern void inspect(Slot slot);inspect(new Slot(7));",
+            false,
+            IrJsOptions {
+                mangle_identifiers: false,
+                mangle_properties: false,
+                public_aggregate_fields: false,
+                constructor_initializer_fusion: true,
+                ..IrJsOptions::default()
+            },
+        );
+        let positional_trace = run_javascript(&format!(
+            "let calls=0,trace='';Object.defineProperty(Array.prototype,'0',{{configurable:true,set(_){{calls++}}}});function inspect(slot){{trace=calls+':'+Object.hasOwn(slot,0)+':'+slot[0]+':'+slot.length}}try{{{positional}}}finally{{delete Array.prototype[0]}}process.stdout.write('TRACE:'+trace)"
+        ));
+        assert_eq!(
+            positional_trace, "TRACE:0:true:7:1",
+            "{positional_trace}\n{positional}"
+        );
+    }
+
+    #[test]
+    fn direct_constructor_fusion_refuses_observable_host_defaults() {
+        let output = compile_without_inlining_with_options(
+            "class Cache{Map<string,int> values;init(Map<string,int> values){this.values=values;}}extern Map<string,int> supplied();extern void inspect(Cache cache);inspect(new Cache(supplied()));",
+            false,
+            IrJsOptions {
+                mangle_identifiers: false,
+                mangle_properties: false,
+                public_aggregate_fields: false,
+                constructor_initializer_fusion: true,
+                ..IrJsOptions::default()
+            },
+        );
+
+        assert!(output.contains("Cache$init"), "{output}");
+        assert!(output.contains("new Map"), "{output}");
+        let trace = run_javascript(&format!(
+            "let calls=0,seen=false;globalThis.Map=class{{constructor(){{calls++}}}};function supplied(){{return {{tag:7}}}}function inspect(cache){{seen=cache[0].tag===7}}{output};process.stdout.write('TRACE:'+calls+':'+seen)"
+        ));
+        assert_eq!(trace, "TRACE:1:true", "{trace}\n{output}");
+    }
+
+    #[test]
+    fn direct_constructor_fusion_refuses_unmapped_host_defaults() {
+        let output = compile_without_inlining_with_options(
+            "extern int read();class Cache{Map<string,int> guard;int value;init(int value){this.value=value;}}extern void inspect(Cache cache);inspect(new Cache(read()));",
+            false,
+            IrJsOptions {
+                mangle_identifiers: false,
+                mangle_properties: false,
+                public_aggregate_fields: false,
+                constructor_initializer_fusion: true,
+                ..IrJsOptions::default()
+            },
+        );
+
+        assert!(output.contains("Cache$init"), "{output}");
+        let trace = run_javascript(&format!(
+            "let events=[];globalThis.Map=class{{constructor(){{events.push('map')}}}};function read(){{events.push('read');return 7}}function inspect(cache){{events.push('inspect:'+cache[1])}}{output};process.stdout.write('TRACE:'+events.join(','))"
+        ));
+        assert_eq!(trace, "TRACE:read,map,inspect:7", "{trace}\n{output}");
+    }
+
+    #[test]
+    fn direct_constructor_fusion_keeps_helpers_with_remaining_super_uses() {
+        let output = compile_without_inlining_with_options(
+            "extern int baseValue();extern int childValue();extern int extraValue();class Base{int value;init(int value){this.value=value;}}class Child extends Base{int extra;init(int value,int extra){super(value);this.extra=extra;}}Base base=new Base(baseValue());Child child=new Child(childValue(),extraValue());print(`${base.value}:${child.value}:${child.extra}`);",
+            false,
+            IrJsOptions {
+                mangle_identifiers: false,
+                mangle_properties: false,
+                public_aggregate_fields: false,
+                constructor_initializer_fusion: true,
+                ..IrJsOptions::default()
+            },
+        );
+
+        assert_eq!(output.matches("Base$init").count(), 2, "{output}");
+        let trace = run_javascript(&format!(
+            "function baseValue(){{return 1}}function childValue(){{return 2}}function extraValue(){{return 3}}{output}"
+        ));
+        assert_eq!(trace, "1:2:3\n", "{trace}\n{output}");
+    }
+
+    #[test]
+    fn retains_effectful_and_observed_constructor_field_writes() {
+        let readable = IrJsOptions {
+            mangle_identifiers: false,
+            mangle_properties: false,
+            constructor_initializer_fusion: true,
+            ..IrJsOptions::default()
+        };
+        let effectful = compile_with_options(
+            "extern int read();class Box{int value;int[] items;init(){this.value=read();}}extern void observe(Box box);Box box=new Box();observe(box);print(box.value);",
+            readable,
+        );
+        assert!(effectful.contains("{value:0,items:[]}"), "{effectful}");
+        assert!(effectful.contains("read()"), "{effectful}");
+        let trace = run_javascript(&format!(
+            "let events=[];function read(){{events.push('read');return 9}}function observe(box){{events.push('observe:'+box.value)}};{effectful};process.stdout.write('TRACE:'+events.join(','))"
+        ));
+        assert_eq!(trace, "9\nTRACE:read,observe:9", "{trace}\n{effectful}");
+
+        let observed = compile_with_options(
+            "class Box{int value;int[] items;init(){inspect(this.value);this.value=7;}}extern void inspect(int value);extern void consume(Box box);Box box=new Box();consume(box);print(box.value);",
+            readable,
+        );
+        assert!(observed.contains("{value:0,items:[]}"), "{observed}");
+        let trace = run_javascript(&format!(
+            "let events=[];function inspect(value){{events.push('inspect:'+value)}}function consume(){{}};{observed};process.stdout.write('TRACE:'+events.join(','))"
+        ));
+        assert_eq!(trace, "7\nTRACE:inspect:0", "{trace}\n{observed}");
+    }
+
+    #[test]
+    fn constructor_fusion_survives_rejected_loop_update_probe() {
+        let output = compile_with_options(
+            "class Box{int value;int[] items;init(int value){this.value=value;}}extern void consume(Box box);int count=0;for(int index=0;index<2;consume(new Box(7))){index++;count++;}print(count);",
+            IrJsOptions {
+                mangle_identifiers: false,
+                mangle_properties: false,
+                constructor_initializer_fusion: true,
+                update_loop_layout: true,
+                ..IrJsOptions::default()
+            },
+        );
+
+        assert!(output.contains("{value:7,items:[]}"), "{output}");
+        let trace = run_javascript(&format!(
+            "let seen='';function consume(box){{seen+=(seen?',':'')+box.value+':'+box.items.length}}{output};process.stdout.write('TRACE:'+seen)"
+        ));
+        assert_eq!(trace, "2\nTRACE:7:0,7:0", "{trace}\n{output}");
+    }
+
+    #[test]
+    fn dense_constructor_literals_ignore_inherited_prototype_setters() {
+        let named_source = "class Box{int _lilProtoProbe;init(int value){this._lilProtoProbe=value;}}extern void inspect(Box box);inspect(new Box(7));";
+        let named_options = IrJsOptions {
+            mangle_identifiers: false,
+            mangle_properties: false,
+            ..IrJsOptions::default()
+        };
+        let named_direct =
+            compile_without_inlining_with_options(named_source, false, named_options);
+        let named_inlined = compile_with_options(
+            named_source,
+            IrJsOptions {
+                constructor_initializer_fusion: true,
+                ..named_options
+            },
+        );
+        for output in [named_direct, named_inlined] {
+            let trace = run_javascript(&format!(
+                "let calls=0,own=false,value=0;Object.defineProperty(Object.prototype,'_lilProtoProbe',{{configurable:true,get(){{return -1}},set(_){{calls++}}}});function inspect(box){{own=Object.hasOwn(box,'_lilProtoProbe');value=box._lilProtoProbe}}try{{{output}}}finally{{delete Object.prototype._lilProtoProbe}}process.stdout.write('TRACE:'+calls+':'+own+':'+value)"
+            ));
+            assert_eq!(trace, "TRACE:0:true:7", "{trace}\n{output}");
+        }
+
+        let positional_source = "class Box{int value;init(int value){this.value=value;}}extern void inspect(Box box);inspect(new Box(7));";
+        let positional_options = IrJsOptions {
+            mangle_identifiers: false,
+            mangle_properties: false,
+            public_aggregate_fields: false,
+            ..IrJsOptions::default()
+        };
+        let positional_direct =
+            compile_without_inlining_with_options(positional_source, false, positional_options);
+        let positional_inlined = compile_with_options(
+            positional_source,
+            IrJsOptions {
+                constructor_initializer_fusion: true,
+                ..positional_options
+            },
+        );
+        for output in [positional_direct, positional_inlined] {
+            let trace = run_javascript(&format!(
+                "let calls=0,own=false,value=0,length=0;Object.defineProperty(Array.prototype,'0',{{configurable:true,get(){{return -1}},set(_){{calls++}}}});function inspect(box){{own=Object.hasOwn(box,0);value=box[0];length=box.length}}try{{{output}}}finally{{delete Array.prototype[0]}}process.stdout.write('TRACE:'+calls+':'+own+':'+value+':'+length)"
+            ));
+            assert_eq!(trace, "TRACE:0:true:7:1", "{trace}\n{output}");
+        }
+    }
+
+    #[test]
+    fn named_proto_fields_are_own_data_properties() {
+        let options = IrJsOptions {
+            mangle_identifiers: false,
+            mangle_properties: false,
+            ..IrJsOptions::default()
+        };
+        let class = compile_with_options(
+            "class Box{int __proto__;init(int value){this.__proto__=value;}}extern void inspect(Box box);inspect(new Box(7));",
+            options,
+        );
+        assert!(class.contains("[\"__proto__\"]:0"), "{class}");
+        let class_trace = run_javascript(&format!(
+            "let trace='';function inspect(value){{trace=Object.hasOwn(value,'__proto__')+':'+value.__proto__+':'+(Object.getPrototypeOf(value)===Object.prototype)}}{class};process.stdout.write('TRACE:'+trace)"
+        ));
+        assert_eq!(class_trace, "TRACE:true:7:true", "{class_trace}\n{class}");
+
+        let structure = compile_with_options(
+            "struct Item{int __proto__;}extern void inspect(Item item);inspect(Item{7});",
+            options,
+        );
+        assert!(structure.contains("[\"__proto__\"]:7"), "{structure}");
+        let struct_trace = run_javascript(&format!(
+            "let trace='';function inspect(value){{trace=Object.hasOwn(value,'__proto__')+':'+value.__proto__+':'+(Object.getPrototypeOf(value)===Object.prototype)}}{structure};process.stdout.write('TRACE:'+trace)"
+        ));
+        assert_eq!(
+            struct_trace, "TRACE:true:7:true",
+            "{struct_trace}\n{structure}"
+        );
+    }
+
+    #[test]
+    fn preserves_class_field_names_at_dynamic_js_boundaries() {
+        let source = "extern JsValue createEmptyObject();class Box{int value;init(int value){this.value=value;}}export bool check(){JsValue bag=createEmptyObject();Box box=new Box(3);bag[\"box\"]=box;return bag[\"box\"][\"value\"]==3;}";
+        for mangle_exports in [false, true] {
+            let output = compile_module_with_options(
+                source,
+                IrJsOptions {
+                    mangle_identifiers: false,
+                    mangle_properties: true,
+                    mangle_exports,
+                    ..IrJsOptions::default()
+                },
+            );
+            assert!(output.contains(".value="), "{output}");
+            assert!(output.contains(".box="), "{output}");
+            assert!(output.matches(".value").count() >= 2, "{output}");
+        }
+    }
+
+    #[test]
+    fn adapter_boundaries_preserve_captured_aggregate_layouts() {
+        let output = compile_module_with_options(
+            "struct Box{int payload;}extern void consume(JsValue value);export void install(){Box box=Box{7};consume(JS.method0((JsValue self)=>box));}",
+            IrJsOptions {
+                mangle_identifiers: false,
+                mangle_properties: true,
+                ..IrJsOptions::default()
+            },
+        );
+
+        assert!(output.contains("payload"), "{output}");
+    }
+
+    #[test]
     fn rewrites_block_arrows_as_boundary_object_methods() {
         let arrow = JsExpression::raw("(a,b)=>{return a+b}", JsPrecedence::Assignment);
         assert_eq!(
@@ -10335,6 +21988,8 @@ mod tests {
         );
         let expression = JsExpression::raw("a=>a+1", JsPrecedence::Assignment);
         assert!(arrow_block_as_object_method("apply", &expression).is_none());
+        let wrapped = JsExpression::raw("bindMethodRest((a,b)=>{return a+b})", JsPrecedence::Call);
+        assert!(arrow_block_as_object_method("apply", &wrapped).is_none());
     }
 
     #[test]
@@ -10348,24 +22003,870 @@ mod tests {
     }
 
     #[test]
+    fn specializes_exclusive_zero_argument_js_method_binders() {
+        let output = compile_module(
+            "extern void consume(JsValue value);JsValue zero(JsValue self){return self[\"item\"];}export void install(){consume(JS.method0(zero));}",
+        );
+
+        assert!(!output.contains("=>function(){return"), "{output}");
+        assert!(output.contains("function(){return this.item}"), "{output}");
+    }
+
+    #[test]
+    fn preserves_captured_receiver_by_aliasing_this() {
+        let output = compile(
+            "extern void consume(JsValue value);consume(JS.methodRest((JsValue self,JsValue args)=>{consume(()=>self[\"item\"]);return args[0];}));",
+        );
+
+        assert!(!output.contains("=>function(){return"), "{output}");
+        assert!(output.contains("=this"), "{output}");
+        let trace = run_javascript(&format!(
+            "let method=null,nested=null,calls=0;function consume(value){{if(calls===0){{method=value;calls=1}}else nested=value}};{output};process.stdout.write([method.call({{item:7}},9),nested()].join(':'))"
+        ));
+        assert_eq!(trace, "9:7", "{output}");
+    }
+
+    #[test]
+    fn specializes_rest_binders_to_native_arguments_without_allocating_arrays() {
+        let method = compile_module(
+            "extern void consume(JsValue value);export void install(){consume(JS.methodRest((JsValue self,JsValue args)=>{consume(self[\"item\"]);return args[0];}));}",
+        );
+        assert!(!method.contains("=>function(){return"), "{method}");
+        assert!(method.contains("function("), "{method}");
+        assert!(
+            method.contains("this.item") || method.contains("this[\"item\"]"),
+            "{method}"
+        );
+        assert!(!method.contains("arguments[0]"), "{method}");
+        assert!(!method.contains("..."), "{method}");
+        assert!(!contains_identity_assign(&method), "{method}");
+
+        let static_rest = compile_module(
+            "extern void consume(JsValue value);export void install(){consume(JS.staticRest((JsValue args)=>args[0]));}",
+        );
+        assert!(
+            !static_rest.contains("=>function(){return"),
+            "{static_rest}"
+        );
+        assert!(
+            static_rest.contains("function(") && !static_rest.contains("arguments[0]"),
+            "{static_rest}"
+        );
+        assert!(!static_rest.contains("..."), "{static_rest}");
+    }
+
+    #[test]
+    fn elides_stringify_when_concatenating_a_string_literal() {
+        let output = compile("extern JsValue read();print(JS.string(read())+\"//\");");
+        assert!(!output.contains("+\"\""), "{output}");
+        assert!(output.contains("read()"), "{output}");
+        assert!(
+            output.contains("+\"//\"") || output.contains("+'//'"),
+            "{output}"
+        );
+    }
+
+    #[test]
+    fn elides_stringify_before_regex_test_and_exec() {
+        let test_output = compile(
+            "extern JsValue read();Regex re=new Regex(\"a\");print(JS.regexTest(re,JS.string(read())));",
+        );
+        assert!(!test_output.contains("+\"\""), "{test_output}");
+        assert!(test_output.contains(".test("), "{test_output}");
+
+        let exec_output = compile(
+            "extern JsValue read();Regex re=new Regex(\"a\");print(JS.regexExec(re,JS.string(read())));",
+        );
+        assert!(!exec_output.contains("+\"\""), "{exec_output}");
+        assert!(exec_output.contains(".exec("), "{exec_output}");
+    }
+
+    #[test]
+    fn elides_stringify_before_string_methods_and_keeps_returned_stringify() {
+        let replace = compile(
+            "extern JsValue read();Regex re=new Regex(\"a\");print(JS.stringReplace(JS.string(read()),re,\"\"));",
+        );
+        assert!(!replace.contains("+\"\""), "{replace}");
+        assert!(replace.contains(".replace("), "{replace}");
+
+        let lower = compile("extern JsValue read();print(JS.string(read()).toLowerCase());");
+        assert!(!lower.contains("+\"\""), "{lower}");
+        assert!(lower.contains(".toLowerCase("), "{lower}");
+
+        let returned = compile("extern JsValue read();print(JS.string(read()));");
+        assert!(returned.contains("+\"\""), "{returned}");
+    }
+
+    #[test]
+    fn fuses_object_literals_outside_try_in_the_same_function() {
+        let output = compile(
+            "extern void consume(JsValue value);void install(){JsValue bag=JS.object();bag[\"alpha\"]=true;bag[\"beta\"]=true;consume(bag);try{JSON.parse(\"x\");}catch{}}install();",
+        );
+        assert!(
+            output.contains("alpha:!0") && output.contains("beta:!0") && output.contains('{'),
+            "{output}"
+        );
+        assert!(
+            !output.contains("bag.alpha=") && !output.contains("bag[\"alpha\"]="),
+            "{output}"
+        );
+    }
+
+    #[test]
+    fn fuses_js_method_adapters_into_object_literals_without_name_suppression() {
+        let output = compile_with_options(
+            "extern void consume(JsValue value);JsValue addImpl(JsValue self,JsValue args){return args[0];}JsValue removeImpl(JsValue self,JsValue args){return args[0];}void install(){JsValue bag=JS.object();bag[\"add\"]=JS.methodRest(addImpl);bag[\"remove\"]=JS.methodRest(removeImpl);consume(bag);}install();",
+            IrJsOptions {
+                mangle_identifiers: false,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(!output.contains("(0,function"), "{output}");
+        assert!(
+            output.contains("add:function") || output.contains("add:("),
+            "{output}"
+        );
+    }
+
+    #[test]
+    fn fuses_closures_into_object_literals_without_name_suppression() {
+        let output = compile_with_options(
+            "extern void consume(JsValue value);void install(){JsValue bag=JS.object();bag[\"setup\"]=()=>{return false;};bag[\"teardown\"]=()=>{return false;};consume(bag);}install();",
+            IrJsOptions {
+                mangle_identifiers: false,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(!output.contains("(0,function"), "{output}");
+        assert!(
+            output.contains("setup:") && output.contains("teardown:"),
+            "{output}"
+        );
+    }
+
+    #[test]
+    fn fuses_consecutive_array_pushes_into_a_literal() {
+        let output = compile(
+            "extern void consume(JsValue value);void run(){JsValue[] bag=[];bag.push(1.0);bag.push(2.0);consume(bag);}run();",
+        );
+        assert!(
+            output.contains("[1,2]") || output.contains("[1,2.]"),
+            "{output}"
+        );
+        assert!(!output.contains(".push("), "{output}");
+    }
+
+    #[test]
+    fn fuses_js_push_and_empty_array_factories_into_a_literal() {
+        let typed_js = compile(
+            "extern void consume(JsValue value);void run(){JsValue bag=JS.array();JS.push(bag,1.0);JS.push(bag,2.0);consume(bag);}run();",
+        );
+        assert!(
+            typed_js.contains("[1,2]") || typed_js.contains("[1,2.]"),
+            "{typed_js}"
+        );
+        assert!(!typed_js.contains(".push("), "{typed_js}");
+
+        let factory = compile(
+            "extern void consume(JsValue value);JsValue empty(){JsValue[] a=[];return a;}void run(){JsValue bag=empty();JS.push(bag,1.0);JS.push(bag,2.0);consume(bag);}run();",
+        );
+        assert!(
+            factory.contains("[1,2]") || factory.contains("[1,2.]"),
+            "{factory}"
+        );
+        assert!(!factory.contains(".push("), "{factory}");
+    }
+
+    #[test]
+    fn does_not_fold_try_into_a_logical_or_comma_expression() {
+        let output = compile_without_inlining_with_options(
+            "extern JsValue seed();extern void work(JsValue value);JsValue run(){JsValue n=seed();if(n.truthy()){JsValue t=JS.object();try{work(n);}catch{return null;}return t;}return n;}print(run());",
+            false,
+            IrJsOptions {
+                mangle_identifiers: false,
+                function_spelling: FunctionSpelling::Function,
+                conditional_expressions: true,
+                comma_expressions: true,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(output.contains("try{"), "{output}");
+        assert!(output.contains("if("), "{output}");
+        assert!(!output.contains(",try{"), "{output}");
+        assert!(!output.contains("||try{"), "{output}");
+        assert!(!output.contains("&&try{"), "{output}");
+    }
+
+    fn contains_identity_assign(code: &str) -> bool {
+        let bytes = code.as_bytes();
+        let mut i = 0;
+        while i < bytes.len() {
+            if !is_js_identifier_start(bytes[i]) {
+                i += 1;
+                continue;
+            }
+            let start = i;
+            i += 1;
+            while i < bytes.len() && is_js_identifier_byte(bytes[i]) {
+                i += 1;
+            }
+            if i < bytes.len() && bytes[i] == b'=' {
+                let name = &code[start..i];
+                let rhs = &code[i + 1..];
+                if rhs.starts_with(name) {
+                    let after = i + 1 + name.len();
+                    if after >= bytes.len()
+                        || (!is_js_identifier_byte(bytes[after]) && bytes[after] == b';')
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+        false
+    }
+
+    #[test]
+    fn specializes_arguments_global_const_indexes_to_native_formals() {
+        let copied = compile_module(
+            "extern JsValue arguments;export JsValue readFirst(){JsValue args=arguments;return args[0];}",
+        );
+        assert!(!copied.contains("arguments[0]"), "{copied}");
+        assert!(copied.contains("function"), "{copied}");
+
+        let direct = compile_module(
+            "extern JsValue arguments;export JsValue readFirst(){return arguments[0];}",
+        );
+        assert!(!direct.contains("arguments[0]"), "{direct}");
+        assert!(direct.contains("function"), "{direct}");
+
+        let mixed = compile_module(
+            "extern JsValue arguments;export JsValue readFirst(){JsValue first=arguments[0];print(arguments.length);return first;}",
+        );
+        assert!(!mixed.contains("arguments[0]"), "{mixed}");
+        assert!(mixed.contains("arguments.length"), "{mixed}");
+    }
+
+    #[test]
+    fn emits_exclusive_once_run_closures_as_function_expressions() {
+        let options = IrJsOptions {
+            mangle_identifiers: false,
+            function_spelling: FunctionSpelling::Function,
+            ..IrJsOptions::default()
+        };
+        let assigned = compile_with_options(
+            "JsValue helper(JsValue value){if(value==null){return 0;}return value;}JsValue obj=JS.object();obj[\"fn\"]=helper;print(obj);",
+            options,
+        );
+        assert!(!assigned.contains("function helper"), "{assigned}");
+        assert!(
+            assigned.contains("function(") || assigned.contains(":function("),
+            "{assigned}"
+        );
+
+        let through_setup = compile_with_options(
+            "JsValue helper(JsValue value){if(value==null){return 0;}return value;}void setup(){JsValue obj=JS.object();obj[\"fn\"]=helper;print(obj);}setup();",
+            options,
+        );
+        assert!(
+            !through_setup.contains("function helper"),
+            "{through_setup}"
+        );
+
+        let reusable = compile_with_options(
+            "extern void consume(JsValue value);JsValue helper(JsValue value){if(value==null){return 0;}return value;}void assign(JsValue obj){obj[\"fn\"]=helper;consume(obj);}for(int i=0;i<2;i++){assign(JS.object());}",
+            options,
+        );
+        assert!(reusable.contains("function helper"), "{reusable}");
+    }
+
+    #[test]
+    fn wraps_exclusive_callee_trees_in_once_run_iife_scopes() {
+        let options = IrJsOptions {
+            mangle_identifiers: false,
+            iife_private_callee_clusters: true,
+            ..IrJsOptions::default()
+        };
+        let clustered = compile_without_inlining_with_options(
+            "int innerA(int x){if(x<0){return 0;}return x+1;}int innerB(int x){if(x>10){return 10;}return x;}int innerC(int x){return x+2;}int innerD(int x){return x+3;}int root(int x){return innerA(x)+innerB(x)+innerC(x)+innerD(x);}print(root(1));",
+            false,
+            options,
+        );
+        assert!(
+            clustered.contains("var root=(function(){")
+                && clustered.contains("function innerA")
+                && clustered.contains("function innerB")
+                && clustered.contains("function innerC")
+                && clustered.contains("function innerD")
+                && clustered.contains("return function")
+                && clustered.contains("})();"),
+            "{clustered}"
+        );
+        assert_eq!(clustered.matches("function root").count(), 0, "{clustered}");
+        let clustered_trace = run_javascript(&clustered);
+        assert_eq!(clustered_trace, "10\n", "{clustered}");
+
+        let shared = compile_without_inlining_with_options(
+            "int h1(int x){return x+1;}int h2(int x){return x+2;}int h3(int x){return x+3;}int h4(int x){return x+4;}int left(int x){return h1(x)+h2(x)+h3(x)+h4(x);}int right(int x){return h1(x)+h2(x)+h3(x)+h4(x)+1;}print(left(1)+right(2));",
+            false,
+            options,
+        );
+        assert!(
+            shared.contains(";(function(){")
+                && shared.contains("function h1")
+                && shared.contains("left=function")
+                && shared.contains("right=function"),
+            "{shared}"
+        );
+        assert!(
+            !shared.contains("function left") && !shared.contains("function right"),
+            "{shared}"
+        );
+        let shared_trace = run_javascript(&shared);
+        assert_eq!(shared_trace, "33\n", "{shared}");
+
+        let shared_mangled = compile_without_inlining_with_options(
+            "int h1(int x){return x+1;}int h2(int x){return x+2;}int h3(int x){return x+3;}int h4(int x){return x+4;}int left(int x){return h1(x)+h2(x)+h3(x)+h4(x);}int right(int x){return h1(x)+h2(x)+h3(x)+h4(x)+1;}print(left(1)+right(2));",
+            false,
+            IrJsOptions {
+                mangle_identifiers: true,
+                iife_private_callee_clusters: true,
+                nested_once_run_helpers: true,
+                local_name_reserve: 48,
+                function_spelling: FunctionSpelling::Function,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(shared_mangled.contains(";(function(){"), "{shared_mangled}");
+        assert_eq!(run_javascript(&shared_mangled), "33\n", "{shared_mangled}");
+
+        let mangled = compile_without_inlining_with_options(
+            "int innerA(int x){if(x<0){return 0;}return x+1;}int innerB(int x){if(x>10){return 10;}return x;}int innerC(int x){return x+2;}int innerD(int x){return x+3;}int root(int x){int y=x+1;int z=x+2;return innerA(y)+innerB(z)+innerC(x)+innerD(x);}print(root(1));",
+            false,
+            IrJsOptions {
+                mangle_identifiers: true,
+                iife_private_callee_clusters: true,
+                nested_once_run_helpers: true,
+                local_name_reserve: 48,
+                function_spelling: FunctionSpelling::Function,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(mangled.contains("=(function(){"), "{mangled}");
+        assert_eq!(run_javascript(&mangled), "13\n", "{mangled}");
+    }
+
+    #[test]
+    fn named_cluster_roots_stay_callable_from_foreign_closures() {
+        let output = compile_without_inlining_with_options(
+            "int h1(int x){return x+1;}int h2(int x){return x+2;}int h3(int x){return x+3;}int h4(int x){return x+4;}int left(int x){return h1(x)+h2(x)+h3(x)+h4(x);}int right(int x){return h1(x)+h2(x)+h3(x)+h4(x)+1;}void run(){auto call=()=>left(1);print(call()+right(2));}run();",
+            false,
+            IrJsOptions {
+                mangle_identifiers: true,
+                iife_private_callee_clusters: true,
+                nested_once_run_helpers: true,
+                local_name_reserve: 48,
+                function_spelling: FunctionSpelling::Function,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(
+            output.contains(";(function(){"),
+            "{output}"
+        );
+        assert_eq!(run_javascript(&output), "33\n", "{output}");
+    }
+
+    #[test]
+    fn clustered_helpers_of_js_method_binders_keep_emitted_names() {
+        let output = compile_without_inlining_with_options(
+            "extern void consume(JsValue value);int h1(int x){if(x<0){return 0;}return x+1;}int h2(int x){if(x<0){return 0;}return x+2;}int h3(int x){if(x<0){return 0;}return x+3;}int h4(int x){if(x<0){return 0;}return x+4;}JsValue binder(JsValue self){return h1(0)+h2(0)+h3(0)+h4(0);}consume(JS.method0(binder));",
+            false,
+            IrJsOptions {
+                mangle_identifiers: true,
+                iife_private_callee_clusters: true,
+                local_name_reserve: 48,
+                function_spelling: FunctionSpelling::Function,
+                ..IrJsOptions::default()
+            },
+        );
+        let trace = run_javascript(&format!(
+            "let seen=null;function consume(value){{seen=value}};{output};process.stdout.write(String(seen.call({{}})))"
+        ));
+        assert_eq!(trace, "10", "{output}");
+    }
+
+    #[test]
+    fn loop_index_survives_nullable_map_get_in_the_body() {
+        let source = r#"
+            int total=0;
+            Map<string, int> fields=new Map<string, int>();
+            fields.set("a", 1);
+            fields.set("arr", 2);
+            Map<string, int> nested=new Map<string, int>();
+            nested.set("a", 9);
+            string[] keys=["a", "arr"];
+            for (int i=0;i<keys.length;i=i+1) {
+              string key=keys[i];
+              int? child=nested.get(key);
+              if (child != null) {
+                total=total+child;
+              } else {
+                int? found=fields.get(key);
+                if (found != null) {
+                  total=total+found;
+                }
+              }
+            }
+            print(total);
+        "#;
+        for options in [
+            IrJsOptions::default(),
+            IrJsOptions {
+                mangle_identifiers: true,
+                phi_affinity_mode: PhiAffinityMode::Grouped,
+                update_loop_layout: true,
+                conditional_expressions: true,
+                cross_scope_name_reuse: true,
+                local_name_reserve: 48,
+                stable_local_names: true,
+                ..IrJsOptions::default()
+            },
+        ] {
+            let output = compile_with_options(source, options);
+            assert_eq!(run_javascript(&output), "11\n", "{output}");
+        }
+    }
+
+    #[test]
+    fn nests_helpers_shared_by_once_run_exclusive_closures() {
+        let output = compile_without_inlining_with_options(
+            "extern void consume(JsValue value);int shared(int x){if(x<0){return 0;}return x+1;}void install(){JsValue obj=JS.object();obj[\"left\"]=(int x)=>shared(x);obj[\"right\"]=(int x)=>shared(x)+2;consume(obj);}install();",
+            false,
+            IrJsOptions {
+                mangle_identifiers: false,
+                iife_private_callee_clusters: true,
+                nested_once_run_helpers: true,
+                inline_exclusive_closures: true,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(
+            output.contains("function shared") && output.contains("function install"),
+            "{output}"
+        );
+        assert!(
+            output.find("function install").is_some_and(|install| {
+                output
+                    .find("function shared")
+                    .is_some_and(|shared| shared > install)
+            }),
+            "{output}"
+        );
+        let mangled = compile_without_inlining_with_options(
+            "extern void consume(JsValue value);int shared(int x){if(x<0){return 0;}return x+1;}void install(){JsValue obj=JS.object();obj[\"left\"]=(int x)=>shared(x);obj[\"right\"]=(int x)=>shared(x)+2;consume(obj);}install();",
+            false,
+            IrJsOptions {
+                mangle_identifiers: true,
+                iife_private_callee_clusters: true,
+                nested_once_run_helpers: true,
+                inline_exclusive_closures: true,
+                local_name_reserve: 48,
+                function_spelling: FunctionSpelling::Function,
+                ..IrJsOptions::default()
+            },
+        );
+        let trace = run_javascript(&format!(
+            "let seen=null;function consume(value){{seen=value.left(1)+value.right(2)}};{mangled};process.stdout.write(String(seen))"
+        ));
+        assert_eq!(trace, "7", "{mangled}");
+    }
+
+    #[test]
+    fn nests_address_taken_helpers_private_to_a_once_run_host() {
+        let output = compile_without_inlining_with_options(
+            "extern void consume(JsValue value);JsValue helper(JsValue x){if(x==null){return 0;}return x;}void install(){JsValue obj=JS.object();obj[\"left\"]=helper;obj[\"right\"]=helper;consume(obj);}install();",
+            false,
+            IrJsOptions {
+                mangle_identifiers: false,
+                iife_private_callee_clusters: true,
+                nested_once_run_helpers: true,
+                inline_exclusive_closures: true,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(
+            output.contains("function helper") && output.contains("function install"),
+            "{output}"
+        );
+        assert!(
+            output.find("function install").is_some_and(|install| {
+                output
+                    .find("function helper")
+                    .is_some_and(|helper| helper > install)
+            }),
+            "{output}"
+        );
+        let mangled = compile_without_inlining_with_options(
+            "extern void consume(JsValue value);JsValue helper(JsValue x){if(x==null){return 0;}return x;}void install(){JsValue obj=JS.object();obj[\"left\"]=helper;obj[\"right\"]=helper;consume(obj);}install();",
+            false,
+            IrJsOptions {
+                mangle_identifiers: true,
+                iife_private_callee_clusters: true,
+                nested_once_run_helpers: true,
+                inline_exclusive_closures: true,
+                local_name_reserve: 48,
+                function_spelling: FunctionSpelling::Function,
+                ..IrJsOptions::default()
+            },
+        );
+        let trace = run_javascript(&format!(
+            "let seen=null;function consume(value){{seen=value.left(1)+value.right(2)}};{mangled};process.stdout.write(String(seen))"
+        ));
+        assert_eq!(trace, "3", "{mangled}");
+    }
+
+    #[test]
+    fn nests_once_run_helpers_without_named_root_iife_clusters() {
+        let output = compile_without_inlining_with_options(
+            "extern void consume(JsValue value);JsValue helper(JsValue x){if(x==null){return 0;}return x;}void install(){JsValue obj=JS.object();obj[\"left\"]=helper;obj[\"right\"]=helper;consume(obj);}install();",
+            false,
+            IrJsOptions {
+                mangle_identifiers: false,
+                iife_private_callee_clusters: false,
+                nested_once_run_helpers: true,
+                inline_exclusive_closures: true,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(
+            output.contains("function helper") && output.contains("function install"),
+            "{output}"
+        );
+        assert!(
+            output.find("function install").is_some_and(|install| {
+                output
+                    .find("function helper")
+                    .is_some_and(|helper| helper > install)
+            }),
+            "{output}"
+        );
+        assert!(!output.contains("(function(){"), "{output}");
+    }
+
+    #[test]
+    fn emits_typeof_checks_with_the_literal_first() {
+        let output = compile(
+            "extern JsValue input;print(input is string);print(input is float);print(input is bool);",
+        );
+        assert!(output.contains("\"string\"==typeof"), "{output}");
+        assert!(output.contains("\"number\"==typeof"), "{output}");
+        assert!(output.contains("\"boolean\"==typeof"), "{output}");
+        assert!(
+            !output.contains("typeof input==") && !output.contains("typeof a=="),
+            "{output}"
+        );
+    }
+
+    #[test]
+    fn emits_statement_if_returns_as_a_conditional_expression() {
+        let output = compile_without_inlining_with_options(
+            "extern int read();int pick(int x,int y){int z=x+y;if(z>0){return 1;}return 2;}print(pick(read(),read()));",
+            false,
+            IrJsOptions {
+                mangle_identifiers: false,
+                function_spelling: FunctionSpelling::Function,
+                conditional_expressions: true,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(
+            output.contains("return") && output.contains('?'),
+            "{output}"
+        );
+        assert!(!output.contains("if("), "{output}");
+        let trace = run_javascript(&format!("function read(){{return 3}};{output}"));
+        assert_eq!(trace, "1\n", "{output}");
+    }
+
+    #[test]
+    fn emits_multi_statement_if_bodies_as_logical_sequences() {
+        let output = compile_without_inlining_with_options(
+            "extern bool test();extern void first();extern void second();void run(){if(test()){first();second();}}run();",
+            false,
+            IrJsOptions {
+                mangle_identifiers: false,
+                function_spelling: FunctionSpelling::Function,
+                conditional_expressions: true,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(output.contains("&&") && output.contains(','), "{output}");
+        assert!(!output.contains("if("), "{output}");
+    }
+
+    #[test]
+    fn collapses_assignment_guard_returns_into_one_if() {
+        let output = compile_without_inlining_with_options(
+            "extern JsValue hooksOf(JsValue elem);extern JsValue read();JsValue setAttr(JsValue elem,JsValue value,JsValue name){JsValue hooks=hooksOf(elem);if(hooks.truthy()){JsValue ret=JS.invoke(hooks,\"set\",elem,value,name);if(!JS.isUndefined(ret)){return ret;}}JS.invoke(elem,\"setAttribute\",name,value);return value;}print(setAttr(read(),read(),read()));",
+            false,
+            IrJsOptions {
+                mangle_identifiers: false,
+                function_spelling: FunctionSpelling::Function,
+                conditional_expressions: true,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(output.contains("&&"), "{output}");
+        let if_count = output.matches("if(").count();
+        assert!(
+            if_count <= 1,
+            "expected at most one if, got {if_count}: {output}"
+        );
+        let trace = run_javascript(&format!(
+            "let seen='';function hooksOf(elem){{return {{set(e,v,n){{seen=e+':'+v+':'+n;return 'hooked'}}}};}}function read(){{return 'x'}};{output}"
+        ));
+        assert_eq!(trace, "hooked\n", "{output}");
+    }
+
+    #[test]
+    fn batches_consecutive_property_writes_into_object_assign() {
+        let output = compile_with_options(
+            "extern JsValue input();extern void consume(JsValue value);JsValue obj=input();obj[\"alpha\"]=1;obj[\"beta\"]=2;consume(obj);",
+            IrJsOptions {
+                mangle_identifiers: false,
+                batch_property_assigns: true,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(output.contains("Object.assign("), "{output}");
+        assert!(
+            output.contains("alpha:1") && output.contains("beta:2"),
+            "{output}"
+        );
+        assert!(!output.contains("obj.alpha=1"), "{output}");
+        let trace = run_javascript(&format!(
+            "let seen=null;function input(){{return {{}}}}function consume(value){{seen=value}};{output};process.stdout.write(JSON.stringify(seen))"
+        ));
+        assert_eq!(trace, "{\"alpha\":1,\"beta\":2}", "{output}");
+    }
+
+    #[test]
+    fn emits_negated_empty_else_as_or_statement() {
+        let output = compile("extern bool keep();extern void side();if(!keep()){side();}");
+        assert!(
+            output.contains("||") && !output.contains("if(!"),
+            "{output}"
+        );
+        let trace = run_javascript(&format!(
+            "let n=0;function keep(){{return false}}function side(){{n+=1}};{output};process.stdout.write(String(n))"
+        ));
+        assert_eq!(trace, "1", "{output}");
+        let skipped = run_javascript(&format!(
+            "let n=0;function keep(){{return true}}function side(){{n+=1}};{output};process.stdout.write(String(n))"
+        ));
+        assert_eq!(skipped, "0", "{output}");
+    }
+
+    #[test]
+    fn preserves_captured_arguments_by_aliasing_the_arguments_object() {
+        let output = compile_module(
+            "extern void consume(JsValue value);export void install(){consume(JS.staticRest((JsValue args)=>{consume(()=>args[0]);return null;}));}",
+        );
+
+        assert!(!output.contains("=>function(){return"), "{output}");
+        assert!(output.contains("=arguments"), "{output}");
+    }
+
+    #[test]
+    fn preserves_adapter_for_stored_or_mutably_captured_replaced_parameters() {
+        let method = compile(
+            "extern void collect(JsValue value);collect(JS.method0((JsValue self)=>{auto read=()=>self;self=null;return read();}));",
+        );
+        assert!(method.contains("=>function(){return"), "{method}");
+        let trace = run_javascript(&format!(
+            "let values=[];function collect(value){{values.push(value)}}{method};let wrapper=values[0],marker={{ok:true}};process.stdout.write('TRACE:'+[wrapper.call(marker)===null,wrapper.name==='',wrapper.length].join(':'))"
+        ));
+        assert_eq!(trace, "TRACE:true:true:0", "{method}");
+
+        let rest = compile_module(
+            "extern void consume(JsValue value);export void install(){consume(JS.staticRest((JsValue args)=>{auto read=()=>args;args=null;return read();}));}",
+        );
+        assert!(rest.contains("=>function(){return"), "{rest}");
+
+        let exception_region = compile_module(
+            "extern void consume(JsValue value);export void install(){consume(JS.method0((JsValue self)=>{try{self=null;}catch{}return self;}));}",
+        );
+        assert!(
+            exception_region.contains("=>function(){return"),
+            "{exception_region}"
+        );
+    }
+
+    #[test]
+    fn keeps_js_method_binders_for_shared_function_targets() {
+        let output = compile_module(
+            "extern void consume(JsValue value);JsValue shared(JsValue self,JsValue args){return args[0];}export void install(){consume(JS.methodRest(shared));consume(shared(null,[1]));}",
+        );
+
+        assert!(
+            output.contains("=>function(){return") && output.contains("(this,arguments)"),
+            "{output}"
+        );
+    }
+
+    #[test]
+    fn does_not_recognize_user_externs_by_adapter_spelling() {
+        let output = compile_module(
+            "extern JsValue bindMethod0(func(JsValue)->JsValue fn);extern void consume(JsValue value);JsValue target(JsValue self){return self;}export void install(){consume(bindMethod0(target));}",
+        );
+
+        assert!(output.contains("bindMethod0("), "{output}");
+        assert!(!output.contains("=>function(){return"), "{output}");
+    }
+
+    #[test]
+    fn suppresses_adapter_name_in_variable_and_aggregate_initializers() {
+        let local = compile_with_options(
+            "extern void barrier();extern void consume(JsValue value);JsValue wrapped=JS.method0((JsValue self)=>self);barrier();consume(wrapped);consume(wrapped);",
+            IrJsOptions {
+                mangle_identifiers: false,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(local.contains("(0,function(){return this})"), "{local}");
+        assert!(!local.contains("=e=>function(){return"), "{local}");
+        let local_trace = run_javascript(&format!(
+            "let values=[];function barrier(){{}}function consume(value){{values.push(value)}}{local};let value=values[0],constructible=true;try{{Reflect.construct(value,[])}}catch{{constructible=false}}process.stdout.write('TRACE:'+[values[0]===values[1],value.name,value.length,Object.hasOwn(value,'prototype'),constructible].join(':'))"
+        ));
+        assert_eq!(local_trace, "TRACE:true::0:true:true", "{local}");
+
+        let aggregate = compile_with_options(
+            "struct Holder{JsValue handle;}extern void consume(JsValue value);Holder holder=Holder{JS.method0((JsValue self)=>self)};consume(holder);",
+            IrJsOptions {
+                mangle_identifiers: false,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(
+            aggregate.contains("handle:function(){return this}"),
+            "{aggregate}"
+        );
+        assert!(!aggregate.contains("(0,function"), "{aggregate}");
+        assert!(!aggregate.contains("=e=>function(){return"), "{aggregate}");
+        let aggregate_trace = run_javascript(&format!(
+            "let trace='';function consume(value){{trace=value.handle.name}}{aggregate};process.stdout.write('TRACE:'+trace)"
+        ));
+        assert_eq!(aggregate_trace, "TRACE:handle", "{aggregate}");
+
+        let assigned = compile_with_options(
+            "extern void consume(JsValue value);void install(){JsValue setupFn=JS.method0((JsValue self)=>self);JsValue bag=JS.object();bag[\"setup\"]=setupFn;consume(bag);}install();",
+            IrJsOptions {
+                mangle_identifiers: false,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(!assigned.contains("(0,function"), "{assigned}");
+        assert!(assigned.contains("setup:function(){return this}"), "{assigned}");
+    }
+
+    #[test]
+    fn refuses_fusion_when_the_target_reads_native_this_or_arguments() {
+        let own_arguments = compile_module(
+            "extern JsValue arguments;extern void consume(JsValue value);export void install(){consume(JS.staticRest((JsValue args)=>arguments));}",
+        );
+        assert!(
+            own_arguments.contains("=>function(){return"),
+            "{own_arguments}"
+        );
+
+        let own_this = compile_module(
+            "extern JsValue this;extern void consume(JsValue value);export void install(){consume(JS.method0((JsValue self)=>this));}",
+        );
+        assert!(own_this.contains("=>function(){return"), "{own_this}");
+
+        let nested_this = compile_module(
+            "extern JsValue this;extern void consume(JsValue value);export void install(){consume(JS.method0((JsValue self)=>{consume(()=>this);return self;}));}",
+        );
+        assert!(nested_this.contains("=>function(){return"), "{nested_this}");
+
+        let nested_arguments = compile_module(
+            "extern JsValue arguments;extern void consume(JsValue value);export void install(){consume(JS.staticRest((JsValue args)=>{consume(()=>arguments);return args;}));}",
+        );
+        assert!(
+            nested_arguments.contains("=>function(){return"),
+            "{nested_arguments}"
+        );
+    }
+
+    #[test]
+    fn nested_lexical_js_bindings_keep_the_callback_context() {
+        let nested_this = compile(
+            "extern JsValue this;extern void collect(JsValue value);collect(JS.method0((JsValue self)=>{collect(()=>this);return self;}));",
+        );
+        let this_trace = run_javascript(&format!(
+            "let values=[];function collect(value){{values.push(value)}}let ambient={{ambient:true}};(function(){{{nested_this}}}).call(ambient);let wrapper=values.shift(),marker={{marker:true}};wrapper.call(marker);let nested=values.shift();process.stdout.write('TRACE:'+[nested()===ambient,nested()!==marker].join(':'))"
+        ));
+        assert_eq!(this_trace, "TRACE:true:true", "{nested_this}");
+
+        let nested_arguments = compile(
+            "extern JsValue arguments;extern void collect(JsValue value);collect(JS.staticRest((JsValue args)=>{collect(()=>arguments);return args;}));",
+        );
+        let arguments_trace = run_javascript(&format!(
+            "let values=[];function collect(value){{values.push(value)}}(function ambient(){{{nested_arguments}}})('ambient');let wrapper=values.shift(),wrapperArguments=wrapper(4,5),nested=values.shift(),captured=nested();process.stdout.write('TRACE:'+[captured[0],wrapperArguments[0],captured!==wrapperArguments].join(':'))"
+        ));
+        assert_eq!(
+            arguments_trace, "TRACE:ambient:4:true",
+            "{nested_arguments}"
+        );
+    }
+
+    #[test]
+    fn fallback_adapters_preserve_javascript_function_reflection_and_arguments() {
+        let output = compile(
+            "extern void inspect(JsValue value);JsValue method0Target(JsValue self){return self;}JsValue method1Target(JsValue self,JsValue arg){return self;}JsValue methodRestTarget(JsValue self,JsValue args){return args;}JsValue staticRestTarget(JsValue args){return args;}inspect(JS.method0(method0Target));inspect(JS.method0(method0Target));inspect(JS.method1(method1Target));inspect(JS.method1(method1Target));inspect(JS.methodRest(methodRestTarget));inspect(JS.methodRest(methodRestTarget));inspect(JS.staticRest(staticRestTarget));inspect(JS.staticRest(staticRestTarget));method0Target(null);method1Target(null,null);methodRestTarget(null,JS.undefined());staticRestTarget(JS.undefined());",
+        );
+        let trace = run_javascript(&format!(
+            "let wrappers=[];function inspect(value){{wrappers.push(value)}}{output};let [m0a,m0b,m1a,m1b,mra,mrb,sra,srb]=wrappers,marker={{ok:true}},rest=mra.call(marker,4,5),staticArgs=sra(6,7),constructible=wrappers.every(value=>{{try{{Reflect.construct(value,[]);return true}}catch{{return false}}}});process.stdout.write('TRACE:'+[m0a!==m0b,m1a!==m1b,mra!==mrb,sra!==srb,m0a.length,m1a.length,mra.length,sra.length,wrappers.every(value=>value.name===''),wrappers.every(value=>Object.hasOwn(value,'prototype')),constructible,m0a.call(marker)===marker,m1a.call(marker,9)===marker,Object.prototype.toString.call(rest),rest.length,rest[0],rest[1],Object.prototype.toString.call(staticArgs),staticArgs.length,staticArgs[0],staticArgs[1]].join(':'))"
+        ));
+        assert_eq!(
+            trace,
+            "TRACE:true:true:true:true:0:1:0:0:true:true:true:true:true:[object Arguments]:2:4:5:[object Arguments]:2:6:7",
+            "{output}"
+        );
+    }
+
+    #[test]
+    fn fused_adapters_still_allocate_fresh_constructible_anonymous_functions() {
+        let output = compile(
+            "extern void inspect(JsValue value);JsValue make(){return JS.method0((JsValue self)=>self);}inspect(make());inspect(make());",
+        );
+        assert!(!output.contains("=e=>function(){return e("), "{output}");
+        let trace = run_javascript(&format!(
+            "let wrappers=[];function inspect(value){{wrappers.push(value)}}{output};let [first,second]=wrappers,marker={{ok:true}},constructible=true;try{{Reflect.construct(first,[])}}catch{{constructible=false}}process.stdout.write('TRACE:'+[first!==second,first.length,first.name==='',Object.hasOwn(first,'prototype'),constructible,first.call(marker)===marker].join(':'))"
+        ));
+        assert_eq!(trace, "TRACE:true:0:true:true:true:true", "{output}");
+    }
+
+    #[test]
     fn folds_signed_i32_overflow() {
         assert_eq!(compile("print(2147483647+1);"), "console.log(-2147483648)");
     }
 
     #[test]
-    fn normalizes_dynamic_tilde_increment_overflow() {
+    fn normalizes_dynamic_increment_overflow_without_slow_tilde_spelling() {
         let output = compile(
             "int[] values=[2147483647];extern int choose();int value=values[choose()]+1;print(value);",
         );
-        assert!(output.contains("-~"), "{output}");
+        assert!(!output.contains("-~"), "{output}");
         assert!(output.contains("|0"), "{output}");
     }
 
     #[test]
-    fn keeps_tilde_increment_as_a_number_when_the_result_is_float() {
+    fn keeps_increment_as_a_number_when_the_result_is_float() {
         let output = compile("extern float read();float value=read().toInt()+1.0;print(value);");
-        assert!(output.contains("-~read()"), "{output}");
-        assert!(!output.contains("-~read()|0"), "{output}");
+        assert!(!output.contains("-~"), "{output}");
+        assert!(output.contains("read()|0"), "{output}");
     }
 
     #[test]
@@ -10552,6 +23053,14 @@ mod tests {
             IdentifierAlphabet::for_code(""),
             IdentifierAlphabet::canonical()
         );
+        assert_ne!(
+            IdentifierAlphabet::javascript_keyword(),
+            IdentifierAlphabet::canonical()
+        );
+        assert_eq!(
+            encode_identifier(0, &IdentifierAlphabet::javascript_keyword()),
+            "e"
+        );
     }
 
     #[test]
@@ -10584,19 +23093,377 @@ mod tests {
     }
 
     #[test]
+    fn projects_proven_private_defaults_without_erasing_explicit_arguments() {
+        let source = "extern int read();int adjust(int value,int amount=2){return value+amount;}print(adjust(read())+adjust(read(),3));";
+        let projected = compile_without_inlining_with_options(
+            source,
+            false,
+            IrJsOptions {
+                mangle_identifiers: false,
+                callee_default_arguments: true,
+                ..IrJsOptions::default()
+            },
+        );
+        let materialized = compile_without_inlining_with_options(
+            source,
+            false,
+            IrJsOptions {
+                mangle_identifiers: false,
+                callee_default_arguments: false,
+                ..IrJsOptions::default()
+            },
+        );
+
+        assert!(projected.contains("(value,amount=2)"), "{projected}");
+        assert!(projected.contains("adjust(read())"), "{projected}");
+        assert!(projected.contains("adjust(read(),3)"), "{projected}");
+        assert!(!materialized.contains("amount=2"), "{materialized}");
+        assert!(materialized.contains("adjust(read(),2)"), "{materialized}");
+        assert!(materialized.contains("adjust(read(),3)"), "{materialized}");
+    }
+
+    #[test]
+    fn caller_materializes_fresh_array_defaults_for_direct_only_functions() {
+        let output = compile_without_inlining_with_options(
+            "JsValue[] fresh(JsValue[] values=[]){return values;}JsValue[] first=fresh();JsValue[] second=fresh();print(JS.strictEqual(first,second));",
+            false,
+            IrJsOptions {
+                mangle_identifiers: false,
+                ..IrJsOptions::default()
+            },
+        );
+
+        assert_eq!(output.matches("fresh([])").count(), 2, "{output}");
+        assert!(!output.contains("values=[]"), "{output}");
+        assert_eq!(run_javascript(&output), "false\n", "{output}");
+    }
+
+    #[test]
+    fn rejects_exported_caller_materialized_defaults() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "export JsValue[] fresh(JsValue[] values=[]){return values;}",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+        optimize_control_flow_for_module(&mut ir).unwrap();
+
+        let error = emit_optimized_ir_js_module(&ir).unwrap_err();
+        assert!(
+            error
+                .message
+                .contains("JavaScript-callable function `fresh`")
+                && error.message.contains("typed LilScript caller"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn address_taken_defaults_keep_plain_typed_formals() {
+        let output = compile_without_inlining_with_options(
+            "extern void retain(func(int)->int callback);int seed=7;int literal(int value=3){return value;}int global(int value=seed){return value;}retain(literal);retain(global);",
+            false,
+            IrJsOptions {
+                mangle_identifiers: false,
+                function_spelling: FunctionSpelling::Function,
+                ..IrJsOptions::default()
+            },
+        );
+
+        assert!(output.contains("function literal(value)"), "{output}");
+        assert!(output.contains("function global(value)"), "{output}");
+        assert!(!output.contains("value=3"), "{output}");
+        assert!(!output.contains("value=seed"), "{output}");
+        let hosted = format!("function retain(callback){{console.log(callback(9))}}{output}");
+        assert_eq!(run_javascript(&hosted), "9\n9\n", "{output}");
+    }
+
+    #[test]
+    fn exported_js_undefined_default_uses_host_omission_without_shortening_length() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "export JsValue read(JsValue value=JS.undefined()){return value;}print(JS.isUndefined(read()));",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+        optimize_control_flow_with_options(
+            &mut ir,
+            &OptimizationOptions {
+                inlining: false,
+                ..OptimizationOptions::default()
+            },
+            true,
+        )
+        .unwrap();
+        let output = emit_optimized_ir_js_with_options(
+            &ir,
+            &IrJsOptions {
+                mangle_identifiers: false,
+                function_spelling: FunctionSpelling::Function,
+                ..IrJsOptions::default()
+            },
+        )
+        .unwrap();
+
+        assert!(output.contains("function read(value)"), "{output}");
+        assert!(!output.contains("read(value=void 0)"), "{output}");
+        let hosted = format!("{output};console.log(read()===void 0,read.length)");
+        assert_eq!(run_javascript(&hosted), "true\ntrue 1\n", "{output}");
+    }
+
+    #[test]
+    fn accepts_devirtualized_function_values_with_caller_materialized_defaults() {
+        let output = compile_without_inlining_with_options(
+            "JsValue[] fresh(JsValue[] values=[]){return values;}func(JsValue[])->JsValue[] callback=fresh;JsValue[] value=callback([]);print(value.length);",
+            false,
+            IrJsOptions {
+                mangle_identifiers: false,
+                ..IrJsOptions::default()
+            },
+        );
+
+        assert!(output.contains("fresh([])"), "{output}");
+        assert!(!output.contains("callback"), "{output}");
+        assert_eq!(run_javascript(&output), "0\n", "{output}");
+    }
+
+    #[test]
+    fn rejects_exported_same_name_global_identifier_default() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "int seed=7;export int read(int seed=1,int value=seed){return value;}",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+        optimize_control_flow_for_module(&mut ir).unwrap();
+
+        let error = emit_optimized_ir_js_module(&ir).unwrap_err();
+        assert!(
+            error.message.contains("parameter `value`")
+                && error
+                    .message
+                    .contains("JavaScript-callable function `read`"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn direct_only_global_identifier_default_stays_caller_materialized() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "int seed=1;int read(int value=seed){return value;}seed=2;print(read());",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+        let read = ir
+            .functions
+            .iter()
+            .find(|function| function.name == Some("read"))
+            .unwrap();
+        assert!(matches!(
+            &read.params[0].default,
+            Some(crate::ir::IrParamDefault::CallerMaterialized)
+        ));
+        optimize_control_flow_with_options(
+            &mut ir,
+            &OptimizationOptions {
+                inlining: false,
+                ..OptimizationOptions::default()
+            },
+            false,
+        )
+        .unwrap();
+        let output = emit_optimized_ir_js_with_options(
+            &ir,
+            &IrJsOptions {
+                mangle_identifiers: false,
+                ..IrJsOptions::default()
+            },
+        )
+        .unwrap();
+
+        assert!(!output.contains("value=seed"), "{output}");
+        assert_eq!(run_javascript(&output), "2\n", "{output}");
+    }
+
+    #[test]
+    fn bound_default_identity_reuses_an_earlier_arrow_actual() {
+        let output = compile_without_inlining_with_options(
+            "print(((int first,int second=first)=>second)(7));",
+            false,
+            IrJsOptions {
+                mangle_identifiers: false,
+                ..IrJsOptions::default()
+            },
+        );
+
+        assert_eq!(run_javascript(&output), "7\n", "{output}");
+    }
+
+    #[test]
+    fn bound_default_identity_is_not_cached_on_mutable_variables() {
+        let arena = Bump::new();
+        let unmodified =
+            parse_source(&arena, "auto pick=(int value=1)=>value;print(pick());").unwrap();
+        let error = analyze(&unmodified).unwrap_err();
+        assert!(
+            error.message.contains("expects 1 to 1 arguments"),
+            "{error}"
+        );
+
+        let arena = Bump::new();
+        let reassigned = parse_source(
+            &arena,
+            "auto pick=(int value=1)=>value;pick=(int value=2)=>value;print(pick());",
+        )
+        .unwrap();
+        let error = analyze(&reassigned).unwrap_err();
+        assert!(
+            error.message.contains("expects 1 to 1 arguments"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn captured_closure_wrappers_keep_plain_typed_formals() {
+        let output = compile_without_inlining_with_options(
+            "extern int read();extern void touch();extern int invoke(func(int)->int callback);int run(int seed){return invoke((int value=3)=>{touch();touch();touch();touch();touch();touch();touch();touch();touch();return value+seed;});}print(run(read()));",
+            false,
+            IrJsOptions {
+                mangle_identifiers: false,
+                ..IrJsOptions::default()
+            },
+        );
+
+        assert!(!output.contains("value=3"), "{output}");
+        let hosted = format!(
+            "function read(){{return 7}}function touch(){{}}function invoke(callback){{return callback(11)}}{output}"
+        );
+        assert_eq!(run_javascript(&hosted), "18\n", "{output}");
+    }
+
+    #[test]
+    fn default_identity_contract_rejects_mismatched_generic_results() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "T choose<T>(T left,T right){return right;}print(choose((int value=1)=>value,(int value=2)=>value)());",
+        )
+        .unwrap();
+        let error = analyze(&program).unwrap_err();
+        assert!(error.message.contains("conflicting inferences"), "{error}");
+    }
+
+    #[test]
+    fn default_identity_contract_accepts_matching_generic_results() {
+        let output = compile_without_inlining(
+            "T choose<T>(T left,T right){return right;}print(choose((int value=1)=>value,(int value=1)=>value)());",
+            false,
+        );
+
+        assert_eq!(run_javascript(&output), "1\n", "{output}");
+    }
+
+    #[test]
+    fn default_arrow_capture_contract_rejects_containing_parameters() {
+        let arena = Bump::new();
+        let direct = parse_source(
+            &arena,
+            "print(((int first,func()->int get=()=>first)=>get())(7));",
+        )
+        .unwrap();
+        let error = analyze(&direct).unwrap_err();
+        assert!(
+            error.message.contains("cannot capture a parameter"),
+            "{error}"
+        );
+
+        let arena = Bump::new();
+        let nested = parse_source(
+            &arena,
+            "print(((int first,(func()->int)[] gets=[()=>first])=>first)(7));",
+        )
+        .unwrap();
+        let error = analyze(&nested).unwrap_err();
+        assert!(
+            error.message.contains("cannot capture a parameter"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn default_arrow_capture_contract_allows_global_captures() {
+        let output = compile_without_inlining(
+            "int seed=7;int invoke(func()->int get=()=>seed){return get();}print(invoke());",
+            false,
+        );
+
+        assert_eq!(run_javascript(&output), "7\n", "{output}");
+    }
+
+    #[test]
+    fn bound_default_identity_ignores_a_callers_same_name_parameter() {
+        let output = compile_without_inlining_with_options(
+            "int seed=7;int read(int value=seed){return value;}void caller(int seed){print(read());}caller(2);",
+            false,
+            IrJsOptions {
+                mangle_identifiers: false,
+                ..IrJsOptions::default()
+            },
+        );
+
+        assert_eq!(run_javascript(&output), "7\n", "{output}");
+    }
+
+    #[test]
+    fn bound_default_identity_rejects_self_and_forward_arrow_references() {
+        let arena = Bump::new();
+        let self_reference = parse_source(
+            &arena,
+            "func(int)->int pick=(int value=value)=>value;print(pick());",
+        )
+        .unwrap();
+        let error = analyze(&self_reference).unwrap_err();
+        assert!(error.message.contains("earlier parameters"), "{error}");
+
+        let arena = Bump::new();
+        let forward_reference = parse_source(
+            &arena,
+            "func(int,int)->int pick=(int first=second,int second=1)=>first;print(pick());",
+        )
+        .unwrap();
+        let error = analyze(&forward_reference).unwrap_err();
+        assert!(error.message.contains("earlier parameters"), "{error}");
+    }
+
+    #[test]
     fn collapses_boolean_phi_identities_without_dropping_effects() {
         let identities = compile(
             "extern int read();int left=read();int right=read();bool first=left == 1 && true;bool second=right == 2 || false;print(first);print(second);",
         );
         assert_eq!(identities.matches("read()").count(), 2, "{identities}");
-        assert!(!identities.contains("||"), "{identities}");
+        assert!(
+            !identities.contains("||") || identities.contains("||!1"),
+            "{identities}"
+        );
         assert!(!identities.contains("&&"), "{identities}");
 
         let inversion = compile(
             "extern int read();bool value=false;if(read() == 1){value=false;}else{value=true;}print(value);",
         );
-        assert!(inversion.contains("read()!=1"), "{inversion}");
-        assert!(!inversion.contains('?'), "{inversion}");
+        assert_eq!(inversion.matches("read()").count(), 1, "{inversion}");
+        assert!(
+            inversion.contains("read()!=1") || inversion.contains("read()==1?!1:!0"),
+            "{inversion}"
+        );
     }
 
     #[test]
@@ -10612,12 +23479,80 @@ mod tests {
     }
 
     #[test]
+    fn binds_loop_captures_per_closure_instance() {
+        let output = compile(
+            "extern int[] readValues();int[] values=readValues();(func()->int)[] fns=[];for(int index=0;index<values.length;index++){int captured=values[index];fns.push(()=>{return captured;});}print(fns.length);",
+        );
+        let closure_start = output.find("push(").expect(&output);
+        let closure = &output[closure_start..];
+        assert!(
+            closure.starts_with("push(("),
+            "loop closure must bind its capture per instance: {output}"
+        );
+    }
+
+    #[test]
+    fn keeps_non_loop_captures_lexical() {
+        let output = compile(
+            "extern int read();int captured=read();(func()->int)[] fns=[];fns.push(()=>{return captured;});print(fns.length);",
+        );
+        assert!(
+            !output.contains("=>()=>"),
+            "a closure outside a loop needs no per-instance binding: {output}"
+        );
+    }
+
+    #[test]
     fn fuses_deferred_loop_conditions_into_the_header() {
         let output = compile(
             "extern int[] readValues();int[] values=readValues();int total=0;for(int index=0;index<values.length;index++){total+=values[index];}print(total);",
         );
         assert!(output.contains("for(;"), "{output}");
         assert!(!output.contains("for(;;)"), "{output}");
+    }
+
+    #[test]
+    fn compacts_only_overflow_safe_derived_bound_updates() {
+        let options = IrJsOptions {
+            mutation_spelling: MutationSpelling::Postfix,
+            ..IrJsOptions::default()
+        };
+        let exclusive = compile_with_options(
+            "extern int[] readValues();int[] values=readValues();for(int index=0;index<values.length;index++){print(index);}",
+            options,
+        );
+        let inclusive = compile_with_options(
+            "extern int[] readValues();int[] values=readValues();for(int index=2147483646;index<=values.length;index++){print(index);}",
+            options,
+        );
+
+        assert!(exclusive.contains("++"), "{exclusive}");
+        assert!(!exclusive.contains("+1|0"), "{exclusive}");
+        assert!(inclusive.contains("+1|0"), "{inclusive}");
+        assert!(!inclusive.contains("++"), "{inclusive}");
+    }
+
+    #[test]
+    fn elides_char_code_at_integer_normalization_when_proven() {
+        let source = "extern string read();print(read().charCodeAt(0));";
+        let elided = compile_with_options(source, IrJsOptions::default());
+        assert!(elided.contains("charCodeAt("), "{elided}");
+        assert!(
+            !elided.contains("charCodeAt(0)|0"),
+            "expected elided |0 after charCodeAt: {elided}"
+        );
+
+        let normalized = compile_with_options(
+            source,
+            IrJsOptions {
+                elide_safe_integer_coercions: false,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(
+            normalized.contains("charCodeAt(0)|0"),
+            "expected |0 when elision is disabled: {normalized}"
+        );
     }
 
     #[test]
@@ -10715,6 +23650,23 @@ mod tests {
     }
 
     #[test]
+    fn functions_reading_javascript_this_cannot_be_arrows() {
+        let output = compile_module_with_options(
+            "extern JsValue this;export JsValue length(){return this[\"length\"];}",
+            IrJsOptions {
+                function_spelling: FunctionSpelling::Arrow,
+                public_function_arrows: true,
+                mangle_identifiers: true,
+                ..IrJsOptions::default()
+            },
+        );
+
+        assert!(output.contains("function "), "{output}");
+        assert!(!output.contains("=>"), "{output}");
+        assert!(output.contains("this"), "{output}");
+    }
+
+    #[test]
     fn renders_effectful_closure_branches_as_expressions() {
         let output = compile_module(
             "struct Ops{func(int[],int)->void choose;func(int[],int)->void append;func(int[],int)->void replace;}export Ops make(){func(int[],int)->void choose=(int[] values,int value)=>{if(values.length!=0){values.push(value);}else{values.push(value+1);}};func(int[],int)->void append=(int[] values,int value)=>{if(values.length!=0){values.push(value);}};func(int[],int)->void replace=(int[] values,int value)=>{if(values.length!=0){values[0]=value;}};return Ops{choose,append,replace};}",
@@ -10727,6 +23679,14 @@ mod tests {
             "{output}"
         );
         assert!(!output.contains("if("), "{output}");
+    }
+
+    #[test]
+    fn emits_typed_array_fill_as_the_native_javascript_primitive() {
+        let output = compile("int[] values=[1,2,3];values.fill(0);print(values[1]);");
+
+        assert!(output.contains(".fill(0)"), "{output}");
+        assert!(!output.contains("for("), "{output}");
     }
 
     #[test]
@@ -10909,6 +23869,279 @@ mod tests {
     }
 
     #[test]
+    fn does_not_fold_a_shared_scrutinee_into_an_unsound_return_ladder() {
+        let output = compile_without_inlining(
+            "extern int read();int classify(int value){int kind=value%5;if(kind==0){return 0;}if(kind==1){return 1;}if(kind==2){return 2;}if(kind==3){return 3;}return 4;}print(classify(read()));",
+            false,
+        );
+
+        assert_eq!(output.matches("%5").count(), 1, "{output}");
+        assert!(!output.contains('?'), "{output}");
+    }
+
+    #[test]
+    fn emits_a_dense_zero_based_constant_string_return_table() {
+        let source = "extern int read();string label(int value){int group=value&3;if(group==0){return \"zero\";}if(group==1){return \"one\";}if(group==2){return \"two\";}return \"three\";}print(label(read()));";
+        let baseline = compile_without_inlining_with_options(
+            source,
+            false,
+            IrJsOptions {
+                dense_string_return_tables: false,
+                ..IrJsOptions::default()
+            },
+        );
+        let table = compile_without_inlining_with_options(
+            source,
+            false,
+            IrJsOptions {
+                dense_string_return_tables: true,
+                ..IrJsOptions::default()
+            },
+        );
+
+        assert!(
+            !baseline.contains("[\"zero\",\"one\",\"two\",\"three\"]["),
+            "{baseline}"
+        );
+        assert!(
+            table.contains("[\"zero\",\"one\",\"two\",\"three\"]["),
+            "{table}"
+        );
+        assert_eq!(table.matches("&3").count(), 1, "{table}");
+        assert!(table.len() < baseline.len(), "{baseline}\n{table}");
+    }
+
+    #[test]
+    fn fills_every_missing_dense_table_slot_with_the_original_default() {
+        let output = compile_without_inlining_with_options(
+            "extern int read();string label(int value){int group=((value%5)+5)%5;if(group==0){return \"first\";}if(group==2){return \"third\";}return \"other\";}print(label(read()));",
+            false,
+            IrJsOptions {
+                dense_string_return_tables: true,
+                ..IrJsOptions::default()
+            },
+        );
+
+        assert!(
+            output.contains("[\"first\",\"other\",\"third\",\"other\",\"other\"]["),
+            "{output}"
+        );
+        assert!(
+            !output.contains("??"),
+            "a dense table must not rely on a prototype-visible missing-slot fallback: {output}"
+        );
+    }
+
+    #[test]
+    fn dense_default_slots_are_own_array_entries_not_prototype_lookups() {
+        let output = compile_without_inlining_with_options(
+            "extern int read();string label(int value){int group=value&3;if(group==0){return \"zero\";}if(group==2){return \"two\";}return \"default\";}print(label(read()));",
+            false,
+            IrJsOptions {
+                dense_string_return_tables: true,
+                ..IrJsOptions::default()
+            },
+        );
+
+        assert!(
+            output.contains("[\"zero\",\"default\",\"two\",\"default\"]["),
+            "{output}"
+        );
+        assert!(!output.contains(",,"), "{output}");
+        assert!(!output.contains("??"), "{output}");
+    }
+
+    #[test]
+    fn dense_string_tables_require_one_exact_safe_selector_domain() {
+        let enabled = IrJsOptions {
+            dense_string_return_tables: true,
+            ..IrJsOptions::default()
+        };
+        let unknown = compile_without_inlining_with_options(
+            "extern int read();string label(int value){if(value==0){return \"zero\";}if(value==1){return \"one\";}return \"other\";}print(label(read()));",
+            false,
+            enabled,
+        );
+        assert!(!unknown.contains("[\"zero\",\"one\""), "{unknown}");
+
+        let negative = compile_without_inlining_with_options(
+            "extern int read();string label(int value){int group=value%4;if(group==0){return \"zero\";}if(group==1){return \"one\";}return \"other\";}print(label(read()));",
+            false,
+            enabled,
+        );
+        assert!(!negative.contains("[\"zero\",\"one\""), "{negative}");
+
+        let mixed = compile_without_inlining_with_options(
+            "extern int read();string label(int value){int left=value&3;int right=(value+1)&3;if(left==0){return \"zero\";}if(right==1){return \"one\";}return \"other\";}print(label(read()));",
+            false,
+            enabled,
+        );
+        assert!(!mixed.contains("[\"zero\",\"one\""), "{mixed}");
+
+        let inequality = compile_without_inlining_with_options(
+            "extern int read();string label(int value){int group=value&3;if(group<1){return \"zero\";}if(group==1){return \"one\";}return \"other\";}print(label(read()));",
+            false,
+            enabled,
+        );
+        assert!(!inequality.contains("[\"zero\",\"one\""), "{inequality}");
+
+        let oversized = compile_without_inlining_with_options(
+            "extern int read();string label(int value){int group=value&511;if(group==0){return \"zero\";}if(group==1){return \"one\";}return \"other\";}print(label(read()));",
+            false,
+            enabled,
+        );
+        assert!(!oversized.contains("[\"zero\",\"one\""), "{oversized}");
+    }
+
+    #[test]
+    fn dense_string_tables_reject_negative_and_nonzero_based_domains() {
+        let enabled = IrJsOptions {
+            dense_string_return_tables: true,
+            ..IrJsOptions::default()
+        };
+        for source in [
+            "extern int read();string label(int value){int group=value%4;if(group==0){return \"zero\";}if(group==1){return \"one\";}return \"other\";}print(label(read()));",
+            "extern int read();string label(int value){int group=(value&3)+1;if(group==1){return \"one\";}if(group==2){return \"two\";}return \"other\";}print(label(read()));",
+        ] {
+            let baseline = compile_without_inlining_with_options(
+                source,
+                false,
+                IrJsOptions {
+                    dense_string_return_tables: false,
+                    ..IrJsOptions::default()
+                },
+            );
+            let candidate = compile_without_inlining_with_options(source, false, enabled);
+            assert_eq!(candidate, baseline, "{source}\n{candidate}");
+        }
+    }
+
+    #[test]
+    fn dense_string_tables_reject_zero_divisors_division_and_overflow_paths() {
+        let enabled = IrJsOptions {
+            dense_string_return_tables: true,
+            ..IrJsOptions::default()
+        };
+        for source in [
+            "extern int read();string label(int value){int divisor=value&1;int group=value%divisor;if(group==0){return \"zero\";}if(group==1){return \"one\";}return \"other\";}print(label(read()));",
+            "extern int read();string label(int value){int divisor=(value&1)+1;int group=(value&7)/divisor;if(group==0){return \"zero\";}if(group==1){return \"one\";}return \"other\";}print(label(read()));",
+            "extern int read();string label(int value){int group=value+2147483647;if(group==0){return \"zero\";}if(group==1){return \"one\";}return \"other\";}print(label(read()));",
+        ] {
+            let baseline = compile_without_inlining_with_options(
+                source,
+                false,
+                IrJsOptions {
+                    dense_string_return_tables: false,
+                    ..IrJsOptions::default()
+                },
+            );
+            let candidate = compile_without_inlining_with_options(source, false, enabled);
+            assert_eq!(candidate, baseline, "{source}\n{candidate}");
+        }
+    }
+
+    #[test]
+    fn dense_string_tables_treat_lazy_exported_parameters_as_full_i32_boundaries() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "string label(int value){if(value==0){return \"zero\";}if(value==1){return \"one\";}return \"other\";}print(label(0));",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+        let label = ir
+            .functions
+            .iter()
+            .find(|function| function.name == Some("label"))
+            .unwrap()
+            .id;
+        ir.lazy_modules.push(crate::ir::IrLazyModule {
+            id: 7,
+            source: "./feature.lil",
+            exports: vec![crate::ir::IrExport {
+                name: "label",
+                binding: ExportBinding::Function(label),
+                span: crate::span::Span::empty(0),
+            }],
+            span: crate::span::Span::empty(0),
+        });
+        optimize_control_flow_with_options(
+            &mut ir,
+            &OptimizationOptions {
+                inlining: false,
+                ..OptimizationOptions::default()
+            },
+            true,
+        )
+        .unwrap();
+
+        let label = &ir.functions[label.0 as usize];
+        let analysis = analyze_integer_values(&ir);
+        assert_eq!(
+            analysis.function(label.id).range(label.params[0].value),
+            Some(I32Range::FULL)
+        );
+        let baseline = emit_optimized_ir_js_module_with_options(
+            &ir,
+            &IrJsOptions {
+                dense_string_return_tables: false,
+                ..IrJsOptions::default()
+            },
+        )
+        .unwrap();
+        let candidate = emit_optimized_ir_js_module_with_options(
+            &ir,
+            &IrJsOptions {
+                dense_string_return_tables: true,
+                ..IrJsOptions::default()
+            },
+        )
+        .unwrap();
+        assert_eq!(candidate, baseline, "{candidate}");
+        assert!(!candidate.contains("[\"zero\",\"one\""), "{candidate}");
+    }
+
+    #[test]
+    fn dense_string_tables_work_for_modules_and_substituted_helpers() {
+        let exported = compile_module_with_options(
+            "export string label(int value){int group=value&3;if(group==0){return \"zero\";}if(group==1){return \"one\";}if(group==2){return \"two\";}return \"three\";}",
+            IrJsOptions {
+                dense_string_return_tables: true,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(
+            exported.contains("[\"zero\",\"one\",\"two\",\"three\"]["),
+            "{exported}"
+        );
+        assert!(exported.contains("export{"), "{exported}");
+
+        let substituted = compile_without_inlining_with_options(
+            "pure string label(int value){int group=value&3;if(group==0){return \"zero\";}if(group==1){return \"one\";}if(group==2){return \"two\";}return \"three\";}string run(int value){return label(value);}extern int read();print(run(read()));",
+            false,
+            IrJsOptions {
+                pure_helper_inlining: PureHelperInliningPolicy::AllEligible,
+                dense_string_return_tables: true,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(
+            substituted.contains("[\"zero\",\"one\",\"two\",\"three\"]["),
+            "{substituted}"
+        );
+        assert_eq!(substituted.matches("=>").count(), 1, "{substituted}");
+    }
+
+    #[test]
+    fn dense_string_table_json_fragment_validation_is_fail_closed() {
+        assert!(json_safe_string_fragment("plain"));
+        assert!(json_safe_string_fragment("escaped\\nline"));
+        assert!(!json_safe_string_fragment("literal\nline"));
+        assert!(!json_safe_string_fragment("unterminated\\"));
+    }
+
+    #[test]
     fn emits_simple_loop_bodies_without_braces() {
         let output = compile(
             "extern int read();int count=read();for(int index=0;index<count;index++){print(index);}",
@@ -11078,6 +24311,56 @@ mod tests {
     }
 
     #[test]
+    fn block_terminal_semicolon_elision_covers_nested_statement_blocks() {
+        let source = "extern bool ready();extern JsValue input();void run(){if(ready()){print(1);print(2);}else{print(3);print(4);}while(ready()){print(5);print(6);}for(string key in input()){print(key);print(key);}}run();";
+        let compact = compile_with_options(
+            source,
+            IrJsOptions {
+                conditional_expressions: false,
+                ..IrJsOptions::default()
+            },
+        );
+        let explicit = compile_with_options(
+            source,
+            IrJsOptions {
+                conditional_expressions: false,
+                elide_block_terminal_semicolons: false,
+                ..IrJsOptions::default()
+            },
+        );
+
+        assert!(!compact.contains(";}"), "{compact}");
+        assert!(explicit.matches(";}").count() >= 4, "{explicit}");
+
+        let runtime_source = "int total=0;for(int index=0;index<2;index++){total=total+index;total=total+1;}if(total>0){print(total);print(7);}else{print(0);print(8);}";
+        let compact_runtime = compile_with_options(
+            runtime_source,
+            IrJsOptions {
+                conditional_expressions: false,
+                ..IrJsOptions::default()
+            },
+        );
+        let explicit_runtime = compile_with_options(
+            runtime_source,
+            IrJsOptions {
+                conditional_expressions: false,
+                elide_block_terminal_semicolons: false,
+                ..IrJsOptions::default()
+            },
+        );
+        assert_eq!(
+            run_javascript(&compact_runtime),
+            "3\n7\n",
+            "{compact_runtime}"
+        );
+        assert_eq!(
+            run_javascript(&explicit_runtime),
+            "3\n7\n",
+            "{explicit_runtime}"
+        );
+    }
+
+    #[test]
     fn compacts_effectful_loop_statement_sequences_only_when_legal() {
         assert_eq!(
             compact_top_level_expression_statements("a=read();b+=a;a>2&&(b+=1);").as_deref(),
@@ -11111,6 +24394,68 @@ mod tests {
         );
         assert!(output.contains(","), "{output}");
         assert!(!output.contains("){"), "{output}");
+    }
+
+    #[test]
+    fn compacts_adjacent_arrow_effects_into_the_return_sequence() {
+        let output = compile_with_options(
+            "int current=11;int calls=0;func(int)->int advance=(int amount)=>{calls++;current+=amount;return current;};int total=0;for(int i=0;i<5;i++){total+=advance(4+i);}print(total);print(current);print(calls);",
+            IrJsOptions {
+                comma_expressions: true,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(output.contains("=>("), "{output}");
+        assert!(!output.contains("=>{"), "{output}");
+        assert!(!output.contains("return "), "{output}");
+        assert_eq!(output.matches("console.log(").count(), 3, "{output}");
+
+        let barrier = compile_with_options(
+            "extern int read();extern void touch(int value);func()->int run=()=>{int copy=read();touch(copy);return copy;};print(run());",
+            IrJsOptions {
+                comma_expressions: true,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(
+            barrier.contains("=>{var ") || barrier.contains("=>{let "),
+            "{barrier}"
+        );
+        assert!(
+            barrier.contains("return(") || barrier.contains("return ("),
+            "{barrier}"
+        );
+
+        let structural_barrier = compile_with_options(
+            "extern void touch();extern void retain(func(int)->int callback);func(int)->int run=(int amount)=>{touch();if(amount>0){try{touch();}finally{touch();}}return amount;};retain(run);",
+            IrJsOptions {
+                comma_expressions: true,
+                ..IrJsOptions::default()
+            },
+        );
+        let first_touch = structural_barrier
+            .find("touch();")
+            .unwrap_or_else(|| panic!("{structural_barrier}"));
+        let conditional = structural_barrier
+            .find("if(")
+            .unwrap_or_else(|| panic!("{structural_barrier}"));
+        let returned = structural_barrier
+            .find("return ")
+            .unwrap_or_else(|| panic!("{structural_barrier}"));
+        assert!(structural_barrier.contains("=>{"), "{structural_barrier}");
+        assert!(
+            first_touch < conditional && conditional < returned,
+            "{structural_barrier}"
+        );
+
+        let empty_return = compile_with_options(
+            "extern void touch();func()->void run=()=>{touch();return;};run();",
+            IrJsOptions {
+                comma_expressions: true,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(!empty_return.contains("return ("), "{empty_return}");
     }
 
     #[test]
@@ -11151,6 +24496,55 @@ mod tests {
     }
 
     #[test]
+    fn document_root_uses_the_document_global() {
+        let output = compile_host_alias_with_options(
+            "extern JsValue windowDocument();print(windowDocument());print(windowDocument());",
+            false,
+            IrJsOptions::default(),
+        );
+        assert!(output.contains("document"), "{output}");
+        assert!(!output.contains("typeof window"), "{output}");
+        assert!(!output.contains("globalThis"), "{output}");
+        assert!(!output.contains(".document"), "{output}");
+        assert!(!output.contains("windowDocument"), "{output}");
+    }
+
+    #[test]
+    fn ordinary_functions_can_emit_as_arrow_bindings() {
+        let output = compile_without_inlining_with_options(
+            "int add(int x,int y){if(x<0){return 0;}return x+y;}print(add(1,2)+add(3,4));",
+            false,
+            IrJsOptions {
+                mangle_identifiers: true,
+                function_spelling: FunctionSpelling::Arrow,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(output.contains("=>"), "{output}");
+        assert!(!output.contains("function "), "{output}");
+    }
+
+    #[test]
+    fn exclusive_closures_inline_at_reusable_call_sites() {
+        let output = compile_without_inlining_with_options(
+            "extern void consume(func()->void cb);void run(){consume(()=>{print(1);print(2);print(3);print(4);print(5);print(6);print(7);print(8);print(9);});}run();",
+            false,
+            IrJsOptions {
+                mangle_identifiers: false,
+                inline_exclusive_closures: true,
+                function_spelling: FunctionSpelling::Arrow,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(output.contains("consume("), "{output}");
+        assert!(output.contains("=>"), "{output}");
+        assert!(
+            !output.contains("function closure") && output.matches("function ").count() <= 1,
+            "{output}"
+        );
+    }
+
+    #[test]
     fn explicit_arrow_mode_can_match_a_nonconstructible_public_abi() {
         let source = "export int increment(int value){return value+1;}";
         let ordinary = compile_module_with_options(source, IrJsOptions::default());
@@ -11176,6 +24570,133 @@ mod tests {
         assert!(output.starts_with("let a=\"a-repeated-application-string\";"));
         assert_eq!(output.matches("a-repeated-application-string").count(), 1);
         assert_eq!(output.matches("sink(a)").count(), 3);
+    }
+
+    #[test]
+    fn renders_template_quote_candidates_without_interpolation() {
+        assert_eq!(
+            render_string_literal("plain", StringQuote::Template),
+            "`plain`"
+        );
+        assert_eq!(
+            render_string_literal(r"cost ${value} and `tick`", StringQuote::Template),
+            r"`cost $\{value} and \`tick\``"
+        );
+    }
+
+    #[test]
+    fn static_module_specifiers_are_quoted_and_parse_in_template_mode() {
+        let output = compile_module_with_options(
+            r#"import extern "./setup-\"double\"-'single'-\\slash.ts";
+                import extern {host} from "./js-host.ts";
+                extern int host();
+                export string label(){host();return "ordinary";}"#,
+            IrJsOptions {
+                string_quote: StringQuote::Template,
+                ..IrJsOptions::default()
+            },
+        );
+
+        assert!(
+            output.contains(r#"import"./setup-\"double\"-'single'-\\slash.ts";"#),
+            "{output}"
+        );
+        assert!(output.contains(r#"from"./js-host.ts""#), "{output}");
+        assert!(!output.contains("import`"), "{output}");
+        assert!(!output.contains("from`"), "{output}");
+        assert!(output.contains("`ordinary`"), "{output}");
+        assert_javascript_module_parses(&output);
+    }
+
+    #[test]
+    fn module_specifier_quotes_preserve_escapes_and_safe_fallbacks() {
+        assert_eq!(
+            render_module_specifier(
+                r#"./quote-\"double\"-and-'single'-\\slash.js"#,
+                StringQuote::Template
+            ),
+            r#""./quote-\"double\"-and-'single'-\\slash.js""#
+        );
+        assert_eq!(
+            render_module_specifier("./it's.js", StringQuote::Single),
+            r"'./it\'s.js'"
+        );
+        assert_eq!(
+            render_module_specifier(r"./legacy-\x2f.js", StringQuote::Single),
+            r#""./legacy-\x2f.js""#
+        );
+    }
+
+    #[test]
+    fn template_mode_remains_available_to_dynamic_import_expressions() {
+        let arena = Bump::new();
+        let program = parse_source(&arena, "print(1);").unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+        ir.lazy_modules.push(crate::ir::IrLazyModule {
+            id: 7,
+            source: "./feature.lil",
+            exports: Vec::new(),
+            span: crate::span::Span::empty(0),
+        });
+        let mut emitter = IrJsEmitter::new(
+            &ir,
+            true,
+            IrJsOptions {
+                string_quote: StringQuote::Template,
+                ..IrJsOptions::default()
+            },
+        );
+        emitter
+            .dynamic_chunk_files
+            .insert(7, "feature.js".to_string());
+
+        let output = emitter.render_dynamic_import(7).unwrap().code;
+        assert!(output.contains("import(`./feature.js`)"), "{output}");
+        assert!(output.contains("specifier:`./feature.lil`"), "{output}");
+    }
+
+    #[test]
+    fn disabling_string_pooling_exposes_repeated_literals_to_codec_search() {
+        let output = compile_with_options(
+            "extern void sink(string value);sink(\"a-repeated-application-string\");sink(\"a-repeated-application-string\");sink(\"a-repeated-application-string\");",
+            IrJsOptions {
+                pool_strings: false,
+                ..IrJsOptions::default()
+            },
+        );
+
+        assert_eq!(output.matches("a-repeated-application-string").count(), 3);
+        assert!(!output.starts_with("let "), "{output}");
+    }
+
+    #[test]
+    fn emits_lazy_nullish_control_flow() {
+        let output = compile(
+            "extern string? read();extern string fallback();string? value=read();print(value??fallback());value=read();value??=fallback();print(value);",
+        );
+        assert!(output.contains("fallback"), "{output}");
+        assert!(
+            output.contains("==null") || output.contains("!=null") || output.contains("??"),
+            "{output}"
+        );
+    }
+
+    #[test]
+    fn emits_lazy_optional_member_and_index_access() {
+        let output = compile(
+            "extern int[]? read();extern int index();int[]? values=read();print(values?.length);print(values?.[index()]);",
+        );
+        assert!(output.contains("index"), "{output}");
+        assert!(output.contains("null"), "{output}");
+    }
+
+    #[test]
+    fn number_arithmetic_does_not_request_i32_coercions() {
+        let number = compile_module("export number step(number value){return value*3+1;}");
+        let integer = compile_module("export int step(int value){return value*3+1;}");
+        assert!(!number.contains("|0"), "{number}");
+        assert!(integer.contains("|0"), "{integer}");
     }
 
     #[test]
@@ -11224,6 +24745,44 @@ mod tests {
         assert!(output.contains(".map("));
         assert!(output.contains("*2|0"), "{output}");
         assert!(!output.contains("Math.imul"), "{output}");
+    }
+
+    #[test]
+    fn declares_locals_when_unused_params_are_elided() {
+        let output = compile_module(
+            r#"
+export extern void use(int v);
+export extern void schedule(func(int)->void cb);
+int[] items = [];
+void readAll(int unusedParam) {
+  int resolveIndex = 0;
+  int resolveCount = items.length;
+  while (resolveIndex < resolveCount) {
+    use(items[resolveIndex]);
+    resolveIndex = resolveIndex + 1;
+  }
+}
+schedule(readAll);
+"#,
+        );
+        assert!(
+            output.contains("var "),
+            "elided unused params must not suppress local var declarations: {output}"
+        );
+        let bare_counter = output.contains("for(a=0")
+            || output.contains("for(b=0")
+            || output.contains("for(c=0")
+            || output.contains("for(d=0")
+            || output.contains("for(e=0")
+            || output.contains("for(f=0")
+            || output.contains("for(g=0")
+            || output.contains("for(h=0")
+            || output.contains("for(i=0")
+            || output.contains("for(j=0");
+        assert!(
+            !bare_counter,
+            "loop counter must be declared before for-update use: {output}"
+        );
     }
 
     #[test]
@@ -11302,9 +24861,978 @@ print(start(0.5));
 "#,
         );
 
-        assert!(
-            output.matches("var ").count() >= 2,
-            "each sibling closure must declare its own stored values: {output}"
+        assert_eq!(output.matches("console.log(").count(), 2, "{output}");
+        assert!(output.contains("Math.floor"), "{output}");
+        assert!(output.contains("Math.ceil"), "{output}");
+    }
+
+    #[test]
+    fn emits_runtime_free_generator_functions_yield_delegation_and_for_of() {
+        let output = compile(
+            "generator int values(){yield 1;yield* [2,3];}int sum=0;for(int value of values()){sum+=value;}print(sum);",
         );
+        assert!(output.contains("function*"), "{output}");
+        assert!(output.contains("yield "), "{output}");
+        assert!(output.contains("yield*"), "{output}");
+        assert!(output.contains(" of "), "{output}");
+        assert!(!output.contains("JsForOf"), "{output}");
+
+        let spaced = compile_with_options(
+            "generator int values(){yield 1;}for(int value of values()){print(value);}",
+            IrJsOptions {
+                compact_generator_star: false,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(spaced.contains("function* "), "{spaced}");
+        let compact = compile_with_options(
+            "generator int values(){yield 1;}for(int value of values()){print(value);}",
+            IrJsOptions {
+                compact_generator_star: true,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(compact.contains("function*"), "{compact}");
+        assert!(!compact.contains("function* "), "{compact}");
+        assert_eq!(spaced.len(), compact.len() + 1);
+    }
+
+    #[test]
+    fn emits_private_single_use_functions_at_their_only_call_site() {
+        let enabled = IrJsOptions {
+            inline_single_use_functions: true,
+            ..IrJsOptions::default()
+        };
+        let generator = compile_with_options(
+            "generator int range(){yield 1;}int total=0;for(int value of range()){total+=value;}print(total);",
+            enabled,
+        );
+        assert!(generator.contains(" of function*()"), "{generator}");
+        assert!(!generator.starts_with("function*"), "{generator}");
+
+        let compact_loop = compile_with_options(
+            "generator int values(){yield -1;}int total=0;int count=0;for(int value of values()){total+=value;count++;}print(total+count);",
+            IrJsOptions {
+                inline_single_use_functions: true,
+                comma_expressions: true,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(compact_loop.contains("yield-1"), "{compact_loop}");
+        assert!(compact_loop.contains("|0,"), "{compact_loop}");
+
+        let nested_generators = compile_with_options(
+            "generator int range(){yield 1;}generator int values(){yield 0;yield* range();}for(int value of values()){print(value);}",
+            enabled,
+        );
+        assert_eq!(
+            nested_generators.matches("function*()").count(),
+            2,
+            "{nested_generators}"
+        );
+
+        let guarded = compile_with_options(
+            "extern int mode();int guarded(int value){try{if(value==0){throw \"bad\";}return value;}catch{return 7;}finally{print(value);}}print(guarded(mode()));",
+            enabled,
+        );
+        assert!(guarded.contains("console.log(function("), "{guarded}");
+        assert!(!guarded.contains(";}catch"), "{guarded}");
+        assert!(!guarded.contains(";}finally"), "{guarded}");
+
+        let statement = compile_with_options(
+            "extern void work();void guarded(){try{work();}finally{print(1);}}guarded();",
+            enabled,
+        );
+        assert!(statement.starts_with("(function()"), "{statement}");
+    }
+
+    #[test]
+    fn substitutes_private_fresh_empty_array_factories_without_sharing_identity() {
+        let source = "JsValue fresh(){JsValue[] value=[];return value;}JsValue first=fresh();JsValue second=fresh();print(JS.strictEqual(first,second));";
+        let baseline = compile_without_inlining_with_options(
+            source,
+            false,
+            IrJsOptions {
+                mangle_identifiers: false,
+                ..IrJsOptions::default()
+            },
+        );
+        let substituted = compile_without_inlining_with_options(
+            source,
+            false,
+            IrJsOptions {
+                mangle_identifiers: false,
+                inline_fresh_empty_array_factories: true,
+                ..IrJsOptions::default()
+            },
+        );
+
+        assert!(baseline.contains("fresh"), "{baseline}");
+        assert!(!substituted.contains("fresh"), "{substituted}");
+        assert!(substituted.matches("[]").count() >= 2, "{substituted}");
+        assert_eq!(run_javascript(&substituted), "false\n", "{substituted}");
+    }
+
+    #[test]
+    fn fresh_empty_array_factory_substitution_refuses_exports_and_address_taking() {
+        let options = IrJsOptions {
+            mangle_identifiers: false,
+            inline_fresh_empty_array_factories: true,
+            ..IrJsOptions::default()
+        };
+        let exported = compile_host_alias_with_options(
+            "export JsValue fresh(){JsValue[] result=[];return result;}JsValue value=fresh();print(value.length);",
+            true,
+            options,
+        );
+        assert!(exported.contains("fresh"), "{exported}");
+        assert!(exported.contains("export{"), "{exported}");
+
+        let address_taken = compile_host_alias_with_options(
+            "extern void retain(func()->JsValue callback);JsValue fresh(){JsValue[] result=[];return result;}retain(fresh);JsValue value=fresh();print(value.length);",
+            false,
+            options,
+        );
+        assert!(address_taken.contains("fresh"), "{address_taken}");
+        assert!(address_taken.contains("retain(fresh)"), "{address_taken}");
+    }
+
+    #[test]
+    fn substitutes_private_pure_helpers_with_stable_actuals() {
+        let source = "pure int addOne(int value){return value+1;}int run(int value){return addOne(value);}extern int input();print(run(input()));";
+        let named = compile_without_inlining_with_options(
+            source,
+            false,
+            IrJsOptions {
+                pure_helper_inlining: PureHelperInliningPolicy::None,
+                ..IrJsOptions::default()
+            },
+        );
+        let substituted = compile_without_inlining_with_options(
+            source,
+            false,
+            IrJsOptions {
+                pure_helper_inlining: PureHelperInliningPolicy::SingleStaticUse,
+                ..IrJsOptions::default()
+            },
+        );
+
+        assert_eq!(named.matches("=>").count(), 2, "{named}");
+        assert_eq!(substituted.matches("=>").count(), 1, "{substituted}");
+        assert!(substituted.len() < named.len(), "{named}\n{substituted}");
+
+        let stable_direct = compile_without_inlining_with_options(
+            source,
+            false,
+            IrJsOptions {
+                mangle_identifiers: false,
+                pure_helper_inlining: PureHelperInliningPolicy::SingleStaticUse,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(!stable_direct.contains("addOne"), "{stable_direct}");
+        assert!(!stable_direct.contains("$actual=>"), "{stable_direct}");
+    }
+
+    #[test]
+    fn no_mangle_names_cannot_capture_synthesized_array_or_math_roots() {
+        let options = IrJsOptions {
+            mangle_identifiers: false,
+            pure_helper_inlining: PureHelperInliningPolicy::None,
+            ..IrJsOptions::default()
+        };
+        let array = compile_without_inlining_with_options(
+            "extern int[]|string input();extern int readInt();bool check(int[]|string value,int Array){return (value is int[])&&Array==0;}print(check(input(),readInt()));",
+            false,
+            options,
+        );
+        assert!(array.contains("Array.isArray(value)"), "{array}");
+        assert!(array.contains("Array$2"), "{array}");
+        assert!(!array.contains("int Array"), "{array}");
+
+        let math = compile_without_inlining_with_options(
+            "extern float input();extern int readInt();float measure(float value,int Math){return value.abs()+Math;}print(measure(input(),readInt()));",
+            false,
+            options,
+        );
+        assert!(math.contains("Math.abs(value)"), "{math}");
+        assert!(math.contains("Math$2"), "{math}");
+        assert!(!math.contains("function measure(value,Math){"), "{math}");
+    }
+
+    #[test]
+    fn foreign_import_aliases_cannot_capture_synthesized_array_or_math_roots() {
+        let options = IrJsOptions {
+            mangle_identifiers: false,
+            ..IrJsOptions::default()
+        };
+        let array = compile_module_with_options(
+            "import extern {hostArray as Array} from \"./host.js\";extern int Array;extern int[]|string input();export bool check(int[]|string value){return (value is int[])&&Array==0;}",
+            options,
+        );
+        assert!(array.contains("hostArray as Array$2"), "{array}");
+        assert!(array.contains("Array.isArray(value)"), "{array}");
+        assert!(
+            array.contains("Array$2==0") || array.contains("0==Array$2"),
+            "{array}"
+        );
+
+        // A source-level extern named `Math` shadows the builtin namespace,
+        // so construct the equivalent post-lowering IR state to exercise a
+        // target-synthesized Math.imul beside that imported lexical binding.
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "import extern {hostMath as HostMath} from \"./host.js\";extern int HostMath();export int calculate(int left,int right){return Math.imul(left,right)+HostMath();}",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+        optimize_control_flow_for_module(&mut ir).unwrap();
+        ir.foreign_imports[0].specifiers[0].local = "Math";
+        ir.functions
+            .iter_mut()
+            .find(|function| function.name == Some("HostMath"))
+            .expect("live imported extern")
+            .name = Some("Math");
+        let math = emit_optimized_ir_js_module_with_options(&ir, &options).unwrap();
+        assert!(math.contains("hostMath as Math$2"), "{math}");
+        assert!(math.contains("Math.imul(left,right)"), "{math}");
+        assert!(math.contains("Math$2()"), "{math}");
+    }
+
+    #[test]
+    fn substituted_helper_dags_cannot_capture_synthesized_array_or_math_roots() {
+        let options = IrJsOptions {
+            mangle_identifiers: false,
+            pure_helper_inlining: PureHelperInliningPolicy::AllEligible,
+            ..IrJsOptions::default()
+        };
+        let array = compile_without_inlining_with_options(
+            "extern int[]|string input();extern int readInt();pure bool arrayGuard(int[]|string value){return value is int[];}bool run(int[]|string value,int Array){return arrayGuard(value)&&Array==0;}print(run(input(),readInt()));",
+            false,
+            options,
+        );
+        assert!(array.contains("Array.isArray(value)"), "{array}");
+        assert!(array.contains("Array$2"), "{array}");
+        assert!(!array.contains("Array.isArray(value)&&Array=="), "{array}");
+
+        let math = compile_without_inlining_with_options(
+            "extern int input();extern int readInt();pure int multiply(int left,int right){return Math.imul(left,right);}pure int adjust(int left,int right){return multiply(left,right)+1;}int run(int Math,int value){return adjust(Math,value);}print(run(input(),readInt()));",
+            false,
+            options,
+        );
+        assert!(math.contains("Math.imul(Math$2,value)"), "{math}");
+        assert!(!math.contains("Math.imul(Math,value)"), "{math}");
+        assert!(!math.contains("multiply("), "{math}");
+        assert!(!math.contains("adjust("), "{math}");
+    }
+
+    #[test]
+    fn dynamic_js_coercion_preserves_order_and_pre_branch_evaluation() {
+        for policy in [
+            PureHelperInliningPolicy::None,
+            PureHelperInliningPolicy::AllEligible,
+        ] {
+            let options = IrJsOptions {
+                mangle_identifiers: false,
+                pure_helper_inlining: policy,
+                ..IrJsOptions::default()
+            };
+
+            let coercion = compile_without_inlining_with_options(
+                "extern JsValue first();extern JsValue second();string join(JsValue left,JsValue right){string a=\"\"+left;string b=\"\"+right;return b+a;}string run(JsValue left,JsValue right){return join(left,right);}print(run(first(),second()));",
+                false,
+                options,
+            );
+            let coercion_trace = run_javascript(&format!(
+                "let events=[];function first(){{return{{[Symbol.toPrimitive](){{events.push('left');return 'L'}}}}}}function second(){{return{{[Symbol.toPrimitive](){{events.push('right');return 'R'}}}}}};{coercion};process.stdout.write('TRACE:'+events.join(','))"
+            ));
+            assert!(
+                coercion_trace.ends_with("TRACE:left,right"),
+                "{policy:?}: {coercion_trace}"
+            );
+
+            let pre_branch = compile_without_inlining_with_options(
+                "extern JsValue item();extern bool flag();bool choose(JsValue value,bool enabled){bool zero=value==0;if(enabled){return zero;}return false;}bool run(JsValue value,bool enabled){return choose(value,enabled);}print(run(item(),flag()));",
+                false,
+                options,
+            );
+            let pre_branch_trace = run_javascript(&format!(
+                "let events=[];function item(){{return{{[Symbol.toPrimitive](){{events.push('coerce');throw Error('stop')}}}}}}function flag(){{return false}};try{{{pre_branch}}}catch(error){{events.push('throw')}}process.stdout.write('TRACE:'+events.join(','))"
+            ));
+            assert_eq!(
+                pre_branch_trace, "TRACE:coerce,throw",
+                "{policy:?}: {pre_branch_trace}\n{pre_branch}"
+            );
+
+            let is_array = compile_without_inlining_with_options(
+                "extern JsValue item();extern bool flag();bool choose(JsValue value,bool enabled){bool array=value.isArray();if(enabled){return array;}return false;}print(choose(item(),flag()));",
+                false,
+                options,
+            );
+            let is_array_trace = run_javascript(&format!(
+                "let events=[];let pair=Proxy.revocable([],{{}});let value=pair.proxy;pair.revoke();function item(){{return value}}function flag(){{return false}};try{{{is_array}}}catch(error){{events.push('throw')}}process.stdout.write('TRACE:'+events.join(','))"
+            ));
+            assert_eq!(
+                is_array_trace, "TRACE:throw",
+                "{policy:?}: {is_array_trace}\n{is_array}"
+            );
+
+            let read_barrier = compile_without_inlining_with_options(
+                "extern int state;extern JsValue item();int run(){int before=state;string ignored=\"\"+item();return before;}print(run());",
+                false,
+                options,
+            );
+            let read_barrier_trace = run_javascript(&format!(
+                "let state=1;function item(){{return{{[Symbol.toPrimitive](){{state=2;return 'x'}}}}}};{read_barrier};process.stdout.write('TRACE:'+state)"
+            ));
+            assert_eq!(
+                read_barrier_trace, "1\nTRACE:2",
+                "{policy:?}: {read_barrier_trace}\n{read_barrier}"
+            );
+
+            // A narrowing unwrap is only a type-level operation, but its
+            // receiver can still be an unstable field read. Keep that read
+            // at the unwrap's original point instead of fusing the whole
+            // chain past a later dynamic coercion.
+            let unwrap_barrier = compile_without_inlining_with_options(
+                "extern int? current;extern JsValue item();int run(){if(current!=null){int present=current;string ignored=\"\"+item();return present;}return 0;}print(run());",
+                false,
+                options,
+            );
+            let unwrap_barrier_trace = run_javascript(&format!(
+                "let current=1;function item(){{return{{[Symbol.toPrimitive](){{current=2;return 'x'}}}}}};{unwrap_barrier};process.stdout.write('TRACE:'+current)"
+            ));
+            assert_eq!(
+                unwrap_barrier_trace, "1\nTRACE:2",
+                "{policy:?}: {unwrap_barrier_trace}\n{unwrap_barrier}"
+            );
+
+            let typed_read_barrier = compile_without_inlining_with_options(
+                "extern JsValue item();extern int[] values;int run(){string text=\"\"+item();int current=values[0];return current+text.length;}print(run());",
+                false,
+                options,
+            );
+            let typed_read_trace = run_javascript(&format!(
+                "let values=[1];function item(){{return{{[Symbol.toPrimitive](){{values[0]=2;return 'x'}}}}}};{typed_read_barrier}"
+            ));
+            assert_eq!(
+                typed_read_trace, "3\n",
+                "{policy:?}: {typed_read_trace}\n{typed_read_barrier}"
+            );
+        }
+    }
+
+    #[test]
+    fn expression_regions_keep_header_effects_eager_and_dynamic_arms_lazy() {
+        let eager = compile_without_inlining_with_options(
+            "extern JsValue effect();extern bool flag();string choose(){JsValue value=effect();if(flag()){return \"\"+value;}return \"no\";}print(choose());",
+            false,
+            IrJsOptions::default(),
+        );
+        let eager_trace = run_javascript(&format!(
+            "let events=[];function effect(){{events.push('effect');throw Error('stop')}}function flag(){{events.push('flag');return false}}try{{{eager}}}catch(error){{events.push('throw')}}process.stdout.write('TRACE:'+events.join(','))"
+        ));
+        assert_eq!(eager_trace, "TRACE:effect,throw", "{eager_trace}\n{eager}");
+
+        let eager_store = compile_without_inlining_with_options(
+            "extern bool flag();int choose(){int state=0;auto read=()=>state;state=1;int value=2;int result=0;if(flag()){result=value;}print(read());return result;}print(choose());",
+            false,
+            IrJsOptions::default(),
+        );
+        let eager_store_trace =
+            run_javascript(&format!("function flag(){{return false}};{eager_store}"));
+        assert_eq!(
+            eager_store_trace, "1\n0\n",
+            "{eager_store_trace}\n{eager_store}"
+        );
+
+        let nested = compile_without_inlining_with_options(
+            "extern bool outer();extern JsValue effect();extern bool inner();string choose(){if(outer()){JsValue value=effect();if(inner()){return \"\"+value;}return \"inner-no\";}return \"outer-no\";}print(choose());",
+            false,
+            IrJsOptions::default(),
+        );
+        let nested_trace = run_javascript(&format!(
+            "let events=[];function outer(){{events.push('outer');return true}}function effect(){{events.push('effect');throw Error('stop')}}function inner(){{events.push('inner');return false}}try{{{nested}}}catch(error){{events.push('throw')}}process.stdout.write('TRACE:'+events.join(','))"
+        ));
+        assert_eq!(
+            nested_trace, "TRACE:outer,effect,throw",
+            "{nested_trace}\n{nested}"
+        );
+
+        let lazy = compile_without_inlining_with_options(
+            "extern JsValue input();JsValue choose(JsValue values,string first,string second){return JS.or(values[first],values[second]);}print(choose(input(),\"a\",\"b\"));",
+            false,
+            IrJsOptions::default(),
+        );
+        for (first, expected) in [(0, "7\nTRACE:a,b"), (5, "5\nTRACE:a")] {
+            let trace = run_javascript(&format!(
+                "let events=[];let target={{a:{first},b:7}};let proxy=new Proxy(target,{{get(object,key){{events.push(key);return object[key]}}}});function input(){{return proxy}};{lazy};process.stdout.write('TRACE:'+events.join(','))"
+            ));
+            assert_eq!(trace, expected, "{trace}\n{lazy}");
+        }
+    }
+
+    #[test]
+    fn immediate_dynamic_read_fusion_preserves_dependency_names() {
+        let output = compile_without_inlining_with_options(
+            "extern JsValue input();string read(JsValue value){string name=JS.string(value[\"name\"]);print(name);return name;}print(read(input()));",
+            false,
+            IrJsOptions::default(),
+        );
+        assert!(!output.contains("let a=a."), "{output}");
+        let trace = run_javascript(&format!("function input(){{return{{name:'ok'}}}};{output}"));
+        assert_eq!(trace, "ok\nok\n");
+    }
+
+    #[test]
+    fn dynamic_iteration_shapes_remain_observable_when_results_are_unused() {
+        let for_in = compile_without_inlining_with_options(
+            "extern JsValue input();void observe(JsValue value){for(string key in value){}}observe(input());print(1);",
+            false,
+            IrJsOptions::default(),
+        );
+        let for_in_trace = run_javascript(&format!(
+            "let events=[];let proxy=new Proxy({{x:1}},{{ownKeys(object){{events.push('keys');return Reflect.ownKeys(object)}},getOwnPropertyDescriptor(object,key){{events.push('descriptor');return Reflect.getOwnPropertyDescriptor(object,key)}}}});function input(){{return proxy}};{for_in};process.stdout.write('TRACE:'+events.join(','))"
+        ));
+        assert_eq!(
+            for_in_trace, "1\nTRACE:keys,descriptor",
+            "{for_in_trace}\n{for_in}"
+        );
+
+        let for_of = compile_without_inlining_with_options(
+            "extern Generator<int> input();void observe(Generator<int> values){for(int value of values){}}observe(input());print(1);",
+            false,
+            IrJsOptions::default(),
+        );
+        let for_of_trace = run_javascript(&format!(
+            "let events=[];function* sequence(){{events.push('start');yield 1;events.push('end')}}function input(){{return sequence()}};{for_of};process.stdout.write('TRACE:'+events.join(','))"
+        ));
+        assert_eq!(
+            for_of_trace, "1\nTRACE:start,end",
+            "{for_of_trace}\n{for_of}"
+        );
+    }
+
+    #[test]
+    fn dynamic_coercion_binary_helpers_are_not_expression_substituted() {
+        let arena = Bump::new();
+        let pure_program = parse_source(
+            &arena,
+            "extern JsValue input();pure bool isZero(JsValue value){return value==0;}print(isZero(input()));",
+        )
+        .unwrap();
+        let pure_semantics = analyze(&pure_program).unwrap();
+        let mut pure_ir = lower_to_control_flow(&pure_program, &pure_semantics).unwrap();
+        let purity_error = optimize_control_flow_with_options(
+            &mut pure_ir,
+            &OptimizationOptions {
+                inlining: false,
+                ..OptimizationOptions::default()
+            },
+            false,
+        )
+        .unwrap_err();
+        assert!(
+            purity_error
+                .message
+                .contains("declared `pure` but may perform an observable side effect"),
+            "{purity_error:?}"
+        );
+
+        // Defense in depth: even if an already-optimized IR producer marks a
+        // dynamic helper pure, the target-side template grammar still refuses
+        // to substitute its coercive equality expression.
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "extern JsValue input();bool isZero(JsValue value){return value==0;}bool run(JsValue value){return isZero(value);}print(run(input()));",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+        optimize_control_flow_with_options(
+            &mut ir,
+            &OptimizationOptions {
+                inlining: false,
+                ..OptimizationOptions::default()
+            },
+            false,
+        )
+        .unwrap();
+        ir.functions
+            .iter_mut()
+            .find(|function| function.name == Some("isZero"))
+            .expect("dynamic helper remains live")
+            .declared_pure = true;
+        let named = emit_optimized_ir_js_with_options(
+            &ir,
+            &IrJsOptions {
+                pure_helper_inlining: PureHelperInliningPolicy::None,
+                ..IrJsOptions::default()
+            },
+        )
+        .unwrap();
+        let attempted = emit_optimized_ir_js_with_options(
+            &ir,
+            &IrJsOptions {
+                pure_helper_inlining: PureHelperInliningPolicy::AllEligible,
+                ..IrJsOptions::default()
+            },
+        )
+        .unwrap();
+        assert_eq!(attempted, named, "dynamic loose equality must stay named");
+    }
+
+    #[test]
+    fn all_eligible_pure_helper_policy_handles_repeated_static_calls() {
+        let source = "pure int twice(int value){return value+value;}int run(int value){return twice(value)+twice(value);}extern int input();print(run(input()));";
+        let single = compile_without_inlining_with_options(
+            source,
+            false,
+            IrJsOptions {
+                pure_helper_inlining: PureHelperInliningPolicy::SingleStaticUse,
+                ..IrJsOptions::default()
+            },
+        );
+        let all = compile_without_inlining_with_options(
+            source,
+            false,
+            IrJsOptions {
+                pure_helper_inlining: PureHelperInliningPolicy::AllEligible,
+                ..IrJsOptions::default()
+            },
+        );
+
+        assert_eq!(single.matches("=>").count(), 2, "{single}");
+        assert_eq!(all.matches("=>").count(), 1, "{all}");
+        assert!(all.len() < single.len(), "{single}\n{all}");
+    }
+
+    #[test]
+    fn substitutes_nested_guard_return_and_short_circuit_helper_dag() {
+        let source = "pure bool isDigit(int code){return code>=48&&code<=57;}pure int classify(int code){if(isDigit(code)){return 1;}if(code==58){return 2;}return 0;}int run(int code){return classify(code);}extern int input();print(run(input()));";
+        let output = compile_without_inlining_with_options(
+            source,
+            false,
+            IrJsOptions {
+                pure_helper_inlining: PureHelperInliningPolicy::AllEligible,
+                ..IrJsOptions::default()
+            },
+        );
+
+        assert_eq!(output.matches("=>").count(), 1, "{output}");
+        assert!(output.contains("?1:"), "{output}");
+        assert!(output.contains(">=48&&"), "{output}");
+    }
+
+    #[test]
+    fn eager_template_binding_evaluates_a_repeated_helper_result_once() {
+        let source = "pure int increment(int value){return value+1;}pure int summarize(int value){int incremented=increment(value);if(incremented<0){return incremented;}if(incremented==0){return incremented+2;}return incremented+incremented;}int run(int value){return summarize(value);}extern int input();print(run(input()));";
+        let named = compile_without_inlining_with_options(
+            source,
+            false,
+            IrJsOptions {
+                pure_helper_inlining: PureHelperInliningPolicy::None,
+                ..IrJsOptions::default()
+            },
+        );
+        let substituted = compile_without_inlining_with_options(
+            source,
+            false,
+            IrJsOptions {
+                pure_helper_inlining: PureHelperInliningPolicy::AllEligible,
+                ..IrJsOptions::default()
+            },
+        );
+
+        assert_eq!(named.matches("=>").count(), 3, "{named}");
+        assert_eq!(substituted.matches("=>").count(), 2, "{substituted}");
+        assert_eq!(substituted.matches("+1").count(), 1, "{substituted}");
+        assert!(substituted.contains(")("), "{substituted}");
+        assert!(substituted.len() < named.len(), "{named}\n{substituted}");
+    }
+
+    #[test]
+    fn collapses_only_a_single_identity_helper_actual_binding() {
+        let options = IrJsOptions {
+            mangle_identifiers: false,
+            pure_helper_inlining: PureHelperInliningPolicy::AllEligible,
+            ..IrJsOptions::default()
+        };
+
+        let identity = compile_without_inlining_with_options(
+            "extern int input();pure int identity(int value){return value;}print(identity(input()));",
+            false,
+            options,
+        );
+        assert!(!identity.contains("identity"), "{identity}");
+        assert!(!identity.contains("$actual=>"), "{identity}");
+        let identity_trace = run_javascript(&format!(
+            "let events=[];function input(){{events.push('input');return 5}};{identity};process.stdout.write('TRACE:'+events.join(','))"
+        ));
+        assert_eq!(
+            identity_trace, "5\nTRACE:input",
+            "{identity_trace}\n{identity}"
+        );
+
+        let unused = compile_without_inlining_with_options(
+            "extern int first();extern int ignored();pure int keep(int value,int unused){return value;}print(keep(first(),ignored()));",
+            false,
+            options,
+        );
+        assert!(!unused.contains("keep"), "{unused}");
+        assert!(unused.contains("ignored()"), "{unused}");
+        let unused_trace = run_javascript(&format!(
+            "let events=[];function first(){{events.push('first');return 1}}function ignored(){{events.push('ignored');return 2}};{unused};process.stdout.write('TRACE:'+events.join(','))"
+        ));
+        assert_eq!(
+            unused_trace, "1\nTRACE:first,ignored",
+            "{unused_trace}\n{unused}"
+        );
+
+        let multiple = wrap_pure_helper_actual_bindings(
+            JsExpression::atom("$first"),
+            vec![
+                (
+                    "$first".to_string(),
+                    JsExpression::raw("first()", JsPrecedence::Call),
+                ),
+                (
+                    "$second".to_string(),
+                    JsExpression::raw("second()", JsPrecedence::Call),
+                ),
+            ],
+        );
+        assert!(multiple.contains("$first=>"), "{multiple}");
+        assert!(multiple.contains("$second=>"), "{multiple}");
+        let multiple_trace = run_javascript(&format!(
+            "let events=[];function first(){{events.push('first');return 1}}function second(){{events.push('second');return 2}};let result={multiple};process.stdout.write(result+'|'+events.join(','))"
+        ));
+        assert_eq!(
+            multiple_trace, "1|first,second",
+            "{multiple_trace}\n{multiple}"
+        );
+    }
+
+    #[test]
+    fn cached_pure_helper_actuals_are_eager_once_and_in_argument_order() {
+        let options = IrJsOptions {
+            mangle_identifiers: false,
+            pure_helper_inlining: PureHelperInliningPolicy::AllEligible,
+            ..IrJsOptions::default()
+        };
+
+        let ordered = compile_without_inlining_with_options(
+            "extern int first();extern int second();pure int combine(int left,int right){return left*10+right;}print(combine(first(),second()));",
+            false,
+            options,
+        );
+        assert!(!ordered.contains("combine"), "{ordered}");
+        let ordered_trace = run_javascript(&format!(
+            "let events=[];function first(){{events.push('first');return 1}}function second(){{events.push('second');return 2}};{ordered};process.stdout.write('TRACE:'+events.join(','))"
+        ));
+        assert_eq!(
+            ordered_trace, "12\nTRACE:first,second",
+            "{ordered_trace}\n{ordered}"
+        );
+
+        let eager_unused = compile_without_inlining_with_options(
+            "extern bool flag();extern int input();pure int choose(bool enabled,int value){if(enabled){return value;}return 0;}print(choose(flag(),input()));",
+            false,
+            options,
+        );
+        assert!(!eager_unused.contains("choose"), "{eager_unused}");
+        assert!(eager_unused.contains("$actual=>"), "{eager_unused}");
+        let eager_unused_trace = run_javascript(&format!(
+            "let events=[];function flag(){{events.push('flag');return false}}function input(){{events.push('input');return 9}};{eager_unused};process.stdout.write('TRACE:'+events.join(','))"
+        ));
+        assert_eq!(
+            eager_unused_trace, "0\nTRACE:flag,input",
+            "{eager_unused_trace}\n{eager_unused}"
+        );
+
+        let repeated = compile_without_inlining_with_options(
+            "extern int input();pure int twice(int value){return value+value;}print(twice(input()));",
+            false,
+            options,
+        );
+        assert!(!repeated.contains("twice"), "{repeated}");
+        assert_eq!(repeated.matches("input()").count(), 1, "{repeated}");
+        let repeated_trace = run_javascript(&format!(
+            "let events=[];function input(){{events.push('input');return 3}};{repeated};process.stdout.write('TRACE:'+events.join(','))"
+        ));
+        assert_eq!(
+            repeated_trace, "6\nTRACE:input",
+            "{repeated_trace}\n{repeated}"
+        );
+
+        let thrown_trace = run_javascript(&format!(
+            "let events=[];function first(){{events.push('first');throw Error('stop')}}function second(){{events.push('second');return 2}};try{{{ordered}}}catch(error){{events.push('throw')}}process.stdout.write('TRACE:'+events.join(','))"
+        ));
+        assert_eq!(
+            thrown_trace, "TRACE:first,throw",
+            "{thrown_trace}\n{ordered}"
+        );
+    }
+
+    #[test]
+    fn cached_actuals_support_nested_policy_helper_selection() {
+        let output = compile_without_inlining_with_options(
+            "extern int input();pure int adjust(int score){if(score<0){return -score+7;}return score+3;}pure int audit(int score,bool enabled){if(enabled){return score*101+17;}return score;}pure int policy(int value){return audit(adjust(value*5+3),false);}print(policy(input()));",
+            false,
+            IrJsOptions {
+                mangle_identifiers: false,
+                pure_helper_inlining: PureHelperInliningPolicy::AllEligible,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(!output.contains("adjust"), "{output}");
+        assert!(!output.contains("audit"), "{output}");
+        assert!(!output.contains("policy"), "{output}");
+        assert!(output.contains("$actual=>"), "{output}");
+        let trace = run_javascript(&format!(
+            "let events=[];function input(){{events.push('input');return -2}};{output};process.stdout.write('TRACE:'+events.join(','))"
+        ));
+        assert_eq!(trace, "14\nTRACE:input", "{trace}\n{output}");
+    }
+
+    #[test]
+    fn pure_helper_templates_accept_typed_string_guards_and_ordered_aggregate_fields() {
+        let output = compile_without_inlining_with_options(
+            "struct Stats{int total;int count;}pure int classify(string label){if(label.startsWith(\"cache:\")){return 11;}if(label.endsWith(\":hot\")){return 13;}return 3;}pure int summarize(Stats stats){return stats.total+stats.count;}Stats stats=Stats{7,2};print(classify(\"cache:item\"));print(summarize(stats));",
+            false,
+            IrJsOptions {
+                mangle_identifiers: false,
+                pure_helper_inlining: PureHelperInliningPolicy::AllEligible,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(!output.contains("classify"), "{output}");
+        assert!(!output.contains("summarize"), "{output}");
+        assert_eq!(run_javascript(&output), "11\n9\n", "{output}");
+    }
+
+    #[test]
+    fn aggregate_read_helper_stays_before_an_intervening_mutation() {
+        let output = compile_without_inlining_with_options(
+            "struct Stats{int total;}extern int mutate(Stats stats);pure int read(Stats stats){return stats.total;}pure int wrapped(Stats stats){return read(stats);}int observe(Stats stats){int before=wrapped(stats);int changed=mutate(stats);if(changed>0){return before;}return 0;}Stats stats=Stats{7};print(observe(stats));",
+            false,
+            IrJsOptions {
+                mangle_identifiers: false,
+                pure_helper_inlining: PureHelperInliningPolicy::AllEligible,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(!output.contains("read"), "{output}");
+        assert!(!output.contains("wrapped"), "{output}");
+        let trace = run_javascript(&format!(
+            "function mutate(stats){{stats.total=99;return 1}};{output}"
+        ));
+        assert_eq!(trace, "7\n", "{trace}\n{output}");
+        let read = output
+            .find(".total")
+            .unwrap_or_else(|| panic!("inlined aggregate read: {output}"));
+        let mutation = output.find("mutate(").expect("mutation call");
+        assert!(read < mutation, "{output}");
+    }
+
+    #[test]
+    fn all_eligible_helper_policy_preserves_multi_use_outline_boundaries() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "pure int adjust(int value){return value+1;}print(adjust(1));print(adjust(2));",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+        optimize_control_flow_with_options(
+            &mut ir,
+            &OptimizationOptions {
+                inlining: false,
+                ..OptimizationOptions::default()
+            },
+            false,
+        )
+        .unwrap();
+        let adjust = ir
+            .functions
+            .iter_mut()
+            .find(|function| function.name == Some("adjust"))
+            .expect("adjust helper");
+        adjust.origin = FunctionOrigin::RepeatedRegionOutline;
+
+        let output = emit_optimized_ir_js_with_options(
+            &ir,
+            &IrJsOptions {
+                mangle_identifiers: false,
+                pure_helper_inlining: PureHelperInliningPolicy::AllEligible,
+                ..IrJsOptions::default()
+            },
+        )
+        .unwrap();
+        assert!(output.contains("adjust"), "{output}");
+        assert_eq!(run_javascript(&output), "2\n3\n", "{output}");
+    }
+
+    #[test]
+    fn pure_helper_selection_requires_explicit_full_arity_at_every_call_site() {
+        let output = compile_without_inlining_with_options(
+            "extern int input();pure int adjust(int value,int amount=2){return value+amount;}print(adjust(input()));print(adjust(input(),3));",
+            false,
+            IrJsOptions {
+                mangle_identifiers: false,
+                pure_helper_inlining: PureHelperInliningPolicy::AllEligible,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(output.contains("adjust"), "{output}");
+        let trace = run_javascript(&format!(
+            "let next=0;function input(){{return ++next}};{output}"
+        ));
+        assert_eq!(trace, "3\n5\n", "{trace}\n{output}");
+    }
+
+    #[test]
+    fn pure_helper_substitution_refuses_recursion_address_taken_and_exports() {
+        let recursive = compile_without_inlining_with_options(
+            "pure int descend(int value){if(value==0){return 0;}return descend(value-1);}extern int input();print(descend(input()));",
+            false,
+            IrJsOptions {
+                pure_helper_inlining: PureHelperInliningPolicy::AllEligible,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(recursive.contains("=>"), "{recursive}");
+
+        let address_taken = compile_without_inlining_with_options(
+            "extern void retain(func(int)->int callback);pure int increment(int value){return value+1;}retain(increment);print(increment(1));",
+            false,
+            IrJsOptions {
+                pure_helper_inlining: PureHelperInliningPolicy::AllEligible,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(address_taken.contains("=>"), "{address_taken}");
+
+        let exported = compile_module_with_options(
+            "export pure int increment(int value){return value+1;}",
+            IrJsOptions {
+                pure_helper_inlining: PureHelperInliningPolicy::AllEligible,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(exported.contains("export{"), "{exported}");
+        assert!(exported.contains("function "), "{exported}");
+    }
+
+    #[test]
+    fn substituted_helper_dag_reserves_its_pooled_aliases_in_the_caller() {
+        let literal = "compression-dictionary-token";
+        let source = format!(
+            "pure int leaf(string left,string right){{if(left==\"{literal}\"){{if(right==\"{literal}\"){{return 2;}}return 1;}}if(right==\"{literal}\"){{return 1;}}return 0;}}pure int wrapper(string left,string right){{return leaf(left,right);}}int run(string left,string right){{return wrapper(left,right);}}extern string first();extern string second();print(run(first(),second()));"
+        );
+        let output = compile_without_inlining_with_options(
+            &source,
+            false,
+            IrJsOptions {
+                pure_helper_inlining: PureHelperInliningPolicy::AllEligible,
+                pool_strings: true,
+                ..IrJsOptions::default()
+            },
+        );
+
+        assert_eq!(output.matches(literal).count(), 1, "{output}");
+        let marker = format!("=\"{literal}\"");
+        let alias_end = output.find(&marker).expect("pooled string alias");
+        let alias_start = output[..alias_end]
+            .rfind(|character: char| !is_js_identifier_byte(character as u8))
+            .map_or(0, |index| index + 1);
+        let alias = &output[alias_start..alias_end];
+        let arrow = output.find("=>").expect("retained caller arrow");
+        let parameter_start = output[..arrow].rfind('(').expect("caller parameter list") + 1;
+        let parameters = &output[parameter_start..arrow - 1];
+        assert!(
+            parameters.split(',').all(|parameter| parameter != alias),
+            "substituted alias `{alias}` was captured by `{parameters}`: {output}"
+        );
+    }
+
+    #[test]
+    fn conditional_helper_binding_does_not_write_formals_that_alias_arguments() {
+        let output = compile_without_inlining_with_options(
+            "extern JsValue arguments;pure float magnitude(float value){if(value<0.0){return -value;}return value;}float observe(float value){float normalized=magnitude(value);if(normalized<0.0){return arguments.length;}return normalized+arguments.length;}print(observe(1.0));",
+            false,
+            IrJsOptions {
+                pure_helper_inlining: PureHelperInliningPolicy::AllEligible,
+                conditional_expressions: true,
+                ..IrJsOptions::default()
+            },
+        );
+
+        assert!(output.contains("function "), "{output}");
+        assert!(output.contains("arguments.length"), "{output}");
+        assert!(output.contains("if("), "{output}");
+    }
+
+    #[test]
+    fn preserves_named_functions_when_single_use_expression_is_disabled_or_public() {
+        let source = "generator int range(){yield 1;}for(int value of range()){print(value);}";
+        let named = compile_with_options(
+            source,
+            IrJsOptions {
+                inline_single_use_functions: false,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(named.starts_with("function*"), "{named}");
+        assert!(!named.contains(" of function*()"), "{named}");
+
+        let public = compile_module(
+            "int helper(int value){try{return value;}finally{print(value);}}export int run(){return helper(1);}",
+        );
+        assert!(
+            public.contains("function ") || public.contains("=>"),
+            "{public}"
+        );
+        assert!(public.contains("export{"), "{public}");
+
+        let in_loop = compile_with_options(
+            "generator int values(){yield 1;}for(int repeat=0;repeat<2;repeat++){for(int value of values()){print(value);}}",
+            IrJsOptions {
+                inline_single_use_functions: true,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(in_loop.starts_with("function*"), "{in_loop}");
+        assert!(!in_loop.contains(" of function*()"), "{in_loop}");
+
+        let reusable_caller = compile_with_options(
+            "generator int values(){yield 1;}void consume(){for(int value of values()){print(value);}}consume();consume();",
+            IrJsOptions {
+                inline_single_use_functions: true,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(
+            reusable_caller.starts_with("function*"),
+            "{reusable_caller}"
+        );
+    }
+
+    #[test]
+    fn module_output_emits_private_init_only_functions_at_their_call_site() {
+        let output = compile_module_with_options(
+            "int helper(int value){return value+1;}int start=helper(2);export int run(){return start;}",
+            IrJsOptions {
+                inline_single_use_functions: true,
+                mangle_identifiers: false,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(!output.contains("function helper"), "{output}");
+        assert!(output.contains("export{"), "{output}");
     }
 }

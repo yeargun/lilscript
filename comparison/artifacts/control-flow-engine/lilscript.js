@@ -1,1 +1,1 @@
-var c=0,a=0,b;for(;a<12;a=a+1|0){if((a%3|0)==0)continue;b=0;for(;b<4;){c=((a+b|0)%2|0)==0?c+Math.imul(a,b)|0:c+1|0;b=b+1|0;}}console.log(c)
+var o=0,e=0,i;for(;e<12;e++){if(e%3==0)continue;for(i=0;i<4;)o=(e+i)%2==0?o+e*i|0:o+1|0,i++;}console.log(o)

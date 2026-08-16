@@ -1,0 +1,49 @@
+{
+  "generatedAt": "2026-08-14T12:52:26.920Z",
+  "definition": "Solid and SolidLil execute identical ownership/disposal workloads; retained-heap eligibility is measured separately with repeated isolated samples.",
+  "cycles": 5000,
+  "collectionCycles": 500,
+  "resourceCycles": 100,
+  "workloads": {
+    "roots": {
+      "cleanupCount": 5000,
+      "effectRuns": 10000,
+      "checksum": 62497500
+    },
+    "collections": {
+      "createdRows": 3500,
+      "cleanedRows": 3500,
+      "effectRuns": 7000,
+      "checksum": 3541000
+    },
+    "resources": {
+      "cleanupCount": 100,
+      "effectRuns": 100,
+      "runsBeforeResolution": 100
+    },
+    "staleDisposer": {
+      "staleCleanups": 1,
+      "freshCleanups": 1,
+      "freshRuns": 2
+    }
+  },
+  "solidRetainedBytesDiagnostic": 0,
+  "solidlilRetainedBytesDiagnostic": 165008,
+  "warmSlots": {
+    "owners": 8,
+    "effects": 16,
+    "freeOwners": 8,
+    "freeEffects": 16,
+    "pendingEffects": 0
+  },
+  "slots": {
+    "owners": 8,
+    "effects": 16,
+    "freeOwners": 8,
+    "freeEffects": 16,
+    "pendingEffects": 0
+  },
+  "behaviorEquivalent": true,
+  "stableHighWater": true,
+  "allSlotsReleased": true
+}

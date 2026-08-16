@@ -1,0 +1,99 @@
+import { GroupAnimationWithThen } from "../../../motion-dom/animation/GroupAnimationWithThen";
+import { AnimationScope } from "../../../motion-dom/utils/resolve-elements";
+import { removeItem } from "../../../motion-utils/array";
+import {
+  isFunction,
+  callFn0,
+  callMethod2,
+  windowGet
+} from "../../../motion-dom/dom-host";
+import { animateSubject } from "./subject-dom-spring";
+
+void assignObject(JsValue target, JsValue? source) {
+  if (source != null && source.isObject()) {
+    callMethod2(windowGet("Object"), "assign", target, source);
+  }
+}
+
+(func()->void)? takeOnComplete(JsValue target) {
+  JsValue onComplete = target["onComplete"];
+  if (isFunction(onComplete)) {
+    target["onComplete"] = null;
+    return () => {
+      callFn0(onComplete);
+    };
+  }
+  return null;
+}
+
+export class ScopedAnimateOptions {
+  AnimationScope? scope;
+  bool? reduceMotion;
+  bool? skipAnimations;
+
+  init(
+    AnimationScope? scope = null,
+    bool? reduceMotion = null,
+    bool? skipAnimations = null
+  ) {
+    this.scope = scope;
+    this.reduceMotion = reduceMotion;
+    this.skipAnimations = skipAnimations;
+  }
+}
+
+export func(JsValue, JsValue?, JsValue?)->GroupAnimationWithThen createScopedAnimate(
+  ScopedAnimateOptions? options = null
+) {
+  AnimationScope? scope = null;
+  bool? reduceMotion = null;
+  bool? skipAnimations = null;
+  if (options != null) {
+    scope = options.scope;
+    reduceMotion = options.reduceMotion;
+    skipAnimations = options.skipAnimations;
+  }
+
+  return (JsValue subject, JsValue? keyframes = null, JsValue? opts = null) => {
+    JsValue[] animations = [];
+    (func()->void)? animationOnComplete = null;
+
+    JsValue rest = record{};
+    if (reduceMotion != null) {
+      rest["reduceMotion"] = reduceMotion;
+    }
+    if (skipAnimations != null) {
+      rest["skipAnimations"] = skipAnimations;
+    }
+    assignObject(rest, opts);
+    (func()->void)? complete = takeOnComplete(rest);
+    if (complete != null) {
+      animationOnComplete = complete;
+    }
+    animations = animateSubject(subject, keyframes, rest, scope);
+
+    GroupAnimationWithThen animation = new GroupAnimationWithThen(animations);
+
+    if (animationOnComplete != null) {
+      (func()->void) done = animationOnComplete;
+      animation.finished().then((bool _v) => {
+        done();
+        return true;
+      });
+    }
+
+    if (scope != null) {
+      AnimationScope activeScope = scope;
+      activeScope.animations.push(animation);
+      animation.finished().then((bool _v) => {
+        removeItem(activeScope.animations, animation);
+        return true;
+      });
+    }
+
+    return animation;
+  };
+}
+
+export func(JsValue, JsValue?, JsValue?)->GroupAnimationWithThen animate =
+  createScopedAnimate();

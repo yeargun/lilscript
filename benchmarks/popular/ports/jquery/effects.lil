@@ -1,0 +1,859 @@
+import { emptyArray } from "./alloc.lil";
+import { jQuery, each, map, mergeObject, isEmptyObject } from "./core";
+import { camelCase } from "./core/camelCase";
+import { document } from "./var/document";
+import { isFunction } from "./var/isFunction";
+import { rcssNum } from "./var/rcssNum";
+import { rnothtmlwhite } from "./var/rnothtmlwhite";
+import { cssExpand } from "./css/var/cssExpand";
+import { isHiddenWithinTree } from "./css/var/isHiddenWithinTree";
+import { adjustCSS } from "./css/adjustCSS";
+import { dataPriv } from "./data/var/dataPriv";
+import { showHide } from "./css/showHide";
+import { css, style } from "./css";
+import { createTween, tweenRun } from "./effects/Tween";
+import { Deferred } from "./deferred";
+import { queueStatic, dequeueStatic, queueHooks } from "./queue";
+import {
+  createEmptyObject,
+  arraySplice,
+  deleteProp,
+  hasProp,
+  isNullish,
+  isUndefined,
+  typeOf,
+  stringify,
+  unaryPlus,
+  mathMax,
+  dateNow,
+  regexTest,
+  regexExec,
+  stringMatch,
+  jsUndefined,
+  call0,
+  call1,
+  call2,
+  call3,
+  apply,
+  arrayIsArray,
+  scheduleTimeoutMs,
+  requestAnimationFrameOrNull
+} from "./js-host.lil";
+
+struct OpacityAnim {
+  JsValue opacity;
+}
+
+struct AnimOptsSeed {
+  JsValue specialEasing;
+  JsValue easing;
+}
+
+struct AnimationFacade {
+  JsValue elem;
+  JsValue props;
+  JsValue opts;
+  JsValue originalProperties;
+  JsValue originalOptions;
+  float startTime;
+  float duration;
+  JsValue tweens;
+  JsValue createTween;
+  JsValue stop;
+}
+
+struct FxShowInit {
+  JsValue display;
+}
+
+struct SpeedOpt {
+  JsValue complete;
+  JsValue duration;
+  JsValue easing;
+}
+
+struct FxSpeeds {
+  float slow;
+  float fast;
+  float _default;
+}
+
+JsValue fxNow = null;
+JsValue inProgress = null;
+Regex rfxtypes = new Regex("^(?:toggle|show|hide)$");
+Regex rrun = new Regex("queueHooks$");
+
+JsValue animationTweeners = JS.object();
+JsValue[] animationPrefilters = [];
+JsValue[] fxTimers = [];
+
+void fxStop() {
+  inProgress = null;
+}
+
+JsValue fxTick() {
+  fxNow = dateNow();
+
+  int i = 0;
+  while (i < fxTimers.length) {
+    JsValue timer = fxTimers[i];
+    JsValue timerResult = timer();
+    if (!timerResult.truthy() && fxTimers[i] == timer) {
+      JS.splice(fxTimers, 0.0 + i, 1.0);
+      i = i - 1;
+    }
+    i = i + 1;
+  }
+
+  if (fxTimers.length == 0) {
+    fxStop();
+  }
+  fxNow = null;
+  return JS.undefined();
+}
+
+void schedule() {
+  if (inProgress.truthy()) {
+    bool scheduledViaRaf = false;
+    if (document["hidden"] == false) {
+      JsValue raf = requestAnimationFrameOrNull(schedule);
+      scheduledViaRaf = raf.truthy();
+    }
+    if (!scheduledViaRaf) {
+      scheduleTimeoutMs(JS.staticRest((JsValue _a) => {
+        schedule();
+        return JS.undefined();
+      }), JS.number(jQuery["fx"]["interval"]));
+    }
+    fxTick();
+  }
+}
+
+void fxStart() {
+  if (!inProgress.truthy()) {
+    inProgress = true;
+    schedule();
+  }
+}
+
+void enqueueFxTimer(JsValue timer) {
+  fxTimers.push(timer);
+  fxStart();
+}
+
+float createFxNow() {
+  scheduleTimeoutMs(JS.staticRest((JsValue _a) => {
+    fxNow = null;
+    return JS.undefined();
+  }), 0.0);
+  float now = dateNow();
+  fxNow = now;
+  return now;
+}
+
+float currentFxNow() {
+  if (fxNow.truthy()) {
+    return JS.number(fxNow);
+  }
+  return createFxNow();
+}
+
+JsValue genFx(string type, bool includeWidth) {
+  JsValue attrs = JS.object();
+  attrs["height"] = type;
+
+  int step = 2;
+  if (includeWidth) {
+    step = 1;
+  }
+
+  int i = 0;
+  while (i < 4) {
+    string which = cssExpand[i];
+    attrs["margin" + which] = type;
+    attrs["padding" + which] = type;
+    i = i + step;
+  }
+
+  if (includeWidth) {
+    attrs["opacity"] = type;
+    attrs["width"] = type;
+  }
+
+  return attrs;
+}
+
+JsValue tweenFromJsTweeners(JsValue collection, JsValue animation, JsValue prop, JsValue value) {
+  if (!collection.truthy()) {
+    return null;
+  }
+  float index = 0.0;
+  float length = collection.length;
+  for (; index < length; index++) {
+    JsValue tween = JS.call(collection[index], animation, prop, value);
+    if (tween.truthy()) {
+      return tween;
+    }
+  }
+  return null;
+}
+
+JsValue defaultTweener(JsValue propArg, JsValue value) {
+  JsValue animation = this;
+  JsValue tween = JS.invoke(animation, "createTween", propArg, value);
+  adjustCSS(tween["elem"], JS.string(propArg), JS.regexExec(rcssNum, value), tween);
+  return tween;
+}
+
+JsValue createTweenFn(JsValue value, JsValue prop, JsValue animation) {
+  JsValue named = animationTweeners[prop];
+  if (!named.truthy()) {
+    named = emptyArray();
+  }
+  JsValue fromProp = tweenFromJsTweeners(named, animation, prop, value);
+  if (fromProp.truthy()) {
+    return fromProp;
+  }
+  return tweenFromJsTweeners(animationTweeners["*"], animation, prop, value);
+}
+
+JsValue defaultPrefilter(JsValue elem, JsValue props, JsValue opts) {
+  JsValue anim = this;
+  bool isBox = JS.in("width", props) || JS.in("height", props);
+  JsValue orig = JS.object();
+  JsValue styleDecl = elem["style"];
+  bool hidden = JS.and(elem, elem["nodeType"]).truthy() && isHiddenWithinTree(elem);
+  JsValue dataShow = dataPriv.get(elem, "fxshow");
+  bool toggle = false;
+
+  if (!opts["queue"].truthy()) {
+    JsValue hooks = queueHooks(elem, "fx");
+    if (JS.isNullish(hooks["unqueued"])) {
+      hooks["unqueued"] = 0.0;
+      JsValue oldfire = hooks["empty"]["fire"];
+      hooks["empty"]["fire"] = JS.staticRest((JsValue _a) => {
+        if (!hooks["unqueued"].truthy()) {
+          oldfire();
+        }
+        return JS.undefined();
+      });
+    }
+    hooks["unqueued"] = JS.number(hooks["unqueued"]) + 1.0;
+
+    JS.invoke(anim, "always", JS.staticRest((JsValue _a) => {
+      JS.invoke(anim, "always", JS.staticRest((JsValue _b) => {
+        hooks["unqueued"] = JS.number(hooks["unqueued"]) - 1.0;
+        JsValue fxQueue = queueStatic(elem, "fx", JS.undefined());
+        if (fxQueue.length == 0.0) {
+          JS.invoke(hooks["empty"], "fire");
+        }
+        return JS.undefined();
+      }));
+      return JS.undefined();
+    }));
+  }
+
+  for (string prop in props) {
+    JsValue value = props[prop];
+    if (JS.regexTest(rfxtypes, value)) {
+      JS.delete(props, prop);
+
+      if (JS.strictEqual(value, "toggle")) {
+        toggle = true;
+      }
+
+      if ((hidden && JS.strictEqual(value, "hide")) ||
+          (!hidden && JS.strictEqual(value, "show"))) {
+        if (JS.strictEqual(value, "show") && dataShow.truthy() &&
+            !JS.isUndefined(dataShow[prop])) {
+          hidden = true;
+        } else {
+          continue;
+        }
+      }
+
+      orig[prop] = JS.or(JS.and(dataShow, dataShow[prop]), style(elem, prop));
+    }
+  }
+
+  bool propTweenBool = !isEmptyObject(props);
+  if (!propTweenBool && isEmptyObject(orig)) {
+    return JS.undefined();
+  }
+
+  JsValue restoreDisplay = JS.undefined();
+
+  if (isBox && JS.strictEqual(elem["nodeType"], 1.0)) {
+    opts["overflow"] = [styleDecl["overflow"], styleDecl["overflowX"], styleDecl["overflowY"]];
+
+    restoreDisplay = JS.and(dataShow, dataShow["display"]);
+    if (JS.isNullish(restoreDisplay)) {
+      restoreDisplay = dataPriv.get(elem, "display");
+    }
+
+    JsValue display = css(elem, "display");
+    if (JS.strictEqual(display, "none")) {
+      if (restoreDisplay.truthy()) {
+        display = restoreDisplay;
+      } else {
+        showHide([elem], true);
+        restoreDisplay = JS.or(styleDecl["display"], restoreDisplay);
+        display = css(elem, "display");
+        showHide([elem], false);
+      }
+    }
+
+    if (JS.strictEqual(display, "inline") ||
+        (JS.strictEqual(display, "inline-block") && !JS.isNullish(restoreDisplay))) {
+      if (JS.strictEqual(css(elem, "float"), "none")) {
+        if (!propTweenBool) {
+          JS.invoke(anim, "done", JS.staticRest((JsValue _a) => {
+            styleDecl["display"] = restoreDisplay;
+            return JS.undefined();
+          }));
+          if (JS.isNullish(restoreDisplay)) {
+            display = styleDecl["display"];
+            if (JS.strictEqual(display, "none")) {
+              restoreDisplay = "";
+            } else {
+              restoreDisplay = display;
+            }
+          }
+        }
+        styleDecl["display"] = "inline-block";
+      }
+    }
+  }
+
+  if (opts["overflow"].truthy()) {
+    styleDecl["overflow"] = "hidden";
+    JS.invoke(anim, "always", JS.staticRest((JsValue _a) => {
+      styleDecl["overflow"] = opts["overflow"][0];
+      styleDecl["overflowX"] = opts["overflow"][1];
+      styleDecl["overflowY"] = opts["overflow"][2];
+      return JS.undefined();
+    }));
+  }
+
+  JsValue propTween = false;
+  for (string prop2 in orig) {
+    if (!propTween.truthy()) {
+      if (dataShow.truthy()) {
+        if (JS.in("hidden", dataShow)) {
+          hidden = dataShow["hidden"].truthy();
+        }
+      } else {
+        JsValue fxshowInit = FxShowInit{restoreDisplay};
+        dataShow = dataPriv.access(elem, "fxshow", fxshowInit);
+      }
+
+      if (toggle) {
+        dataShow["hidden"] = !hidden;
+      }
+
+      if (hidden) {
+        showHide([elem], true);
+      }
+
+      JS.invoke(anim, "done", JS.staticRest((JsValue _a) => {
+        if (!hidden) {
+          showHide([elem], false);
+        }
+        dataPriv.remove(elem, "fxshow");
+        for (string p3 in orig) {
+          style(elem, p3, orig[p3]);
+        }
+        return JS.undefined();
+      }));
+    }
+
+    JsValue startVal = JS.or(JS.and(hidden, dataShow[prop2]), 0.0);
+    propTween = createTweenFn(startVal, prop2, anim);
+    if (!JS.in(prop2, dataShow)) {
+      dataShow[prop2] = propTween["start"];
+      if (hidden) {
+        propTween["end"] = propTween["start"];
+        propTween["start"] = 0.0;
+      }
+    }
+  }
+
+  return JS.undefined();
+}
+
+void propFilter(JsValue props, JsValue specialEasing) {
+  for (string index in props) {
+    string name = camelCase(index);
+    JsValue easing = specialEasing[name];
+    JsValue value = props[index];
+
+    if (JS.isArray(value)) {
+      easing = value[1];
+      value = value[0];
+      props[index] = value;
+    }
+
+    if (index != name) {
+      props[name] = value;
+      JS.delete(props, index);
+    }
+
+    JsValue hooks = jQuery["cssHooks"][name];
+    if (hooks.truthy() && JS.in("expand", hooks)) {
+      JsValue expanded = JS.invoke(hooks, "expand", value);
+      JS.delete(props, name);
+
+      for (string expandedKey in expanded) {
+        if (!JS.in(expandedKey, props)) {
+          props[expandedKey] = expanded[expandedKey];
+          specialEasing[expandedKey] = easing;
+        }
+      }
+    } else {
+      specialEasing[name] = easing;
+    }
+  }
+}
+
+JsValue AnimationCtor(JsValue elem, JsValue properties, JsValue options) {
+  return AnimationWithOpts(elem, properties, options);
+}
+
+JsValue AnimationWithOpts(JsValue elem, JsValue properties, JsValue originalOptions) {
+  JsValue deferred = Deferred();
+  JsValue opts = mergeObject(AnimOptsSeed{JS.object(), jQuery["easing"]["_default"]}, originalOptions, true);
+  JsValue propsCopy = mergeObject(JS.object(), properties, false);
+  float startTime = currentFxNow();
+  float duration = JS.number(opts["duration"]);
+  JsValue[] tweens = [];
+  bool stopped = false;
+
+  JsValue animationCreateTween = (JsValue propArg, JsValue endArg) => {
+    JsValue easing = opts["specialEasing"][propArg];
+    if (!easing.truthy()) {
+      easing = opts["easing"];
+    }
+    JsValue tween = createTween(elem, opts, propArg, endArg, easing, "");
+    tweens.push(tween);
+    return tween;
+  };
+
+  JsValue animation = JS.undefined();
+  animation = AnimationFacade{
+    elem,
+    propsCopy,
+    opts,
+    properties,
+    originalOptions,
+    startTime,
+    duration,
+    tweens,
+    animationCreateTween,
+    JS.method1((JsValue self, JsValue gotoEnd) => {
+    if (stopped) {
+      return self;
+    }
+    stopped = true;
+
+    if (gotoEnd.truthy()) {
+      int index = 0;
+      while (index < tweens.length) {
+        tweenRun(tweens[index], 1.0);
+        index = index + 1;
+      }
+
+      JS.invoke(deferred, "notifyWith", elem, [animation, 1.0, 0.0]);
+      JS.invoke(deferred, "resolveWith", elem, [animation, gotoEnd]);
+    } else {
+      JS.invoke(deferred, "rejectWith", elem, [animation, gotoEnd]);
+    }
+    return self;
+  })
+  };
+  JS.invoke(deferred, "promise", animation);
+
+  JsValue tickRun = () => {
+    if (stopped) {
+      return false;
+    }
+
+    float currentTime = currentFxNow();
+    float remaining = mathMax(0.0, startTime + duration - currentTime);
+    float temp = 0.0;
+    if (duration != 0.0) {
+      temp = remaining / duration;
+    }
+    float percent = 1.0 - temp;
+    float tLength = 0.0 + tweens.length;
+
+    int tweenIndex = 0;
+    while (tweenIndex < tweens.length) {
+      tweenRun(tweens[tweenIndex], percent);
+      tweenIndex = tweenIndex + 1;
+    }
+
+    JS.invoke(deferred, "notifyWith", elem, [animation, percent, remaining]);
+
+    if (percent < 1.0 && tLength > 0.0) {
+      return remaining;
+    }
+    if (tLength == 0.0) {
+      JS.invoke(deferred, "notifyWith", elem, [animation, 1.0, 0.0]);
+    }
+
+    JS.invoke(deferred, "resolveWith", elem, [animation]);
+    return false;
+  };
+
+  JS.invoke(deferred, "always", () => {
+    JS.delete(tickRun, "elem");
+    return JS.undefined();
+  });
+
+  propFilter(propsCopy, opts["specialEasing"]);
+
+  int pIndex = 0;
+  int pLength = animationPrefilters.length;
+  for (; pIndex < pLength; pIndex++) {
+    JsValue result = JS.call(animationPrefilters[pIndex], animation, elem, propsCopy, opts);
+    if (result.truthy()) {
+      if (isFunction(result["stop"])) {
+        JsValue stopHooks = queueHooks(elem, opts["queue"]);
+        stopHooks["stop"] = JS.invoke(result["stop"], "bind", result);
+      }
+      return result;
+    }
+  }
+
+  map(propsCopy, createTweenFn, animation);
+
+  if (isFunction(opts["start"])) {
+    JS.call(opts["start"], elem, animation);
+  }
+
+  JS.invoke(animation, "progress", opts["progress"]);
+  JS.invoke(animation, "done", opts["done"], opts["complete"]);
+  JS.invoke(animation, "fail", opts["fail"]);
+  JS.invoke(animation, "always", opts["always"]);
+
+  tickRun["elem"] = elem;
+  tickRun["anim"] = animation;
+  tickRun["queue"] = opts["queue"];
+  enqueueFxTimer(tickRun);
+
+  return animation;
+}
+
+JsValue animationTweener(JsValue propsArg, JsValue callbackArg = null) {
+  JsValue callback = callbackArg;
+  JsValue propsList = propsArg;
+  if (isFunction(propsArg)) {
+    callback = propsArg;
+    propsList = ["*"];
+  } else {
+    JsValue matched = JS.stringMatch(JS.string(propsArg), rnothtmlwhite);
+    propsList = matched;
+    if (!matched.truthy()) {
+      propsList = emptyArray();
+    }
+  }
+
+  float index = 0.0;
+  float length = propsList.length;
+  for (; index < length; index++) {
+    JsValue prop = propsList[index];
+    JsValue list = animationTweeners[prop];
+    if (!list.truthy()) {
+      list = emptyArray();
+      animationTweeners[prop] = list;
+    }
+    JS.splice(list, 0.0, 0.0, callback);
+  }
+  return JS.undefined();
+}
+
+JsValue animationPrefilter(JsValue callback, JsValue prepend = null) {
+  if (prepend.truthy()) {
+    JS.splice(animationPrefilters, 0.0, 0.0, callback);
+  } else {
+    animationPrefilters.push(callback);
+  }
+  return JS.undefined();
+}
+
+JsValue speed(JsValue speedArg, JsValue easingArg = null, JsValue fnArg = null) {
+  JsValue opt = JS.object();
+
+  if (speedArg.truthy() && JS.typeOf(speedArg) == "object") {
+    mergeObject(opt, speedArg, false);
+  } else {
+    JsValue speedAsComplete = false;
+    if (isFunction(speedArg)) {
+      speedAsComplete = speedArg;
+    }
+    JsValue easingFromFn = JS.and(fnArg, easingArg);
+    JsValue easingFromArg = false;
+    if (easingArg.truthy() && !isFunction(easingArg)) {
+      easingFromArg = easingArg;
+    }
+    opt = SpeedOpt{
+      JS.or(fnArg, JS.or(easingArg, speedAsComplete)),
+      speedArg,
+      JS.or(easingFromFn, easingFromArg)
+    };
+  }
+
+  if (jQuery["fx"]["off"].truthy()) {
+    opt["duration"] = 0.0;
+  } else if (JS.typeOf(opt["duration"]) != "number") {
+    JsValue speeds = jQuery["fx"]["speeds"];
+    if (JS.in(opt["duration"], speeds)) {
+      opt["duration"] = speeds[opt["duration"]];
+    } else {
+      opt["duration"] = speeds["_default"];
+    }
+  }
+
+  if (JS.isNullish(opt["queue"]) || opt["queue"] == true) {
+    opt["queue"] = "fx";
+  }
+
+  opt["old"] = opt["complete"];
+
+  opt["complete"] = JS.method0((JsValue self) => {
+    if (isFunction(opt["old"])) {
+      JS.call(opt["old"], self);
+    }
+    if (opt["queue"].truthy()) {
+      dequeueStatic(self, opt["queue"]);
+    }
+    return JS.undefined();
+  });
+
+  return opt;
+}
+
+JsValue fnAnimate(JsValue self, JsValue args) {
+  JsValue prop = args[0];
+  JsValue speedArg = args[1];
+  JsValue easingArg = args[2];
+  JsValue callbackArg = args[3];
+  bool empty = isEmptyObject(prop);
+  JsValue optall = speed(speedArg, easingArg, callbackArg);
+
+  JsValue doAnimation = JS.method0((JsValue self2) => {
+    JsValue propCopy = mergeObject(JS.object(), prop, false);
+
+    JsValue anim = AnimationWithOpts(self2, propCopy, optall);
+
+    if (empty || dataPriv.get(self2, "finish").truthy()) {
+      JS.invoke(anim, "stop", true);
+    }
+    return JS.undefined();
+  });
+  doAnimation["finish"] = doAnimation;
+
+  if (empty || optall["queue"] == false) {
+    return each(self, doAnimation);
+  }
+  return JS.invoke(self, "queue", optall["queue"], doAnimation);
+}
+
+void stopQueue(JsValue hooks, JsValue gotoEnd) {
+  JsValue stop = hooks["stop"];
+  JS.delete(hooks, "stop");
+  stop(gotoEnd);
+}
+
+JsValue fnStop(JsValue self, JsValue args) {
+  JsValue type = args[0];
+  JsValue clearQueue = args[1];
+  JsValue gotoEnd = args[2];
+
+  if (!(type is string)) {
+    gotoEnd = clearQueue;
+    clearQueue = type;
+    type = JS.undefined();
+  }
+
+  if (clearQueue.truthy()) {
+    string clearType = "fx";
+    if (type.truthy()) {
+      clearType = JS.string(type);
+    }
+    each(self, (JsValue _i, JsValue el) => {
+      queueStatic(el, clearType, emptyArray());
+      return JS.undefined();
+    });
+  }
+
+  return each(self, JS.method0((JsValue el) => {
+    bool dequeue = true;
+    string indexKey = "";
+    bool hasIndex = false;
+    if (!JS.isNullish(type)) {
+      indexKey = JS.string(type) + "queueHooks";
+      hasIndex = true;
+    }
+
+    JsValue data = dataPriv.get(el);
+
+    if (hasIndex) {
+      if (data[indexKey].truthy() && data[indexKey]["stop"].truthy()) {
+        stopQueue(data[indexKey], gotoEnd);
+      }
+    } else {
+      for (string idx in data) {
+        if (data[idx].truthy() && data[idx]["stop"].truthy() && JS.regexTest(rrun, idx)) {
+          stopQueue(data[idx], gotoEnd);
+        }
+      }
+    }
+
+    float tIndex = 0.0 + fxTimers.length;
+    while (tIndex > 0.0) {
+      tIndex = tIndex - 1.0;
+      JsValue timer = fxTimers[tIndex.toInt()];
+      bool sameElem = timer["elem"] == el;
+      bool sameType = JS.isNullish(type) || JS.strictEqual(timer["queue"], type);
+      if (sameElem && sameType) {
+        JsValue stopped = timer["anim"];
+        if (stopped.truthy()) {
+          JS.invoke(stopped, "stop", gotoEnd);
+        }
+        dequeue = false;
+        JS.splice(fxTimers, tIndex, 1.0);
+      }
+    }
+
+    if (dequeue || !gotoEnd.truthy()) {
+      dequeueStatic(el, type);
+    }
+    return JS.undefined();
+  }));
+}
+
+JsValue fnFinish(JsValue self, JsValue typeArg) {
+  JsValue type = typeArg;
+  if (type != false) {
+    if (!type.truthy()) {
+      type = "fx";
+    }
+  }
+
+  return each(self, JS.method0((JsValue el) => {
+    JsValue data = dataPriv.get(el);
+    JsValue queue = data[type + "queue"];
+    JsValue hooks = data[type + "queueHooks"];
+    float length = 0.0;
+    if (queue.truthy()) {
+      length = queue.length;
+    }
+
+    data["finish"] = true;
+
+    queueStatic(el, type, emptyArray());
+
+    if (hooks.truthy() && hooks["stop"].truthy()) {
+      JS.call(hooks["stop"], el, true);
+    }
+
+    float tIndex = 0.0 + fxTimers.length;
+    while (tIndex > 0.0) {
+      tIndex = tIndex - 1.0;
+      JsValue timer = fxTimers[tIndex.toInt()];
+      if (timer["elem"] == el && JS.strictEqual(timer["queue"], type)) {
+        JsValue stopped = timer["anim"];
+        if (stopped.truthy()) {
+          JS.invoke(stopped, "stop", true);
+        }
+        JS.splice(fxTimers, tIndex, 1.0);
+      }
+    }
+
+    float qIndex = 0.0;
+    for (; qIndex < length; qIndex++) {
+      if (queue[qIndex].truthy() && queue[qIndex]["finish"].truthy()) {
+        JS.call(queue[qIndex]["finish"], el, JS.undefined());
+      }
+    }
+
+    JS.delete(data, "finish");
+    return JS.undefined();
+  }));
+}
+
+void install() {
+  animationPrefilters = [defaultPrefilter];
+  animationTweeners["*"] = [defaultTweener];
+
+  JsValue animation = AnimationCtor;
+  animation["tweeners"] = animationTweeners;
+  animation["tweener"] = animationTweener;
+  animation["prefilters"] = animationPrefilters;
+  animation["prefilter"] = animationPrefilter;
+  jQuery["Animation"] = animation;
+
+  jQuery["speed"] = speed;
+
+  JsValue fn = jQuery["fn"];
+  fn["fadeTo"] = JS.methodRest((JsValue self, JsValue args) => {
+    JsValue shown = JS.invoke(self, "filter", isHiddenWithinTree);
+    JS.invoke(shown, "css", "opacity", 0.0);
+    JS.invoke(shown, "show");
+    return JS.invoke(JS.invoke(shown, "end"), "animate", OpacityAnim{args[1]}, args[0], args[2], args[3]);
+  });
+  fn["animate"] = JS.methodRest(fnAnimate);
+  fn["stop"] = JS.methodRest(fnStop);
+  fn["finish"] = JS.method1(fnFinish);
+
+  each(["toggle", "show", "hide"], (JsValue _i, JsValue name) => {
+    string nameStr = JS.string(name);
+    JsValue cssFn = fn[nameStr];
+    fn[nameStr] = JS.methodRest((JsValue self, JsValue args) => {
+      JsValue speedArg = args[0];
+      if (JS.isNullish(speedArg) || speedArg is bool) {
+        return JS.apply(cssFn, self, args);
+      }
+      return JS.invoke(self, "animate", genFx(nameStr, true), speedArg, args[1], args[2]);
+    });
+    return JS.undefined();
+  });
+
+  fn["slideDown"] = JS.methodRest((JsValue self, JsValue args) => {
+    return JS.invoke(self, "animate", genFx("show", false), args[0], args[1], args[2]);
+  });
+  fn["slideUp"] = JS.methodRest((JsValue self, JsValue args) => {
+    return JS.invoke(self, "animate", genFx("hide", false), args[0], args[1], args[2]);
+  });
+  fn["slideToggle"] = JS.methodRest((JsValue self, JsValue args) => {
+    return JS.invoke(self, "animate", genFx("toggle", false), args[0], args[1], args[2]);
+  });
+  fn["fadeIn"] = JS.methodRest((JsValue self, JsValue args) => {
+    return JS.invoke(self, "animate", OpacityAnim{"show"}, args[0], args[1], args[2]);
+  });
+  fn["fadeOut"] = JS.methodRest((JsValue self, JsValue args) => {
+    return JS.invoke(self, "animate", OpacityAnim{"hide"}, args[0], args[1], args[2]);
+  });
+  fn["fadeToggle"] = JS.methodRest((JsValue self, JsValue args) => {
+    return JS.invoke(self, "animate", OpacityAnim{"toggle"}, args[0], args[1], args[2]);
+  });
+
+  fxTimers = [];
+  jQuery["timers"] = fxTimers;
+
+  jQuery["fx"]["tick"] = fxTick;
+  jQuery["fx"]["timer"] = JS.staticRest((JsValue args) => {
+    JsValue timer = args[0];
+    enqueueFxTimer(timer);
+    return JS.undefined();
+  });
+  jQuery["fx"]["interval"] = 13.0;
+  jQuery["fx"]["start"] = fxStart;
+  jQuery["fx"]["stop"] = fxStop;
+  jQuery["fx"]["speeds"] = FxSpeeds{600.0, 200.0, 400.0};
+}
+
+install();
+
+export { jQuery, AnimationCtor as Animation, defaultPrefilter, genFx, animationTweeners, animationPrefilters };

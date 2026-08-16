@@ -1,0 +1,45 @@
+import { arrayFrom } from "../../string-host";
+import { callMethod1, callFn2, isFunction } from "../../dom-host";
+
+export float calcChildStagger(
+  JsValue children,
+  JsValue child,
+  JsValue? delayChildren = null,
+  float staggerChildren = 0.0,
+  float staggerDirection = 1.0
+) {
+  JsValue[] list = arrayFrom(children);
+  int n = list.length;
+  for (int i = 0; i < n; i++) {
+    for (int j = i + 1; j < n; j++) {
+      JsValue result = callMethod1(list[i], "sortNodePosition", list[j]);
+      float cmp = 0.0;
+      if (result is float) {
+        cmp = result;
+      }
+      if (cmp > 0.0) {
+        JsValue tmp = list[i];
+        list[i] = list[j];
+        list[j] = tmp;
+      }
+    }
+  }
+  int index = list.indexOf(child);
+  if (index < 0) {
+    index = 0;
+  }
+  float numChildren = 0.0 + n;
+  float indexF = 0.0 + index;
+  float maxStaggerDuration = (numChildren - 1.0) * staggerChildren;
+  if (delayChildren != null && isFunction(delayChildren)) {
+    JsValue result = callFn2(delayChildren, indexF, numChildren);
+    if (result is float) {
+      return result;
+    }
+    return 0.0;
+  }
+  if (staggerDirection == 1.0) {
+    return indexF * staggerChildren;
+  }
+  return maxStaggerDuration - indexF * staggerChildren;
+}

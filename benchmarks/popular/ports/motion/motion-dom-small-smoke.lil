@@ -1,0 +1,70 @@
+import { isCSSVar } from "./motion-dom/render/dom/is-css-var";
+import { camelToDash } from "./motion-dom/render/dom/utils/camel-to-dash";
+import { isAnimationControls } from "./motion-dom/render/utils/is-animation-controls";
+import { isControllingVariants, isVariantNode } from "./motion-dom/render/utils/is-controlling-variants";
+import { isForcedMotionValue } from "./motion-dom/render/utils/is-forced-motion-value";
+import { isVariantLabel } from "./motion-dom/render/utils/is-variant-label";
+import { shallowCompare } from "./motion-dom/render/utils/shallow-compare";
+import { transformPropOrder, transformProps } from "./motion-dom/render/utils/keys-transform";
+import { positionalKeys } from "./motion-dom/render/utils/keys-position";
+import { isSVGTag } from "./motion-dom/render/svg/utils/is-svg-tag";
+import { buildSVGPath } from "./motion-dom/render/svg/utils/path";
+import { chooseLayerType } from "./motion-dom/view/utils/choose-layer-type";
+import { getViewAnimationLayerInfo } from "./motion-dom/view/utils/get-layer-info";
+import { isDragActive, isDragging } from "./motion-dom/gestures/drag/state/is-active";
+import { setDragLock } from "./motion-dom/gestures/drag/state/set-active";
+import { isPrimaryPointer } from "./motion-dom/gestures/utils/is-primary-pointer";
+import { nodeGroup } from "./motion-dom/projection/node/group";
+import { buildProjectionTransform } from "./motion-dom/projection/styles/transform";
+import { Delta, Point } from "./motion-utils/types/geometry";
+import { createDelta } from "./motion-dom/projection/geometry/models";
+import { parseValueFromTransform, defaultTransformValue } from "./motion-dom/render/dom/parse-transform";
+import { buildTransform, MotionValueStateLatest } from "./motion-dom/effects/style/transform";
+import { getVariantContext, VariantVisualElement } from "./motion-dom/render/utils/get-variant-context";
+
+float digest = 0.0;
+if (isCSSVar("--x")) { digest = digest + 1.0; }
+digest = digest + camelToDash("borderRadius").length;
+if (isSVGTag("SVG")) { digest = digest + 1.0; }
+if (chooseLayerType("enter") == "new") { digest = digest + 1.0; }
+auto info = getViewAnimationLayerInfo("::view-transition-old(box)");
+if (info != null) {
+  digest = digest + info.layer.length;
+}
+if (!isDragActive()) { digest = digest + 1.0; }
+(func()->void)? unlock = setDragLock("x");
+if (isDragging.x) { digest = digest + 1.0; }
+if (unlock != null) { unlock(); }
+digest = digest + transformPropOrder.length;
+if (transformProps.has("pathRotation")) { digest = digest + 1.0; }
+if (positionalKeys.has("width")) { digest = digest + 1.0; }
+Record<JsValue> attrs = record{};
+buildSVGPath(attrs, 10.0, 1.0, 0.5, true);
+digest = digest + defaultTransformValue("scale");
+digest = digest + parseValueFromTransform("none", "x");
+digest = digest + parseValueFromTransform("matrix(1, 0, 0, 1, 10, 20)", "x");
+Delta d = createDelta();
+d.x.translate = 10.0;
+d.y.translate = 5.0;
+Point tree = Point{1.0, 1.0};
+string t = buildProjectionTransform(d, tree, null);
+digest = digest + t.length;
+MotionValueStateLatest state = new MotionValueStateLatest();
+state.latest.x = 10.0;
+state.latest.scale = 2.0;
+string bt = buildTransform(state);
+digest = digest + bt.length;
+Record<JsValue> props = record{};
+props.animate = "show";
+if (isVariantLabel(props.animate)) { digest = digest + 1.0; }
+if (isControllingVariants(props)) { digest = digest + 1.0; }
+if (isForcedMotionValue("x", props)) { digest = digest + 1.0; }
+if (shallowCompare([1.0, 2.0], [1.0, 2.0])) { digest = digest + 1.0; }
+VariantVisualElement ve = new VariantVisualElement();
+ve.isControllingVariants = true;
+ve.props.animate = "a";
+auto ctx = getVariantContext(ve);
+if (ctx != null) { digest = digest + 1.0; }
+auto group = nodeGroup();
+digest = digest + group.nodes.length;
+print(`small:${digest}`);

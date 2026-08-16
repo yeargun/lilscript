@@ -1,0 +1,2048 @@
+{
+  "suite": "LilScript Solid runtime behavior ports",
+  "scope": "JavaScript runtime target",
+  "excludedTargets": {
+    "c": "LilScript native targets do not yet implement JavaScript exception and Promise semantics",
+    "native": "LilScript native targets do not yet implement JavaScript exception and Promise semantics"
+  },
+  "upstreamBaseline": 469,
+  "uniqueCases": 112,
+  "executions": 224,
+  "passed": 112,
+  "failed": 0,
+  "success": true,
+  "runs": [
+    {
+      "mode": "maximum",
+      "backend": "js",
+      "generatedBytes": 38968,
+      "passed": 112,
+      "failed": 0
+    },
+    {
+      "mode": "none",
+      "backend": "js",
+      "generatedBytes": 79089,
+      "passed": 112,
+      "failed": 0
+    }
+  ],
+  "cases": [
+    {
+      "id": 1,
+      "name": "signal read and update",
+      "group": "signals",
+      "upstreamReference": "signals.spec.ts: Create and update a Signal",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 2,
+      "name": "custom signal comparator",
+      "group": "signals",
+      "upstreamReference": "signals.spec.ts: Create Signal and set equivalent value",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 3,
+      "name": "repeated reads schedule once",
+      "group": "tracking",
+      "upstreamReference": "signals.spec.ts: Repeated signal reads update once per write",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 4,
+      "name": "disposed effects stop",
+      "group": "ownership",
+      "upstreamReference": "signals.spec.ts: Repeated signal reads clean up when disposed",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 5,
+      "name": "conditional dependencies",
+      "group": "tracking",
+      "upstreamReference": "signals.spec.ts: Repeated signal reads clean up conditional dependencies",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 6,
+      "name": "memo updates",
+      "group": "memos",
+      "upstreamReference": "signals.spec.ts: Create and trigger a Memo",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 7,
+      "name": "unchanged memo does not propagate",
+      "group": "memos",
+      "upstreamReference": "signals.memo.spec.ts: does not trigger downstream computations unless changed",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 8,
+      "name": "effects run immediately and update",
+      "group": "effects",
+      "upstreamReference": "signals.spec.ts: Create and trigger an Effect",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 9,
+      "name": "untracking mutes subscriptions",
+      "group": "tracking",
+      "upstreamReference": "signals.spec.ts: Mute an effect",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 10,
+      "name": "batch groups writes",
+      "group": "batching",
+      "upstreamReference": "signals.spec.ts: Groups updates",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 11,
+      "name": "batch coalesces repeated sets",
+      "group": "batching",
+      "upstreamReference": "signals.spec.ts: Groups updates with repeated sets",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 12,
+      "name": "cleanup runs before rerun",
+      "group": "ownership",
+      "upstreamReference": "signals.spec.ts: Clean an effect",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 13,
+      "name": "root cleanup runs on disposal",
+      "group": "ownership",
+      "upstreamReference": "signals.spec.ts: Explicit root disposal",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 14,
+      "name": "nested effects are replaced",
+      "group": "ownership",
+      "upstreamReference": "signals.spec.ts: In nested update effect",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 15,
+      "name": "diamond memo runs once",
+      "group": "memos",
+      "upstreamReference": "signals.memo.spec.ts: only propagates once with linear convergences",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 16,
+      "name": "memo changes dependencies",
+      "group": "memos",
+      "upstreamReference": "signals.memo.spec.ts: deactivates obsolete dependencies",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 17,
+      "name": "nested batches flush once",
+      "group": "batching",
+      "upstreamReference": "signals.spec.ts: Groups updates with fn setSignal",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 18,
+      "name": "duplicate reads have one subscription",
+      "group": "tracking",
+      "upstreamReference": "signals.spec.ts: Repeated signal reads update once per write",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 19,
+      "name": "disposal is idempotent",
+      "group": "ownership",
+      "upstreamReference": "signals.spec.ts: Explicit root disposal",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 20,
+      "name": "cleanup registers again after rerun",
+      "group": "ownership",
+      "upstreamReference": "signals.spec.ts: Clean an effect",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 21,
+      "name": "functional string signal setter uses current value",
+      "group": "signals",
+      "upstreamReference": "signals.spec.ts: Create and update a Signal with fn",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 22,
+      "name": "generic boolean memo updates",
+      "group": "memos",
+      "upstreamReference": "signals.spec.ts: Create and trigger a Memo",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 23,
+      "name": "generic untrack returns a string",
+      "group": "tracking",
+      "upstreamReference": "signals.spec.ts: Mute an effect",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 24,
+      "name": "reaction is one-shot and re-arms",
+      "group": "reactions",
+      "upstreamReference": "signals.spec.ts: Create and trigger a Reaction",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 25,
+      "name": "on runs with an explicit dependency",
+      "group": "tracking",
+      "upstreamReference": "signals.spec.ts: Create a Effect with explicit deps",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 26,
+      "name": "on can defer its initial callback",
+      "group": "tracking",
+      "upstreamReference": "signals.spec.ts: Create a Effect with explicit deps and lazy evaluation",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 27,
+      "name": "onMount runs its callback",
+      "group": "ownership",
+      "upstreamReference": "signals.spec.ts: Create onMount",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 28,
+      "name": "untrack preserves ownership",
+      "group": "ownership",
+      "upstreamReference": "signals.spec.ts: Mute an effect",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 29,
+      "name": "onMount defers until its root callback returns",
+      "group": "scheduling",
+      "upstreamReference": "signals.spec.ts: Create onMount",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 30,
+      "name": "onMount cleanup belongs to its root",
+      "group": "ownership",
+      "upstreamReference": "signals.spec.ts: Explicit root disposal",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 31,
+      "name": "getOwner captures the current root",
+      "group": "ownership",
+      "upstreamReference": "signals.spec.ts: roots with dispose function unused are unowned",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 32,
+      "name": "nested roots retain their parent owner",
+      "group": "ownership",
+      "upstreamReference": "signals.spec.ts: Allows to define detachedOwner",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 33,
+      "name": "runWithOwner schedules and owns work",
+      "group": "ownership",
+      "upstreamReference": "signals.spec.ts: Top level owner execute and disposal",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 34,
+      "name": "runWithOwner does not track reads",
+      "group": "tracking",
+      "upstreamReference": "signal.ts: runWithOwner clears Listener",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 35,
+      "name": "context uses defaults and provider values",
+      "group": "context",
+      "upstreamReference": "signals.spec.ts: Context API",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 36,
+      "name": "context values inherit and override",
+      "group": "context",
+      "upstreamReference": "signals.spec.ts: nested Context providers",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 37,
+      "name": "computed runs immediately and updates",
+      "group": "scheduling",
+      "upstreamReference": "signals.spec.ts: Typecheck computed and effects",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 38,
+      "name": "render effect runs immediately and updates",
+      "group": "scheduling",
+      "upstreamReference": "signals.spec.ts: Typecheck computed and effects",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 39,
+      "name": "computed precedes deferred user effects",
+      "group": "scheduling",
+      "upstreamReference": "signal.ts: pure Updates flush before user Effects",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 40,
+      "name": "selector invalidates only changed keys",
+      "group": "selectors",
+      "upstreamReference": "signals.spec.ts: simple selection",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 41,
+      "name": "selector supports duplicate subscribers",
+      "group": "selectors",
+      "upstreamReference": "signals.spec.ts: double selection",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 42,
+      "name": "selector uses custom equality",
+      "group": "selectors",
+      "upstreamReference": "signal.ts: createSelector equality checker",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 43,
+      "name": "getOwner is null outside ownership",
+      "group": "ownership",
+      "upstreamReference": "signal.ts: getOwner returns the current nullable Owner",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 44,
+      "name": "getListener reflects tracking and untrack",
+      "group": "tracking",
+      "upstreamReference": "signal.ts: getListener returns the current nullable Listener",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 45,
+      "name": "createRoot returns its callback result and provides a disposer",
+      "group": "ownership",
+      "upstreamReference": "signals.spec.ts: createRoot callback result and explicit disposal",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 46,
+      "name": "onCleanup returns its registered callback",
+      "group": "ownership",
+      "upstreamReference": "signal.ts: onCleanup returns the callback passed to it",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 47,
+      "name": "runWithOwner returns its callback result",
+      "group": "ownership",
+      "upstreamReference": "signal.ts: runWithOwner returns the callback result",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 48,
+      "name": "batch returns its callback result",
+      "group": "batching",
+      "upstreamReference": "signal.ts: batch returns the callback result",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 49,
+      "name": "mapArray transforms and reconciles keyed values",
+      "group": "arrays",
+      "upstreamReference": "array.spec.ts: simple mapArray",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 50,
+      "name": "mapArray preserves mapped roots and updates indexes",
+      "group": "arrays",
+      "upstreamReference": "array.ts: keyed identity and index signal reconciliation",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 51,
+      "name": "mapArray disposes removed and owned rows",
+      "group": "arrays",
+      "upstreamReference": "array.ts: keyed row disposal",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 52,
+      "name": "mapArray preserves duplicate keyed rows",
+      "group": "arrays",
+      "upstreamReference": "array.ts: duplicate-key reconciliation chain",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 53,
+      "name": "mapArray fallback has an owned lifecycle",
+      "group": "arrays",
+      "upstreamReference": "array.spec.ts: mapArray fallback",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 54,
+      "name": "indexArray updates values without remapping rows",
+      "group": "arrays",
+      "upstreamReference": "array.spec.ts: simple indexArray",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 55,
+      "name": "indexArray adds and disposes trailing rows",
+      "group": "arrays",
+      "upstreamReference": "array.ts: indexed row lifecycle",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 56,
+      "name": "indexArray fallback has an owned lifecycle",
+      "group": "arrays",
+      "upstreamReference": "array.spec.ts: indexArray fallback",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 57,
+      "name": "nested roots dispose with their parent",
+      "group": "ownership",
+      "upstreamReference": "signal.ts: owned roots are cleaned with their parent",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 58,
+      "name": "an explicit null owner creates a detached root",
+      "group": "ownership",
+      "upstreamReference": "signal.ts: createRoot detachedOwner",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 59,
+      "name": "an explicit owner attaches a root for disposal",
+      "group": "ownership",
+      "upstreamReference": "signal.ts: createRoot detachedOwner ownership",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 60,
+      "name": "createUniqueId returns stable distinct identifiers",
+      "group": "components",
+      "upstreamReference": "component.spec.ts: createUniqueId creating some",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 61,
+      "name": "signal writes return their assigned values",
+      "group": "signals",
+      "upstreamReference": "signals.spec.ts: Set signal returns argument",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 62,
+      "name": "memos propagate in topological order",
+      "group": "memos",
+      "upstreamReference": "signals.memo.spec.ts: propagates in topological order",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 63,
+      "name": "exponential memo convergence runs downstream once",
+      "group": "memos",
+      "upstreamReference": "signals.memo.spec.ts: only propagates once with exponential convergence",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 64,
+      "name": "effect writes are implicitly batched",
+      "group": "batching",
+      "upstreamReference": "signals.spec.ts: Effect grouping of signals",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 65,
+      "name": "repeated effect writes expose the final value",
+      "group": "batching",
+      "upstreamReference": "signals.spec.ts: Multiple sets",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 66,
+      "name": "function-valued signals update",
+      "group": "signals",
+      "upstreamReference": "signals.spec.ts: Create and trigger an Effect with function signals",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 67,
+      "name": "ready memo dependees precede direct source siblings",
+      "group": "memos",
+      "upstreamReference": "signals.memo.spec.ts: applies updates to changed dependees in createMemo order",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 68,
+      "name": "observable delivers values and unsubscribes",
+      "group": "interop",
+      "upstreamReference": "observable.spec.ts: to observable and observable unsubscribe",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 69,
+      "name": "observable subscriptions belong to their owner",
+      "group": "interop",
+      "upstreamReference": "observable.ts: owned subscription cleanup",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 70,
+      "name": "observable observers execute untracked",
+      "group": "interop",
+      "upstreamReference": "observable.ts: untracked observer delivery",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 71,
+      "name": "from producer updates and cleans up",
+      "group": "interop",
+      "upstreamReference": "observable.spec.ts: from producer",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 72,
+      "name": "from observable mirrors source values",
+      "group": "interop",
+      "upstreamReference": "observable.spec.ts: from subscribable",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 73,
+      "name": "pending downstream memos update before source siblings",
+      "group": "memos",
+      "upstreamReference": "signals.memo.spec.ts: updates downstream pending computations",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 74,
+      "name": "memos update on active dependencies",
+      "group": "memos",
+      "upstreamReference": "signals.memo.spec.ts: updates on active dependencies",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 75,
+      "name": "memos skip inactive dependencies",
+      "group": "memos",
+      "upstreamReference": "signals.memo.spec.ts: does not update on inactive dependencies",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 76,
+      "name": "memos switch active dependencies",
+      "group": "memos",
+      "upstreamReference": "signals.memo.spec.ts: deactivates obsolete and activates new dependencies",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 77,
+      "name": "intercepting memos run downstream once",
+      "group": "memos",
+      "upstreamReference": "signals.memo.spec.ts: does not update subsequent pending computations after stale invocations",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 78,
+      "name": "nested memo tracking is replaced without downstream reruns",
+      "group": "memos",
+      "upstreamReference": "signals.memo.spec.ts: evaluates nested trackings",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 79,
+      "name": "memo changes mark the full downstream chain stale",
+      "group": "memos",
+      "upstreamReference": "signals.memo.spec.ts: correctly marks downstream computations as stale on change",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 80,
+      "name": "new memo dependencies are fresh before use",
+      "group": "memos",
+      "upstreamReference": "signals.memo.spec.ts: ensures that new dependencies are updated before dependee",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 81,
+      "name": "unchanged tracker sources skip downstream memos",
+      "group": "memos",
+      "upstreamReference": "signals.memo.spec.ts: does not evaluate dependencies with tracking sources that have not changed",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 82,
+      "name": "stale memos run when their dependee reads them",
+      "group": "memos",
+      "upstreamReference": "signals.memo.spec.ts: evaluates stale computations before dependees when trackers stay unchanged",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 83,
+      "name": "scheduler orders and cancels callbacks",
+      "group": "scheduling",
+      "upstreamReference": "scheduler.spec.ts: queue ordering and cancellation",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 84,
+      "name": "deferred signals coalesce until scheduler flush",
+      "group": "scheduling",
+      "upstreamReference": "signals.spec.ts: createDeferred simple defer",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 85,
+      "name": "host scheduler drives one flush for queued tasks",
+      "group": "scheduling",
+      "upstreamReference": "scheduler.ts: one scheduled host callback drains queued work",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 86,
+      "name": "resources load an initial future",
+      "group": "resources",
+      "upstreamReference": "resource.spec.ts: initial async resource",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 87,
+      "name": "resources ignore out-of-order results",
+      "group": "resources",
+      "upstreamReference": "resource.spec.ts: test out of order",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 88,
+      "name": "resources mutate and refetch",
+      "group": "resources",
+      "upstreamReference": "resource.spec.ts: mutates and refetches",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 89,
+      "name": "disposed resources ignore future results",
+      "group": "resources",
+      "upstreamReference": "resource.ts: owner disposal invalidates pending requests",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 90,
+      "name": "resources record future rejections",
+      "group": "resources",
+      "upstreamReference": "resource.spec.ts: promise rejection",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 91,
+      "name": "resources ignore stale future rejections",
+      "group": "resources",
+      "upstreamReference": "resource.ts: stale request rejection suppression",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 92,
+      "name": "resources recover after rejection",
+      "group": "resources",
+      "upstreamReference": "resource.spec.ts: subsequent source change clears resource error",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 93,
+      "name": "component invocation is untracked",
+      "group": "components",
+      "upstreamReference": "component.ts: createComponent invokes components through untrack",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 94,
+      "name": "component invocation preserves ownership",
+      "group": "components",
+      "upstreamReference": "component.spec.ts: create simple component under a root",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 95,
+      "name": "context providers return children and release values",
+      "group": "context",
+      "upstreamReference": "context.spec.tsx: provider child value and owned lifetime",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 96,
+      "name": "nonkeyed show caches its active boolean branch",
+      "group": "control-flow",
+      "upstreamReference": "show.spec.tsx: Testing nonkeyed show control flow",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 97,
+      "name": "show owns and disposes branch work",
+      "group": "control-flow",
+      "upstreamReference": "show.spec.tsx: Toggle show control flow and dispose",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 98,
+      "name": "keyed show tracks keys but not child reads",
+      "group": "control-flow",
+      "upstreamReference": "show.spec.tsx: Testing keyed function show control flow",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 99,
+      "name": "for preserves keyed rows",
+      "group": "control-flow",
+      "upstreamReference": "for.spec.tsx: swaps keyed each rows",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 100,
+      "name": "index preserves positional rows",
+      "group": "control-flow",
+      "upstreamReference": "index.spec.tsx: updates values without remapping rows",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 101,
+      "name": "mapped rows outlive tracking effect reruns",
+      "group": "arrays",
+      "upstreamReference": "array.ts: mapped row roots persist across accessor recomputation",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 102,
+      "name": "switch selects the first match and prunes lower conditions",
+      "group": "control-flow",
+      "upstreamReference": "switch.spec.tsx: condition evaluation counts and first-match priority",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 103,
+      "name": "nonkeyed switch caches its branch and exposes a live accessor",
+      "group": "control-flow",
+      "upstreamReference": "switch.spec.tsx: non-keyed function handler Switch control flow",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 104,
+      "name": "keyed switch recreates and disposes changed branches",
+      "group": "control-flow",
+      "upstreamReference": "switch.spec.tsx: keyed function handler Switch control flow",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 105,
+      "name": "children resolves large nested arrays",
+      "group": "components",
+      "upstreamReference": "signals.spec.ts: children resolves large nested arrays",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 106,
+      "name": "default signal comparator skips equal writes",
+      "group": "signals",
+      "upstreamReference": "signals.spec.ts: equals option uses strict equality by default",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 107,
+      "name": "memo computation receives its initial value",
+      "group": "memos",
+      "upstreamReference": "signals.spec.ts: Create and read a Memo with initial value",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 108,
+      "name": "on tracks multiple explicit dependencies",
+      "group": "tracking",
+      "upstreamReference": "signals.spec.ts: Create a Effect with multiple explicit deps",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 109,
+      "name": "deferred on receives initial accumulator",
+      "group": "tracking",
+      "upstreamReference": "signals.spec.ts: Create a Effect with explicit deps, lazy evaluation, and initial value",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 110,
+      "name": "cleanups dispose in reverse registration order",
+      "group": "ownership",
+      "upstreamReference": "signal.ts: cleanNode executes cleanups in reverse registration order",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 111,
+      "name": "stale owner handles cannot attach to reused roots",
+      "group": "ownership",
+      "upstreamReference": "signal.ts: disposed owners cannot own new computations",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    },
+    {
+      "id": 112,
+      "name": "disposed effect slots are reused without reviving handles",
+      "group": "ownership",
+      "upstreamReference": "signal.ts: disposed computations release owned state",
+      "modes": {
+        "maximum": true,
+        "none": true
+      },
+      "backends": {
+        "js": true
+      },
+      "targets": {
+        "maximum/js": true,
+        "none/js": true
+      },
+      "passed": true
+    }
+  ]
+}

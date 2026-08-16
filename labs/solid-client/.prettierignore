@@ -1,0 +1,7 @@
+dist
+node_modules
+upstream
+artifacts
+packages/solidlil/reactive.generated.js
+package-lock.json
+*.lil

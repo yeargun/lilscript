@@ -1,0 +1,1 @@
+let f=[1,2,3,4,5,6].map(a=>a*3|0).filter(a=>a%2==0),c=f.reduce((a,o)=>a+o|0,0);f.forEach(a=>{console.log(a)}),console.log(c)

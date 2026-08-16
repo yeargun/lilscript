@@ -1,0 +1,19 @@
+import { color } from "../color/index";
+import { complex } from "../complex/index";
+import { dimensionValueTypes } from "../dimensions";
+import { testValueType } from "../test";
+import { ValueType } from "../types";
+
+ValueType[] valueTypes = [...dimensionValueTypes, color, complex];
+
+export ValueType? findValueType(JsValue v) {
+  func(ValueType)->bool test = testValueType(v);
+  int i = 0;
+  while (i < valueTypes.length) {
+    if (test(valueTypes[i])) {
+      return valueTypes[i];
+    }
+    i = i + 1;
+  }
+  return null;
+}

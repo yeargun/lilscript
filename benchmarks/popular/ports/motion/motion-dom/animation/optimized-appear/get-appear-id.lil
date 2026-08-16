@@ -1,0 +1,5 @@
+import { optimizedAppearDataAttribute } from "./data-id";
+
+export JsValue getOptimisedAppearId(JsValue visualElement) {
+  return visualElement["props"][optimizedAppearDataAttribute];
+}

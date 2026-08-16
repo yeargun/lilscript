@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "string-dictionary",
+  "title": "String dictionaries, repetition, and declaration order",
+  "hypothesis": "Repeated keywords, prefixes, and labels make dictionary spelling and declaration order interact with raw and codec costs while dynamic tokens prevent whole-result folding.",
+  "tier": "small-structural",
+  "boundary": "runtime-host-script",
+  "structure": { "functions": 5, "modules": 1, "hostBoundaries": 2, "callDepth": 3 },
+  "opportunities": ["string-pooling", "dictionary-repetition", "declaration-order", "object-dictionary"],
+  "expectations": { "raw": "le", "gzip9": "le", "brotli11": "le" },
+  "vectors": [
+    { "name": "keywords", "ints": [], "strings": ["alpha", "beta", "gamma", "delta", "epsilon"], "expected": "dictionary-odd-three\n199\n" },
+    { "name": "prefixes", "ints": [], "strings": ["pre-load", "post-render", "internal-cache", "plain", "pre-save"], "expected": "dictionary-odd-two\n194\n" },
+    { "name": "mixed", "ints": [], "strings": ["gamma", "internal-node", "beta", "post-task", "unknown", "alpha"], "expected": "dictionary-even-zero\n240\n" },
+    { "name": "inherited-name", "ints": [], "strings": ["constructor"], "expected": "dictionary-odd-three\n15\n" }
+  ]
+}

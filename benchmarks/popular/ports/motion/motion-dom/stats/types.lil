@@ -1,0 +1,31 @@
+export class LayoutProjectionMetrics {
+  float nodes;
+  float calculatedTargetDeltas;
+  float calculatedProjections;
+
+  init(float nodes = 0.0, float calculatedTargetDeltas = 0.0, float calculatedProjections = 0.0) {
+    this.nodes = nodes;
+    this.calculatedTargetDeltas = calculatedTargetDeltas;
+    this.calculatedProjections = calculatedProjections;
+  }
+}
+
+export class LayoutProjectionStats {
+  float[] nodes;
+  float[] calculatedTargetDeltas;
+  float[] calculatedProjections;
+
+  init() {
+    this.nodes = [];
+    this.calculatedTargetDeltas = [];
+    this.calculatedProjections = [];
+  }
+}
+
+export class StatsRecording {
+  LayoutProjectionStats layoutProjection;
+
+  init() {
+    this.layoutProjection = new LayoutProjectionStats();
+  }
+}

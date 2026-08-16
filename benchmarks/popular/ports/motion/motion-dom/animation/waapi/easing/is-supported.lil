@@ -1,0 +1,28 @@
+import { isBezierDefinition } from "../../../../motion-utils/easing/utils/is-bezier-definition";
+import { supportsLinearEasing } from "../../../utils/supports/linear-easing";
+import { supportedWaapiEasing } from "./supported";
+
+export bool isWaapiSupportedEasing(JsValue? easing = null) {
+  if (easing == null) {
+    return true;
+  }
+  if (easing is string) {
+    return supportedWaapiEasing.has(easing) || supportsLinearEasing();
+  }
+  if (isBezierDefinition(easing)) {
+    return true;
+  }
+  if (easing.isArray()) {
+    float len = easing.length;
+    for (int i = 0; i < len.toInt(); i++) {
+      if (!isWaapiSupportedEasing(easing[i])) {
+        return false;
+      }
+    }
+    return true;
+  }
+  if (easing.truthy()) {
+    return supportsLinearEasing();
+  }
+  return false;
+}

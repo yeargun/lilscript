@@ -1,0 +1,56 @@
+import {
+  arrayFromNullable,
+  documentQuerySelectorAll,
+  isEventTarget,
+  querySelectorAll
+} from "../dom-host";
+
+export class AnimationScope {
+  JsValue current;
+  JsValue[] animations;
+
+  init(JsValue current) {
+    this.current = current;
+    this.animations = [];
+  }
+}
+
+export class SelectorCache {
+  Map<string, JsValue[]> entries;
+
+  init() {
+    this.entries = new Map<string, JsValue[]>();
+  }
+}
+
+export JsValue[] resolveElements(
+  JsValue? elementOrSelector = null,
+  AnimationScope? scope = null,
+  SelectorCache? selectorCache = null
+) {
+  if (elementOrSelector == null) {
+    return [];
+  }
+  if (isEventTarget(elementOrSelector)) {
+    return [elementOrSelector];
+  } else if (elementOrSelector is string) {
+    JsValue[]? cached = null;
+    if (selectorCache != null) {
+      cached = selectorCache.entries.get(elementOrSelector);
+    }
+    if (cached != null) {
+      return cached;
+    }
+    JsValue[] elements = [];
+    if (scope != null) {
+      elements = querySelectorAll(scope.current, elementOrSelector);
+    } else {
+      elements = documentQuerySelectorAll(elementOrSelector);
+    }
+    if (selectorCache != null) {
+      selectorCache.entries.set(elementOrSelector, elements);
+    }
+    return elements;
+  }
+  return arrayFromNullable(elementOrSelector);
+}

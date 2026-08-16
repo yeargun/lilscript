@@ -1,0 +1,23 @@
+Set<string> orchestrationKeys = new Set<string>();
+orchestrationKeys.add("when");
+orchestrationKeys.add("delay");
+orchestrationKeys.add("delayChildren");
+orchestrationKeys.add("staggerChildren");
+orchestrationKeys.add("staggerDirection");
+orchestrationKeys.add("repeat");
+orchestrationKeys.add("repeatType");
+orchestrationKeys.add("repeatDelay");
+orchestrationKeys.add("from");
+orchestrationKeys.add("elapsed");
+
+export bool isTransitionDefined(JsValue transition) {
+  if (!transition.isObject()) {
+    return false;
+  }
+  for (string key in transition) {
+    if (!orchestrationKeys.has(key)) {
+      return true;
+    }
+  }
+  return false;
+}

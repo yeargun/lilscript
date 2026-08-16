@@ -1,0 +1,72 @@
+import { easingDefinitionToFunction } from "../../motion-utils/easing/utils/map";
+
+export class StaggerOptions {
+  float startDelay;
+  string | float from;
+  (string | float[] | func(float)->float)? ease;
+
+  init(
+    float startDelay = 0.0,
+    string | float from = 0.0,
+    (string | float[] | func(float)->float)? ease = null
+  ) {
+    this.startDelay = startDelay;
+    this.from = from;
+    this.ease = ease;
+  }
+}
+
+export float getOriginIndex(string | float from, int total) {
+  if (from is string) {
+    if (from == "first") {
+      return 0.0;
+    }
+    float lastIndex = total - 1;
+    if (from == "last") {
+      return lastIndex;
+    }
+    return lastIndex / 2.0;
+  }
+  return from;
+}
+
+export func(int, int)->float stagger(float duration = 0.1, JsValue? options = null) {
+  float startDelay = 0.0;
+  string | float from = 0.0;
+  (string | float[] | func(float)->float)? ease = null;
+  if (options != null) {
+    JsValue raw = options;
+    if (raw.isObject()) {
+      JsValue startDelayVal = raw["startDelay"];
+      if (startDelayVal is float) {
+        startDelay = startDelayVal;
+      }
+      JsValue fromVal = raw["from"];
+      if (fromVal is float) {
+        from = fromVal;
+      } else if (fromVal is string) {
+        from = fromVal;
+      }
+      JsValue easeVal = raw["ease"];
+      if (easeVal is string) {
+        ease = easeVal;
+      }
+    }
+  }
+  return (int i, int total) => {
+    float fromIndex = 0.0;
+    if (from is float) {
+      fromIndex = from;
+    } else {
+      fromIndex = getOriginIndex(from, total);
+    }
+    float distance = (fromIndex - i).abs();
+    float delay = duration * distance;
+    if (ease != null) {
+      float maxDelay = total * duration;
+      func(float)->float easingFunction = easingDefinitionToFunction(ease);
+      delay = easingFunction(delay / maxDelay) * maxDelay;
+    }
+    return startDelay + delay;
+  };
+}

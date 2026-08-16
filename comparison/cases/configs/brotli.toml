@@ -1,0 +1,24 @@
+[optimization]
+preset = "maximum"
+inlining = true
+identical_function_folding = true
+function_subsumption = true
+scalar_replacement = true
+
+[javascript]
+priority = "size-first"
+optimization_level = 15
+cost_model = "brotli"
+candidate_search = "always"
+candidate_limit = 1536
+candidate_byte_budget = 1048576
+candidate_beam_width = 12
+strip_console = false
+pool_numeric_literals = true
+stable_local_names = true
+local_name_reserve = 48
+
+[mangle]
+identifiers = true
+properties = true
+exports = true

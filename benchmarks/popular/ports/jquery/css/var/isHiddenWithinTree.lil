@@ -1,0 +1,21 @@
+import { isAttached } from "../../core/isAttached";
+import { css } from "../../css";
+
+export bool isHiddenWithinTree(JsValue elemArg, JsValue elArg = null) {
+  JsValue elem = elemArg;
+  if (elArg.truthy()) {
+    elem = elArg;
+  }
+
+  JsValue display = elem["style"]["display"];
+  if (JS.strictEqual(display, "none")) {
+    return true;
+  }
+  if (!JS.strictEqual(display, "")) {
+    return false;
+  }
+  if (!isAttached(elem)) {
+    return false;
+  }
+  return JS.strictEqual(css(elem, "display"), "none");
+}

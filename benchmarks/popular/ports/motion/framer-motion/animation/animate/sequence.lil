@@ -1,0 +1,56 @@
+import { motionValue } from "../../../motion-dom/value/index";
+import { AnimationScope } from "../../../motion-dom/utils/resolve-elements";
+import { callMethod2, isFunction, mapKeys } from "../../../motion-dom/dom-host";
+import { createAnimationsFromSequence } from "../sequence/create";
+import { ResolvedAnimationDefinition } from "../sequence/types";
+import { animateSubject } from "./subject-dom";
+
+export JsValue[] animateSequence(
+  JsValue sequence,
+  JsValue? options = null,
+  AnimationScope? scope = null
+) {
+  JsValue[] animations = [];
+
+  JsValue[] processedSequence = [];
+  if (sequence.isArray()) {
+    int len = sequence.length.toInt();
+    for (int i = 0; i < len; i++) {
+      JsValue segment = sequence[i];
+      if (segment.isArray() && segment.length.toInt() > 0 && isFunction(segment[0])) {
+        JsValue callback = segment[0];
+        JsValue mv = motionValue(0.0);
+        callMethod2(mv, "on", "change", callback);
+        int segLen = segment.length.toInt();
+        if (segLen == 1) {
+          processedSequence.push([mv, [0.0, 1.0]]);
+        } else if (segLen == 2) {
+          processedSequence.push([mv, [0.0, 1.0], segment[1]]);
+        } else {
+          processedSequence.push([mv, segment[1], segment[2]]);
+        }
+      } else {
+        processedSequence.push(segment);
+      }
+    }
+  }
+
+  Map<JsValue, ResolvedAnimationDefinition> animationDefinitions =
+    createAnimationsFromSequence(processedSequence, options, scope, null);
+
+  JsValue[] subjects = mapKeys(animationDefinitions);
+  for (int i = 0; i < subjects.length; i++) {
+    JsValue subject = subjects[i];
+    ResolvedAnimationDefinition? definition = animationDefinitions.get(subject);
+    if (definition != null) {
+      ResolvedAnimationDefinition def = definition;
+      JsValue[] created =
+        animateSubject(subject, def.keyframes, def.transition, scope);
+      for (int a = 0; a < created.length; a++) {
+        animations.push(created[a]);
+      }
+    }
+  }
+
+  return animations;
+}

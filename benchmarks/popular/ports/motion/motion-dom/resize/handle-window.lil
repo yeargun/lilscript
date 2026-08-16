@@ -1,0 +1,43 @@
+import {
+  addWindowListener,
+  removeWindowListener,
+  windowInnerHeight,
+  windowInnerWidth
+} from "../dom-host";
+import { ResizeInfo } from "./types";
+
+(func(ResizeInfo)->void)[] windowCallbacks = [];
+(func()->void)? windowResizeHandler = null;
+
+export func()->void resizeWindow(func(ResizeInfo)->void callback) {
+  if (windowCallbacks.indexOf(callback) == -1) {
+    windowCallbacks.push(callback);
+  }
+  if (windowResizeHandler == null) {
+    windowResizeHandler = () => {
+      ResizeInfo info = new ResizeInfo(windowInnerWidth(), windowInnerHeight());
+      int i = 0;
+      while (i < windowCallbacks.length) {
+        windowCallbacks[i](info);
+        i = i + 1;
+      }
+    };
+    (func()->void)? handler = windowResizeHandler;
+    if (handler != null) {
+      addWindowListener("resize", handler);
+    }
+  }
+  return () => {
+    int index = windowCallbacks.indexOf(callback);
+    if (index > -1) {
+      windowCallbacks.splice(index, 1);
+    }
+    if (windowCallbacks.length == 0) {
+      (func()->void)? handler = windowResizeHandler;
+      if (handler != null) {
+        removeWindowListener("resize", handler);
+        windowResizeHandler = null;
+      }
+    }
+  };
+}

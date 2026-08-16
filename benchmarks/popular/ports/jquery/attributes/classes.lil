@@ -1,0 +1,223 @@
+import { jQuery, each, wrap } from "../core";
+import { stripAndCollapse } from "../core/stripAndCollapse";
+import { isFunction } from "../var/isFunction";
+import { rnothtmlwhite } from "../var/rnothtmlwhite";
+import { dataPriv } from "../data/var/dataPriv";
+import {
+  jsUndefined,
+  arrayIsArray,
+  hasProp,
+  stringMatch,
+  stringify,
+  stringReplaceFirst,
+  typeOf,
+  isUndefined,
+  isFalse,
+  call1,
+  call2,
+  call3,
+  apply
+} from "../js-host.lil";
+
+
+string getClass(JsValue elem) {
+  if (!elem["getAttribute"].truthy()) {
+    return "";
+  }
+  JsValue value = JS.invoke(elem, "getAttribute", "class");
+  return JS.string(JS.or(value, ""));
+}
+
+JsValue classesToArray(JsValue value) {
+  if (JS.isArray(value)) {
+    return value;
+  }
+  if (value is string) {
+    JsValue matched = JS.stringMatch(value, rnothtmlwhite);
+    if (matched.truthy()) {
+      return matched;
+    }
+  }
+  JsValue[] empty = [];
+  return empty;
+}
+
+JsValue addClassOne(JsValue el, JsValue classNames) {
+  string curValue = getClass(el);
+  if (JS.and(el, el["nodeType"]) == 1.0) {
+    string cur = " " + stripAndCollapse(curValue) + " ";
+    float i = 0.0;
+    float len = classNames.length;
+    for (; i < len; i++) {
+      string className = JS.string(classNames[i]);
+      if (cur.indexOf(" " + className + " ") < 0) {
+        cur = cur + className + " ";
+      }
+    }
+    string finalValue = stripAndCollapse(cur);
+    if (curValue != finalValue) {
+      JS.invoke(el, "setAttribute", "class", finalValue);
+    }
+  }
+  return JS.undefined();
+}
+
+export JsValue addClass(JsValue value) {
+  JsValue self = this;
+  if (isFunction(value)) {
+    return each(self, (JsValue j, JsValue el) => {
+      JsValue computed = JS.call(value, el, j, getClass(el));
+      JsValue single = wrap(el);
+      JS.call(addClass, single, computed);
+      return JS.undefined();
+    });
+  }
+
+  JsValue classNames = classesToArray(value);
+  if (classNames.length > 0.0) {
+    return each(self, (JsValue _i, JsValue el) => {
+      addClassOne(el, classNames);
+      return JS.undefined();
+    });
+  }
+  return self;
+}
+
+JsValue removeClassOne(JsValue el, JsValue classNames) {
+  string curValue = getClass(el);
+  if (JS.and(el, el["nodeType"]) == 1.0) {
+    string cur = " " + stripAndCollapse(curValue) + " ";
+    float i = 0.0;
+    float len = classNames.length;
+    for (; i < len; i++) {
+      string className = JS.string(classNames[i]);
+      string needle = " " + className + " ";
+      while (cur.indexOf(needle) > -1) {
+        cur = stringReplaceFirst(cur, needle, " ");
+      }
+    }
+    string finalValue = stripAndCollapse(cur);
+    if (curValue != finalValue) {
+      JS.invoke(el, "setAttribute", "class", finalValue);
+    }
+  }
+  return JS.undefined();
+}
+
+JsValue removeClassImpl(JsValue self, JsValue value, float argCount) {
+  if (isFunction(value)) {
+    return each(self, (JsValue j, JsValue el) => {
+      JsValue computed = JS.call(value, el, j, getClass(el));
+      JsValue single = wrap(el);
+      removeClassImpl(single, computed, 1.0);
+      return JS.undefined();
+    });
+  }
+
+  if (argCount == 0.0) {
+    return JS.invoke(self, "attr", "class", "");
+  }
+
+  JsValue classNames = classesToArray(value);
+  if (classNames.length > 0.0) {
+    return each(self, (JsValue _i, JsValue el) => {
+      removeClassOne(el, classNames);
+      return JS.undefined();
+    });
+  }
+  return self;
+}
+
+JsValue toggleClassOne(JsValue el, JsValue value, JsValue stateVal) {
+  string className = getClass(el);
+  if (className != "") {
+    dataPriv.set(el, "__className__", className);
+  }
+  if (el["setAttribute"].truthy()) {
+    string toSet = "";
+    if (!(className != "" || JS.isFalse(value))) {
+      toSet = JS.string(JS.or(dataPriv.get(el, "__className__"), ""));
+    }
+    JS.invoke(el, "setAttribute", "class", toSet);
+  }
+  return JS.undefined();
+}
+
+export JsValue toggleClass(JsValue self, JsValue value, JsValue stateVal) {
+  string typeOfValue = JS.typeOf(value);
+  bool isValidValue = typeOfValue == "string" || JS.isArray(value);
+
+  if (isFunction(value)) {
+    return each(self, (JsValue i, JsValue el) => {
+      JsValue computed = JS.call(value, el, i, getClass(el), stateVal);
+      JsValue single = wrap(el);
+      toggleClass(single, computed, stateVal);
+      return JS.undefined();
+    });
+  }
+
+  if (stateVal is bool && isValidValue) {
+    if (stateVal == true) {
+      return JS.call(addClass, self, value);
+    }
+    return removeClassImpl(self, value, 1.0);
+  }
+
+  return each(self, (JsValue _i, JsValue el) => {
+    if (isValidValue) {
+      JsValue classNames = classesToArray(value);
+      JsValue single = wrap(el);
+      float i = 0.0;
+      float len = classNames.length;
+      for (; i < len; i++) {
+        string className = JS.string(classNames[i]);
+        bool has = JS.call(hasClass, single, className).truthy();
+        if (has) {
+          removeClassImpl(single, className, 1.0);
+        } else {
+          JS.call(addClass, single, className);
+        }
+      }
+    } else if (JS.isUndefined(value) || typeOfValue == "boolean") {
+      toggleClassOne(el, value, stateVal);
+    }
+    return JS.undefined();
+  });
+}
+
+JsValue hasClass(JsValue selectorValue) {
+  JsValue self = this;
+  string className = " " + JS.string(selectorValue) + " ";
+  float i = 0.0;
+  float len = self.length;
+  for (; i < len; i++) {
+    JsValue elem = self[i];
+    if (JS.and(elem, elem["nodeType"]) == 1.0) {
+      string wrapped = " " + stripAndCollapse(getClass(elem)) + " ";
+      if (wrapped.indexOf(className) > -1) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+JsValue fnRemoveClass() {
+  JsValue self = this;
+  JsValue args = arguments;
+  return removeClassImpl(self, args[0], args.length);
+}
+
+JsValue fnToggleClass() {
+  JsValue self = this;
+  JsValue args = arguments;
+  return toggleClass(self, args[0], args[1]);
+}
+
+JsValue fn = jQuery["fn"];
+fn["addClass"] = addClass;
+fn["removeClass"] = fnRemoveClass;
+fn["toggleClass"] = fnToggleClass;
+fn["hasClass"] = hasClass;
+
+export { jQuery };

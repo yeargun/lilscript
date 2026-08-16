@@ -11,6 +11,21 @@ const motionCompatibility = JSON.parse(
 );
 const comparableIds = ["reference", "esbuild", "closure", "hand", "lilscript"];
 
+test("objective configs differ only by cost model", async () => {
+  const configs = await Promise.all(
+    ["raw", "gzip", "brotli"].map((objective) =>
+      readFile(
+        new URL(`../../../comparison/cases/configs/${objective}.toml`, import.meta.url),
+        "utf8",
+      )
+    ),
+  );
+  const normalized = configs.map((source) =>
+    source.replace(/^cost_model\s*=.*$/m, 'cost_model = "<objective>"')
+  );
+  assert.equal(new Set(normalized).size, 1);
+});
+
 test("compiler totals have one fixed comparable scope", () => {
   for (const result of report.results) {
     assert.deepEqual(
@@ -29,6 +44,12 @@ test("LilScript never exceeds Closure size on a comparable workload", () => {
     const closure = result.artifacts.find((artifact) => artifact.id === "closure");
     const lilscript = result.artifacts.find((artifact) => artifact.id === "lilscript");
     for (const metric of ["raw", "gzip", "brotli"]) {
+      const objective = lilscript.objectiveArtifacts.find(
+        (artifact) => artifact.gateMetric === metric,
+      );
+      assert.ok(objective, `${result.name}/${metric} has no matching objective artifact`);
+      assert.equal(lilscript[metric], objective[metric]);
+      assert.equal(objective.behaviorVerified, true);
       assert.ok(
         lilscript[metric] <= closure[metric],
         `${result.name} ${metric}: LilScript ${lilscript[metric]} > Closure ${closure[metric]}`,
@@ -38,10 +59,12 @@ test("LilScript never exceeds Closure size on a comparable workload", () => {
 });
 
 test("LilScript full-sample runtime stays within five percent of Closure", () => {
+  assert.equal(report.metadata.runtimeObjective, "brotli");
   if (report.metadata.samples < 20) return;
   for (const result of report.results) {
     const closure = result.artifacts.find((artifact) => artifact.id === "closure");
     const lilscript = result.artifacts.find((artifact) => artifact.id === "lilscript");
+    assert.equal(lilscript.runtimeObjective, "brotli");
     assert.ok(
       lilscript.medianMs / closure.medianMs <= 1.05,
       `${result.name} runtime ratio ${(lilscript.medianMs / closure.medianMs).toFixed(3)} > 1.05`,

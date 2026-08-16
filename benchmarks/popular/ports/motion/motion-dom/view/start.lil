@@ -1,0 +1,1026 @@
+import { assignViewTransitionNames, releaseViewTransitionNames } from "./utils/assign-names";
+import { chooseLayerType } from "./utils/choose-layer-type";
+import { css } from "./utils/css";
+import { getViewAnimationLayerInfo, ViewAnimationLayerInfo } from "./utils/get-layer-info";
+import { getViewAnimations } from "./utils/get-view-animations";
+import { hasTarget } from "./utils/has-target";
+import { GroupAnimation } from "../animation/GroupAnimation";
+import { NativeAnimation } from "../animation/NativeAnimation";
+import { NativeAnimationWrapper } from "../animation/NativeAnimationWrapper";
+import { getValueTransition } from "../animation/utils/get-value-transition";
+import { mapEasingToNativeEasing } from "../animation/waapi/easing/map-easing";
+import { applyGeneratorOptions } from "../animation/waapi/utils/apply-generator";
+import { ValueAnimationTransition } from "../animation/types";
+import { cornerRadiusProps } from "../utils/border-radius";
+import { resolveElements } from "../utils/resolve-elements";
+import { secondsToMilliseconds } from "../../motion-utils/time-conversion";
+import { warnOnce } from "../../motion-utils/warn-once";
+import {
+  callMethod0,
+  callMethod1,
+  callMethod2,
+  callFn0,
+  callFn2,
+  isFunction,
+  taskFromCallback,
+  getComputedStyleProperty,
+  documentElement,
+  documentGet,
+  documentStartViewTransition,
+  parseFloatValue,
+  mapKeys,
+  setValues,
+  hasOwn,
+  deleteProp
+} from "../dom-host";
+import { stringSplit } from "../string-host";
+
+string[] definitionNames = ["layout", "enter", "exit", "new", "old"];
+float ASPECT_TOLERANCE = 0.2;
+
+bool isSquareRadius(string radius) {
+  string[] parts = stringSplit(radius, " ");
+  for (int i = 0; i < parts.length; i++) {
+    if (parseFloatValue(parts[i]) != 0.0) {
+      return false;
+    }
+  }
+  return true;
+}
+
+JsValue layerOptions(JsValue? target, string type) {
+  string[] buckets = [];
+  if (type == "group") {
+    buckets = ["layout"];
+  } else if (type == "new") {
+    buckets = ["new", "enter"];
+  } else if (type == "old") {
+    buckets = ["old", "exit"];
+  }
+  if (target == null) {
+    return null;
+  }
+  JsValue t = target;
+  for (int i = 0; i < buckets.length; i++) {
+    JsValue bucket = t[buckets[i]];
+    if (bucket.truthy()) {
+      JsValue opts = bucket["options"];
+      if (opts.truthy()) {
+        return opts;
+      }
+    }
+  }
+  return null;
+}
+
+JsValue mergeTransition(JsValue base, JsValue override) {
+  JsValue merged = record{};
+  if (base.isObject()) {
+    for (string key in base) {
+      merged[key] = base[key];
+    }
+  }
+  if (override.isObject()) {
+    for (string key in override) {
+      merged[key] = override[key];
+    }
+    if (hasOwn(override, "duration")) {
+      if (!hasOwn(override, "visualDuration")) {
+        deleteProp(merged, "visualDuration");
+      }
+      if (!hasOwn(override, "type")) {
+        deleteProp(merged, "type");
+      }
+    }
+  }
+  return merged;
+}
+
+ValueAnimationTransition transitionToApplied(JsValue transition) {
+  ValueAnimationTransition applied = new ValueAnimationTransition();
+  JsValue delayVal = transition["delay"];
+  if (delayVal is float) {
+    applied.delay = delayVal;
+  }
+  JsValue durationVal = transition["duration"];
+  if (durationVal is float) {
+    applied.duration = durationVal;
+  }
+  JsValue easeVal = transition["ease"];
+  if (easeVal != null) {
+    applied.ease = easeVal;
+  }
+  JsValue typeVal = transition["type"];
+  if (typeVal != null) {
+    applied.type = typeVal;
+  }
+  JsValue stiffnessVal = transition["stiffness"];
+  if (stiffnessVal is float) {
+    applied.stiffness = stiffnessVal;
+  }
+  JsValue dampingVal = transition["damping"];
+  if (dampingVal is float) {
+    applied.damping = dampingVal;
+  }
+  JsValue massVal = transition["mass"];
+  if (massVal is float) {
+    applied.mass = massVal;
+  }
+  JsValue restDeltaVal = transition["restDelta"];
+  if (restDeltaVal is float) {
+    applied.restDelta = restDeltaVal;
+  }
+  JsValue restSpeedVal = transition["restSpeed"];
+  if (restSpeedVal is float) {
+    applied.restSpeed = restSpeedVal;
+  }
+  JsValue velocityVal = transition["velocity"];
+  if (velocityVal is float) {
+    applied.velocity = velocityVal;
+  }
+  return applyGeneratorOptions(applied);
+}
+
+string? easeToNative(JsValue? ease, float duration) {
+  if (ease == null) {
+    return null;
+  }
+  JsValue e = ease;
+  if (e is string) {
+    string s = e;
+    return mapEasingToNativeEasing(s, duration);
+  }
+  return null;
+}
+
+class StaggerPos {
+  int[]? oldPos;
+  int[]? newPos;
+
+  init() {
+    this.oldPos = null;
+    this.newPos = null;
+  }
+}
+
+class CropBox {
+  float width;
+  float height;
+  Record<string> radii;
+
+  init(float width, float height, Record<string> radii) {
+    this.width = width;
+    this.height = height;
+    this.radii = radii;
+  }
+}
+
+class CropEntry {
+  CropBox? oldBox;
+  CropBox? newBox;
+
+  init() {
+    this.oldBox = null;
+    this.newBox = null;
+  }
+}
+
+class ViewRuntime {
+  Map<JsValue, string> nameRegistry;
+  JsValue[] assigned;
+  JsValue[] classed;
+  JsValue[] grouped;
+  Set<string> clipChildren;
+  Map<string, JsValue> layerTargets;
+  string[] layerNames;
+  Set<string> croppedNames;
+  Map<string, bool> cropForName;
+  Map<string, StaggerPos> layerStagger;
+  Map<JsValue, string[]> pairNames;
+  Map<JsValue, JsValue[]> pairFrom;
+  Map<string, CropEntry> cropMeasurements;
+  string[] cropKeys;
+  JsValue defaultOptions;
+  JsValue targetsMap;
+  JsValue resolveDefsSet;
+  JsValue cropOverrideMap;
+  JsValue pairsMap;
+  JsValue classNamesMap;
+  JsValue flatGroupsSet;
+  JsValue builder;
+  JsValue update;
+
+  init(JsValue builder, JsValue defaultOptions, JsValue update) {
+    this.builder = builder;
+    this.update = update;
+    this.nameRegistry = new Map<JsValue, string>();
+    this.assigned = [];
+    this.classed = [];
+    this.grouped = [];
+    this.clipChildren = new Set<string>();
+    this.layerTargets = new Map<string, JsValue>();
+    this.layerNames = [];
+    this.croppedNames = new Set<string>();
+    this.cropForName = new Map<string, bool>();
+    this.layerStagger = new Map<string, StaggerPos>();
+    this.pairNames = new Map<JsValue, string[]>();
+    this.pairFrom = new Map<JsValue, JsValue[]>();
+    this.cropMeasurements = new Map<string, CropEntry>();
+    this.cropKeys = [];
+    this.defaultOptions = defaultOptions;
+    this.targetsMap = new Map<JsValue, JsValue>();
+    this.resolveDefsSet = new Set<JsValue>();
+    this.cropOverrideMap = new Map<JsValue, bool>();
+    this.pairsMap = new Map<JsValue, JsValue>();
+    this.classNamesMap = new Map<JsValue, string>();
+    this.flatGroupsSet = new Set<JsValue>();
+  }
+
+  void rememberLayer(string name, JsValue target) {
+    if (!this.layerTargets.has(name)) {
+      this.layerNames.push(name);
+    }
+    this.layerTargets.set(name, target);
+  }
+
+  void rememberCrop(string name, CropEntry entry) {
+    if (!this.cropMeasurements.has(name)) {
+      this.cropKeys.push(name);
+    }
+    this.cropMeasurements.set(name, entry);
+  }
+
+  void loadFromBuilder() {
+    JsValue targets = this.builder["targets"];
+    if (targets.truthy()) {
+      this.targetsMap = targets;
+    }
+    JsValue resolveDefs = this.builder["resolveDefs"];
+    if (resolveDefs.truthy()) {
+      this.resolveDefsSet = resolveDefs;
+    }
+    JsValue cropOverride = this.builder["cropOverride"];
+    if (cropOverride.truthy()) {
+      this.cropOverrideMap = cropOverride;
+    }
+    JsValue pairs = this.builder["pairs"];
+    if (pairs.truthy()) {
+      this.pairsMap = pairs;
+    }
+    JsValue classNames = this.builder["classNames"];
+    if (classNames.truthy()) {
+      this.classNamesMap = classNames;
+    }
+    JsValue flatGroups = this.builder["flatGroups"];
+    if (flatGroups.truthy()) {
+      this.flatGroupsSet = flatGroups;
+    }
+  }
+
+  void resolveLayers(string phase) {
+    JsValue[] defs = mapKeys(this.targetsMap);
+    for (int d = 0; d < defs.length; d++) {
+      JsValue definition = defs[d];
+      JsValue target = callMethod1(this.targetsMap, "get", definition);
+      if (!target.truthy()) {
+        target = record{};
+      }
+      string? className = null;
+      JsValue classNameVal = callMethod1(this.classNamesMap, "get", definition);
+      if (classNameVal is string) {
+        className = classNameVal;
+      }
+      string? group = null;
+      bool isRoot = definition == "root";
+      bool needsResolve = callMethod1(this.resolveDefsSet, "has", definition).truthy();
+      if (!isRoot && needsResolve) {
+        if (callMethod1(this.flatGroupsSet, "has", definition).truthy()) {
+          group = "none";
+        } else {
+          group = "contain";
+        }
+      }
+
+      string[] names = [];
+      if (isRoot || !needsResolve) {
+        if (definition is string) {
+          names = [definition];
+        } else {
+          names = [`${definition}`];
+        }
+      } else if (callMethod1(this.pairsMap, "has", definition).truthy()) {
+        if (phase == "old") {
+          this.pairFrom.set(definition, resolveElements(definition));
+          names = assignViewTransitionNames(
+            definition,
+            this.nameRegistry,
+            this.assigned,
+            null,
+            className,
+            this.classed,
+            group,
+            this.grouped,
+            this.clipChildren
+          );
+          this.pairNames.set(definition, names);
+        } else {
+          JsValue[]? fromEls = this.pairFrom.get(definition);
+          if (fromEls != null) {
+            for (int f = 0; f < fromEls.length; f++) {
+              JsValue el = fromEls[f];
+              JsValue style = el["style"];
+              if (style.truthy()) {
+                callMethod1(style, "removeProperty", "view-transition-name");
+              }
+              this.nameRegistry.delete(el);
+            }
+          }
+          names = assignViewTransitionNames(
+            callMethod1(this.pairsMap, "get", definition),
+            this.nameRegistry,
+            this.assigned,
+            this.pairNames.get(definition),
+            className,
+            this.classed,
+            group,
+            this.grouped,
+            this.clipChildren
+          );
+        }
+      } else {
+        names = assignViewTransitionNames(
+          definition,
+          this.nameRegistry,
+          this.assigned,
+          null,
+          className,
+          this.classed,
+          group,
+          this.grouped,
+          this.clipChildren
+        );
+      }
+
+      for (int n = 0; n < names.length; n++) {
+        string name = names[n];
+        JsValue? existing = this.layerTargets.get(name);
+        if (existing != null && existing != target) {
+          JsValue merged = record{};
+          for (string key in existing) {
+            merged[key] = existing[key];
+          }
+          for (string key in target) {
+            merged[key] = target[key];
+          }
+          this.rememberLayer(name, merged);
+        } else {
+          this.rememberLayer(name, target);
+        }
+        if (callMethod1(this.cropOverrideMap, "has", definition).truthy()) {
+          JsValue overrideVal = callMethod1(this.cropOverrideMap, "get", definition);
+          if (overrideVal is bool) {
+            this.cropForName.set(name, overrideVal);
+          }
+        }
+        StaggerPos? staggerOpt = this.layerStagger.get(name);
+        StaggerPos stagger = new StaggerPos();
+        if (staggerOpt != null) {
+          stagger = staggerOpt;
+        } else {
+          this.layerStagger.set(name, stagger);
+        }
+        int[] pos = [n, names.length];
+        if (phase == "old") {
+          stagger.oldPos = pos;
+        } else {
+          stagger.newPos = pos;
+        }
+      }
+    }
+  }
+
+  int[] staggerPosition(string name, string type) {
+    StaggerPos? stagger = this.layerStagger.get(name);
+    if (stagger == null) {
+      return [-1, 1];
+    }
+    if (type == "old") {
+      int[]? oldPos = stagger.oldPos;
+      if (oldPos != null) {
+        return oldPos;
+      }
+    } else if (type == "new") {
+      int[]? newPos = stagger.newPos;
+      if (newPos != null) {
+        return newPos;
+      }
+    } else {
+      int[]? newPos = stagger.newPos;
+      if (newPos != null) {
+        return newPos;
+      }
+      int[]? oldPos = stagger.oldPos;
+      if (oldPos != null) {
+        return oldPos;
+      }
+    }
+    return [-1, 1];
+  }
+
+  JsValue resolveLayerTransition(
+    JsValue? target,
+    string type,
+    string transitionName,
+    float index,
+    float total
+  ) {
+    JsValue base = getValueTransition(this.defaultOptions, transitionName);
+    JsValue layerOpts = layerOptions(target, type);
+    if (layerOpts == null) {
+      layerOpts = record{};
+    }
+    JsValue overlay = getValueTransition(layerOpts, transitionName);
+    JsValue transition = mergeTransition(base, overlay);
+    JsValue delay = transition["delay"];
+    if (isFunction(delay)) {
+      transition["delay"] = callFn2(delay, index, total);
+    }
+    return transition;
+  }
+
+  JsValue resolveGroupTiming(string name) {
+    int[] pos = this.staggerPosition(name, "group");
+    float index = 0.0 + pos[0];
+    float total = 0.0 + pos[1];
+    if (index == -1.0) {
+      index = 0.0;
+    }
+    JsValue transition = this.resolveLayerTransition(
+      this.layerTargets.get(name),
+      "group",
+      "layout",
+      index,
+      total
+    );
+    JsValue durationRaw = transition["duration"];
+    if (durationRaw is float) {
+      transition["duration"] = secondsToMilliseconds(durationRaw);
+    }
+    ValueAnimationTransition applied = transitionToApplied(transition);
+    float delayMs = 0.0;
+    float? appliedDelay = applied.delay;
+    if (appliedDelay != null) {
+      delayMs = secondsToMilliseconds(appliedDelay);
+    }
+    return record{delay: delayMs, duration: applied.duration, ease: applied.ease};
+  }
+
+  void measureLayers(string phase) {
+    JsValue[] elements = mapKeys(this.nameRegistry);
+    for (int i = 0; i < elements.length; i++) {
+      JsValue element = elements[i];
+      string? nameOpt = this.nameRegistry.get(element);
+      if (nameOpt != null) {
+        string name = nameOpt;
+        if (isFunction(element["getBoundingClientRect"])) {
+          JsValue rect = callMethod0(element, "getBoundingClientRect");
+          JsValue heightVal = rect["height"];
+          if (heightVal is float) {
+            if (heightVal != 0.0) {
+              Record<string> radii = record{};
+              for (int c = 0; c < cornerRadiusProps.length; c++) {
+                string corner = cornerRadiusProps[c];
+                radii[corner] = getComputedStyleProperty(element, corner);
+              }
+              CropEntry? entryOpt = this.cropMeasurements.get(name);
+              CropEntry entry = new CropEntry();
+              if (entryOpt != null) {
+                entry = entryOpt;
+              }
+              JsValue widthVal = rect["width"];
+              float width = 0.0;
+              if (widthVal is float) {
+                width = widthVal;
+              }
+              float height = heightVal;
+              CropBox box = new CropBox(width, height, radii);
+              if (phase == "old") {
+                entry.oldBox = box;
+              } else {
+                entry.newBox = box;
+              }
+              this.rememberCrop(name, entry);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  bool aspectChanged(string name) {
+    CropEntry? box = this.cropMeasurements.get(name);
+    if (box == null) {
+      return false;
+    }
+    CropBox? oldBoxOpt = box.oldBox;
+    CropBox? newBoxOpt = box.newBox;
+    if (oldBoxOpt == null || newBoxOpt == null) {
+      return false;
+    }
+    CropBox oldBox = oldBoxOpt;
+    CropBox newBox = newBoxOpt;
+    if (oldBox.height == 0.0 || newBox.height == 0.0) {
+      return false;
+    }
+    float delta = (oldBox.width / oldBox.height) - (newBox.width / newBox.height);
+    if (delta < 0.0) {
+      delta = 0.0 - delta;
+    }
+    return delta > ASPECT_TOLERANCE;
+  }
+
+  void finalizeCrop() {
+    this.croppedNames.clear();
+    for (int i = 0; i < this.layerNames.length; i++) {
+      string name = this.layerNames[i];
+      if (name == "root") {
+        continue;
+      }
+      bool? forced = this.cropForName.get(name);
+      bool shouldCrop = this.aspectChanged(name);
+      if (forced != null) {
+        shouldCrop = forced;
+      }
+      if (shouldCrop) {
+        this.croppedNames.add(name);
+      }
+    }
+  }
+
+  void commitViewCSS() {
+    if (!hasTarget("root", this.targetsMap)) {
+      css.set(":root", record{"view-transition-name": "none"});
+    }
+    css.set(
+      "::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*)",
+      record{"animation-timing-function": "linear !important"}
+    );
+    for (int i = 0; i < this.layerNames.length; i++) {
+      string name = this.layerNames[i];
+      if (!this.croppedNames.has(name)) {
+        continue;
+      }
+      css.set(`::view-transition-group(${name})`, record{overflow: "clip"});
+      css.set(
+        `::view-transition-old(${name}), ::view-transition-new(${name})`,
+        record{width: "100%", height: "100%", "object-fit": "cover"}
+      );
+    }
+    JsValue[] clipList = setValues(this.clipChildren);
+    for (int c = 0; c < clipList.length; c++) {
+      string clipName = `${clipList[c]}`;
+      css.set(`::view-transition-group-children(${clipName})`, record{overflow: "clip"});
+    }
+    css.commit();
+  }
+
+  void cleanup() {
+    releaseViewTransitionNames(this.assigned, this.classed, this.grouped);
+    css.remove();
+  }
+
+  JsValue[] buildExplicitAnimations() {
+    JsValue[] animations = [];
+    Set<string> explicitlyAnimated = new Set<string>();
+    Set<string> opacityAnimated = new Set<string>();
+
+    for (int li = 0; li < this.layerNames.length; li++) {
+      string name = this.layerNames[li];
+      JsValue? target = this.layerTargets.get(name);
+      if (target == null) {
+        continue;
+      }
+      JsValue targetVal = target;
+      StaggerPos? stagger = this.layerStagger.get(name);
+      bool enterApplies = stagger != null && stagger.newPos != null && stagger.oldPos == null;
+      bool exitApplies = stagger != null && stagger.oldPos != null && stagger.newPos == null;
+
+      for (int k = 0; k < definitionNames.length; k++) {
+        string key = definitionNames[k];
+        JsValue def = targetVal[key];
+        if (!def.truthy()) {
+          continue;
+        }
+        if (key == "enter" && !enterApplies) {
+          continue;
+        }
+        if (key == "exit" && !exitApplies) {
+          continue;
+        }
+        string type = chooseLayerType(key);
+        int[] pos = this.staggerPosition(name, type);
+        if (pos[0] == -1) {
+          continue;
+        }
+        JsValue keyframes = def["keyframes"];
+        JsValue options = def["options"];
+        if (!options.truthy()) {
+          options = record{};
+        }
+        if (!keyframes.isObject()) {
+          continue;
+        }
+        for (string valueName in keyframes) {
+          JsValue valueKeyframes = keyframes[valueName];
+          if (valueKeyframes == null) {
+            continue;
+          }
+          if (valueName == "x" || valueName == "y") {
+            warnOnce(false, `animateView() does not support "${valueName}" shorthand`);
+            continue;
+          }
+
+          if (key == "new" && enterApplies) {
+            JsValue enterDef = targetVal["enter"];
+            if (enterDef.truthy()) {
+              JsValue enterKf = enterDef["keyframes"];
+              if (enterKf.truthy() && enterKf[valueName] != null) {
+                continue;
+              }
+            }
+          }
+          if (key == "old" && exitApplies) {
+            JsValue exitDef = targetVal["exit"];
+            if (exitDef.truthy()) {
+              JsValue exitKf = exitDef["keyframes"];
+              if (exitKf.truthy() && exitKf[valueName] != null) {
+                continue;
+              }
+            }
+          }
+
+          JsValue valueOptions = mergeTransition(
+            getValueTransition(this.defaultOptions, valueName),
+            getValueTransition(options, valueName)
+          );
+
+          if (!valueKeyframes.isArray()) {
+            JsValue from = null;
+            if (key == "enter") {
+              JsValue exitDef = targetVal["exit"];
+              if (exitDef.truthy()) {
+                JsValue exitKf = exitDef["keyframes"];
+                if (exitKf.truthy()) {
+                  JsValue exitValue = exitKf[valueName];
+                  if (exitValue != null) {
+                    if (exitValue.isArray()) {
+                      from = exitValue[exitValue.length - 1.0];
+                    } else {
+                      from = exitValue;
+                    }
+                  }
+                }
+              }
+            }
+            if (from == null) {
+              bool allowDefault = valueName == "opacity";
+              if (!allowDefault) {
+                if (type == "new") {
+                  allowDefault = enterApplies;
+                } else {
+                  allowDefault = exitApplies;
+                }
+              }
+              if (allowDefault) {
+                if (type == "new" && valueName == "opacity") {
+                  from = 0.0;
+                } else if (type == "new" && valueName == "scale") {
+                  from = 0.85;
+                } else if (type == "old" && valueName == "opacity") {
+                  from = 1.0;
+                } else if (type == "old" && valueName == "scale") {
+                  from = 1.0;
+                }
+              }
+            }
+            if (from != null) {
+              valueKeyframes = [from, valueKeyframes];
+            }
+          }
+
+          JsValue delayOpt = valueOptions["delay"];
+          if (isFunction(delayOpt)) {
+            valueOptions["delay"] = callFn2(delayOpt, pos[0], pos[1]);
+          }
+          JsValue durationOpt = valueOptions["duration"];
+          if (durationOpt is float) {
+            valueOptions["duration"] = secondsToMilliseconds(durationOpt);
+          }
+          JsValue delayNum = valueOptions["delay"];
+          if (delayNum is float) {
+            valueOptions["delay"] = secondsToMilliseconds(delayNum);
+          }
+
+          JsValue animOpts = record{};
+          for (string optKey in valueOptions) {
+            animOpts[optKey] = valueOptions[optKey];
+          }
+          animOpts["element"] = documentElement();
+          animOpts["name"] = valueName;
+          animOpts["pseudoElement"] = `::view-transition-${type}(${name})`;
+          animOpts["keyframes"] = valueKeyframes;
+          JsValue nativeAnim = new NativeAnimation(animOpts);
+          animations.push(nativeAnim);
+          explicitlyAnimated.add(`${name}:${type}`);
+          if (valueName == "opacity") {
+            opacityAnimated.add(`${name}:${type}`);
+          }
+        }
+      }
+    }
+
+    JsValue[] generatedViewAnimations = getViewAnimations();
+    for (int a = 0; a < generatedViewAnimations.length; a++) {
+      JsValue animation = generatedViewAnimations[a];
+      if (animation["playState"] == "finished") {
+        continue;
+      }
+      JsValue effect = animation["effect"];
+      if (!effect.truthy()) {
+        continue;
+      }
+      JsValue pseudoElement = effect["pseudoElement"];
+      if (!(pseudoElement is string)) {
+        continue;
+      }
+      string pseudo = `${pseudoElement}`;
+      ViewAnimationLayerInfo? infoOpt = getViewAnimationLayerInfo(pseudo);
+      if (infoOpt != null) {
+      ViewAnimationLayerInfo info = infoOpt;
+      string layerKey = `${info.layer}:${info.type}`;
+      if (explicitlyAnimated.has(layerKey)) {
+        bool isCrossfade =
+          opacityAnimated.has(`${info.layer}:new`) &&
+          opacityAnimated.has(`${info.layer}:old`);
+        bool hasBlend = false;
+        if (isCrossfade && isFunction(effect["getKeyframes"])) {
+          JsValue frames = callMethod0(effect, "getKeyframes");
+          if (frames.isArray()) {
+            for (int fi = 0; fi < frames.length; fi++) {
+              if (frames[fi]["mixBlendMode"].truthy()) {
+                hasBlend = true;
+              }
+            }
+          }
+        }
+        if (isCrossfade && hasBlend) {
+          JsValue wrapper = new NativeAnimationWrapper(animation);
+          animations.push(wrapper);
+        } else {
+          callMethod0(animation, "cancel");
+        }
+        continue;
+      }
+
+      string? opposite = null;
+      if (info.type == "old") {
+        opposite = "new";
+      } else if (info.type == "new") {
+        opposite = "old";
+      }
+      if (opposite != null) {
+        string oppositeKey = `${info.layer}:${opposite}`;
+        if (explicitlyAnimated.has(oppositeKey) && !opacityAnimated.has(oppositeKey)) {
+          callMethod0(animation, "cancel");
+          continue;
+        }
+      }
+
+      StaggerPos? staggerGen = this.layerStagger.get(info.layer);
+      bool isMorphCrossfade =
+        (info.type == "old" || info.type == "new") &&
+        staggerGen != null &&
+        staggerGen.oldPos != null &&
+        staggerGen.newPos != null;
+
+      JsValue timing = record{};
+      if (info.type.startsWith("group")) {
+        JsValue groupTiming = this.resolveGroupTiming(info.layer);
+        float duration = 0.0;
+        JsValue gDur = groupTiming["duration"];
+        if (gDur is float) {
+          duration = gDur;
+        }
+        timing = record{
+          delay: groupTiming["delay"],
+          duration: groupTiming["duration"],
+          easing: easeToNative(groupTiming["ease"], duration)
+        };
+      } else {
+        string timingType = info.type;
+        if (isMorphCrossfade) {
+          timingType = "group";
+        }
+        int[] pos = this.staggerPosition(info.layer, timingType);
+        string transitionName = "";
+        if (timingType == "group") {
+          transitionName = "layout";
+        }
+        int index = pos[0];
+        if (index == -1) {
+          index = 0;
+        }
+        JsValue animationTransition = this.resolveLayerTransition(
+          this.layerTargets.get(info.layer),
+          timingType,
+          transitionName,
+          index,
+          pos[1]
+        );
+        JsValue visualDuration = animationTransition["visualDuration"];
+        JsValue atDur = animationTransition["duration"];
+        if (atDur is float) {
+          animationTransition["duration"] = secondsToMilliseconds(atDur);
+        }
+        ValueAnimationTransition applied = transitionToApplied(animationTransition);
+        float delayMs = 0.0;
+        float? appliedDelay = applied.delay;
+        if (appliedDelay != null) {
+          delayMs = secondsToMilliseconds(appliedDelay);
+        }
+        float dur = 0.0;
+        if (isMorphCrossfade && (visualDuration is float)) {
+          dur = secondsToMilliseconds(visualDuration);
+        } else {
+          float? appliedDuration = applied.duration;
+          if (appliedDuration != null) {
+            dur = appliedDuration;
+          }
+        }
+        string? easing = "linear";
+        if (!isMorphCrossfade) {
+          easing = easeToNative(applied.ease, dur);
+        }
+        timing = record{delay: delayMs, duration: dur, easing: easing};
+      }
+
+      if (isFunction(effect["updateTiming"])) {
+        callMethod1(effect, "updateTiming", timing);
+      }
+      JsValue wrapperAnim = new NativeAnimationWrapper(animation);
+      animations.push(wrapperAnim);
+      }
+    }
+
+    for (int ci = 0; ci < this.cropKeys.length; ci++) {
+      string name = this.cropKeys[ci];
+      if (this.croppedNames.has(name)) {
+      CropEntry? entryOpt = this.cropMeasurements.get(name);
+      if (entryOpt != null) {
+      CropEntry entry = entryOpt;
+      JsValue groupTiming = this.resolveGroupTiming(name);
+      for (int c = 0; c < cornerRadiusProps.length; c++) {
+        string corner = cornerRadiusProps[c];
+        string from = "0px";
+        string to = "0px";
+        CropBox? oldBox = entry.oldBox;
+        CropBox? newBox = entry.newBox;
+        if (oldBox != null) {
+          string? oldRadius = oldBox.radii[corner];
+          if (oldRadius != null) {
+            if (oldRadius != "") {
+              from = oldRadius;
+            }
+          }
+          if (from == "0px" && newBox != null) {
+            string? fallback = newBox.radii[corner];
+            if (fallback != null) {
+              if (fallback != "") {
+                from = fallback;
+              }
+            }
+          }
+        } else if (newBox != null) {
+          string? fallback = newBox.radii[corner];
+          if (fallback != null) {
+            if (fallback != "") {
+              from = fallback;
+            }
+          }
+        }
+        if (newBox != null) {
+          string? newRadius = newBox.radii[corner];
+          if (newRadius != null) {
+            if (newRadius != "") {
+              to = newRadius;
+            }
+          }
+          if (to == "0px" && oldBox != null) {
+            string? fallback = oldBox.radii[corner];
+            if (fallback != null) {
+              if (fallback != "") {
+                to = fallback;
+              }
+            }
+          }
+        } else if (oldBox != null) {
+          string? fallback = oldBox.radii[corner];
+          if (fallback != null) {
+            if (fallback != "") {
+              to = fallback;
+            }
+          }
+        }
+        if (!(isSquareRadius(from) && isSquareRadius(to))) {
+          JsValue radiusAnim = new NativeAnimation(record{
+            element: documentElement(),
+            name: corner,
+            pseudoElement: `::view-transition-group(${name})`,
+            keyframes: [from, to],
+            delay: groupTiming["delay"],
+            duration: groupTiming["duration"],
+            ease: groupTiming["ease"]
+          });
+          animations.push(radiusAnim);
+        }
+      }
+      }
+      }
+    }
+
+    return animations;
+  }
+}
+
+export Task<JsValue> startViewAnimation(JsValue builder) {
+  JsValue update = builder["update"];
+  JsValue defaultOptions = builder["options"];
+  if (!defaultOptions.truthy()) {
+    defaultOptions = record{};
+  }
+
+  if (!documentGet("startViewTransition").truthy()) {
+    return taskFromCallback((func()->void resolve) => {
+      if (isFunction(update)) {
+        callFn0(update);
+      }
+      resolve();
+    }).then((bool _v) => new GroupAnimation([]));
+  }
+
+  ViewRuntime rt = new ViewRuntime(builder, defaultOptions, update);
+  rt.loadFromBuilder();
+  JsValue resultBox = record{animation: null};
+
+  return taskFromCallback((func()->void resolve) => {
+    try {
+      rt.resolveLayers("old");
+      rt.measureLayers("old");
+      rt.commitViewCSS();
+
+      JsValue vt = documentStartViewTransition(() => {
+        if (isFunction(rt.update)) {
+          callFn0(rt.update);
+        }
+        rt.resolveLayers("new");
+        rt.measureLayers("new");
+        rt.finalizeCrop();
+        rt.commitViewCSS();
+      });
+
+      JsValue finished = vt["finished"];
+      if (finished.truthy()) {
+        callMethod1(finished, "finally", () => {
+          rt.cleanup();
+        });
+      }
+
+      JsValue ready = vt["ready"];
+      if (!ready.truthy()) {
+        resultBox["animation"] = new GroupAnimation([]);
+        resolve();
+        return;
+      }
+
+      JsValue thenResult = callMethod1(ready, "then", () => {
+        JsValue[] animations = rt.buildExplicitAnimations();
+        resultBox["animation"] = new GroupAnimation(animations);
+        resolve();
+      });
+      callMethod1(thenResult, "catch", () => {
+        resultBox["animation"] = new GroupAnimation([]);
+        resolve();
+      });
+    } catch {
+      rt.cleanup();
+      resultBox["animation"] = new GroupAnimation([]);
+      resolve();
+    }
+  }).then((bool _v) => {
+    JsValue anim = resultBox["animation"];
+    if (anim.truthy()) {
+      return anim;
+    }
+    return new GroupAnimation([]);
+  });
+}

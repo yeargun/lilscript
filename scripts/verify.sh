@@ -43,6 +43,8 @@ fi
 
 node "$ROOT/scripts/test-lsp.mjs" "$ROOT/target/release/lilscript-lsp"
 node "$ROOT/scripts/verify-bundles.mjs" "$ROOT/target/release/lilscript"
+node "$ROOT/scripts/verify-lilpack.mjs" \
+  "$ROOT/target/release/lilpack" "$ROOT/target/release/lilscript"
 "$ROOT/target/release/lilscript-fmt" "$ROOT/tests/tooling/canonical.lil" --check
 "$ROOT/target/release/lilscript-lint" "$ROOT/tests/tooling/canonical.lil" --deny-warnings
 

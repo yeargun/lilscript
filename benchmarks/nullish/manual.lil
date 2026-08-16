@@ -1,0 +1,42 @@
+Map<string, string> values = new Map<string, string>();
+values.set("present", "");
+Map<string, int[]> lists = new Map<string, int[]>();
+lists.set("present", [3, 1, 4]);
+int digest = 0;
+string retained = "";
+for (int round = 0; round < 30000; round++) {
+  string key = "missing";
+  if (round % 2 == 0) {
+    key = "present";
+  }
+  string? value = values.get(key);
+  string chosen = "";
+  if (value == null) {
+    chosen = "fallback";
+  } else {
+    chosen = value;
+  }
+  string assigned = "";
+  if (value == null) {
+    value = "fallback";
+    assigned = "fallback";
+  } else {
+    assigned = value;
+  }
+  int[]? list = lists.get(key);
+  int listLength = 0;
+  int listFirst = 0;
+  if (list != null) {
+    listLength = list.length;
+    listFirst = list[0];
+  }
+  digest = digest * 31 + chosen.length + assigned.length + listLength + listFirst;
+  if (round == 29999) {
+    if (value == null) {
+      retained = "unreachable";
+    } else {
+      retained = value;
+    }
+  }
+}
+print(`${digest}:${retained}`);

@@ -1,0 +1,6 @@
+export float wrap(float min, float max, float v) {
+  float rangeSize = max - min;
+  float offset = v - min;
+  float mod = offset - (offset / rangeSize).floor() * rangeSize;
+  return ((mod + rangeSize) - ((mod + rangeSize) / rangeSize).floor() * rangeSize) + min;
+}

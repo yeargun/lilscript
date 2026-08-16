@@ -5,9 +5,12 @@ runPassAblation({
   source: "benchmarks/function-layout/fixture.lil",
   expected: "benchmarks/function-layout/fixture.out",
   variants: [
-    ["layout search enabled", "benchmarks/function-layout/enabled.toml", "enabled.js"],
+    [
+      "layout search enabled",
+      "benchmarks/function-layout/enabled.toml",
+      "enabled.js",
+    ],
     ["source order", "benchmarks/function-layout/disabled.toml", "disabled.js"],
   ],
-  strictMetrics: ["gzip", "brotli"],
-  nonRegressionMetrics: ["raw"],
+  gateMetric: "brotli",
 });

@@ -1,0 +1,35 @@
+class Base<T> {
+  T value;
+  init(T value) { this.value = value; }
+  T get() { return this.value; }
+}
+
+class Child extends Base<int> {
+  int extra;
+  init(int value, int extra) {
+    super(value);
+    this.extra = extra;
+  }
+  generator int values() {
+    yield this.value;
+    yield this.extra;
+  }
+}
+
+generator int guarded() {
+  try {
+    yield 1;
+    yield 2;
+  } finally {
+    print("closed");
+  }
+}
+
+Child child = new Child(7, 5);
+Base<int> parent = child;
+print(parent.get());
+for (int value of child.values()) { print(value); }
+for (int value of guarded()) {
+  print(value);
+  break;
+}

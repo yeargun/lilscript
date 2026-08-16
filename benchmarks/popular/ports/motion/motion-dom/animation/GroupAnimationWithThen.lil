@@ -1,0 +1,28 @@
+import { GroupAnimation } from "./GroupAnimation";
+import { withPromiseOf } from "../cast";
+
+export class GroupAnimationWithThen extends GroupAnimation {
+  init(JsValue[] input) {
+    super(input);
+  }
+
+  Task<bool> finished() {
+    Task<bool>[] tasks = [];
+    for (int i = 0; i < this.animations.length; i++) {
+      tasks.push(withPromiseOf(this.animations[i]).finished());
+    }
+    if (tasks.length == 0) {
+      return Task.resolve(true);
+    }
+    return Task.all(tasks).then((bool[] _values) => {
+      return true;
+    });
+  }
+
+  Task<bool> then(func()->void onResolve, (func()->void)? onReject = null) {
+    return this.finished().then((bool _v) => {
+      onResolve();
+      return true;
+    });
+  }
+}

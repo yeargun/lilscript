@@ -1,0 +1,23 @@
+import { AnimationState } from "../animation-state";
+
+export class SpringGenerator {
+  float? calculatedDuration;
+  func(float)->float velocity;
+  func(float)->AnimationState next;
+  func()->string toString;
+  func()->void toTransition;
+
+  init(
+    float? calculatedDuration,
+    func(float)->float velocity,
+    func(float)->AnimationState next,
+    func()->string toString,
+    func()->void toTransition
+  ) {
+    this.calculatedDuration = calculatedDuration;
+    this.velocity = velocity;
+    this.next = next;
+    this.toString = toString;
+    this.toTransition = toTransition;
+  }
+}

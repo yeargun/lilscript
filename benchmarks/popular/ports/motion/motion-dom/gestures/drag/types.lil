@@ -1,0 +1,19 @@
+import { Axis } from "../../../motion-utils/types/geometry";
+
+export class ResolvedConstraints {
+  Axis? x;
+  Axis? y;
+  init() {
+    this.x = null;
+    this.y = null;
+  }
+}
+
+export class ResolvedElastic {
+  Axis x;
+  Axis y;
+  init(Axis x, Axis y) {
+    this.x = x;
+    this.y = y;
+  }
+}

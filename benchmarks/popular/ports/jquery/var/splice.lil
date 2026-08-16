@@ -1,0 +1,5 @@
+import {
+  arraySplice
+} from "../js-host.lil";
+
+export func(JsValue, float, float, JsValue?)->JsValue splice = arraySplice;

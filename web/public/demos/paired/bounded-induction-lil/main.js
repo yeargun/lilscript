@@ -1,0 +1,1 @@
+var d=0,g=0;for(;d<12e4;++d)g=g+d%17|0;console.log(g)

@@ -32,4 +32,8 @@ property mangling:
   finds anything else after LilScript's own compressor.
 
 Raw, gzip-9, and Brotli-11 are reported independently. No lane is called a win
-unless it has the same behavior boundary.
+unless it has the same behavior boundary. This is a configuration/mangling
+study whose LilScript configs are Brotli-oriented, not a three-objective
+LilScript-vs-JavaScript gate. Raw and gzip values of those LilScript artifacts
+are diagnostic and may regress; language-superiority claims belong in the
+objective-specific comparison suites.

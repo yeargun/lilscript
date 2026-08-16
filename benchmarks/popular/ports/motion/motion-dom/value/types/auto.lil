@@ -1,0 +1,11 @@
+import { ValueType } from "./types";
+
+export ValueType autoType = new ValueType(
+  (JsValue v) => {
+    if (v is string) {
+      return v == "auto";
+    }
+    return false;
+  },
+  (JsValue v) => v
+);

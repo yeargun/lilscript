@@ -1,0 +1,1 @@
+var Z=algorithmCount(),f=0,h=0,m=0,Y=0,g=0,I,i,e,_,r;for(;(g+3|0)<Z;g=g+4|0)I=algorithmInt(g),i=algorithmInt(g+1|0),e=algorithmInt(g+2|0),_=algorithmInt(g+3|0),r=I*i|0,r=r-((r*(e<0?0:e>75?75:e)|0)/100|0)|0,e=r+((r*_|0)/100|0)|0,f=f+(e+(i*3|0)|0)|0,h=(h+e|0)-r|0,m=m+i|0,Y^=e+(I*17|0)|0;g=f+(Y^(h*11|0)+(m*7|0))|0;console.log(g)

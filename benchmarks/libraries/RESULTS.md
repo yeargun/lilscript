@@ -1,14 +1,14 @@
 # Complete library compatibility diagnostics
 
-Generated 2026-08-09T09:38:12.119Z from LilScript `85ef5bc` with Node `v24.11.1`, Vite `8.2.1`, esbuild `0.28.1`, and Closure Compiler `20260804.0.0`.
+Generated 2026-08-15T23:50:27.285Z from LilScript `51ee9b9` with Node `v22.21.1`, Vite `8.2.1`, esbuild `0.28.1`, and Closure Compiler `20260804.0.0`.
 
-Each row executes the same checked app contract, but size eligibility is measured on the reusable selected root API so whole-program constant specialization cannot remove the library implementation. The npm rows use the installed package, not a hand-specialized substitute. Closure receives an unminified esbuild bundle that exposes the same named public surface. LilScript also emits C and a native executable, and both must match before measurements are considered.
+Each row executes the same checked app contract, but size eligibility is measured on the reusable selected root API so whole-program constant specialization cannot remove the library implementation. The npm rows use the installed package, not a hand-specialized substitute. Closure receives an unminified esbuild bundle that exposes the same named public surface. LilScript's raw, gzip-9, and Brotli-11 cells come from independent objective builds, and each build is judged only on its matching metric. LilScript also emits C and a native executable, and both must match before measurements are considered.
 
-Publication gate: raw and brotli JavaScript must be no larger than both npm/Vite and public-contract-preserving Closure ADVANCED; median library-workload time and retained memory must each be at most 1.05× npm. Eligible: **7/7**. Blocked rows remain below strictly as compiler diagnostics.
+Publication gate: the raw-objective artifact's raw bytes and the brotli-objective artifact's matching compressed bytes must be no larger than both npm/Vite and public-contract-preserving Closure ADVANCED; median library-workload time and retained memory must each be at most 1.05× npm. Eligible: **5/7**. Blocked rows remain below strictly as compiler diagnostics.
 
 ## Motion easing
 
-Status: **eligible**.
+Status: **blocked** — throughput ratio 1.052 exceeds 1.05.
 
 Scope: **Complete @motionone/easing root entrypoint** using `@motionone/easing@10.18.0`.
 
@@ -18,20 +18,20 @@ Translated upstream assertions: **27**. Added package-contract assertions: **0**
 
 | Reusable selected API | Raw | Gzip-9 | Brotli-11 | vs npm/Vite Brotli |
 | --- | ---: | ---: | ---: | ---: |
-| Installed npm package + Vite library mode | 840 | 458 | 431 | 0.0% |
-| Installed npm package + Closure ADVANCED public surface | 445 | 326 | 286 | -33.6% |
-| LilScript reusable module | 438 | 310 | 280 | -35.0% |
+| Installed npm package + Vite library mode | 840 | 456 | 431 | 0.0% |
+| Installed npm package + Closure ADVANCED public surface | 445 | 325 | 286 | -33.6% |
+| LilScript reusable objective builds | 417 | 291 | 270 | -37.4% |
 
 | Isolated API workload | npm | LilScript | Ratio | Gate |
 | --- | ---: | ---: | ---: | ---: |
-| Median time (ms) | 14.201 | 14.428 | 1.016 | ≤1.05 |
-| Retained heap + ArrayBuffer (B) | 3830208 | 3215896 | 0.840 | ≤1.05 |
+| Median time (ms) | 13.495 | 14.196 | 1.052 | ≤1.05 |
+| Retained heap + ArrayBuffer (B) | 3833112 | 3502352 | 0.914 | ≤1.05 |
 
 | Checked demo app | Raw JS | Gzip-9 | Brotli-11 | Median load + execution ms |
 | --- | ---: | ---: | ---: | ---: |
-| Installed npm package + Vite | 1107 | 608 | 579 | 6.12 |
-| Installed npm package + Closure ADVANCED | 1024 | 583 | 530 | 4.53 |
-| LilScript port | 996 | 559 | 507 | 5.45 |
+| Installed npm package + Vite | 1107 | 606 | 579 | 6.44 |
+| Installed npm package + Closure ADVANCED | 1024 | 577 | 530 | 5.44 |
+| LilScript port | 981 | 539 | 495 | 7.12 |
 
 ## Clamp and lerp
 
@@ -45,24 +45,24 @@ Translated upstream assertions: **10**. Added package-contract assertions: **0**
 
 | Reusable selected API | Raw | Gzip-9 | Brotli-11 | vs npm/Vite Brotli |
 | --- | ---: | ---: | ---: | ---: |
-| Installed npm package + Vite library mode | 1137 | 578 | 519 | 0.0% |
-| Installed npm package + Closure ADVANCED public surface | 833 | 484 | 414 | -20.2% |
-| LilScript reusable module | 109 | 142 | 113 | -78.2% |
+| Installed npm package + Vite library mode | 1137 | 577 | 519 | 0.0% |
+| Installed npm package + Closure ADVANCED public surface | 833 | 482 | 414 | -20.2% |
+| LilScript reusable objective builds | 109 | 142 | 112 | -78.4% |
 
 | Isolated API workload | npm | LilScript | Ratio | Gate |
 | --- | ---: | ---: | ---: | ---: |
-| Median time (ms) | 8.293 | 8.207 | 0.990 | ≤1.05 |
-| Retained heap + ArrayBuffer (B) | 318272 | 318256 | 1.000 | ≤1.05 |
+| Median time (ms) | 8.086 | 8.067 | 0.998 | ≤1.05 |
+| Retained heap + ArrayBuffer (B) | 317720 | 317816 | 1.000 | ≤1.05 |
 
 | Checked demo app | Raw JS | Gzip-9 | Brotli-11 | Median load + execution ms |
 | --- | ---: | ---: | ---: | ---: |
-| Installed npm package + Vite | 1134 | 607 | 554 | 2.22 |
-| Installed npm package + Closure ADVANCED | 1169 | 630 | 562 | 2.97 |
-| LilScript port | 319 | 224 | 201 | 1.08 |
+| Installed npm package + Vite | 1134 | 608 | 554 | 3.86 |
+| Installed npm package + Closure ADVANCED | 1169 | 625 | 562 | 3.81 |
+| LilScript port | 327 | 228 | 203 | 1.59 |
 
 ## String hash
 
-Status: **eligible**.
+Status: **blocked** — throughput ratio 1.085 exceeds 1.05.
 
 Scope: **Complete string-hash root entrypoint** using `string-hash@1.1.3`.
 
@@ -72,20 +72,20 @@ Translated upstream assertions: **2**. Added package-contract assertions: **2**.
 
 | Reusable selected API | Raw | Gzip-9 | Brotli-11 | vs npm/Vite Brotli |
 | --- | ---: | ---: | ---: | ---: |
-| Installed npm package + Vite library mode | 969 | 558 | 502 | 0.0% |
-| Installed npm package + Closure ADVANCED public surface | 744 | 480 | 403 | -19.7% |
-| LilScript reusable module | 121 | 134 | 106 | -78.9% |
+| Installed npm package + Vite library mode | 969 | 559 | 502 | 0.0% |
+| Installed npm package + Closure ADVANCED public surface | 744 | 473 | 403 | -19.7% |
+| LilScript reusable objective builds | 119 | 132 | 99 | -80.3% |
 
 | Isolated API workload | npm | LilScript | Ratio | Gate |
 | --- | ---: | ---: | ---: | ---: |
-| Median time (ms) | 15.826 | 16.406 | 1.037 | ≤1.05 |
-| Retained heap + ArrayBuffer (B) | 317704 | 318344 | 1.002 | ≤1.05 |
+| Median time (ms) | 14.227 | 15.439 | 1.085 | ≤1.05 |
+| Retained heap + ArrayBuffer (B) | 317656 | 317800 | 1.000 | ≤1.05 |
 
 | Checked demo app | Raw JS | Gzip-9 | Brotli-11 | Median load + execution ms |
 | --- | ---: | ---: | ---: | ---: |
-| Installed npm package + Vite | 1076 | 637 | 568 | 4.03 |
-| Installed npm package + Closure ADVANCED | 1113 | 656 | 581 | 3.81 |
-| LilScript port | 433 | 345 | 299 | 3.53 |
+| Installed npm package + Vite | 1076 | 638 | 568 | 3.59 |
+| Installed npm package + Closure ADVANCED | 1113 | 651 | 581 | 3.50 |
+| LilScript port | 439 | 331 | 288 | 3.07 |
 
 ## Levenshtein distance
 
@@ -99,20 +99,20 @@ Translated upstream assertions: **14**. Added package-contract assertions: **0**
 
 | Reusable selected API | Raw | Gzip-9 | Brotli-11 | vs npm/Vite Brotli |
 | --- | ---: | ---: | ---: | ---: |
-| Installed npm package + Vite library mode | 1984 | 908 | 825 | 0.0% |
-| Installed npm package + Closure ADVANCED public surface | 1453 | 795 | 714 | -13.5% |
-| LilScript reusable module | 924 | 456 | 408 | -50.5% |
+| Installed npm package + Vite library mode | 1984 | 914 | 825 | 0.0% |
+| Installed npm package + Closure ADVANCED public surface | 1453 | 788 | 714 | -13.5% |
+| LilScript reusable objective builds | 838 | 443 | 405 | -50.9% |
 
 | Isolated API workload | npm | LilScript | Ratio | Gate |
 | --- | ---: | ---: | ---: | ---: |
-| Median time (ms) | 34.547 | 34.199 | 0.990 | ≤1.05 |
-| Retained heap + ArrayBuffer (B) | 310816 | 308776 | 0.993 | ≤1.05 |
+| Median time (ms) | 34.251 | 33.088 | 0.966 | ≤1.05 |
+| Retained heap + ArrayBuffer (B) | 317392 | 317536 | 1.000 | ≤1.05 |
 
 | Checked demo app | Raw JS | Gzip-9 | Brotli-11 | Median load + execution ms |
 | --- | ---: | ---: | ---: | ---: |
-| Installed npm package + Vite | 1970 | 1077 | 969 | 6.59 |
-| Installed npm package + Closure ADVANCED | 2030 | 1099 | 996 | 6.47 |
-| LilScript port | 1450 | 814 | 697 | 6.98 |
+| Installed npm package + Vite | 1970 | 1067 | 969 | 9.37 |
+| Installed npm package + Closure ADVANCED | 2030 | 1081 | 996 | 9.32 |
+| LilScript port | 1370 | 795 | 690 | 8.98 |
 
 ## Emotion hash
 
@@ -126,20 +126,20 @@ Translated upstream assertions: **1**. Added package-contract assertions: **7**.
 
 | Reusable selected API | Raw | Gzip-9 | Brotli-11 | vs npm/Vite Brotli |
 | --- | ---: | ---: | ---: | ---: |
-| Installed npm package + Vite library mode | 833 | 347 | 330 | 0.0% |
-| Installed npm package + Closure ADVANCED public surface | 594 | 288 | 240 | -27.3% |
-| LilScript reusable module | 434 | 271 | 234 | -29.1% |
+| Installed npm package + Vite library mode | 833 | 348 | 330 | 0.0% |
+| Installed npm package + Closure ADVANCED public surface | 594 | 287 | 240 | -27.3% |
+| LilScript reusable objective builds | 435 | 266 | 234 | -29.1% |
 
 | Isolated API workload | npm | LilScript | Ratio | Gate |
 | --- | ---: | ---: | ---: | ---: |
-| Median time (ms) | 34.111 | 33.102 | 0.970 | ≤1.05 |
-| Retained heap + ArrayBuffer (B) | 637488 | 638168 | 1.001 | ≤1.05 |
+| Median time (ms) | 35.305 | 33.528 | 0.950 | ≤1.05 |
+| Retained heap + ArrayBuffer (B) | 637440 | 637568 | 1.000 | ≤1.05 |
 
 | Checked demo app | Raw JS | Gzip-9 | Brotli-11 | Median load + execution ms |
 | --- | ---: | ---: | ---: | ---: |
-| Installed npm package + Vite | 907 | 498 | 430 | 12.73 |
-| Installed npm package + Closure ADVANCED | 924 | 496 | 434 | 12.57 |
-| LilScript port | 759 | 502 | 431 | 12.63 |
+| Installed npm package + Vite | 907 | 492 | 430 | 13.83 |
+| Installed npm package + Closure ADVANCED | 924 | 487 | 434 | 13.85 |
+| LilScript port | 785 | 499 | 426 | 13.80 |
 
 ## MurmurHash 2 and 3
 
@@ -153,20 +153,20 @@ Translated upstream assertions: **0**. Added package-contract assertions: **18**
 
 | Reusable selected API | Raw | Gzip-9 | Brotli-11 | vs npm/Vite Brotli |
 | --- | ---: | ---: | ---: | ---: |
-| Installed npm package + Vite library mode | 3131 | 1027 | 902 | 0.0% |
-| Installed npm package + Closure ADVANCED public surface | 2446 | 957 | 833 | -7.6% |
-| LilScript reusable module | 1015 | 461 | 414 | -54.1% |
+| Installed npm package + Vite library mode | 3131 | 1029 | 902 | 0.0% |
+| Installed npm package + Closure ADVANCED public surface | 2446 | 951 | 833 | -7.6% |
+| LilScript reusable objective builds | 994 | 449 | 418 | -53.7% |
 
 | Isolated API workload | npm | LilScript | Ratio | Gate |
 | --- | ---: | ---: | ---: | ---: |
-| Median time (ms) | 21.092 | 18.572 | 0.881 | ≤1.05 |
-| Retained heap + ArrayBuffer (B) | 317640 | 291648 | 0.918 | ≤1.05 |
+| Median time (ms) | 22.590 | 18.708 | 0.828 | ≤1.05 |
+| Retained heap + ArrayBuffer (B) | 317712 | 317856 | 1.000 | ≤1.05 |
 
 | Checked demo app | Raw JS | Gzip-9 | Brotli-11 | Median load + execution ms |
 | --- | ---: | ---: | ---: | ---: |
-| Installed npm package + Vite | 2782 | 1118 | 992 | 5.60 |
-| Installed npm package + Closure ADVANCED | 2905 | 1203 | 1059 | 5.46 |
-| LilScript port | 1520 | 719 | 641 | 5.04 |
+| Installed npm package + Vite | 2782 | 1115 | 992 | 5.96 |
+| Installed npm package + Closure ADVANCED | 2905 | 1190 | 1059 | 5.94 |
+| LilScript port | 1523 | 727 | 649 | 5.94 |
 
 ## Robust geometric predicates
 
@@ -180,20 +180,20 @@ Translated upstream assertions: **23798**. Added package-contract assertions: **
 
 | Reusable selected API | Raw | Gzip-9 | Brotli-11 | vs npm/Vite Brotli |
 | --- | ---: | ---: | ---: | ---: |
-| Installed npm package + Vite library mode | 38722 | 8365 | 6456 | 0.0% |
-| Installed npm package + Closure ADVANCED public surface | 25208 | 7933 | 6228 | -3.5% |
-| LilScript reusable module | 22347 | 8045 | 6192 | -4.1% |
+| Installed npm package + Vite library mode | 38722 | 8329 | 6456 | 0.0% |
+| Installed npm package + Closure ADVANCED public surface | 25208 | 7872 | 6228 | -3.5% |
+| LilScript reusable objective builds | 19791 | 7922 | 6098 | -5.5% |
 
 | Isolated API workload | npm | LilScript | Ratio | Gate |
 | --- | ---: | ---: | ---: | ---: |
-| Median time (ms) | 7.988 | 7.936 | 0.993 | ≤1.05 |
-| Retained heap + ArrayBuffer (B) | 253552 | 253648 | 1.000 | ≤1.05 |
+| Median time (ms) | 10.089 | 10.110 | 1.002 | ≤1.05 |
+| Retained heap + ArrayBuffer (B) | 258616 | 259016 | 1.002 | ≤1.05 |
 
 | Checked demo app | Raw JS | Gzip-9 | Brotli-11 | Median load + execution ms |
 | --- | ---: | ---: | ---: | ---: |
-| Installed npm package + Vite | 24227 | 7463 | 5960 | 0.94 |
-| Installed npm package + Closure ADVANCED | 25369 | 7920 | 6230 | 1.17 |
-| LilScript port | 1213 | 495 | 411 | 0.24 |
+| Installed npm package + Vite | 24227 | 7418 | 5960 | 0.60 |
+| Installed npm package + Closure ADVANCED | 25369 | 7856 | 6230 | 0.95 |
+| LilScript port | 220 | 131 | 102 | 0.06 |
 
 ## Limits
 
@@ -201,6 +201,6 @@ Translated upstream assertions: **23798**. Added package-contract assertions: **
 - @motionone/easing is a complete published Motion ecosystem package; it is not motion@13 or its DOM engine.
 - Runtime measures cache-busted Node module parsing and deterministic app execution. It is not a browser rendering benchmark.
 - API throughput and retained memory use medians from 9 isolated Node processes per implementation and mode, with alternating order, identical workloads and checksums, forced GC, and equivalent retained results. The memory lane performs one complete unretained workload before its baseline GC so JIT tier-up is outside the retained delta.
-- Reusable-surface transfer sizes sum independently compressed module files. Demo-app bytes remain diagnostics and cannot hide or establish full-library eligibility.
+- Reusable-surface transfer sizes sum independently compressed module files. Every LilScript size cell uses the build selected for that exact objective; the other metrics of each build are diagnostic and may lose. Demo-app bytes and runtime come from the explicitly declared Brotli-objective build, remain diagnostics, and cannot hide or establish full-library eligibility.
 - A passing translated upstream suite and differential workload are strong regression evidence, not a mathematical proof over every input.
 

@@ -1,0 +1,98 @@
+import { isVariantLabel } from "./is-variant-label";
+import { variantProps } from "./variant-props";
+
+int numVariantProps = variantProps.length;
+
+export class VariantStateContext {
+  JsValue? initial;
+  JsValue? animate;
+  JsValue? exit;
+  JsValue? whileHover;
+  JsValue? whileDrag;
+  JsValue? whileFocus;
+  JsValue? whileTap;
+  JsValue? whileInView;
+
+  init() {
+    this.initial = null;
+    this.animate = null;
+    this.exit = null;
+    this.whileHover = null;
+    this.whileDrag = null;
+    this.whileFocus = null;
+    this.whileTap = null;
+    this.whileInView = null;
+  }
+
+  void setProp(string name, JsValue prop) {
+    if (name == "initial") {
+      this.initial = prop;
+    } else if (name == "animate") {
+      this.animate = prop;
+    } else if (name == "exit") {
+      this.exit = prop;
+    } else if (name == "whileHover") {
+      this.whileHover = prop;
+    } else if (name == "whileDrag") {
+      this.whileDrag = prop;
+    } else if (name == "whileFocus") {
+      this.whileFocus = prop;
+    } else if (name == "whileTap") {
+      this.whileTap = prop;
+    } else if (name == "whileInView") {
+      this.whileInView = prop;
+    }
+  }
+}
+
+export class VariantVisualElement {
+  bool isControllingVariants;
+  VariantVisualElement? parent;
+  Record<JsValue> props;
+
+  init() {
+    this.isControllingVariants = false;
+    this.parent = null;
+    this.props = record{};
+  }
+}
+
+export VariantStateContext? getVariantContext(VariantVisualElement? visualElement) {
+  if (visualElement == null) {
+    return null;
+  }
+
+  if (!visualElement.isControllingVariants) {
+    VariantStateContext context = new VariantStateContext();
+    if (visualElement.parent != null) {
+      VariantStateContext? parentContext = getVariantContext(visualElement.parent);
+      if (parentContext != null) {
+        context = parentContext;
+      }
+    }
+    if (visualElement.props.initial != null) {
+      context.initial = visualElement.props.initial;
+    }
+    return context;
+  }
+
+  VariantStateContext context = new VariantStateContext();
+  for (int i = 0; i < numVariantProps; i++) {
+    string name = variantProps[i];
+    JsValue? prop = visualElement.props[name];
+    if (prop != null) {
+      JsValue p = prop;
+      bool include = isVariantLabel(p);
+      if (!include) {
+        if (p is bool) {
+          bool flag = p;
+          include = flag == false;
+        }
+      }
+      if (include) {
+        context.setProp(name, p);
+      }
+    }
+  }
+  return context;
+}

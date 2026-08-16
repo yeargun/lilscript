@@ -1,0 +1,29 @@
+export Set<string> camelCaseAttributes = new Set<string>();
+
+void initCamelCaseAttributes() {
+  camelCaseAttributes.add("baseFrequency");
+  camelCaseAttributes.add("diffuseConstant");
+  camelCaseAttributes.add("kernelMatrix");
+  camelCaseAttributes.add("kernelUnitLength");
+  camelCaseAttributes.add("keySplines");
+  camelCaseAttributes.add("keyTimes");
+  camelCaseAttributes.add("limitingConeAngle");
+  camelCaseAttributes.add("markerHeight");
+  camelCaseAttributes.add("markerWidth");
+  camelCaseAttributes.add("numOctaves");
+  camelCaseAttributes.add("targetX");
+  camelCaseAttributes.add("targetY");
+  camelCaseAttributes.add("surfaceScale");
+  camelCaseAttributes.add("specularConstant");
+  camelCaseAttributes.add("specularExponent");
+  camelCaseAttributes.add("stdDeviation");
+  camelCaseAttributes.add("tableValues");
+  camelCaseAttributes.add("viewBox");
+  camelCaseAttributes.add("gradientTransform");
+  camelCaseAttributes.add("pathLength");
+  camelCaseAttributes.add("startOffset");
+  camelCaseAttributes.add("textLength");
+  camelCaseAttributes.add("lengthAdjust");
+}
+
+initCamelCaseAttributes();

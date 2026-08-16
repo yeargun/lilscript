@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lilastro — Motion JS/DOM finer report</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --panel: #171e26;
+      --ink: #e8eef5;
+      --muted: #8b9aab;
+      --line: #2a3542;
+      --accent: #5ee1a8;
+      --warn: #f0b429;
+      --bad: #ff7b72;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+      background:
+        radial-gradient(1200px 600px at 10% -10%, #1c3a3a 0%, transparent 55%),
+        radial-gradient(900px 500px at 90% 0%, #24304a 0%, transparent 50%),
+        var(--bg);
+      color: var(--ink);
+      line-height: 1.45;
+    }
+    main { max-width: 1180px; margin: 0 auto; padding: 48px 20px 80px; }
+    h1 { font-size: 2rem; letter-spacing: -0.03em; margin: 0 0 8px; }
+    h2 { font-size: 1.15rem; margin: 36px 0 12px; }
+    h3 { font-size: 1rem; margin: 24px 0 8px; color: var(--muted); }
+    .lede { color: var(--muted); max-width: 70ch; }
+    .banner {
+      margin: 24px 0;
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      border-left: 4px solid var(--warn);
+      background: var(--panel);
+      border-radius: 8px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin: 20px 0 8px;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 14px 16px;
+    }
+    .card .label { color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; }
+    .card .value { font-size: 1.4rem; font-variant-numeric: tabular-nums; margin-top: 4px; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      overflow: hidden;
+      font-size: 0.9rem;
+      margin-bottom: 12px;
+    }
+    th, td { padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { text-align: left; color: var(--muted); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .num { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+    .win { color: var(--accent); }
+    .lose { color: var(--bad); }
+    .muted { color: var(--muted); font-size: 0.85rem; }
+    .apis { color: var(--accent); font-size: 0.78rem; margin-top: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    ul { padding-left: 1.15rem; color: var(--muted); }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.88em; }
+    a { color: var(--accent); }
+    @media (max-width: 900px) {
+      .grid { grid-template-columns: 1fr 1fr; }
+      table { display: block; overflow-x: auto; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Lilastro · Motion JS/DOM finer report</h1>
+  <p class="lede">
+    Vite&nbsp;8 sizes plus Playwright CSSOM correctness and statistical
+    DOM/CSSOM/memory gates for npm <code>motion@13.0.0</code>
+    vs LilScript <code>benchmarks/popular/ports/motion</code>
+    (<a href="https://github.com/motiondivision/motion">motiondivision/motion</a> v13.0.0).
+  </p>
+
+  <div class="banner">
+    <strong>Completeness:</strong> DOM compile-green, not behavior-certified.
+    React / Vue entrypoints remain out of scope. Size rows are tree-shaken
+    retained API surface; Playwright rows are the behavioral/perf evidence.
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <div class="label">ABI modes</div>
+      <div class="value win">pass</div>
+    </div>
+    <div class="card">
+      <div class="label">Size examples</div>
+      <div class="value">5</div>
+    </div>
+    <div class="card">
+      <div class="label">Avg Brotli lil/npm</div>
+      <div class="value win">0.638×</div>
+    </div>
+    <div class="card">
+      <div class="label">Playwright CSSOM</div>
+      <div class="value win">pass</div>
+    </div>
+    <div class="card">
+      <div class="label">Perf gate</div>
+      <div class="value win">pass</div>
+    </div>
+  </div>
+
+  <h2>Open-world and closed-world contracts</h2>
+  <p class="lede">
+    Open world preserves the selected reusable ESM API and public aggregate
+    fields. Closed world links the consumer first, then permits every
+    LilScript-owned name to be mangled or erased. Both lanes must match npm
+    behavior and beat it in raw, gzip-9, and Brotli-11 bytes.
+  </p>
+  <table>
+    <thead><tr><th>Mode</th><th class="num">npm raw</th><th class="num">lil raw</th><th class="num">raw ratio</th><th class="num">npm br</th><th class="num">lil br</th><th class="num">br ratio</th></tr></thead>
+    <tbody>
+      <tr>
+  <th>Open-world core API</th>
+  <td class="num">16,944</td>
+  <td class="num">8,117</td>
+  <td class="num">0.479×</td>
+  <td class="num">5,260</td>
+  <td class="num">2,623</td>
+  <td class="num win">0.499×</td>
+</tr>
+      <tr>
+  <th>Closed-world values app</th>
+  <td class="num">17,052</td>
+  <td class="num">7,599</td>
+  <td class="num">0.446×</td>
+  <td class="num">5,310</td>
+  <td class="num">2,510</td>
+  <td class="num win">0.473×</td>
+</tr>
+    </tbody>
+  </table>
+  <p class="muted">Open-world export names: <code>clamp</code>, <code>distance</code>, <code>distance2D</code>, <code>getOriginIndex</code>, <code>mix</code>, <code>mixNumber</code>, <code>spring</code>, <code>stagger</code>, <code>wrap</code>. Closed-world diagnostic exports are all renamed.</p>
+
+  <h2>Per-example Vite 8 sizes (bytes)</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Example</th>
+        <th class="num">npm raw</th>
+        <th class="num">npm gzip</th>
+        <th class="num">npm br</th>
+        <th class="num">lil raw</th>
+        <th class="num">lil gzip</th>
+        <th class="num">lil br</th>
+        <th class="num">br ratio</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+  <td><strong>values-core</strong><div class="muted">Core values digest</div><div class="apis">mix, wrap, stagger, spring</div></td>
+  <td class="num">11,031</td>
+  <td class="num">4,690</td>
+  <td class="num">4,326</td>
+  <td class="num">5,969</td>
+  <td class="num">2,822</td>
+  <td class="num">2,512</td>
+  <td class="num win">0.581× <span class="muted">-41.9%</span></td>
+</tr>
+<tr>
+  <td><strong>spring-stagger</strong><div class="muted">Spring + stagger orchestration</div><div class="apis">spring, stagger, mix</div></td>
+  <td class="num">10,974</td>
+  <td class="num">4,653</td>
+  <td class="num">4,291</td>
+  <td class="num">5,866</td>
+  <td class="num">2,767</td>
+  <td class="num">2,459</td>
+  <td class="num win">0.573× <span class="muted">-42.7%</span></td>
+</tr>
+<tr>
+  <td><strong>distance-geometry</strong><div class="muted">Distance helpers</div><div class="apis">distance, distance2D, mix</div></td>
+  <td class="num">6,310</td>
+  <td class="num">2,663</td>
+  <td class="num">2,423</td>
+  <td class="num">899</td>
+  <td class="num">515</td>
+  <td class="num">448</td>
+  <td class="num win">0.185× <span class="muted">-81.5%</span></td>
+</tr>
+<tr>
+  <td><strong>animate-play</strong><div class="muted">animate + animateMini</div><div class="apis">animate, animateMini, spring</div></td>
+  <td class="num">64,085</td>
+  <td class="num">22,308</td>
+  <td class="num">20,319</td>
+  <td class="num">59,619</td>
+  <td class="num">21,126</td>
+  <td class="num">18,826</td>
+  <td class="num win">0.927× <span class="muted">-7.3%</span></td>
+</tr>
+<tr>
+  <td><strong>animate-scroll</strong><div class="muted">animate + scroll</div><div class="apis">animate, animateMini, scroll, stagger</div></td>
+  <td class="num">71,324</td>
+  <td class="num">24,938</td>
+  <td class="num">22,706</td>
+  <td class="num">67,252</td>
+  <td class="num">23,637</td>
+  <td class="num">21,015</td>
+  <td class="num win">0.926× <span class="muted">-7.4%</span></td>
+</tr>
+    </tbody>
+  </table>
+
+  <h2>Playwright CSSOM correctness</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Fixture</th>
+        <th>npm</th>
+        <th>lil</th>
+        <th>page errors</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+  <td><strong>animate-play</strong></td>
+  <td class="win">pass<div class="muted">all boxes reached translateX(100px)</div></td>
+  <td class="win">pass<div class="muted">all boxes reached translateX(100px)</div></td>
+  <td class="muted">—</td>
+</tr>
+<tr>
+  <td><strong>animate-css-vars</strong></td>
+  <td class="win">pass<div class="muted">CSS var opacity reached ~1</div></td>
+  <td class="win">pass<div class="muted">CSS var opacity reached ~1</div></td>
+  <td class="muted">—</td>
+</tr>
+<tr>
+  <td><strong>animate-stagger</strong></td>
+  <td class="win">pass<div class="muted">stagger cascade mid + end</div></td>
+  <td class="win">pass<div class="muted">stagger cascade mid + end</div></td>
+  <td class="muted">—</td>
+</tr>
+<tr>
+  <td><strong>animate-spring</strong></td>
+  <td class="win">pass<div class="muted">spring reached ~x:120</div></td>
+  <td class="win">pass<div class="muted">spring reached ~x:120</div></td>
+  <td class="muted">—</td>
+</tr>
+<tr>
+  <td><strong>animate-scroll</strong></td>
+  <td class="win">pass<div class="muted">scroll scrubs all animation lanes</div></td>
+  <td class="win">pass<div class="muted">scroll scrubs all animation lanes</div></td>
+  <td class="muted">—</td>
+</tr>
+<tr>
+  <td><strong>gesture-press</strong></td>
+  <td class="win">pass<div class="muted">press/release callbacks fired</div></td>
+  <td class="win">pass<div class="muted">press/release callbacks fired</div></td>
+  <td class="muted">—</td>
+</tr>
+<tr>
+  <td><strong>gesture-hover</strong></td>
+  <td class="win">pass<div class="muted">hover enter/leave fired</div></td>
+  <td class="win">pass<div class="muted">hover enter/leave fired</div></td>
+  <td class="muted">—</td>
+</tr>
+<tr>
+  <td><strong>in-view</strong></td>
+  <td class="win">pass<div class="muted">inView entered</div></td>
+  <td class="win">pass<div class="muted">inView entered</div></td>
+  <td class="muted">—</td>
+</tr>
+<tr>
+  <td><strong>resize-box</strong></td>
+  <td class="win">pass<div class="muted">resize observed size</div></td>
+  <td class="win">pass<div class="muted">resize observed size</div></td>
+  <td class="muted">—</td>
+</tr>
+<tr>
+  <td><strong>motion-value</strong></td>
+  <td class="win">pass<div class="muted">motionValue + element animated</div></td>
+  <td class="win">pass<div class="muted">motionValue + element animated</div></td>
+  <td class="muted">—</td>
+</tr>
+    </tbody>
+  </table>
+
+  <h2>Statistical DOM / CSSOM / memory perf</h2>
+  
+  <p class="lede">
+    Paired rounds with <strong>randomized lane order</strong>, discarded warmup,
+    then mean / median / p95 plus paired-bootstrap 0.95
+    upper confidence ratios (same harness as <code>benchmarks/statistics.mjs</code>).
+    Cold = fresh navigation per sample; warm = reused page + <code>__runPerfSample</code>.
+  </p>
+  
+  <h3>warm · n=201 · warmup=8 · order lil-first=109, npm-first=100</h3>
+  <p class="muted">Within non-inferiority budget (max upper ratio 1.15).</p>
+  <table>
+    <thead>
+      <tr>
+        <th>Metric</th>
+        <th class="num">npm mean</th>
+        <th class="num">npm median</th>
+        <th class="num">npm p95</th>
+        <th class="num">lil mean</th>
+        <th class="num">lil median</th>
+        <th class="num">lil p95</th>
+        <th class="num">median ratio</th>
+        <th class="num">95% upper median/p95</th>
+      </tr>
+    </thead>
+    <tbody><tr>
+  <td><strong>scheduleMs</strong></td>
+  <td class="num">3.436</td>
+  <td class="num">3.600</td>
+  <td class="num">4.000</td>
+  <td class="num">3.343</td>
+  <td class="num">3.500</td>
+  <td class="num">3.900</td>
+  <td class="num">0.972×</td>
+  <td class="num win">0.972× / 1.000×</td>
+</tr>
+<tr>
+  <td><strong>frameP95</strong></td>
+  <td class="num">9.209</td>
+  <td class="num">9.200</td>
+  <td class="num">10.100</td>
+  <td class="num">9.219</td>
+  <td class="num">9.200</td>
+  <td class="num">10.200</td>
+  <td class="num">1.000×</td>
+  <td class="num win">1.022× / 1.020×</td>
+</tr>
+<tr>
+  <td><strong>frameMean</strong></td>
+  <td class="num">8.096</td>
+  <td class="num">8.100</td>
+  <td class="num">8.158</td>
+  <td class="num">8.116</td>
+  <td class="num">8.115</td>
+  <td class="num">8.188</td>
+  <td class="num">1.002×</td>
+  <td class="num win">1.003× / 1.005×</td>
+</tr>
+<tr>
+  <td><strong>heapUsed</strong></td>
+  <td class="num">1402955.721</td>
+  <td class="num">1404584.000</td>
+  <td class="num">1405304.000</td>
+  <td class="num">1368438.667</td>
+  <td class="num">1370188.000</td>
+  <td class="num">1370668.000</td>
+  <td class="num">0.976×</td>
+  <td class="num win">0.976× / 0.975×</td>
+</tr></tbody>
+  </table>
+
+  <h3>cold · n=201 · warmup=8 · order lil-first=111, npm-first=98</h3>
+  <p class="muted">Within non-inferiority budget (max upper ratio 1.15).</p>
+  <table>
+    <thead>
+      <tr>
+        <th>Metric</th>
+        <th class="num">npm mean</th>
+        <th class="num">npm median</th>
+        <th class="num">npm p95</th>
+        <th class="num">lil mean</th>
+        <th class="num">lil median</th>
+        <th class="num">lil p95</th>
+        <th class="num">median ratio</th>
+        <th class="num">95% upper median/p95</th>
+      </tr>
+    </thead>
+    <tbody><tr>
+  <td><strong>scheduleMs</strong></td>
+  <td class="num">4.001</td>
+  <td class="num">4.300</td>
+  <td class="num">4.700</td>
+  <td class="num">3.642</td>
+  <td class="num">3.900</td>
+  <td class="num">4.400</td>
+  <td class="num">0.907×</td>
+  <td class="num win">0.930× / 0.957×</td>
+</tr>
+<tr>
+  <td><strong>frameP95</strong></td>
+  <td class="num">8.715</td>
+  <td class="num">8.700</td>
+  <td class="num">9.200</td>
+  <td class="num">8.862</td>
+  <td class="num">8.800</td>
+  <td class="num">9.300</td>
+  <td class="num">1.011×</td>
+  <td class="num win">1.035× / 1.022×</td>
+</tr>
+<tr>
+  <td><strong>frameMean</strong></td>
+  <td class="num">8.294</td>
+  <td class="num">8.304</td>
+  <td class="num">8.372</td>
+  <td class="num">8.317</td>
+  <td class="num">8.323</td>
+  <td class="num">8.400</td>
+  <td class="num">1.002×</td>
+  <td class="num win">1.004× / 1.006×</td>
+</tr>
+<tr>
+  <td><strong>heapUsed</strong></td>
+  <td class="num">1361526.149</td>
+  <td class="num">1361524.000</td>
+  <td class="num">1361540.000</td>
+  <td class="num">1298707.104</td>
+  <td class="num">1298708.000</td>
+  <td class="num">1298708.000</td>
+  <td class="num">0.954×</td>
+  <td class="num win">0.954× / 0.954×</td>
+</tr></tbody>
+  </table>
+
+  <h2>Drift root-cause findings</h2>
+  <p>
+    The first complete run failed rather than being rounded into a pass. Inspection separated
+    harness defects from missing Motion control paths and cold-start allocation overhead.
+  </p>
+  <table>
+    <thead><tr><th>Finding</th><th>Effect measured</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Correctness waited for Playwright <code>networkidle</code>, adding 500&nbsp;ms after module
+        evaluation and sampling the 350&nbsp;ms stagger after it had ended.</td>
+        <td>Both npm and LilScript falsely failed the mid-animation cascade check.</td>
+        <td>fixed — animation-start fixtures now continue at document <code>load</code></td>
+      </tr>
+      <tr>
+        <td>The hybrid <code>animate()</code> path treated an explicit CSS <code>transform</code> as
+        a JS MotionValue, while the mini controller lacked timeline playback controls.</td>
+        <td>One hybrid target did not animate and two scroll-linked WAAPI lanes stayed at zero.</td>
+        <td>fixed — native transforms route through WAAPI and mini controls expose timeline time</td>
+      </tr>
+      <tr>
+        <td>Every inner mini animation eagerly allocated completion Promises, callback closures,
+        keyframe copies, and dynamic method wrappers even when the returned group was ignored.</td>
+        <td>Cold scheduling initially missed the non-inferiority confidence bound.</td>
+        <td>fixed — completion is lazy, active-map cleanup is direct, and internals use typed dispatch</td>
+      </tr>
+      <tr>
+        <td>CDP heap was sampled without forcing collection.</td>
+        <td>Warm results depended on V8's incidental GC timing rather than retained library state.</td>
+        <td>fixed — every retained-heap sample follows <code>HeapProfiler.collectGarbage</code></td>
+      </tr>
+    </tbody>
+  </table>
+  <p>
+    Final 192-element scheduling ratios are
+    <strong>0.972×</strong> warm and
+    <strong>0.907×</strong> cold.
+    Forced-GC retained-heap ratios are
+    <strong>0.976×</strong> warm and
+    <strong>0.954×</strong> cold.
+    All paired-bootstrap upper bounds remain within the 1.15&times;
+    non-inferiority budget.
+  </p>
+
+  <h2>Methodology</h2>
+  <ul>
+    <li>Size lane: Vite <code>8.2.1</code>, minify on, Node v22.21.1, LilScript mode <code>closed-world</code>.</li>
+    <li>Correctness: ten paired animation, CSS-variable, stagger, spring, scroll, gesture, viewport, resize, and MotionValue fixtures.</li>
+    <li>Perf: 192 elements × two animated properties, randomized lil/npm order, 8 warmup discarded, n=201, mean/median/p95, paired-bootstrap 95% upper ratios via <code>benchmarks/statistics.mjs</code>.</li>
+    <li>Cold vs warm measured separately; retained heap is Chromium CDP <code>JSHeapUsedSize</code> after explicit collection.</li>
+  </ul>
+</main>
+</body>
+</html>

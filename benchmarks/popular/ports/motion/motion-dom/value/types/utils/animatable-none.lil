@@ -1,0 +1,22 @@
+import { complex } from "../complex/index";
+import { filter } from "../complex/filter";
+import { mask } from "../complex/mask";
+import { getDefaultValueType } from "../maps/defaults";
+import { ValueType } from "../types";
+
+export JsValue getAnimatableNone(string key, JsValue value) {
+  ValueType? defaultType = getDefaultValueType(key);
+  if (defaultType != null) {
+    if (defaultType == filter || defaultType == mask) {
+      (func(JsValue)->JsValue)? getNone = defaultType.getAnimatableNone;
+      if (getNone != null) {
+        return getNone(value);
+      }
+    }
+  }
+  (func(JsValue)->JsValue)? complexNone = complex.getAnimatableNone;
+  if (complexNone != null) {
+    return complexNone(value);
+  }
+  return value;
+}

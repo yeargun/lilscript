@@ -1,0 +1,1 @@
+export Regex rcheckableType = new Regex("^(?:checkbox|radio)$", "i");

@@ -1,0 +1,52 @@
+import { AbsoluteKeyframe } from "./utils/sort";
+
+export class SequenceOptions {
+  float? delay;
+  float? duration;
+  JsValue? defaultTransition;
+  bool? reduceMotion;
+  bool? skipAnimations;
+  (func()->void)? onComplete;
+  JsValue? extra;
+
+  init() {
+    this.delay = null;
+    this.duration = null;
+    this.defaultTransition = null;
+    this.reduceMotion = null;
+    this.skipAnimations = null;
+    this.onComplete = null;
+    this.extra = null;
+  }
+}
+
+export class ResolvedAnimationDefinition {
+  JsValue keyframes;
+  JsValue transition;
+
+  init(JsValue keyframes, JsValue transition) {
+    this.keyframes = keyframes;
+    this.transition = transition;
+  }
+}
+
+export class SequenceMap {
+  Map<string, AbsoluteKeyframe[]> entries;
+  string[] keys;
+
+  init() {
+    this.entries = new Map<string, AbsoluteKeyframe[]>();
+    this.keys = [];
+  }
+
+  AbsoluteKeyframe[] getOrCreate(string name) {
+    AbsoluteKeyframe[]? existing = this.entries.get(name);
+    if (existing != null) {
+      return existing;
+    }
+    AbsoluteKeyframe[] created = [];
+    this.entries.set(name, created);
+    this.keys.push(name);
+    return created;
+  }
+}

@@ -1,0 +1,34 @@
+import { resolveElements } from "../../utils/resolve-elements";
+import { constructConfigured, callMethod0, windowGet } from "../../dom-host";
+
+export class GestureSetup {
+  JsValue[] elements;
+  JsValue eventOptions;
+  func()->void cancel;
+
+  init(JsValue[] elements, JsValue eventOptions, func()->void cancel) {
+    this.elements = elements;
+    this.eventOptions = eventOptions;
+    this.cancel = cancel;
+  }
+}
+
+export GestureSetup setupGesture(JsValue? elementOrSelector, JsValue options) {
+  JsValue[] elements = resolveElements(elementOrSelector);
+  JsValue AbortController = windowGet("AbortController");
+  JsValue gestureAbortController = constructConfigured(AbortController, record{});
+
+  JsValue eventOptions = record{};
+  eventOptions["passive"] = true;
+  for (string key in options) {
+    eventOptions[key] = options[key];
+  }
+  if (!(options["passive"] is bool)) {
+    eventOptions["passive"] = true;
+  }
+  eventOptions["signal"] = gestureAbortController["signal"];
+
+  return new GestureSetup(elements, eventOptions, () => {
+    callMethod0(gestureAbortController, "abort");
+  });
+}

@@ -1,0 +1,31 @@
+[javascript]
+priority = "balanced"
+optimization_level = 15
+cost_model = "brotli"
+function_spelling = "arrow"
+strip_console = true
+compression = [
+  "identifier-mangling",
+  "entropy-aware-mangling",
+  "quote-style-selection",
+  "string-pooling",
+  "size-aware-inlining",
+  "safe-integer-coercion-elision",
+  "compact-boolean-literals",
+  "standard-grammar-elision",
+  "structured-closure-inlining",
+  "regex-literals",
+  "unused-catch-binding-elision",
+  "compact-generator-star",
+  "callee-default-arguments",
+  "phi-affinity-coalescing",
+  "loop-spelling-selection",
+  "expression-superoptimization",
+  "path-sensitive-propagation",
+]
+
+[mangle]
+identifiers = true
+properties = true
+exports = false
+pool_strings = false

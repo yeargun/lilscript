@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "collection-geometry",
+  "title": "Collection building and local aggregate scalar replacement",
+  "hypothesis": "The typed point pipeline should expose collection fusion and scalar replacement while the equivalent JS keeps ordinary arrays and private object shapes visible to its minifiers.",
+  "tier": "small-structural",
+  "boundary": "runtime-host-script",
+  "structure": { "functions": 6, "modules": 1, "hostBoundaries": 2, "callDepth": 2 },
+  "opportunities": ["array-builder-fusion", "scalar-replacement", "aggregate-layout", "property-mangling", "safe-property-mangling", "range-analysis"],
+  "expectations": { "raw": "le", "gzip9": "le", "brotli11": "le" },
+  "vectors": [
+    { "name": "quadrants", "ints": [1, 2, 3, 4, -2, 5, 7, -3], "strings": [], "expected": "-5\n" },
+    { "name": "axes", "ints": [0, 8, 6, 0, -5, 0, 0, -9, 4, 4, -4, -4], "strings": [], "expected": "138\n" },
+    { "name": "dense", "ints": [3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5, 8, 9, 7, 9, 3], "strings": [], "expected": "1056\n" }
+  ]
+}

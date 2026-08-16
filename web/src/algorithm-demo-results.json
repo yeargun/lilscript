@@ -1,0 +1,226 @@
+{
+  "generatedAt": "2026-08-15T23:46:28.821Z",
+  "gate": "Each LilScript metric lane must satisfy its manifest le/lt relation against the independently minimized valid JavaScript baseline for that metric",
+  "cases": [
+    {
+      "id": "aggregate-ledger",
+      "title": "Private aggregate layout and property mangling",
+      "hypothesis": "A typed, non-escaping ledger gives LilScript enough ownership information to shorten its private representation while JS minifiers optimize an idiomatic object accumulator.",
+      "passed": true,
+      "tier": "small-structural",
+      "baseline": {
+        "id": "closure-advanced",
+        "tool": "google-closure-compiler",
+        "raw": 221,
+        "gzip": 182,
+        "brotli": 160
+      },
+      "lilscript": {
+        "raw": 170,
+        "gzip": 144,
+        "brotli": 117
+      },
+      "config": "comparison/algorithms/configs/brotli.toml"
+    },
+    {
+      "id": "collection-geometry",
+      "title": "Collection building and local aggregate scalar replacement",
+      "hypothesis": "The typed point pipeline should expose collection fusion and scalar replacement while the equivalent JS keeps ordinary arrays and private object shapes visible to its minifiers.",
+      "passed": true,
+      "tier": "small-structural",
+      "baseline": {
+        "id": "closure-advanced",
+        "tool": "google-closure-compiler",
+        "raw": 283,
+        "gzip": 210,
+        "brotli": 198
+      },
+      "lilscript": {
+        "raw": 233,
+        "gzip": 174,
+        "brotli": 144
+      },
+      "config": "comparison/algorithms/configs/brotli.toml"
+    },
+    {
+      "id": "dictionary-template-router",
+      "title": "Cross-module token dictionaries and layout ordering",
+      "hypothesis": "Repeated keyword, prefix, suffix, and result-label vocabularies make helper layout and string-dictionary choices interact with both minification and codec windows while all tokens remain runtime supplied.",
+      "passed": true,
+      "tier": "medium-structural",
+      "baseline": {
+        "id": "closure-advanced",
+        "tool": "google-closure-compiler",
+        "raw": 594,
+        "gzip": 376,
+        "brotli": 335
+      },
+      "lilscript": {
+        "raw": 570,
+        "gzip": 336,
+        "brotli": 295
+      },
+      "config": "comparison/algorithms/configs/brotli.toml"
+    },
+    {
+      "id": "helper-sharing",
+      "title": "Inlining versus parameterized helper sharing",
+      "hypothesis": "Across a real module edge, exact codec scoring should choose between retaining the repeated affine helper and inlining its call chain as effectively as JS bundlers and minifiers.",
+      "passed": true,
+      "tier": "medium-structural",
+      "baseline": {
+        "id": "closure-advanced",
+        "tool": "google-closure-compiler",
+        "raw": 216,
+        "gzip": 176,
+        "brotli": 149
+      },
+      "lilscript": {
+        "raw": 169,
+        "gzip": 145,
+        "brotli": 120
+      },
+      "config": "comparison/algorithms/configs/brotli.toml"
+    },
+    {
+      "id": "large-event-analytics",
+      "title": "Large six-module event analytics graph",
+      "hypothesis": "A six-module pipeline forces global choices across helper reuse, export reachability, private aggregate layout, property and identifier mangling, string dictionaries, branch recovery, and declaration order. Every module contributes to the runtime result, while one meaningful diagnostic export remains unreachable from the closed script entry.",
+      "passed": false,
+      "tier": "large-structural",
+      "baseline": {
+        "id": "closure-advanced",
+        "tool": "google-closure-compiler",
+        "raw": 853,
+        "gzip": 489,
+        "brotli": 425
+      },
+      "lilscript": {
+        "raw": 796,
+        "gzip": 483,
+        "brotli": 429
+      },
+      "config": "comparison/algorithms/configs/brotli.toml"
+    },
+    {
+      "id": "policy-specialization",
+      "title": "Cross-module policy specialization and dead audit removal",
+      "hypothesis": "A constant-disabled audit path and repeated static policy structure should let whole-program specialization, inlining, and DCE remove more than a narrow call-site view while preserving dynamic scoring inputs.",
+      "passed": true,
+      "tier": "medium-structural",
+      "baseline": {
+        "id": "closure-advanced-module-graph",
+        "tool": "google-closure-compiler",
+        "raw": 290,
+        "gzip": 204,
+        "brotli": 179
+      },
+      "lilscript": {
+        "raw": 289,
+        "gzip": 202,
+        "brotli": 176
+      },
+      "config": "comparison/algorithms/configs/brotli.toml"
+    },
+    {
+      "id": "shape-invoice-pipeline",
+      "title": "Cross-module invoice shapes and scalar replacement",
+      "hypothesis": "Non-escaping line and summary shapes cross a helper-module boundary but remain wholly owned, exposing layout, property mangling, scalar replacement, repeated-call elimination, and helper inlining decisions.",
+      "passed": true,
+      "tier": "medium-structural",
+      "baseline": {
+        "id": "closure-advanced-module-graph",
+        "tool": "google-closure-compiler",
+        "raw": 452,
+        "gzip": 298,
+        "brotli": 261
+      },
+      "lilscript": {
+        "raw": 327,
+        "gzip": 222,
+        "brotli": 192
+      },
+      "config": "comparison/algorithms/configs/brotli.toml"
+    },
+    {
+      "id": "state-machine-parser",
+      "title": "Structured control flow and state-machine contraction",
+      "hypothesis": "Typed character classes and state transitions should let LilScript contract the parser's call graph and structured branches without losing the early-stop behavior that JS minifiers observe.",
+      "passed": true,
+      "tier": "small-structural",
+      "baseline": {
+        "id": "closure-advanced",
+        "tool": "google-closure-compiler",
+        "raw": 352,
+        "gzip": 263,
+        "brotli": 244
+      },
+      "lilscript": {
+        "raw": 333,
+        "gzip": 254,
+        "brotli": 212
+      },
+      "config": "comparison/algorithms/configs/brotli.toml"
+    },
+    {
+      "id": "stateful-packet-decoder",
+      "title": "Cross-module packet state recovery",
+      "hypothesis": "A multi-stage hexadecimal packet parser makes character classification, helper reuse, state transitions, early exits, and checksum spelling compete as one whole-program decision.",
+      "passed": true,
+      "tier": "medium-structural",
+      "baseline": {
+        "id": "closure-advanced-module-graph",
+        "tool": "google-closure-compiler",
+        "raw": 540,
+        "gzip": 341,
+        "brotli": 313
+      },
+      "lilscript": {
+        "raw": 500,
+        "gzip": 327,
+        "brotli": 287
+      },
+      "config": "comparison/algorithms/configs/brotli.toml"
+    },
+    {
+      "id": "static-rule-engine",
+      "title": "Static rule propagation and dead branch removal",
+      "hypothesis": "Both implementations expose the same unreachable audit branch and reusable static rules, so whole-program propagation, DCE, specialization, and inlining must jointly choose a compact result.",
+      "passed": true,
+      "tier": "small-structural",
+      "baseline": {
+        "id": "closure-advanced",
+        "tool": "google-closure-compiler",
+        "raw": 326,
+        "gzip": 215,
+        "brotli": 188
+      },
+      "lilscript": {
+        "raw": 339,
+        "gzip": 216,
+        "brotli": 176
+      },
+      "config": "comparison/algorithms/configs/brotli.toml"
+    },
+    {
+      "id": "string-dictionary",
+      "title": "String dictionaries, repetition, and declaration order",
+      "hypothesis": "Repeated keywords, prefixes, and labels make dictionary spelling and declaration order interact with raw and codec costs while dynamic tokens prevent whole-result folding.",
+      "passed": true,
+      "tier": "small-structural",
+      "baseline": {
+        "id": "terser",
+        "tool": "terser",
+        "raw": 471,
+        "gzip": 299,
+        "brotli": 246
+      },
+      "lilscript": {
+        "raw": 385,
+        "gzip": 252,
+        "brotli": 205
+      },
+      "config": "comparison/algorithms/configs/brotli.toml"
+    }
+  ]
+}

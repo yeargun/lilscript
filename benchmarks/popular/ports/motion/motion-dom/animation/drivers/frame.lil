@@ -1,0 +1,24 @@
+import { cancelFrame, frame, frameData } from "../../frameloop/frame";
+import { time } from "../../frameloop/sync-time";
+import { FrameData } from "../../frameloop/types";
+import { DriverControls } from "./types";
+
+export DriverControls frameloopDriver(func(float)->void update) {
+  func(FrameData)->void passTimestamp = (FrameData data) => {
+    update(data.timestamp);
+  };
+  return new DriverControls(
+    (bool keepAlive = true) => {
+      frame.update(passTimestamp, keepAlive, false);
+    },
+    () => {
+      cancelFrame(passTimestamp);
+    },
+    () => {
+      if (frameData.isProcessing) {
+        return frameData.timestamp;
+      }
+      return time.now();
+    }
+  );
+}

@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "policy-specialization",
+  "title": "Cross-module policy specialization and dead audit removal",
+  "hypothesis": "A constant-disabled audit path and repeated static policy structure should let whole-program specialization, inlining, and DCE remove more than a narrow call-site view while preserving dynamic scoring inputs.",
+  "tier": "medium-structural",
+  "boundary": "runtime-host-script",
+  "structure": { "functions": 8, "modules": 2, "hostBoundaries": 2, "callDepth": 4 },
+  "opportunities": ["static-propagation", "dead-code-elimination", "cross-module-inlining", "specialization", "branch-folding"],
+  "expectations": { "raw": "le", "gzip9": "le", "brotli11": "le" },
+  "vectors": [
+    { "name": "mixed", "ints": [0, 12, 5, 1, -9, 90, 2, 33, 44, 3, -7, -1], "strings": [], "expected": "368\n" },
+    { "name": "clamped", "ints": [0, 200, 100, 1, -180, 20, 2, 150, 70, 3, -200, 82], "strings": [], "expected": "2068\n" },
+    { "name": "bands", "ints": [0, 5, -2, 1, 5, 0, 2, 5, 41, 3, 5, 81, 2, -5, 80], "strings": [], "expected": "99\n" }
+  ]
+}

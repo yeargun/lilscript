@@ -1,0 +1,208 @@
+import { MotionGlobalConfig } from "../../../motion-utils/global-config";
+import { secondsToMilliseconds } from "../../../motion-utils/time-conversion";
+import { AsyncMotionValueAnimation } from "../AsyncMotionValueAnimationJs";
+import { makeAnimationInstant } from "../utils/make-animation-instant";
+import { getValueTransition } from "../utils/get-value-transition";
+import { getDefaultTransition } from "../utils/default-transitions";
+import { getFinalKeyframe } from "../keyframes/get-final";
+import { isTransitionDefined } from "../utils/is-transition-defined";
+import { frame } from "../../frameloop/frame";
+import { FrameData } from "../../frameloop/types";
+import { MotionValue } from "../../value/index";
+import { motionValueOf } from "../../cast";
+import {
+  callFn0,
+  callFn1,
+  callMethod2,
+  isFunction,
+  windowGet
+} from "../../dom-host";
+
+void assignRecord(JsValue target, JsValue source) {
+  if (source.isObject()) {
+    callMethod2(windowGet("Object"), "assign", target, source);
+  }
+}
+
+bool isExactlyFalse(JsValue value) {
+  return value is bool && value == false;
+}
+
+bool isExactlyZero(JsValue value) {
+  return value is float && value == 0.0;
+}
+
+export func(func()->void)->JsValue? animateMotionValue(
+  string name,
+  JsValue value,
+  JsValue target,
+  JsValue? transition = null,
+  JsValue? element = null,
+  bool isHandoff = false
+) {
+  JsValue transitionObj = transition;
+  if (transitionObj == null) {
+    transitionObj = record{};
+  }
+  MotionValue motion = motionValueOf(value);
+  return (func()->void onComplete) => {
+    JsValue valueTransition = getValueTransition(transitionObj, name);
+    if (valueTransition == null) {
+      valueTransition = record{};
+    }
+    float delay = 0.0;
+    JsValue delayValue = valueTransition["delay"];
+    if (delayValue is float) {
+      delay = delayValue;
+    } else {
+      JsValue transitionDelay = transitionObj["delay"];
+      if (transitionDelay is float) {
+        delay = transitionDelay;
+      }
+    }
+    float elapsed = 0.0;
+    JsValue elapsedValue = transitionObj["elapsed"];
+    if (elapsedValue is float) {
+      elapsed = elapsedValue;
+    }
+    elapsed = elapsed - secondsToMilliseconds(delay);
+    JsValue[] keyframes = [];
+    if (target.isArray()) {
+      int len = target.length.toInt();
+      for (int i = 0; i < len; i++) {
+        keyframes.push(target[i]);
+      }
+    } else {
+      keyframes.push(null);
+      keyframes.push(target);
+    }
+    JsValue options = record{
+      keyframes: keyframes,
+      ease: "easeOut",
+      velocity: motion.getVelocity(),
+      delay: 0.0 - elapsed,
+      name: name,
+      motionValue: value
+    };
+    assignRecord(options, valueTransition);
+    JsValue transitionDuration = valueTransition["duration"];
+    if (transitionDuration is float) {
+      options["duration"] = transitionDuration;
+    }
+    JsValue transitionType = valueTransition["type"];
+    if (transitionType is bool || transitionType is string || transitionType.truthy()) {
+      options["type"] = transitionType;
+    }
+    JsValue transitionEase = valueTransition["ease"];
+    if (transitionEase is string || transitionEase.truthy()) {
+      options["ease"] = transitionEase;
+    }
+    options["delay"] = 0.0 - elapsed;
+    options["onUpdate"] = (JsValue v) => {
+      motion.set(v);
+      JsValue onUpdate = valueTransition["onUpdate"];
+      if (isFunction(onUpdate)) {
+        callFn1(onUpdate, v);
+      }
+    };
+    options["onComplete"] = () => {
+      onComplete();
+      JsValue onComp = valueTransition["onComplete"];
+      if (isFunction(onComp)) {
+        callFn0(onComp);
+      }
+    };
+    if (!isHandoff) {
+      options["element"] = element;
+    }
+    if (!isTransitionDefined(valueTransition)) {
+      JsValue defaults = getDefaultTransition(name, options);
+      for (string key in defaults) {
+        if (!(options[key].truthy()) && !(options[key] is float) && !(options[key] is bool) && !(options[key] is string)) {
+          options[key] = defaults[key];
+        }
+      }
+      for (string key in defaults) {
+        bool missing = !(
+          (options[key] is float) ||
+          (options[key] is string) ||
+          (options[key] is bool) ||
+          options[key].isArray() ||
+          (options[key].isObject() && options[key].truthy())
+        );
+        if (missing) {
+          options[key] = defaults[key];
+        }
+      }
+    }
+    JsValue durationValue = options["duration"];
+    if (durationValue is float) {
+      options["duration"] = secondsToMilliseconds(durationValue);
+    }
+    JsValue repeatDelayValue = options["repeatDelay"];
+    if (repeatDelayValue is float) {
+      options["repeatDelay"] = secondsToMilliseconds(repeatDelayValue);
+    }
+    JsValue fromValue = options["from"];
+    if ((fromValue is float) || (fromValue is string)) {
+      options["keyframes"][0] = fromValue;
+    }
+    bool shouldSkip = false;
+    if (isExactlyFalse(options["type"]) || (isExactlyZero(options["duration"]) && !(options["repeatDelay"] is float && options["repeatDelay"] != 0.0))) {
+      makeAnimationInstant(options);
+      if (isExactlyZero(options["delay"])) {
+        shouldSkip = true;
+      }
+    }
+    bool skipGlobal = MotionGlobalConfig.instantAnimations == true || MotionGlobalConfig.skipAnimations == true;
+    if (element != null) {
+      JsValue skipFlag = element["shouldSkipAnimations"];
+      if (skipFlag is bool && skipFlag == true) {
+        skipGlobal = true;
+      }
+    }
+    if (valueTransition["skipAnimations"].truthy()) {
+      skipGlobal = true;
+    }
+    if (skipGlobal) {
+      shouldSkip = true;
+      makeAnimationInstant(options);
+      options["delay"] = 0.0;
+    }
+    options["allowFlatten"] = !valueTransition["type"].truthy() && !valueTransition["ease"].truthy();
+    if (shouldSkip && !isHandoff) {
+      JsValue? current = motion.current;
+      bool hasCurrent =
+        current != null && (
+          (current is float) ||
+          (current is string) ||
+          (current is bool) ||
+          current.isArray() ||
+          (current.isObject() && current.truthy())
+        );
+      if (hasCurrent) {
+        JsValue finalKeyframe = getFinalKeyframe(options["keyframes"], valueTransition);
+        bool hasFinal =
+          (finalKeyframe is float) ||
+          (finalKeyframe is string) ||
+          (finalKeyframe is bool) ||
+          finalKeyframe.isArray() ||
+          (finalKeyframe.isObject() && finalKeyframe.truthy());
+        if (hasFinal) {
+          frame.update((FrameData _d) => {
+            JsValue onUpdate = options["onUpdate"];
+            if (isFunction(onUpdate)) {
+              callFn1(onUpdate, finalKeyframe);
+            }
+            JsValue onComp = options["onComplete"];
+            if (isFunction(onComp)) {
+              callFn0(onComp);
+            }
+          }, false, false);
+          return null;
+        }
+      }
+    }
+    return new AsyncMotionValueAnimation(options);
+  };
+}

@@ -1,10 +1,10 @@
 # Selected-entrypoint performance and retained-memory checks
 
-Median of 5 isolated Node v24.11.1 processes. Time workloads use identical inputs and checksums; retained memory is the unclamped heap-used delta after forced GC while keeping equivalent results or emitter state alive. Nano ID compares the same published browser entrypoint used by the size lane, not its distinct pooled Node entrypoint. Ratios are LilScript / npm. Eligible exact ports must remain at or below 1.05 for both median time and retained memory.
+Median of 1 isolated Node v22.21.1 processes. LilScript runtime uses the Brotli-objective modules emitted by the preceding size build with explicit `lilscript.toml`; raw and gzip diagnostics do not select a runtime artifact. Time workloads use identical inputs and checksums; retained memory is the unclamped heap-used delta after forced GC while keeping equivalent results or emitter state alive. Nano ID compares the same published browser entrypoint used by the size lane, not its distinct pooled Node entrypoint. Ratios are LilScript / npm. Eligible exact ports must remain at or below 1.05 for both median time and retained memory.
 
 | Project | npm ms | LilScript ms | Time ratio | npm retained B | LilScript retained B | Memory ratio |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| nanoid | 7.886 | 7.958 | 1.009 | 664296 | 669472 | 1.008 |
-| mitt | 7.631 | 7.744 | 1.015 | 2093120 | 2094168 | 1.001 |
-| clsx | 9.691 | 9.631 | 0.994 | 1789928 | 1791000 | 1.001 |
-| gl-matrix | 1.218 | 1.243 | 1.020 | 1942368 | 1947192 | 1.002 |
+| nanoid | 6.809 | 7.027 | 1.032 | 619432 | 618208 | 0.998 |
+| mitt | 25.051 | 19.248 | 0.768 | 2088760 | 2088832 | 1.000 |
+| clsx | 26.717 | 27.746 | 1.039 | 1785952 | 1786784 | 1.000 |
+| gl-matrix | 2.853 | 2.317 | 0.812 | 1813368 | 1823264 | 1.005 |

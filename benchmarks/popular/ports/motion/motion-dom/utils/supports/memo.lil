@@ -1,0 +1,13 @@
+import { memo } from "../../../motion-utils/memo";
+import { supportsFlags } from "./flags";
+
+export func()->bool memoSupports(func()->bool callback, string supportsFlag) {
+  func()->bool memoized = memo(callback);
+  return () => {
+    bool? flag = supportsFlags.get(supportsFlag);
+    if (flag != null) {
+      return flag;
+    }
+    return memoized();
+  };
+}

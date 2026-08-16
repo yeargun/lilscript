@@ -1,0 +1,33 @@
+import { animate } from "../../../../benchmarks/popular/ports/motion/framer-motion/animation/animate/element";
+import { animateMini } from "../../../../benchmarks/popular/ports/motion/framer-motion/animation/animators/waapi/animate-style";
+import { spring, SpringGenerator } from "../../../../benchmarks/popular/ports/motion/motion-dom/animation/generators/spring";
+import {
+  documentCreateElement,
+  documentGet,
+  callMethod1
+} from "../../../../benchmarks/popular/ports/motion/motion-dom/dom-host";
+
+string keep = "animate|animateMini|spring";
+
+SpringGenerator gen = spring(
+  record{
+    keyframes: [0.0, 100.0],
+    stiffness: 170.0,
+    damping: 26.0,
+    mass: 1.0
+  }
+);
+float digest = 0.0;
+for (int t = 0; t <= 256; t = t + 16) {
+  digest = digest + (gen.next(t).value * 1000.0).round();
+}
+
+JsValue mini = documentCreateElement("div");
+JsValue js = documentCreateElement("div");
+JsValue body = documentGet("body");
+callMethod1(body, "append", mini);
+callMethod1(body, "append", js);
+animateMini(mini, record{ transform: "translateX(100px)" }, record{ duration: 0.2 });
+animate(js, record{ x: 100.0 }, record{ duration: 0.2 });
+
+print(`animate-play:${keep}:${digest}`);

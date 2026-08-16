@@ -1,0 +1,2522 @@
+Effect[] effects = [];
+Owner[] owners = [];
+int[] freeEffectIds = [];
+int[] freeOwnerIds = [];
+int activeListenerId = -1;
+int activeEffectId = -1;
+int activeOwnerId = -1;
+int batchDepth = 0;
+int executionDepth = 0;
+bool flushing = false;
+bool relaxedDependencyWrite = false;
+int[] pendingEffects = [];
+int pendingStart = 0;
+int nextContextId = 0;
+int nextUniqueId = 0;
+int nextTaskId = 1;
+Task[] schedulerTasks = [];
+bool callbackFlushScheduled = false;
+func(func()->void)->void hostScheduler = (func()->void callback) => {};
+func()->SuspenseState? suspenseResolver = () => null;
+
+class Cleanup {
+  func()->void callback;
+
+  init(func()->void callback) {
+    this.callback = callback;
+  }
+
+  void run() {
+    func()->void callback = this.callback;
+    callback();
+  }
+}
+
+export class Task {
+  int id;
+  func(bool)->void callback;
+  int timeout;
+  bool cancelled;
+
+  init(int id, func(bool)->void callback, int timeout) {
+    this.id = id;
+    this.callback = callback;
+    this.timeout = timeout;
+    this.cancelled = false;
+  }
+
+  void run() {
+    if (!this.cancelled) {
+      this.cancelled = true;
+      func(bool)->void callback = this.callback;
+      callback(false);
+    }
+  }
+}
+
+export class Owner {
+  int id;
+  int parentKind;
+  int parentId;
+  int[] effectIds;
+  int[] ownerIds;
+  Cleanup[] cleanups;
+  OwnerHandle? handle;
+  bool disposed;
+
+  init(int id, int parentKind, int parentId) {
+    this.id = id;
+    this.parentKind = parentKind;
+    this.parentId = parentId;
+    this.effectIds = [];
+    this.ownerIds = [];
+    this.cleanups = [];
+    this.handle = null;
+    this.disposed = false;
+  }
+}
+
+export class OwnerHandle {
+  int kind;
+  int id;
+  OwnerHandle? owner;
+
+  init(int kind, int id, OwnerHandle? owner) {
+    this.kind = kind;
+    this.id = id;
+    this.owner = owner;
+  }
+
+}
+
+export class Signal<T> {
+  T value;
+  int[] observerIds;
+  func(T,T)->bool equals;
+  int level;
+  int producerEffectId;
+
+  init(T initial, func(T,T)->bool equals) {
+    this.value = initial;
+    this.observerIds = [];
+    this.equals = equals;
+    this.level = 0;
+    this.producerEffectId = -1;
+  }
+
+  bool subscribe(int effectId) {
+    for (int index = 0; index < this.observerIds.length; index++) {
+      if (this.observerIds[index] == effectId) {
+        return false;
+      }
+    }
+    this.observerIds.push(effectId);
+    return true;
+  }
+
+  void unsubscribe(int effectId) {
+    for (int index = 0; index < this.observerIds.length; index++) {
+      if (this.observerIds[index] == effectId) {
+        int last = this.observerIds.length - 1;
+        this.observerIds[index] = this.observerIds[last];
+        this.observerIds.pop();
+        return;
+      }
+    }
+  }
+
+  T read() {
+    if (activeListenerId < 0 && this.producerEffectId < 0) {
+      return this.value;
+    }
+    if (
+      activeListenerId >= 0 &&
+      this.producerEffectId >= 0 &&
+      this.producerEffectId == activeEffectId
+    ) {
+      throw "Circular memo dependency detected.";
+    }
+    if (
+      this.producerEffectId >= 0 &&
+      this.producerEffectId != activeEffectId &&
+      !(
+        activeEffectId >= 0 &&
+        !effects[activeEffectId].memoComputation &&
+        !effects[activeEffectId].hasRun
+      )
+    ) {
+      ensureEffectFresh(this.producerEffectId);
+    }
+    if (activeListenerId >= 0) {
+      int effectId = activeListenerId;
+      int dependencyLevel = this.level + 1;
+      if (dependencyLevel > effects[effectId].level) {
+        effects[effectId].level = dependencyLevel;
+      }
+      if (this.producerEffectId >= 0) {
+        effects[effectId].addSourceEffect(this.producerEffectId);
+      }
+      if (this.subscribe(effectId)) {
+        effects[effectId].sources.push(JS.assume(this));
+      }
+    }
+    return this.value;
+  }
+
+  T write(T next) {
+    if (activeEffectId >= 0 && effects[activeEffectId].memoComputation) {
+      this.level = effects[activeEffectId].level;
+      this.producerEffectId = activeEffectId;
+    }
+    func(T,T)->bool equals = this.equals;
+    if (equals(this.value, next)) {
+      return next;
+    }
+    this.value = next;
+    scheduleObservers(this.observerIds);
+    return next;
+  }
+
+  T update(func(T)->T updater) {
+    return this.write(updater(this.value));
+  }
+}
+
+export class Effect {
+  int id;
+  int parentKind;
+  int parentId;
+  func()->void callback;
+  Signal<JsValue>[] sources;
+  int[] childEffectIds;
+  int[] childOwnerIds;
+  Cleanup[] cleanups;
+  OwnerHandle? handle;
+  bool memoComputation;
+  bool hasRun;
+  bool disposed;
+  bool queued;
+  int level;
+  int[] sourceEffectIds;
+
+  init(
+    int id,
+    int parentKind,
+    int parentId,
+    func()->void callback,
+    bool memoComputation
+  ) {
+    this.id = id;
+    this.parentKind = parentKind;
+    this.parentId = parentId;
+    this.callback = callback;
+    this.sources = [];
+    this.childEffectIds = [];
+    this.childOwnerIds = [];
+    this.cleanups = [];
+    this.handle = null;
+    this.memoComputation = memoComputation;
+    this.hasRun = false;
+    this.disposed = false;
+    this.queued = false;
+    this.level = 0;
+    this.sourceEffectIds = [];
+  }
+
+  void addSourceEffect(int effectId) {
+    for (int index = 0; index < this.sourceEffectIds.length; index++) {
+      if (this.sourceEffectIds[index] == effectId) {
+        return;
+      }
+    }
+    this.sourceEffectIds.push(effectId);
+  }
+
+  void clearOwned() {
+    while (this.childOwnerIds.length > 0) {
+      int index = this.childOwnerIds.length - 1;
+      int ownerId = this.childOwnerIds[index];
+      this.childOwnerIds.pop();
+      disposeOwner(ownerId);
+    }
+    while (this.childEffectIds.length > 0) {
+      int index = this.childEffectIds.length - 1;
+      int effectId = this.childEffectIds[index];
+      this.childEffectIds.pop();
+      disposeEffect(effectId);
+    }
+    while (this.cleanups.length > 0) {
+      int index = this.cleanups.length - 1;
+      Cleanup cleanup = this.cleanups[index];
+      this.cleanups.pop();
+      cleanup.run();
+    }
+  }
+
+  void unsubscribe() {
+    while (this.sources.length > 0) {
+      int index = this.sources.length - 1;
+      Signal<JsValue> source = this.sources[index];
+      this.sources.pop();
+      source.unsubscribe(this.id);
+    }
+  }
+
+  void run() {
+    if (this.disposed) {
+      return;
+    }
+    this.clearOwned();
+    this.unsubscribe();
+    int previousListener = activeListenerId;
+    int previousEffect = activeEffectId;
+    int previousOwner = activeOwnerId;
+    activeListenerId = this.id;
+    activeEffectId = this.id;
+    activeOwnerId = -1;
+    this.level = 0;
+    this.sourceEffectIds = [];
+    executionDepth += 1;
+    func()->void callback = this.callback;
+    callback();
+    this.hasRun = true;
+    executionDepth -= 1;
+    activeListenerId = previousListener;
+    activeEffectId = previousEffect;
+    activeOwnerId = previousOwner;
+    flushEffects();
+  }
+}
+
+export class Context<T> {
+  int id;
+  T defaultValue;
+  int[] ownerKinds;
+  int[] ownerIds;
+  T[] values;
+
+  init(int id, T defaultValue) {
+    this.id = id;
+    this.defaultValue = defaultValue;
+    this.ownerKinds = [];
+    this.ownerIds = [];
+    this.values = [];
+  }
+
+  T read() {
+    int kind = 0;
+    int id = -1;
+    if (activeEffectId >= 0) {
+      kind = 2;
+      id = activeEffectId;
+    } else if (activeOwnerId >= 0) {
+      kind = 1;
+      id = activeOwnerId;
+    }
+    while (kind != 0) {
+      for (int index = this.ownerIds.length - 1; index >= 0; index--) {
+        if (this.ownerKinds[index] == kind && this.ownerIds[index] == id) {
+          return this.values[index];
+        }
+      }
+      int parentKind = 0;
+      int parentId = -1;
+      if (kind == 1) {
+        parentKind = owners[id].parentKind;
+        parentId = owners[id].parentId;
+      } else {
+        parentKind = effects[id].parentKind;
+        parentId = effects[id].parentId;
+      }
+      kind = parentKind;
+      id = parentId;
+    }
+    return this.defaultValue;
+  }
+
+  void removeProvider(int kind, int id) {
+    for (int index = this.ownerIds.length - 1; index >= 0; index--) {
+      if (this.ownerKinds[index] == kind && this.ownerIds[index] == id) {
+        int last = this.ownerIds.length - 1;
+        this.ownerKinds[index] = this.ownerKinds[last];
+        this.ownerIds[index] = this.ownerIds[last];
+        this.values[index] = this.values[last];
+        this.ownerKinds.pop();
+        this.ownerIds.pop();
+        this.values.pop();
+        return;
+      }
+    }
+  }
+
+  U provide<U>(T value, func()->U children) {
+    return createRootWithOwner((func()->void dispose) => {
+      OwnerHandle? owner = getOwner();
+      if (owner != null) {
+        int kind = owner.kind;
+        int id = owner.id;
+        this.ownerKinds.push(kind);
+        this.ownerIds.push(id);
+        this.values.push(value);
+        onCleanup(() => this.removeProvider(kind, id));
+      }
+      return children();
+    }, getOwner(), true);
+  }
+}
+
+export class Selector<T> {
+  Signal<T> source;
+  func(T,T)->bool equals;
+  T[] keys;
+  Signal<bool>[] matches;
+
+  init(Signal<T> source, func(T,T)->bool equals) {
+    this.source = source;
+    this.equals = equals;
+    this.keys = [];
+    this.matches = [];
+    createComputed(() => {
+      T value = this.source.read();
+      func(T,T)->bool comparator = this.equals;
+      for (int index = 0; index < this.keys.length; index++) {
+        this.matches[index].write(comparator(this.keys[index], value));
+      }
+    });
+  }
+
+  bool selected(T key) {
+    func(T,T)->bool comparator = this.equals;
+    for (int index = 0; index < this.keys.length; index++) {
+      if (comparator(this.keys[index], key)) {
+        return this.matches[index].read();
+      }
+    }
+    Signal<bool> matchSignal = new Signal(
+      comparator(key, this.source.value),
+      strictBoolEquals
+    );
+    this.keys.push(key);
+    this.matches.push(matchSignal);
+    return matchSignal.read();
+  }
+}
+
+class Reaction {
+  int effectId;
+  bool armed;
+  func()->void onInvalidate;
+
+  init(func()->void onInvalidate) {
+    this.effectId = -1;
+    this.armed = false;
+    this.onInvalidate = onInvalidate;
+  }
+
+  void observe(func()->void tracking) {
+    if (this.effectId >= 0) {
+      disposeEffect(this.effectId);
+      this.effectId = -1;
+    }
+    this.armed = false;
+    this.effectId = createComputation(() => {
+      tracking();
+      if (this.armed) {
+        func()->void callback = this.onInvalidate;
+        int previousListener = activeListenerId;
+        activeListenerId = -1;
+        callback();
+        activeListenerId = previousListener;
+        disposeEffect(this.effectId);
+        this.effectId = -1;
+      } else {
+        this.armed = true;
+      }
+    }, false, false);
+  }
+}
+
+class OnState {
+  bool initialized;
+
+  init() {
+    this.initialized = false;
+  }
+}
+
+class OnValueState<T> {
+  bool initialized;
+  T previous;
+
+  init(T initial) {
+    this.initialized = false;
+    this.previous = initial;
+  }
+}
+
+class MappedArrayState<T,U> {
+  T[] items;
+  U[] mapped;
+  Cleanup[] disposers;
+  Signal<int>[] indexes;
+
+  init() {
+    this.items = [];
+    this.mapped = [];
+    this.disposers = [];
+    this.indexes = [];
+  }
+
+  void dispose() {
+    for (int index = this.disposers.length - 1; index >= 0; index--) {
+      this.disposers[index].run();
+    }
+    this.items = [];
+    this.mapped = [];
+    this.disposers = [];
+    this.indexes = [];
+  }
+
+  U[] reconcile(T[] next, func(T,Signal<int>)->U mapFn) {
+    if (next.length == 0) {
+      this.dispose();
+      return this.mapped;
+    }
+    if (this.items.length == 0) {
+      U[] nextMapped = [];
+      Cleanup[] nextDisposers = [];
+      Signal<int>[] nextIndexes = [];
+      for (int nextIndex = 0; nextIndex < next.length; nextIndex++) {
+        T nextItem = next[nextIndex];
+        Signal<int> indexSignal = new Signal(nextIndex, strictIntEquals);
+        Cleanup rootDisposer = new Cleanup(() => {});
+        U mappedValue = createRootWithOwner((func()->void dispose) => {
+          rootDisposer.callback = dispose;
+          return mapFn(nextItem, indexSignal);
+        }, null);
+        nextMapped.push(mappedValue);
+        nextDisposers.push(rootDisposer);
+        nextIndexes.push(indexSignal);
+      }
+      this.items = next.slice();
+      this.mapped = nextMapped;
+      this.disposers = nextDisposers;
+      this.indexes = nextIndexes;
+      return nextMapped;
+    }
+    if (this.items.length == next.length) {
+      int first = -1;
+      int second = -1;
+      bool many = false;
+      for (int index = 0; index < next.length; index++) {
+        if (this.items[index] == next[index]) {
+          continue;
+        }
+        if (first < 0) {
+          first = index;
+        } else if (second < 0) {
+          second = index;
+        } else {
+          many = true;
+          break;
+        }
+      }
+      if (
+        !many &&
+        first >= 0 &&
+        second >= 0 &&
+        this.items[first] == next[second] &&
+        this.items[second] == next[first]
+      ) {
+        U[] swapped = this.mapped.slice();
+        U mappedValue = swapped[first];
+        swapped[first] = swapped[second];
+        swapped[second] = mappedValue;
+        T item = this.items[first];
+        this.items[first] = this.items[second];
+        this.items[second] = item;
+        Cleanup disposer = this.disposers[first];
+        this.disposers[first] = this.disposers[second];
+        this.disposers[second] = disposer;
+        Signal<int> indexSignal = this.indexes[first];
+        this.indexes[first] = this.indexes[second];
+        this.indexes[second] = indexSignal;
+        this.indexes[first].write(first);
+        this.indexes[second].write(second);
+        this.mapped = swapped;
+        return swapped;
+      }
+    } else if (next.length == this.items.length - 1) {
+      int removed = -1;
+      int offset = 0;
+      for (int index = 0; index < this.items.length; index++) {
+        int nextIndex = index - offset;
+        if (
+          offset == 0 &&
+          (nextIndex >= next.length || this.items[index] != next[nextIndex])
+        ) {
+          removed = index;
+          offset = 1;
+          continue;
+        }
+        if (nextIndex >= next.length || this.items[index] != next[nextIndex]) {
+          removed = -1;
+          break;
+        }
+      }
+      if (removed >= 0 && offset == 1) {
+        this.disposers[removed].run();
+        U[] nextMapped = this.mapped.slice(0, removed).concat(
+          this.mapped.slice(removed + 1)
+        );
+        this.items = this.items.slice(0, removed).concat(
+          this.items.slice(removed + 1)
+        );
+        this.disposers = this.disposers.slice(0, removed).concat(
+          this.disposers.slice(removed + 1)
+        );
+        this.indexes = this.indexes.slice(0, removed).concat(
+          this.indexes.slice(removed + 1)
+        );
+        for (int index = removed; index < this.indexes.length; index++) {
+          this.indexes[index].write(index);
+        }
+        this.mapped = nextMapped;
+        return nextMapped;
+      }
+    }
+    Set<int> used = new Set<int>();
+    // Solid reserves equal prefix and suffix rows before matching the middle.
+    // This is observable for duplicate keys because it determines which owned
+    // row and cleanup survive a reconciliation.
+    int shared = this.items.length;
+    if (next.length < shared) {
+      shared = next.length;
+    }
+    int start = 0;
+    while (start < shared && this.items[start] == next[start]) {
+      start += 1;
+    }
+    int oldEnd = this.items.length - 1;
+    int nextEnd = next.length - 1;
+    while (
+      oldEnd >= start &&
+      nextEnd >= start &&
+      this.items[oldEnd] == next[nextEnd]
+    ) {
+      oldEnd -= 1;
+      nextEnd -= 1;
+    }
+
+    Map<JsValue,int[]> positions = new Map<JsValue,int[]>();
+    Map<JsValue,int> offsets = new Map<JsValue,int>();
+    for (int oldIndex = start; oldIndex <= oldEnd; oldIndex++) {
+      T oldItem = this.items[oldIndex];
+      JsValue oldKey = JS.assume(oldItem);
+      int[]? itemPositions = positions.get(oldKey);
+      if (itemPositions == null) {
+        int[] createdPositions = [];
+        createdPositions.push(oldIndex);
+        positions.set(oldKey, createdPositions);
+      } else {
+        itemPositions.push(oldIndex);
+      }
+    }
+
+    T[] nextItems = [];
+    U[] nextMapped = [];
+    Cleanup[] nextDisposers = [];
+    Signal<int>[] nextIndexes = [];
+    for (int nextIndex = 0; nextIndex < next.length; nextIndex++) {
+      T nextItem = next[nextIndex];
+      int matched = -1;
+      if (nextIndex < start) {
+        matched = nextIndex;
+      } else if (nextIndex > nextEnd) {
+        matched = oldEnd + nextIndex - nextEnd;
+      } else {
+        JsValue nextKey = JS.assume(nextItem);
+        int[]? itemPositions = positions.get(nextKey);
+        if (itemPositions != null) {
+          int? storedOffset = offsets.get(nextKey);
+          int offset = 0;
+          if (storedOffset != null) {
+            offset = storedOffset;
+          }
+          if (offset < itemPositions.length) {
+            matched = itemPositions[offset];
+            offsets.set(nextKey, offset + 1);
+          }
+        }
+      }
+      if (matched >= 0) {
+        used.add(matched);
+        this.indexes[matched].write(nextIndex);
+        nextMapped.push(this.mapped[matched]);
+        nextDisposers.push(this.disposers[matched]);
+        nextIndexes.push(this.indexes[matched]);
+      } else {
+        Signal<int> indexSignal = new Signal(nextIndex, strictIntEquals);
+        Cleanup rootDisposer = new Cleanup(() => {});
+        U mappedValue = createRootWithOwner((func()->void dispose) => {
+          rootDisposer.callback = dispose;
+          return mapFn(nextItem, indexSignal);
+        }, null);
+        nextMapped.push(mappedValue);
+        nextDisposers.push(rootDisposer);
+        nextIndexes.push(indexSignal);
+      }
+      nextItems.push(nextItem);
+    }
+
+    for (int oldIndex = 0; oldIndex < this.items.length; oldIndex++) {
+      if (!used.has(oldIndex)) {
+        this.disposers[oldIndex].run();
+      }
+    }
+    this.items = nextItems;
+    this.mapped = nextMapped;
+    this.disposers = nextDisposers;
+    this.indexes = nextIndexes;
+    return this.mapped;
+  }
+}
+
+class MappedValueArrayState<T,U> {
+  T[] items;
+  U[] mapped;
+  (func()->void)[] disposers;
+
+  init() {
+    this.items = [];
+    this.mapped = [];
+    this.disposers = [];
+  }
+
+  void dispose() {
+    for (int index = this.disposers.length - 1; index >= 0; index--) {
+      this.disposers[index]();
+    }
+    this.items = [];
+    this.mapped = [];
+    this.disposers = [];
+  }
+
+  U[] reconcile(T[] next, func(T)->U mapFn) {
+    if (next.length == 0) {
+      this.dispose();
+      return this.mapped;
+    }
+    if (this.items.length == 0) {
+      U[] nextMapped = [];
+      (func()->void)[] nextDisposers = [];
+      for (int nextIndex = 0; nextIndex < next.length; nextIndex++) {
+        T nextItem = next[nextIndex];
+        U mappedValue = createRootWithOwner((func()->void dispose) => {
+          return mapFn(nextItem);
+        }, null, false, nextDisposers);
+        nextMapped.push(mappedValue);
+      }
+      this.items = next.slice();
+      this.mapped = nextMapped;
+      this.disposers = nextDisposers;
+      return nextMapped;
+    }
+    if (this.items.length == next.length) {
+      int first = -1;
+      int second = -1;
+      bool many = false;
+      for (int index = 0; index < next.length; index++) {
+        if (this.items[index] == next[index]) {
+          continue;
+        }
+        if (first < 0) {
+          first = index;
+        } else if (second < 0) {
+          second = index;
+        } else {
+          many = true;
+          break;
+        }
+      }
+      if (
+        !many &&
+        first >= 0 &&
+        second >= 0 &&
+        this.items[first] == next[second] &&
+        this.items[second] == next[first]
+      ) {
+        U[] swapped = this.mapped.slice();
+        U mappedValue = swapped[first];
+        swapped[first] = swapped[second];
+        swapped[second] = mappedValue;
+        T item = this.items[first];
+        this.items[first] = this.items[second];
+        this.items[second] = item;
+        func()->void disposer = this.disposers[first];
+        this.disposers[first] = this.disposers[second];
+        this.disposers[second] = disposer;
+        this.mapped = swapped;
+        return swapped;
+      }
+    } else if (next.length == this.items.length - 1) {
+      int removed = -1;
+      int offset = 0;
+      for (int index = 0; index < this.items.length; index++) {
+        int nextIndex = index - offset;
+        if (
+          offset == 0 &&
+          (nextIndex >= next.length || this.items[index] != next[nextIndex])
+        ) {
+          removed = index;
+          offset = 1;
+          continue;
+        }
+        if (nextIndex >= next.length || this.items[index] != next[nextIndex]) {
+          removed = -1;
+          break;
+        }
+      }
+      if (removed >= 0 && offset == 1) {
+        this.disposers[removed]();
+        U[] nextMapped = this.mapped.slice(0, removed).concat(
+          this.mapped.slice(removed + 1)
+        );
+        this.items = this.items.slice(0, removed).concat(
+          this.items.slice(removed + 1)
+        );
+        this.disposers = this.disposers.slice(0, removed).concat(
+          this.disposers.slice(removed + 1)
+        );
+        this.mapped = nextMapped;
+        return nextMapped;
+      }
+    }
+    Set<int> used = new Set<int>();
+    int shared = this.items.length;
+    if (next.length < shared) {
+      shared = next.length;
+    }
+    int start = 0;
+    while (start < shared && this.items[start] == next[start]) {
+      start += 1;
+    }
+    int oldEnd = this.items.length - 1;
+    int nextEnd = next.length - 1;
+    while (
+      oldEnd >= start &&
+      nextEnd >= start &&
+      this.items[oldEnd] == next[nextEnd]
+    ) {
+      oldEnd -= 1;
+      nextEnd -= 1;
+    }
+
+    Map<JsValue,int[]> positions = new Map<JsValue,int[]>();
+    Map<JsValue,int> offsets = new Map<JsValue,int>();
+    for (int oldIndex = start; oldIndex <= oldEnd; oldIndex++) {
+      T oldItem = this.items[oldIndex];
+      JsValue oldKey = JS.assume(oldItem);
+      int[]? itemPositions = positions.get(oldKey);
+      if (itemPositions == null) {
+        int[] createdPositions = [];
+        createdPositions.push(oldIndex);
+        positions.set(oldKey, createdPositions);
+      } else {
+        itemPositions.push(oldIndex);
+      }
+    }
+
+    T[] nextItems = [];
+    U[] nextMapped = [];
+    (func()->void)[] nextDisposers = [];
+    for (int nextIndex = 0; nextIndex < next.length; nextIndex++) {
+      T nextItem = next[nextIndex];
+      int matched = -1;
+      if (nextIndex < start) {
+        matched = nextIndex;
+      } else if (nextIndex > nextEnd) {
+        matched = oldEnd + nextIndex - nextEnd;
+      } else {
+        JsValue nextKey = JS.assume(nextItem);
+        int[]? itemPositions = positions.get(nextKey);
+        if (itemPositions != null) {
+          int? storedOffset = offsets.get(nextKey);
+          int offset = 0;
+          if (storedOffset != null) {
+            offset = storedOffset;
+          }
+          if (offset < itemPositions.length) {
+            matched = itemPositions[offset];
+            offsets.set(nextKey, offset + 1);
+          }
+        }
+      }
+      if (matched >= 0) {
+        used.add(matched);
+        nextMapped.push(this.mapped[matched]);
+        nextDisposers.push(this.disposers[matched]);
+      } else {
+        U mappedValue = createRootWithOwner((func()->void dispose) => {
+          return mapFn(nextItem);
+        }, null, false, nextDisposers);
+        nextMapped.push(mappedValue);
+      }
+      nextItems.push(nextItem);
+    }
+
+    for (int oldIndex = 0; oldIndex < this.items.length; oldIndex++) {
+      if (!used.has(oldIndex)) {
+        this.disposers[oldIndex]();
+      }
+    }
+    this.items = nextItems;
+    this.mapped = nextMapped;
+    this.disposers = nextDisposers;
+    return this.mapped;
+  }
+}
+
+class IndexedArrayState<T,U> {
+  U[] mapped;
+  Cleanup[] disposers;
+  Signal<T>[] values;
+
+  init() {
+    this.mapped = [];
+    this.disposers = [];
+    this.values = [];
+  }
+
+  void dispose() {
+    for (int index = 0; index < this.disposers.length; index++) {
+      this.disposers[index].run();
+    }
+    this.mapped = [];
+    this.disposers = [];
+    this.values = [];
+  }
+
+  U[] reconcile(T[] next, func(Signal<T>,int)->U mapFn) {
+    int shared = this.values.length;
+    if (next.length < shared) {
+      shared = next.length;
+    }
+    for (int index = 0; index < shared; index++) {
+      if (this.values[index].value != next[index]) {
+        this.values[index].write(next[index]);
+      }
+    }
+    for (int index = this.values.length; index < next.length; index++) {
+      T nextItem = next[index];
+      Signal<T> valueSignal = new Signal(
+        nextItem,
+        (T previous, T value) => previous == value
+      );
+      Cleanup rootDisposer = new Cleanup(() => {});
+      U mappedValue = createRootWithOwner((func()->void dispose) => {
+        rootDisposer.callback = dispose;
+        return mapFn(valueSignal, index);
+      }, null);
+      this.values.push(valueSignal);
+      this.disposers.push(rootDisposer);
+      this.mapped.push(mappedValue);
+    }
+    while (this.values.length > next.length) {
+      int last = this.values.length - 1;
+      this.disposers[last].run();
+      this.disposers.pop();
+      this.values.pop();
+      this.mapped.pop();
+    }
+    return this.mapped.slice();
+  }
+}
+
+class ArrayFallbackState<U> {
+  U[] mapped;
+  func()->void disposeFallback;
+
+  init() {
+    this.mapped = [];
+    this.disposeFallback = () => {};
+  }
+
+  U[] read(func()->U fallback) {
+    if (this.mapped.length == 0) {
+      U value = createRootWithOwner((func()->void dispose) => {
+        this.disposeFallback = dispose;
+        return fallback();
+      }, null);
+      this.mapped = [value];
+    }
+    return this.mapped;
+  }
+
+  void dispose() {
+    if (this.mapped.length > 0) {
+      func()->void dispose = this.disposeFallback;
+      dispose();
+    }
+    this.mapped = [];
+  }
+}
+
+class DeferredState<T> {
+  Signal<T> source;
+  Signal<T> value;
+  T pending;
+  int timeout;
+  Task? task;
+
+  init(Signal<T> source, func(T,T)->bool equals, int timeout) {
+    this.source = source;
+    this.value = new Signal(source.value, equals);
+    this.pending = source.value;
+    this.timeout = timeout;
+    this.task = null;
+  }
+
+  void track() {
+    this.pending = this.source.read();
+    Task? current = this.task;
+    if (current == null) {
+      this.task = requestCallback(
+        (bool didTimeout) => this.commit(),
+        this.timeout
+      );
+    }
+  }
+
+  void commit() {
+    this.task = null;
+    this.value.write(this.pending);
+  }
+
+  void dispose() {
+    Task? current = this.task;
+    if (current != null) {
+      cancelCallback(current);
+      this.task = null;
+    }
+  }
+}
+
+export class Future<T> {
+  T value;
+  bool settled;
+  bool rejected;
+  string error;
+  (func(T)->void)[] listeners;
+  (func(string)->void)[] rejectListeners;
+
+  init(T placeholder) {
+    this.value = placeholder;
+    this.settled = false;
+    this.rejected = false;
+    this.error = "";
+    this.listeners = [];
+    this.rejectListeners = [];
+  }
+
+  void then(func(T)->void listener) {
+    if (this.settled) {
+      if (!this.rejected) {
+        T value = this.value;
+        requestCallback((bool didTimeout) => listener(value), 0);
+      }
+      return;
+    }
+    this.listeners.push(listener);
+  }
+
+  void observe(
+    func(T)->void listener,
+    func(string)->void rejectListener
+  ) {
+    if (this.settled) {
+      if (this.rejected) {
+        string error = this.error;
+        requestCallback((bool didTimeout) => rejectListener(error), 0);
+      } else {
+        T value = this.value;
+        requestCallback((bool didTimeout) => listener(value), 0);
+      }
+      return;
+    }
+    this.listeners.push(listener);
+    this.rejectListeners.push(rejectListener);
+  }
+
+  void resolve(T value) {
+    if (this.settled) {
+      return;
+    }
+    this.value = value;
+    this.settled = true;
+    for (int index = 0; index < this.listeners.length; index++) {
+      func(T)->void listener = this.listeners[index];
+      requestCallback((bool didTimeout) => listener(value), 0);
+    }
+    this.listeners = [];
+    this.rejectListeners = [];
+  }
+
+  void reject(string error) {
+    if (this.settled) {
+      return;
+    }
+    this.error = error;
+    this.rejected = true;
+    this.settled = true;
+    for (int index = 0; index < this.rejectListeners.length; index++) {
+      func(string)->void listener = this.rejectListeners[index];
+      requestCallback((bool didTimeout) => listener(error), 0);
+    }
+    this.listeners = [];
+    this.rejectListeners = [];
+  }
+}
+
+export class SuspenseRegistration {
+  SuspenseState state;
+  func()->void detach;
+  bool active;
+
+  init(SuspenseState state) {
+    this.state = state;
+    this.detach = () => {};
+    this.active = true;
+  }
+
+  void release() {
+    if (!this.active) {
+      return;
+    }
+    this.active = false;
+    this.state.release(this);
+    func()->void detach = this.detach;
+    this.detach = () => {};
+    detach();
+  }
+
+  void abandon() {
+    if (!this.active) {
+      return;
+    }
+    this.active = false;
+    func()->void detach = this.detach;
+    this.detach = () => {};
+    detach();
+  }
+}
+
+export class SuspenseState {
+  Signal<int> pending;
+  SuspenseRegistration[] registrations;
+  bool disposed;
+
+  init() {
+    this.pending = new Signal(0, strictIntEquals);
+    this.registrations = [];
+    this.disposed = false;
+  }
+
+  bool add(SuspenseRegistration registration) {
+    if (this.disposed) {
+      return false;
+    }
+    this.registrations.push(registration);
+    this.pending.write(this.pending.value + 1);
+    return true;
+  }
+
+  void release(SuspenseRegistration registration) {
+    if (this.disposed) {
+      return;
+    }
+    for (int index = 0; index < this.registrations.length; index++) {
+      if (this.registrations[index] == registration) {
+        this.registrations[index] =
+          this.registrations[this.registrations.length - 1];
+        this.registrations.pop();
+        this.pending.write(this.pending.value - 1);
+        return;
+      }
+    }
+  }
+
+  void dispose() {
+    if (this.disposed) {
+      return;
+    }
+    this.disposed = true;
+    while (this.registrations.length > 0) {
+      int index = this.registrations.length - 1;
+      SuspenseRegistration registration = this.registrations[index];
+      this.registrations.pop();
+      registration.abandon();
+    }
+  }
+}
+
+export class Resource<T,K> {
+  Signal<K> source;
+  func(K)->Future<T> fetcher;
+  Signal<T> value;
+  Signal<bool> loading;
+  Signal<string> state;
+  Signal<string> error;
+  bool hasResolved;
+  bool disposed;
+  int requestId;
+  SuspenseRegistration[] suspenseRegistrations;
+
+  init(
+    Signal<K> source,
+    func(K)->Future<T> fetcher,
+    T initial,
+    func(T,T)->bool equals
+  ) {
+    this.source = source;
+    this.fetcher = fetcher;
+    this.value = new Signal(initial, equals);
+    this.loading = new Signal(false, strictBoolEquals);
+    this.state = new Signal(
+      "unresolved",
+      (string previous, string next) => previous == next
+    );
+    this.error = new Signal(
+      "",
+      (string previous, string next) => previous == next
+    );
+    this.hasResolved = false;
+    this.disposed = false;
+    this.requestId = 0;
+    this.suspenseRegistrations = [];
+  }
+
+  void track() {
+    K key = this.source.read();
+    this.load(key);
+  }
+
+  void load(K key) {
+    this.releaseSuspenseRegistrations();
+    this.requestId += 1;
+    int currentRequest = this.requestId;
+    this.loading.write(true);
+    this.error.write("");
+    if (this.hasResolved) {
+      this.state.write("refreshing");
+    } else {
+      this.state.write("pending");
+    }
+    func(K)->Future<T> fetcher = this.fetcher;
+    Future<T> future = fetcher(key);
+    future.observe(
+      (T value) => this.complete(currentRequest, value),
+      (string error) => this.fail(currentRequest, error)
+    );
+  }
+
+  void complete(int completedRequest, T value) {
+    if (this.disposed || completedRequest != this.requestId) {
+      return;
+    }
+    this.value.write(value);
+    this.hasResolved = true;
+    this.loading.write(false);
+    this.state.write("ready");
+    this.releaseSuspenseRegistrations();
+  }
+
+  void fail(int failedRequest, string error) {
+    if (this.disposed || failedRequest != this.requestId) {
+      return;
+    }
+    this.error.write(error);
+    this.loading.write(false);
+    this.state.write("errored");
+    this.releaseSuspenseRegistrations();
+  }
+
+  T read() {
+    bool pending = this.loading.read();
+    string currentState = this.state.read();
+    if (pending) {
+      func()->SuspenseState? resolveSuspense = suspenseResolver;
+      SuspenseState? suspense = resolveSuspense();
+      if (suspense != null) {
+        this.registerSuspense(suspense);
+      }
+    }
+    if (currentState == "errored") {
+      throw this.error.read();
+    }
+    return this.value.read();
+  }
+
+  T latest() {
+    if (this.state.read() == "errored") {
+      throw this.error.read();
+    }
+    return this.value.read();
+  }
+
+  void registerSuspense(SuspenseState state) {
+    for (
+      int index = 0;
+      index < this.suspenseRegistrations.length;
+      index++
+    ) {
+      SuspenseRegistration current = this.suspenseRegistrations[index];
+      if (current.active && current.state == state) {
+        return;
+      }
+    }
+    SuspenseRegistration registration = new SuspenseRegistration(state);
+    registration.detach = () => {
+      this.detachSuspenseRegistration(registration);
+    };
+    if (!state.add(registration)) {
+      registration.abandon();
+      return;
+    }
+    this.suspenseRegistrations.push(registration);
+  }
+
+  void detachSuspenseRegistration(SuspenseRegistration registration) {
+    for (
+      int index = 0;
+      index < this.suspenseRegistrations.length;
+      index++
+    ) {
+      if (this.suspenseRegistrations[index] == registration) {
+        this.suspenseRegistrations[index] =
+          this.suspenseRegistrations[this.suspenseRegistrations.length - 1];
+        this.suspenseRegistrations.pop();
+        return;
+      }
+    }
+  }
+
+  void releaseSuspenseRegistrations() {
+    while (this.suspenseRegistrations.length > 0) {
+      int index = this.suspenseRegistrations.length - 1;
+      SuspenseRegistration registration = this.suspenseRegistrations[index];
+      this.suspenseRegistrations.pop();
+      registration.release();
+    }
+  }
+
+  void refetch() {
+    this.load(this.source.value);
+  }
+
+  T mutate(T value) {
+    this.value.write(value);
+    this.hasResolved = true;
+    return value;
+  }
+
+  void dispose() {
+    this.disposed = true;
+    this.requestId += 1;
+    this.releaseSuspenseRegistrations();
+  }
+}
+
+export class Subscription {
+  func()->void cleanup;
+  bool closed;
+
+  init(func()->void cleanup) {
+    this.cleanup = cleanup;
+    this.closed = false;
+  }
+
+  void unsubscribe() {
+    if (this.closed) {
+      return;
+    }
+    this.closed = true;
+    func()->void cleanup = this.cleanup;
+    cleanup();
+  }
+}
+
+export class Observable<T> {
+  func()->T input;
+
+  init(func()->T input) {
+    this.input = input;
+  }
+
+  Subscription subscribe(func(T)->void observer) {
+    func()->void dispose = createRoot((func()->void dispose) => {
+      createEffect(() => {
+        func()->T input = this.input;
+        T value = input();
+        untrackInt(() => {
+          observer(value);
+          return 0;
+        });
+      });
+      return dispose;
+    });
+    Subscription subscription = new Subscription(dispose);
+    if (getOwner() != null) {
+      onCleanup(() => subscription.unsubscribe());
+    }
+    return subscription;
+  }
+}
+
+bool strictIntEquals(int previous, int next) {
+  return previous == next;
+}
+
+bool strictBoolEquals(bool previous, bool next) {
+  return previous == next;
+}
+
+bool effectQueued(int effectId) {
+  return effects[effectId].queued;
+}
+
+void clearPendingEffects() {
+  for (int index = pendingStart; index < pendingEffects.length; index++) {
+    int effectId = pendingEffects[index];
+    if (effectId < effects.length) {
+      effects[effectId].queued = false;
+    }
+  }
+  pendingEffects = [];
+  pendingStart = 0;
+}
+
+void compactPendingEffects() {
+  if (pendingStart == 0) {
+    return;
+  }
+  if (pendingStart >= pendingEffects.length) {
+    pendingEffects = [];
+    pendingStart = 0;
+    return;
+  }
+  int[] next = [];
+  for (int index = pendingStart; index < pendingEffects.length; index++) {
+    next.push(pendingEffects[index]);
+  }
+  pendingEffects = next;
+  pendingStart = 0;
+}
+
+int takeQueuedEffectAt(int index) {
+  int actual = pendingStart + index;
+  int effectId = pendingEffects[actual];
+  effects[effectId].queued = false;
+  if (index == 0) {
+    pendingStart += 1;
+    if (pendingStart >= pendingEffects.length) {
+      pendingEffects = [];
+      pendingStart = 0;
+    } else if (pendingStart > 16 && pendingStart * 2 >= pendingEffects.length) {
+      compactPendingEffects();
+    }
+    return effectId;
+  }
+  compactPendingEffects();
+  for (int next = index; next < pendingEffects.length - 1; next++) {
+    pendingEffects[next] = pendingEffects[next + 1];
+  }
+  pendingEffects.pop();
+  return effectId;
+}
+
+bool removeQueuedEffect(int effectId) {
+  for (int index = pendingStart; index < pendingEffects.length; index++) {
+    if (pendingEffects[index] == effectId) {
+      takeQueuedEffectAt(index - pendingStart);
+      return true;
+    }
+  }
+  return false;
+}
+
+void removeOwnedId(int[] ids, int id) {
+  for (int index = ids.length - 1; index >= 0; index--) {
+    if (ids[index] == id) {
+      int last = ids.length - 1;
+      ids[index] = ids[last];
+      ids.pop();
+      return;
+    }
+  }
+}
+
+void removeFreeIdsAtOrAbove(int[] ids, int limit) {
+  for (int index = ids.length - 1; index >= 0; index--) {
+    if (ids[index] >= limit) {
+      int last = ids.length - 1;
+      ids[index] = ids[last];
+      ids.pop();
+    }
+  }
+}
+
+void compactDisposedEffects() {
+  int length = effects.length;
+  if (length == 0 || !effects[length - 1].disposed) {
+    return;
+  }
+  while (
+    effects.length > 0 &&
+    effects[effects.length - 1].disposed
+  ) {
+    effects.pop();
+  }
+  if (effects.length == 0) {
+    effects = [];
+    freeEffectIds = [];
+    return;
+  }
+  removeFreeIdsAtOrAbove(freeEffectIds, effects.length);
+}
+
+void compactDisposedOwners() {
+  int length = owners.length;
+  if (length == 0 || !owners[length - 1].disposed) {
+    return;
+  }
+  while (
+    owners.length > 0 &&
+    owners[owners.length - 1].disposed
+  ) {
+    owners.pop();
+  }
+  if (owners.length == 0) {
+    owners = [];
+    freeOwnerIds = [];
+    return;
+  }
+  removeFreeIdsAtOrAbove(freeOwnerIds, owners.length);
+}
+
+OwnerHandle? ownerHandleFor(int kind, int id) {
+  if (kind == 1) {
+    OwnerHandle? existing = owners[id].handle;
+    if (existing != null) {
+      return existing;
+    }
+    OwnerHandle handle = new OwnerHandle(
+      kind,
+      id,
+      null
+    );
+    owners[id].handle = handle;
+    handle.owner = ownerHandleFor(owners[id].parentKind, owners[id].parentId);
+    return handle;
+  }
+  if (kind == 2) {
+    OwnerHandle? existing = effects[id].handle;
+    if (existing != null) {
+      return existing;
+    }
+    OwnerHandle handle = new OwnerHandle(
+      kind,
+      id,
+      null
+    );
+    effects[id].handle = handle;
+    handle.owner = ownerHandleFor(effects[id].parentKind, effects[id].parentId);
+    return handle;
+  }
+  return null;
+}
+
+void detachEffect(Effect effect) {
+  if (effect.parentKind == 1) {
+    if (effect.parentId < owners.length) {
+      removeOwnedId(owners[effect.parentId].effectIds, effect.id);
+    }
+  } else if (effect.parentKind == 2) {
+    if (effect.parentId < effects.length) {
+      removeOwnedId(effects[effect.parentId].childEffectIds, effect.id);
+    }
+  }
+}
+
+void detachOwner(Owner owner) {
+  if (owner.parentKind == 1) {
+    if (owner.parentId < owners.length) {
+      removeOwnedId(owners[owner.parentId].ownerIds, owner.id);
+    }
+  } else if (owner.parentKind == 2) {
+    if (owner.parentId < effects.length) {
+      removeOwnedId(effects[owner.parentId].childOwnerIds, owner.id);
+    }
+  }
+}
+
+bool effectDependsOn(int effectId, int sourceId, int depth = 0) {
+  if (effectId == sourceId) {
+    return true;
+  }
+  if (depth >= effects.length) {
+    return false;
+  }
+  for (int index = 0; index < effects[effectId].sourceEffectIds.length; index++) {
+    if (
+      effectDependsOn(
+        effects[effectId].sourceEffectIds[index],
+        sourceId,
+        depth + 1
+      )
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+void queueEffect(int effectId) {
+  if (
+    activeEffectId >= 0 &&
+    effects[activeEffectId].memoComputation &&
+    !relaxedDependencyWrite &&
+    effectDependsOn(activeEffectId, effectId) &&
+    !effectOwnsEffect(effectId, activeEffectId)
+  ) {
+    throw "Reactive dependency cycle detected.";
+  }
+  if (
+    !effects[effectId].disposed &&
+    !effects[effectId].queued
+  ) {
+    effects[effectId].queued = true;
+    pendingEffects.push(effectId);
+  }
+}
+
+bool effectHasPendingSource(int effectId) {
+  for (int index = 0; index < effects[effectId].sourceEffectIds.length; index++) {
+    if (effectQueued(effects[effectId].sourceEffectIds[index])) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool effectOwnsEffect(int ancestorId, int descendantId) {
+  int kind = effects[descendantId].parentKind;
+  int id = effects[descendantId].parentId;
+  int depth = 0;
+  while (kind != 0 && depth <= effects.length + owners.length) {
+    if (kind == 2) {
+      if (id == ancestorId) {
+        return true;
+      }
+      int parentKind = effects[id].parentKind;
+      int parentId = effects[id].parentId;
+      kind = parentKind;
+      id = parentId;
+    } else {
+      int parentKind = owners[id].parentKind;
+      int parentId = owners[id].parentId;
+      kind = parentKind;
+      id = parentId;
+    }
+    depth += 1;
+  }
+  return false;
+}
+
+void ensureEffectFresh(int effectId) {
+  if (effects[effectId].disposed || effectId == activeEffectId) {
+    return;
+  }
+  for (int index = 0; index < effects[effectId].sourceEffectIds.length; index++) {
+    int sourceEffectId = effects[effectId].sourceEffectIds[index];
+    if (
+      effectQueued(sourceEffectId) ||
+      effectHasPendingSource(sourceEffectId)
+    ) {
+      ensureEffectFresh(sourceEffectId);
+    }
+  }
+  if (removeQueuedEffect(effectId)) {
+    effects[effectId].run();
+  }
+}
+
+export int takeNextEffect() {
+  int readyMemo = -1;
+  int initialUserEffect = -1;
+  int userEffect = -1;
+  for (int index = pendingStart; index < pendingEffects.length; index++) {
+    int effectId = pendingEffects[index];
+    if (effects[effectId].memoComputation) {
+      if (
+        readyMemo < 0 ||
+        effects[effectId].level > effects[pendingEffects[readyMemo]].level
+      ) {
+        readyMemo = index;
+      }
+    } else if (!effects[effectId].hasRun && initialUserEffect < 0) {
+      initialUserEffect = index;
+    } else if (userEffect < 0) {
+      userEffect = index;
+    } else {
+      int selectedEffectId = pendingEffects[userEffect];
+      Effect candidateEffect = effects[effectId];
+      Effect selectedEffect = effects[selectedEffectId];
+      bool sameParent =
+        candidateEffect.parentKind == selectedEffect.parentKind &&
+        candidateEffect.parentId == selectedEffect.parentId;
+      if (
+        (sameParent && candidateEffect.level > selectedEffect.level) ||
+        (
+          !sameParent &&
+          (
+            effectOwnsEffect(effectId, selectedEffectId) ||
+            (
+              !effectOwnsEffect(selectedEffectId, effectId) &&
+              candidateEffect.level > selectedEffect.level
+            )
+          )
+        )
+      ) {
+        userEffect = index;
+      }
+    }
+  }
+  int selected = initialUserEffect;
+  if (selected < 0) {
+    selected = readyMemo;
+  }
+  if (selected < 0) {
+    selected = userEffect;
+  }
+  return takeQueuedEffectAt(selected - pendingStart);
+}
+
+void flushEffects() {
+  if (flushing || batchDepth > 0 || executionDepth > 0) {
+    return;
+  }
+  flushing = true;
+  int iterations = 0;
+  try {
+    while (pendingStart < pendingEffects.length) {
+      iterations += 1;
+      if (iterations > 1000000) {
+        throw "Potential Infinite Loop Detected.";
+      }
+      int effectId = takeNextEffect();
+      effects[effectId].run();
+    }
+    flushing = false;
+  } catch (auto error) {
+    clearPendingEffects();
+    flushing = false;
+    throw error;
+  }
+}
+
+void flushPureEffects() {
+  if (flushing || batchDepth > 0) {
+    return;
+  }
+  flushing = true;
+  int iterations = 0;
+  try {
+    while (true) {
+      int selected = -1;
+      for (int index = pendingStart; index < pendingEffects.length; index++) {
+        int effectId = pendingEffects[index];
+        if (
+          effectId != activeEffectId &&
+          effects[effectId].memoComputation &&
+          (
+            selected < 0 ||
+            effects[effectId].level > effects[pendingEffects[selected]].level
+          )
+        ) {
+          selected = index;
+        }
+      }
+      if (selected < 0) {
+        flushing = false;
+        return;
+      }
+      iterations += 1;
+      if (iterations > 1000000) {
+        throw "Potential Infinite Loop Detected.";
+      }
+      int effectId = takeQueuedEffectAt(selected - pendingStart);
+      effects[effectId].run();
+    }
+  } catch (auto error) {
+    clearPendingEffects();
+    flushing = false;
+    throw error;
+  }
+}
+
+void scheduleObservers(int[] observerIds) {
+  bool implicitBatch = batchDepth == 0 && !flushing;
+  if (implicitBatch) {
+    batchDepth += 1;
+  }
+  try {
+    for (int index = 0; index < observerIds.length; index++) {
+      queueEffect(observerIds[index]);
+    }
+  } catch (auto error) {
+    if (implicitBatch) {
+      batchDepth -= 1;
+    }
+    throw error;
+  }
+  if (implicitBatch) {
+    batchDepth -= 1;
+    if (executionDepth > 0) {
+      flushPureEffects();
+    } else {
+      flushEffects();
+    }
+  }
+}
+
+export Task requestCallback(
+  func(bool)->void callback,
+  int timeout = 1073741823
+) {
+  Task task = new Task(nextTaskId, callback, timeout);
+  nextTaskId += 1;
+  schedulerTasks.push(task);
+  int index = schedulerTasks.length - 1;
+  while (
+    index > 0 &&
+    schedulerTasks[index].timeout < schedulerTasks[index - 1].timeout
+  ) {
+    Task previous = schedulerTasks[index - 1];
+    schedulerTasks[index - 1] = schedulerTasks[index];
+    schedulerTasks[index] = previous;
+    index -= 1;
+  }
+  if (!callbackFlushScheduled) {
+    callbackFlushScheduled = true;
+    func(func()->void)->void schedule = hostScheduler;
+    schedule(() => {
+      callbackFlushScheduled = false;
+      flushCallbacks();
+    });
+  }
+  return task;
+}
+
+export void enableScheduling(func(func()->void)->void scheduler) {
+  hostScheduler = scheduler;
+}
+
+export void enableSuspenseResolution(func()->SuspenseState? resolver) {
+  suspenseResolver = resolver;
+}
+
+export void cancelCallback(Task task) {
+  task.cancelled = true;
+}
+
+export void flushCallbacks() {
+  callbackFlushScheduled = false;
+  while (schedulerTasks.length > 0) {
+    Task task = schedulerTasks[0];
+    for (int index = 0; index < schedulerTasks.length - 1; index++) {
+      schedulerTasks[index] = schedulerTasks[index + 1];
+    }
+    schedulerTasks.pop();
+    task.run();
+  }
+}
+
+int createComputation(
+  func()->void callback,
+  bool memoComputation,
+  bool userEffect
+) {
+  int id = effects.length;
+  if (freeEffectIds.length > 0) {
+    id = freeEffectIds.pop();
+  }
+  int parentKind = 0;
+  int parentId = -1;
+  if (activeEffectId >= 0) {
+    parentKind = 2;
+    parentId = activeEffectId;
+  } else if (activeOwnerId >= 0) {
+    parentKind = 1;
+    parentId = activeOwnerId;
+  }
+  Effect effect = new Effect(
+    id,
+    parentKind,
+    parentId,
+    callback,
+    memoComputation
+  );
+  if (id == effects.length) {
+    effects.push(effect);
+  } else {
+    effects[id] = effect;
+  }
+  if (activeEffectId >= 0) {
+    effects[activeEffectId].childEffectIds.push(id);
+  } else if (activeOwnerId >= 0) {
+    owners[activeOwnerId].effectIds.push(id);
+  }
+  if (userEffect && (executionDepth > 0 || flushing)) {
+    queueEffect(id);
+  } else {
+    effect.run();
+  }
+  return id;
+}
+
+void disposeEffect(int effectId) {
+  Effect effect = effects[effectId];
+  if (effect.disposed) {
+    return;
+  }
+  effect.clearOwned();
+  effect.unsubscribe();
+  if (effect.queued) {
+    removeQueuedEffect(effectId);
+  }
+  detachEffect(effect);
+  effect.callback = () => {};
+  effect.sourceEffectIds = [];
+  OwnerHandle? handle = effect.handle;
+  if (handle != null) {
+    handle.kind = 0;
+    effect.handle = null;
+  }
+  effect.disposed = true;
+  freeEffectIds.push(effectId);
+  compactDisposedEffects();
+}
+
+void disposeOwner(int ownerId) {
+  Owner owner = owners[ownerId];
+  if (owner.disposed) {
+    return;
+  }
+  while (owner.ownerIds.length > 0) {
+    int index = owner.ownerIds.length - 1;
+    int childOwnerId = owner.ownerIds[index];
+    owner.ownerIds.pop();
+    disposeOwner(childOwnerId);
+  }
+  while (owner.effectIds.length > 0) {
+    int index = owner.effectIds.length - 1;
+    int effectId = owner.effectIds[index];
+    owner.effectIds.pop();
+    disposeEffect(effectId);
+  }
+  while (owner.cleanups.length > 0) {
+    int index = owner.cleanups.length - 1;
+    Cleanup cleanup = owner.cleanups[index];
+    owner.cleanups.pop();
+    cleanup.run();
+  }
+  detachOwner(owner);
+  OwnerHandle? handle = owner.handle;
+  if (handle != null) {
+    handle.kind = 0;
+    owner.handle = null;
+  }
+  owner.disposed = true;
+  freeOwnerIds.push(ownerId);
+  compactDisposedOwners();
+}
+
+export Signal<T> createSignal<T>(
+  T initial,
+  func(T,T)->bool equals = (T previous, T next) => previous == next
+) {
+  return new Signal(initial, equals);
+}
+
+// Stable JavaScript ABI for the Solid-compatible facade. Class methods are an
+// internal dispatch detail after whole-program lowering, so reusable modules
+// expose operations on opaque Signal handles as ordinary functions.
+export T signalGet<T>(Signal<T> signal) {
+  return signal.read();
+}
+
+export T signalSet<T>(
+  Signal<T> signal,
+  T value,
+  bool relaxed = false
+) {
+  bool previous = relaxedDependencyWrite;
+  relaxedDependencyWrite = previous || relaxed;
+  try {
+    return signal.write(value);
+  } finally {
+    relaxedDependencyWrite = previous;
+  }
+}
+
+export T signalUpdate<T>(
+  Signal<T> signal,
+  func(T)->T updater,
+  bool relaxed = false
+) {
+  bool previous = relaxedDependencyWrite;
+  relaxedDependencyWrite = previous || relaxed;
+  try {
+    return signal.update(updater);
+  } finally {
+    relaxedDependencyWrite = previous;
+  }
+}
+
+export Signal<int> createIntSignal(int initial) {
+  return new Signal(initial, strictIntEquals);
+}
+
+export Signal<int> createIntSignalWithEquals(int initial, func(int,int)->bool equals) {
+  return new Signal(initial, equals);
+}
+
+export Signal<bool> createBoolSignal(bool initial) {
+  return new Signal(initial, (bool previous, bool next) => previous == next);
+}
+
+export int createEffect(func()->void callback) {
+  return createComputation(callback, false, true);
+}
+
+export int createComputed(func()->void callback) {
+  return createComputation(callback, true, false);
+}
+
+export int createRenderEffect(func()->void callback) {
+  return createComputation(callback, false, false);
+}
+
+export void onMount(func()->void callback) {
+  createEffect(() => {
+    int previousListener = activeListenerId;
+    activeListenerId = -1;
+    callback();
+    activeListenerId = previousListener;
+  });
+}
+
+export func(func()->void)->void createReaction(func()->void onInvalidate) {
+  Reaction reaction = new Reaction(onInvalidate);
+  return (func()->void tracking) => reaction.observe(tracking);
+}
+
+export func()->void on<T>(
+  Signal<T> source,
+  func(T)->void callback,
+  bool defer = false
+) {
+  OnState state = new OnState();
+  return () => {
+    T value = source.read();
+    if (state.initialized || !defer) {
+      int previousListener = activeListenerId;
+      activeListenerId = -1;
+      callback(value);
+      activeListenerId = previousListener;
+    }
+    state.initialized = true;
+  };
+}
+
+export func()->void on2<A,B>(
+  Signal<A> first,
+  Signal<B> second,
+  func(A,B)->void callback,
+  bool defer = false
+) {
+  OnState state = new OnState();
+  return () => {
+    A firstValue = first.read();
+    B secondValue = second.read();
+    if (state.initialized || !defer) {
+      int previousListener = activeListenerId;
+      activeListenerId = -1;
+      callback(firstValue, secondValue);
+      activeListenerId = previousListener;
+    }
+    state.initialized = true;
+  };
+}
+
+export func()->void onWithInitial<T,P>(
+  Signal<T> source,
+  P initial,
+  func(T,P)->P callback,
+  bool defer = true
+) {
+  OnValueState<P> state = new OnValueState(initial);
+  return () => {
+    T value = source.read();
+    if (state.initialized || !defer) {
+      int previousListener = activeListenerId;
+      activeListenerId = -1;
+      state.previous = callback(value, state.previous);
+      activeListenerId = previousListener;
+    }
+    state.initialized = true;
+  };
+}
+
+export Signal<T> createMemo<T>(T initial, func()->T compute, func(T,T)->bool equals) {
+  Signal<T> memo = new Signal(initial, equals);
+  createComputation(() => {
+    memo.write(compute());
+  }, true, false);
+  return memo;
+}
+
+export Signal<T> createMemoWithPrevious<T>(
+  T initial,
+  func(T)->T compute,
+  func(T,T)->bool equals = (T previous, T next) => previous == next
+) {
+  Signal<T> memo = new Signal(initial, equals);
+  createComputation(() => {
+    memo.write(compute(memo.value));
+  }, true, false);
+  return memo;
+}
+
+export Signal<T[]> children<T>(func()->T[][] source) {
+  T[] initial = [];
+  return createMemo(
+    initial,
+    () => {
+      T[][] nested = source();
+      T[] resolved = [];
+      for (int outer = 0; outer < nested.length; outer++) {
+        T[] values = nested[outer];
+        for (int inner = 0; inner < values.length; inner++) {
+          resolved.push(values[inner]);
+        }
+      }
+      return resolved;
+    },
+    (T[] previous, T[] next) => false
+  );
+}
+
+export Signal<T> createDeferred<T>(
+  Signal<T> source,
+  func(T,T)->bool equals,
+  int timeout
+) {
+  DeferredState<T> state = new DeferredState(source, equals, timeout);
+  createComputed(() => state.track());
+  onCleanup(() => state.dispose());
+  return state.value;
+}
+
+export Resource<T,K> createResource<T,K>(
+  Signal<K> source,
+  func(K)->Future<T> fetcher,
+  T initial,
+  func(T,T)->bool equals
+) {
+  Resource<T,K> resource = new Resource(source, fetcher, initial, equals);
+  createComputed(() => resource.track());
+  onCleanup(() => resource.dispose());
+  return resource;
+}
+
+export func()->U[] mapArray<T,U>(
+  Signal<T[]> list,
+  func(T,Signal<int>)->U mapFn
+) {
+  MappedArrayState<T,U> state = new MappedArrayState();
+  onCleanup(() => state.dispose());
+  return () => {
+    T[] next = list.read();
+    return untrack(() => state.reconcile(next, mapFn));
+  };
+}
+
+export func()->U[] mapArrayWithFallback<T,U>(
+  Signal<T[]> list,
+  func(T,Signal<int>)->U mapFn,
+  func()->U fallback
+) {
+  MappedArrayState<T,U> state = new MappedArrayState();
+  ArrayFallbackState<U> fallbackState = new ArrayFallbackState();
+  onCleanup(() => {
+    state.dispose();
+    fallbackState.dispose();
+  });
+  return () => {
+    T[] next = list.read();
+    return untrack(() => {
+      if (next.length == 0) {
+        state.dispose();
+        return fallbackState.read(fallback);
+      }
+      fallbackState.dispose();
+      return state.reconcile(next, mapFn);
+    });
+  };
+}
+
+export func()->U[] mapArrayValuesWithFallback<T,U>(
+  Signal<T[]> list,
+  func(T)->U mapFn,
+  func()->U fallback
+) {
+  MappedValueArrayState<T,U> state = new MappedValueArrayState();
+  ArrayFallbackState<U> fallbackState = new ArrayFallbackState();
+  onCleanup(() => {
+    state.dispose();
+    fallbackState.dispose();
+  });
+  return () => {
+    T[] next = list.read();
+    return untrack(() => {
+      if (next.length == 0) {
+        state.dispose();
+        return fallbackState.read(fallback);
+      }
+      fallbackState.dispose();
+      return state.reconcile(next, mapFn);
+    });
+  };
+}
+
+export func()->U[] mapArrayValues<T,U>(
+  Signal<T[]> list,
+  func(T)->U mapFn
+) {
+  MappedValueArrayState<T,U> state = new MappedValueArrayState();
+  onCleanup(() => state.dispose());
+  return () => {
+    T[] next = list.read();
+    return untrack(() => state.reconcile(next, mapFn));
+  };
+}
+
+export func()->U[] indexArray<T,U>(
+  Signal<T[]> list,
+  func(Signal<T>,int)->U mapFn
+) {
+  IndexedArrayState<T,U> state = new IndexedArrayState();
+  onCleanup(() => state.dispose());
+  return () => {
+    T[] next = list.read();
+    return untrack(() => state.reconcile(next, mapFn));
+  };
+}
+
+export func()->U[] indexArrayWithFallback<T,U>(
+  Signal<T[]> list,
+  func(Signal<T>,int)->U mapFn,
+  func()->U fallback
+) {
+  IndexedArrayState<T,U> state = new IndexedArrayState();
+  ArrayFallbackState<U> fallbackState = new ArrayFallbackState();
+  onCleanup(() => {
+    state.dispose();
+    fallbackState.dispose();
+  });
+  return () => {
+    T[] next = list.read();
+    return untrack(() => {
+      if (next.length == 0) {
+        state.dispose();
+        return fallbackState.read(fallback);
+      }
+      fallbackState.dispose();
+      return state.reconcile(next, mapFn);
+    });
+  };
+}
+
+export Observable<T> observable<T>(func()->T input) {
+  return new Observable(input);
+}
+
+export Signal<T> from<T>(
+  func(func(T)->T)->func()->void producer,
+  T initial
+) {
+  Signal<T> signal = new Signal(
+    initial,
+    (T previous, T next) => false
+  );
+  func(T)->T setter = (T value) => signal.write(value);
+  func()->void cleanup = producer(setter);
+  onCleanup(cleanup);
+  return signal;
+}
+
+export Signal<T> fromObservable<T>(Observable<T> input, T initial) {
+  Signal<T> signal = new Signal(
+    initial,
+    (T previous, T next) => false
+  );
+  Subscription subscription = input.subscribe((T value) => {
+    signal.write(value);
+  });
+  onCleanup(() => subscription.unsubscribe());
+  return signal;
+}
+
+export Signal<int> createIntMemo(func()->int compute) {
+  Signal<int> memo = new Signal(0, strictIntEquals);
+  createComputation(() => {
+    memo.write(compute());
+  }, true, false);
+  return memo;
+}
+
+export T createRootWithOwner<T>(
+  func(func()->void)->T callback,
+  OwnerHandle? parent = null,
+  bool ownedByParent = false,
+  (func()->void)[]? disposerSink = null
+) {
+  int id = owners.length;
+  if (freeOwnerIds.length > 0) {
+    id = freeOwnerIds.pop();
+  }
+  int parentKind = 0;
+  int parentId = -1;
+  if (parent != null && parent.kind != 0) {
+    parentKind = parent.kind;
+    parentId = parent.id;
+  }
+  Owner owner = new Owner(id, parentKind, parentId);
+  if (id == owners.length) {
+    owners.push(owner);
+  } else {
+    owners[id] = owner;
+  }
+  if (ownedByParent) {
+    if (parentKind == 1) {
+      owners[parentId].ownerIds.push(id);
+    } else if (parentKind == 2) {
+      effects[parentId].childOwnerIds.push(id);
+    }
+  }
+  int previousListener = activeListenerId;
+  int previousOwner = activeOwnerId;
+  int previousEffect = activeEffectId;
+  activeListenerId = -1;
+  activeOwnerId = id;
+  activeEffectId = -1;
+  executionDepth += 1;
+  func()->void dispose = () => {
+    if (owners[id] == owner) {
+      disposeOwner(id);
+    }
+  };
+  if (disposerSink != null) {
+    disposerSink.push(dispose);
+  }
+  bool succeeded = false;
+  try {
+    T result = callback(dispose);
+    succeeded = true;
+    return result;
+  } finally {
+    executionDepth -= 1;
+    activeListenerId = previousListener;
+    activeEffectId = previousEffect;
+    activeOwnerId = previousOwner;
+    if (succeeded) {
+      flushEffects();
+    }
+  }
+}
+
+export T createRoot<T>(func(func()->void)->T callback) {
+  return createRootWithOwner(callback, getOwner());
+}
+
+export string createUniqueId() {
+  int id = nextUniqueId;
+  nextUniqueId += 1;
+  return "cl-" + id;
+}
+
+export OwnerHandle? getOwner() {
+  if (activeEffectId >= 0) {
+    return ownerHandleFor(2, activeEffectId);
+  }
+  if (activeOwnerId >= 0) {
+    return ownerHandleFor(1, activeOwnerId);
+  }
+  return null;
+}
+
+export OwnerHandle? getListener() {
+  if (activeListenerId >= 0) {
+    return ownerHandleFor(2, activeListenerId);
+  }
+  return null;
+}
+
+export bool hasListener() {
+  return activeListenerId >= 0;
+}
+
+export T runWithOwner<T>(OwnerHandle? owner, func()->T callback) {
+  int previousListener = activeListenerId;
+  int previousEffect = activeEffectId;
+  int previousOwner = activeOwnerId;
+  activeListenerId = -1;
+  if (owner != null && owner.kind != 0) {
+    if (owner.kind == 2) {
+      activeEffectId = owner.id;
+      activeOwnerId = -1;
+    } else {
+      activeEffectId = -1;
+      activeOwnerId = owner.id;
+    }
+  } else {
+    activeEffectId = -1;
+    activeOwnerId = -1;
+  }
+  executionDepth += 1;
+  bool succeeded = false;
+  try {
+    T result = callback();
+    succeeded = true;
+    return result;
+  } finally {
+    executionDepth -= 1;
+    activeListenerId = previousListener;
+    activeEffectId = previousEffect;
+    activeOwnerId = previousOwner;
+    if (succeeded) {
+      flushEffects();
+    }
+  }
+}
+
+export OwnerHandle? ownerParent(OwnerHandle owner) {
+  return owner.owner;
+}
+
+// Kept outside the Solid-compatible package surface. The diagnostics subpath
+// uses these counters to prove lifecycle churn reaches a stable high-water
+// mark instead of retaining one callback/owner per mount.
+export int diagnosticOwnerSlots() {
+  return owners.length;
+}
+
+export int diagnosticEffectSlots() {
+  return effects.length;
+}
+
+export int diagnosticFreeOwnerSlots() {
+  return freeOwnerIds.length;
+}
+
+export int diagnosticFreeEffectSlots() {
+  return freeEffectIds.length;
+}
+
+export int diagnosticPendingEffects() {
+  int pending = pendingEffects.length - pendingStart;
+  if (pending < 0) {
+    return 0;
+  }
+  return pending;
+}
+
+export Context<T> createContext<T>(T defaultValue) {
+  int id = nextContextId;
+  nextContextId += 1;
+  return new Context(id, defaultValue);
+}
+
+export U provideContext<T,U>(
+  Context<T> context,
+  T value,
+  func()->U children
+) {
+  return context.provide(value, children);
+}
+
+export Selector<T> createSelector<T>(
+  Signal<T> source,
+  func(T,T)->bool equals
+) {
+  return new Selector(source, equals);
+}
+
+export bool selectorSelected<T>(Selector<T> selector, T key) {
+  return selector.selected(key);
+}
+
+export T useContext<T>(Context<T> context) {
+  return context.read();
+}
+
+export func()->void onCleanup(func()->void callback) {
+  Cleanup cleanup = new Cleanup(callback);
+  if (activeEffectId >= 0) {
+    effects[activeEffectId].cleanups.push(cleanup);
+  } else if (activeOwnerId >= 0) {
+    owners[activeOwnerId].cleanups.push(cleanup);
+  }
+  return callback;
+}
+
+export int untrackInt(func()->int callback) {
+  int previous = activeListenerId;
+  activeListenerId = -1;
+  try {
+    return callback();
+  } finally {
+    activeListenerId = previous;
+  }
+}
+
+export T untrack<T>(func()->T callback) {
+  int previous = activeListenerId;
+  activeListenerId = -1;
+  try {
+    return callback();
+  } finally {
+    activeListenerId = previous;
+  }
+}
+
+export T batch<T>(func()->T callback) {
+  batchDepth += 1;
+  bool succeeded = false;
+  try {
+    T result = callback();
+    succeeded = true;
+    return result;
+  } finally {
+    batchDepth -= 1;
+    if (succeeded && batchDepth == 0) {
+      if (executionDepth > 0) {
+        flushPureEffects();
+      } else {
+        flushEffects();
+      }
+    }
+  }
+}

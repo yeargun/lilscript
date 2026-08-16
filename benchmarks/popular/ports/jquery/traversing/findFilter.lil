@@ -1,0 +1,143 @@
+import { emptyArray } from "../alloc.lil";
+import { jQuery, grep, wrap } from "../core";
+import { isFunction } from "../var/isFunction";
+import { rneedsContext } from "./var/rneedsContext";
+import { find, uniqueSortImpl } from "../selector";
+import { containsImpl } from "../selector/contains";
+import {
+  isNullish,
+  call2,
+  call3,
+  regexTest,
+  stringify,
+  arrayIndexOf
+} from "../js-host.lil";
+
+JsValue winnowFunction(JsValue elements, JsValue qualifier, bool not) {
+  return grep(elements, (JsValue elem, JsValue i) => {
+    bool truthyResult = JS.call(qualifier, elem, i, elem).truthy();
+    return truthyResult != not;
+  });
+}
+
+JsValue winnowSingleElement(JsValue elements, JsValue qualifier, bool not) {
+  return grep(elements, (JsValue elem, JsValue _i) => {
+    return (elem == qualifier) != not;
+  });
+}
+
+JsValue winnowArraylike(JsValue elements, JsValue qualifier, bool not) {
+  return grep(elements, (JsValue elem, JsValue _i) => {
+    return (arrayIndexOf(qualifier, elem, 0.0) > -1.0) != not;
+  });
+}
+
+export JsValue filterImpl(JsValue exprValue, JsValue elems, bool not = false) {
+  JsValue elem = elems[0];
+  JsValue selectorExpr = exprValue;
+
+  if (not) {
+    selectorExpr = ":not(" + exprValue + ")";
+  }
+
+  if (elems.length == 1.0 && JS.and(elem, elem["nodeType"]) == 1.0) {
+    if (JS.invoke(find, "matchesSelector", elem, selectorExpr).truthy()) {
+      return [elem];
+    }
+    JsValue[] none = [];
+    return none;
+  }
+
+  JsValue onlyElements = grep(elems, (JsValue e, JsValue _i) => JS.and(e, e["nodeType"]) == 1.0);
+  return JS.invoke(find, "matches", selectorExpr, onlyElements);
+}
+
+JsValue winnow(JsValue elements, JsValue qualifier, bool not) {
+  if (isFunction(qualifier)) {
+    return winnowFunction(elements, qualifier, not);
+  }
+
+  JsValue nodeTypeValue = qualifier["nodeType"];
+  if (!JS.isNullish(nodeTypeValue) && nodeTypeValue.truthy()) {
+    return winnowSingleElement(elements, qualifier, not);
+  }
+
+  if (!(qualifier is string)) {
+    return winnowArraylike(elements, qualifier, not);
+  }
+
+  string qualifierText = qualifier;
+  return filterImpl(qualifierText, elements, not);
+}
+
+export JsValue fnFilter(JsValue self, JsValue selectorArg) {
+  JsValue qualifier = selectorArg;
+  if (JS.isNullish(qualifier)) {
+    qualifier = emptyArray();
+  }
+  return JS.invoke(self, "pushStack", winnow(self, qualifier, false));
+}
+
+export JsValue fnNot(JsValue self, JsValue selectorArg) {
+  JsValue qualifier = selectorArg;
+  if (JS.isNullish(qualifier)) {
+    qualifier = emptyArray();
+  }
+  return JS.invoke(self, "pushStack", winnow(self, qualifier, true));
+}
+
+export JsValue fnIs(JsValue self, JsValue selectorArg) {
+  JsValue qualifier = selectorArg;
+  if (JS.isNullish(qualifier)) {
+    qualifier = emptyArray();
+  }
+  if (qualifier is string) {
+    string selText = qualifier;
+    if (JS.regexTest(rneedsContext, selText)) {
+      qualifier = wrap(selText);
+    }
+  }
+  return winnow(self, qualifier, false).length > 0.0;
+}
+
+export JsValue fnFind(JsValue self, JsValue selectorArg) {
+  if (!(selectorArg is string)) {
+    JsValue wrapped = wrap(selectorArg);
+    JsValue qualifier = (JsValue _i, JsValue elem) => {
+      bool found = false;
+      float k = 0.0;
+      float len = self.length;
+      for (; k < len; k++) {
+        if (found) {
+          continue;
+        }
+        if (containsImpl(self[k], elem)) {
+          found = true;
+        }
+      }
+      return found;
+    };
+    JsValue filtered = JS.invoke(wrapped, "filter", qualifier);
+    return JS.invoke(self, "pushStack", filtered);
+  }
+
+  JsValue ret = JS.invoke(self, "pushStack", emptyArray());
+  float i = 0.0;
+  float len = self.length;
+  for (; i < len; i++) {
+    find(selectorArg, self[i], ret);
+  }
+
+  if (len > 1.0) {
+    return uniqueSortImpl(ret);
+  }
+  return ret;
+}
+
+jQuery["filter"] = filterImpl;
+jQuery["fn"]["find"] = JS.method1(fnFind);
+jQuery["fn"]["filter"] = JS.method1(fnFilter);
+jQuery["fn"]["not"] = JS.method1(fnNot);
+jQuery["fn"]["is"] = JS.method1(fnIs);
+
+export { jQuery };

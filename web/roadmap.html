@@ -1,26 +1,170 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="LilScript compiler progress, evidence status, limits, and optimization roadmap.">
-    <title>Progress and roadmap | LilScript</title><link rel="stylesheet" href="/src/styles.css">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="LilScript compiler progress, evidence status, limits, and optimization roadmap."
+    />
+    <title>Progress and roadmap | LilScript</title>
+    <link rel="stylesheet" href="/src/styles.css" />
   </head>
   <body class="content-page">
     <header class="site-header">
-      <a class="wordmark" href="/" aria-label="LilScript playground"><span class="wordmark-mark" aria-hidden="true">L</span><span>LilScript</span></a>
-      <button class="nav-toggle icon-button" type="button" aria-label="Toggle navigation" aria-expanded="false"><i data-lucide="menu" aria-hidden="true"></i></button>
-      <nav class="site-nav" aria-label="Primary navigation"><a href="/">Playground</a><a href="/docs.html">Docs</a><a href="/benchmarks.html">Benchmarks</a><a href="/explorer.html">Explorer</a><a href="/delivery.html">Delivery</a><a class="active" href="/roadmap.html">Roadmap</a><a href="/about.html">About</a></nav>
+      <a class="wordmark" href="/" aria-label="LilScript playground"
+        ><span class="wordmark-mark" aria-hidden="true">L</span
+        ><span>LilScript</span></a
+      >
+      <button
+        class="nav-toggle icon-button"
+        type="button"
+        aria-label="Toggle navigation"
+        aria-expanded="false"
+      >
+        <i data-lucide="menu" aria-hidden="true"></i>
+      </button>
+      <nav class="site-nav" aria-label="Primary navigation">
+        <a href="/">Playground</a><a href="/docs.html">Docs</a
+        ><a href="/benchmarks.html">Benchmarks</a
+        ><a href="/explorer.html">Explorer</a
+        ><a href="/delivery.html">Delivery</a
+        ><a class="active" href="/roadmap.html">Roadmap</a
+        ><a href="/about.html">About</a>
+      </nav>
     </header>
     <main class="comparison-main content-width roadmap-main">
-      <section class="comparison-intro"><p class="eyebrow">No mystery scoreboard</p><h1>Progress, limits, and next work</h1><p class="lead">LilScript already has serious whole-program compression. The roadmap separates shipped evidence from current constraints and the next compiler experiments.</p><p class="comparison-note" data-roadmap-summary>Loading the generated evidence count.</p></section>
-      <section class="roadmap-grid">
-        <article class="roadmap-column shipped"><p class="eyebrow">Shipped and verified</p><h2>Evidence we can defend</h2><ul><li>JavaScript, emitted C, and native behavior gates before publication.</li><li>Current Vite 8/Oxc, Vite/Terser private-property, and Closure ADVANCED lanes.</li><li>Complete selected npm entrypoints separated from partial compatibility work.</li><li>Raw, gzip-9, and Brotli-11 reported independently.</li><li>Real login, animation, geometry, and property-boundary scenarios.</li><li>Generated project pages with exact source previews and repository links.</li></ul></article>
-        <article class="roadmap-column current"><p class="eyebrow">Current constraints</p><h2>What is not solved</h2><ul><li>Large candidate searches can spend minutes on robust-predicate topology.</li><li>Property mangling still depends on an explicit closed-world/export contract.</li><li>Browser rendering claims need repeatable in-browser hardware runs; Node/jsdom is only a proxy.</li><li>Partial Solid, Preact, Zod, Immer, Acorn, and Redux surfaces are not full-library compatibility.</li><li>A smaller demo app does not establish a smaller reusable public API.</li></ul></article>
-        <article class="roadmap-column next"><p class="eyebrow">Next compiler work</p><h2>Ordered experiments</h2><ol><li><strong>Escape-owned properties.</strong> Prove which fields never cross extern/export boundaries, then mangle only those without a global closed-world switch.</li><li><strong>Search budgeting.</strong> Cache equivalent IR candidates, stop dominated branches earlier, and publish compile-time alongside byte wins.</li><li><strong>Cross-module shape DCE.</strong> Carry field-use and call-signature facts through preserve-module output.</li><li><strong>Startup-aware scoring.</strong> Keep raw/codec candidates while rejecting parse, allocation, or hot-loop regressions with measured profiles.</li><li><strong>Broader applications.</strong> Add routing, validation, state, and rendering scenarios only when both sides perform the same algorithmic work.</li></ol></article>
+      <section class="comparison-intro">
+        <p class="eyebrow">No mystery scoreboard</p>
+        <h1>Progress, limits, and next work</h1>
+        <p class="lead">
+          LilScript already has serious whole-program compression. The roadmap
+          separates shipped evidence from current constraints and the next
+          compiler experiments.
+        </p>
+        <p class="comparison-note" data-roadmap-summary>
+          Loading the generated evidence count.
+        </p>
       </section>
-      <section class="comparison-method"><p class="eyebrow">Research notes</p><h2>What Vite and Closure taught us</h2><p>Vite/Rolldown gets leverage from graph-level tree shaking before Oxc performs compact syntax, constant folding, dead-code elimination, and binding mangling. Closure ADVANCED treats the program as a closed world and combines global renaming with interprocedural optimization, but only when externs and exported contracts are modeled correctly. LilScript’s typed IR can often go further through scalar replacement and typed specialization; its highest-value next step is proving ownership and escape boundaries automatically.</p><div class="hero-actions"><a class="primary-link" href="/explorer.html">Explore measurements<i data-lucide="arrow-right" aria-hidden="true"></i></a><a class="secondary-link" href="https://github.com/yeargun/lilscript/blob/main/docs/vite-closure-minification-audit.md">Read the technical audit<i data-lucide="external-link" aria-hidden="true"></i></a></div></section>
+      <section class="roadmap-grid">
+        <article class="roadmap-column shipped">
+          <p class="eyebrow">Shipped and verified</p>
+          <h2>Evidence we can defend</h2>
+          <ul>
+            <li>
+              JavaScript, emitted C, and native behavior gates before
+              publication.
+            </li>
+            <li>
+              Current Vite 8/Oxc, Vite/Terser private-property, and Closure
+              ADVANCED lanes.
+            </li>
+            <li>
+              Complete selected npm entrypoints separated from partial
+              compatibility work.
+            </li>
+            <li>Raw, gzip-9, and Brotli-11 reported independently.</li>
+            <li>
+              Real login, animation, geometry, and property-boundary scenarios.
+            </li>
+            <li>
+              Generated project pages with exact source previews and repository
+              links.
+            </li>
+          </ul>
+        </article>
+        <article class="roadmap-column current">
+          <p class="eyebrow">Current constraints</p>
+          <h2>What is not solved</h2>
+          <ul>
+            <li>
+              Large candidate searches can spend minutes on robust-predicate
+              topology.
+            </li>
+            <li>
+              Property mangling still depends on an explicit closed-world/export
+              contract.
+            </li>
+            <li>
+              Browser rendering claims need repeatable in-browser hardware runs;
+              Node/jsdom is only a proxy.
+            </li>
+            <li>
+              SolidLil runtime parity does not make its partial LSX frontend
+              complete; partial Preact, Zod, Immer, Acorn, and Redux surfaces
+              are also excluded from full-library claims.
+            </li>
+            <li>
+              A smaller demo app does not establish a smaller reusable public
+              API.
+            </li>
+          </ul>
+        </article>
+        <article class="roadmap-column next">
+          <p class="eyebrow">Next compiler work</p>
+          <h2>Ordered experiments</h2>
+          <ol>
+            <li>
+              <strong>Escape-owned properties.</strong> Prove which fields never
+              cross extern/export boundaries, then mangle only those without a
+              global closed-world switch.
+            </li>
+            <li>
+              <strong>Search budgeting.</strong> Cache equivalent IR candidates,
+              stop dominated branches earlier, and publish compile-time
+              alongside byte wins.
+            </li>
+            <li>
+              <strong>Cross-module shape DCE.</strong> Carry field-use and
+              call-signature facts through preserve-module output.
+            </li>
+            <li>
+              <strong>Startup-aware scoring.</strong> Keep raw/codec candidates
+              while rejecting parse, allocation, or hot-loop regressions with
+              measured profiles.
+            </li>
+            <li>
+              <strong>Broader applications.</strong> Add routing, validation,
+              state, and rendering scenarios only when both sides perform the
+              same algorithmic work.
+            </li>
+          </ol>
+        </article>
+      </section>
+      <section class="comparison-method">
+        <p class="eyebrow">Research notes</p>
+        <h2>What Vite and Closure taught us</h2>
+        <p>
+          Vite/Rolldown gets leverage from graph-level tree shaking before Oxc
+          performs compact syntax, constant folding, dead-code elimination, and
+          binding mangling. Closure ADVANCED treats the program as a closed
+          world and combines global renaming with interprocedural optimization,
+          but only when externs and exported contracts are modeled correctly.
+          LilScript’s typed IR can often go further through scalar replacement
+          and typed specialization; its highest-value next step is proving
+          ownership and escape boundaries automatically.
+        </p>
+        <div class="hero-actions">
+          <a class="primary-link" href="/explorer.html"
+            >Explore measurements<i
+              data-lucide="arrow-right"
+              aria-hidden="true"
+            ></i></a
+          ><a
+            class="secondary-link"
+            href="https://github.com/yeargun/lilscript/blob/main/docs/vite-closure-minification-audit.md"
+            >Read the technical audit<i
+              data-lucide="external-link"
+              aria-hidden="true"
+            ></i
+          ></a>
+        </div>
+      </section>
     </main>
-    <footer class="site-footer content-width"><span>LilScript roadmap</span><a href="/docs.html#verification">Verification method</a></footer>
+    <footer class="site-footer content-width">
+      <span>LilScript roadmap</span
+      ><a href="/docs.html#verification">Verification method</a>
+    </footer>
     <script type="module" src="/src/roadmap.js"></script>
   </body>
 </html>

@@ -1,0 +1,61 @@
+import { getComputedStyleField, windowGet } from "../../dom-host";
+import { createProjectionNode, ProjectionNode } from "./create-projection-node";
+import { DocumentProjectionNode } from "./DocumentProjectionNode";
+
+export class RootProjectionNodeRef {
+  ProjectionNode? current;
+
+  init() {
+    this.current = null;
+  }
+}
+
+export RootProjectionNodeRef rootProjectionNode = new RootProjectionNodeRef();
+
+JsValue htmlProjectionConfig = record{
+  measureScroll: (JsValue instance) => {
+    return record{x: instance["scrollLeft"], y: instance["scrollTop"]};
+  },
+  defaultParent: () => {
+    if (rootProjectionNode.current == null) {
+      DocumentProjectionNode documentNode = new DocumentProjectionNode(record{});
+      documentNode.mount(windowGet("self"));
+      documentNode.setOptions(record{layoutScroll: true});
+      rootProjectionNode.current = documentNode.node;
+    }
+    return rootProjectionNode.current;
+  },
+  resetTransform: (JsValue instance, JsValue? value = null) => {
+    string transform = "none";
+    if (value is string) {
+      transform = value;
+    }
+    instance["style"]["transform"] = transform;
+  },
+  checkIsScrollRoot: (JsValue instance) => {
+    return getComputedStyleField(instance, "position") == "fixed";
+  }
+};
+
+func(JsValue)->ProjectionNode HTMLProjectionNodeCtor =
+  createProjectionNode(htmlProjectionConfig);
+
+export class HTMLProjectionNode {
+  ProjectionNode node;
+
+  init(JsValue options) {
+    this.node = HTMLProjectionNodeCtor(options);
+  }
+
+  void mount(JsValue instance) {
+    this.node.mount(instance);
+  }
+
+  void setOptions(JsValue options) {
+    this.node.setOptions(options);
+  }
+
+  void unmount() {
+    this.node.unmount();
+  }
+}

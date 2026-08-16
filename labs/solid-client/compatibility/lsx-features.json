@@ -1,0 +1,163 @@
+[
+  {
+    "id": "host-elements",
+    "label": "Host elements and nesting",
+    "lowering": "verified",
+    "runtime": "verified",
+    "notes": "Static host elements and nested elements compile from .lilx and mount through the LilScript DOM runtime."
+  },
+  {
+    "id": "static-attributes",
+    "label": "Static attributes",
+    "lowering": "verified",
+    "runtime": "verified",
+    "notes": "Quoted and boolean host attributes compile to DOM attribute calls and are asserted after mount."
+  },
+  {
+    "id": "dynamic-attributes",
+    "label": "Dynamic attributes",
+    "lowering": "verified",
+    "runtime": "verified",
+    "notes": "Each dynamic host property receives an independent render effect so unrelated dependencies do not rerun."
+  },
+  {
+    "id": "properties",
+    "label": "Value and checked properties",
+    "lowering": "verified",
+    "runtime": "verified",
+    "notes": "String and boolean property updates have dedicated host calls."
+  },
+  {
+    "id": "text-expressions",
+    "label": "Reactive text expressions",
+    "lowering": "verified",
+    "runtime": "verified",
+    "notes": "Expression children lower to owned text insertion."
+  },
+  {
+    "id": "delegated-events",
+    "label": "Delegated events",
+    "lowering": "verified",
+    "runtime": "verified",
+    "notes": "Common bubbling events lower through the delegated host path."
+  },
+  {
+    "id": "native-events",
+    "label": "Native event listeners",
+    "lowering": "verified",
+    "runtime": "verified",
+    "notes": "Non-delegated scroll event lowering compiles and updates reactive state in the integrated fixture."
+  },
+  {
+    "id": "class-list",
+    "label": "classList updates",
+    "lowering": "verified",
+    "runtime": "verified",
+    "notes": "Each object-shaped class flag receives an independent render effect and cleanup scope."
+  },
+  {
+    "id": "show",
+    "label": "Show control flow",
+    "lowering": "verified",
+    "runtime": "verified",
+    "notes": "Arbitrary truthy values, keyed raw-value callbacks, non-keyed live accessors, DOM identity, component/nested branches, fallback replacement, stale-accessor guards, ownership, and immediate cleanup are integrated."
+  },
+  {
+    "id": "for",
+    "label": "For control flow",
+    "lowering": "verified",
+    "runtime": "verified",
+    "notes": "Full LilScript callback types, host/component rows, live index accessors, component fallbacks, prefix/suffix duplicate identity, insertion, reordering, removal, fallback ownership, and row cleanup are integrated."
+  },
+  {
+    "id": "index",
+    "label": "Index control flow",
+    "lowering": "verified",
+    "runtime": "verified",
+    "notes": "Typed signal rows, positional identity, value updates, removal, and host fallback lowering are integrated."
+  },
+  {
+    "id": "switch-match",
+    "label": "Switch and Match",
+    "lowering": "verified",
+    "runtime": "verified",
+    "notes": "Ordered short-circuit selection, arbitrary truthy values, keyed raw callbacks, non-keyed accessors, fallback, component/nested branches, stale-accessor guards, ownership, and cleanup are differential-tested."
+  },
+  {
+    "id": "components",
+    "label": "User components",
+    "lowering": "verified",
+    "runtime": "verified",
+    "notes": "User components have ordered live props, children, component spreads, nested control-flow composition, fragment normalization, keyed/indexed row use, and owned cleanup evidence."
+  },
+  {
+    "id": "spread",
+    "label": "Spread props",
+    "lowering": "verified",
+    "runtime": "verified",
+    "notes": "Ordered component and host spreads support later overrides, live getters, properties, attributes, classList, style, refs, listener replacement, and unmount listener cleanup."
+  },
+  {
+    "id": "refs",
+    "label": "Refs",
+    "lowering": "verified",
+    "runtime": "verified",
+    "notes": "Callback refs receive the created host node once during untracked construction."
+  },
+  {
+    "id": "directives",
+    "label": "use: directives",
+    "lowering": "verified",
+    "runtime": "verified",
+    "notes": "use: directives lower through the owned untracked runtime helper with an explicit value."
+  },
+  {
+    "id": "dynamic",
+    "label": "Dynamic elements/components",
+    "lowering": "verified",
+    "runtime": "verified",
+    "notes": "Dynamic lowers live string, component, and null selections with live props/children, SVG namespace selection, immediate branch cleanup, and identity pruning."
+  },
+  {
+    "id": "portal",
+    "label": "Portal",
+    "lowering": "verified",
+    "runtime": "verified",
+    "notes": "Ordinary, document-head, SVG, and shadow-root portals lower with refs, reactive children, delegated event hosting, idempotent teardown, and handle release."
+  },
+  {
+    "id": "svg-mathml",
+    "label": "SVG and MathML namespaces",
+    "lowering": "verified",
+    "runtime": "verified",
+    "notes": "Nested SVG and MathML nodes lower to namespace-aware constructors and are asserted by namespace URI."
+  },
+  {
+    "id": "namespaced-attributes",
+    "label": "Namespaced attributes",
+    "lowering": "verified",
+    "runtime": "verified",
+    "notes": "Static and reactive xlink/xml names resolve to setAttributeNS and are asserted through namespace-aware DOM reads."
+  },
+  {
+    "id": "hydration",
+    "label": "Hydration",
+    "lowering": "excluded",
+    "runtime": "excluded",
+    "notes": "Out of scope for the client-rendering parity contract; true hydration requires a coordinated server marker, event replay, resource handoff, and mismatch-recovery subsystem."
+  },
+  {
+    "id": "ssr",
+    "label": "SSR",
+    "lowering": "excluded",
+    "runtime": "excluded",
+    "notes": "Out of scope for the client-rendering parity contract; no server template or streaming claim is made."
+  },
+  {
+    "id": "suspense-errors",
+    "label": "Suspense and error boundaries",
+    "lowering": "verified",
+    "runtime": "verified",
+    "notes": "Typed ErrorBoundary fallbacks and reset callbacks, construction and delayed reactive errors, two-resource Suspense reveal, preserved pending content ownership, fallback/content cleanup, pending unmount, slot release, and minified-bundle behavior are differential-tested."
+  }
+]

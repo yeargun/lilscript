@@ -1,0 +1,115 @@
+import {
+  Signal,
+  batch,
+  createIntMemo,
+  createIntSignal,
+  enableScheduling
+} from "./reactive";
+import {
+  DomEvent,
+  DomNode,
+  append,
+  attribute,
+  documentAttribute,
+  dynamicText,
+  element,
+  onDelegatedEvent,
+  render,
+  text
+} from "./web";
+
+extern void hostSchedule(func()->void callback);
+extern void registerBenchmarkDispose(func()->void callback);
+
+DomNode labeledValue(
+  DomNode parent,
+  string label,
+  string key,
+  func()->string value
+) {
+  DomNode row = element("div");
+  DomNode caption = element("span");
+  DomNode output = element("strong");
+  attribute(output, "data-value", key);
+  append(caption, text(label));
+  dynamicText(output, value);
+  append(row, caption);
+  append(row, output);
+  append(parent, row);
+  return output;
+}
+
+void actionButton(
+  DomNode parent,
+  string action,
+  string label,
+  func()->void callback
+) {
+  DomNode button = element("button");
+  attribute(button, "type", "button");
+  attribute(button, "data-action", action);
+  append(button, text(label));
+  onDelegatedEvent(button, "click", (DomEvent event) => callback());
+  append(parent, button);
+}
+
+string parity(Signal<int> count) {
+  if (count.read() % 2 == 0) {
+    return "Even";
+  } else {
+    return "Odd";
+  }
+}
+
+enableScheduling(hostSchedule);
+func()->void disposeApp = render("#app", (DomNode root) => {
+  Signal<int> count = createIntSignal(0);
+  Signal<int> doubled = createIntMemo(() => count.read() * 2);
+  DomNode shell = element("section");
+  attribute(shell, "class", "shell");
+  attribute(shell, "data-runtime", "lilscript");
+
+  DomNode header = element("header");
+  DomNode eyebrow = element("p");
+  append(eyebrow, text("Reactive runtime comparison"));
+  DomNode heading = element("h1");
+  append(heading, text("LilScript port"));
+  append(header, eyebrow);
+  append(header, heading);
+  append(shell, header);
+
+  DomNode values = element("div");
+  attribute(values, "class", "values");
+  attribute(values, "aria-live", "polite");
+  labeledValue(values, "Count", "count", () => "" + count.read());
+  labeledValue(values, "Doubled", "doubled", () => "" + doubled.read());
+  labeledValue(
+    values,
+    "Parity",
+    "parity",
+    () => parity(count)
+  );
+  append(shell, values);
+
+  DomNode actions = element("div");
+  attribute(actions, "class", "actions");
+  actionButton(actions, "increment", "Increment", () => {
+    count.write(count.read() + 1);
+  });
+  actionButton(actions, "burst", "Add 100", () => {
+    batch(() => {
+      for (int index = 0; index < 100; index++) {
+        count.write(count.read() + 1);
+      }
+      return 0;
+    });
+  });
+  actionButton(actions, "reset", "Reset", () => {
+    count.write(0);
+  });
+  append(shell, actions);
+  append(root, shell);
+
+  documentAttribute("data-count", () => "" + count.read());
+});
+registerBenchmarkDispose(disposeApp);

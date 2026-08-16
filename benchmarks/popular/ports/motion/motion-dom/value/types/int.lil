@@ -1,0 +1,13 @@
+import { numberType } from "./numbers/index";
+import { ValueType } from "./types";
+
+export ValueType intType = new ValueType(
+  numberType.test,
+  numberType.parse,
+  (JsValue v) => {
+    if (v is float) {
+      return v.round();
+    }
+    return 0.0;
+  }
+);

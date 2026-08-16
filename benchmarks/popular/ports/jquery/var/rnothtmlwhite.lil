@@ -1,0 +1,1 @@
+export Regex rnothtmlwhite = new Regex("[^\\x20\\t\\r\\n\\f]+", "g");

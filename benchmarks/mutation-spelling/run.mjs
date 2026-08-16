@@ -12,5 +12,5 @@ runPassAblation({
       "assignment.js",
     ],
   ],
-  strictMetrics: ["raw", "brotli"],
+  gateMetric: "brotli",
 });

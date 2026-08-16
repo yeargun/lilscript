@@ -1,0 +1,6 @@
+export void normalizeTimes(float[] times, float repeat, float repeatDelayUnits = 0.0) {
+  float totalUnits = repeat + 1.0 + repeat * repeatDelayUnits;
+  for (int i = 0; i < times.length; i++) {
+    times[i] = times[i] / totalUnits;
+  }
+}

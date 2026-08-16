@@ -1,0 +1,100 @@
+import { frame } from "../../frameloop/index";
+import { FrameData } from "../../frameloop/types";
+import { MotionValue } from "../../value/index";
+import { addAttrValue } from "../attr/index";
+import { MotionValueState } from "../MotionValueState";
+import { addStyleValue } from "../style/index";
+import { createSelectorEffect } from "../utils/create-dom-effect";
+import { createEffect } from "../utils/create-effect";
+import { callMethod2, hasOwn, parseFloatValue } from "../../dom-host";
+import { stringReplace } from "../../string-host";
+
+Regex attrKeyRegex = new Regex("^attr([A-Z])", "");
+
+func()->void addSVGPathValue(
+  JsValue element,
+  MotionValueState state,
+  string key,
+  MotionValue value
+) {
+  frame.render((FrameData _d) => {
+    callMethod2(element, "setAttribute", "pathLength", "1");
+  }, false, false);
+  if (key == "pathOffset") {
+    return state.set(key, value, () => {
+      JsValue offset = state.latest[key];
+      float offsetNum = parseFloatValue(offset);
+      callMethod2(element, "setAttribute", "stroke-dashoffset", `${0.0 - offsetNum}`);
+    });
+  }
+  if (state.get("stroke-dasharray") == null) {
+    state.set("stroke-dasharray", new MotionValue("1 1"), () => {
+      JsValue pathLength = state.latest["pathLength"];
+      if (!(pathLength is float) && !(pathLength is string)) {
+        pathLength = 1.0;
+      }
+      JsValue pathSpacing = state.latest["pathSpacing"];
+      float lengthNum = 1.0;
+      if (pathLength is float) {
+        lengthNum = pathLength;
+      } else {
+        lengthNum = parseFloatValue(pathLength);
+      }
+      JsValue spacingOut = pathSpacing;
+      if (!(pathSpacing is float) && !(pathSpacing is string)) {
+        spacingOut = 1.0 - lengthNum;
+      }
+      callMethod2(
+        element,
+        "setAttribute",
+        "stroke-dasharray",
+        `${pathLength} ${spacingOut}`
+      );
+    });
+  }
+  return state.set(key, value, null, state.get("stroke-dasharray"));
+}
+
+string convertAttrKey(string key) {
+  return stringReplace(key, attrKeyRegex, (string _m) => {
+    return "";
+  });
+}
+
+string convertAttrKeyProper(string key) {
+  if (!key.startsWith("attr") || key.length < 5) {
+    return key;
+  }
+  string rest = "";
+  for (int i = 4; i < key.length; i++) {
+    string ch = key.charAt(i);
+    if (i == 4) {
+      rest = ch.toLowerCase();
+    } else {
+      rest = rest + ch;
+    }
+  }
+  return rest;
+}
+
+func()->void addSVGValue(
+  JsValue element,
+  MotionValueState state,
+  string key,
+  MotionValue value
+) {
+  if (key.startsWith("path")) {
+    return addSVGPathValue(element, state, key, value);
+  }
+  if (key.startsWith("attr")) {
+    return addAttrValue(element, state, convertAttrKeyProper(key), value);
+  }
+  bool inStyle = hasOwn(element["style"], key);
+  if (inStyle) {
+    return addStyleValue(element, state, key, value);
+  }
+  return addAttrValue(element, state, key, value);
+}
+
+export func(JsValue, Record<MotionValue>)->func()->void svgEffect =
+  createSelectorEffect(createEffect(addSVGValue));

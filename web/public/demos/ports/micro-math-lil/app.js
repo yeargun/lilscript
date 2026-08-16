@@ -1,0 +1,1 @@
+let a=100;let c=(c,a,b)=>a<b?c<a?a:c>b?b:c:c<b?b:c>a?a:c;var b=0==c(0,-100,a)?1:0,f,d,e,l;c(0,a,a)==a&&(b=b+1);0==c(0,a,-100)&&(b=b+1);50==c(a,0,50)&&(b=b+1);c(50,a,150)==a&&(b=b+1);b=b+1;b=b+1;b=b+1;b=b+1;f=b+1;b=0;e=0;l=0;while(b<18e4)d=b%6/6,e+=-40*(1-d)+80*d,l+=c(b%23-11,-5,7),b+=1;console.log(`micro-math:${f}:${e}:${l}`)

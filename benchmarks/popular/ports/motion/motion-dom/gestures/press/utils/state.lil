@@ -1,0 +1,25 @@
+import extern {
+  weakSetCreate,
+  weakSetAdd,
+  weakSetHas,
+  weakSetDelete
+} from "../../../weak-host.ts";
+
+extern JsValue weakSetCreate();
+extern void weakSetAdd(JsValue set, JsValue value);
+extern bool weakSetHas(JsValue set, JsValue value);
+extern void weakSetDelete(JsValue set, JsValue value);
+
+export JsValue isPressing = weakSetCreate();
+
+export bool isPressingHas(JsValue target) {
+  return weakSetHas(isPressing, target);
+}
+
+export void isPressingAdd(JsValue target) {
+  weakSetAdd(isPressing, target);
+}
+
+export void isPressingDelete(JsValue target) {
+  weakSetDelete(isPressing, target);
+}

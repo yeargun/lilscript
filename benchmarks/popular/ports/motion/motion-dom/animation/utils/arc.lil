@@ -1,0 +1,310 @@
+import { wrap } from "../../../motion-utils/wrap";
+import { motionValue } from "../../value/index";
+import { animateMotionValue } from "../interfaces/motion-value";
+import { getValueTransition } from "./get-value-transition";
+import { callMethod0, callMethod1, callMethod2 } from "../../dom-host";
+
+float MIN_LAYOUT_DISTANCE = 20.0;
+
+float bezierPoint(float t, float origin, float control, float target) {
+  float inv = 1.0 - t;
+  return inv * inv * origin + 2.0 * inv * t * control + t * t * target;
+}
+
+float bezierTangentAngle(
+  float t,
+  float originX,
+  float controlX,
+  float targetX,
+  float originY,
+  float controlY,
+  float targetY
+) {
+  float dx = 2.0 * (1.0 - t) * (controlX - originX) + 2.0 * t * (targetX - controlX);
+  float dy = 2.0 * (1.0 - t) * (controlY - originY) + 2.0 * t * (targetY - controlY);
+  return Math.atan2(dy, dx) * (180.0 / Math.PI);
+}
+
+class Point2D {
+  float x;
+  float y;
+  init(float x, float y) {
+    this.x = x;
+    this.y = y;
+  }
+}
+
+Point2D computeArcControlPoint(
+  float fromX,
+  float fromY,
+  float toX,
+  float toY,
+  float strength,
+  float peak
+) {
+  float deltaX = toX - fromX;
+  float deltaY = toY - fromY;
+  float distance = (deltaX * deltaX + deltaY * deltaY).sqrt();
+  if (distance > 0.0) {
+    float normalPerpX = 0.0 - deltaY / distance;
+    float normalPerpY = deltaX / distance;
+    float desiredHeight = strength * distance;
+    return new Point2D(
+      fromX + deltaX * peak + normalPerpX * desiredHeight,
+      fromY + deltaY * peak + normalPerpY * desiredHeight
+    );
+  }
+  return new Point2D(fromX, fromY);
+}
+
+export class ArcOptions {
+  float strength;
+  float peak;
+  string? direction;
+  JsValue rotate;
+
+  init(float strength = 0.5, float peak = 0.5, string? direction = null, JsValue rotate = false) {
+    this.strength = strength;
+    this.peak = peak;
+    this.direction = direction;
+    this.rotate = rotate;
+  }
+}
+
+class ArcFactoryCell {
+  float? prevBulgeSign;
+  init() {
+    this.prevBulgeSign = null;
+  }
+}
+
+float floatSign(float v) {
+  if (v > 0.0) {
+    return 1.0;
+  }
+  if (v < 0.0) {
+    return 0.0 - 1.0;
+  }
+  return 0.0;
+}
+
+export func(Point2D, Point2D)->func(float)->JsValue createArcPath(ArcOptions? options = null) {
+  ArcOptions opts = new ArcOptions();
+  if (options != null) {
+    opts = options;
+  }
+  float rotationScale = 0.0;
+  JsValue rotateVal = opts.rotate;
+  if (rotateVal == true) {
+    rotationScale = 1.0;
+  } else if (rotateVal is float) {
+    rotationScale = rotateVal;
+  }
+  float strength = opts.strength;
+  float peak = opts.peak;
+  string? direction = opts.direction;
+  ArcFactoryCell cell = new ArcFactoryCell();
+  return (Point2D from, Point2D to) => {
+    float dx = to.x - from.x;
+    float dy = to.y - from.y;
+    float signed = strength;
+    if (direction == "cw") {
+      signed = 0.0 - strength;
+    } else if (direction == "ccw") {
+      signed = strength;
+    } else {
+      float dom = dy;
+      if (dx.abs() >= dy.abs()) {
+        dom = dx;
+      }
+      if (dom < 0.0) {
+        signed = 0.0 - strength;
+      } else {
+        signed = strength;
+      }
+    }
+    Point2D control = computeArcControlPoint(from.x, from.y, to.x, to.y, signed, peak);
+    if (direction == null) {
+      bool isVertical = dx.abs() < dy.abs();
+      float midX = from.x + dx * peak;
+      float midY = from.y + dy * peak;
+      float bulgeSign = 0.0;
+      if (isVertical) {
+        bulgeSign = floatSign(control.x - midX);
+      } else {
+        bulgeSign = floatSign(control.y - midY);
+      }
+      float? prev = cell.prevBulgeSign;
+      if (prev != null && bulgeSign != 0.0 && bulgeSign != prev) {
+        signed = 0.0 - signed;
+        control = computeArcControlPoint(from.x, from.y, to.x, to.y, signed, peak);
+      } else if (bulgeSign != 0.0) {
+        cell.prevBulgeSign = bulgeSign;
+      }
+    }
+    float tangent0 = 0.0;
+    float tangent1 = 0.0;
+    float tangentDelta = 0.0;
+    if (rotationScale != 0.0) {
+      tangent0 = bezierTangentAngle(0.0, from.x, control.x, to.x, from.y, control.y, to.y);
+      tangent1 = bezierTangentAngle(1.0, from.x, control.x, to.x, from.y, control.y, to.y);
+      tangentDelta = wrap(-180.0, 180.0, tangent1 - tangent0);
+    }
+    float rotScale = rotationScale;
+    Point2D fromC = from;
+    Point2D toC = to;
+    Point2D controlC = control;
+    float t0 = tangent0;
+    float tDelta = tangentDelta;
+    return (float t) => {
+      JsValue out = record{
+        x: bezierPoint(t, fromC.x, controlC.x, toC.x),
+        y: bezierPoint(t, fromC.y, controlC.y, toC.y)
+      };
+      if (rotScale != 0.0) {
+        float raw = bezierTangentAngle(t, fromC.x, controlC.x, toC.x, fromC.y, controlC.y, toC.y);
+        float baseline = t0 + tDelta * t;
+        out["rotate"] = wrap(-180.0, 180.0, raw - baseline) * rotScale;
+      }
+      return out;
+    };
+  };
+}
+
+export JsValue arc(ArcOptions? options = null) {
+  func(Point2D, Point2D)->func(float)->JsValue sample = createArcPath(options);
+  return record{
+    interpolateProjection: (JsValue delta) => {
+      JsValue xAxis = delta["x"];
+      JsValue yAxis = delta["y"];
+      JsValue txVal = xAxis["translate"];
+      JsValue tyVal = yAxis["translate"];
+      float tx = 0.0;
+      float ty = 0.0;
+      if (txVal is float) {
+        tx = txVal;
+      }
+      if (tyVal is float) {
+        ty = tyVal;
+      }
+      float distSq = tx * tx + ty * ty;
+      float dist = distSq.sqrt();
+      if (dist < MIN_LAYOUT_DISTANCE) {
+        return null;
+      }
+      return sample(new Point2D(tx, ty), new Point2D(0.0, 0.0));
+    },
+    animateVisualElement: (
+      JsValue visualElement,
+      JsValue target,
+      JsValue? transition,
+      float delay,
+      JsValue[] animations
+    ) => {
+      bool hasX = false;
+      bool hasY = false;
+      for (string key in target) {
+        if (key == "x") {
+          hasX = true;
+        }
+        if (key == "y") {
+          hasY = true;
+        }
+      }
+      if (!hasX && !hasY) {
+        return;
+      }
+      JsValue xValue = callMethod2(visualElement, "getValue", "x", visualElement["latestValues"]["x"]);
+      JsValue yValue = callMethod2(visualElement, "getValue", "y", visualElement["latestValues"]["y"]);
+      JsValue xRaw = target["x"];
+      JsValue yRaw = target["y"];
+      float xFrom = 0.0;
+      float yFrom = 0.0;
+      float xTo = 0.0;
+      float yTo = 0.0;
+      if (xRaw.isArray() && xRaw.length > 0.0) {
+        JsValue first = xRaw[0];
+        if (first is float) {
+          xFrom = first;
+        }
+        JsValue last = xRaw[xRaw.length.toInt() - 1];
+        if (last is float) {
+          xTo = last;
+        }
+      } else if (xRaw is float) {
+        JsValue got = callMethod0(xValue, "get");
+        if (got is float) {
+          xFrom = got;
+        }
+        xTo = xRaw;
+      } else {
+        JsValue got = callMethod0(xValue, "get");
+        if (got is float) {
+          xFrom = got;
+        }
+        xTo = xFrom;
+      }
+      if (yRaw.isArray() && yRaw.length > 0.0) {
+        JsValue first = yRaw[0];
+        if (first is float) {
+          yFrom = first;
+        }
+        JsValue last = yRaw[yRaw.length.toInt() - 1];
+        if (last is float) {
+          yTo = last;
+        }
+      } else if (yRaw is float) {
+        JsValue got = callMethod0(yValue, "get");
+        if (got is float) {
+          yFrom = got;
+        }
+        yTo = yRaw;
+      } else {
+        JsValue got = callMethod0(yValue, "get");
+        if (got is float) {
+          yFrom = got;
+        }
+        yTo = yFrom;
+      }
+      func(float)->JsValue interpolate = sample(new Point2D(xFrom, yFrom), new Point2D(xTo, yTo));
+      JsValue progress = motionValue(0.0);
+      JsValue pathTransition = record{delay: delay};
+      JsValue vt = getValueTransition(transition, "x");
+      if (vt != null && vt.isObject()) {
+        for (string key in vt) {
+          if (key != "path") {
+            pathTransition[key] = vt[key];
+          }
+        }
+      }
+      pathTransition["isSync"] = true;
+      pathTransition["velocity"] = 0.0;
+      pathTransition["onUpdate"] = (JsValue latest) => {
+        float t = 0.0;
+        if (latest is float) {
+          t = latest / 1000.0;
+        }
+        JsValue point = interpolate(t);
+        callMethod1(xValue, "set", point["x"]);
+        callMethod1(yValue, "set", point["y"]);
+        JsValue rotatePoint = point["rotate"];
+        if (rotatePoint is float) {
+          JsValue pathRotationValue = callMethod2(visualElement, "getValue", "pathRotation", 0.0);
+          callMethod1(pathRotationValue, "set", rotatePoint);
+        }
+      };
+      pathTransition["onComplete"] = () => {
+        callMethod1(xValue, "set", xTo);
+        callMethod1(yValue, "set", yTo);
+      };
+      func(func()->void)->JsValue? starter = animateMotionValue("", progress, [0.0, 1000.0], pathTransition);
+      callMethod1(progress, "start", starter);
+      JsValue animation = progress["animation"];
+      if (animation.truthy()) {
+        animations.push(animation);
+      }
+      target["x"] = null;
+      target["y"] = null;
+    }
+  };
+}

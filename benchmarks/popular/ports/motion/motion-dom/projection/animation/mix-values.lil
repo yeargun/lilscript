@@ -1,0 +1,117 @@
+import { circOut, noop, progress as calcProgress } from "../../../motion-utils/index";
+import { mixNumber } from "../../utils/mix/number";
+import { percent, px } from "../../value/types/numbers/units";
+import { cornerRadiusProps } from "../../utils/border-radius";
+
+extern float parseFloat(string value);
+
+float asNumber(JsValue value) {
+  if (value is string) {
+    return parseFloat(value);
+  }
+  if (value is float) {
+    return value;
+  }
+  return 0.0;
+}
+
+bool isPx(JsValue value) {
+  if (value is float) {
+    return true;
+  }
+  return px.test(value);
+}
+
+JsValue? getRadius(Record<JsValue> values, string radiusName) {
+  JsValue? named = values[radiusName];
+  if (named != null) {
+    return named;
+  }
+  return values.borderRadius;
+}
+
+func(float)->float compress(float min, float max, func(float)->float easing) {
+  return (float p) => {
+    if (p < min) {
+      return 0.0;
+    }
+    if (p > max) {
+      return 1.0;
+    }
+    return easing(calcProgress(min, max, p));
+  };
+}
+
+func(float)->float easeCrossfadeIn = compress(0.0, 0.5, circOut);
+func(float)->float easeCrossfadeOut = compress(0.5, 0.95, noop);
+
+export void mixValues(
+  Record<JsValue> target,
+  Record<JsValue> follow,
+  Record<JsValue> lead,
+  float progress,
+  bool shouldCrossfadeOpacity,
+  bool isOnlyMember
+) {
+  if (shouldCrossfadeOpacity) {
+    float leadOpacity = asNumber(lead.opacity ?? 1.0);
+    float followOpacity = asNumber(follow.opacity ?? 1.0);
+    target.opacity = mixNumber(0.0, leadOpacity, easeCrossfadeIn(progress));
+    target.opacityExit = mixNumber(followOpacity, 0.0, easeCrossfadeOut(progress));
+  } else {
+    if (isOnlyMember) {
+      float followOpacity = asNumber(follow.opacity ?? 1.0);
+      float leadOpacity = asNumber(lead.opacity ?? 1.0);
+      target.opacity = mixNumber(followOpacity, leadOpacity, progress);
+    }
+  }
+
+  int numBorders = cornerRadiusProps.length;
+  for (int i = 0; i < numBorders; i++) {
+    string borderLabel = cornerRadiusProps[i];
+    JsValue? followRadius = getRadius(follow, borderLabel);
+    JsValue? leadRadius = getRadius(lead, borderLabel);
+
+    if (followRadius == null && leadRadius == null) {
+      continue;
+    }
+
+    JsValue followR = followRadius ?? 0.0;
+    JsValue leadR = leadRadius ?? 0.0;
+
+    bool canMix = false;
+    if (followR is float) {
+      if (followR == 0.0) {
+        canMix = true;
+      }
+    }
+    if (leadR is float) {
+      if (leadR == 0.0) {
+        canMix = true;
+      }
+    }
+    if (isPx(followR) == isPx(leadR)) {
+      canMix = true;
+    }
+
+    if (canMix) {
+      float mixed = mixNumber(asNumber(followR), asNumber(leadR), progress);
+      if (mixed < 0.0) {
+        mixed = 0.0;
+      }
+      JsValue out = mixed;
+      if (percent.test(leadR) || percent.test(followR)) {
+        out = `${mixed}%`;
+      }
+      target[borderLabel] = out;
+    } else {
+      target[borderLabel] = leadR;
+    }
+  }
+
+  if (follow.rotate != null || lead.rotate != null) {
+    float followRotate = asNumber(follow.rotate ?? 0.0);
+    float leadRotate = asNumber(lead.rotate ?? 0.0);
+    target.rotate = mixNumber(followRotate, leadRotate, progress);
+  }
+}

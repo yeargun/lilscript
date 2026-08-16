@@ -1,0 +1,1 @@
+var g=algorithmCount(),o=algorithmInt(0),b=o,l=o,Y=o,r=1,a;for(;r<g;++r)a=algorithmInt(r),o=o+a|0,b=b+(a*(r+1)|0)|0,l=l<a?l:a,Y=Y>a?Y:a;o=((o+b|0)+Y|0)-l|0;console.log(o)

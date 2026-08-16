@@ -1,0 +1,41 @@
+import { getNamedEdges, resolveEdge } from "./edge";
+import { stringTrim, stringSplit } from "../../../../../motion-dom/string-host";
+
+float[] defaultOffsetPair = [0.0, 0.0];
+
+export float resolveOffset(
+  JsValue offset,
+  float containerLength,
+  float targetLength,
+  float targetInset
+) {
+  JsValue offsetDefinition = defaultOffsetPair;
+  if (offset.isArray()) {
+    offsetDefinition = offset;
+  }
+
+  if (offset is float) {
+    offsetDefinition = [offset, offset];
+  } else if (offset is string) {
+    string trimmed = stringTrim(offset);
+    if (trimmed.includes(" ")) {
+      string[] parts = stringSplit(trimmed, " ");
+      if (parts.length >= 2) {
+        offsetDefinition = [parts[0], parts[1]];
+      }
+    } else {
+      Map<string, float> named = getNamedEdges();
+      if (named.has(trimmed)) {
+        offsetDefinition = [trimmed, trimmed];
+      } else {
+        offsetDefinition = [trimmed, "0"];
+      }
+    }
+  }
+
+  JsValue targetEdge = offsetDefinition[0];
+  JsValue containerEdge = offsetDefinition[1];
+  float targetPoint = resolveEdge(targetEdge, targetLength, targetInset);
+  float containerPoint = resolveEdge(containerEdge, containerLength);
+  return targetPoint - containerPoint;
+}

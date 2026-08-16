@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>SolidLil framework benchmark</title>
+    <style>
+      :root {
+        --ink: #eef4ec;
+        --muted: #aab6aa;
+        --faint: #6f7d72;
+        --bg: #08100d;
+        --panel: #101a16;
+        --panel-2: #15221c;
+        --line: #2a3a31;
+        --lime: #bef264;
+        --mint: #5eead4;
+        --amber: #fbbf24;
+        --rose: #fb7185;
+        --blue: #7dd3fc;
+        --radius: 18px;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      * { box-sizing: border-box; }
+      html { background: var(--bg); scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at 16% 0%, rgba(94, 234, 212, 0.11), transparent 31rem),
+          radial-gradient(circle at 88% 8%, rgba(190, 242, 100, 0.09), transparent 29rem),
+          var(--bg);
+        line-height: 1.5;
+      }
+
+      button, select, input { font: inherit; }
+      button, select {
+        color: var(--ink);
+        background: #0c1511;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+      }
+      button { cursor: pointer; }
+      button:hover, select:hover { border-color: #4b6355; }
+      a { color: var(--mint); }
+      code { color: #d8ff9f; }
+
+      .shell { width: min(1480px, calc(100% - 32px)); margin: 0 auto; }
+      .hero { padding: 68px 0 34px; }
+      .eyebrow {
+        margin: 0 0 14px;
+        color: var(--lime);
+        font: 700 12px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+        letter-spacing: .16em;
+        text-transform: uppercase;
+      }
+      h1 {
+        max-width: 900px;
+        margin: 0;
+        font-size: clamp(42px, 7vw, 88px);
+        line-height: .94;
+        letter-spacing: -.055em;
+      }
+      .lede { max-width: 780px; margin: 24px 0 0; color: var(--muted); font-size: 18px; }
+      .status-row { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 26px; }
+      .status {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 10px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        color: var(--muted);
+        background: rgba(16, 26, 22, .78);
+        font-size: 12px;
+      }
+      .status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--amber); }
+      .status.complete::before { background: var(--lime); box-shadow: 0 0 12px rgba(190, 242, 100, .6); }
+
+      .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 12px;
+        margin: 32px 0 42px;
+      }
+      .summary-card, .panel {
+        border: 1px solid var(--line);
+        background: linear-gradient(145deg, rgba(21, 34, 28, .92), rgba(11, 19, 15, .92));
+        box-shadow: 0 22px 70px rgba(0, 0, 0, .2);
+      }
+      .summary-card { min-height: 154px; padding: 19px; border-radius: var(--radius); }
+      .summary-card span { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+      .summary-card strong { display: block; margin-top: 13px; font-size: clamp(28px, 4vw, 44px); line-height: 1; letter-spacing: -.045em; }
+      .summary-card small { display: block; margin-top: 12px; color: var(--faint); }
+      .summary-card.primary { border-color: rgba(190, 242, 100, .45); }
+      .summary-card.primary strong { color: var(--lime); }
+
+      .panel { border-radius: 22px; overflow: hidden; margin-bottom: 24px; }
+      .panel-head { padding: 22px 24px; border-bottom: 1px solid var(--line); }
+      .panel-head h2 { margin: 0; font-size: 24px; letter-spacing: -.025em; }
+      .panel-head p { max-width: 850px; margin: 7px 0 0; color: var(--muted); }
+      .controls {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(130px, 1fr));
+        gap: 12px;
+        padding: 18px 24px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(8, 16, 13, .6);
+      }
+      .control label { display: block; margin-bottom: 7px; color: var(--faint); font-size: 11px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
+      .control select, .control input { width: 100%; min-height: 42px; padding: 0 11px; }
+      .control input { color: var(--ink); background: #0c1511; border: 1px solid var(--line); border-radius: 10px; }
+      .control[hidden] { display: none; }
+
+      .selector {
+        display: flex;
+        gap: 14px;
+        align-items: flex-start;
+        padding: 16px 24px;
+        border-bottom: 1px solid var(--line);
+      }
+      .selector-actions { display: flex; gap: 7px; flex: 0 0 auto; }
+      .selector-actions button { padding: 7px 10px; color: var(--muted); font-size: 12px; }
+      .framework-checks { display: flex; flex-wrap: wrap; gap: 7px; }
+      .framework-checks label {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 6px 9px;
+        color: var(--muted);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        font-size: 12px;
+        cursor: pointer;
+        user-select: none;
+      }
+      .framework-checks label:has(input:checked) { color: var(--ink); border-color: #506557; background: #1a2a22; }
+      .framework-checks label.solidlil:has(input:checked) { color: var(--lime); border-color: rgba(190, 242, 100, .52); }
+      .framework-checks input { accent-color: var(--lime); }
+
+      .table-wrap { overflow-x: auto; }
+      table { width: 100%; border-collapse: collapse; min-width: 900px; }
+      th { padding: 12px 14px; color: var(--faint); background: rgba(8, 16, 13, .72); font-size: 11px; letter-spacing: .08em; text-align: left; text-transform: uppercase; }
+      th:first-child, td:first-child { padding-left: 24px; }
+      th:last-child, td:last-child { padding-right: 24px; }
+      td { padding: 13px 14px; border-top: 1px solid rgba(42, 58, 49, .72); vertical-align: middle; }
+      tbody tr:hover { background: rgba(125, 211, 252, .035); }
+      tbody tr.solidlil { background: rgba(190, 242, 100, .045); }
+      .rank { color: var(--faint); font-variant-numeric: tabular-nums; }
+      .framework-name { min-width: 190px; }
+      .framework-name strong { display: block; }
+      .framework-name span { color: var(--faint); font-size: 12px; }
+      tr.solidlil .framework-name strong { color: var(--lime); }
+      .metric-cell { min-width: 220px; }
+      .metric-line { display: flex; justify-content: space-between; gap: 14px; font-variant-numeric: tabular-nums; }
+      .metric-line strong { white-space: nowrap; }
+      .bar { height: 4px; margin-top: 7px; overflow: hidden; border-radius: 999px; background: #213028; }
+      .bar i { display: block; width: var(--width); height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--mint), var(--blue)); }
+      tr.solidlil .bar i { background: linear-gradient(90deg, var(--lime), var(--mint)); }
+      .positive { color: var(--rose); }
+      .negative { color: var(--lime); }
+      .neutral { color: var(--muted); }
+      .numeric { font-variant-numeric: tabular-nums; white-space: nowrap; }
+      .empty { padding: 42px 24px; color: var(--muted); text-align: center; }
+      .table-note { margin: 0; padding: 14px 24px 18px; color: var(--faint); border-top: 1px solid var(--line); font-size: 12px; }
+
+      .story-grid { display: grid; grid-template-columns: 1.15fr .85fr; gap: 24px; margin: 24px 0; }
+      .story { padding: 25px; }
+      .story h2 { margin: 0 0 12px; letter-spacing: -.025em; }
+      .story p, .story li { color: var(--muted); }
+      .story ul { margin: 14px 0 0; padding-left: 20px; }
+      .story li + li { margin-top: 8px; }
+      .callout { margin-top: 18px; padding: 15px; border-left: 3px solid var(--amber); background: rgba(251, 191, 36, .055); color: #d8d2b8; }
+      .method-list { display: grid; gap: 10px; padding: 24px; }
+      .method-item { display: grid; grid-template-columns: 34px 1fr; gap: 12px; }
+      .method-item b { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; color: #08100d; background: var(--mint); }
+      .method-item strong { display: block; margin-bottom: 3px; }
+      .method-item p { margin: 0; color: var(--muted); }
+      details { margin: 0 24px 24px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; }
+      summary { cursor: pointer; color: var(--muted); }
+      .provenance { display: grid; grid-template-columns: 180px 1fr; gap: 7px 18px; margin-top: 15px; font-size: 13px; }
+      .provenance dt { color: var(--faint); }
+      .provenance dd { margin: 0; overflow-wrap: anywhere; }
+      footer { padding: 24px 0 55px; color: var(--faint); font-size: 12px; }
+
+      @media (max-width: 1180px) {
+        .summary-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      }
+      @media (max-width: 980px) {
+        .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .story-grid { grid-template-columns: 1fr; }
+      }
+      @media (max-width: 620px) {
+        .shell { width: min(100% - 20px, 1480px); }
+        .hero { padding-top: 42px; }
+        .summary-grid, .controls { grid-template-columns: 1fr; }
+        .selector { flex-direction: column; }
+        .panel-head, .controls, .selector { padding-left: 16px; padding-right: 16px; }
+        .provenance { grid-template-columns: 1fr; }
+        .provenance dd + dt { margin-top: 7px; }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="hero shell">
+      <p class="eyebrow">LilScript · client runtime evidence</p>
+      <h1>SolidLil against the field.</h1>
+      <p class="lede">
+        A pinned, real-Chrome run of the keyed <a href="https://github.com/krausest/js-framework-benchmark">js-framework-benchmark</a>. Brotli is the lead metric;
+        CPU, memory, and cold-load evidence remain independently selectable so size never hides runtime tradeoffs.
+      </p>
+      <div class="status-row" id="statusRow" aria-label="Measurement completion"></div>
+      <div class="summary-grid" id="summaryGrid"></div>
+    </header>
+
+    <main class="shell">
+      <section class="panel" aria-labelledby="compareTitle">
+        <div class="panel-head">
+          <h2 id="compareTitle">Interactive comparison</h2>
+          <p id="comparisonDescription">Lower is better. The initial view ranks delivered JavaScript by Brotli quality 11.</p>
+        </div>
+        <div class="controls">
+          <div class="control">
+            <label for="phase">Evidence</label>
+            <select id="phase">
+              <option value="size">Bundle size</option>
+              <option value="cpu">CPU</option>
+              <option value="memory">Memory</option>
+              <option value="cold">Cold load</option>
+            </select>
+          </div>
+          <div class="control" id="workloadControl" hidden>
+            <label for="workload">Workload</label>
+            <select id="workload"></select>
+          </div>
+          <div class="control">
+            <label for="metric">Metric</label>
+            <select id="metric"></select>
+          </div>
+          <div class="control" id="statisticControl" hidden>
+            <label for="statistic">Statistic</label>
+            <select id="statistic">
+              <option value="median">Median</option>
+              <option value="p95">P95</option>
+              <option value="mean">Mean</option>
+            </select>
+          </div>
+          <div class="control">
+            <label for="baseline">Relative to</label>
+            <select id="baseline"></select>
+          </div>
+          <div class="control">
+            <label for="search">Filter frameworks</label>
+            <input id="search" type="search" placeholder="Solid, Vue, React…" />
+          </div>
+        </div>
+        <div class="selector">
+          <div class="selector-actions">
+            <button type="button" id="selectAll">All</button>
+            <button type="button" id="selectCompact">Compact set</button>
+          </div>
+          <div class="framework-checks" id="frameworkChecks"></div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Framework</th>
+                <th id="valueHeading">JS Brotli</th>
+                <th>Median 95% CI</th>
+                <th id="relativeHeading">vs SolidLil</th>
+                <th>Samples</th>
+              </tr>
+            </thead>
+            <tbody id="resultsBody" aria-live="polite"></tbody>
+          </table>
+        </div>
+        <p class="table-note" id="tableNote"></p>
+      </section>
+
+      <div class="story-grid">
+        <section class="panel story">
+          <p class="eyebrow">What the data says</p>
+          <h2>Small delivery, honest runtime tradeoffs</h2>
+          <div id="narrative"></div>
+          <div class="callout">
+            Every row measures a delivered production application, not an open-world npm package. Its bundler may
+            tree-shake unreachable exports and minify internal names. SolidLil deliberately uses its closed-world
+            mode, where the application and runtime are optimized together and even unreachable public surface may
+            disappear.
+          </div>
+        </section>
+        <section class="panel story">
+          <p class="eyebrow">Reading the rankings</p>
+          <h2>One number is not enough</h2>
+          <ul>
+            <li><strong>Brotli JS</strong> is primary because it best represents the JavaScript transferred in a modern production deployment.</li>
+            <li><strong>Page Brotli</strong> includes the benchmark HTML and every script requested by the page.</li>
+            <li><strong>CPU</strong> uses upstream trace-derived click-to-render duration, with workload-specific warmups and official throttling.</li>
+            <li><strong>Memory</strong> is measured after forced major GC using <code>measureUserAgentSpecificMemory()</code>.</li>
+            <li><strong>Normalized CPU</strong> is the geometric mean of each workload median divided by the fastest median for that workload.</li>
+          </ul>
+        </section>
+      </div>
+
+      <section class="panel" aria-labelledby="methodTitle">
+        <div class="panel-head">
+          <h2 id="methodTitle">Methodology</h2>
+          <p>Designed to make ordering, warmup, and machine drift visible rather than accidental.</p>
+        </div>
+        <div class="method-list">
+          <div class="method-item"><b>1</b><div><strong>Pinned inputs</strong><p>All 13 requested framework versions come from one immutable upstream commit and their lockfiles.</p></div></div>
+          <div class="method-item"><b>2</b><div><strong>Real browser only</strong><p>Installed Google Chrome is driven by the upstream Playwright runner. No JSDOM result appears in this report.</p></div></div>
+          <div class="method-item"><b>3</b><div><strong>Randomized complete blocks</strong><p>Workload and framework order are deterministically shuffled within each of 15 blocks using the recorded seed.</p></div></div>
+          <div class="method-item"><b>4</b><div><strong>Fresh isolation</strong><p>CPU and memory samples launch isolated browser runs; cold loads use fresh contexts with empty cache.</p></div></div>
+          <div class="method-item"><b>5</b><div><strong>Distribution, not cherry-picks</strong><p>Tables expose median, p95, mean, sample count, and deterministic bootstrap 95% intervals. Raw samples remain in the checkpoint.</p></div></div>
+        </div>
+        <details>
+          <summary>Exact provenance and configuration</summary>
+          <dl class="provenance" id="provenance"></dl>
+        </details>
+      </section>
+    </main>
+
+    <footer class="shell">
+      Generated from <code>artifacts/checkpoint.json</code>. Re-run <code>npm run report</code> to refresh this file without editing results by hand.
+    </footer>
+
+    <script>
+      const DATA = __REPORT_DATA__;
+      const $ = (selector) => document.querySelector(selector);
+      const elements = {
+        phase: $("#phase"), workload: $("#workload"), metric: $("#metric"), statistic: $("#statistic"),
+        baseline: $("#baseline"), search: $("#search"), workloadControl: $("#workloadControl"),
+        statisticControl: $("#statisticControl"), checks: $("#frameworkChecks"), body: $("#resultsBody"),
+        note: $("#tableNote"), description: $("#comparisonDescription"), valueHeading: $("#valueHeading"),
+        relativeHeading: $("#relativeHeading"), summary: $("#summaryGrid"), statuses: $("#statusRow"),
+        narrative: $("#narrative"), provenance: $("#provenance"),
+      };
+      const selections = new Set(DATA.frameworks.map((framework) => framework.id));
+      const sizeMetrics = {
+        jsBrotli: ["JavaScript Brotli", "B", "Direct JavaScript compressed with Brotli quality 11."],
+        pageBrotli: ["Whole-page Brotli", "B", "HTML plus every JavaScript response observed by the upstream size server."],
+        jsGzip: ["JavaScript gzip", "B", "Direct JavaScript compressed with gzip level 9; secondary, not the lead ranking."],
+        jsRaw: ["JavaScript raw", "B", "Uncompressed production JavaScript."],
+      };
+      const cpuMetrics = { total: ["Total duration", "ms"], script: ["Script", "ms"], paint: ["Paint/layout", "ms"] };
+      const coldMetrics = { load: ["Load event", "ms"], domContentLoaded: ["DOMContentLoaded", "ms"], firstPaint: ["First paint", "ms"] };
+
+      function format(value, unit, digits = 2) {
+        if (!Number.isFinite(value)) return "—";
+        if (unit === "B") return new Intl.NumberFormat("en-US").format(Math.round(value)) + " B";
+        if (unit === "MiB") return value.toFixed(3) + " MiB";
+        return value.toFixed(digits) + " ms";
+      }
+      function rankOf(items, id) { return items.findIndex((item) => item.id === id) + 1; }
+      function sortedFinite(entries) { return entries.filter((entry) => Number.isFinite(entry.value)).sort((a, b) => a.value - b.value); }
+      function selectedFrameworks() {
+        const query = elements.search.value.trim().toLowerCase();
+        return DATA.frameworks.filter((framework) => selections.has(framework.id) && (framework.name + " " + framework.version).toLowerCase().includes(query));
+      }
+      function phaseStatusLabel(phase) {
+        const status = DATA.status[phase];
+        return phase.toUpperCase() + " · " + status.observed.toLocaleString() + "/" + status.expected.toLocaleString();
+      }
+      function setupStatuses() {
+        elements.statuses.innerHTML = ["size", "cpu", "memory", "cold"].map((phase) => {
+          const status = DATA.status[phase];
+          return '<span class="status ' + (status.complete ? "complete" : "") + '">' + phaseStatusLabel(phase) + "</span>";
+        }).join("");
+      }
+      function setupFrameworks() {
+        elements.baseline.innerHTML = DATA.frameworks.map((framework) => '<option value="' + framework.id + '"' + (framework.solidlil ? " selected" : "") + ">" + framework.name + "</option>").join("");
+        elements.checks.innerHTML = DATA.frameworks.map((framework) => '<label class="' + (framework.solidlil ? "solidlil" : "") + '"><input type="checkbox" value="' + framework.id + '" checked />' + framework.name + "</label>").join("");
+        elements.checks.addEventListener("change", (event) => {
+          if (!event.target.matches('input[type="checkbox"]')) return;
+          if (event.target.checked) selections.add(event.target.value); else selections.delete(event.target.value);
+          render();
+        });
+      }
+      function configureControls() {
+        const phase = elements.phase.value;
+        elements.workloadControl.hidden = phase === "size";
+        elements.statisticControl.hidden = phase === "size";
+        if (phase === "size") {
+          elements.metric.innerHTML = Object.entries(sizeMetrics).map(([key, value]) => '<option value="' + key + '">' + value[0] + "</option>").join("");
+        } else {
+          elements.workload.innerHTML = Object.entries(DATA.workloads[phase]).map(([key, value]) => '<option value="' + key + '">' + value + "</option>").join("");
+          if (phase === "cpu") elements.metric.innerHTML = Object.entries(cpuMetrics).map(([key, value]) => '<option value="' + key + '">' + value[0] + "</option>").join("");
+          if (phase === "memory") elements.metric.innerHTML = '<option value="value">Memory</option>';
+          if (phase === "cold") elements.metric.innerHTML = Object.entries(coldMetrics).map(([key, value]) => '<option value="' + key + '">' + value[0] + "</option>").join("");
+        }
+        render();
+      }
+      function currentEntry(framework) {
+        const phase = elements.phase.value;
+        const metric = elements.metric.value;
+        if (phase === "size") return { value: framework.size[metric], stats: null, unit: sizeMetrics[metric][1] };
+        const workload = elements.workload.value;
+        const stats = phase === "cpu" ? framework.cpu[workload]?.[metric] : phase === "memory" ? framework.memory[workload] : framework.cold[workload]?.[metric];
+        return { value: stats?.[elements.statistic.value], stats, unit: phase === "memory" ? "MiB" : "ms" };
+      }
+      function render() {
+        const phase = elements.phase.value;
+        const baselineId = elements.baseline.value;
+        const rows = sortedFinite(selectedFrameworks().map((framework) => ({ framework, id: framework.id, ...currentEntry(framework) })));
+        const allRows = sortedFinite(DATA.frameworks.map((framework) => ({ framework, id: framework.id, ...currentEntry(framework) })));
+        const baseline = allRows.find((row) => row.id === baselineId);
+        const maximum = Math.max(...rows.map((row) => row.value), 1);
+        const unit = rows[0]?.unit ?? (phase === "memory" ? "MiB" : phase === "size" ? "B" : "ms");
+        const metricLabel = phase === "size" ? sizeMetrics[elements.metric.value][0] : phase === "cpu" ? cpuMetrics[elements.metric.value][0] : phase === "memory" ? "Memory" : coldMetrics[elements.metric.value][0];
+        elements.valueHeading.textContent = metricLabel;
+        elements.relativeHeading.textContent = "vs " + (DATA.frameworks.find((framework) => framework.id === baselineId)?.name ?? "baseline");
+        elements.description.textContent = phase === "size" ? sizeMetrics[elements.metric.value][2] : "Lower is better. Choose a workload, statistic, baseline, and framework subset.";
+        if (rows.length === 0) {
+          elements.body.innerHTML = '<tr><td colspan="6" class="empty">No selected framework matches this filter.</td></tr>';
+          const status = DATA.status[phase];
+          elements.note.textContent = phase === "size" ? "Brotli uses quality 11. Rank is global even when frameworks are filtered." : (status.complete ? "Complete " : "IN PROGRESS · ") + status.observed.toLocaleString() + " of " + status.expected.toLocaleString() + " planned " + phase + " samples. Intervals bootstrap the median across randomized blocks.";
+          return;
+        }
+        elements.body.innerHTML = rows.map((row) => {
+          const globalRank = rankOf(allRows, row.id);
+          const relative = baseline ? (row.value / baseline.value - 1) * 100 : null;
+          const relativeClass = !Number.isFinite(relative) || Math.abs(relative) < .05 ? "neutral" : relative < 0 ? "negative" : "positive";
+          const relativeText = !Number.isFinite(relative) ? "—" : Math.abs(relative) < .05 ? "baseline" : (relative > 0 ? "+" : "") + relative.toFixed(1) + "%";
+          const interval = row.stats?.medianCi95;
+          const intervalText = interval ? format(interval[0], unit) + " – " + format(interval[1], unit) : "—";
+          const sampleText = row.stats ? row.stats.n + (DATA.status[phase]?.complete ? "" : " partial") : "bundle";
+          return '<tr class="' + (row.framework.solidlil ? "solidlil" : "") + '">' +
+            '<td class="rank">#' + globalRank + "</td>" +
+            '<td class="framework-name"><strong>' + row.framework.name + '</strong><span>v' + row.framework.version + " · keyed</span></td>" +
+            '<td class="metric-cell"><div class="metric-line"><strong>' + format(row.value, unit) + '</strong><span>' + (row.value / allRows[0].value).toFixed(2) + '× best</span></div><div class="bar" style="--width:' + (row.value / maximum * 100).toFixed(2) + '%"><i></i></div></td>' +
+            '<td class="numeric">' + intervalText + "</td>" +
+            '<td class="numeric ' + relativeClass + '">' + relativeText + "</td>" +
+            '<td class="numeric">' + sampleText + "</td></tr>";
+        }).join("");
+        const status = DATA.status[phase];
+        elements.note.textContent = phase === "size" ? "Brotli uses quality 11. Rank is global even when frameworks are filtered." : (status.complete ? "Complete " : "IN PROGRESS · ") + status.observed.toLocaleString() + " of " + status.expected.toLocaleString() + " planned " + phase + " samples. Intervals bootstrap the median across randomized blocks.";
+      }
+      function setupSummary() {
+        const sizeRows = [...DATA.frameworks].sort((a, b) => a.size.jsBrotli - b.size.jsBrotli);
+        const cpuRows = sortedFinite(DATA.frameworks.map((framework) => ({ id: framework.id, value: DATA.normalizedScores.cpu[framework.id] })));
+        const memoryRows = sortedFinite(DATA.frameworks.map((framework) => ({ id: framework.id, value: DATA.normalizedScores.memory[framework.id] })));
+        const coldRows = sortedFinite(DATA.frameworks.map((framework) => ({ id: framework.id, value: framework.cold["cold-page-load"]?.load?.median })));
+        const solidlil = DATA.frameworks.find((framework) => framework.solidlil);
+        const solidlilCold = solidlil.cold["cold-page-load"]?.load?.median;
+        const cards = [
+          ["SolidLil JS Brotli", format(solidlil.size.jsBrotli, "B"), "#" + rankOf(sizeRows, "solidlil") + " of " + sizeRows.length, true],
+          ["Whole page Brotli", format(solidlil.size.pageBrotli, "B"), "HTML + loaded JavaScript", false],
+          ["Normalized CPU", DATA.normalizedScores.cpu.solidlil?.toFixed(3) + "×", "#" + rankOf(cpuRows, "solidlil") + " of " + cpuRows.length, false],
+          ["Normalized memory", DATA.normalizedScores.memory.solidlil ? DATA.normalizedScores.memory.solidlil.toFixed(3) + "×" : "Pending", DATA.status.memory.complete ? "#" + rankOf(memoryRows, "solidlil") + " of " + memoryRows.length : "live partial result", false],
+          ["Cold load median", format(solidlilCold, "ms"), DATA.status.cold.complete ? "#" + rankOf(coldRows, "solidlil") + " of " + coldRows.length : "live partial result", false],
+        ];
+        elements.summary.innerHTML = cards.map(([label, value, note, primary]) => '<article class="summary-card ' + (primary ? "primary" : "") + '"><span>' + label + "</span><strong>" + value + "</strong><small>" + note + "</small></article>").join("");
+
+        const solid = DATA.frameworks.find((framework) => framework.id === "solid");
+        const store = DATA.frameworks.find((framework) => framework.id === "solid-store");
+        const sizeVsSolid = (solidlil.size.jsBrotli / solid.size.jsBrotli - 1) * 100;
+        const sizeVsStore = (solidlil.size.jsBrotli / store.size.jsBrotli - 1) * 100;
+        const cpuRank = rankOf(cpuRows, "solidlil");
+        const memoryRank = rankOf(memoryRows, "solidlil");
+        const coldRank = rankOf(coldRows, "solidlil");
+        const completion = DATA.status.memory.complete && DATA.status.cold.complete ? "All planned phases are complete." : "CPU and size are complete; unfinished phases are visibly marked and this report is regenerated as checkpoints fill.";
+        elements.narrative.innerHTML = '<p>SolidLil ranks <strong>#' + rankOf(sizeRows, "solidlil") + '</strong> for direct JavaScript Brotli at <strong>' + format(solidlil.size.jsBrotli, "B") + '</strong>. It is <strong>' + Math.abs(sizeVsStore).toFixed(1) + '% smaller than Solid Store</strong> and <strong>' + Math.abs(sizeVsSolid).toFixed(1) + '% ' + (sizeVsSolid >= 0 ? "larger" : "smaller") + ' than Solid</strong> in this delivered application.</p>' +
+          '<p>Across all nine CPU workloads, its normalized median score ranks <strong>#' + cpuRank + ' of ' + cpuRows.length + '</strong>. Use the controls above to inspect the individual workload tradeoffs; the aggregate intentionally cannot hide them.</p>' +
+          '<p>Normalized memory ranks <strong>#' + memoryRank + ' of ' + memoryRows.length + '</strong>, while median cold load is <strong>' + format(solidlilCold, "ms") + '</strong> at <strong>#' + coldRank + ' of ' + coldRows.length + '</strong>. Those are current tradeoffs, not size-adjusted scores.</p>' +
+          '<p>' + completion + "</p>";
+      }
+      function setupProvenance() {
+        const values = {
+          "Generated": new Date(DATA.generatedAt).toLocaleString(),
+          "Upstream": DATA.upstream.repository,
+          "Upstream commit": DATA.upstream.commit,
+          "LilScript commit": DATA.provenance.lilscriptCommit,
+          "Compiler SHA-256": DATA.provenance.compilerSha256,
+          "Browser": DATA.provenance.chrome,
+          "Node": DATA.provenance.node,
+          "Machine": DATA.provenance.cpu + " · " + DATA.provenance.platform + " · " + (DATA.provenance.totalMemoryBytes / 1073741824).toFixed(0) + " GiB",
+          "Blocks / seed": DATA.configuration.blocks + " / " + DATA.configuration.seed,
+          "CPU throttling": String(DATA.configuration.cpuThrottling),
+          "Brotli": "quality " + DATA.configuration.brotliQuality,
+          "Fingerprint": DATA.configuration.measurementFingerprint,
+        };
+        elements.provenance.innerHTML = Object.entries(values).map(([key, value]) => "<dt>" + key + "</dt><dd>" + (value ?? "—") + "</dd>").join("");
+      }
+
+      elements.phase.addEventListener("change", configureControls);
+      [elements.workload, elements.metric, elements.statistic, elements.baseline].forEach((element) => element.addEventListener("change", render));
+      elements.search.addEventListener("input", render);
+      $("#selectAll").addEventListener("click", () => {
+        DATA.frameworks.forEach((framework) => selections.add(framework.id));
+        elements.checks.querySelectorAll("input").forEach((input) => input.checked = true);
+        render();
+      });
+      $("#selectCompact").addEventListener("click", () => {
+        const compact = new Set(["solidlil", "solid", "solid-store", "lit-html", "rezact"]);
+        selections.clear(); compact.forEach((id) => selections.add(id));
+        elements.checks.querySelectorAll("input").forEach((input) => input.checked = compact.has(input.value));
+        render();
+      });
+
+      setupStatuses();
+      setupFrameworks();
+      setupSummary();
+      setupProvenance();
+      configureControls();
+    </script>
+  </body>
+</html>

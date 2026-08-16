@@ -9,13 +9,13 @@ function threeSteps(value) {
 }
 
 function repeated(value) {
-  const first = Math.imul(value, 7);
-  const second = Math.imul(7, value);
+  const first = value * 7 | 0;
+  const second = 7 * value | 0;
   return first + second | 0;
 }
 
 function unused(value) {
-  return Math.imul(value, 1000);
+  return value * 1000 | 0;
 }
 
 class Box {

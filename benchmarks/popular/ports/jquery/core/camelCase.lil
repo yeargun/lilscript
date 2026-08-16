@@ -1,0 +1,15 @@
+import {
+  stringReplace,
+  stringReplace2
+} from "../js-host.lil";
+
+Regex rmsPrefix = new Regex("^-ms-");
+Regex rdashAlpha = new Regex("-([a-z])", "g");
+
+string fcamelCase(string _all, string letter) {
+  return letter.toUpperCase();
+}
+
+export string camelCase(string value) {
+  return JS.stringReplace(JS.stringReplace(value, rmsPrefix, "ms-"), rdashAlpha, fcamelCase);
+}

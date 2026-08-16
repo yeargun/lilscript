@@ -3,10 +3,12 @@ use std::fmt;
 use std::rc::Rc;
 
 use ahash::AHashMap;
+use indexmap::IndexMap;
 
 use crate::ast::{
-    ArrowBody, AssignmentOp, BinaryOp, Expr, ForInitializer, FunctionDecl, Item, Param, Program,
-    Stmt, TemplatePart, TypeKind, UnaryOp, UpdateOp, VarDecl,
+    ArrayBinding, ArrayElement, ArrowBody, AssignmentOp, BinaryOp, Expr, ForInitializer,
+    FunctionDecl, Item, MatchPattern, Param, Program, RecordElement, Stmt, TemplatePart, TypeKind,
+    UnaryOp, UpdateOp, VarDecl,
 };
 use crate::semantic::{SemanticModel, SymbolId, Type};
 use crate::span::Span;
@@ -53,6 +55,7 @@ enum Value {
     String(String),
     Bool(bool),
     Array(Rc<RefCell<Vec<Value>>>),
+    Record(Rc<RefCell<IndexMap<String, Value>>>),
     Buffer(Rc<BufferValue>),
     TypedArray(Rc<TypedArrayValue>),
     Symbol(Rc<SymbolValue>),
@@ -96,6 +99,7 @@ struct RuntimeClosure<'ast, 'src> {
     params: &'ast [Param<'ast, 'src>],
     body: ArrowBody<'ast, 'src>,
     captures: AHashMap<SymbolId, Value>,
+    return_type: Type<'src>,
 }
 
 #[derive(Debug, Clone)]
@@ -104,6 +108,10 @@ enum RuntimePlace {
     ArrayElement {
         array: Rc<RefCell<Vec<Value>>>,
         index: usize,
+    },
+    RecordEntry {
+        record: Rc<RefCell<IndexMap<String, Value>>>,
+        key: String,
     },
     TypedArrayElement {
         view: Rc<TypedArrayValue>,
@@ -124,6 +132,10 @@ impl Value {
             Self::Array(_) => Err(InterpretError::new(
                 span,
                 "array value cannot be printed directly",
+            )),
+            Self::Record(_) => Err(InterpretError::new(
+                span,
+                "record value cannot be printed directly",
             )),
             Self::Buffer(_) => Err(InterpretError::new(
                 span,
@@ -243,7 +255,7 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                         ));
                     }
                 },
-                Item::Struct(_) | Item::Function(_) => {}
+                Item::Enum(_) | Item::Struct(_) | Item::Function(_) => {}
                 Item::Class(_) | Item::ExternClass(_) | Item::Extern(_) | Item::ExternGlobal(_) => {
                     return Err(InterpretError::new(
                         item.span(),
@@ -282,6 +294,73 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 self.execute_var_decl(declaration)?;
                 Ok(Flow::Next)
             }
+            Stmt::ArrayDestructure {
+                bindings,
+                value,
+                span,
+            } => {
+                let Value::Array(array) = self.evaluate(value)? else {
+                    return Err(InterpretError::new(
+                        *span,
+                        "array destructuring requires an array",
+                    ));
+                };
+                let array = array.borrow();
+                for (index, binding) in bindings.iter().enumerate() {
+                    let (name, value) = match binding {
+                        ArrayBinding::Hole(_) => continue,
+                        ArrayBinding::Name(name) => {
+                            (*name, array.get(index).cloned().unwrap_or(Value::Null))
+                        }
+                        ArrayBinding::Rest(name) => (
+                            *name,
+                            Value::Array(Rc::new(RefCell::new(
+                                array[index.min(array.len())..].to_vec(),
+                            ))),
+                        ),
+                    };
+                    self.declare(self.symbol(name.span)?, value);
+                }
+                Ok(Flow::Next)
+            }
+            Stmt::RecordDestructure {
+                bindings,
+                rest,
+                value,
+                span,
+            } => {
+                let Value::Record(record) = self.evaluate(value)? else {
+                    return Err(InterpretError::new(
+                        *span,
+                        "record destructuring requires a record",
+                    ));
+                };
+                let record = record.borrow();
+                for binding in *bindings {
+                    let value = record
+                        .get(&decode_source_string(binding.key.name))
+                        .cloned()
+                        .unwrap_or(Value::Null);
+                    self.declare(self.symbol(binding.name.span)?, value);
+                }
+                if let Some(rest) = rest {
+                    let excluded = bindings
+                        .iter()
+                        .map(|binding| decode_source_string(binding.key.name))
+                        .collect::<std::collections::HashSet<_>>();
+                    let mut remaining = IndexMap::new();
+                    for key in ordered_record_keys(&record) {
+                        if !excluded.contains(&key) {
+                            remaining.insert(key.clone(), record[&key].clone());
+                        }
+                    }
+                    self.declare(
+                        self.symbol(rest.span)?,
+                        Value::Record(Rc::new(RefCell::new(remaining))),
+                    );
+                }
+                Ok(Flow::Next)
+            }
             Stmt::Expr(expression) => {
                 self.evaluate(expression)?;
                 Ok(Flow::Next)
@@ -290,6 +369,25 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 Some(value) => self.evaluate(value)?,
                 None => Value::Void,
             })),
+            Stmt::Throw { value, span } => {
+                let value = self.evaluate(value)?;
+                Err(InterpretError::new(
+                    *span,
+                    format!("uncaught thrown value: {value:?}"),
+                ))
+            }
+            Stmt::SuperCall { span, .. } => Err(InterpretError::new(
+                *span,
+                "class constructors are only available through compiled targets",
+            )),
+            Stmt::Yield { span, .. } => Err(InterpretError::new(
+                *span,
+                "generators are only available for JavaScript targets",
+            )),
+            Stmt::Try { span, .. } => Err(InterpretError::new(
+                *span,
+                "exceptions are only available for JavaScript targets",
+            )),
             Stmt::Block { body, .. } => self.execute_statements(body),
             Stmt::If {
                 condition,
@@ -355,6 +453,53 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 *span,
                 "for-in over JsValue is only available for JavaScript targets",
             )),
+            Stmt::ForOf {
+                element,
+                iterable,
+                body,
+                span,
+                ..
+            } => {
+                let iterable = self.evaluate(iterable)?;
+                let symbol = self.symbol(element.span)?;
+                let ty = self
+                    .semantics
+                    .binding_type(element.span)
+                    .ok_or_else(|| InterpretError::new(element.span, "for-of element has no type"))?
+                    .clone();
+                let mut index = 0usize;
+                loop {
+                    let value = match &iterable {
+                        Value::Array(array) => {
+                            let array = array.borrow();
+                            let Some(value) = array.get(index) else {
+                                break;
+                            };
+                            value.clone()
+                        }
+                        Value::TypedArray(view) => {
+                            if index >= view.length {
+                                break;
+                            }
+                            typed_array_get(view, index, *span)?
+                        }
+                        _ => {
+                            return Err(InterpretError::new(
+                                *span,
+                                "for-of requires an array or typed array",
+                            ));
+                        }
+                    };
+                    self.declare(symbol, coerce_value_to_type(value, &ty));
+                    match self.execute_stmt(body)? {
+                        Flow::Next | Flow::Continue => {}
+                        Flow::Break => break,
+                        flow @ Flow::Return(_) => return Ok(flow),
+                    }
+                    index += 1;
+                }
+                Ok(Flow::Next)
+            }
             Stmt::Break(_) => Ok(Flow::Break),
             Stmt::Continue(_) => Ok(Flow::Continue),
         }
@@ -372,7 +517,11 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
         })?;
         let value = self.evaluate(initializer)?;
         let symbol = self.symbol(declaration.name.span)?;
-        self.declare(symbol, value);
+        let ty = self
+            .semantics
+            .binding_type(declaration.name.span)
+            .ok_or_else(|| InterpretError::new(declaration.span, "binding has no checked type"))?;
+        self.declare(symbol, coerce_value_to_type(value, ty));
         Ok(())
     }
 
@@ -383,7 +532,7 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 .map(Value::Int)
                 .map_err(|_| InterpretError::new(*span, "integer is outside the i32 range")),
             Expr::Float(value, _) => Ok(Value::Float(*value)),
-            Expr::String(value, _) => Ok(Value::String((*value).to_string())),
+            Expr::String(value, _) => Ok(Value::String(decode_source_string(value))),
             Expr::Bool(value, _) => Ok(Value::Bool(*value)),
             Expr::Null(_) => Ok(Value::Null),
             Expr::DynamicImport { span, .. } => Err(InterpretError::new(
@@ -401,9 +550,46 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
             Expr::ArrayLiteral { elements, .. } => {
                 let mut values = Vec::with_capacity(elements.len());
                 for element in *elements {
-                    values.push(self.evaluate(element)?);
+                    match element {
+                        ArrayElement::Value(value) => values.push(self.evaluate(value)?),
+                        ArrayElement::Spread { value, .. } => {
+                            let Value::Array(spread) = self.evaluate(value)? else {
+                                return Err(InterpretError::new(
+                                    value.span(),
+                                    "array spread requires an array",
+                                ));
+                            };
+                            values.extend(spread.borrow().iter().cloned());
+                        }
+                    }
                 }
                 Ok(Value::Array(Rc::new(RefCell::new(values))))
+            }
+            Expr::RecordLiteral { entries, .. } => {
+                let mut values = IndexMap::new();
+                for entry in *entries {
+                    match entry {
+                        RecordElement::Entry(entry) => {
+                            values.insert(
+                                decode_source_string(entry.key.name),
+                                self.evaluate(&entry.value)?,
+                            );
+                        }
+                        RecordElement::Spread { value, .. } => {
+                            let Value::Record(spread) = self.evaluate(value)? else {
+                                return Err(InterpretError::new(
+                                    value.span(),
+                                    "record spread requires a record",
+                                ));
+                            };
+                            let spread = spread.borrow();
+                            for key in ordered_record_keys(&spread) {
+                                values.insert(key.clone(), spread[&key].clone());
+                            }
+                        }
+                    }
+                }
+                Ok(Value::Record(Rc::new(RefCell::new(values))))
             }
             Expr::New {
                 class, args, span, ..
@@ -417,6 +603,10 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                     _ => Err(InterpretError::new(*span, "invalid unary operand")),
                 }
             }
+            Expr::Await { span, .. } => Err(InterpretError::new(
+                *span,
+                "async functions and await are only available for JavaScript targets",
+            )),
             Expr::Binary { op, lhs, rhs, span } => {
                 if *op == BinaryOp::And {
                     return if self.evaluate_bool(lhs)? {
@@ -432,6 +622,14 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                         Ok(Value::Bool(self.evaluate_bool(rhs)?))
                     };
                 }
+                if *op == BinaryOp::Nullish {
+                    let lhs = self.evaluate(lhs)?;
+                    return if matches!(lhs, Value::Null) {
+                        self.evaluate(rhs)
+                    } else {
+                        Ok(lhs)
+                    };
+                }
                 let lhs = self.evaluate(lhs)?;
                 let rhs = self.evaluate(rhs)?;
                 self.evaluate_binary(*op, lhs, rhs, expression, *span)
@@ -442,14 +640,21 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
             } => {
                 let captures = self.frames.last().cloned().unwrap_or_default();
                 let closure = self.closures.len();
+                let return_type = match self.semantics.expression_type(*span) {
+                    Some(Type::Function(signature)) => signature.return_type.as_ref().clone(),
+                    _ => {
+                        return Err(InterpretError::new(
+                            *span,
+                            "closure has no checked function type",
+                        ));
+                    }
+                };
                 self.closures.push(RuntimeClosure {
                     params,
                     body: body.clone(),
                     captures,
+                    return_type,
                 });
-                self.semantics.expression_type(*span).ok_or_else(|| {
-                    InterpretError::new(*span, "closure has no checked function type")
-                })?;
                 Ok(Value::Callable(Callable::Closure(closure)))
             }
             Expr::Assignment {
@@ -498,12 +703,82 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 property,
                 span,
             } => {
+                if let Some(value) = self.semantics.enum_variant_value(*span) {
+                    return Ok(Value::Int(value as i32));
+                }
                 let object = self.evaluate(object)?;
                 self.evaluate_member(object, property.name, *span)
+            }
+            Expr::OptionalMember {
+                object,
+                property,
+                span,
+            } => {
+                let object = self.evaluate(object)?;
+                if matches!(object, Value::Null) {
+                    Ok(Value::Null)
+                } else {
+                    self.evaluate_member(object, property.name, *span)
+                }
             }
             Expr::Index { span, .. } => {
                 let place = self.evaluate_place(expression)?;
                 self.load_place(&place, *span)
+            }
+            Expr::OptionalIndex {
+                object,
+                index,
+                span,
+            } => {
+                let object = self.evaluate(object)?;
+                if matches!(object, Value::Null) {
+                    return Ok(Value::Null);
+                }
+                let index = self.evaluate(index)?;
+                match (object, index) {
+                    (Value::Array(array), Value::Int(index)) => {
+                        let index = usize::try_from(index).map_err(|_| {
+                            InterpretError::new(*span, "optional index is negative")
+                        })?;
+                        array.borrow().get(index).cloned().ok_or_else(|| {
+                            InterpretError::new(*span, "array index is out of bounds")
+                        })
+                    }
+                    (Value::TypedArray(view), Value::Int(index)) => {
+                        let index = usize::try_from(index).map_err(|_| {
+                            InterpretError::new(*span, "optional index is negative")
+                        })?;
+                        typed_array_get(&view, index, *span)
+                    }
+                    (Value::Record(record), Value::String(key)) => {
+                        Ok(record.borrow().get(&key).cloned().unwrap_or(Value::Null))
+                    }
+                    _ => Err(InterpretError::new(
+                        *span,
+                        "optional receiver is not indexable",
+                    )),
+                }
+            }
+            Expr::Match { value, arms, span } => {
+                let Value::Int(discriminant) = self.evaluate(value)? else {
+                    return Err(InterpretError::new(*span, "match value is not an enum"));
+                };
+                for arm in *arms {
+                    let selected = match arm.pattern {
+                        MatchPattern::Wildcard(_) => true,
+                        MatchPattern::EnumVariant { span, .. } => self
+                            .semantics
+                            .enum_variant_value(span)
+                            .is_some_and(|value| value == i64::from(discriminant)),
+                    };
+                    if selected {
+                        return self.evaluate(&arm.value);
+                    }
+                }
+                Err(InterpretError::new(
+                    *span,
+                    "exhaustive match selected no arm",
+                ))
             }
             Expr::StructLiteral { span, .. } => Err(InterpretError::new(
                 *span,
@@ -580,6 +855,11 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
         span: Span,
     ) -> Result<Value, InterpretError> {
         match (object, property) {
+            (Value::Record(record), property) => Ok(record
+                .borrow()
+                .get(property)
+                .cloned()
+                .unwrap_or(Value::Null)),
             (Value::Array(values), "length") => Ok(Value::Int(
                 i32::try_from(values.borrow().len())
                     .map_err(|_| InterpretError::new(span, "array length exceeds the i32 range"))?,
@@ -699,7 +979,7 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
             (GreaterEq, Value::String(lhs), Value::String(rhs)) => {
                 Ok(Value::Bool(!compare_js_strings(&lhs, &rhs).is_lt()))
             }
-            (BinaryOp::And | BinaryOp::Or, _, _) => unreachable!(),
+            (BinaryOp::And | BinaryOp::Or | BinaryOp::Nullish, _, _) => unreachable!(),
             _ => Err(InterpretError::new(
                 span,
                 format!(
@@ -730,6 +1010,11 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
             object, property, ..
         } = callee
         {
+            if let Expr::Ident(namespace) = object {
+                if matches!(namespace.name, "Object" | "JSON") {
+                    return self.evaluate_static_call(namespace.name, property.name, args, span);
+                }
+            }
             return self.evaluate_method_call(object, property.name, args, span);
         }
 
@@ -739,6 +1024,68 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
             values.push(self.evaluate(argument)?);
         }
         self.invoke_callable(callable, values, span)
+    }
+
+    fn evaluate_static_call(
+        &mut self,
+        namespace: &str,
+        method: &str,
+        args: &'ast [Expr<'ast, 'src>],
+        span: Span,
+    ) -> Result<Value, InterpretError> {
+        let mut values = Vec::with_capacity(args.len());
+        for argument in args {
+            values.push(self.evaluate(argument)?);
+        }
+        match (namespace, method, values.as_slice()) {
+            ("Object", "keys", [Value::Record(record)]) => {
+                let keys = ordered_record_keys(&record.borrow());
+                Ok(Value::Array(Rc::new(RefCell::new(
+                    keys.into_iter().map(Value::String).collect(),
+                ))))
+            }
+            ("Object", "values", [Value::Record(record)]) => {
+                let record = record.borrow();
+                let values = ordered_record_keys(&record)
+                    .into_iter()
+                    .map(|key| record[&key].clone())
+                    .collect();
+                Ok(Value::Array(Rc::new(RefCell::new(values))))
+            }
+            ("Object", "hasOwn", [Value::Record(record), Value::String(key)]) => {
+                Ok(Value::Bool(record.borrow().contains_key(key)))
+            }
+            ("Object", "assign", [Value::Record(target), Value::Record(source)]) => {
+                let source = source.borrow();
+                let entries = ordered_record_keys(&source)
+                    .into_iter()
+                    .map(|key| (key.clone(), source[&key].clone()))
+                    .collect::<Vec<_>>();
+                drop(source);
+                let mut target_values = target.borrow_mut();
+                for (key, value) in entries {
+                    target_values.insert(key, value);
+                }
+                drop(target_values);
+                Ok(Value::Record(target.clone()))
+            }
+            ("JSON", "stringify", [value]) => serde_json::to_string(&value_to_json(value, span)?)
+                .map(Value::String)
+                .map_err(|error| {
+                    InterpretError::new(span, format!("JSON stringify failed: {error}"))
+                }),
+            ("JSON", "parse", [Value::String(source)]) => {
+                serde_json::from_str::<serde_json::Value>(source)
+                    .map(json_to_value)
+                    .map_err(|error| {
+                        InterpretError::new(span, format!("JSON parse failed: {error}"))
+                    })
+            }
+            _ => Err(InterpretError::new(
+                span,
+                format!("unsupported static call `{namespace}.{method}`"),
+            )),
+        }
     }
 
     fn invoke_callable(
@@ -768,6 +1115,12 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
             .functions
             .get(&symbol)
             .ok_or_else(|| InterpretError::new(span, "unknown interpreted function symbol"))?;
+        if function.is_async {
+            return Err(InterpretError::new(
+                function.span,
+                "async functions are only available for JavaScript targets",
+            ));
+        }
         for parameter in function.params.iter().skip(values.len()) {
             let default = parameter.default.as_ref().ok_or_else(|| {
                 InterpretError::new(
@@ -785,9 +1138,24 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
         }
         let mut frame = AHashMap::with_capacity(function.params.len());
         for (parameter, value) in function.params.iter().zip(values) {
-            frame.insert(self.symbol(parameter.name.span)?, value);
+            let symbol = self.symbol(parameter.name.span)?;
+            let ty = self
+                .semantics
+                .binding_type(parameter.name.span)
+                .ok_or_else(|| InterpretError::new(parameter.span, "parameter has no type"))?;
+            frame.insert(symbol, coerce_value_to_type(value, ty));
         }
+        let return_type = match self.semantics.binding_type(function.name.span) {
+            Some(Type::Function(signature)) => signature.return_type.as_ref().clone(),
+            _ => {
+                return Err(InterpretError::new(
+                    function.span,
+                    "function has no checked return type",
+                ));
+            }
+        };
         self.execute_callable_frame(frame, function.body, None, function.span)
+            .map(|value| coerce_value_to_type(value, &return_type))
     }
 
     fn invoke_closure(
@@ -810,16 +1178,28 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
         if values.len() != closure.params.len() {
             return Err(InterpretError::new(span, "closure argument count mismatch"));
         }
-        let mut frame = closure.captures;
-        for (parameter, value) in closure.params.iter().zip(values) {
-            frame.insert(self.symbol(parameter.name.span)?, value);
+        let RuntimeClosure {
+            params,
+            body,
+            captures,
+            return_type,
+        } = closure;
+        let mut frame = captures;
+        for (parameter, value) in params.iter().zip(values) {
+            let symbol = self.symbol(parameter.name.span)?;
+            let ty = self
+                .semantics
+                .binding_type(parameter.name.span)
+                .ok_or_else(|| InterpretError::new(parameter.span, "parameter has no type"))?;
+            frame.insert(symbol, coerce_value_to_type(value, ty));
         }
-        match closure.body {
+        let result = match body {
             ArrowBody::Expr(expression) => {
                 self.execute_callable_frame(frame, &[], Some(expression), span)
             }
             ArrowBody::Block(body) => self.execute_callable_frame(frame, body, None, span),
-        }
+        }?;
+        Ok(coerce_value_to_type(result, &return_type))
     }
 
     fn execute_callable_frame(
@@ -864,6 +1244,39 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
         let mut arguments = Vec::with_capacity(args.len());
         for argument in args {
             arguments.push(self.evaluate(argument)?);
+        }
+        if matches!(method, "truthy" | "isArray" | "isObject") {
+            if !arguments.is_empty() {
+                return Err(InterpretError::new(
+                    span,
+                    format!("{method} takes no arguments"),
+                ));
+            }
+            return Ok(Value::Bool(match method {
+                "truthy" => match &receiver {
+                    Value::Int(value) => *value != 0,
+                    Value::Float(value) => *value != 0.0 && !value.is_nan(),
+                    Value::String(value) => !value.is_empty(),
+                    Value::Bool(value) => *value,
+                    Value::Null | Value::Void => false,
+                    Value::Array(_)
+                    | Value::Record(_)
+                    | Value::Buffer(_)
+                    | Value::TypedArray(_)
+                    | Value::Symbol(_)
+                    | Value::Callable(_) => true,
+                },
+                "isArray" => matches!(receiver, Value::Array(_)),
+                "isObject" => matches!(
+                    receiver,
+                    Value::Array(_)
+                        | Value::Record(_)
+                        | Value::Buffer(_)
+                        | Value::TypedArray(_)
+                        | Value::Null
+                ),
+                _ => unreachable!(),
+            }));
         }
         if matches!(receiver, Value::Buffer(_) | Value::TypedArray(_)) {
             return self.evaluate_binary_method(receiver, method, &arguments, span);
@@ -951,6 +1364,132 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                     .map_or(-1, |index| index as i32);
                 Ok(Value::Int(index))
             }
+            "includes" => {
+                let Some(needle) = arguments.first() else {
+                    return Err(InterpretError::new(span, "array includes requires a value"));
+                };
+                let from = match arguments.get(1) {
+                    None => 0,
+                    Some(Value::Int(value)) => normalize_search_index(*value, array.borrow().len()),
+                    Some(_) => {
+                        return Err(InterpretError::new(
+                            span,
+                            "array includes fromIndex must be int",
+                        ));
+                    }
+                };
+                Ok(Value::Bool(
+                    array.borrow()[from..]
+                        .iter()
+                        .any(|value| values_same_value_zero(value, needle)),
+                ))
+            }
+            "join" => {
+                let separator = match arguments.as_slice() {
+                    [] => ",",
+                    [Value::String(separator)] => separator.as_str(),
+                    _ => {
+                        return Err(InterpretError::new(
+                            span,
+                            "array join expects an optional string separator",
+                        ));
+                    }
+                };
+                let array = array.borrow();
+                let mut output = String::new();
+                for (index, value) in array.iter().enumerate() {
+                    if index != 0 {
+                        output.push_str(separator);
+                    }
+                    if !matches!(value, Value::Null) {
+                        output.push_str(&value.display(span)?);
+                    }
+                }
+                Ok(Value::String(output))
+            }
+            "some" | "every" | "findIndex" => {
+                let [callback] = arguments.as_slice() else {
+                    return Err(InterpretError::new(
+                        span,
+                        format!("array {method} requires one callback"),
+                    ));
+                };
+                let length = array.borrow().len();
+                for index in 0..length {
+                    let Some(value) = array.borrow().get(index).cloned() else {
+                        continue;
+                    };
+                    let result = self.invoke_callable(callback.clone(), vec![value], span)?;
+                    let Value::Bool(matches) = result else {
+                        return Err(InterpretError::new(
+                            span,
+                            format!("array {method} callback did not return bool"),
+                        ));
+                    };
+                    if method == "some" && matches {
+                        return Ok(Value::Bool(true));
+                    }
+                    if method == "every" && !matches {
+                        return Ok(Value::Bool(false));
+                    }
+                    if method == "findIndex" && matches {
+                        return Ok(Value::Int(index as i32));
+                    }
+                }
+                Ok(match method {
+                    "some" => Value::Bool(false),
+                    "every" => Value::Bool(true),
+                    "findIndex" => Value::Int(-1),
+                    _ => unreachable!(),
+                })
+            }
+            "concat" => {
+                let [Value::Array(other)] = arguments.as_slice() else {
+                    return Err(InterpretError::new(
+                        span,
+                        "array concat requires one compatible array",
+                    ));
+                };
+                let left = array.borrow();
+                let right = other.borrow();
+                let mut values = Vec::with_capacity(left.len() + right.len());
+                values.extend(left.iter().cloned());
+                values.extend(right.iter().cloned());
+                Ok(Value::Array(Rc::new(RefCell::new(values))))
+            }
+            "copyWithin" => {
+                let (target, start, end) = match arguments.as_slice() {
+                    [Value::Int(target), Value::Int(start)] => (*target, *start, i32::MAX),
+                    [Value::Int(target), Value::Int(start), Value::Int(end)] => {
+                        (*target, *start, *end)
+                    }
+                    _ => {
+                        return Err(InterpretError::new(
+                            span,
+                            "array copyWithin expects target, start, and optional end ints",
+                        ));
+                    }
+                };
+                let mut values = array.borrow_mut();
+                let target = normalize_slice_index(target, values.len());
+                let start = normalize_slice_index(start, values.len());
+                let end = normalize_slice_index(end, values.len()).max(start);
+                let count = (end - start).min(values.len() - target);
+                let copied = values[start..start + count].to_vec();
+                values[target..target + count].clone_from_slice(&copied);
+                drop(values);
+                Ok(Value::Array(array.clone()))
+            }
+            "reverse" => {
+                if !arguments.is_empty() {
+                    return Err(InterpretError::new(
+                        span,
+                        "array reverse takes no arguments",
+                    ));
+                }
+                array.borrow_mut().reverse();
+                Ok(Value::Array(array.clone()))
+            }
             "slice" => {
                 let (start, end) = match arguments.as_slice() {
                     [] => (0, i32::MAX),
@@ -999,6 +1538,15 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                     array.drain(start..end).collect::<Vec<_>>()
                 };
                 Ok(Value::Array(Rc::new(RefCell::new(removed))))
+            }
+            "fill" => {
+                let [value] = arguments.as_slice() else {
+                    return Err(InterpretError::new(span, "array fill requires one value"));
+                };
+                let mut values = array.borrow_mut();
+                values.fill(value.clone());
+                drop(values);
+                Ok(Value::Array(array.clone()))
             }
             "map" => {
                 let [callback] = arguments.as_slice() else {
@@ -1139,6 +1687,84 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                     length: end - start,
                 })))
             }
+            (Value::TypedArray(target), "set") => {
+                let (source, offset) = match arguments {
+                    [Value::TypedArray(source)] => (source, 0usize),
+                    [Value::TypedArray(source), Value::Int(offset)] if *offset >= 0 => {
+                        (source, *offset as usize)
+                    }
+                    _ => {
+                        return Err(InterpretError::new(
+                            span,
+                            "typed-array set expects a compatible view and optional non-negative offset",
+                        ));
+                    }
+                };
+                if source.kind != target.kind || offset + source.length > target.length {
+                    return Err(InterpretError::new(
+                        span,
+                        "typed-array set source does not fit the target",
+                    ));
+                }
+                let bpe = target.kind.bytes_per_element() as usize;
+                let source_start = source.offset;
+                let source_end = source_start + source.length * bpe;
+                let copied = source.buffer.bytes.borrow()[source_start..source_end].to_vec();
+                let target_start = target.offset + offset * bpe;
+                target.buffer.bytes.borrow_mut()[target_start..target_start + copied.len()]
+                    .copy_from_slice(&copied);
+                Ok(Value::Void)
+            }
+            (Value::TypedArray(view), "fill") => {
+                let Some(value) = arguments.first() else {
+                    return Err(InterpretError::new(
+                        span,
+                        "typed-array fill requires a value",
+                    ));
+                };
+                let start = match arguments.get(1) {
+                    None => 0,
+                    Some(Value::Int(value)) => normalize_slice_index(*value, view.length),
+                    Some(_) => return Err(InterpretError::new(span, "fill start is not int")),
+                };
+                let end = match arguments.get(2) {
+                    None => view.length,
+                    Some(Value::Int(value)) => normalize_slice_index(*value, view.length),
+                    Some(_) => return Err(InterpretError::new(span, "fill end is not int")),
+                }
+                .max(start);
+                for index in start..end {
+                    typed_array_set(&view, index, value.clone(), span)?;
+                }
+                Ok(Value::TypedArray(view))
+            }
+            (Value::TypedArray(view), "copyWithin") => {
+                let (target, start, end) = match arguments {
+                    [Value::Int(target), Value::Int(start)] => (*target, *start, i32::MAX),
+                    [Value::Int(target), Value::Int(start), Value::Int(end)] => {
+                        (*target, *start, *end)
+                    }
+                    _ => {
+                        return Err(InterpretError::new(
+                            span,
+                            "typed-array copyWithin expects target, start, and optional end ints",
+                        ));
+                    }
+                };
+                let target = normalize_slice_index(target, view.length);
+                let start = normalize_slice_index(start, view.length);
+                let end = normalize_slice_index(end, view.length).max(start);
+                let count = (end - start).min(view.length - target);
+                let bpe = view.kind.bytes_per_element() as usize;
+                let absolute_source = view.offset + start * bpe;
+                let absolute_target = view.offset + target * bpe;
+                let byte_count = count * bpe;
+                view.buffer.bytes.borrow_mut().copy_within(
+                    absolute_source..absolute_source + byte_count,
+                    absolute_target,
+                );
+                Ok(Value::TypedArray(view))
+            }
             _ => Err(InterpretError::new(
                 span,
                 format!("unsupported interpreted binary-memory method `{method}`"),
@@ -1154,13 +1780,25 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
         span: Span,
     ) -> Result<Value, InterpretError> {
         let place = self.evaluate_place(target)?;
-        let value = if op == AssignmentOp::Assign {
+        let value = if op == AssignmentOp::Nullish {
+            let current = self.load_place(&place, target.span())?;
+            if matches!(current, Value::Null) {
+                self.evaluate(rhs)?
+            } else {
+                current
+            }
+        } else if op == AssignmentOp::Assign {
             self.evaluate(rhs)?
         } else {
             let lhs = self.load_place(&place, target.span())?;
             let rhs = self.evaluate(rhs)?;
             self.evaluate_binary(assignment_binary_op(op), lhs, rhs, target, span)?
         };
+        let target_type = self
+            .semantics
+            .expression_type(target.span())
+            .ok_or_else(|| InterpretError::new(target.span(), "assignment target has no type"))?;
+        let value = coerce_value_to_type(value, target_type);
         self.store_place(&place, value.clone(), span)?;
         Ok(value)
     }
@@ -1191,25 +1829,36 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
     ) -> Result<RuntimePlace, InterpretError> {
         match expression {
             Expr::Ident(identifier) => Ok(RuntimePlace::Binding(self.symbol(identifier.span)?)),
+            Expr::Member {
+                object,
+                property,
+                span,
+            } => match self.evaluate(object)? {
+                Value::Record(record) => Ok(RuntimePlace::RecordEntry {
+                    record,
+                    key: property.name.to_string(),
+                }),
+                _ => Err(InterpretError::new(*span, "member is not a record entry")),
+            },
             Expr::Index {
                 object,
                 index,
                 span,
             } => {
                 let object = self.evaluate(object)?;
-                let Value::Int(index) = self.evaluate(index)? else {
-                    return Err(InterpretError::new(*span, "index is not int"));
-                };
-                let index = usize::try_from(index)
-                    .map_err(|_| InterpretError::new(*span, "index is negative"))?;
-                match object {
-                    Value::Array(array) => {
+                let index = self.evaluate(index)?;
+                match (object, index) {
+                    (Value::Array(array), Value::Int(index)) => {
+                        let index = usize::try_from(index)
+                            .map_err(|_| InterpretError::new(*span, "index is negative"))?;
                         if index >= array.borrow().len() {
                             return Err(InterpretError::new(*span, "array index is out of bounds"));
                         }
                         Ok(RuntimePlace::ArrayElement { array, index })
                     }
-                    Value::TypedArray(view) => {
+                    (Value::TypedArray(view), Value::Int(index)) => {
+                        let index = usize::try_from(index)
+                            .map_err(|_| InterpretError::new(*span, "index is negative"))?;
                         if index >= view.length {
                             return Err(InterpretError::new(
                                 *span,
@@ -1217,6 +1866,9 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                             ));
                         }
                         Ok(RuntimePlace::TypedArrayElement { view, index })
+                    }
+                    (Value::Record(record), Value::String(key)) => {
+                        Ok(RuntimePlace::RecordEntry { record, key })
                     }
                     _ => Err(InterpretError::new(
                         *span,
@@ -1240,6 +1892,9 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 .cloned()
                 .ok_or_else(|| InterpretError::new(span, "array index is out of bounds")),
             RuntimePlace::TypedArrayElement { view, index } => typed_array_get(view, *index, span),
+            RuntimePlace::RecordEntry { record, key } => {
+                Ok(record.borrow().get(key).cloned().unwrap_or(Value::Null))
+            }
         }
     }
 
@@ -1261,6 +1916,10 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
             }
             RuntimePlace::TypedArrayElement { view, index } => {
                 typed_array_set(view, *index, value, span)
+            }
+            RuntimePlace::RecordEntry { record, key } => {
+                record.borrow_mut().insert(key.clone(), value);
+                Ok(())
             }
         }
     }
@@ -1289,6 +1948,14 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
     }
 
     fn assign(&mut self, symbol: SymbolId, value: Value, span: Span) -> Result<(), InterpretError> {
+        let ty = self
+            .semantics
+            .symbols()
+            .get(symbol.0 as usize)
+            .map(|binding| binding.ty.clone());
+        let value = ty
+            .as_ref()
+            .map_or(value.clone(), |ty| coerce_value_to_type(value, ty));
         if let Some(frame) = self.frames.last_mut() {
             if let Some(target) = frame.get_mut(&symbol) {
                 *target = value;
@@ -1303,6 +1970,16 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
             span,
             "assignment to an uninitialized binding",
         ))
+    }
+}
+
+fn coerce_value_to_type(value: Value, ty: &Type<'_>) -> Value {
+    match (value, ty) {
+        (Value::Int(value), Type::Float) => Value::Float(f64::from(value)),
+        (value, Type::Nullable(inner)) if !matches!(value, Value::Null) => {
+            coerce_value_to_type(value, inner)
+        }
+        (value, _) => value,
     }
 }
 
@@ -1334,6 +2011,7 @@ fn values_equal(lhs: &Value, rhs: &Value) -> bool {
         (Value::String(lhs), Value::String(rhs)) => lhs == rhs,
         (Value::Bool(lhs), Value::Bool(rhs)) => lhs == rhs,
         (Value::Array(lhs), Value::Array(rhs)) => Rc::ptr_eq(lhs, rhs),
+        (Value::Record(lhs), Value::Record(rhs)) => Rc::ptr_eq(lhs, rhs),
         (Value::Buffer(lhs), Value::Buffer(rhs)) => Rc::ptr_eq(lhs, rhs),
         (Value::TypedArray(lhs), Value::TypedArray(rhs)) => Rc::ptr_eq(lhs, rhs),
         (Value::Symbol(lhs), Value::Symbol(rhs)) => Rc::ptr_eq(lhs, rhs),
@@ -1342,8 +2020,115 @@ fn values_equal(lhs: &Value, rhs: &Value) -> bool {
     }
 }
 
+fn values_same_value_zero(lhs: &Value, rhs: &Value) -> bool {
+    values_equal(lhs, rhs)
+        || matches!((lhs, rhs), (Value::Float(lhs), Value::Float(rhs)) if lhs.is_nan() && rhs.is_nan())
+}
+
+fn normalize_search_index(index: i32, length: usize) -> usize {
+    if index >= 0 {
+        usize::try_from(index).unwrap_or(usize::MAX).min(length)
+    } else {
+        (length as i64 + i64::from(index)).max(0) as usize
+    }
+}
+
 fn compare_js_strings(lhs: &str, rhs: &str) -> std::cmp::Ordering {
     lhs.encode_utf16().cmp(rhs.encode_utf16())
+}
+
+fn decode_source_string(value: &str) -> String {
+    let encoded = format!("\"{value}\"");
+    serde_json::from_str(&encoded).unwrap_or_else(|_| value.to_string())
+}
+
+fn record_array_index(key: &str) -> Option<u32> {
+    if key.is_empty()
+        || (key.len() > 1 && key.starts_with('0'))
+        || !key.bytes().all(|b| b.is_ascii_digit())
+    {
+        return None;
+    }
+    let value = key.parse::<u64>().ok()?;
+    (value < u64::from(u32::MAX)).then_some(value as u32)
+}
+
+fn ordered_record_keys(record: &IndexMap<String, Value>) -> Vec<String> {
+    let mut indices = record
+        .keys()
+        .filter_map(|key| record_array_index(key).map(|index| (index, key.clone())))
+        .collect::<Vec<_>>();
+    indices.sort_unstable_by_key(|(index, _)| *index);
+    indices
+        .into_iter()
+        .map(|(_, key)| key)
+        .chain(
+            record
+                .keys()
+                .filter(|key| record_array_index(key).is_none())
+                .cloned(),
+        )
+        .collect()
+}
+
+fn value_to_json(value: &Value, span: Span) -> Result<serde_json::Value, InterpretError> {
+    Ok(match value {
+        Value::Int(value) => serde_json::Value::Number((*value).into()),
+        Value::Float(value) => serde_json::Number::from_f64(*value)
+            .map_or(serde_json::Value::Null, serde_json::Value::Number),
+        Value::String(value) => serde_json::Value::String(value.clone()),
+        Value::Bool(value) => serde_json::Value::Bool(*value),
+        Value::Null => serde_json::Value::Null,
+        Value::Array(values) => serde_json::Value::Array(
+            values
+                .borrow()
+                .iter()
+                .map(|value| value_to_json(value, span))
+                .collect::<Result<_, _>>()?,
+        ),
+        Value::Record(record) => {
+            let record = record.borrow();
+            let mut object = serde_json::Map::new();
+            for key in ordered_record_keys(&record) {
+                object.insert(key.clone(), value_to_json(&record[&key], span)?);
+            }
+            serde_json::Value::Object(object)
+        }
+        Value::Buffer(_)
+        | Value::TypedArray(_)
+        | Value::Symbol(_)
+        | Value::Callable(_)
+        | Value::Void => {
+            return Err(InterpretError::new(
+                span,
+                "value is not supported by portable JSON.stringify",
+            ));
+        }
+    })
+}
+
+fn json_to_value(value: serde_json::Value) -> Value {
+    match value {
+        serde_json::Value::Null => Value::Null,
+        serde_json::Value::Bool(value) => Value::Bool(value),
+        serde_json::Value::Number(value) => value
+            .as_i64()
+            .and_then(|value| i32::try_from(value).ok())
+            .map_or_else(
+                || Value::Float(value.as_f64().unwrap_or(f64::NAN)),
+                Value::Int,
+            ),
+        serde_json::Value::String(value) => Value::String(value),
+        serde_json::Value::Array(values) => Value::Array(Rc::new(RefCell::new(
+            values.into_iter().map(json_to_value).collect(),
+        ))),
+        serde_json::Value::Object(values) => Value::Record(Rc::new(RefCell::new(
+            values
+                .into_iter()
+                .map(|(key, value)| (key, json_to_value(value)))
+                .collect(),
+        ))),
+    }
 }
 
 fn value_matches_type(value: &Value, target: TypeKind<'_, '_>) -> Option<bool> {
@@ -1673,6 +2458,59 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                         .unwrap_or_default(),
                 }))
             }
+            "includes" | "startsWith" | "endsWith" => {
+                let [Value::String(needle)] = arguments else {
+                    return Err(InterpretError::new(
+                        span,
+                        format!("{method} requires one string argument"),
+                    ));
+                };
+                Ok(Value::Bool(match method {
+                    "includes" => receiver.contains(needle),
+                    "startsWith" => receiver.starts_with(needle),
+                    "endsWith" => receiver.ends_with(needle),
+                    _ => unreachable!(),
+                }))
+            }
+            "indexOf" | "lastIndexOf" => {
+                let Some(Value::String(needle)) = arguments.first() else {
+                    return Err(InterpretError::new(
+                        span,
+                        format!("{method} requires a string argument"),
+                    ));
+                };
+                let default = if method == "indexOf" { 0 } else { i32::MAX };
+                let position = match arguments.get(1) {
+                    None => default,
+                    Some(Value::Int(value)) => *value,
+                    Some(_) => {
+                        return Err(InterpretError::new(
+                            span,
+                            format!("{method} position must be int"),
+                        ));
+                    }
+                };
+                Ok(Value::Int(utf16_string_index(
+                    receiver,
+                    needle,
+                    position,
+                    method == "lastIndexOf",
+                )))
+            }
+            "repeat" => {
+                let [Value::Int(count)] = arguments else {
+                    return Err(InterpretError::new(span, "repeat requires one int count"));
+                };
+                let count = usize::try_from(*count)
+                    .map_err(|_| InterpretError::new(span, "repeat count must be non-negative"))?;
+                receiver
+                    .len()
+                    .checked_mul(count)
+                    .ok_or_else(|| InterpretError::new(span, "repeated string is too large"))?;
+                Ok(Value::String(receiver.repeat(count)))
+            }
+            "toUpperCase" => Ok(Value::String(receiver.to_uppercase())),
+            "toLowerCase" => Ok(Value::String(receiver.to_lowercase())),
             "length" => Ok(Value::Int(
                 i32::try_from(receiver.encode_utf16().count()).map_err(|_| {
                     InterpretError::new(span, "string length exceeds the i32 range")
@@ -1686,6 +2524,38 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
     }
 }
 
+fn utf16_string_index(receiver: &str, needle: &str, position: i32, last: bool) -> i32 {
+    let receiver = receiver.encode_utf16().collect::<Vec<_>>();
+    let needle = needle.encode_utf16().collect::<Vec<_>>();
+    let position = if position < 0 {
+        0
+    } else {
+        usize::try_from(position)
+            .unwrap_or(usize::MAX)
+            .min(receiver.len())
+    };
+    if needle.is_empty() {
+        return position as i32;
+    }
+    if needle.len() > receiver.len() {
+        return -1;
+    }
+    if last {
+        let start = position.min(receiver.len() - needle.len());
+        (0..=start)
+            .rev()
+            .find(|index| receiver[*index..*index + needle.len()] == needle)
+            .map_or(-1, |index| index as i32)
+    } else {
+        if position + needle.len() > receiver.len() {
+            return -1;
+        }
+        (position..=receiver.len() - needle.len())
+            .find(|index| receiver[*index..*index + needle.len()] == needle)
+            .map_or(-1, |index| index as i32)
+    }
+}
+
 fn js_i32_multiply(lhs: i32, rhs: i32) -> i32 {
     let product = f64::from(lhs) * f64::from(rhs);
     (product as i64 as u32) as i32
@@ -1693,7 +2563,7 @@ fn js_i32_multiply(lhs: i32, rhs: i32) -> i32 {
 
 const fn assignment_binary_op(op: AssignmentOp) -> BinaryOp {
     match op {
-        AssignmentOp::Assign => unreachable!(),
+        AssignmentOp::Assign | AssignmentOp::Nullish => unreachable!(),
         AssignmentOp::Add => BinaryOp::Add,
         AssignmentOp::Sub => BinaryOp::Sub,
         AssignmentOp::Mul => BinaryOp::Mul,
@@ -1720,6 +2590,64 @@ mod tests {
         let program = parse_source(&arena, source).unwrap();
         let semantics = analyze(&program).unwrap();
         interpret_program(&program, &semantics).unwrap()
+    }
+
+    #[test]
+    fn evaluates_enum_matches_and_scrutinee_once() {
+        assert_eq!(
+            run("enum Status{Draft,Active,Sold}int calls=0;Status next(){calls++;return Status.Active;}string label(Status value){return match(value){Status.Draft=>\"draft\",Status.Active=>\"active\",Status.Sold=>\"sold\"};}print(label(next()));print(calls);"),
+            "active\n1\n"
+        );
+    }
+
+    #[test]
+    fn evaluates_structural_record_reads_and_writes() {
+        assert_eq!(
+            run("Record<int> values=record{alpha:1};print(values.alpha??0);print(values.missing??7);values.beta=3;print(values[\"beta\"]??0);"),
+            "1\n7\n3\n"
+        );
+        assert_eq!(
+            run("Record<int> values=record{};print(values.toString??7);values[\"__proto__\"]=9;print(values.__proto__??0);"),
+            "7\n9\n"
+        );
+    }
+
+    #[test]
+    fn evaluates_object_and_json_with_javascript_key_order() {
+        assert_eq!(
+            run(
+                r#"Record<int> values=record{"10":10,"2":2,alpha:1};print(Object.keys(values).join(","));print(Object.values(values).join(","));print(Object.hasOwn(values,"alpha"));Record<int> merged=Object.assign(values,record{beta:4});print(merged==values);print(JSON.stringify(values));print(JSON.parse("{\"ok\":true}").isObject());"#
+            ),
+            "2,10,alpha\n2,10,1\ntrue\ntrue\n{\"2\":2,\"10\":10,\"alpha\":1,\"beta\":4}\ntrue\n"
+        );
+    }
+
+    #[test]
+    fn evaluates_for_of_with_live_array_length_and_typed_arrays() {
+        assert_eq!(
+            run("int[] values=[1,2];int total=0;for(int value of values){total+=value;if(value==1){values.push(3);}}print(total);Uint8Array bytes=new Uint8Array(2);bytes[0]=4;bytes[1]=5;for(int value of bytes){total+=value;}print(total);"),
+            "6\n15\n"
+        );
+    }
+
+    #[test]
+    fn evaluates_spreads_left_to_right_as_shallow_copies() {
+        assert_eq!(
+            run(
+                r#"int calls=0;int[] next(){calls++;return [calls];}int[] base=[8,9];int[] values=[0,...next(),...next(),...base,3];base[0]=99;print(values.join(","));print(calls);Record<int> source=record{"10":10,"2":2,a:1,b:2};Record<int> merged=record{...source,b:7,c:8};source.a=9;print(JSON.stringify(merged));"#
+            ),
+            "0,1,2,8,9,3\n2\n{\"2\":2,\"10\":10,\"a\":1,\"b\":7,\"c\":8}\n"
+        );
+    }
+
+    #[test]
+    fn evaluates_destructuring_once_with_safe_missing_values_and_copied_rest() {
+        assert_eq!(
+            run(
+                r#"int calls=0;int[] next(){calls++;return [4];}auto [first,,third,...rest]=next();print(first??0);print(third??7);print(rest.length);print(calls);int[] values=[1,2,3];auto [head,...tail]=values;values[1]=9;print(tail.join(","));Record<int> source=record{a:5,b:6,c:7};auto {a,"b":bee,missing,...remaining}=source;source.c=9;print(a??0);print(bee??0);print(missing??8);print(JSON.stringify(remaining));"#
+            ),
+            "4\n7\n0\n1\n2,3\n5\n6\n8\n{\"c\":7}\n"
+        );
     }
 
     #[test]
@@ -1770,6 +2698,133 @@ mod tests {
                     print(sum);
                 "#,),
             "true\nfalse\n2\n2\n3\n4\n4\n3\n2\n3\n3\n9\n2\n8\n"
+        );
+    }
+
+    #[test]
+    fn evaluates_compact_array_and_typed_array_bulk_methods() {
+        assert_eq!(
+            run(r#"
+                int[] values=[1,2,3];
+                print(values.includes(2));
+                print(values.includes(1,-2));
+                print(values.join("-"));
+                print(values.some((int value)=>value>2));
+                print(values.every((int value)=>value>0));
+                print(values.findIndex((int value)=>value==2));
+                int[] combined=values.concat([4,5]);
+                print(combined.join("-"));
+                values.copyWithin(1,0,2).reverse();
+                print(values.join("-"));
+                Uint8Array target=new Uint8Array(5);
+                target.fill(7);
+                Uint8Array source=new Uint8Array(2);
+                source.fill(9);
+                target.set(source,1);
+                target.copyWithin(3,0,2);
+                print(target[0]);print(target[1]);print(target[2]);print(target[3]);print(target[4]);
+            "#),
+            "true\nfalse\n1-2-3\ntrue\ntrue\n1\n1-2-3-4-5\n2-1-1\n7\n9\n9\n7\n9\n"
+        );
+
+        assert_eq!(
+            run(r#"
+                auto nullable=[1,null,2];
+                print(nullable.join("-"));
+                float nan=0.0/0.0;
+                float[] values=[nan];
+                print(values.includes(nan));
+                print(values.indexOf(nan));
+                Uint8Array bytes=new Uint8Array(5);
+                bytes[0]=1;bytes[1]=2;bytes[2]=3;bytes[3]=4;bytes[4]=5;
+                bytes.set(bytes.subarray(0,3),1);
+                print(bytes[0]);print(bytes[1]);print(bytes[2]);print(bytes[3]);print(bytes[4]);
+                bytes.copyWithin(1,0,4);
+                print(bytes[0]);print(bytes[1]);print(bytes[2]);print(bytes[3]);print(bytes[4]);
+            "#),
+            "1--2\ntrue\n-1\n1\n1\n2\n3\n5\n1\n1\n1\n2\n3\n"
+        );
+    }
+
+    #[test]
+    fn evaluates_utf16_string_search_and_repeat_methods() {
+        assert_eq!(
+            run(r#"
+                string value="a😀b😀";
+                print(value.indexOf("😀"));
+                print(value.indexOf("😀",2));
+                print(value.lastIndexOf("😀"));
+                print(value.lastIndexOf("",2));
+                print("ab".repeat(3));
+            "#),
+            "1\n4\n4\n2\nababab\n"
+        );
+    }
+
+    #[test]
+    fn evaluates_nullish_operators_lazily_and_places_once() {
+        assert_eq!(
+            run(r#"
+                int calls=0;
+                string fallback(){calls++;return "fallback";}
+                string? value="";
+                print(value??fallback());
+                print(calls);
+                value=null;
+                print(value??fallback());
+                print(calls);
+                value??=fallback();
+                print(calls);
+                int?[] values=[null];
+                int index=0;
+                values[index++]??=7;
+                print(index);
+                print(values[0]);
+            "#),
+            "\n0\nfallback\n1\n2\n1\n7\n"
+        );
+    }
+
+    #[test]
+    fn evaluates_optional_access_and_skips_absent_indices() {
+        assert_eq!(
+            run(r#"
+                int calls=0;
+                int next(){calls++;return 0;}
+                int[]? missing=null;
+                print(missing?.length);
+                print(missing?.[next()]);
+                print(calls);
+                int[]? present=[7];
+                print(present?.length);
+                print(present?.[next()]);
+                print(calls);
+            "#),
+            "null\nnull\n0\n1\n7\n1\n"
+        );
+    }
+
+    #[test]
+    fn evaluates_number_bindings_without_i32_wrapping() {
+        assert_eq!(
+            run(r#"
+                number value=2147483647;
+                value+=1;
+                print(value);
+                number step(number input){return input+1.0;}
+                print(step(2147483647));
+                func(number)->number next=(number input)=>input+2.0;
+                print(next(2147483647));
+            "#),
+            "2147483648\n2147483648\n2147483649\n"
+        );
+    }
+
+    #[test]
+    fn fills_arrays_in_place_and_returns_the_receiver() {
+        assert_eq!(
+            run("int[] values=[1,2,3];int[] alias=values.fill(7);print(values==alias);print(values[0]);print(values[2]);"),
+            "true\n7\n7\n"
         );
     }
 

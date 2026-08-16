@@ -1,0 +1,41 @@
+import { millisecondsToSeconds } from "../../../../motion-utils/time-conversion";
+import { SpringGenerator, SpringInput, springFromInput } from "../spring";
+import { calcGeneratorDuration, maxGeneratorDuration } from "./calc-duration";
+
+export class GeneratorEasingResult {
+  string type;
+  func(float)->float ease;
+  float duration;
+
+  init(string type, func(float)->float ease, float duration) {
+    this.type = type;
+    this.ease = ease;
+    this.duration = duration;
+  }
+}
+
+export GeneratorEasingResult createGeneratorEasing(
+  SpringInput options,
+  float scale,
+  JsValue? createGenerator = null
+) {
+  SpringInput scaled = new SpringInput(
+    [0.0, scale],
+    options.stiffness,
+    options.damping,
+    options.mass,
+    options.velocity,
+    options.duration,
+    options.bounce,
+    options.visualDuration,
+    options.restSpeed,
+    options.restDelta
+  );
+  SpringGenerator springGen = springFromInput(scaled);
+  float duration = calcGeneratorDuration(springGen.next).min(maxGeneratorDuration);
+  return new GeneratorEasingResult(
+    "keyframes",
+    (float progressValue) => springGen.next(duration * progressValue).value / scale,
+    millisecondsToSeconds(duration)
+  );
+}

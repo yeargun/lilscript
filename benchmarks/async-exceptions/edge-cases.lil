@@ -1,0 +1,29 @@
+async int probe(int mode) {
+  int value = 0;
+  try {
+    value = 1;
+    if (mode == 0) { throw null; }
+    if (mode == 1) { return await Task.reject("bad"); }
+    value = 3;
+  } catch (auto error) {
+    print(error.message ?? "caught");
+    return value;
+  } finally {
+    print(value + 10);
+  }
+  return value;
+}
+
+async int verify() {
+  print(await probe(0));
+  print(await probe(1));
+  print(await probe(2));
+  try {
+    throw "ignored";
+  } catch {
+    print("binding-free");
+  }
+  return 0;
+}
+
+verify().then((int ignored) => print("done"));

@@ -1,0 +1,12 @@
+Regex global = new Regex("sale", "gi");
+print(global.test("sale sale"));
+print(global.test("sale sale"));
+print(global.test("sale sale"));
+print(global.source);
+print(global.flags);
+print(global.global);
+print(global.ignoreCase);
+
+Regex digits = new Regex("\\d+", "g");
+print(digits.test("id=42"));
+print(digits.source);

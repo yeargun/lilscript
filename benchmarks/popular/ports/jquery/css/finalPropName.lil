@@ -1,0 +1,51 @@
+import { document } from "../var/document";
+import { jQuery } from "../core";
+import {
+  hasProp,
+  createEmptyObject,
+  stringSlice
+} from "../js-host.lil";
+
+string[] cssPrefixes = ["Webkit", "Moz", "ms"];
+JsValue emptyStyle = JS.invoke(document, "createElement", "div")["style"];
+JsValue vendorProps = JS.object();
+
+string vendorPropName(string name) {
+  string capName = name.charAt(0).toUpperCase() + JS.stringSlice(name, 1.0);
+  int i = cssPrefixes.length;
+
+  while (i > 0) {
+    i = i - 1;
+    string prefixed = cssPrefixes[i] + capName;
+    if (JS.in(prefixed, emptyStyle)) {
+      return prefixed;
+    }
+  }
+
+  return "";
+}
+
+export string finalPropName(string name) {
+  JsValue finalRaw = jQuery["cssProps"][name];
+  if (!finalRaw.truthy()) {
+    finalRaw = vendorProps[name];
+  }
+  if (finalRaw is string) {
+    string finalName = finalRaw;
+    if (finalName.length > 0) {
+      return finalName;
+    }
+  }
+
+  if (JS.in(name, emptyStyle)) {
+    return name;
+  }
+
+  string vendorName = vendorPropName(name);
+  string resolved = name;
+  if (vendorName.length > 0) {
+    resolved = vendorName;
+  }
+  vendorProps[name] = resolved;
+  return resolved;
+}

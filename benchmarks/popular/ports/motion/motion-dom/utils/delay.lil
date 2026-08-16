@@ -1,0 +1,40 @@
+import { secondsToMilliseconds } from "../../motion-utils/time-conversion";
+import { cancelFrame, frame } from "../frameloop/index";
+import { time } from "../frameloop/sync-time";
+import { FrameData } from "../frameloop/types";
+
+class DelayCell {
+  (func(FrameData)->void)? checkElapsed;
+  init() {
+    this.checkElapsed = null;
+  }
+}
+
+export func()->void delay(func(float)->void callback, float timeout) {
+  float start = time.now();
+  DelayCell cell = new DelayCell();
+  cell.checkElapsed = (FrameData data) => {
+    float elapsed = data.timestamp - start;
+    if (elapsed >= timeout) {
+      (func(FrameData)->void)? check = cell.checkElapsed;
+      if (check != null) {
+        cancelFrame(check);
+      }
+      callback(elapsed - timeout);
+    }
+  };
+  (func(FrameData)->void)? check = cell.checkElapsed;
+  if (check != null) {
+    frame.setup(check, true, false);
+  }
+  return () => {
+    (func(FrameData)->void)? checkElapsed = cell.checkElapsed;
+    if (checkElapsed != null) {
+      cancelFrame(checkElapsed);
+    }
+  };
+}
+
+export func()->void delayInSeconds(func(float)->void callback, float timeout) {
+  return delay(callback, secondsToMilliseconds(timeout));
+}

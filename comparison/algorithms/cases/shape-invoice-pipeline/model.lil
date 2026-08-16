@@ -1,0 +1,60 @@
+export struct Line {
+  int unit;
+  int quantity;
+  int discount;
+  int tax;
+}
+
+export struct Summary {
+  int total;
+  int tax;
+  int count;
+  int fingerprint;
+}
+
+pure int clampDiscount(int discount) {
+  if (discount < 0) { return 0; }
+  if (discount > 75) { return 75; }
+  return discount;
+}
+
+export pure Line makeLine(int unit, int quantity, int discount, int tax) {
+  return Line{unit, quantity, clampDiscount(discount), tax};
+}
+
+pure int discounted(Line line) {
+  int gross = line.unit * line.quantity;
+  return gross - gross * line.discount / 100;
+}
+
+pure int taxed(Line line) {
+  int net = discounted(line);
+  return net + net * line.tax / 100;
+}
+
+pure int lineTotal(Line line) {
+  return taxed(line) + line.quantity * 3;
+}
+
+export pure Summary beginSummary() {
+  return Summary{0, 0, 0, 0};
+}
+
+export pure Summary appendSummary(Summary summary, Line line) {
+  int net = discounted(line);
+  int withTax = taxed(line);
+  return Summary{
+    summary.total + lineTotal(line),
+    summary.tax + withTax - net,
+    summary.count + line.quantity,
+    summary.fingerprint ^ (withTax + line.unit * 17)
+  };
+}
+
+pure int checksumSummary(Summary summary) {
+  return summary.fingerprint ^ (summary.tax * 11 + summary.count * 7);
+}
+
+export pure int finishSummary(Summary summary) {
+  return summary.total + checksumSummary(summary);
+}

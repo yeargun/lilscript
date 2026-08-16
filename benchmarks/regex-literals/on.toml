@@ -1,0 +1,22 @@
+[optimization]
+preset = "maximum"
+
+[javascript]
+priority = "size-first"
+optimization_level = 15
+# This dedicated benchmark executes in a controlled realm and explicitly opts
+# into bypassing the ambient RegExp binding. Open-world library configs do not.
+assume_pristine_builtins = true
+compression = [
+  "identifier-mangling",
+  "entropy-aware-mangling",
+  "quote-style-selection",
+  "safe-integer-coercion-elision",
+  "compact-boolean-literals",
+  "standard-grammar-elision",
+  "regex-literals",
+]
+cost_model = "brotli"
+candidate_search = "off"
+stable_local_names = false
+local_name_reserve = 0

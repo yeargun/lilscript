@@ -1,0 +1,89 @@
+import { jQuery, each, wrap, wrap2 } from "./core";
+import { isFunction } from "./var/isFunction";
+
+JsValue fnWrapAll(JsValue self, JsValue htmlArg) {
+  JsValue firstElem = self[0];
+  if (firstElem.truthy()) {
+    JsValue html = htmlArg;
+    if (isFunction(html)) {
+      html = JS.call(html, firstElem, firstElem);
+    }
+
+    JsValue ownerDoc = firstElem["ownerDocument"];
+    JsValue created = wrap2(html, ownerDoc);
+    JsValue firstOfCreated = JS.invoke(created, "eq", 0.0);
+    JsValue wrapEl = JS.invoke(firstOfCreated, "clone", true);
+
+    if (firstElem["parentNode"].truthy()) {
+      JS.invoke(wrapEl, "insertBefore", firstElem);
+    }
+
+    JsValue innermost = JS.invoke(wrapEl, "map", (JsValue index, JsValue wrapElem) => {
+      JsValue elem = wrapElem;
+      while (elem["firstElementChild"].truthy()) {
+        elem = elem["firstElementChild"];
+      }
+      return elem;
+    });
+    JS.invoke(innermost, "append", self);
+  }
+
+  return self;
+}
+
+JsValue fnWrapInner(JsValue self, JsValue html) {
+  if (isFunction(html)) {
+    return each(self, (JsValue index, JsValue elem) => {
+      JsValue wrapped = wrap(elem);
+      JsValue computed = JS.call(html, elem, index, JS.undefined());
+      JS.invoke(wrapped, "wrapInner", computed);
+      return JS.undefined();
+    });
+  }
+
+  return each(self, (JsValue index, JsValue elem) => {
+    JsValue selfWrapped = wrap(elem);
+    JsValue contents = JS.invoke(selfWrapped, "contents");
+
+    if (contents.length > 0.0) {
+      JS.invoke(contents, "wrapAll", html);
+    } else {
+      JS.invoke(selfWrapped, "append", html);
+    }
+    return JS.undefined();
+  });
+}
+
+JsValue fnWrap(JsValue self, JsValue html) {
+  bool htmlIsFunction = isFunction(html);
+
+  return each(self, (JsValue index, JsValue elem) => {
+    JsValue wrapped = wrap(elem);
+    JsValue target = html;
+    if (htmlIsFunction) {
+      target = JS.call(html, elem, index, JS.undefined());
+    }
+    JS.invoke(wrapped, "wrapAll", target);
+    return JS.undefined();
+  });
+}
+
+JsValue fnUnwrap(JsValue self, JsValue selector) {
+  JsValue parents = JS.invoke(self, "parent", selector);
+  JsValue withoutBody = JS.invoke(parents, "not", "body");
+  each(withoutBody, (JsValue index, JsValue elem) => {
+    JsValue wrapped = wrap(elem);
+    JS.invoke(wrapped, "replaceWith", elem["childNodes"]);
+    return JS.undefined();
+  });
+
+  return self;
+}
+
+JsValue fn = jQuery["fn"];
+fn["wrapAll"] = JS.method1(fnWrapAll);
+fn["wrapInner"] = JS.method1(fnWrapInner);
+fn["wrap"] = JS.method1(fnWrap);
+fn["unwrap"] = JS.method1(fnUnwrap);
+
+export { jQuery };

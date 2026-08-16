@@ -1,0 +1,213 @@
+import { getComputedStyleField, getComputedStyleProperty, getComputedStyleValue, windowGet } from "../../dom-host";
+string substring(string s, int start, int end) {
+  string out = "";
+  int len = s.length;
+  int from = start;
+  int to = end;
+  if (from < 0) {
+    from = 0;
+  }
+  if (to > len) {
+    to = len;
+  }
+  for (int i = from; i < to; i++) {
+    out = out + s.charAt(i);
+  }
+  return out;
+}
+
+string trimString(string s) {
+  int len = s.length;
+  int start = 0;
+  int end = len;
+  while (start < end) {
+    int code = s.charCodeAt(start);
+    if (code == 32 || code == 9 || code == 10 || code == 13) {
+      start = start + 1;
+    } else {
+      break;
+    }
+  }
+  while (end > start) {
+    int code = s.charCodeAt(end - 1);
+    if (code == 32 || code == 9 || code == 10 || code == 13) {
+      end = end - 1;
+    } else {
+      break;
+    }
+  }
+  return substring(s, start, end);
+}
+
+extern class MathHost {
+  float atan2(float y, float x);
+  float atan(float x);
+  float PI;
+}
+
+extern MathHost Math;
+extern float parseFloat(string value);
+
+float radToDeg(float rad) {
+  return (rad * 180.0) / Math.PI;
+}
+
+float rebaseAngle(float angle) {
+  float turns = (angle / 360.0).floor();
+  float result = angle - turns * 360.0;
+  if (result < 0.0) {
+    result = result + 360.0;
+  }
+  return result;
+}
+
+float rotateFromMatrix2d(float[] v) {
+  float angle = radToDeg(Math.atan2(v[1], v[0]));
+  return rebaseAngle(angle);
+}
+
+float scaleX3d(float[] v) {
+  return (v[0] * v[0] + v[1] * v[1]).sqrt();
+}
+
+float scaleY3d(float[] v) {
+  return (v[4] * v[4] + v[5] * v[5]).sqrt();
+}
+
+string? extractMatrixValues(string transform, string prefix) {
+  if (!transform.startsWith(prefix)) {
+    return null;
+  }
+  if (!transform.endsWith(")")) {
+    return null;
+  }
+  int start = prefix.length;
+  int end = transform.length - 1;
+  return substring(transform, start, end);
+}
+
+float[] splitMatrixNumbers(string inner) {
+  float[] values = [];
+  string current = "";
+  int len = inner.length;
+  for (int i = 0; i < len; i++) {
+    string ch = inner.charAt(i);
+    if (ch == ",") {
+      values.push(parseFloat(trimString(current)));
+      current = "";
+    } else {
+      current = current + ch;
+    }
+  }
+  if (current.length > 0) {
+    values.push(parseFloat(trimString(current)));
+  }
+  return values;
+}
+
+export float defaultTransformValue(string name) {
+  if (name.includes("scale")) {
+    return 1.0;
+  }
+  return 0.0;
+}
+
+export float parseValueFromTransform(string? transform, string name) {
+  if (transform == null) {
+    return defaultTransformValue(name);
+  }
+  string transformStr = transform;
+  if (transformStr == "none") {
+    return defaultTransformValue(name);
+  }
+
+  string? matrix3dInner = extractMatrixValues(transformStr, "matrix3d(");
+  bool is3d = matrix3dInner != null;
+  string? inner = matrix3dInner;
+  if (inner == null) {
+    inner = extractMatrixValues(transformStr, "matrix(");
+  }
+  if (inner == null) {
+    return defaultTransformValue(name);
+  }
+
+  float[] values = splitMatrixNumbers(inner);
+
+  if (is3d) {
+    if (name == "x" || name == "translateX") {
+      return values[12];
+    }
+    if (name == "y" || name == "translateY") {
+      return values[13];
+    }
+    if (name == "z" || name == "translateZ") {
+      return values[14];
+    }
+    if (name == "scaleX") {
+      return scaleX3d(values);
+    }
+    if (name == "scaleY") {
+      return scaleY3d(values);
+    }
+    if (name == "scale") {
+      return (scaleX3d(values) + scaleY3d(values)) / 2.0;
+    }
+    if (name == "rotateX") {
+      return rebaseAngle(radToDeg(Math.atan2(values[6], values[5])));
+    }
+    if (name == "rotateY") {
+      return rebaseAngle(radToDeg(Math.atan2(0.0 - values[2], values[0])));
+    }
+    if (name == "rotateZ" || name == "rotate") {
+      return rotateFromMatrix2d(values);
+    }
+    if (name == "skewX") {
+      return radToDeg(Math.atan(values[4]));
+    }
+    if (name == "skewY") {
+      return radToDeg(Math.atan(values[1]));
+    }
+    if (name == "skew") {
+      return (values[1].abs() + values[4].abs()) / 2.0;
+    }
+    return defaultTransformValue(name);
+  }
+
+  if (name == "x" || name == "translateX") {
+    return values[4];
+  }
+  if (name == "y" || name == "translateY") {
+    return values[5];
+  }
+  if (name == "scaleX") {
+    return values[0];
+  }
+  if (name == "scaleY") {
+    return values[3];
+  }
+  if (name == "scale") {
+    return (values[0].abs() + values[3].abs()) / 2.0;
+  }
+  if (name == "rotate" || name == "rotateZ") {
+    return rotateFromMatrix2d(values);
+  }
+  if (name == "skewX") {
+    return radToDeg(Math.atan(values[1]));
+  }
+  if (name == "skewY") {
+    return radToDeg(Math.atan(values[2]));
+  }
+  if (name == "skew") {
+    return (values[1].abs() + values[2].abs()) / 2.0;
+  }
+  return defaultTransformValue(name);
+}
+
+export float readTransformValue(JsValue instance, string name) {
+  JsValue transform = getComputedStyleField(instance, "transform");
+  string transformStr = "none";
+  if (transform is string) {
+    transformStr = transform;
+  }
+  return parseValueFromTransform(transformStr, name);
+}

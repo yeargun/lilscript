@@ -1,0 +1,17 @@
+import { animate } from "../../../../benchmarks/popular/ports/motion/framer-motion/animation/animate/element";
+import { hover } from "../../../../benchmarks/popular/ports/motion/motion-dom/gestures/hover";
+import { press } from "../../../../benchmarks/popular/ports/motion/motion-dom/gestures/press/index";
+
+hover(".card", (JsValue el, JsValue _event) => {
+  animate(el, record{ y: 0.0 - 10.0, scale: 1.06 }, record{ type: "spring", stiffness: 400.0, damping: 22.0 });
+  return (JsValue _leave) => {
+    animate(el, record{ y: 0.0, scale: 1.0 }, record{ type: "spring", stiffness: 350.0, damping: 24.0 });
+  };
+});
+
+press("#b, #c", (JsValue el, JsValue _event) => {
+  animate(el, record{ scale: 0.92, rotate: 0.0 - 2.0 }, record{ type: "spring", stiffness: 500.0, damping: 28.0 });
+  return (JsValue _up, JsValue _info) => {
+    animate(el, record{ scale: 1.0, rotate: 0.0 }, record{ type: "spring", stiffness: 420.0, damping: 24.0 });
+  };
+});

@@ -1,0 +1,92 @@
+import { jQuery } from "../core";
+import { Deferred } from "../deferred";
+import { document } from "../var/document";
+import "./readyException";
+import {
+  isUndefined,
+  call0,
+  call1,
+  call2,
+  windowSelf,
+  documentElementOf,
+  addEventListener,
+  removeEventListener,
+  scheduleTimeout
+} from "../js-host.lil";
+
+JsValue readyList = Deferred();
+
+JsValue fnReady(JsValue self, JsValue fn) {
+  JsValue thenable = JS.invoke(readyList, "then", fn);
+  JS.invoke(thenable, "catch", (JsValue error) => {
+    JS.invoke(jQuery, "readyException", error);
+    return JS.undefined();
+  });
+  return self;
+}
+
+jQuery["fn"]["ready"] = JS.method1(fnReady);
+jQuery["isReady"] = false;
+jQuery["readyWait"] = 1.0;
+
+jQuery["ready"] = (JsValue wait) => {
+  bool abort = false;
+  if (!JS.isUndefined(wait) && wait == true) {
+    float readyWait = JS.number(jQuery["readyWait"]) - 1.0;
+    jQuery["readyWait"] = readyWait;
+    abort = readyWait > 0.0;
+  } else {
+    abort = jQuery["isReady"].truthy();
+  }
+  if (abort) {
+    return JS.undefined();
+  }
+
+  jQuery["isReady"] = true;
+
+  if (!(!JS.isUndefined(wait) && wait == true)) {
+    float readyWait = JS.number(jQuery["readyWait"]) - 1.0;
+    jQuery["readyWait"] = readyWait;
+    if (readyWait > 0.0) {
+      return JS.undefined();
+    }
+  }
+
+  JsValue[] resolveArgs = [];
+  resolveArgs.push(jQuery);
+  JS.invoke(readyList, "resolveWith", document, resolveArgs);
+  return JS.undefined();
+};
+
+jQuery["ready"]["then"] = readyList["then"];
+
+JsValue completed() {
+  removeEventListener(document, "DOMContentLoaded", completed);
+  removeEventListener(windowSelf(), "load", completed);
+  JS.invoke(jQuery, "ready");
+  return JS.undefined();
+}
+
+JsValue readyStateValue = document["readyState"];
+string readyState = "";
+if (readyStateValue is string) {
+  readyState = readyStateValue;
+}
+
+bool alreadyReady = readyState == "complete";
+if (!alreadyReady && readyState != "loading") {
+  JsValue docElem = documentElementOf(document);
+  JsValue doScroll = docElem["doScroll"];
+  if (!doScroll.truthy()) {
+    alreadyReady = true;
+  }
+}
+
+if (alreadyReady) {
+  scheduleTimeout(jQuery["ready"]);
+} else {
+  addEventListener(document, "DOMContentLoaded", completed);
+  addEventListener(windowSelf(), "load", completed);
+}
+
+export { jQuery };

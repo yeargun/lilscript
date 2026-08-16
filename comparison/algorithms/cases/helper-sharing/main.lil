@@ -1,0 +1,14 @@
+extern int algorithmInt(int index);
+extern int algorithmCount();
+import { combine, finalize } from "./helpers";
+
+int runHelpers() {
+  int total = 0;
+  int count = algorithmCount();
+  for (int index = 0; index < count; index++) {
+    total += combine(algorithmInt(index), index);
+  }
+  return finalize(total, count);
+}
+
+print(runHelpers());

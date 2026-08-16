@@ -1,0 +1,15 @@
+import { resolveVariantFromProps } from "./resolve-variants";
+import { callMethod0 } from "../../dom-host";
+
+export JsValue? resolveVariant(
+  JsValue visualElement,
+  JsValue? definition = null,
+  JsValue? custom = null
+) {
+  JsValue props = callMethod0(visualElement, "getProps");
+  JsValue customArg = custom;
+  if (custom == null) {
+    customArg = props["custom"];
+  }
+  return resolveVariantFromProps(props, definition, customArg, visualElement);
+}

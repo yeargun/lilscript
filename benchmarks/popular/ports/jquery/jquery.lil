@@ -1,0 +1,4 @@
+import { jQuery } from "./entry";
+
+export { jQuery };
+export JsValue $ = jQuery;

@@ -1,0 +1,466 @@
+import { animateVisualElement } from "../../animation/interfaces/visual-element";
+import { calcChildStagger } from "../../animation/utils/calc-child-stagger";
+import { isAnimationControls } from "./is-animation-controls";
+import { isKeyframesTarget } from "./is-keyframes-target";
+import { isVariantLabel } from "./is-variant-label";
+import { resolveVariant } from "./resolve-dynamic-variants";
+import { shallowCompare } from "./shallow-compare";
+import { variantPriorityOrder } from "./variant-props";
+import { callMethod0, callMethod1, callMethod2, callFn1, hasOwn, hasFunction, isFunction, taskFromCallback } from "../../dom-host";
+
+string[] reversePriorityOrder = [];
+int numAnimationTypes = variantPriorityOrder.length;
+
+void initReverseOrder() {
+  if (reversePriorityOrder.length > 0) {
+    return;
+  }
+  for (int i = numAnimationTypes - 1; i >= 0; i--) {
+    reversePriorityOrder.push(variantPriorityOrder[i]);
+  }
+}
+
+export class AnimationTypeState {
+  bool isActive;
+  JsValue protectedKeys;
+  JsValue needsAnimating;
+  JsValue prevResolvedValues;
+  JsValue? prevProp;
+
+  init(bool isActive = false) {
+    this.isActive = isActive;
+    this.protectedKeys = record{};
+    this.needsAnimating = record{};
+    this.prevResolvedValues = record{};
+    this.prevProp = null;
+  }
+}
+
+export bool checkVariantsDidChange(JsValue prev, JsValue next) {
+  if (next is string) {
+    return next != prev;
+  }
+  if (next.isArray()) {
+    if (prev.isArray()) {
+      return !shallowCompare(next, prev);
+    }
+    return true;
+  }
+  return false;
+}
+
+export class AnimationStateController {
+  JsValue visualElement;
+  Map<string, AnimationTypeState> typeStates;
+  bool isInitialRender;
+  bool wasReset;
+  (func(JsValue[])->Task<bool>)? animateFn;
+
+  init(JsValue visualElement) {
+    initReverseOrder();
+    this.visualElement = visualElement;
+    this.typeStates = new Map<string, AnimationTypeState>();
+    this.isInitialRender = true;
+    this.wasReset = false;
+    this.animateFn = null;
+    this.resetState();
+    AnimationStateController self = this;
+    this.animateFn = (JsValue[] animations) => {
+      Task<bool>[] tasks = [];
+      for (int i = 0; i < animations.length; i++) {
+        JsValue item = animations[i];
+        tasks.push(animateVisualElement(self.visualElement, item["animation"], item["options"]));
+      }
+      if (tasks.length == 0) {
+        return Task.resolve(true);
+      }
+      return Task.all(tasks).then((bool[] _v) => true);
+    };
+  }
+
+  void resetState() {
+    this.typeStates.set("animate", new AnimationTypeState(true));
+    this.typeStates.set("whileInView", new AnimationTypeState());
+    this.typeStates.set("whileHover", new AnimationTypeState());
+    this.typeStates.set("whileTap", new AnimationTypeState());
+    this.typeStates.set("whileDrag", new AnimationTypeState());
+    this.typeStates.set("whileFocus", new AnimationTypeState());
+    this.typeStates.set("exit", new AnimationTypeState());
+  }
+
+  void setAnimateFunction(JsValue makeAnimator) {
+    if (!isFunction(makeAnimator)) {
+      return;
+    }
+    JsValue made = callFn1(makeAnimator, this.visualElement);
+    if (isFunction(made)) {
+      this.animateFn = (JsValue[] animations) => {
+        JsValue result = callFn1(made, animations);
+        return taskFromCallback((func()->void resolve) => {
+          if (hasFunction(result, "then")) {
+            callMethod1(result, "then", () => {
+              resolve();
+            });
+          } else {
+            resolve();
+          }
+        });
+      };
+    }
+  }
+
+  JsValue buildResolvedTypeValues(string type, JsValue acc, JsValue definition) {
+    JsValue visualElement = this.visualElement;
+    JsValue custom = null;
+    if (type == "exit") {
+      JsValue presence = visualElement["presenceContext"];
+      if (presence.truthy()) {
+        custom = presence["custom"];
+      }
+    }
+    JsValue? resolvedOpt = resolveVariant(visualElement, definition, custom);
+    if (resolvedOpt != null) {
+      JsValue resolved = resolvedOpt;
+      if (resolved.isObject()) {
+        for (string key in resolved) {
+          if (key == "transition" || key == "transitionEnd") {
+            continue;
+          }
+          acc[key] = resolved[key];
+        }
+        JsValue transitionEnd = resolved["transitionEnd"];
+        if (transitionEnd.isObject()) {
+          for (string key in transitionEnd) {
+            acc[key] = transitionEnd[key];
+          }
+        }
+      }
+    }
+    return acc;
+  }
+
+  Task<bool> animateChanges(string? changedActiveType = null) {
+    JsValue visualElement = this.visualElement;
+    JsValue props = callMethod0(visualElement, "getProps");
+    JsValue parent = visualElement["parent"];
+    JsValue context = record{};
+    if (parent.truthy()) {
+      JsValue parentProps = callMethod0(parent, "getProps");
+      if (parentProps.isObject()) {
+        for (int pi = 0; pi < variantPriorityOrder.length; pi++) {
+          string pname = variantPriorityOrder[pi];
+          if (isVariantLabel(parentProps[pname])) {
+            context[pname] = parentProps[pname];
+          }
+        }
+      }
+    }
+
+    JsValue[] animations = [];
+    string[] removedKeyList = [];
+    JsValue encounteredKeys = record{};
+    int removedVariantIndex = 2147483647;
+
+    for (int i = 0; i < numAnimationTypes; i++) {
+      string type = reversePriorityOrder[i];
+      AnimationTypeState? typeStateOpt = this.typeStates.get(type);
+      if (typeStateOpt != null) {
+        AnimationTypeState typeState = typeStateOpt;
+
+        JsValue prop = props[type];
+        JsValue contextProp = context[type];
+        bool propMissing = !(
+          (prop is float) ||
+          (prop is string) ||
+          (prop is bool) ||
+          prop.isArray() ||
+          (prop.isObject() && prop.truthy())
+        );
+        if (propMissing && (
+          (contextProp is float) ||
+          (contextProp is string) ||
+          (contextProp is bool) ||
+          contextProp.isArray() ||
+          (contextProp.isObject() && contextProp.truthy())
+        )) {
+          prop = contextProp;
+          propMissing = false;
+        }
+
+        bool propIsVariant = isVariantLabel(prop);
+        bool? activeDelta = null;
+        if (type == changedActiveType) {
+          activeDelta = typeState.isActive;
+        }
+        if (activeDelta == false) {
+          removedVariantIndex = i;
+        }
+
+        bool isInherited =
+          prop == context[type] &&
+          prop != props[type] &&
+          propIsVariant;
+        if (
+          isInherited &&
+          (this.isInitialRender || this.wasReset) &&
+          visualElement["manuallyAnimateOnMount"].truthy()
+        ) {
+          isInherited = false;
+        }
+
+        typeState.protectedKeys = record{};
+        for (string key in encounteredKeys) {
+          typeState.protectedKeys[key] = encounteredKeys[key];
+        }
+
+        if (
+          (!typeState.isActive && activeDelta == null) ||
+          (propMissing && typeState.prevProp == null) ||
+          isAnimationControls(prop) ||
+          (prop is bool)
+        ) {
+          continue;
+        }
+
+        if (type == "exit" && typeState.isActive && activeDelta != true) {
+          if (typeState.prevResolvedValues.isObject()) {
+            for (string key in typeState.prevResolvedValues) {
+              encounteredKeys[key] = typeState.prevResolvedValues[key];
+            }
+          }
+          continue;
+        }
+
+        JsValue prevPropValue = null;
+        JsValue? prevPropOpt = typeState.prevProp;
+        if (prevPropOpt != null) {
+          prevPropValue = prevPropOpt;
+        }
+        bool variantDidChange = checkVariantsDidChange(prevPropValue, prop);
+        bool shouldAnimateType =
+          variantDidChange ||
+          (type == changedActiveType && typeState.isActive && !isInherited && propIsVariant) ||
+          (i > removedVariantIndex && propIsVariant);
+
+        bool handledRemovedValues = false;
+        JsValue[] definitionList = [];
+        if (prop.isArray()) {
+          int len = prop.length.toInt();
+          for (int di = 0; di < len; di++) {
+            definitionList.push(prop[di]);
+          }
+        } else {
+          definitionList.push(prop);
+        }
+
+        JsValue resolvedValues = record{};
+        for (int di = 0; di < definitionList.length; di++) {
+          resolvedValues = this.buildResolvedTypeValues(type, resolvedValues, definitionList[di]);
+        }
+
+        if (activeDelta == false) {
+          resolvedValues = record{};
+        }
+
+        JsValue prevResolvedValues = typeState.prevResolvedValues;
+        JsValue allKeys = record{};
+        if (prevResolvedValues.isObject()) {
+          for (string key in prevResolvedValues) {
+            allKeys[key] = prevResolvedValues[key];
+          }
+        }
+        for (string key in resolvedValues) {
+          allKeys[key] = resolvedValues[key];
+        }
+
+        for (string key in allKeys) {
+          if (hasOwn(encounteredKeys, key)) {
+            continue;
+          }
+          JsValue next = resolvedValues[key];
+          JsValue prev = prevResolvedValues[key];
+          bool nextMissing = !(
+            (next is float) ||
+            (next is string) ||
+            (next is bool) ||
+            next.isArray() ||
+            (next.isObject() && next.truthy())
+          );
+          bool valueHasChanged = false;
+          if (isKeyframesTarget(next) && isKeyframesTarget(prev)) {
+            valueHasChanged = !shallowCompare(next, prev) || variantDidChange;
+          } else {
+            valueHasChanged = next != prev;
+          }
+
+          if (valueHasChanged) {
+            if (!nextMissing) {
+              shouldAnimateType = true;
+              int removedIndex = removedKeyList.indexOf(key);
+              if (removedIndex >= 0) {
+                handledRemovedValues = true;
+                removedKeyList.splice(removedIndex, 1);
+              }
+              typeState.needsAnimating[key] = true;
+              JsValue motionValue = callMethod1(visualElement, "getValue", key);
+              if (motionValue.truthy()) {
+                motionValue["liveStyle"] = false;
+              }
+            } else if (!removedKeyList.includes(key)) {
+              removedKeyList.push(key);
+            }
+          } else if (!nextMissing && removedKeyList.includes(key)) {
+            shouldAnimateType = true;
+            handledRemovedValues = true;
+            int removedIndex = removedKeyList.indexOf(key);
+            if (removedIndex >= 0) {
+              removedKeyList.splice(removedIndex, 1);
+            }
+            typeState.needsAnimating[key] = true;
+          } else {
+            typeState.protectedKeys[key] = true;
+          }
+        }
+
+        typeState.prevProp = prop;
+        typeState.prevResolvedValues = resolvedValues;
+        if (typeState.isActive) {
+          for (string key in resolvedValues) {
+            encounteredKeys[key] = resolvedValues[key];
+          }
+        }
+
+        if ((this.isInitialRender || this.wasReset) && visualElement["blockInitialAnimation"].truthy()) {
+          shouldAnimateType = false;
+        }
+
+        bool willAnimateViaParent = isInherited && variantDidChange;
+        bool needsAnimating = !willAnimateViaParent || handledRemovedValues;
+        if (shouldAnimateType && needsAnimating) {
+          for (int di = 0; di < definitionList.length; di++) {
+            JsValue animation = definitionList[di];
+            JsValue options = record{type: type};
+            if (
+              (animation is string) &&
+              (this.isInitialRender || this.wasReset) &&
+              !willAnimateViaParent &&
+              visualElement["manuallyAnimateOnMount"].truthy() &&
+              parent.truthy()
+            ) {
+              JsValue? parentVariantOpt = resolveVariant(parent, animation);
+              if (parent["enteringChildren"].truthy() && parentVariantOpt != null) {
+                JsValue parentVariant = parentVariantOpt;
+                JsValue transition = parentVariant["transition"];
+                JsValue delayChildren = null;
+                if (transition.truthy()) {
+                  delayChildren = transition["delayChildren"];
+                }
+                options["delay"] = calcChildStagger(
+                  parent["enteringChildren"],
+                  visualElement,
+                  delayChildren
+                );
+              }
+            }
+            animations.push(record{animation: animation, options: options});
+          }
+        }
+      }
+    }
+
+    if (removedKeyList.length > 0) {
+      JsValue fallbackAnimation = record{};
+      JsValue initial = props["initial"];
+      if (!(initial is bool)) {
+        JsValue initialDef = initial;
+        if (initial.isArray()) {
+          initialDef = initial[0];
+        }
+        JsValue? initialTransitionOpt = resolveVariant(visualElement, initialDef);
+        if (initialTransitionOpt != null) {
+          JsValue initialTransition = initialTransitionOpt;
+          if (initialTransition["transition"].truthy()) {
+            fallbackAnimation["transition"] = initialTransition["transition"];
+          }
+        }
+      }
+      for (int ri = 0; ri < removedKeyList.length; ri++) {
+        string key = removedKeyList[ri];
+        JsValue fallbackTarget = callMethod1(visualElement, "getBaseTarget", key);
+        JsValue motionValue = callMethod1(visualElement, "getValue", key);
+        if (motionValue.truthy()) {
+          motionValue["liveStyle"] = true;
+        }
+        fallbackAnimation[key] = fallbackTarget;
+      }
+      animations.push(record{animation: fallbackAnimation});
+    }
+
+    bool shouldAnimate = animations.length > 0;
+    if (
+      this.isInitialRender &&
+      (props["initial"] == false || props["initial"] == props["animate"]) &&
+      !visualElement["manuallyAnimateOnMount"].truthy()
+    ) {
+      shouldAnimate = false;
+    }
+
+    this.isInitialRender = false;
+    this.wasReset = false;
+    if (!shouldAnimate) {
+      return Task.resolve(true);
+    }
+    (func(JsValue[])->Task<bool>)? animateOpt = this.animateFn;
+    if (animateOpt != null) {
+      func(JsValue[])->Task<bool> animate = animateOpt;
+      return animate(animations);
+    }
+    return Task.resolve(true);
+  }
+
+  Task<bool> setActive(string type, bool isActive) {
+    AnimationTypeState? stateOpt = this.typeStates.get(type);
+    if (stateOpt == null) {
+      return Task.resolve(true);
+    }
+    AnimationTypeState state = stateOpt;
+    if (state.isActive == isActive) {
+      return Task.resolve(true);
+    }
+    JsValue visualElement = this.visualElement;
+    JsValue children = visualElement["variantChildren"];
+    if (children.truthy() && isFunction(children["forEach"])) {
+      callMethod1(children, "forEach", (JsValue child) => {
+        JsValue childState = child["animationState"];
+        if (childState.truthy() && isFunction(childState["setActive"])) {
+          callMethod2(childState, "setActive", type, isActive);
+        }
+      });
+    }
+    state.isActive = isActive;
+    Task<bool> animations = this.animateChanges(type);
+    for (int i = 0; i < variantPriorityOrder.length; i++) {
+      AnimationTypeState? typeStateOpt = this.typeStates.get(variantPriorityOrder[i]);
+      if (typeStateOpt != null) {
+        AnimationTypeState typeState = typeStateOpt;
+        typeState.protectedKeys = record{};
+      }
+    }
+    return animations;
+  }
+
+  Map<string, AnimationTypeState> getState() {
+    return this.typeStates;
+  }
+
+  void reset() {
+    this.resetState();
+    this.wasReset = true;
+  }
+}
+
+export AnimationStateController createAnimationState(JsValue visualElement) {
+  return new AnimationStateController(visualElement);
+}
+
+export { variantPriorityOrder };

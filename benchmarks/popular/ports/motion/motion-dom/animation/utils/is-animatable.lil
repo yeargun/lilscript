@@ -1,0 +1,16 @@
+import { complex } from "../../value/types/complex/index";
+
+export bool isAnimatable(JsValue value, string? name = null) {
+  if (name == "zIndex") {
+    return false;
+  }
+  if (value is float || value.isArray()) {
+    return true;
+  }
+  if (value is string) {
+    if ((complex.test(value) || value == "0") && !value.startsWith("url(")) {
+      return true;
+    }
+  }
+  return false;
+}

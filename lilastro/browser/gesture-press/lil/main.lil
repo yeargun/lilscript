@@ -1,0 +1,19 @@
+import { press } from "../../../../benchmarks/popular/ports/motion/motion-dom/gestures/press/index";
+import { animate } from "../../../../benchmarks/popular/ports/motion/framer-motion/animation/animate/element";
+import { documentQuerySelectorAll, setProp } from "../../../../benchmarks/popular/ports/motion/motion-dom/dom-host";
+
+void setStatus(string text) {
+  JsValue[] nodes = documentQuerySelectorAll("#status");
+  if (nodes.length > 0) {
+    setProp(nodes[0], "textContent", text);
+  }
+}
+
+press("#box", (JsValue _element, JsValue _event) => {
+  setStatus("pressed");
+  animate("#box", record{ scale: 0.9 }, record{ duration: 0.08 });
+  return (JsValue _upEvent, JsValue _info) => {
+    setStatus("released");
+    animate("#box", record{ scale: 1.0 }, record{ duration: 0.12 });
+  };
+});

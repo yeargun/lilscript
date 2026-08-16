@@ -1,0 +1,242 @@
+import { SubscriptionManager } from "../../motion-utils/subscription-manager";
+import { JSAnimation, JSAnimationOptions } from "../animation/JSAnimation";
+import {
+  callMethod0,
+  callMethod2,
+  invoke1,
+  isFunction,
+  parseFloatValue
+} from "../dom-host";
+import { frame } from "../frameloop/index";
+import { FrameData } from "../frameloop/types";
+import { stringReplace } from "../string-host";
+import { MotionValue, motionValue } from "./index";
+import { isMotionValue } from "./utils/is-motion-value";
+
+export class FollowValueOptions {
+  string? type;
+  float? stiffness;
+  float? damping;
+  float? mass;
+  float? duration;
+  float? restDelta;
+  float? restSpeed;
+  float? velocity;
+  bool? skipInitialAnimation;
+
+  init() {
+    this.type = null;
+    this.stiffness = null;
+    this.damping = null;
+    this.mass = null;
+    this.duration = null;
+    this.restDelta = null;
+    this.restSpeed = null;
+    this.velocity = null;
+    this.skipInitialAnimation = null;
+  }
+}
+
+class FollowCell {
+  JSAnimation? activeAnimation;
+  JsValue latestValue;
+  (func(float)->void)? latestSetter;
+  string? unit;
+  (func()->void)? stopAnimation;
+  (func()->void)? startAnimation;
+
+  init(JsValue initial) {
+    this.activeAnimation = null;
+    this.latestValue = initial;
+    this.latestSetter = null;
+    this.unit = null;
+    this.stopAnimation = null;
+    this.startAnimation = null;
+  }
+}
+
+class SkipCell {
+  bool skipNextAnimation;
+  init(bool skip) {
+    this.skipNextAnimation = skip;
+  }
+}
+
+Regex unitStrip = new Regex("[\\d.-]+", "g");
+
+JsValue parseValue(JsValue v, string? unit) {
+  if (unit != null) {
+    return `${v}${unit}`;
+  }
+  return v;
+}
+
+float asNumber(JsValue v) {
+  if (v is float) {
+    return v;
+  }
+  return parseFloatValue(v);
+}
+
+export MotionValue followValue(JsValue source, FollowValueOptions? options = null) {
+  JsValue initialValue = source;
+  if (isMotionValue(source)) {
+    initialValue = callMethod0(source, "get");
+  }
+  MotionValue value = motionValue(initialValue);
+  attachFollow(value, source, options);
+  return value;
+}
+
+export func()->void attachFollow(
+  MotionValue value,
+  JsValue source,
+  FollowValueOptions? options = null
+) {
+  JsValue initialValue = value.get();
+  FollowCell cell = new FollowCell(initialValue);
+  if (initialValue is string) {
+    cell.unit = stringReplace(initialValue, unitStrip, "");
+  }
+
+  cell.stopAnimation = () => {
+    JSAnimation? active = cell.activeAnimation;
+    if (active != null) {
+      active.stop();
+      cell.activeAnimation = null;
+    }
+    value.animation = null;
+  };
+
+  cell.startAnimation = () => {
+    float currentValue = asNumber(value.get());
+    float targetValue = asNumber(cell.latestValue);
+    if (currentValue == targetValue) {
+      (func()->void)? stop = cell.stopAnimation;
+      if (stop != null) {
+        stop();
+      }
+      return;
+    }
+    float velocity = value.getVelocity();
+    JSAnimation? active = cell.activeAnimation;
+    if (active != null) {
+      velocity = active.getGeneratorVelocity();
+    }
+    (func()->void)? stop = cell.stopAnimation;
+    if (stop != null) {
+      stop();
+    }
+    string animType = "spring";
+    float? restDelta = 0.001;
+    float? restSpeed = 0.01;
+    if (options != null) {
+      string? typeOpt = options.type;
+      if (typeOpt != null) {
+        animType = typeOpt;
+      }
+      float? restDeltaOpt = options.restDelta;
+      if (restDeltaOpt != null) {
+        restDelta = restDeltaOpt;
+      }
+      float? restSpeedOpt = options.restSpeed;
+      if (restSpeedOpt != null) {
+        restSpeed = restSpeedOpt;
+      }
+    }
+    cell.activeAnimation = new JSAnimation(
+      new JSAnimationOptions(
+        [currentValue, targetValue],
+        velocity,
+        animType,
+        restDelta,
+        restSpeed,
+        cell.latestSetter
+      )
+    );
+  };
+
+  func(FrameData)->void scheduleAnimation = (FrameData _data) => {
+    (func()->void)? start = cell.startAnimation;
+    if (start != null) {
+      start();
+    }
+    SubscriptionManager? startEvt = value.events.get("animationStart");
+    if (startEvt != null) {
+      startEvt.notify();
+    }
+    JSAnimation? active = cell.activeAnimation;
+    if (active != null) {
+      active.then(() => {
+        value.animation = null;
+        SubscriptionManager? complete = value.events.get("animationComplete");
+        if (complete != null) {
+          complete.notify();
+        }
+      });
+    }
+  };
+
+  value.attach((JsValue v, func(JsValue)->void set) => {
+    cell.latestValue = v;
+    cell.latestSetter = (float latest) => {
+      set(parseValue(latest, cell.unit));
+    };
+    frame.postRender(scheduleAnimation, false, false);
+  }, () => {
+    (func()->void)? stop = cell.stopAnimation;
+    if (stop != null) {
+      stop();
+    }
+  });
+
+  if (isMotionValue(source)) {
+    bool skip = false;
+    if (options != null) {
+      bool? skipOpt = options.skipInitialAnimation;
+      if (skipOpt != null) {
+        skip = skipOpt;
+      }
+    }
+    SkipCell skipCell = new SkipCell(skip);
+    JsValue unsubscribeJs = callMethod2(
+      source,
+      "on",
+      "change",
+      (JsValue? v = null, JsValue? _b = null, JsValue? _c = null) => {
+        JsValue next = 0.0;
+        if (v != null) {
+          next = v;
+        }
+        if (skipCell.skipNextAnimation) {
+          skipCell.skipNextAnimation = false;
+          value.jump(parseValue(next, cell.unit), false);
+        } else {
+          value.set(parseValue(next, cell.unit));
+        }
+      }
+    );
+    func()->void removeSourceOnChange = () => {
+      if (isFunction(unsubscribeJs)) {
+        invoke1(unsubscribeJs, null);
+      }
+    };
+    func()->void removeValueOnDestroy = value.on(
+      "destroy",
+      (JsValue? _a = null, JsValue? _b = null, JsValue? _c = null) => {
+        removeSourceOnChange();
+      }
+    );
+    return () => {
+      removeSourceOnChange();
+      removeValueOnDestroy();
+    };
+  }
+
+  return () => {
+    (func()->void)? stop = cell.stopAnimation;
+    if (stop != null) {
+      stop();
+    }
+  };
+}

@@ -1,0 +1,39 @@
+import { camelToDash } from "../../dom/utils/camel-to-dash";
+import { renderHTML, ProjectionStyles } from "../../html/utils/render";
+import { camelCaseAttributes } from "./camel-case-attrs";
+import { callMethod2 } from "../../../dom-host";
+
+export void renderSVG(
+  JsValue element,
+  JsValue renderState,
+  JsValue? styleProp = null,
+  JsValue? projection = null
+) {
+  renderHTML(element, renderState, styleProp, projection);
+
+  JsValue attrs = renderState["attrs"];
+  if (!attrs.isObject()) {
+    return;
+  }
+  for (string key in attrs) {
+    JsValue value = attrs[key];
+    bool missing =
+      !(value is float) &&
+      !(value is string) &&
+      !(value is bool) &&
+      !value.isArray() &&
+      !(value.isObject() && value.truthy());
+    if (missing) {
+      continue;
+    }
+    string attrName = key;
+    if (!camelCaseAttributes.has(key)) {
+      attrName = camelToDash(key);
+    }
+    if (value is string) {
+      callMethod2(element, "setAttribute", attrName, value);
+    } else {
+      callMethod2(element, "setAttribute", attrName, `${value}`);
+    }
+  }
+}

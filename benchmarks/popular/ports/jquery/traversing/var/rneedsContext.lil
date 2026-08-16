@@ -1,0 +1,3 @@
+import { needsContextPattern } from "../../selector";
+
+export Regex rneedsContext = needsContextPattern;

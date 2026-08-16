@@ -1,0 +1,33 @@
+import { cancelFrame, frame } from "../frameloop/index";
+import { FrameData } from "../frameloop/types";
+
+class ObserveCell {
+  float? prevProgress;
+  init() {
+    this.prevProgress = null;
+  }
+}
+
+export func()->void observeTimeline(func(float)->void update, JsValue timeline) {
+  ObserveCell cell = new ObserveCell();
+  func(FrameData)->void onFrame = (FrameData _data) => {
+    JsValue? currentTime = null;
+    if (timeline.isObject()) {
+      currentTime = timeline["currentTime"];
+    }
+    float percentage = 0.0;
+    if (currentTime != null && currentTime.isObject()) {
+      JsValue value = currentTime["value"];
+      if (value is float) {
+        percentage = value;
+      }
+    }
+    float progress = percentage / 100.0;
+    if (cell.prevProgress == null || cell.prevProgress != progress) {
+      update(progress);
+    }
+    cell.prevProgress = progress;
+  };
+  frame.preUpdate(onFrame, true, false);
+  return () => cancelFrame(onFrame);
+}

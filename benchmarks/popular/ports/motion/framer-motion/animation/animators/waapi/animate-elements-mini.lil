@@ -1,0 +1,170 @@
+import {
+  animationMapKey,
+  getAnimationMap
+} from "../../../../motion-dom/animation/utils/active-animations";
+import { fillWildcards } from "../../../../motion-dom/animation/keyframes/utils/fill-wildcards";
+import { getComputedStyle } from "../../../../motion-dom/render/dom/style-computed";
+import { getValueTransition } from "../../../../motion-dom/animation/utils/get-value-transition-mini";
+import { pxValues } from "../../../../motion-dom/animation/waapi/utils/px-values-mini";
+import { NativeAnimation } from "../../../../motion-dom/animation/NativeAnimationMini";
+import { resolveElements, AnimationScope } from "../../../../motion-dom/utils/resolve-elements-mini";
+import { secondsToMilliseconds } from "../../../../motion-utils/time-conversion";
+import {
+  asArray,
+  isFunction
+} from "../../../../motion-dom/dom-host";
+import extern {
+  identity as delayFunctionOf,
+  identity as nativeAnimationOf
+} from "../../../../motion-dom/cast-host.ts";
+
+extern func(int, int)->float delayFunctionOf(JsValue value);
+extern NativeAnimation nativeAnimationOf(JsValue value);
+
+class AnimationDefinition {
+  Map<string, JsValue> map;
+  string key;
+  JsValue[] unresolvedKeyframes;
+  JsValue options;
+
+  init(
+    Map<string, JsValue> map,
+    string key,
+    JsValue[] unresolvedKeyframes,
+    JsValue options
+  ) {
+    this.map = map;
+    this.key = key;
+    this.unresolvedKeyframes = unresolvedKeyframes;
+    this.options = options;
+  }
+}
+
+export NativeAnimation[] animateElements(
+  JsValue? elementOrSelector = null,
+  JsValue? keyframes = null,
+  JsValue? options = null,
+  AnimationScope? scope = null
+) {
+  if (elementOrSelector == null) {
+    return [];
+  }
+
+  JsValue[] elements = resolveElements(elementOrSelector, scope);
+  int numElements = elements.length;
+  if (numElements == 0) {
+    return [];
+  }
+
+  AnimationDefinition[] animationDefinitions = [];
+
+  for (int i = 0; i < numElements; i++) {
+    JsValue element = elements[i];
+    JsValue elementTransition = record{};
+    if (options != null && options.isObject()) {
+      for (string optionKey in options) {
+        elementTransition[optionKey] = options[optionKey];
+      }
+    }
+
+    JsValue delayVal = elementTransition["delay"];
+    if (isFunction(delayVal)) {
+      elementTransition["delay"] = delayFunctionOf(delayVal)(i, numElements);
+    }
+
+    if (keyframes != null && keyframes.isObject()) {
+      for (string valueName in keyframes) {
+        JsValue valueKeyframes = keyframes[valueName];
+        JsValue[]? existingKeyframes = asArray(valueKeyframes);
+        JsValue[] unresolved = [];
+        if (existingKeyframes != null) {
+          unresolved = existingKeyframes;
+        } else {
+          unresolved.push(valueKeyframes);
+        }
+
+        JsValue sharedOptions = getValueTransition(elementTransition, valueName);
+        JsValue valueOptions = record{};
+        if (sharedOptions != null && sharedOptions.isObject()) {
+          for (string k in sharedOptions) {
+            valueOptions[k] = sharedOptions[k];
+          }
+        }
+
+        JsValue durationVal = valueOptions["duration"];
+        if (durationVal is float) {
+          valueOptions["duration"] = secondsToMilliseconds(durationVal);
+        }
+        JsValue delayOpt = valueOptions["delay"];
+        if (delayOpt is float) {
+          valueOptions["delay"] = secondsToMilliseconds(delayOpt);
+        }
+
+        Map<string, JsValue> map = getAnimationMap(element);
+        string pseudo = "";
+        JsValue pseudoVal = valueOptions["pseudoElement"];
+        if (pseudoVal is string) {
+          pseudo = pseudoVal;
+        }
+        string key = animationMapKey(valueName, pseudo);
+        JsValue? currentAnimation = map.get(key);
+        if (currentAnimation != null) {
+          nativeAnimationOf(currentAnimation).stop();
+        }
+
+        valueOptions["element"] = element;
+        valueOptions["name"] = valueName;
+        valueOptions["allowFlatten"] =
+          elementTransition["type"] == null && elementTransition["ease"] == null;
+
+        animationDefinitions.push(
+          new AnimationDefinition(map, key, unresolved, valueOptions)
+        );
+      }
+    }
+  }
+
+  for (int i = 0; i < animationDefinitions.length; i++) {
+    AnimationDefinition def = animationDefinitions[i];
+    JsValue[] unresolvedKeyframes = def.unresolvedKeyframes;
+    JsValue animationOptions = def.options;
+    JsValue element = animationOptions["element"];
+    string name = "";
+    JsValue nameVal = animationOptions["name"];
+    if (nameVal is string) {
+      name = nameVal;
+    }
+    JsValue pseudoElement = animationOptions["pseudoElement"];
+
+    if (!pseudoElement.truthy() && unresolvedKeyframes.length > 0 && unresolvedKeyframes[0] == null) {
+      unresolvedKeyframes[0] = getComputedStyle(element, name);
+    }
+
+    if (unresolvedKeyframes.length > 1) {
+      fillWildcards(unresolvedKeyframes);
+    }
+    for (int ki = 0; ki < unresolvedKeyframes.length; ki++) {
+      JsValue keyframe = unresolvedKeyframes[ki];
+      if ((keyframe is float) && pxValues.has(name)) {
+        unresolvedKeyframes[ki] = `${keyframe}px`;
+      }
+    }
+
+    if (!pseudoElement.truthy() && unresolvedKeyframes.length < 2) {
+      unresolvedKeyframes = [getComputedStyle(element, name), ...unresolvedKeyframes];
+      def.unresolvedKeyframes = unresolvedKeyframes;
+    }
+
+    animationOptions["keyframes"] = unresolvedKeyframes;
+  }
+
+  NativeAnimation[] animations = [];
+  for (int i = 0; i < animationDefinitions.length; i++) {
+    AnimationDefinition def = animationDefinitions[i];
+    NativeAnimation animation = new NativeAnimation(def.options, def.map, def.key);
+    def.map.set(def.key, animation);
+    animations.push(animation);
+  }
+
+  return animations;
+}

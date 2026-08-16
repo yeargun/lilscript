@@ -1,0 +1,68 @@
+import { documentGet, documentScrollingElement, documentElement } from "../../../../../motion-dom/dom-host";
+extern float parseFloat(string value);
+
+Map<string, float> namedEdges = new Map<string, float>();
+
+void initNamedEdges() {
+  if (namedEdges.size == 0) {
+    namedEdges.set("start", 0.0);
+    namedEdges.set("center", 0.5);
+    namedEdges.set("end", 1.0);
+  }
+}
+
+export float resolveEdge(JsValue edge, float length, float inset = 0.0) {
+  initNamedEdges();
+  float delta = 0.0;
+  JsValue resolved = edge;
+
+  if (edge is string) {
+    float? named = namedEdges.get(edge);
+    if (named != null) {
+      resolved = named;
+    }
+  }
+
+  if (resolved is string) {
+    string edgeStr = resolved;
+    float asNumber = parseFloat(edgeStr);
+    if (edgeStr.endsWith("px")) {
+      delta = asNumber;
+    } else if (edgeStr.endsWith("%")) {
+      resolved = asNumber / 100.0;
+    } else if (edgeStr.endsWith("vw")) {
+      JsValue docEl = documentElement();
+      float clientWidth = 0.0;
+      if (docEl.truthy()) {
+        JsValue w = docEl["clientWidth"];
+        if (w is float) {
+          clientWidth = w;
+        }
+      }
+      delta = (asNumber / 100.0) * clientWidth;
+    } else if (edgeStr.endsWith("vh")) {
+      JsValue docEl = documentElement();
+      float clientHeight = 0.0;
+      if (docEl.truthy()) {
+        JsValue h = docEl["clientHeight"];
+        if (h is float) {
+          clientHeight = h;
+        }
+      }
+      delta = (asNumber / 100.0) * clientHeight;
+    } else {
+      resolved = asNumber;
+    }
+  }
+
+  if (resolved is float) {
+    delta = length * resolved;
+  }
+
+  return inset + delta;
+}
+
+export Map<string, float> getNamedEdges() {
+  initNamedEdges();
+  return namedEdges;
+}

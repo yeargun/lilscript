@@ -1,0 +1,39 @@
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  color: #333;
+  background: #fff;
+  font: 14px/1.4 Helvetica, Arial, sans-serif;
+}
+.container { max-width: 1140px; margin: 0 auto; padding: 16px; }
+.jumbotron {
+  padding: 18px 20px;
+  margin-bottom: 16px;
+  background: #eee;
+  border-radius: 4px;
+}
+.row { display: flex; flex-wrap: wrap; margin: 0 -5px; }
+.col-md-6 { width: 50%; padding: 0 5px; }
+.col-sm-6 { width: 50%; }
+.smallpad { padding: 5px; }
+h1 { margin: 8px 0 0; font-size: 28px; font-weight: 700; }
+.btn {
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 3px;
+  background: #337ab7;
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+.btn:hover { background: #286090; }
+.table { width: 100%; border-collapse: collapse; }
+.table td { padding: 8px; border-top: 1px solid #ddd; }
+.table-striped tbody tr:nth-child(odd) { background: #f9f9f9; }
+.table-hover tbody tr:hover { background: #f5f5f5; }
+tr.danger { background: #f2dede !important; }
+a { color: #337ab7; cursor: pointer; text-decoration: none; }
+.glyphicon-remove::before { content: "×"; font-size: 18px; line-height: 1; }
+.preloadicon { display: none; }
+.test-data { margin-top: 8px; }

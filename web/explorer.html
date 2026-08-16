@@ -19,7 +19,7 @@
       <section class="comparison-intro">
         <p class="eyebrow">Generated evidence catalog</p>
         <h1>Every project, lane, and byte</h1>
-        <p class="lead">Search projects, isolate a fair mangling mode, and sort raw, gzip, or Brotli output. Project links open a source-and-method detail page in a new tab.</p>
+        <p class="lead">Search projects, isolate a fair mangling mode, and sort Brotli, gzip, or raw output. Project links open a source-and-method detail page in a new tab.</p>
         <p class="comparison-note">Rows are measurements, not one global race. Only artifacts inside the same project and compatibility boundary are directly comparable.</p>
       </section>
       <section class="catalog-summary" data-catalog-summary aria-label="Catalog summary"></section>
@@ -30,7 +30,7 @@
         <label><span>Tool</span><select data-filter-tool><option value="">All tools</option></select></label>
         <label><span>Mangling</span><select data-filter-mode><option value="">All modes</option></select></label>
         <label><span>Columns</span><select data-column-view><option value="core">Core comparison</option><option value="full">Full metadata</option></select></label>
-        <label><span>Sort</span><select data-sort><option value="core">Core evidence first</option><option value="project">Project</option><option value="raw">Raw bytes</option><option value="gzip">Gzip bytes</option><option value="brotli">Brotli bytes</option><option value="gzip-rate">Gzip reduction</option><option value="brotli-rate">Brotli reduction</option><option value="tool">Tool</option><option value="category">Category</option></select></label>
+        <label><span>Sort</span><select data-sort><option value="core">Core evidence first</option><option value="brotli">Brotli bytes</option><option value="gzip">Gzip bytes</option><option value="raw">Raw bytes</option><option value="brotli-rate">Brotli reduction</option><option value="gzip-rate">Gzip reduction</option><option value="project">Project</option><option value="tool">Tool</option><option value="category">Category</option></select></label>
         <button class="secondary-button" type="button" data-sort-direction aria-label="Reverse sort direction">Ascending</button>
       </section>
       <section class="aggregate-panel" aria-labelledby="aggregate-title">
@@ -44,7 +44,7 @@
       <p class="table-result-count" data-result-count aria-live="polite"></p>
       <div class="benchmark-table-wrap explorer-table-wrap">
         <table class="explorer-table">
-          <thead><tr><th class="project-column">Project</th><th class="optional-column">Category</th><th class="optional-column">Status</th><th class="artifact-column">Artifact lane</th><th class="optional-column">Tool</th><th class="mangling-column">Mangling</th><th class="optional-column">Properties</th><th class="metric-column">Raw</th><th class="metric-column">Gzip-9</th><th class="metric-column">Brotli-11</th></tr></thead>
+          <thead><tr><th class="project-column">Project</th><th class="optional-column">Category</th><th class="optional-column">Status</th><th class="artifact-column">Artifact lane</th><th class="optional-column">Tool</th><th class="mangling-column">Mangling</th><th class="optional-column">Properties</th><th class="metric-column">Brotli-11 · primary</th><th class="metric-column">Gzip-9</th><th class="metric-column">Raw</th></tr></thead>
           <tbody data-explorer-rows></tbody>
         </table>
       </div>
@@ -55,7 +55,7 @@
           <article><span>01</span><h3>Lock the behavior</h3><p>Begin with the same project-level workload and observable result. Runtime, native, C, or package-contract gates are shown where that evidence exists.</p></article>
           <article><span>02</span><h3>Choose a legal boundary</h3><p>Identifier-only rows preserve ordinary property names. Private-prefix and closed-world rows may rename properties only when their stated boundary allows it.</p></article>
           <article><span>03</span><h3>Emit independent lanes</h3><p>Vite, Closure, LilScript, and combined pipelines are separate artifacts. Unminified output is context; it is not treated as an equivalent advanced-minification lane.</p></article>
-          <article><span>04</span><h3>Measure transport</h3><p>Raw UTF-8 bytes, gzip level 9, and Brotli quality 11 are recorded per JavaScript artifact. Every codec starts from that row's exact emitted output.</p></article>
+          <article><span>04</span><h3>Measure transport</h3><p>Brotli quality 11 is shown first, followed by gzip level 9 and raw UTF-8 bytes for every JavaScript artifact. Every codec starts from that row's exact emitted output.</p></article>
         </div>
         <div class="rate-formulas" aria-label="Compression formulas">
           <code>compression saved = (raw − compressed) ÷ raw × 100</code>

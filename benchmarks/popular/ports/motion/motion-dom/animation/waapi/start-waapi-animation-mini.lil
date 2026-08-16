@@ -1,0 +1,68 @@
+import { mapEasingToNativeEasing } from "./easing/map-easing-mini";
+import { callMethod2 } from "../../dom-host";
+
+export JsValue startWaapiAnimation(
+  JsValue element,
+  string valueName,
+  JsValue keyframes,
+  JsValue? transition = null,
+  string? pseudoElement = null
+) {
+  float delay = 0.0;
+  float duration = 300.0;
+  float repeat = 0.0;
+  string repeatType = "loop";
+  string easeName = "easeOut";
+  JsValue? times = null;
+  if (transition != null && transition.isObject()) {
+    JsValue delayOpt = transition["delay"];
+    if (delayOpt is float) {
+      delay = delayOpt;
+    }
+    JsValue durationOpt = transition["duration"];
+    if (durationOpt is float) {
+      duration = durationOpt;
+    }
+    JsValue repeatOpt = transition["repeat"];
+    if (repeatOpt is float) {
+      repeat = repeatOpt;
+    }
+    JsValue repeatTypeOpt = transition["repeatType"];
+    if (repeatTypeOpt is string) {
+      repeatType = repeatTypeOpt;
+    }
+    JsValue easeVal = transition["ease"];
+    if (easeVal is string) {
+      easeName = easeVal;
+    }
+    JsValue timesVal = transition["times"];
+    if (timesVal.truthy() && timesVal.isArray()) {
+      times = timesVal;
+    }
+  }
+  Record<JsValue> keyframeOptions = record{};
+  keyframeOptions[valueName] = keyframes;
+  if (times != null) {
+    keyframeOptions["offset"] = times;
+  }
+  string? easing = mapEasingToNativeEasing(easeName, duration);
+  string direction = "normal";
+  if (repeatType == "reverse") {
+    direction = "alternate";
+  }
+  Record<JsValue> animationOptions = record{};
+  animationOptions["delay"] = delay;
+  animationOptions["duration"] = duration;
+  if (easing != null) {
+    animationOptions["easing"] = easing;
+  } else {
+    animationOptions["easing"] = "linear";
+  }
+  animationOptions["fill"] = "both";
+  animationOptions["iterations"] = repeat + 1.0;
+  animationOptions["direction"] = direction;
+  if (pseudoElement != null) {
+    animationOptions["pseudoElement"] = pseudoElement;
+  }
+  return callMethod2(element, "animate", keyframeOptions, animationOptions);
+}

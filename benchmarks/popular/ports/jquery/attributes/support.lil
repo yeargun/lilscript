@@ -1,0 +1,22 @@
+import { document } from "../var/document";
+import { support } from "../var/support";
+
+void detect() {
+  JsValue input = JS.invoke(document, "createElement", "input");
+  JsValue select = JS.invoke(document, "createElement", "select");
+  JsValue opt = JS.invoke(select, "appendChild", JS.invoke(document, "createElement", "option"));
+
+  input["type"] = "checkbox";
+
+  support["checkOn"] = input["value"] != "";
+  support["optSelected"] = opt["selected"];
+
+  input = JS.invoke(document, "createElement", "input");
+  input["value"] = "t";
+  input["type"] = "radio";
+  support["radioValue"] = input["value"] == "t";
+}
+
+detect();
+
+export { support };

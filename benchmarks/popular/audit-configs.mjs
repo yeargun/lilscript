@@ -3,8 +3,12 @@ import { spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { brotliCompressSync, constants, gzipSync } from "node:zlib";
 import { performance } from "node:perf_hooks";
+import {
+  canonicalCodecProvenance,
+  canonicalCodecSizesForFile,
+  requireCanonicalCodecRuntime,
+} from "../codec-contract.mjs";
 
 const root = dirname(fileURLToPath(import.meta.url));
 const repo = resolve(root, "../..");
@@ -102,15 +106,7 @@ pool_strings=true
 `;
 }
 
-function metrics(code) {
-  return {
-    raw: code.length,
-    gzip: gzipSync(code, { level: 9, mtime: 0 }).length,
-    brotli: brotliCompressSync(code, {
-      params: { [constants.BROTLI_PARAM_QUALITY]: 11 },
-    }).length,
-  };
-}
+requireCanonicalCodecRuntime("configuration audit measurement");
 
 const rows = [];
 for (const library of libraries) {
@@ -129,7 +125,6 @@ for (const library of libraries) {
     if (result.status !== 0) throw new Error(result.stdout + result.stderr);
     const module = await import(`${pathToFileURL(outputPath).href}?audit=${Date.now()}`);
     library.verify(module);
-    const code = readFileSync(outputPath);
     rows.push({
       library: library.name,
       variant: variant.name,
@@ -138,14 +133,16 @@ for (const library of libraries) {
       candidateLimit: variant.limit,
       candidateBeamWidth: variant.beam,
       milliseconds,
-      ...metrics(code),
+      ...canonicalCodecSizesForFile(outputPath, `${base} configuration audit`),
     });
   }
 }
 
 const report = {
   node: process.version,
+  scope: "configuration-effort/pass-isolation; every row uses the Brotli cost model and raw/gzip are diagnostic cross-metrics",
   note: "Wall time includes process startup, parsing, optimization, exact-codec search, and emission.",
+  codecs: canonicalCodecProvenance("configuration audit report"),
   rows,
 };
 writeFileSync(join(root, "build/config-audit.json"), `${JSON.stringify(report, null, 2)}\n`);
@@ -155,6 +152,8 @@ const markdown = `# Exact-library configuration effort audit
 Every artifact below passes its reusable-module API/behavior check. Times include
 compiler process startup and are intended to show the tuning curve, not a stable
 cross-machine compiler benchmark. Sizes are the emitted ESM module before Vite.
+This is a same-Brotli-objective configuration-effort audit: raw and gzip are
+diagnostic cross-metrics, not separate language-superiority claims.
 
 | Library | Profile | Priority / level | Candidate cap / beam | Compile ms | Raw | gzip-9 | Brotli-11 |
 | --- | --- | --- | ---: | ---: | ---: | ---: | ---: |

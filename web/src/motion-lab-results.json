@@ -1,0 +1,654 @@
+{
+  "schemaVersion": 1,
+  "metadata": {
+    "generatedAt": "2026-08-15T23:33:37.192Z",
+    "source": "lilastro/build/browser",
+    "objectiveContract": {
+      "gateMetric": "brotli",
+      "matchingArtifactOnly": true,
+      "crossMetricsAreDiagnostic": [
+        "raw",
+        "gzip"
+      ],
+      "chunkAccounting": "sum-of-independently-compressed-js-chunks"
+    },
+    "codecs": {
+      "implementation": "lilscript-codec",
+      "schemaVersion": 1,
+      "scorer": {
+        "path": "target/release/lilscript-codec",
+        "sha256": "c2eef048db71a45c882ba23232a0c492569ef74cfbfddf9e98da5793e4fe5e39",
+        "bytes": 1805568
+      },
+      "gzip9": {
+        "encoder": "upstream-stock-zlib-c",
+        "libraryVersion": "1.3.1",
+        "cargoPackage": "libz-sys",
+        "cargoPackageVersion": "1.1.24",
+        "level": 9,
+        "mtime": 0
+      },
+      "brotli11": {
+        "encoder": "official-google-brotli-c",
+        "libraryVersion": "1.1.0",
+        "cargoPackage": "compu-brotli-sys",
+        "cargoPackageVersion": "1.1.0",
+        "quality": 11,
+        "lgwin": 22,
+        "mode": "generic"
+      },
+      "nodeCodecsAreDiagnosticOnly": true
+    },
+    "compiler": {
+      "source": "environment-pair",
+      "path": "target/release/lilscript",
+      "sha256": "29440d198fd5270e36823166cbf5fd306d5c2f7ad2c0c85dd379e3345f3b8997",
+      "version": "lilscript 0.1.0"
+    },
+    "config": {
+      "path": "lilastro/config/closed-world.toml",
+      "sha256": "9a8dbda6c515779887c67ca51d7d8c477f01d9deb065ac687842641e7af2f8f1",
+      "costModel": "brotli"
+    },
+    "buildManifest": {
+      "path": "lilastro/build/browser/manifest.json",
+      "sha256": "22bc658b9ca582a0d71d70e824cfbe4328ef04da9d803eea7bd4a8b8feced4f4"
+    }
+  },
+  "examples": [
+    {
+      "id": "animate-play",
+      "title": "animate play",
+      "npmUrl": "/motion-lab/animate-play-npm/index.html",
+      "lilUrl": "/motion-lab/animate-play-lil/index.html",
+      "npm": {
+        "raw": 63908,
+        "gzip": 22148,
+        "brotli": 20293,
+        "chunkCount": 1,
+        "chunks": [
+          {
+            "file": "animate-play-npm/assets/index-C2VlgD5Q.js",
+            "sha256": "51df757b95608461a1cf32c58659e78fb5034c91a770e704d48faa2123131d87",
+            "raw": 63908,
+            "gzip": 22148,
+            "brotli": 20293
+          }
+        ]
+      },
+      "lil": {
+        "raw": 58061,
+        "gzip": 20200,
+        "brotli": 17948,
+        "chunkCount": 1,
+        "chunks": [
+          {
+            "file": "animate-play-lil/assets/index-ChZJ5QzT.js",
+            "sha256": "57feeddddf21ba84c52516464455d2251ce2d4a34cd177f29cfbc3720ec3fdc1",
+            "raw": 58061,
+            "gzip": 20200,
+            "brotli": 17948
+          }
+        ]
+      },
+      "brotliRatio": 0.884442911348741
+    },
+    {
+      "id": "animate-css-vars",
+      "title": "animate css vars",
+      "npmUrl": "/motion-lab/animate-css-vars-npm/index.html",
+      "lilUrl": "/motion-lab/animate-css-vars-lil/index.html",
+      "npm": {
+        "raw": 61820,
+        "gzip": 21509,
+        "brotli": 19692,
+        "chunkCount": 1,
+        "chunks": [
+          {
+            "file": "animate-css-vars-npm/assets/index-BlqwRxS6.js",
+            "sha256": "0bbbc9d86f5e4c6c76122eda56524e9ec375258ee639aa40c35fea30786938a8",
+            "raw": 61820,
+            "gzip": 21509,
+            "brotli": 19692
+          }
+        ]
+      },
+      "lil": {
+        "raw": 53281,
+        "gzip": 18972,
+        "brotli": 16928,
+        "chunkCount": 1,
+        "chunks": [
+          {
+            "file": "animate-css-vars-lil/assets/index-D41qQTJ8.js",
+            "sha256": "6f04f7ede583d7f71e8ffa169891c613860416f02ec6c7436defb708edc3f6b0",
+            "raw": 53281,
+            "gzip": 18972,
+            "brotli": 16928
+          }
+        ]
+      },
+      "brotliRatio": 0.8596384318504977
+    },
+    {
+      "id": "animate-stagger",
+      "title": "animate stagger",
+      "npmUrl": "/motion-lab/animate-stagger-npm/index.html",
+      "lilUrl": "/motion-lab/animate-stagger-lil/index.html",
+      "npm": {
+        "raw": 62085,
+        "gzip": 21621,
+        "brotli": 19814,
+        "chunkCount": 1,
+        "chunks": [
+          {
+            "file": "animate-stagger-npm/assets/index-BpXs_wgD.js",
+            "sha256": "449bf895629f356766f10afa50a6b767ffc977fa207eef3740505536343dc467",
+            "raw": 62085,
+            "gzip": 21621,
+            "brotli": 19814
+          }
+        ]
+      },
+      "lil": {
+        "raw": 53380,
+        "gzip": 18995,
+        "brotli": 17005,
+        "chunkCount": 1,
+        "chunks": [
+          {
+            "file": "animate-stagger-lil/assets/index-CauOcN69.js",
+            "sha256": "dfd63f2c914b45b3a768752c981a51539dbb08aff73a16352682a473f8cc0abc",
+            "raw": 53380,
+            "gzip": 18995,
+            "brotli": 17005
+          }
+        ]
+      },
+      "brotliRatio": 0.8582315534470576
+    },
+    {
+      "id": "animate-spring",
+      "title": "animate spring",
+      "npmUrl": "/motion-lab/animate-spring-npm/index.html",
+      "lilUrl": "/motion-lab/animate-spring-lil/index.html",
+      "npm": {
+        "raw": 61839,
+        "gzip": 21509,
+        "brotli": 19708,
+        "chunkCount": 1,
+        "chunks": [
+          {
+            "file": "animate-spring-npm/assets/index-B5DN1RKU.js",
+            "sha256": "57fe892981dee85128cb84626d8608e41f7149aeabb273ce4423c5906f620942",
+            "raw": 61839,
+            "gzip": 21509,
+            "brotli": 19708
+          }
+        ]
+      },
+      "lil": {
+        "raw": 58458,
+        "gzip": 18645,
+        "brotli": 16654,
+        "chunkCount": 1,
+        "chunks": [
+          {
+            "file": "animate-spring-lil/assets/index-BgTSQ8EE.js",
+            "sha256": "74d1d4f3e6f15f1facdd07e31bde5fe9be058ca7d9b88f163302e639cc806016",
+            "raw": 58458,
+            "gzip": 18645,
+            "brotli": 16654
+          }
+        ]
+      },
+      "brotliRatio": 0.8450375482037751
+    },
+    {
+      "id": "animate-scroll",
+      "title": "animate scroll",
+      "npmUrl": "/motion-lab/animate-scroll-npm/index.html",
+      "lilUrl": "/motion-lab/animate-scroll-lil/index.html",
+      "npm": {
+        "raw": 71025,
+        "gzip": 24710,
+        "brotli": 22611,
+        "chunkCount": 1,
+        "chunks": [
+          {
+            "file": "animate-scroll-npm/assets/index-lA76Zu5X.js",
+            "sha256": "22caab1255d3f147ba483237608a3ccbd7c434503d3e939778e0050552c789a9",
+            "raw": 71025,
+            "gzip": 24710,
+            "brotli": 22611
+          }
+        ]
+      },
+      "lil": {
+        "raw": 68912,
+        "gzip": 24094,
+        "brotli": 21390,
+        "chunkCount": 1,
+        "chunks": [
+          {
+            "file": "animate-scroll-lil/assets/index-CmFk5WZ7.js",
+            "sha256": "4b7d0e62b442d0c81dc61735240ef32a792e8c378423f6014f0690eb70f7f5fd",
+            "raw": 68912,
+            "gzip": 24094,
+            "brotli": 21390
+          }
+        ]
+      },
+      "brotliRatio": 0.9459997346424307
+    },
+    {
+      "id": "gesture-press",
+      "title": "gesture press",
+      "npmUrl": "/motion-lab/gesture-press-npm/index.html",
+      "lilUrl": "/motion-lab/gesture-press-lil/index.html",
+      "npm": {
+        "raw": 63718,
+        "gzip": 22251,
+        "brotli": 20375,
+        "chunkCount": 1,
+        "chunks": [
+          {
+            "file": "gesture-press-npm/assets/index-B4e4e7Fc.js",
+            "sha256": "c05dc543f2ee5b702ec3fc5e46ed95e4e27b7d3b86aa4832e27885929b16739f",
+            "raw": 63718,
+            "gzip": 22251,
+            "brotli": 20375
+          }
+        ]
+      },
+      "lil": {
+        "raw": 56422,
+        "gzip": 20172,
+        "brotli": 18007,
+        "chunkCount": 1,
+        "chunks": [
+          {
+            "file": "gesture-press-lil/assets/index-Cr5GMhxD.js",
+            "sha256": "9f0d1780a165a82954a493a7eb5250b905c0d0d85c98085bb4651f99308f56fa",
+            "raw": 56422,
+            "gzip": 20172,
+            "brotli": 18007
+          }
+        ]
+      },
+      "brotliRatio": 0.8837791411042945
+    },
+    {
+      "id": "gesture-hover",
+      "title": "gesture hover",
+      "npmUrl": "/motion-lab/gesture-hover-npm/index.html",
+      "lilUrl": "/motion-lab/gesture-hover-lil/index.html",
+      "npm": {
+        "raw": 62820,
+        "gzip": 21889,
+        "brotli": 19983,
+        "chunkCount": 1,
+        "chunks": [
+          {
+            "file": "gesture-hover-npm/assets/index-CVMuiEq_.js",
+            "sha256": "d47a10d588544b0a0b9df1ebd31265fdbe11be5930e7d1e5fd0f8a51f7abcab8",
+            "raw": 62820,
+            "gzip": 21889,
+            "brotli": 19983
+          }
+        ]
+      },
+      "lil": {
+        "raw": 54779,
+        "gzip": 19471,
+        "brotli": 17413,
+        "chunkCount": 1,
+        "chunks": [
+          {
+            "file": "gesture-hover-lil/assets/index-DEScsrms.js",
+            "sha256": "0fad1eb7e1739c4d4fe7380fa59eed70be55c716de351d9aae01caadaebd780b",
+            "raw": 54779,
+            "gzip": 19471,
+            "brotli": 17413
+          }
+        ]
+      },
+      "brotliRatio": 0.8713906820797678
+    },
+    {
+      "id": "in-view",
+      "title": "in view",
+      "npmUrl": "/motion-lab/in-view-npm/index.html",
+      "lilUrl": "/motion-lab/in-view-lil/index.html",
+      "npm": {
+        "raw": 62447,
+        "gzip": 21752,
+        "brotli": 19926,
+        "chunkCount": 1,
+        "chunks": [
+          {
+            "file": "in-view-npm/assets/index-Dqh211Li.js",
+            "sha256": "a7985be91661eab87f47af8f38af08f3878bb4ce0cde353ec28e5a6645a2bdfa",
+            "raw": 62447,
+            "gzip": 21752,
+            "brotli": 19926
+          }
+        ]
+      },
+      "lil": {
+        "raw": 54205,
+        "gzip": 19243,
+        "brotli": 17289,
+        "chunkCount": 1,
+        "chunks": [
+          {
+            "file": "in-view-lil/assets/index-wYRZuGYp.js",
+            "sha256": "a9e033ea7a4c209da16f2dfda0688149c463eee334b430e22a232cf613bdb717",
+            "raw": 54205,
+            "gzip": 19243,
+            "brotli": 17289
+          }
+        ]
+      },
+      "brotliRatio": 0.8676603432700993
+    },
+    {
+      "id": "resize-box",
+      "title": "resize box",
+      "npmUrl": "/motion-lab/resize-box-npm/index.html",
+      "lilUrl": "/motion-lab/resize-box-lil/index.html",
+      "npm": {
+        "raw": 2090,
+        "gzip": 1033,
+        "brotli": 904,
+        "chunkCount": 1,
+        "chunks": [
+          {
+            "file": "resize-box-npm/assets/index-BU4Cs0Bd.js",
+            "sha256": "c4a126dd602949b7ebc7011e3a63f3185e233c0816acc40dcfe472928355e366",
+            "raw": 2090,
+            "gzip": 1033,
+            "brotli": 904
+          }
+        ]
+      },
+      "lil": {
+        "raw": 1778,
+        "gzip": 920,
+        "brotli": 807,
+        "chunkCount": 1,
+        "chunks": [
+          {
+            "file": "resize-box-lil/assets/index-C7F49gXC.js",
+            "sha256": "adb46f8ece9ee82d5e6ef2e99057e07fe0b131e54141bc05ba2e49d44732fb8a",
+            "raw": 1778,
+            "gzip": 920,
+            "brotli": 807
+          }
+        ]
+      },
+      "brotliRatio": 0.8926991150442478
+    },
+    {
+      "id": "motion-value",
+      "title": "motion value",
+      "npmUrl": "/motion-lab/motion-value-npm/index.html",
+      "lilUrl": "/motion-lab/motion-value-lil/index.html",
+      "npm": {
+        "raw": 61975,
+        "gzip": 21572,
+        "brotli": 19766,
+        "chunkCount": 1,
+        "chunks": [
+          {
+            "file": "motion-value-npm/assets/index-CfQNHtH5.js",
+            "sha256": "6a89bd4cf726a99ebf52f949e5cded1f3ed8006422996e70ca7882ce39932b31",
+            "raw": 61975,
+            "gzip": 21572,
+            "brotli": 19766
+          }
+        ]
+      },
+      "lil": {
+        "raw": 53575,
+        "gzip": 18954,
+        "brotli": 16987,
+        "chunkCount": 1,
+        "chunks": [
+          {
+            "file": "motion-value-lil/assets/index-DCA8Ln1V.js",
+            "sha256": "899f77256e8b72afa10ab921f38f4cb3fd3452a57ff2f23de0531526361910d7",
+            "raw": 53575,
+            "gzip": 18954,
+            "brotli": 16987
+          }
+        ]
+      },
+      "brotliRatio": 0.8594050389557827
+    },
+    {
+      "id": "perf-stagger",
+      "title": "perf stagger",
+      "npmUrl": "/motion-lab/perf-stagger-npm/index.html",
+      "lilUrl": "/motion-lab/perf-stagger-lil/index.html",
+      "npm": {
+        "raw": 10347,
+        "gzip": 4219,
+        "brotli": 3844,
+        "chunkCount": 1,
+        "chunks": [
+          {
+            "file": "perf-stagger-npm/assets/index-Bw6KxWtG.js",
+            "sha256": "acfc8c0156348dee531c78e67836060f2dbdd448a868e88f65898abe16474141",
+            "raw": 10347,
+            "gzip": 4219,
+            "brotli": 3844
+          }
+        ]
+      },
+      "lil": {
+        "raw": 7651,
+        "gzip": 3280,
+        "brotli": 2956,
+        "chunkCount": 1,
+        "chunks": [
+          {
+            "file": "perf-stagger-lil/assets/index-B_4iYpKU.js",
+            "sha256": "6af17407e28a53fb37e49e530a712efd0ff35cf2e02061eed9c4677a3819d00f",
+            "raw": 7651,
+            "gzip": 3280,
+            "brotli": 2956
+          }
+        ]
+      },
+      "brotliRatio": 0.768990634755463
+    },
+    {
+      "id": "showcase-wave",
+      "title": "showcase wave",
+      "npmUrl": "/motion-lab/showcase-wave-npm/index.html",
+      "lilUrl": "/motion-lab/showcase-wave-lil/index.html",
+      "npm": {
+        "raw": 62267,
+        "gzip": 21722,
+        "brotli": 19832,
+        "chunkCount": 1,
+        "chunks": [
+          {
+            "file": "showcase-wave-npm/assets/index-D729D3kV.js",
+            "sha256": "75148cc7cc12b58a1293d655113b0de13f9acbc59136a0e486613ff05b926421",
+            "raw": 62267,
+            "gzip": 21722,
+            "brotli": 19832
+          }
+        ]
+      },
+      "lil": {
+        "raw": 54137,
+        "gzip": 19201,
+        "brotli": 17229,
+        "chunkCount": 1,
+        "chunks": [
+          {
+            "file": "showcase-wave-lil/assets/index-SXnb2q_0.js",
+            "sha256": "08ca9aaa85059a590c0e9f18ef82def40fb8b6c050e11c737219480a40d7d562",
+            "raw": 54137,
+            "gzip": 19201,
+            "brotli": 17229
+          }
+        ]
+      },
+      "brotliRatio": 0.8687474788221057
+    },
+    {
+      "id": "showcase-spring",
+      "title": "showcase spring",
+      "npmUrl": "/motion-lab/showcase-spring-npm/index.html",
+      "lilUrl": "/motion-lab/showcase-spring-lil/index.html",
+      "npm": {
+        "raw": 61895,
+        "gzip": 21535,
+        "brotli": 19746,
+        "chunkCount": 1,
+        "chunks": [
+          {
+            "file": "showcase-spring-npm/assets/index-B32p7PNh.js",
+            "sha256": "99852a358d7b1efe5c90a02d8685348f39d98d71bc2d9e96c360a871e1fbe45a",
+            "raw": 61895,
+            "gzip": 21535,
+            "brotli": 19746
+          }
+        ]
+      },
+      "lil": {
+        "raw": 58056,
+        "gzip": 18735,
+        "brotli": 16647,
+        "chunkCount": 1,
+        "chunks": [
+          {
+            "file": "showcase-spring-lil/assets/index-DmbdW-eY.js",
+            "sha256": "bd3052f80c5e05700893f774497f27c9977575791d3deb188a91c329c5b0bdfd",
+            "raw": 58056,
+            "gzip": 18735,
+            "brotli": 16647
+          }
+        ]
+      },
+      "brotliRatio": 0.8430568216347615
+    },
+    {
+      "id": "showcase-sequence",
+      "title": "showcase sequence",
+      "npmUrl": "/motion-lab/showcase-sequence-npm/index.html",
+      "lilUrl": "/motion-lab/showcase-sequence-lil/index.html",
+      "npm": {
+        "raw": 62037,
+        "gzip": 21584,
+        "brotli": 19769,
+        "chunkCount": 1,
+        "chunks": [
+          {
+            "file": "showcase-sequence-npm/assets/index-Dh-luDj6.js",
+            "sha256": "29b3c3cb70be682206df0ad7304081ca3b47510a39286aedc3f3b406d0f33913",
+            "raw": 62037,
+            "gzip": 21584,
+            "brotli": 19769
+          }
+        ]
+      },
+      "lil": {
+        "raw": 58874,
+        "gzip": 21038,
+        "brotli": 18773,
+        "chunkCount": 1,
+        "chunks": [
+          {
+            "file": "showcase-sequence-lil/assets/index-xfkFJS86.js",
+            "sha256": "d55b7b9e1b6d9d384b4bd5d3b7a60bc01fa0e80c7fed4fb732abf89af1559199",
+            "raw": 58874,
+            "gzip": 21038,
+            "brotli": 18773
+          }
+        ]
+      },
+      "brotliRatio": 0.9496180889271081
+    },
+    {
+      "id": "showcase-gestures",
+      "title": "showcase gestures",
+      "npmUrl": "/motion-lab/showcase-gestures-npm/index.html",
+      "lilUrl": "/motion-lab/showcase-gestures-lil/index.html",
+      "npm": {
+        "raw": 64476,
+        "gzip": 22442,
+        "brotli": 20545,
+        "chunkCount": 1,
+        "chunks": [
+          {
+            "file": "showcase-gestures-npm/assets/index-CWugBXBW.js",
+            "sha256": "69d1cdebfac2a00a60f49b11a39b9fed1ac2e0196e861c3c5b49093ba88b3d29",
+            "raw": 64476,
+            "gzip": 22442,
+            "brotli": 20545
+          }
+        ]
+      },
+      "lil": {
+        "raw": 57388,
+        "gzip": 20369,
+        "brotli": 18155,
+        "chunkCount": 1,
+        "chunks": [
+          {
+            "file": "showcase-gestures-lil/assets/index-Gc_XhbbR.js",
+            "sha256": "d125762739f171cd7cccb2674512dccdde3faae639514c175c6eb1e9df6eccac",
+            "raw": 57388,
+            "gzip": 20369,
+            "brotli": 18155
+          }
+        ]
+      },
+      "brotliRatio": 0.8836699926989535
+    },
+    {
+      "id": "showcase-carousel",
+      "title": "showcase carousel",
+      "npmUrl": "/motion-lab/showcase-carousel-npm/index.html",
+      "lilUrl": "/motion-lab/showcase-carousel-lil/index.html",
+      "npm": {
+        "raw": 64699,
+        "gzip": 22568,
+        "brotli": 20596,
+        "chunkCount": 1,
+        "chunks": [
+          {
+            "file": "showcase-carousel-npm/assets/index-C9LX7QLO.js",
+            "sha256": "f3c284594ed8e397b3525afa3066cfbcc2c83b87b212ac48013e2d1d54b757c2",
+            "raw": 64699,
+            "gzip": 22568,
+            "brotli": 20596
+          }
+        ]
+      },
+      "lil": {
+        "raw": 60488,
+        "gzip": 19770,
+        "brotli": 17515,
+        "chunkCount": 1,
+        "chunks": [
+          {
+            "file": "showcase-carousel-lil/assets/index-CoJgwu7c.js",
+            "sha256": "07ec05450499b13e1826dd06b7c0ed53c5db3b1fe7d0d7b638148401e650372c",
+            "raw": 60488,
+            "gzip": 19770,
+            "brotli": 17515
+          }
+        ]
+      },
+      "brotliRatio": 0.850407846183725
+    }
+  ],
+  "avgBrotliRatio": 0.8707984601855507,
+  "wins": 16
+}

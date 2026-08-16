@@ -1,0 +1,32 @@
+import { wrap } from "../../core";
+import {
+  isNullish
+} from "../../js-host.lil";
+
+export JsValue dir(JsValue elem, string direction, JsValue until = null) {
+  JsValue[] matched = [];
+  bool truncate = !JS.isNullish(until);
+  JsValue current = elem;
+
+  while (true) {
+    current = current[direction];
+    if (!current.truthy()) {
+      break;
+    }
+    JsValue nodeTypeValue = current["nodeType"];
+    if (nodeTypeValue == 9.0) {
+      break;
+    }
+    if (nodeTypeValue == 1.0) {
+      if (truncate) {
+        JsValue wrapped = wrap(current);
+        if (JS.invoke(wrapped, "is", until).truthy()) {
+          break;
+        }
+      }
+      matched.push(current);
+    }
+  }
+
+  return matched;
+}

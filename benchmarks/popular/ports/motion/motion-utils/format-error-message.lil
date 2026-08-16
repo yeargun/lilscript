@@ -1,0 +1,6 @@
+export string formatErrorMessage(string message, string? errorCode = null) {
+  if (errorCode != null) {
+    return `${message}. For more information and steps for solving, visit https://motion.dev/troubleshooting/${errorCode}`;
+  }
+  return message;
+}

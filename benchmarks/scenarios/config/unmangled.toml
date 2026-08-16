@@ -4,6 +4,7 @@ preset = "none"
 [javascript]
 optimization_level = 0
 candidate_search = "off"
+strip_console = false
 
 [mangle]
 identifiers = false

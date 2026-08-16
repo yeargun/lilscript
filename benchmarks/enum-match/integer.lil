@@ -1,0 +1,22 @@
+int statusAt(int value) {
+  int kind = value % 5;
+  if (kind == 0) { return 0; }
+  if (kind == 1) { return 1; }
+  if (kind == 2) { return 2; }
+  if (kind == 3) { return 3; }
+  return 4;
+}
+
+int score(int status) {
+  if (status == 0) { return 3; }
+  if (status == 1) { return 7; }
+  if (status == 2) { return 13; }
+  if (status == 3) { return 19; }
+  return 29;
+}
+
+int digest = 0;
+for (int round = 0; round < 50000; round++) {
+  digest = digest * 31 + score(statusAt(round));
+}
+print(digest);

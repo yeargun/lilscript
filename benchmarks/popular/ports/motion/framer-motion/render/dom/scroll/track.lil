@@ -1,0 +1,208 @@
+import { cancelFrame, frame, frameData } from "../../../../motion-dom/frameloop/index";
+import { FrameData } from "../../../../motion-dom/frameloop/types";
+import { resize } from "../../../../motion-dom/resize/index";
+import { addEventListener, removeEventListener, addWindowListener, removeWindowListener, documentElement, documentScrollingElement, documentGet, windowSelf } from "../../../../motion-dom/dom-host";
+import { createScrollInfo } from "./info";
+import { createOnScrollHandler } from "./on-scroll-handler";
+import { OnScrollHandler, ScrollInfo } from "./types";
+import extern {
+  weakMapCreate,
+  weakMapGet,
+  weakMapSet,
+  weakMapHas,
+  weakMapDelete,
+  weakMapGet as weakMapGetListener,
+  weakMapGet as weakMapGetHandlerSet,
+  weakMapGet as weakMapGetProcess
+} from "../../../../motion-dom/weak-host.ts";
+
+extern JsValue weakMapCreate();
+extern JsValue? weakMapGet(JsValue map, JsValue key);
+extern void weakMapSet(JsValue map, JsValue key, JsValue value);
+extern bool weakMapHas(JsValue map, JsValue key);
+extern void weakMapDelete(JsValue map, JsValue key);
+extern (func()->void)? weakMapGetListener(JsValue map, JsValue key);
+extern OnScrollHandlerSet? weakMapGetHandlerSet(JsValue map, JsValue key);
+extern (func(FrameData)->void)? weakMapGetProcess(JsValue map, JsValue key);
+
+class OnScrollHandlerSet {
+  OnScrollHandler[] inner;
+
+  init() {
+    this.inner = [];
+  }
+}
+
+JsValue scrollListeners = weakMapCreate();
+JsValue resizeListeners = weakMapCreate();
+JsValue onScrollHandlers = weakMapCreate();
+JsValue scrollSize = weakMapCreate();
+JsValue dimensionCheckProcesses = weakMapCreate();
+
+OnScrollHandlerSet handlerSetFor(JsValue container) {
+  OnScrollHandlerSet? existing = weakMapGetHandlerSet(onScrollHandlers, container);
+  if (existing != null) {
+    return existing;
+  }
+  OnScrollHandlerSet created = new OnScrollHandlerSet();
+  weakMapSet(onScrollHandlers, container, created);
+  return created;
+}
+
+JsValue getEventTarget(JsValue element) {
+  if (element == documentScrollingElement()) {
+    return windowSelf();
+  }
+  return element;
+}
+
+export func()->void scrollInfo(func(ScrollInfo)->void onScroll, JsValue? options = null) {
+  JsValue container = documentScrollingElement();
+  bool trackContentSize = false;
+  JsValue resolvedOptions = record{};
+
+  if (options != null && options.isObject()) {
+    for (string k in options) {
+      resolvedOptions[k] = options[k];
+    }
+    JsValue c = options["container"];
+    if (c != null) {
+      container = c;
+    }
+    JsValue track = options["trackContentSize"];
+    if (track is bool) {
+      trackContentSize = track;
+    }
+  }
+
+  if (container == null) {
+    return () => {};
+  }
+
+  OnScrollHandler[] containerHandlers = handlerSetFor(container).inner;
+
+  ScrollInfo info = createScrollInfo();
+  OnScrollHandler containerHandler = createOnScrollHandler(
+    container,
+    onScroll,
+    info,
+    resolvedOptions
+  );
+  bool __hasHandler = false;
+  for (int __hi = 0; __hi < containerHandlers.length; __hi++) {
+    if (containerHandlers[__hi] == containerHandler) { __hasHandler = true; break; }
+  }
+  if (!__hasHandler) { containerHandlers.push(containerHandler); }
+
+  if (!weakMapHas(scrollListeners, container)) {
+    JsValue activeContainer = container;
+    OnScrollHandler[] handlers = containerHandlers;
+
+    func()->void notifyAll = () => {
+      for (int hi = 0; hi < handlers.length; hi++) {
+        handlers[hi].notify();
+      }
+    };
+
+    func()->void measureAll = () => {
+      for (int hi = 0; hi < handlers.length; hi++) {
+        handlers[hi].measure(frameData.timestamp);
+      }
+      frame.preUpdate((FrameData _d) => {
+        notifyAll();
+      }, false, false);
+    };
+
+    func()->void listener = () => {
+      frame.read((FrameData _d) => {
+        measureAll();
+      }, false, false);
+    };
+
+    weakMapSet(scrollListeners, container, listener);
+
+    JsValue target = getEventTarget(container);
+    addWindowListener("resize", listener);
+    if (container != documentElement()) {
+      func()->void resizeCancel = resize(container, listener);
+      weakMapSet(resizeListeners, container, resizeCancel);
+    }
+    addEventListener(target, "scroll", listener, null);
+    listener();
+  }
+
+  if (trackContentSize && !weakMapHas(dimensionCheckProcesses, container)) {
+    (func()->void)? listener = weakMapGetListener(scrollListeners, container);
+    if (listener != null) {
+      JsValue size = record{};
+      JsValue sw = container["scrollWidth"];
+      JsValue sh = container["scrollHeight"];
+      size["width"] = sw;
+      size["height"] = sh;
+      weakMapSet(scrollSize, container, size);
+
+      func()->void activeListener = listener;
+      JsValue activeContainer = container;
+      func(FrameData)->void checkScrollDimensions = (FrameData _d) => {
+        JsValue? sizeRef = weakMapGet(scrollSize, activeContainer);
+        if (sizeRef == null) {
+          return;
+        }
+        JsValue newWidth = activeContainer["scrollWidth"];
+        JsValue newHeight = activeContainer["scrollHeight"];
+        if (sizeRef["width"] != newWidth || sizeRef["height"] != newHeight) {
+          activeListener();
+          sizeRef["width"] = newWidth;
+          sizeRef["height"] = newHeight;
+        }
+      };
+
+      frame.read(checkScrollDimensions, true, false);
+      weakMapSet(dimensionCheckProcesses, container, checkScrollDimensions);
+    }
+  }
+
+  (func()->void)? existingListener = weakMapGetListener(scrollListeners, container);
+  if (existingListener != null) {
+    func()->void listener = existingListener;
+    frame.read((FrameData _d) => {
+      listener();
+    }, false, true);
+  }
+
+  JsValue activeContainer = container;
+  OnScrollHandler activeHandler = containerHandler;
+  return () => {
+    OnScrollHandlerSet? currentHandlersWrapped = weakMapGetHandlerSet(onScrollHandlers, activeContainer);
+    if (currentHandlersWrapped == null) {
+      return;
+    }
+    OnScrollHandler[] currentHandlers = currentHandlersWrapped.inner;
+
+    for (int __di = currentHandlers.length - 1; __di >= 0; __di--) {
+      if (currentHandlers[__di] == activeHandler) { currentHandlers.splice(__di, 1); }
+    }
+    if (currentHandlers.length > 0) {
+      return;
+    }
+
+    (func()->void)? scrollListener = weakMapGetListener(scrollListeners, activeContainer);
+    weakMapDelete(scrollListeners, activeContainer);
+
+    if (scrollListener != null) {
+      removeEventListener(getEventTarget(activeContainer), "scroll", scrollListener, null);
+      (func()->void)? resizeCancel = weakMapGetListener(resizeListeners, activeContainer);
+      if (resizeCancel != null) {
+        resizeCancel();
+      }
+      removeWindowListener("resize", scrollListener);
+    }
+
+    (func(FrameData)->void)? dimensionCheckProcess = weakMapGetProcess(dimensionCheckProcesses, activeContainer);
+    if (dimensionCheckProcess != null) {
+      cancelFrame(dimensionCheckProcess);
+      weakMapDelete(dimensionCheckProcesses, activeContainer);
+    }
+    weakMapDelete(scrollSize, activeContainer);
+  };
+}

@@ -1,0 +1,17 @@
+import { AnimationState } from "../../animation-state";
+
+export float maxGeneratorDuration = 20000.0;
+
+export float calcGeneratorDuration(func(float)->AnimationState next) {
+  float duration = 0.0;
+  float timeStep = 50.0;
+  AnimationState state = next(duration);
+  while (!state.done && duration < maxGeneratorDuration) {
+    duration = duration + timeStep;
+    state = next(duration);
+  }
+  if (duration >= maxGeneratorDuration) {
+    return maxGeneratorDuration;
+  }
+  return duration;
+}

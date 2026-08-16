@@ -1,0 +1,2600 @@
+import {
+  Context,
+  Future,
+  OwnerHandle,
+  Resource,
+  Observable,
+  Selector,
+  Signal,
+  Subscription,
+  Task,
+  batch,
+  cancelCallback,
+  children,
+  createBoolSignal,
+  createContext,
+  createDeferred,
+  createComputed,
+  createEffect,
+  createIntMemo,
+  createIntSignal,
+  createIntSignalWithEquals,
+  createMemo,
+  createMemoWithPrevious,
+  createReaction,
+  createResource,
+  createRenderEffect,
+  createRoot,
+  createRootWithOwner,
+  createSignal,
+  createSelector,
+  createUniqueId,
+  enableScheduling,
+  getListener,
+  getOwner,
+  indexArray,
+  indexArrayWithFallback,
+  mapArray,
+  mapArrayWithFallback,
+  observable,
+  on,
+  on2,
+  onWithInitial,
+  onCleanup,
+  onMount,
+  runWithOwner,
+  from,
+  fromObservable,
+  flushCallbacks,
+  requestCallback,
+  untrack,
+  untrackInt,
+  useContext,
+  diagnosticPendingEffects,
+  takeNextEffect
+} from "../../apps/lilscript/src/reactive";
+import { createComponent } from "../../apps/lilscript/src/component";
+import {
+  BoolMatch,
+  IntMatch,
+  KeyedIntMatch,
+  forEach,
+  indexEach,
+  show,
+  showKeyedInt,
+  switchBool,
+  switchInt,
+  switchKeyedInt
+} from "../../apps/lilscript/src/flow";
+
+void report(int caseId, bool passed) {
+  if (diagnosticPendingEffects() > 1000000) {
+    takeNextEffect();
+  }
+  print("case:" + caseId + ":" + passed);
+}
+
+class IntBox {
+  int value;
+
+  init(int value) {
+    this.value = value;
+  }
+
+  void increment() {
+    this.value += 1;
+  }
+
+  void set(int value) {
+    this.value = value;
+  }
+}
+
+class StringBox {
+  string value;
+
+  init(string value) {
+    this.value = value;
+  }
+
+  void set(string value) {
+    this.value = value;
+  }
+
+  void append(string value) {
+    this.value = this.value + value;
+  }
+}
+
+class GreetingProps {
+  string greeting;
+  Signal<string> name;
+
+  init(string greeting, Signal<string> name) {
+    this.greeting = greeting;
+    this.name = name;
+  }
+}
+
+class OwnerBox {
+  OwnerHandle? value;
+
+  init() {
+    this.value = null;
+  }
+
+  void set(OwnerHandle? value) {
+    this.value = value;
+  }
+}
+
+class DisposeBox {
+  func()->void value;
+
+  init() {
+    this.value = () => {};
+  }
+
+  void set(func()->void value) {
+    this.value = value;
+  }
+
+  void run() {
+    func()->void value = this.value;
+    value();
+  }
+}
+
+class IntSignalBox {
+  Signal<int> value;
+
+  init() {
+    this.value = createIntSignal(0);
+  }
+
+  void set(Signal<int> value) {
+    this.value = value;
+  }
+
+  int read() {
+    return this.value.read();
+  }
+}
+
+class BoolSignalBox {
+  Signal<bool> value;
+
+  init() {
+    this.value = createBoolSignal(false);
+  }
+
+  void set(Signal<bool> value) {
+    this.value = value;
+  }
+
+  bool read() {
+    return this.value.read();
+  }
+}
+
+class MappedRow {
+  int value;
+  Signal<int> index;
+
+  init(int value, Signal<int> index) {
+    this.value = value;
+    this.index = index;
+  }
+
+  int currentIndex() {
+    return this.index.read();
+  }
+}
+
+class IndexedRow {
+  Signal<int> value;
+  int index;
+
+  init(Signal<int> value, int index) {
+    this.value = value;
+    this.index = index;
+  }
+
+  int currentValue() {
+    return this.value.read();
+  }
+}
+
+class IntAccessorBox {
+  func()->int value;
+
+  init(func()->int value) {
+    this.value = value;
+  }
+
+  int read() {
+    func()->int value = this.value;
+    return value();
+  }
+}
+
+class StringProducer {
+  func(string)->string setter;
+  bool active;
+  int cleanupRuns;
+
+  init() {
+    this.setter = (string value) => value;
+    this.active = false;
+    this.cleanupRuns = 0;
+  }
+
+  func()->void connect(func(string)->string setter) {
+    this.setter = setter;
+    this.active = true;
+    setter("connected");
+    return () => {
+      this.active = false;
+      this.cleanupRuns += 1;
+    };
+  }
+
+  void emit(string value) {
+    if (this.active) {
+      func(string)->string setter = this.setter;
+      setter(value);
+    }
+  }
+}
+
+class StringFutureSource {
+  Future<string>[] requests;
+
+  init() {
+    this.requests = [];
+  }
+
+  Future<string> fetch(string key) {
+    Future<string> request = new Future("");
+    this.requests.push(request);
+    return request;
+  }
+
+  void resolve(int index, string value) {
+    this.requests[index].resolve(value);
+  }
+
+  void reject(int index, string error) {
+    this.requests[index].reject(error);
+  }
+}
+
+Signal<int[]> createIntArraySignal(int[] initial) {
+  return createSignal(
+    initial,
+    (int[] previous, int[] next) => previous == next
+  );
+}
+
+void signalReadAndUpdate() {
+  Signal<int> signal = createIntSignal(5);
+  bool initial = signal.read() == 5;
+  signal.write(10);
+  report(1, initial && signal.read() == 10);
+}
+
+void signalComparator() {
+  Signal<int> signal = createIntSignalWithEquals(5, (int previous, int next) => previous > next);
+  signal.write(3);
+  report(2, signal.read() == 5);
+}
+
+void defaultSignalComparatorSkipsEqualWrites() {
+  Signal<string> signal = createSignal("same");
+  IntBox runs = new IntBox(0);
+  func()->void dispose = createRoot((func()->void dispose) => {
+    createEffect(() => {
+      signal.read();
+      runs.increment();
+    });
+    return dispose;
+  });
+  signal.write("same");
+  bool skippedInitial = runs.value == 1;
+  signal.write("next");
+  signal.write("next");
+  report(106, skippedInitial && runs.value == 2);
+  dispose();
+}
+
+void memoReceivesInitialValue() {
+  Signal<string> memo = createRoot((func()->void dispose) => {
+    Signal<string> created = createMemoWithPrevious(
+      "Hello",
+      (string previous) => previous + " John"
+    );
+    return created;
+  });
+  report(107, memo.read() == "Hello John");
+}
+
+void onTracksMultipleExplicitDependencies() {
+  Signal<string> text = createSignal("thoughts");
+  Signal<int> count = createSignal(3);
+  StringBox observed = new StringBox("");
+  func()->void dispose = createRoot((func()->void dispose) => {
+    createEffect(on2(
+      text,
+      count,
+      (string textValue, int countValue) => {
+        observed.set(textValue + "-" + countValue);
+      }
+    ));
+    return dispose;
+  });
+  bool initial = observed.value == "thoughts-3";
+  count.write(4);
+  bool countUpdated = observed.value == "thoughts-4";
+  text.write("minds");
+  report(108, initial && countUpdated && observed.value == "minds-4");
+  dispose();
+}
+
+void deferredOnReceivesInitialAccumulator() {
+  Signal<string> source = createSignal("thoughts");
+  StringBox observed = new StringBox("");
+  func()->void dispose = createRoot((func()->void dispose) => {
+    createEffect(onWithInitial(
+      source,
+      "numbers",
+      (string value, string previous) => {
+        string next = previous + "-" + value;
+        observed.set(next);
+        return next;
+      }
+    ));
+    return dispose;
+  });
+  bool deferred = observed.value == "";
+  source.write("minds");
+  report(109, deferred && observed.value == "numbers-minds");
+  dispose();
+}
+
+void cleanupsDisposeInReverseRegistrationOrder() {
+  StringBox order = new StringBox("");
+  func()->void dispose = createRoot((func()->void dispose) => {
+    onCleanup(() => order.append("a"));
+    onCleanup(() => order.append("b"));
+    onCleanup(() => order.append("c"));
+    return dispose;
+  });
+  dispose();
+  report(110, order.value == "cba");
+}
+
+void staleOwnerHandlesCannotAttachToReusedRoots() {
+  OwnerBox stale = new OwnerBox();
+  OwnerBox fresh = new OwnerBox();
+  func()->void disposeStale = createRoot((func()->void dispose) => {
+    stale.set(getOwner());
+    return dispose;
+  });
+  disposeStale();
+  func()->void disposeFresh = createRoot((func()->void dispose) => {
+    fresh.set(getOwner());
+    return dispose;
+  });
+  IntBox detached = new IntBox(0);
+  runWithOwner(stale.value, () => {
+    if (getOwner() == null) {
+      detached.set(1);
+    }
+    return 0;
+  });
+  bool reusedSafely = false;
+  OwnerHandle? staleValue = stale.value;
+  OwnerHandle? freshValue = fresh.value;
+  if (staleValue != null && freshValue != null) {
+    reusedSafely = staleValue.kind == 0 && freshValue.kind != 0 &&
+      staleValue.id == freshValue.id &&
+      staleValue != freshValue;
+  }
+  report(111, reusedSafely && detached.value == 1);
+  disposeFresh();
+}
+
+void disposedEffectSlotsAreReusedWithoutRevivingHandles() {
+  OwnerBox stale = new OwnerBox();
+  OwnerBox fresh = new OwnerBox();
+  func()->void disposeStale = createRoot((func()->void dispose) => {
+    createEffect(() => stale.set(getListener()));
+    return dispose;
+  });
+  disposeStale();
+  func()->void disposeFresh = createRoot((func()->void dispose) => {
+    createEffect(() => fresh.set(getListener()));
+    return dispose;
+  });
+  bool reusedSafely = false;
+  OwnerHandle? staleValue = stale.value;
+  OwnerHandle? freshValue = fresh.value;
+  if (staleValue != null && freshValue != null) {
+    reusedSafely = staleValue.kind == 0 && freshValue.kind != 0 &&
+      staleValue.id == freshValue.id &&
+      staleValue != freshValue;
+  }
+  report(112, reusedSafely);
+  disposeFresh();
+}
+
+void repeatedReadsRunOnce() {
+  Signal<int> signal = createIntSignal(0);
+  IntBox runs = new IntBox(0);
+  func()->void dispose = createRoot((func()->void dispose) => {
+    createEffect(() => {
+      runs.increment();
+      for (int index = 0; index < 100; index++) {
+        signal.read();
+      }
+    });
+    return dispose;
+  });
+  signal.write(1);
+  report(3, runs.value == 2);
+  dispose();
+}
+
+void disposedEffectsStop() {
+  Signal<int> signal = createIntSignal(0);
+  IntBox runs = new IntBox(0);
+  func()->void dispose = createRoot((func()->void dispose) => {
+    createEffect(() => {
+      signal.read();
+      runs.increment();
+    });
+    return dispose;
+  });
+  signal.write(1);
+  dispose();
+  signal.write(2);
+  report(4, runs.value == 2);
+}
+
+void conditionalDependencies() {
+  Signal<bool> enabled = createBoolSignal(true);
+  Signal<int> value = createIntSignal(0);
+  IntBox runs = new IntBox(0);
+  func()->void dispose = createRoot((func()->void dispose) => {
+    createEffect(() => {
+      runs.increment();
+      if (enabled.read()) {
+        value.read();
+      }
+    });
+    return dispose;
+  });
+  value.write(1);
+  enabled.write(false);
+  value.write(2);
+  bool inactiveSkipped = runs.value == 3;
+  enabled.write(true);
+  value.write(3);
+  report(5, inactiveSkipped && runs.value == 5);
+  dispose();
+}
+
+void memoUpdates() {
+  Signal<int> source = createIntSignal(2);
+  Signal<int> memo = createIntMemo(() => source.read() * 3);
+  bool initial = memo.read() == 6;
+  source.write(4);
+  report(6, initial && memo.read() == 12);
+}
+
+void unchangedMemoDoesNotPropagate() {
+  Signal<int> source = createIntSignalWithEquals(1, (int previous, int next) => false);
+  Signal<int> memo = createIntMemo(() => source.read() % 2);
+  IntBox runs = new IntBox(0);
+  createEffect(() => {
+    memo.read();
+    runs.increment();
+  });
+  source.write(3);
+  report(7, runs.value == 1);
+}
+
+void effectsRunImmediatelyAndUpdate() {
+  Signal<int> source = createIntSignal(1);
+  IntBox observed = new IntBox(0);
+  createEffect(() => observed.set(source.read()));
+  bool initial = observed.value == 1;
+  source.write(8);
+  report(8, initial && observed.value == 8);
+}
+
+void untrackingMutesSubscriptions() {
+  Signal<int> source = createIntSignal(3);
+  IntBox runs = new IntBox(0);
+  createEffect(() => {
+    untrackInt(() => source.read());
+    runs.increment();
+  });
+  source.write(4);
+  report(9, runs.value == 1);
+}
+
+void batchGroupsWrites() {
+  Signal<int> left = createIntSignal(0);
+  Signal<int> right = createIntSignal(0);
+  IntBox runs = new IntBox(0);
+  IntBox total = new IntBox(0);
+  createEffect(() => {
+    runs.increment();
+    total.set(left.read() + right.read());
+  });
+  batch(() => {
+    left.write(2);
+    right.write(3);
+    return 0;
+  });
+  report(10, runs.value == 2 && total.value == 5);
+}
+
+void batchCoalescesRepeatedSets() {
+  Signal<int> source = createIntSignal(0);
+  IntBox runs = new IntBox(0);
+  createEffect(() => {
+    source.read();
+    runs.increment();
+  });
+  batch(() => {
+    source.write(1);
+    source.write(2);
+    source.write(3);
+    return 0;
+  });
+  report(11, runs.value == 2 && source.read() == 3);
+}
+
+void cleanupRunsBeforeRerun() {
+  Signal<int> source = createIntSignal(0);
+  IntBox cleanups = new IntBox(0);
+  createEffect(() => {
+    source.read();
+    onCleanup(() => cleanups.increment());
+  });
+  bool before = cleanups.value == 0;
+  source.write(1);
+  report(12, before && cleanups.value == 1);
+}
+
+void rootCleanupRunsOnDispose() {
+  IntBox cleanups = new IntBox(0);
+  func()->void dispose = createRoot((func()->void dispose) => {
+    onCleanup(() => cleanups.increment());
+    return dispose;
+  });
+  bool before = cleanups.value == 0;
+  dispose();
+  report(13, before && cleanups.value == 1);
+}
+
+void nestedEffectsAreReplaced() {
+  Signal<int> outer = createIntSignal(0);
+  Signal<int> inner = createIntSignal(0);
+  IntBox innerRuns = new IntBox(0);
+  func()->void dispose = createRoot((func()->void dispose) => {
+    createEffect(() => {
+      outer.read();
+      createEffect(() => {
+        inner.read();
+        innerRuns.increment();
+      });
+    });
+    return dispose;
+  });
+  outer.write(1);
+  inner.write(1);
+  report(14, innerRuns.value == 3);
+  dispose();
+}
+
+void diamondMemoRunsOnce() {
+  Signal<int> source = createIntSignal(0);
+  Signal<int> left = createIntMemo(() => source.read() + 1);
+  Signal<int> right = createIntMemo(() => source.read() + 2);
+  IntBox computes = new IntBox(0);
+  Signal<int> total = createIntMemo(() => {
+    computes.increment();
+    return left.read() + right.read();
+  });
+  computes.set(0);
+  source.write(1);
+  report(15, computes.value == 1 && total.read() == 5);
+}
+
+void memoChangesDependencies() {
+  Signal<bool> enabled = createBoolSignal(true);
+  Signal<int> left = createIntSignal(1);
+  Signal<int> right = createIntSignal(2);
+  IntBox computes = new IntBox(0);
+  Signal<int> selected = createIntMemo(() => {
+    computes.increment();
+    if (enabled.read()) {
+      return left.read();
+    }
+    return right.read();
+  });
+  computes.set(0);
+  right.write(4);
+  bool ignoredInactive = computes.value == 0 && selected.read() == 1;
+  enabled.write(false);
+  computes.set(0);
+  left.write(5);
+  bool removedOld = computes.value == 0;
+  right.write(6);
+  report(16, ignoredInactive && removedOld && computes.value == 1 && selected.read() == 6);
+}
+
+void nestedBatchesFlushOnce() {
+  Signal<int> source = createIntSignal(0);
+  IntBox runs = new IntBox(0);
+  createEffect(() => {
+    source.read();
+    runs.increment();
+  });
+  batch(() => {
+    source.write(1);
+    batch(() => {
+      source.write(2);
+      return 0;
+    });
+    source.write(3);
+    return 0;
+  });
+  report(17, runs.value == 2 && source.read() == 3);
+}
+
+void duplicateReadsHaveOneSubscription() {
+  Signal<int> source = createIntSignal(0);
+  IntBox runs = new IntBox(0);
+  createEffect(() => {
+    source.read();
+    source.read();
+    source.read();
+    runs.increment();
+  });
+  source.write(1);
+  report(18, runs.value == 2);
+}
+
+void disposalIsIdempotent() {
+  IntBox cleanups = new IntBox(0);
+  func()->void dispose = createRoot((func()->void dispose) => {
+    onCleanup(() => cleanups.increment());
+    return dispose;
+  });
+  dispose();
+  dispose();
+  report(19, cleanups.value == 1);
+}
+
+void cleanupRegistersAgainAfterRerun() {
+  Signal<int> source = createIntSignal(0);
+  IntBox cleanups = new IntBox(0);
+  createEffect(() => {
+    source.read();
+    onCleanup(() => cleanups.increment());
+  });
+  source.write(1);
+  source.write(2);
+  report(20, cleanups.value == 2);
+}
+
+void genericStringSignalUpdates() {
+  Signal<string> signal = createSignal(
+    "first",
+    (string previous, string next) => previous == next
+  );
+  signal.update((string value) => value + "-second");
+  report(21, signal.read() == "first-second");
+}
+
+void genericBoolMemoUpdates() {
+  Signal<bool> source = createSignal(
+    false,
+    (bool previous, bool next) => previous == next
+  );
+  Signal<bool> memo = createMemo(
+    true,
+    () => !source.read(),
+    (bool previous, bool next) => previous == next
+  );
+  bool initial = memo.read();
+  source.write(true);
+  report(22, initial && !memo.read());
+}
+
+void genericUntrackReturnsString() {
+  Signal<string> source = createSignal(
+    "tracked",
+    (string previous, string next) => previous == next
+  );
+  IntBox runs = new IntBox(0);
+  createEffect(() => {
+    string value = untrack(() => source.read());
+    if (value == "tracked") {
+      runs.increment();
+    }
+  });
+  source.write("changed");
+  report(23, runs.value == 1);
+}
+
+void reactionIsOneShotAndRearms() {
+  Signal<string> source = createSignal(
+    "thoughts",
+    (string previous, string next) => previous == next
+  );
+  IntBox runs = new IntBox(0);
+  func(func()->void)->void track = createReaction(() => runs.increment());
+  track(() => {
+    source.read();
+  });
+  bool initial = runs.value == 0;
+  source.write("mind");
+  source.write("body");
+  bool oneShot = runs.value == 1;
+  track(() => {
+    source.read();
+  });
+  source.write("everything");
+  report(24, initial && oneShot && runs.value == 2);
+}
+
+void onRunsImmediately() {
+  Signal<int> source = createIntSignal(3);
+  IntBox observed = new IntBox(-1);
+  createEffect(on(source, (int value) => observed.set(value)));
+  report(25, observed.value == 3);
+}
+
+void onCanDeferInitialRun() {
+  Signal<int> source = createIntSignal(3);
+  IntBox observed = new IntBox(-1);
+  createEffect(on(source, (int value) => observed.set(value), true));
+  bool initial = observed.value == -1;
+  source.write(5);
+  report(26, initial && observed.value == 5);
+}
+
+void onMountRunsCallback() {
+  IntBox runs = new IntBox(0);
+  createRoot((func()->void dispose) => {
+    onMount(() => runs.increment());
+    return 0;
+  });
+  report(27, runs.value == 1);
+}
+
+void untrackPreservesOwnership() {
+  Signal<int> source = createIntSignal(0);
+  IntBox runs = new IntBox(0);
+  func()->void dispose = createRoot((func()->void dispose) => {
+    untrackInt(() => {
+      createEffect(() => {
+        source.read();
+        runs.increment();
+      });
+      return 0;
+    });
+    return dispose;
+  });
+  source.write(1);
+  dispose();
+  source.write(2);
+  report(28, runs.value == 2);
+}
+
+void onMountDefersUntilRootReturns() {
+  IntBox phase = new IntBox(0);
+  IntBox duringRoot = new IntBox(0);
+  createRoot((func()->void dispose) => {
+    onMount(() => phase.set(2));
+    if (phase.value == 0) {
+      duringRoot.set(1);
+    }
+    return 0;
+  });
+  report(29, duringRoot.value == 1 && phase.value == 2);
+}
+
+void onMountCleanupBelongsToRoot() {
+  IntBox cleanups = new IntBox(0);
+  func()->void dispose = createRoot((func()->void dispose) => {
+    onMount(() => {
+      onCleanup(() => cleanups.increment());
+    });
+    return dispose;
+  });
+  bool before = cleanups.value == 0;
+  dispose();
+  report(30, before && cleanups.value == 1);
+}
+
+void getOwnerCapturesCurrentRoot() {
+  IntBox valid = new IntBox(0);
+  createRoot((func()->void dispose) => {
+    OwnerHandle? owner = getOwner();
+    if (owner != null) {
+      if (owner.kind == 1) {
+        valid.set(1);
+      }
+    }
+    return 0;
+  });
+  report(31, valid.value == 1);
+}
+
+void nestedRootsRetainParentOwner() {
+  IntBox matches = new IntBox(0);
+  createRoot((func()->void dispose) => {
+    OwnerHandle? outer = getOwner();
+    if (outer != null) {
+      createRoot((func()->void nestedDispose) => {
+        OwnerHandle? current = getOwner();
+        if (current != null) {
+          OwnerHandle? parent = current.owner;
+          if (parent != null) {
+            if (parent == outer) {
+              matches.set(1);
+            }
+          }
+        }
+        return 0;
+      });
+    }
+    return 0;
+  });
+  report(32, matches.value == 1);
+}
+
+void runWithOwnerSchedulesAndDisposes() {
+  OwnerBox owner = new OwnerBox();
+  IntBox effectRuns = new IntBox(0);
+  IntBox cleanupRuns = new IntBox(0);
+  IntBox duringCallback = new IntBox(0);
+  func()->void dispose = createRoot((func()->void dispose) => {
+    owner.set(getOwner());
+    return dispose;
+  });
+  runWithOwner(owner.value, () => {
+    createEffect(() => effectRuns.increment());
+    onCleanup(() => cleanupRuns.increment());
+    if (effectRuns.value == 0 && cleanupRuns.value == 0) {
+      duringCallback.set(1);
+    }
+    return 0;
+  });
+  bool after = effectRuns.value == 1 && cleanupRuns.value == 0;
+  dispose();
+  report(33, duringCallback.value == 1 && after && cleanupRuns.value == 1);
+}
+
+void runWithOwnerDoesNotTrack() {
+  OwnerBox owner = new OwnerBox();
+  createRoot((func()->void dispose) => {
+    owner.set(getOwner());
+    return 0;
+  });
+  Signal<int> source = createIntSignal(0);
+  IntBox runs = new IntBox(0);
+  createEffect(() => {
+    runs.increment();
+    runWithOwner(owner.value, () => {
+      source.read();
+      return 0;
+    });
+  });
+  source.write(1);
+  report(34, runs.value == 1);
+}
+
+void getOwnerIsNullOutsideOwnership() {
+  report(43, getOwner() == null);
+}
+
+void listenerReflectsTrackingAndUntrack() {
+  IntBox tracked = new IntBox(0);
+  IntBox muted = new IntBox(0);
+  bool outside = getListener() == null;
+  createEffect(() => {
+    OwnerHandle? listener = getListener();
+    OwnerHandle? owner = getOwner();
+    if (listener != null) {
+      if (owner != null) {
+        if (listener == owner) {
+          tracked.set(1);
+        }
+      }
+    }
+    muted.set(untrackInt(() => {
+      if (getListener() == null) {
+        return 1;
+      }
+      return 0;
+    }));
+  });
+  report(44, outside && tracked.value == 1 && muted.value == 1);
+}
+
+void rootReturnsCallbackResultAndProvidesDisposer() {
+  DisposeBox disposer = new DisposeBox();
+  IntBox cleanups = new IntBox(0);
+  int result = createRoot((func()->void dispose) => {
+    disposer.set(dispose);
+    onCleanup(() => cleanups.increment());
+    return 17;
+  });
+  bool before = cleanups.value == 0;
+  disposer.run();
+  report(45, result == 17 && before && cleanups.value == 1);
+}
+
+void cleanupReturnsRegisteredCallback() {
+  DisposeBox returned = new DisposeBox();
+  IntBox runs = new IntBox(0);
+  func()->void dispose = createRoot((func()->void dispose) => {
+    returned.set(onCleanup(() => runs.increment()));
+    return dispose;
+  });
+  returned.run();
+  bool manual = runs.value == 1;
+  dispose();
+  report(46, manual && runs.value == 2);
+}
+
+void runWithOwnerReturnsCallbackResult() {
+  string result = runWithOwner(null, () => {
+    if (getOwner() == null) {
+      return "detached";
+    }
+    return "owned";
+  });
+  report(47, result == "detached");
+}
+
+void batchReturnsCallbackResult() {
+  Signal<int> source = createIntSignal(0);
+  IntBox runs = new IntBox(0);
+  createEffect(() => {
+    source.read();
+    runs.increment();
+  });
+  int result = batch(() => {
+    source.write(1);
+    source.write(2);
+    return 29;
+  });
+  report(48, result == 29 && runs.value == 2 && source.read() == 2);
+}
+
+void mapArrayTransformsAndReconciles() {
+  Signal<int[]> source = createIntArraySignal([1, 2, 3, 4]);
+  func()->int[] mapped = mapArray(
+    source,
+    (int value, Signal<int> index) => value * 2
+  );
+  int[] initial = mapped();
+  bool initialValues = initial.length == 4 && initial[0] == 2 && initial[3] == 8;
+  source.write([3, 4, 5]);
+  int[] updated = mapped();
+  report(
+    49,
+    initialValues && updated.length == 3 && updated[0] == 6 && updated[2] == 10
+  );
+}
+
+void mapArrayPreservesRowsAndIndexes() {
+  Signal<int[]> source = createIntArraySignal([10, 20, 30]);
+  func()->MappedRow[] mapped = mapArray(
+    source,
+    (int value, Signal<int> index) => new MappedRow(value, index)
+  );
+  MappedRow[] initial = mapped();
+  MappedRow first = initial[0];
+  MappedRow second = initial[1];
+  MappedRow third = initial[2];
+  source.write([30, 10, 20]);
+  MappedRow[] reordered = mapped();
+  report(
+    50,
+    reordered[0] == third && reordered[1] == first && reordered[2] == second &&
+      third.currentIndex() == 0 && first.currentIndex() == 1 && second.currentIndex() == 2
+  );
+}
+
+void mapArrayDisposesRemovedRows() {
+  Signal<int[]> source = createIntArraySignal([1, 2, 3]);
+  IntBox cleanups = new IntBox(0);
+  DisposeBox rootDispose = new DisposeBox();
+  func()->MappedRow[] mapped = createRoot((func()->void dispose) => {
+    rootDispose.set(dispose);
+    return mapArray(source, (int value, Signal<int> index) => {
+      onCleanup(() => cleanups.increment());
+      return new MappedRow(value, index);
+    });
+  });
+  mapped();
+  source.write([1, 3]);
+  mapped();
+  bool removed = cleanups.value == 1;
+  rootDispose.run();
+  report(51, removed && cleanups.value == 3);
+}
+
+void mapArrayKeepsDuplicateRowsStable() {
+  Signal<int[]> source = createIntArraySignal([1, 1, 2]);
+  func()->MappedRow[] mapped = mapArray(
+    source,
+    (int value, Signal<int> index) => new MappedRow(value, index)
+  );
+  MappedRow[] initial = mapped();
+  MappedRow firstOne = initial[0];
+  MappedRow secondOne = initial[1];
+  MappedRow two = initial[2];
+  source.write([1, 2, 1]);
+  MappedRow[] reordered = mapped();
+  bool chained =
+    reordered[0] == firstOne && reordered[1] == two && reordered[2] == secondOne &&
+      firstOne.currentIndex() == 0 && two.currentIndex() == 1 &&
+      secondOne.currentIndex() == 2;
+  source.write([2, 1, 3]);
+  MappedRow[] beforeSuffixDuplicate = mapped();
+  MappedRow preservedOne = beforeSuffixDuplicate[1];
+  MappedRow preservedThree = beforeSuffixDuplicate[2];
+  source.write([1, 1, 3]);
+  MappedRow[] suffixDuplicate = mapped();
+  report(
+    52,
+    chained && suffixDuplicate[0] != preservedOne &&
+      suffixDuplicate[1] == preservedOne && suffixDuplicate[2] == preservedThree &&
+      suffixDuplicate[0].currentIndex() == 0 &&
+      preservedOne.currentIndex() == 1 && preservedThree.currentIndex() == 2
+  );
+}
+
+string|int doubledFallbackValue(int value, Signal<int> index) {
+  return value * 2;
+}
+
+string renderFallbackValue(string|int value) {
+  if (value is string) {
+    return value;
+  } else {
+    return "item-" + value;
+  }
+}
+
+void mapArrayFallbackHasOwnedLifecycle() {
+  Signal<int[]> source = createIntArraySignal([]);
+  IntBox creates = new IntBox(0);
+  IntBox cleanups = new IntBox(0);
+  DisposeBox rootDispose = new DisposeBox();
+  func()->(string|int)[] mapped = createRoot((func()->void dispose) => {
+    rootDispose.set(dispose);
+    return mapArrayWithFallback(
+      source,
+      doubledFallbackValue,
+      () => {
+        creates.increment();
+        onCleanup(() => cleanups.increment());
+        return "empty";
+      }
+    );
+  });
+  (string|int)[] empty = mapped();
+  mapped();
+  bool reused =
+    empty.length == 1 && renderFallbackValue(empty[0]) == "empty" && creates.value == 1;
+  source.write([4]);
+  (string|int)[] item = mapped();
+  bool replaced =
+    item.length == 1 && renderFallbackValue(item[0]) == "item-8" && cleanups.value == 1;
+  source.write([]);
+  mapped();
+  bool recreated = creates.value == 2;
+  rootDispose.run();
+  report(53, reused && replaced && recreated && cleanups.value == 2);
+}
+
+void indexArrayUpdatesValuesWithoutRemapping() {
+  Signal<int[]> source = createIntArraySignal([1, 2]);
+  IntBox maps = new IntBox(0);
+  func()->IndexedRow[] mapped = indexArray(
+    source,
+    (Signal<int> value, int index) => {
+      maps.increment();
+      return new IndexedRow(value, index);
+    }
+  );
+  IndexedRow[] initial = mapped();
+  IndexedRow first = initial[0];
+  IndexedRow second = initial[1];
+  source.write([4, 5]);
+  IndexedRow[] updated = mapped();
+  report(
+    54,
+    maps.value == 2 && updated[0] == first && updated[1] == second &&
+      first.currentValue() == 4 && second.currentValue() == 5
+  );
+}
+
+void indexArrayAddsAndDisposesTrailingRows() {
+  Signal<int[]> source = createIntArraySignal([1]);
+  IntBox maps = new IntBox(0);
+  IntBox cleanups = new IntBox(0);
+  DisposeBox rootDispose = new DisposeBox();
+  func()->IndexedRow[] mapped = createRoot((func()->void dispose) => {
+    rootDispose.set(dispose);
+    return indexArray(source, (Signal<int> value, int index) => {
+      maps.increment();
+      onCleanup(() => cleanups.increment());
+      return new IndexedRow(value, index);
+    });
+  });
+  mapped();
+  source.write([1, 2, 3]);
+  mapped();
+  bool added = maps.value == 3;
+  source.write([7]);
+  IndexedRow[] shortened = mapped();
+  bool removed = cleanups.value == 2 && shortened.length == 1 &&
+    shortened[0].currentValue() == 7;
+  rootDispose.run();
+  report(55, added && removed && cleanups.value == 3);
+}
+
+void indexArrayFallbackHasOwnedLifecycle() {
+  Signal<int[]> source = createIntArraySignal([]);
+  IntBox creates = new IntBox(0);
+  IntBox cleanups = new IntBox(0);
+  DisposeBox rootDispose = new DisposeBox();
+  func()->string[] mapped = createRoot((func()->void dispose) => {
+    rootDispose.set(dispose);
+    return indexArrayWithFallback(
+      source,
+      (Signal<int> value, int index) => "item-" + value.read(),
+      () => {
+        creates.increment();
+        onCleanup(() => cleanups.increment());
+        return "empty";
+      }
+    );
+  });
+  mapped();
+  mapped();
+  bool reused = creates.value == 1;
+  source.write([8]);
+  string[] item = mapped();
+  bool replaced = item[0] == "item-8" && cleanups.value == 1;
+  source.write([]);
+  mapped();
+  rootDispose.run();
+  report(56, reused && replaced && creates.value == 2 && cleanups.value == 2);
+}
+
+void nestedRootsDisposeWithTheirParent() {
+  Signal<int> source = createIntSignal(0);
+  IntBox runs = new IntBox(0);
+  func()->void dispose = createRoot((func()->void dispose) => {
+    createRootWithOwner((func()->void childDispose) => {
+      createEffect(() => {
+        source.read();
+        runs.increment();
+      });
+      return 0;
+    }, getOwner(), true);
+    return dispose;
+  });
+  source.write(1);
+  bool active = runs.value == 2;
+  dispose();
+  source.write(2);
+  report(57, active && runs.value == 2);
+}
+
+void explicitNullOwnerCreatesDetachedRoot() {
+  Signal<int> source = createIntSignal(0);
+  IntBox runs = new IntBox(0);
+  DisposeBox detachedDispose = new DisposeBox();
+  func()->void parentDispose = createRoot((func()->void dispose) => {
+    detachedDispose.set(createRootWithOwner((func()->void detached) => {
+      createEffect(() => {
+        source.read();
+        runs.increment();
+      });
+      return detached;
+    }));
+    return dispose;
+  });
+  parentDispose();
+  source.write(1);
+  bool stayedActive = runs.value == 2;
+  detachedDispose.run();
+  source.write(2);
+  report(58, stayedActive && runs.value == 2);
+}
+
+void explicitOwnerAttachesRootForDisposal() {
+  Signal<int> source = createIntSignal(0);
+  IntBox runs = new IntBox(0);
+  OwnerBox parent = new OwnerBox();
+  func()->void parentDispose = createRoot((func()->void dispose) => {
+    parent.set(getOwner());
+    return dispose;
+  });
+  createRootWithOwner((func()->void childDispose) => {
+    createEffect(() => {
+      source.read();
+      runs.increment();
+    });
+    return 0;
+  }, parent.value, true);
+  source.write(1);
+  bool active = runs.value == 2;
+  parentDispose();
+  source.write(2);
+  report(59, active && runs.value == 2);
+}
+
+void uniqueIdsAreStableAndDistinct() {
+  string first = createUniqueId();
+  string second = createUniqueId();
+  report(
+    60,
+    first == "cl-0" && second == "cl-1" && first != second
+  );
+}
+
+void signalWritesReturnAssignedValues() {
+  Signal<int> source = createIntSignal(1);
+  int first = source.write(5);
+  int second = source.write(5);
+  int third = source.update((int value) => value + 4);
+  report(61, first == 5 && second == 5 && third == 9 && source.read() == 9);
+}
+
+void memosPropagateInTopologicalOrder() {
+  Signal<int> source = createIntSignal(0);
+  StringBox order = new StringBox("");
+  Signal<int> left = createIntMemo(() => {
+    order.append("left");
+    return source.read() + 1;
+  });
+  Signal<int> right = createIntMemo(() => {
+    order.append("right");
+    return source.read() + 2;
+  });
+  Signal<int> total = createIntMemo(() => {
+    int value = left.read() + right.read();
+    order.append("total");
+    return value;
+  });
+  order.set("");
+  source.write(1);
+  report(62, order.value == "leftrighttotal" && total.read() == 5);
+}
+
+void exponentialMemoConvergenceRunsOnce() {
+  Signal<int> source = createIntSignal(0);
+  Signal<int> first = createIntMemo(() => source.read());
+  Signal<int> second = createIntMemo(() => source.read());
+  Signal<int> third = createIntMemo(() => source.read());
+  Signal<int> lowerOne = createIntMemo(() => first.read() + second.read() + third.read());
+  Signal<int> lowerTwo = createIntMemo(() => first.read() + second.read() + third.read());
+  Signal<int> lowerThree = createIntMemo(() => first.read() + second.read() + third.read());
+  IntBox runs = new IntBox(0);
+  Signal<int> total = createIntMemo(() => {
+    runs.increment();
+    return lowerOne.read() + lowerTwo.read() + lowerThree.read();
+  });
+  runs.set(0);
+  source.write(1);
+  report(63, runs.value == 1 && total.read() == 9);
+}
+
+void effectWritesAreImplicitlyBatched() {
+  Signal<int> left = createIntSignal(0);
+  Signal<int> right = createIntSignal(0);
+  IntBox runs = new IntBox(0);
+  Signal<int> total = createRoot((func()->void dispose) => {
+    createEffect(() => {
+      left.write(1);
+      right.write(1);
+    });
+    return createIntMemo(() => {
+      runs.increment();
+      return left.read() + right.read();
+    });
+  });
+  report(64, runs.value == 2 && total.read() == 2);
+}
+
+void repeatedEffectWritesUseTheFinalValue() {
+  Signal<int> source = createIntSignal(0);
+  IntBox runs = new IntBox(0);
+  Signal<int> observed = createRoot((func()->void dispose) => {
+    createEffect(() => {
+      source.write(1);
+      source.write(0);
+    });
+    return createIntMemo(() => {
+      runs.increment();
+      return source.read();
+    });
+  });
+  report(65, runs.value == 2 && observed.read() == 0);
+}
+
+void functionValuedSignalsUpdate() {
+  Signal<func()->string> source = createSignal(
+    () => "Hi",
+    (func()->string previous, func()->string next) => false
+  );
+  func()->string initial = source.read();
+  source.write(() => "Hello");
+  func()->string updated = source.read();
+  report(66, initial() == "Hi" && updated() == "Hello");
+}
+
+void readyMemoDependeesPrecedeSourceSiblings() {
+  Signal<int> source = createIntSignal(0);
+  StringBox order = new StringBox("");
+  Signal<bool> changed = createMemo(
+    true,
+    () => {
+      order.append("changed");
+      return source.read() == 0;
+    },
+    (bool previous, bool next) => previous == next
+  );
+  Signal<int> sibling = createIntMemo(() => {
+    order.append("sibling");
+    return source.read();
+  });
+  Signal<bool> dependee = createMemo(
+    true,
+    () => {
+      order.append("dependee");
+      return changed.read();
+    },
+    (bool previous, bool next) => previous == next
+  );
+  order.set("");
+  source.write(1);
+  report(
+    67,
+    order.value == "changeddependeesibling" && !dependee.read() && sibling.read() == 1
+  );
+}
+
+void memoUpdatesDownstreamPendingComputations() {
+  Signal<int> first = createIntSignal(0);
+  Signal<int> second = createIntSignal(0);
+  StringBox order = new StringBox("");
+  Signal<bool> changed = createMemo(
+    true,
+    () => {
+      order.append("changed");
+      return first.read() == 0;
+    },
+    (bool previous, bool next) => previous == next
+  );
+  Signal<int> sibling = createIntMemo(() => {
+    order.append("sibling");
+    return first.read();
+  });
+  Signal<int> dependee = createIntMemo(() => {
+    order.append("dependee");
+    changed.read();
+    Signal<int> nested = createIntMemo(() => {
+      order.append("nested");
+      return second.read();
+    });
+    return nested.read();
+  });
+  order.set("");
+  first.write(1);
+  report(
+    73,
+    order.value == "changeddependeenestedsibling" && sibling.read() == 1 && dependee.read() == 0
+  );
+}
+
+void memoUpdatesActiveDependencies() {
+  Signal<bool> condition = createBoolSignal(true);
+  Signal<int> active = createIntSignal(1);
+  Signal<int> inactive = createIntSignal(2);
+  IntBox runs = new IntBox(0);
+  Signal<int> selected = createIntMemo(() => {
+    runs.increment();
+    if (condition.read()) {
+      return active.read();
+    }
+    return inactive.read();
+  });
+  runs.set(0);
+  active.write(5);
+  report(74, runs.value == 1 && selected.read() == 5);
+}
+
+void memoSkipsInactiveDependencies() {
+  Signal<bool> condition = createBoolSignal(true);
+  Signal<int> active = createIntSignal(1);
+  Signal<int> inactive = createIntSignal(2);
+  IntBox runs = new IntBox(0);
+  Signal<int> selected = createIntMemo(() => {
+    runs.increment();
+    if (condition.read()) {
+      return active.read();
+    }
+    return inactive.read();
+  });
+  runs.set(0);
+  inactive.write(5);
+  report(75, runs.value == 0 && selected.read() == 1);
+}
+
+void memoSwitchesActiveDependencies() {
+  Signal<bool> condition = createBoolSignal(true);
+  Signal<int> oldSource = createIntSignal(1);
+  Signal<int> newSource = createIntSignal(2);
+  IntBox runs = new IntBox(0);
+  Signal<int> selected = createIntMemo(() => {
+    runs.increment();
+    if (condition.read()) {
+      return oldSource.read();
+    }
+    return newSource.read();
+  });
+  condition.write(false);
+  runs.set(0);
+  oldSource.write(5);
+  bool oldSkipped = runs.value == 0;
+  newSource.write(6);
+  report(76, oldSkipped && runs.value == 1 && selected.read() == 6);
+}
+
+void interceptingMemosRunDownstreamOnce() {
+  Signal<int> first = createIntSignal(1);
+  Signal<bool> second = createBoolSignal(false);
+  Signal<bool> left = createMemo(
+    true,
+    () => first.read() > 0,
+    (bool previous, bool next) => previous == next
+  );
+  Signal<bool> right = createMemo(
+    true,
+    () => first.read() > 0,
+    (bool previous, bool next) => previous == next
+  );
+  Signal<int> center = createIntMemo(() => first.read());
+  Signal<bool> joined = createMemo(
+    false,
+    () => first.read() > 0 && second.read(),
+    (bool previous, bool next) => previous == next
+  );
+  IntBox runs = new IntBox(0);
+  Signal<int> downstream = createIntMemo(() => {
+    left.read();
+    right.read();
+    center.read();
+    joined.read();
+    runs.increment();
+    return runs.value;
+  });
+  second.write(true);
+  bool secondUpdate = runs.value == 2;
+  first.write(2);
+  report(77, secondUpdate && runs.value == 3 && downstream.read() == 3);
+}
+
+void nestedMemoTrackingIsReplacedWithoutDownstreamRerun() {
+  Signal<int> outerSource = createIntSignal(1);
+  Signal<int> innerSource = createIntSignal(1);
+  IntSignalBox nested = new IntSignalBox();
+  Signal<int> outer = createIntMemo(() => {
+    nested.set(createIntMemo(() => innerSource.read()));
+    return outerSource.read();
+  });
+  IntBox runs = new IntBox(0);
+  Signal<int> downstream = createIntMemo(() => {
+    runs.increment();
+    return nested.read();
+  });
+  outerSource.write(2);
+  report(78, runs.value == 1 && outer.read() == 2 && downstream.read() == 1);
+}
+
+void memoChangeMarksEntireDownstreamChainStale() {
+  Signal<int> source = createIntSignal(1);
+  StringBox order = new StringBox("");
+  Signal<int> first = createIntMemo(() => {
+    order.append("first");
+    return source.read();
+  });
+  Signal<int> second = createIntMemo(() => {
+    order.append("second");
+    return first.read();
+  });
+  Signal<int> third = createIntMemo(() => {
+    order.append("third");
+    return second.read();
+  });
+  Signal<int> fourth = createIntMemo(() => {
+    order.append("fourth");
+    return third.read();
+  });
+  order.set("");
+  source.write(2);
+  report(
+    79,
+    order.value == "firstsecondthirdfourth" && fourth.read() == 2
+  );
+}
+
+void newMemoDependenciesAreFreshBeforeUse() {
+  Signal<int> source = createIntSignal(0);
+  Signal<int> primary = createIntMemo(() => source.read() + 1);
+  Signal<int> branch = createIntMemo(() => source.read());
+  Signal<int> secondary = createIntMemo(() => branch.read() + 10);
+  IntBox runs = new IntBox(0);
+  Signal<int> selected = createIntMemo(() => {
+    runs.increment();
+    int value = primary.read();
+    if (value != 0) {
+      return value;
+    }
+    return secondary.read();
+  });
+  runs.set(0);
+  source.write(-1);
+  bool negative = runs.value == 1 && selected.read() == 9;
+  runs.set(0);
+  source.write(0);
+  report(80, negative && runs.value == 1 && selected.read() == 1);
+}
+
+void unchangedTrackerSourcesSkipDownstreamMemos() {
+  Signal<int> source = createIntSignal(1);
+  StringBox order = new StringBox("");
+  BoolSignalBox late = new BoolSignalBox();
+  Signal<int> conditional = createIntMemo(() => {
+    order.append("conditional");
+    if (source.read() > 1) {
+      late.read();
+    }
+    return 0;
+  });
+  Signal<bool> first = createMemo(
+    true,
+    () => {
+      order.append("first");
+      return source.read() < 3;
+    },
+    (bool previous, bool next) => previous == next
+  );
+  Signal<bool> second = createMemo(
+    true,
+    () => {
+      order.append("second");
+      return first.read();
+    },
+    (bool previous, bool next) => previous == next
+  );
+  Signal<bool> finalMemo = createMemo(
+    true,
+    () => {
+      order.append("final");
+      return second.read();
+    },
+    (bool previous, bool next) => previous == next
+  );
+  late.set(finalMemo);
+  order.set("");
+  source.write(2);
+  bool unchanged = order.value == "conditionalfirst" && conditional.read() == 0;
+  order.set("");
+  source.write(3);
+  report(
+    81,
+    unchanged && order.value == "conditionalfirstsecondfinal" && !finalMemo.read()
+  );
+}
+
+void staleMemosRunWhenTheirDependeeReadsThem() {
+  Signal<int> source = createIntSignalWithEquals(
+    1,
+    (int previous, int next) => false
+  );
+  StringBox order = new StringBox("");
+  Signal<bool> first = createMemo(
+    false,
+    () => {
+      order.append("first");
+      return source.read() > 2;
+    },
+    (bool previous, bool next) => previous == next
+  );
+  Signal<bool> second = createMemo(
+    false,
+    () => {
+      order.append("second");
+      return source.read() > 2;
+    },
+    (bool previous, bool next) => previous == next
+  );
+  Signal<int> sibling = createMemo(
+    0,
+    () => {
+      order.append("sibling");
+      source.read();
+      return 0;
+    },
+    (int previous, int next) => false
+  );
+  Signal<int> dependee = createIntMemo(() => {
+    order.append("dependee");
+    first.read();
+    second.read();
+    return sibling.read();
+  });
+  order.set("");
+  source.write(1);
+  bool unchanged = order.value == "firstsecondsiblingdependee";
+  order.set("");
+  source.write(3);
+  report(
+    82,
+    unchanged && order.value == "seconddependeefirstsibling" && dependee.read() == 0
+  );
+}
+
+void schedulerOrdersAndCancelsCallbacks() {
+  StringBox order = new StringBox("");
+  Task cancelled = requestCallback(
+    (bool didTimeout) => order.append("cancelled"),
+    0
+  );
+  cancelCallback(cancelled);
+  requestCallback((bool didTimeout) => order.append("late"));
+  requestCallback((bool didTimeout) => order.append("early"), 10);
+  requestCallback((bool didTimeout) => order.append("middle"), 40);
+  bool deferred = order.value == "";
+  flushCallbacks();
+  report(83, deferred && order.value == "earlymiddlelate");
+}
+
+void deferredSignalsCoalesceUntilSchedulerFlush() {
+  Signal<string> source = createSignal(
+    "init",
+    (string previous, string next) => previous == next
+  );
+  Signal<string> deferred = createDeferred(
+    source,
+    (string previous, string next) => previous == next,
+    20
+  );
+  source.write("first");
+  source.write("final");
+  bool pending = deferred.read() == "init";
+  flushCallbacks();
+  report(84, pending && deferred.read() == "final");
+}
+
+void hostSchedulerDrivesOneFlushForQueuedTasks() {
+  DisposeBox scheduled = new DisposeBox();
+  IntBox scheduleCalls = new IntBox(0);
+  StringBox order = new StringBox("");
+  enableScheduling((func()->void callback) => {
+    scheduleCalls.increment();
+    scheduled.set(callback);
+  });
+  requestCallback((bool didTimeout) => order.append("first"), 10);
+  requestCallback((bool didTimeout) => order.append("second"), 20);
+  bool pending = scheduleCalls.value == 1 && order.value == "";
+  scheduled.run();
+  enableScheduling((func()->void callback) => {});
+  report(85, pending && order.value == "firstsecond");
+}
+
+void resourceLoadsInitialFuture() {
+  Signal<string> source = createSignal(
+    "1",
+    (string previous, string next) => previous == next
+  );
+  StringFutureSource futures = new StringFutureSource();
+  Resource<string,string> resource = createResource(
+    source,
+    (string key) => futures.fetch(key),
+    "Loading",
+    (string previous, string next) => previous == next
+  );
+  bool pending =
+    resource.value.read() == "Loading" &&
+    resource.loading.read() &&
+    resource.state.read() == "pending";
+  futures.resolve(0, "John");
+  bool stillPending = resource.value.read() == "Loading";
+  flushCallbacks();
+  report(
+    86,
+    pending &&
+    stillPending &&
+    resource.value.read() == "John" &&
+    !resource.loading.read() &&
+    resource.state.read() == "ready"
+  );
+}
+
+void resourceIgnoresOutOfOrderResults() {
+  Signal<string> source = createSignal(
+    "1",
+    (string previous, string next) => previous == next
+  );
+  StringFutureSource futures = new StringFutureSource();
+  Resource<string,string> resource = createResource(
+    source,
+    (string key) => futures.fetch(key),
+    "Loading",
+    (string previous, string next) => previous == next
+  );
+  source.write("2");
+  source.write("3");
+  futures.resolve(2, "Jake");
+  futures.resolve(1, "Jo");
+  futures.resolve(0, "John");
+  flushCallbacks();
+  report(87, resource.value.read() == "Jake" && !resource.loading.read());
+}
+
+void resourceMutatesAndRefetches() {
+  Signal<string> source = createSignal(
+    "1",
+    (string previous, string next) => previous == next
+  );
+  StringFutureSource futures = new StringFutureSource();
+  Resource<string,string> resource = createResource(
+    source,
+    (string key) => futures.fetch(key),
+    "Loading",
+    (string previous, string next) => previous == next
+  );
+  futures.resolve(0, "John");
+  flushCallbacks();
+  resource.mutate("Manual");
+  bool mutated = resource.value.read() == "Manual";
+  resource.refetch();
+  bool refreshing = resource.loading.read() && resource.state.read() == "refreshing";
+  futures.resolve(1, "Fresh");
+  flushCallbacks();
+  report(
+    88,
+    mutated && refreshing && resource.value.read() == "Fresh" && resource.state.read() == "ready"
+  );
+}
+
+void disposedResourcesIgnoreFutureResults() {
+  Signal<string> source = createSignal(
+    "1",
+    (string previous, string next) => previous == next
+  );
+  StringFutureSource futures = new StringFutureSource();
+  DisposeBox rootDispose = new DisposeBox();
+  Resource<string,string> resource = createRoot((func()->void dispose) => {
+    rootDispose.set(dispose);
+    return createResource(
+      source,
+      (string key) => futures.fetch(key),
+      "Loading",
+      (string previous, string next) => previous == next
+    );
+  });
+  rootDispose.run();
+  futures.resolve(0, "Ignored");
+  flushCallbacks();
+  report(89, resource.value.read() == "Loading");
+}
+
+void resourceRecordsFutureRejections() {
+  Signal<string> source = createSignal(
+    "1",
+    (string previous, string next) => previous == next
+  );
+  StringFutureSource futures = new StringFutureSource();
+  Resource<string,string> resource = createResource(
+    source,
+    (string key) => futures.fetch(key),
+    "Loading",
+    (string previous, string next) => previous == next
+  );
+  futures.reject(0, "Because I said so");
+  bool pending = resource.state.read() == "pending";
+  flushCallbacks();
+  report(
+    90,
+    pending &&
+    resource.state.read() == "errored" &&
+    resource.error.read() == "Because I said so" &&
+    !resource.loading.read() &&
+    resource.value.read() == "Loading"
+  );
+}
+
+void resourceIgnoresStaleFutureRejections() {
+  Signal<string> source = createSignal(
+    "1",
+    (string previous, string next) => previous == next
+  );
+  StringFutureSource futures = new StringFutureSource();
+  Resource<string,string> resource = createResource(
+    source,
+    (string key) => futures.fetch(key),
+    "Loading",
+    (string previous, string next) => previous == next
+  );
+  source.write("2");
+  futures.resolve(1, "Current");
+  futures.reject(0, "Stale");
+  flushCallbacks();
+  report(
+    91,
+    resource.state.read() == "ready" &&
+    resource.error.read() == "" &&
+    resource.value.read() == "Current"
+  );
+}
+
+void resourcesRecoverAfterRejection() {
+  Signal<string> source = createSignal(
+    "1",
+    (string previous, string next) => previous == next
+  );
+  StringFutureSource futures = new StringFutureSource();
+  Resource<string,string> resource = createResource(
+    source,
+    (string key) => futures.fetch(key),
+    "Loading",
+    (string previous, string next) => previous == next
+  );
+  futures.reject(0, "Failure");
+  flushCallbacks();
+  bool failed = resource.state.read() == "errored";
+  source.write("2");
+  bool retrying =
+    resource.state.read() == "pending" &&
+    resource.loading.read() &&
+    resource.error.read() == "";
+  futures.resolve(1, "Recovered");
+  flushCallbacks();
+  report(
+    92,
+    failed &&
+    retrying &&
+    resource.state.read() == "ready" &&
+    resource.value.read() == "Recovered"
+  );
+}
+
+string greetingComponent(GreetingProps props) {
+  return props.greeting + " " + props.name.read();
+}
+
+string cleanupComponent(IntBox cleanups) {
+  onCleanup(() => cleanups.increment());
+  return "owned";
+}
+
+void componentInvocationIsUntracked() {
+  Signal<string> name = createSignal(
+    "dynamic",
+    (string previous, string next) => previous == next
+  );
+  GreetingProps props = new GreetingProps("Hi", name);
+  IntBox runs = new IntBox(0);
+  StringBox output = new StringBox("");
+  createEffect(() => {
+    runs.increment();
+    output.set(createComponent(greetingComponent, props));
+  });
+  name.write("changed");
+  report(93, runs.value == 1 && output.value == "Hi dynamic");
+}
+
+void componentInvocationPreservesOwnership() {
+  IntBox cleanups = new IntBox(0);
+  DisposeBox rootDispose = new DisposeBox();
+  string output = createRoot((func()->void dispose) => {
+    rootDispose.set(dispose);
+    return createComponent(cleanupComponent, cleanups);
+  });
+  bool created = output == "owned" && cleanups.value == 0;
+  rootDispose.run();
+  report(94, created && cleanups.value == 1);
+}
+
+void contextProviderReturnsAndReleasesItsValue() {
+  Context<string> context = createContext("light");
+  OwnerBox providerOwner = new OwnerBox();
+  StringBox provided = new StringBox("");
+  func()->void dispose = createRoot((func()->void dispose) => {
+    provided.set(context.provide("dark", () => {
+      providerOwner.set(getOwner());
+      return useContext(context);
+    }));
+    return dispose;
+  });
+  dispose();
+  string after = runWithOwner(
+    providerOwner.value,
+    () => useContext(context)
+  );
+  report(95, provided.value == "dark" && after == "light");
+}
+
+void showCachesTheActiveBooleanBranch() {
+  Signal<bool> visible = createBoolSignal(false);
+  IntBox childRuns = new IntBox(0);
+  IntBox fallbackRuns = new IntBox(0);
+  Signal<string> output = show(
+    visible,
+    "",
+    () => {
+      childRuns.increment();
+      return "shown";
+    },
+    () => {
+      fallbackRuns.increment();
+      return "hidden";
+    },
+    (string previous, string next) => previous == next
+  );
+  bool initial = output.read() == "hidden" && fallbackRuns.value == 1;
+  visible.write(true);
+  bool shown = output.read() == "shown" && childRuns.value == 1;
+  visible.write(true);
+  bool cached = childRuns.value == 1;
+  visible.write(false);
+  report(
+    96,
+    initial && shown && cached && output.read() == "hidden" &&
+      fallbackRuns.value == 2
+  );
+}
+
+void showOwnsAndDisposesBranchWork() {
+  Signal<bool> visible = createBoolSignal(false);
+  IntBox childCleanups = new IntBox(0);
+  IntBox fallbackCleanups = new IntBox(0);
+  DisposeBox rootDispose = new DisposeBox();
+  Signal<string> output = createRoot((func()->void dispose) => {
+    rootDispose.set(dispose);
+    return show(
+      visible,
+      "",
+      () => {
+        onCleanup(() => childCleanups.increment());
+        return "shown";
+      },
+      () => {
+        onCleanup(() => fallbackCleanups.increment());
+        return "hidden";
+      },
+      (string previous, string next) => previous == next
+    );
+  });
+  visible.write(true);
+  bool entered = output.read() == "shown" && fallbackCleanups.value == 1;
+  visible.write(false);
+  bool left = output.read() == "hidden" && childCleanups.value == 1;
+  rootDispose.run();
+  report(97, entered && left && fallbackCleanups.value == 2);
+}
+
+void keyedShowTracksKeysButNotChildReads() {
+  Signal<int> key = createIntSignal(1);
+  Signal<int> incidental = createIntSignal(0);
+  IntBox childRuns = new IntBox(0);
+  IntBox fallbackRuns = new IntBox(0);
+  Signal<string> output = showKeyedInt(
+    key,
+    "",
+    (int value) => {
+      childRuns.increment();
+      return value + ":" + incidental.read();
+    },
+    () => {
+      fallbackRuns.increment();
+      return "hidden";
+    },
+    (string previous, string next) => previous == next
+  );
+  bool initial = output.read() == "1:0" && childRuns.value == 1;
+  incidental.write(1);
+  bool untracked = output.read() == "1:0" && childRuns.value == 1;
+  key.write(2);
+  bool keyed = output.read() == "2:1" && childRuns.value == 2;
+  key.write(0);
+  report(
+    98,
+    initial && untracked && keyed && output.read() == "hidden" &&
+      fallbackRuns.value == 1
+  );
+}
+
+void forEachPreservesKeyedRows() {
+  Signal<int[]> source = createIntArraySignal([1, 2]);
+  func()->MappedRow[] rows = forEach(
+    source,
+    (int value, Signal<int> index) => new MappedRow(value, index)
+  );
+  MappedRow[] initial = rows();
+  MappedRow first = initial[0];
+  MappedRow second = initial[1];
+  source.write([2, 1]);
+  MappedRow[] reordered = rows();
+  report(
+    99,
+    reordered[0] == second && reordered[1] == first &&
+      second.currentIndex() == 0 && first.currentIndex() == 1
+  );
+}
+
+void indexEachPreservesPositionalRows() {
+  Signal<int[]> source = createIntArraySignal([1, 2]);
+  IntBox maps = new IntBox(0);
+  func()->IndexedRow[] rows = indexEach(
+    source,
+    (Signal<int> value, int index) => {
+      maps.increment();
+      return new IndexedRow(value, index);
+    }
+  );
+  IndexedRow[] initial = rows();
+  IndexedRow first = initial[0];
+  IndexedRow second = initial[1];
+  source.write([4, 5]);
+  IndexedRow[] updated = rows();
+  report(
+    100,
+    maps.value == 2 && updated[0] == first && updated[1] == second &&
+      first.currentValue() == 4 && second.currentValue() == 5
+  );
+}
+
+void mappedRowsOutliveTrackingEffectReruns() {
+  Signal<int[]> source = createIntArraySignal([1, 2]);
+  IntBox maps = new IntBox(0);
+  IntBox runs = new IntBox(0);
+  IntBox cleanups = new IntBox(0);
+  func()->void dispose = createRoot((func()->void dispose) => {
+    func()->MappedRow[] rows = mapArray(
+      source,
+      (int value, Signal<int> index) => {
+        maps.increment();
+        onCleanup(() => cleanups.increment());
+        return new MappedRow(value, index);
+      }
+    );
+    createEffect(() => {
+      rows();
+      runs.increment();
+    });
+    return dispose;
+  });
+  source.write([2, 1]);
+  bool retained = maps.value == 2 && runs.value == 2 && cleanups.value == 0;
+  dispose();
+  report(101, retained && cleanups.value == 2);
+}
+
+void switchSelectsFirstMatchAndPrunesConditions() {
+  Signal<int> a = createIntSignal(0);
+  Signal<int> b = createIntSignal(0);
+  Signal<int> c = createIntSignal(0);
+  IntBox aEvals = new IntBox(0);
+  IntBox bEvals = new IntBox(0);
+  IntBox cEvals = new IntBox(0);
+  BoolMatch<string>[] matches = [
+    new BoolMatch(
+      () => {
+        aEvals.increment();
+        return a.read() != 0;
+      },
+      () => "a"
+    ),
+    new BoolMatch(
+      () => {
+        bEvals.increment();
+        return b.read() != 0;
+      },
+      () => "b"
+    ),
+    new BoolMatch(
+      () => {
+        cEvals.increment();
+        return c.read() != 0;
+      },
+      () => "c"
+    )
+  ];
+  Signal<string> output = switchBool(
+    matches,
+    "",
+    () => "fallback",
+    (string previous, string next) => previous == next
+  );
+  bool initial = output.read() == "fallback" &&
+    aEvals.value == 1 && bEvals.value == 1 && cEvals.value == 1;
+  c.write(5);
+  bool third = output.read() == "c" &&
+    aEvals.value == 1 && bEvals.value == 1 && cEvals.value == 2;
+  a.write(1);
+  bool first = output.read() == "a" &&
+    aEvals.value == 2 && bEvals.value == 1 && cEvals.value == 2;
+  b.write(3);
+  c.write(4);
+  bool lowerSkipped = output.read() == "a" &&
+    aEvals.value == 2 && bEvals.value == 1 && cEvals.value == 2;
+  a.write(0);
+  bool second = output.read() == "b" &&
+    aEvals.value == 3 && bEvals.value == 2 && cEvals.value == 2;
+  b.write(0);
+  c.write(0);
+  report(
+    102,
+    initial && third && first && lowerSkipped && second &&
+      output.read() == "fallback"
+  );
+}
+
+void nonKeyedSwitchCachesBranchAndExposesAccessor() {
+  Signal<int> key = createIntSignal(0);
+  IntBox childRuns = new IntBox(0);
+  IntBox fallbackRuns = new IntBox(0);
+  IntMatch<IntAccessorBox>[] matches = [
+    new IntMatch(
+      () => key.read(),
+      (func()->int value) => {
+        childRuns.increment();
+        return new IntAccessorBox(value);
+      }
+    )
+  ];
+  IntAccessorBox empty = new IntAccessorBox(() => 0);
+  Signal<IntAccessorBox> output = switchInt(
+    matches,
+    empty,
+    () => {
+      fallbackRuns.increment();
+      return empty;
+    },
+    (IntAccessorBox previous, IntAccessorBox next) => previous == next
+  );
+  bool initial = output.read() == empty && fallbackRuns.value == 1;
+  key.write(1);
+  IntAccessorBox active = output.read();
+  bool entered = active.read() == 1 && childRuns.value == 1;
+  key.write(2);
+  bool cached = output.read() == active && active.read() == 2 &&
+    childRuns.value == 1;
+  key.write(0);
+  report(
+    103,
+    initial && entered && cached && output.read() == empty &&
+      fallbackRuns.value == 2
+  );
+}
+
+void keyedSwitchRecreatesAndDisposesBranches() {
+  Signal<int> first = createIntSignal(0);
+  Signal<int> second = createIntSignal(0);
+  IntBox childRuns = new IntBox(0);
+  IntBox cleanups = new IntBox(0);
+  DisposeBox rootDispose = new DisposeBox();
+  Signal<string> output = createRoot((func()->void dispose) => {
+    rootDispose.set(dispose);
+    KeyedIntMatch<string>[] matches = [
+      new KeyedIntMatch(
+        () => first.read(),
+        (int value) => {
+          childRuns.increment();
+          onCleanup(() => cleanups.increment());
+          return "first:" + value;
+        }
+      ),
+      new KeyedIntMatch(
+        () => second.read(),
+        (int value) => {
+          childRuns.increment();
+          onCleanup(() => cleanups.increment());
+          return "second:" + value;
+        }
+      )
+    ];
+    return switchKeyedInt(
+      matches,
+      "",
+      () => "fallback",
+      (string previous, string next) => previous == next
+    );
+  });
+  second.write(2);
+  bool secondSelected = output.read() == "second:2" && childRuns.value == 1;
+  first.write(1);
+  bool firstSelected = output.read() == "first:1" &&
+    childRuns.value == 2 && cleanups.value == 1;
+  first.write(3);
+  bool keyed = output.read() == "first:3" &&
+    childRuns.value == 3 && cleanups.value == 2;
+  second.write(4);
+  bool lowerSkipped = output.read() == "first:3" && childRuns.value == 3;
+  rootDispose.run();
+  report(
+    104,
+    secondSelected && firstSelected && keyed && lowerSkipped &&
+      cleanups.value == 3
+  );
+}
+
+void childrenResolveLargeNestedArrays() {
+  int[] items = [];
+  for (int index = 0; index < 100000; index++) {
+    items.push(index);
+  }
+  Signal<int[]> resolved = createRoot((func()->void dispose) => {
+    return children(() => {
+      int[][] nested = [];
+      nested.push(items);
+      return nested;
+    });
+  });
+  int[] values = resolved.read();
+  report(
+    105,
+    values.length == items.length && values[0] == 0 && values[99999] == 99999
+  );
+}
+
+
+void observableDeliversAndUnsubscribes() {
+  Signal<string> source = createSignal(
+    "Hi",
+    (string previous, string next) => previous == next
+  );
+  Observable<string> stream = observable(() => source.read());
+  StringBox observed = new StringBox("missing");
+  Subscription subscription = stream.subscribe((string value) => observed.set(value));
+  bool initial = observed.value == "Hi";
+  source.write("John");
+  bool updated = observed.value == "John";
+  subscription.unsubscribe();
+  subscription.unsubscribe();
+  source.write("Benjamin");
+  report(68, initial && updated && observed.value == "John" && subscription.closed);
+}
+
+void observableSubscriptionBelongsToOwner() {
+  Signal<int> source = createIntSignal(1);
+  Observable<int> stream = observable(() => source.read());
+  IntBox observed = new IntBox(0);
+  func()->void dispose = createRoot((func()->void dispose) => {
+    stream.subscribe((int value) => observed.set(value));
+    return dispose;
+  });
+  source.write(2);
+  bool active = observed.value == 2;
+  dispose();
+  source.write(3);
+  report(69, active && observed.value == 2);
+}
+
+void observableObserversAreUntracked() {
+  Signal<int> source = createIntSignal(1);
+  Signal<int> incidental = createIntSignal(0);
+  Observable<int> stream = observable(() => source.read());
+  IntBox runs = new IntBox(0);
+  stream.subscribe((int value) => {
+    incidental.read();
+    runs.increment();
+  });
+  incidental.write(1);
+  bool ignored = runs.value == 1;
+  source.write(2);
+  report(70, ignored && runs.value == 2);
+}
+
+void fromProducerUpdatesAndCleansUp() {
+  StringProducer producer = new StringProducer();
+  DisposeBox rootDispose = new DisposeBox();
+  Signal<string> value = createRoot((func()->void dispose) => {
+    rootDispose.set(dispose);
+    return from(
+      (func(string)->string setter) => producer.connect(setter),
+      "initial"
+    );
+  });
+  bool initial = value.read() == "connected";
+  producer.emit("next");
+  bool updated = value.read() == "next";
+  rootDispose.run();
+  producer.emit("ignored");
+  report(
+    71,
+    initial && updated && value.read() == "next" && producer.cleanupRuns == 1
+  );
+}
+
+void fromObservableMirrorsValues() {
+  Signal<string> source = createSignal(
+    "Hi",
+    (string previous, string next) => previous == next
+  );
+  Observable<string> stream = observable(() => source.read());
+  Signal<string> mirrored = createRoot((func()->void dispose) => {
+    return fromObservable(stream, "initial");
+  });
+  bool initial = mirrored.read() == "Hi";
+  source.write("John");
+  report(72, initial && mirrored.read() == "John");
+}
+
+void contextUsesDefaultAndProvider() {
+  Context<string> context = createContext("default");
+  StringBox observed = new StringBox("missing");
+  bool fallbackBefore = useContext(context) == "default";
+  context.provide("provided", () => observed.set(useContext(context)));
+  bool fallbackAfter = useContext(context) == "default";
+  report(35, fallbackBefore && observed.value == "provided" && fallbackAfter);
+}
+
+void contextInheritsAndOverrides() {
+  Context<int> context = createContext(1);
+  IntBox inherited = new IntBox(0);
+  IntBox overridden = new IntBox(0);
+  context.provide(4, () => {
+    createEffect(() => inherited.set(useContext(context)));
+    context.provide(9, () => overridden.set(useContext(context)));
+  });
+  report(36, inherited.value == 4 && overridden.value == 9);
+}
+
+void computedRunsImmediatelyAndUpdates() {
+  Signal<int> source = createIntSignal(0);
+  IntBox runs = new IntBox(0);
+  IntBox duringRoot = new IntBox(0);
+  createRoot((func()->void dispose) => {
+    createComputed(() => {
+      source.read();
+      runs.increment();
+    });
+    if (runs.value == 1) {
+      duringRoot.set(1);
+    }
+    return 0;
+  });
+  source.write(1);
+  report(37, duringRoot.value == 1 && runs.value == 2);
+}
+
+void renderEffectRunsImmediatelyAndUpdates() {
+  Signal<int> source = createIntSignal(0);
+  IntBox runs = new IntBox(0);
+  IntBox duringRoot = new IntBox(0);
+  createRoot((func()->void dispose) => {
+    createRenderEffect(() => {
+      source.read();
+      runs.increment();
+    });
+    if (runs.value == 1) {
+      duringRoot.set(1);
+    }
+    return 0;
+  });
+  source.write(1);
+  report(38, duringRoot.value == 1 && runs.value == 2);
+}
+
+void computedPrecedesDeferredUserEffects() {
+  Signal<int> source = createIntSignal(0);
+  IntBox observed = new IntBox(-1);
+  IntBox deferred = new IntBox(0);
+  createRoot((func()->void dispose) => {
+    createEffect(() => observed.set(source.read()));
+    createComputed(() => {
+      source.write(5);
+    });
+    if (observed.value == -1) {
+      deferred.set(1);
+    }
+    return 0;
+  });
+  report(39, deferred.value == 1 && observed.value == 5);
+}
+
+void selectorInvalidatesOnlyChangedKeys() {
+  Signal<int> source = createIntSignal(-1);
+  Selector<int> selector = createSelector(
+    source,
+    (int key, int value) => key == value
+  );
+  IntBox zeroRuns = new IntBox(0);
+  IntBox oneRuns = new IntBox(0);
+  createEffect(() => {
+    selector.selected(0);
+    zeroRuns.increment();
+  });
+  createEffect(() => {
+    selector.selected(1);
+    oneRuns.increment();
+  });
+  source.write(0);
+  bool selectedZero = zeroRuns.value == 2 && oneRuns.value == 1;
+  source.write(1);
+  bool selectedOne = zeroRuns.value == 3 && oneRuns.value == 2;
+  source.write(2);
+  report(40, selectedZero && selectedOne && zeroRuns.value == 3 && oneRuns.value == 3);
+}
+
+void selectorSupportsDuplicateSubscribers() {
+  Signal<int> source = createIntSignal(-1);
+  Selector<int> selector = createSelector(
+    source,
+    (int key, int value) => key == value
+  );
+  IntBox runs = new IntBox(0);
+  createEffect(() => {
+    selector.selected(3);
+    runs.increment();
+  });
+  createEffect(() => {
+    selector.selected(3);
+    runs.increment();
+  });
+  source.write(3);
+  bool selected = runs.value == 4;
+  source.write(6);
+  report(41, selected && runs.value == 6);
+}
+
+void selectorUsesCustomEquality() {
+  Signal<int> source = createIntSignal(0);
+  Selector<int> selector = createSelector(
+    source,
+    (int key, int value) => key % 2 == value % 2
+  );
+  IntBox runs = new IntBox(0);
+  createEffect(() => {
+    selector.selected(0);
+    runs.increment();
+  });
+  source.write(2);
+  bool equivalentSkipped = runs.value == 1;
+  source.write(3);
+  report(42, equivalentSkipped && runs.value == 2);
+}
+
+signalReadAndUpdate();
+signalComparator();
+repeatedReadsRunOnce();
+disposedEffectsStop();
+conditionalDependencies();
+memoUpdates();
+unchangedMemoDoesNotPropagate();
+effectsRunImmediatelyAndUpdate();
+untrackingMutesSubscriptions();
+batchGroupsWrites();
+batchCoalescesRepeatedSets();
+cleanupRunsBeforeRerun();
+rootCleanupRunsOnDispose();
+nestedEffectsAreReplaced();
+diamondMemoRunsOnce();
+memoChangesDependencies();
+nestedBatchesFlushOnce();
+duplicateReadsHaveOneSubscription();
+disposalIsIdempotent();
+cleanupRegistersAgainAfterRerun();
+genericStringSignalUpdates();
+genericBoolMemoUpdates();
+genericUntrackReturnsString();
+reactionIsOneShotAndRearms();
+onRunsImmediately();
+onCanDeferInitialRun();
+onMountRunsCallback();
+untrackPreservesOwnership();
+onMountDefersUntilRootReturns();
+onMountCleanupBelongsToRoot();
+getOwnerCapturesCurrentRoot();
+nestedRootsRetainParentOwner();
+runWithOwnerSchedulesAndDisposes();
+runWithOwnerDoesNotTrack();
+contextUsesDefaultAndProvider();
+contextInheritsAndOverrides();
+computedRunsImmediatelyAndUpdates();
+renderEffectRunsImmediatelyAndUpdates();
+computedPrecedesDeferredUserEffects();
+selectorInvalidatesOnlyChangedKeys();
+selectorSupportsDuplicateSubscribers();
+selectorUsesCustomEquality();
+getOwnerIsNullOutsideOwnership();
+listenerReflectsTrackingAndUntrack();
+rootReturnsCallbackResultAndProvidesDisposer();
+cleanupReturnsRegisteredCallback();
+runWithOwnerReturnsCallbackResult();
+batchReturnsCallbackResult();
+mapArrayTransformsAndReconciles();
+mapArrayPreservesRowsAndIndexes();
+mapArrayDisposesRemovedRows();
+mapArrayKeepsDuplicateRowsStable();
+mapArrayFallbackHasOwnedLifecycle();
+indexArrayUpdatesValuesWithoutRemapping();
+indexArrayAddsAndDisposesTrailingRows();
+indexArrayFallbackHasOwnedLifecycle();
+nestedRootsDisposeWithTheirParent();
+explicitNullOwnerCreatesDetachedRoot();
+explicitOwnerAttachesRootForDisposal();
+uniqueIdsAreStableAndDistinct();
+signalWritesReturnAssignedValues();
+memosPropagateInTopologicalOrder();
+exponentialMemoConvergenceRunsOnce();
+effectWritesAreImplicitlyBatched();
+repeatedEffectWritesUseTheFinalValue();
+functionValuedSignalsUpdate();
+readyMemoDependeesPrecedeSourceSiblings();
+observableDeliversAndUnsubscribes();
+observableSubscriptionBelongsToOwner();
+observableObserversAreUntracked();
+fromProducerUpdatesAndCleansUp();
+fromObservableMirrorsValues();
+memoUpdatesDownstreamPendingComputations();
+memoUpdatesActiveDependencies();
+memoSkipsInactiveDependencies();
+memoSwitchesActiveDependencies();
+interceptingMemosRunDownstreamOnce();
+nestedMemoTrackingIsReplacedWithoutDownstreamRerun();
+memoChangeMarksEntireDownstreamChainStale();
+newMemoDependenciesAreFreshBeforeUse();
+unchangedTrackerSourcesSkipDownstreamMemos();
+staleMemosRunWhenTheirDependeeReadsThem();
+schedulerOrdersAndCancelsCallbacks();
+deferredSignalsCoalesceUntilSchedulerFlush();
+hostSchedulerDrivesOneFlushForQueuedTasks();
+resourceLoadsInitialFuture();
+resourceIgnoresOutOfOrderResults();
+resourceMutatesAndRefetches();
+disposedResourcesIgnoreFutureResults();
+resourceRecordsFutureRejections();
+resourceIgnoresStaleFutureRejections();
+resourcesRecoverAfterRejection();
+componentInvocationIsUntracked();
+componentInvocationPreservesOwnership();
+contextProviderReturnsAndReleasesItsValue();
+showCachesTheActiveBooleanBranch();
+showOwnsAndDisposesBranchWork();
+keyedShowTracksKeysButNotChildReads();
+forEachPreservesKeyedRows();
+indexEachPreservesPositionalRows();
+mappedRowsOutliveTrackingEffectReruns();
+switchSelectsFirstMatchAndPrunesConditions();
+nonKeyedSwitchCachesBranchAndExposesAccessor();
+keyedSwitchRecreatesAndDisposesBranches();
+childrenResolveLargeNestedArrays();
+defaultSignalComparatorSkipsEqualWrites();
+memoReceivesInitialValue();
+onTracksMultipleExplicitDependencies();
+deferredOnReceivesInitialAccumulator();
+cleanupsDisposeInReverseRegistrationOrder();
+staleOwnerHandlesCannotAttachToReusedRoots();
+disposedEffectSlotsAreReusedWithoutRevivingHandles();

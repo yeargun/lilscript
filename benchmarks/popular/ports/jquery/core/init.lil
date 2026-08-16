@@ -1,0 +1,134 @@
+import { jQuery, merge, isPlainObject, makeArray, wrap, setJQueryInit } from "../core";
+import { document } from "../var/document";
+import { isFunction } from "../var/isFunction";
+import { rsingleTag } from "./var/rsingleTag";
+import { parseHTML } from "./parseHTML";
+import {
+  isUndefined,
+  regexTest,
+  regexExec,
+  call1
+} from "../js-host.lil";
+
+Regex rquickExpr = new Regex("^(?:\\s*(<[\\w\\W]+>)[^>]*|#([\\w-]+))$");
+
+JsValue rootjQuery = null;
+
+JsValue initHtmlMatch(JsValue self, JsValue htmlPart, JsValue contextArg) {
+  string htmlText = "";
+  if (htmlPart is string) {
+    htmlText = htmlPart;
+  }
+
+  JsValue resolvedContext = contextArg;
+  if (contextArg.truthy() && contextArg["jquery"].truthy()) {
+    resolvedContext = contextArg[0];
+  }
+
+  JsValue parseContext = document;
+  if (resolvedContext.truthy() && resolvedContext["nodeType"].truthy()) {
+    JsValue owner = resolvedContext["ownerDocument"];
+    if (owner.truthy()) {
+      parseContext = owner;
+    } else {
+      parseContext = resolvedContext;
+    }
+  }
+
+  merge(self, parseHTML(htmlText, parseContext, true));
+
+  if (JS.regexTest(rsingleTag, htmlText) && isPlainObject(resolvedContext)) {
+    for (string key in resolvedContext) {
+      JsValue propValue = resolvedContext[key];
+      JsValue selfMember = self[key];
+      if (isFunction(selfMember)) {
+        JS.call(selfMember, self, propValue);
+      } else {
+        JS.invoke(self, "attr", key, propValue);
+      }
+    }
+  }
+
+  return self;
+}
+
+JsValue initIdMatch(JsValue self, JsValue idMatchValue) {
+  string idText = "";
+  if (idMatchValue is string) {
+    idText = idMatchValue;
+  }
+  JsValue elem = JS.invoke(document, "getElementById", idText);
+  if (elem.truthy()) {
+    self[0] = elem;
+    self["length"] = 1.0;
+  }
+  return self;
+}
+
+JsValue initImpl(JsValue self, JsValue selectorArg, JsValue contextArg) {
+  if (!selectorArg.truthy()) {
+    return self;
+  }
+
+  if (selectorArg is string) {
+    string selectorText = selectorArg;
+
+    bool looksLikeHtml = selectorText.length >= 3 &&
+      selectorText.charAt(0) == "<" &&
+      selectorText.charAt(selectorText.length - 1) == ">";
+
+    JsValue quickMatch = null;
+    if (looksLikeHtml) {
+      JsValue[] htmlMatch = [];
+      htmlMatch.push(null);
+      htmlMatch.push(selectorText);
+      htmlMatch.push(null);
+      quickMatch = htmlMatch;
+    } else {
+      quickMatch = JS.regexExec(rquickExpr, selectorText);
+    }
+
+    bool matchHasHtml = quickMatch.truthy() && quickMatch[1].truthy();
+
+    if (quickMatch.truthy() && (matchHasHtml || !contextArg.truthy())) {
+      if (matchHasHtml) {
+        return initHtmlMatch(self, quickMatch[1], contextArg);
+      }
+      return initIdMatch(self, quickMatch[2]);
+    }
+
+    if (!contextArg.truthy() || contextArg["jquery"].truthy()) {
+      JsValue target = contextArg;
+      if (!target.truthy()) {
+        target = rootjQuery;
+      }
+      return JS.invoke(target, "find", selectorArg);
+    }
+
+    JsValue wrappedContext = wrap(contextArg);
+    return JS.invoke(wrappedContext, "find", selectorArg);
+  }
+
+  JsValue nodeTypeValue = selectorArg["nodeType"];
+  if (nodeTypeValue.truthy()) {
+    self[0] = selectorArg;
+    self["length"] = 1.0;
+    return self;
+  }
+
+  if (isFunction(selectorArg)) {
+    JsValue readyFn = rootjQuery["ready"];
+    if (!JS.isUndefined(readyFn)) {
+      return JS.call(readyFn, rootjQuery, selectorArg);
+    }
+    return JS.call(selectorArg, jQuery, jQuery);
+  }
+
+  return makeArray(selectorArg, self);
+}
+
+setJQueryInit(jQuery, initImpl);
+
+rootjQuery = wrap(document);
+
+export { jQuery };

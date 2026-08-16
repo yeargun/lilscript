@@ -1,0 +1,10 @@
+[env]
+# libz-sys checks this environment switch before its Cargo `static` feature.
+# Force the bundled upstream zlib build so a caller cannot silently replace the
+# compiler's gzip objective with the host's libz implementation.
+LIBZ_SYS_STATIC = { value = "1", force = true }
+# libz-sys probes vcpkg before its static bundled-build branch on Windows.
+# Disable both vcpkg-rs port-specific aliases so even a statically installed
+# vcpkg zlib cannot impersonate the canonical bundled scorer.
+VCPKGRS_NO_ZLIB = { value = "1", force = true }
+ZLIB_NO_VCPKG = { value = "1", force = true }

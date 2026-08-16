@@ -1,24 +1,32 @@
 import { performance } from "node:perf_hooks";
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 
-const [library, implementation, mode] = process.argv.slice(2);
+const [library, implementation, mode, moduleRoot] = process.argv.slice(2);
 if (!global.gc) throw new Error("run with --expose-gc");
 
+function lilModule(file) {
+  return moduleRoot
+    ? pathToFileURL(resolve(moduleRoot, file)).href
+    : `./build/ports/${file}`;
+}
+
 const lilModules = {
-  "motion-easing": "./build/ports/motion-easing.mjs",
+  "motion-easing": lilModule("motion-easing.mjs"),
   "micro-math": null,
-  "string-hash": "./build/ports/string-hash.mjs",
-  "js-levenshtein": "./build/ports/js-levenshtein.mjs",
-  "emotion-hash": "./build/ports/emotion-hash.mjs",
-  "murmurhash-js": "./build/ports/murmurhash-js.mjs",
-  "robust-predicates": "./build/ports/robust-predicates.mjs",
+  "string-hash": lilModule("string-hash.mjs"),
+  "js-levenshtein": lilModule("js-levenshtein.mjs"),
+  "emotion-hash": lilModule("emotion-hash.mjs"),
+  "murmurhash-js": lilModule("murmurhash-js.mjs"),
+  "robust-predicates": lilModule("robust-predicates.mjs"),
 };
 
 async function load() {
   if (implementation === "lilscript") {
     if (library === "micro-math") {
       const [clamp, lerp] = await Promise.all([
-        import("./build/ports/clamp.mjs"),
-        import("./build/ports/lerp.mjs"),
+        import(lilModule("clamp.mjs")),
+        import(lilModule("lerp.mjs")),
       ]);
       return { clamp: clamp.clamp, lerp: lerp.lerp };
     }
@@ -217,7 +225,10 @@ const memoryCounts = {
 };
 
 const api = await load();
-if (mode === "performance") {
+if (mode === "contract") {
+  const result = work(api, 64, false);
+  process.stdout.write(JSON.stringify({ checksum: result.checksum }));
+} else if (mode === "performance") {
   work(api, Math.floor(performanceCounts[library] / 10), false);
   global.gc();
   const started = performance.now();

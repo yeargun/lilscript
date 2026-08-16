@@ -1,0 +1,125 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,200..800&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #ececec;
+      font-family: "Bricolage Grotesque", sans-serif;
+      display: grid;
+      place-content: center;
+      overflow: hidden;
+      color: #262626;
+      user-select: none;
+    }
+    .stage {
+      position: relative;
+      width: 300px;
+      padding: 8px;
+    }
+    .track {
+      display: flex;
+      width: max-content;
+      will-change: transform;
+    }
+    .slot {
+      perspective: 800px;
+      position: relative;
+    }
+    .slide {
+      flex: none;
+      height: 200px;
+      width: 70px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      will-change: transform, width;
+      transform-style: preserve-3d;
+    }
+    .photo {
+      width: 200px;
+      height: 200px;
+      border-radius: 12px;
+      background-size: cover;
+      background-position: center;
+      cursor: pointer;
+      box-shadow: 0 10px 30px rgba(0,0,0,.18);
+    }
+    .frame {
+      position: absolute;
+      inset: 0;
+      margin: auto;
+      width: 216px;
+      height: 216px;
+      border: 2px solid #111;
+      border-radius: 14px;
+      pointer-events: none;
+      box-sizing: content-box;
+    }
+    .controls {
+      position: fixed;
+      left: 50%;
+      bottom: 20px;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(229,229,229,.55);
+      border: 1px solid rgba(229,229,229,.85);
+      backdrop-filter: blur(8px);
+      box-shadow: 0 8px 24px rgba(0,0,0,.08);
+      z-index: 50;
+    }
+    .controls button {
+      appearance: none;
+      border: 0;
+      background: transparent;
+      cursor: pointer;
+      padding: 8px;
+      color: #404040;
+      font-size: 18px;
+      line-height: 1;
+    }
+    .dots {
+      width: 180px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+    }
+    .dot {
+      height: 8px;
+      width: 8px;
+      border-radius: 999px;
+      background: rgba(64,64,64,.3);
+      cursor: pointer;
+      transition: width .3s, background-color .3s;
+    }
+    .dot.active {
+      width: 28px;
+      background: #404040;
+    }
+  </style>
+  <script type="module" crossorigin src="./assets/index-CoJgwu7c.js"></script>
+</head>
+<body>
+  <div class="stage">
+    <div class="track" id="track"></div>
+    <div class="frame" id="frame"></div>
+  </div>
+  <div class="controls">
+    <button id="prev" aria-label="Previous">‹</button>
+    <div class="dots" id="dots"></div>
+    <button id="next" aria-label="Next">›</button>
+  </div>
+</body>
+</html>

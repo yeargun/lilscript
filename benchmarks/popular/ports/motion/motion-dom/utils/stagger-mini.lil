@@ -1,0 +1,18 @@
+export func(int, int)->float stagger(float duration = 0.1, JsValue? options = null) {
+  float startDelay = 0.0;
+  float from = 0.0;
+  if (options != null && options.isObject()) {
+    JsValue startDelayVal = options["startDelay"];
+    if (startDelayVal is float) {
+      startDelay = startDelayVal;
+    }
+    JsValue fromVal = options["from"];
+    if (fromVal is float) {
+      from = fromVal;
+    }
+  }
+  return (int i, int _total) => {
+    float distance = (from - i).abs();
+    return startDelay + duration * distance;
+  };
+}

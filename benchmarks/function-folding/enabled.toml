@@ -5,4 +5,5 @@ capture_signature_cloning = false
 identical_function_folding = true
 
 [javascript]
+cost_model = "brotli"
 candidate_search = "off"

@@ -1,0 +1,154 @@
+import { defaultOffsetFloats } from "../../../../../motion-dom/animation/keyframes/offsets/default";
+import { interpolate, InterpolateOptions } from "../../../../../motion-dom/utils/interpolate";
+import { clamp } from "../../../../../motion-utils/clamp";
+import { getElementTagName, callFn0, callMethod0, isFunction } from "../../../../../motion-dom/dom-host";
+import { AxisScrollInfo, ScrollInfo } from "../types";
+import { calcInset, InsetPoint } from "./inset";
+import { resolveOffset } from "./offset";
+import { scrollOffsetAll } from "./presets";
+
+class Size2D {
+  float width;
+  float height;
+
+  init(float width = 0.0, float height = 0.0) {
+    this.width = width;
+    this.height = height;
+  }
+}
+
+Size2D getTargetSize(JsValue target) {
+  JsValue getBBox = target["getBBox"];
+  string tag = getElementTagName(target);
+  if (getBBox.truthy() && tag != "svg" && tag != "SVG") {
+    JsValue box = callFn0(getBBox);
+    float width = 0.0;
+    float height = 0.0;
+    if (box.truthy()) {
+      JsValue w = box["width"];
+      JsValue h = box["height"];
+      if (w is float) {
+        width = w;
+      }
+      if (h is float) {
+        height = h;
+      }
+    }
+    return new Size2D(width, height);
+  }
+  float width = 0.0;
+  float height = 0.0;
+  JsValue cw = target["clientWidth"];
+  JsValue ch = target["clientHeight"];
+  if (cw is float) {
+    width = cw;
+  }
+  if (ch is float) {
+    height = ch;
+  }
+  return new Size2D(width, height);
+}
+
+export void resolveOffsets(JsValue container, ScrollInfo info, JsValue options) {
+  JsValue offsetDefinition = scrollOffsetAll;
+  if (options != null && options.isObject()) {
+    JsValue offset = options["offset"];
+    if (offset != null) {
+      offsetDefinition = offset;
+    }
+  }
+
+  JsValue target = container;
+  string axis = "y";
+  if (options != null && options.isObject()) {
+    JsValue t = options["target"];
+    if (t != null) {
+      target = t;
+    }
+    JsValue a = options["axis"];
+    if (a is string) {
+      axis = a;
+    }
+  }
+
+  string lengthLabel = "width";
+  if (axis == "y") {
+    lengthLabel = "height";
+  }
+
+  InsetPoint inset = new InsetPoint();
+  if (target != container) {
+    inset = calcInset(target, container);
+  }
+
+  Size2D targetSize = new Size2D();
+  if (target == container) {
+    JsValue sw = container["scrollWidth"];
+    JsValue sh = container["scrollHeight"];
+    float width = 0.0;
+    float height = 0.0;
+    if (sw is float) {
+      width = sw;
+    }
+    if (sh is float) {
+      height = sh;
+    }
+    targetSize = new Size2D(width, height);
+  } else {
+    targetSize = getTargetSize(target);
+  }
+
+  float containerWidth = 0.0;
+  float containerHeight = 0.0;
+  JsValue cw = container["clientWidth"];
+  JsValue ch = container["clientHeight"];
+  if (cw is float) {
+    containerWidth = cw;
+  }
+  if (ch is float) {
+    containerHeight = ch;
+  }
+
+  AxisScrollInfo axisInfo = info.x;
+  float insetAxis = inset.x;
+  float targetLen = targetSize.width;
+  float containerLen = containerWidth;
+  if (axis == "y") {
+    axisInfo = info.y;
+    insetAxis = inset.y;
+    targetLen = targetSize.height;
+    containerLen = containerHeight;
+  }
+
+  axisInfo.offset = [];
+
+  bool hasChanged = axisInfo.interpolateFn == null;
+  int numOffsets = 0;
+  if (offsetDefinition.isArray()) {
+    numOffsets = offsetDefinition.length.toInt();
+  }
+
+  for (int i = 0; i < numOffsets; i++) {
+    JsValue offsetItem = offsetDefinition[i];
+    float offset = resolveOffset(offsetItem, containerLen, targetLen, insetAxis);
+    if (!hasChanged) {
+      float[]? prev = axisInfo.interpolatorOffsets;
+      if (prev != null && i < prev.length && offset != prev[i]) {
+        hasChanged = true;
+      }
+    }
+    axisInfo.offset.push(offset);
+  }
+
+  if (hasChanged) {
+    float[] outputProgress = defaultOffsetFloats(axisInfo.offset);
+    InterpolateOptions opts = new InterpolateOptions(false);
+    axisInfo.interpolateFn = interpolate(axisInfo.offset, outputProgress, opts);
+    axisInfo.interpolatorOffsets = [...axisInfo.offset];
+  }
+
+  (func(float)->float)? interpolateFn = axisInfo.interpolateFn;
+  if (interpolateFn != null) {
+    axisInfo.progress = clamp(0.0, 1.0, interpolateFn(axisInfo.current));
+  }
+}

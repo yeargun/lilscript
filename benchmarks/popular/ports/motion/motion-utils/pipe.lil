@@ -1,0 +1,23 @@
+export func(JsValue)->JsValue pipe(
+  func(JsValue)->JsValue a,
+  func(JsValue)->JsValue b,
+  (func(JsValue)->JsValue)? c = null,
+  (func(JsValue)->JsValue)? d = null
+) {
+  (func(JsValue)->JsValue)[] transformers = [a, b];
+  if (c != null) {
+    transformers.push(c);
+  }
+  if (d != null) {
+    transformers.push(d);
+  }
+  return (JsValue v) => {
+    JsValue result = v;
+    int i = 0;
+    while (i < transformers.length) {
+      result = transformers[i](result);
+      i = i + 1;
+    }
+    return result;
+  };
+}

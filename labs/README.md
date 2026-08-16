@@ -1,30 +1,26 @@
 # Integrated labs
 
-`labs/solid-client` is the formerly sibling `lilscript-solid-lab` repository,
-now pinned here as a Git submodule. It retains its independent history and its
-own upstream Solid submodule while making the compiler integration, application
-sources, compatibility cases, scripts, and checked evidence discoverable from
-the main LilScript tree.
+`labs/solid-client` is an ordinary, root-owned workspace in the LilScript
+monorepo. The former gitlink and nested repository boundary were removed so the
+compiler, runtime, LSX frontend, compatibility ledgers, applications, reports,
+and documentation evolve in one change set.
 
-Clone everything with:
+The integrated browser-runtime gate currently verifies 135/135 public
+Core/Web/Store exports and passes 469/469 unchanged pinned upstream tests. LSX
+is reported separately: its strict client-rendering gate passes 21/21 in-scope
+families, including Suspense and ErrorBoundary. Hydration and SSR are explicit
+server-coupled exclusions rather than client-parity gaps.
 
-```sh
-git clone --recurse-submodules https://github.com/yeargun/lilscript.git
-```
-
-For an existing clone:
-
-```sh
-git submodule update --init labs/solid-client
-```
-
-The main benchmark site does not require the submodule checkout. A current
-portable size snapshot lives at
+The main benchmark site does not require the lab dependencies or upstream fixture. An archived,
+portable LSX size snapshot lives at
 `benchmarks/popular/apps/solid/size-report.json`; the popular-library runner
-uses that first, then the integrated lab report, and only then a legacy sibling
-checkout. This prevents local absolute paths from becoming a hidden build
-requirement.
+uses that stable snapshot when publishing the historical application row. The
+LSX parser, lowerer, Vite transform, and strict feature ledger are integrated,
+along with the differential fixture and resource gates. The old todolist stays
+archived; the current 21/21 fixture is the reproducible client benchmark.
 
-Generated dependencies, `dist`, the lab's nested upstream Solid checkout, and
-temporary artifacts remain owned and ignored by the lab rather than being
-duplicated into the main repository.
+Generated dependencies, `dist`, the reproducible upstream Solid fixture, and
+temporary compiler output remain ignored by the lab rather than being checked
+in or duplicated. Reproducible JSON/Markdown/HTML reports remain under
+`labs/solid-client/artifacts`, and `npm run publish:web` updates the main site's
+filterable/selectable benchmark data from those reports.

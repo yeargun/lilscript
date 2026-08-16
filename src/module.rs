@@ -2,15 +2,17 @@ use std::collections::hash_map::Entry;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use ahash::{AHashMap, AHashSet};
+use crate::stable_hash::{StableHashMap as AHashMap, StableHashSet as AHashSet};
 use bumpalo::collections::Vec as BumpVec;
 use bumpalo::Bump;
 
 use crate::ast::{
-    ArrowBody, ClassDecl, ClassMember, ConstructorDecl, DynamicExport, DynamicImportDecl,
-    ExportDecl, Expr, ExternClassDecl, ExternClassMember, ExternDecl, ExternGlobalDecl, FieldDecl,
-    ForInitializer, FunctionDecl, Ident, Item, Param, Program, Stmt, StructDecl, TemplatePart,
-    TypeKind, TypeRef, VarDecl,
+    ArrayBinding, ArrayElement, ArrowBody, CatchBinding, CatchClause, ClassDecl, ClassMember,
+    ConstructorDecl, DynamicExport, DynamicImportDecl, EnumDecl, ExportDecl, Expr, ExternClassDecl,
+    ExternClassMember, ExternDecl, ExternGlobalDecl, FieldDecl, ForInitializer, ForeignImportDecl,
+    FunctionDecl, Ident, ImportSpecifier, Item, MatchArm, MatchPattern, Param, Program,
+    RecordBinding, RecordElement, RecordEntry, Stmt, StructDecl, TemplatePart, TypeKind, TypeRef,
+    VarDecl,
 };
 use crate::config::ProjectConfig;
 use crate::package::{load_package_resolver, PackageResolver};
@@ -24,8 +26,15 @@ pub struct ModuleSource {
     pub path: PathBuf,
     pub source: String,
     pub dependencies: Vec<ModuleId>,
+    pub foreign_dependencies: Vec<ForeignModuleSource>,
     pub dynamic_dependencies: Vec<ModuleId>,
     pub offset: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ForeignModuleSource {
+    pub specifier: String,
+    pub path: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone)]
@@ -131,13 +140,13 @@ fn discover_modules_inner(
     let root_path = canonical_module_path(root).map_err(|message| {
         ModuleError::new(root, root_source.unwrap_or(""), Span::empty(0), message)
     })?;
-    let mut overrides = AHashMap::new();
+    let mut overrides = AHashMap::default();
     if let Some(source) = root_source {
         overrides.insert(root_path.clone(), source.to_string());
     }
     let mut loader = ModuleLoader {
         modules: Vec::new(),
-        by_path: AHashMap::new(),
+        by_path: AHashMap::default(),
         states: Vec::new(),
         dependency_order: Vec::new(),
         stack: Vec::new(),
@@ -242,6 +251,11 @@ impl ModuleLoader {
             .iter()
             .map(|import| (import.source.to_string(), import.span))
             .collect::<Vec<_>>();
+        let foreign_imports = program
+            .foreign_imports
+            .iter()
+            .map(|import| (import.source.to_string(), import.span))
+            .collect::<Vec<_>>();
         let mut dynamic_imports = Vec::new();
         collect_program_dynamic_imports(&program, &mut dynamic_imports);
         let dynamic_imports = dynamic_imports
@@ -256,6 +270,7 @@ impl ModuleLoader {
             path: path.clone(),
             source,
             dependencies: Vec::with_capacity(imports.len()),
+            foreign_dependencies: Vec::with_capacity(foreign_imports.len()),
             dynamic_dependencies: Vec::with_capacity(dynamic_imports.len()),
             offset: 0,
         });
@@ -279,6 +294,19 @@ impl ModuleLoader {
             dependencies.push(dependency);
         }
         self.modules[id].dependencies = dependencies;
+        let mut foreign_dependencies = Vec::with_capacity(foreign_imports.len());
+        for (specifier, span) in foreign_imports {
+            let resolved = self
+                .resolve_foreign_import_path(parent, &specifier)
+                .map_err(|message| {
+                    ModuleError::new(&path, &self.modules[id].source, span, message)
+                })?;
+            foreign_dependencies.push(ForeignModuleSource {
+                specifier,
+                path: resolved,
+            });
+        }
+        self.modules[id].foreign_dependencies = foreign_dependencies;
         let mut dynamic_dependencies = Vec::with_capacity(dynamic_imports.len());
         for (specifier, span) in dynamic_imports {
             let dependency_path =
@@ -314,6 +342,41 @@ impl ModuleLoader {
         resolver
             .resolve(parent, specifier)
             .map_err(|error| error.message)
+    }
+
+    fn resolve_foreign_import_path(
+        &self,
+        parent: &Path,
+        specifier: &str,
+    ) -> Result<Option<PathBuf>, String> {
+        if !specifier.starts_with('.') {
+            if Path::new(specifier).is_absolute() {
+                return Err(format!(
+                    "foreign module path `{specifier}` must not be absolute"
+                ));
+            }
+            return Ok(None);
+        }
+        let requested = parent.join(specifier);
+        let extension = requested.extension().and_then(|value| value.to_str());
+        let path = if extension.is_some() {
+            requested
+        } else {
+            ["ts", "mts", "js", "mjs", "tsx", "jsx"]
+                .into_iter()
+                .map(|extension| requested.with_extension(extension))
+                .find(|candidate| candidate.is_file())
+                .ok_or_else(|| format!("cannot resolve foreign module `{specifier}`"))?
+        };
+        let extension = path.extension().and_then(|value| value.to_str());
+        if !matches!(extension, Some("js" | "jsx" | "mjs" | "ts" | "tsx" | "mts")) {
+            return Err(format!(
+                "foreign module `{specifier}` must use a JavaScript or TypeScript extension"
+            ));
+        }
+        path.canonicalize()
+            .map(Some)
+            .map_err(|error| format!("cannot resolve foreign module `{specifier}`: {error}"))
     }
 }
 
@@ -361,7 +424,7 @@ fn collect_program_dynamic_imports<'ast, 'src>(
 ) {
     for item in program.items {
         match item {
-            Item::Struct(_) | Item::ExternGlobal(_) => {}
+            Item::Enum(_) | Item::Struct(_) | Item::ExternGlobal(_) => {}
             Item::Class(class) => {
                 for member in class.members {
                     match member {
@@ -420,10 +483,34 @@ fn collect_stmt_dynamic_imports<'ast, 'src>(
                     collect_expr_dynamic_imports(initializer, imports);
                 }
             }
+            Stmt::ArrayDestructure { value, .. } | Stmt::RecordDestructure { value, .. } => {
+                collect_expr_dynamic_imports(value, imports)
+            }
             Stmt::Expr(expression) => collect_expr_dynamic_imports(expression, imports),
             Stmt::Return { value, .. } => {
                 if let Some(value) = value {
                     collect_expr_dynamic_imports(value, imports);
+                }
+            }
+            Stmt::Throw { value, .. } => collect_expr_dynamic_imports(value, imports),
+            Stmt::SuperCall { args, .. } => {
+                for argument in *args {
+                    collect_expr_dynamic_imports(argument, imports);
+                }
+            }
+            Stmt::Yield { value, .. } => collect_expr_dynamic_imports(value, imports),
+            Stmt::Try {
+                body,
+                catch,
+                finally,
+                ..
+            } => {
+                collect_stmt_dynamic_imports(body, imports);
+                if let Some(clause) = catch {
+                    collect_stmt_dynamic_imports(clause.body, imports);
+                }
+                if let Some(body) = finally {
+                    collect_stmt_dynamic_imports(body, imports);
                 }
             }
             Stmt::Block { body, .. } => collect_stmt_dynamic_imports(body, imports),
@@ -476,6 +563,10 @@ fn collect_stmt_dynamic_imports<'ast, 'src>(
                 collect_expr_dynamic_imports(object, imports);
                 collect_stmt_dynamic_imports(std::slice::from_ref(*body), imports);
             }
+            Stmt::ForOf { iterable, body, .. } => {
+                collect_expr_dynamic_imports(iterable, imports);
+                collect_stmt_dynamic_imports(std::slice::from_ref(*body), imports);
+            }
             Stmt::Break(_) | Stmt::Continue(_) => {}
         }
     }
@@ -489,7 +580,12 @@ fn collect_expr_dynamic_imports<'ast, 'src>(
         Expr::DynamicImport { source, span } => imports.push((source, *span)),
         Expr::ArrayLiteral { elements, .. } => {
             for element in *elements {
-                collect_expr_dynamic_imports(element, imports);
+                collect_expr_dynamic_imports(element.value(), imports);
+            }
+        }
+        Expr::RecordLiteral { entries, .. } => {
+            for entry in *entries {
+                collect_expr_dynamic_imports(entry.value(), imports);
             }
         }
         Expr::StructLiteral { values, .. } | Expr::New { args: values, .. } => {
@@ -498,7 +594,9 @@ fn collect_expr_dynamic_imports<'ast, 'src>(
             }
         }
         Expr::Member { object, .. }
+        | Expr::OptionalMember { object, .. }
         | Expr::Unary { expr: object, .. }
+        | Expr::Await { task: object, .. }
         | Expr::TypeCheck { value: object, .. }
         | Expr::Update { target: object, .. } => collect_expr_dynamic_imports(object, imports),
         Expr::Call { callee, args, .. } => {
@@ -520,6 +618,11 @@ fn collect_expr_dynamic_imports<'ast, 'src>(
             index: rhs,
             ..
         }
+        | Expr::OptionalIndex {
+            object: lhs,
+            index: rhs,
+            ..
+        }
         | Expr::Assignment {
             target: lhs,
             value: rhs,
@@ -533,6 +636,12 @@ fn collect_expr_dynamic_imports<'ast, 'src>(
                 if let TemplatePart::Expr(expression) = part {
                     collect_expr_dynamic_imports(expression, imports);
                 }
+            }
+        }
+        Expr::Match { value, arms, .. } => {
+            collect_expr_dynamic_imports(value, imports);
+            for arm in *arms {
+                collect_expr_dynamic_imports(&arm.value, imports);
             }
         }
         Expr::Int(..)
@@ -583,26 +692,25 @@ pub fn link_modules<'arena>(
 
     let mut bindings = Vec::with_capacity(programs.len());
     for (module_id, program) in programs.iter().enumerate() {
-        let mut module_bindings = AHashMap::new();
+        let mut module_bindings = AHashMap::default();
         for item in program.items {
-            let Some(name) = top_level_name(item) else {
-                continue;
-            };
-            let internal = if module_id == modules.root
-                || matches!(item, Item::Extern(_) | Item::ExternGlobal(_))
-            {
-                name.name
-            } else {
-                let generated = format!("$m{module_id}${}", name.name);
-                &*arena.alloc_str(&generated)
-            };
-            if module_bindings.insert(name.name, internal).is_some() {
-                return Err(module_error_at(
-                    modules,
-                    module_id,
-                    name.span,
-                    format!("duplicate module binding `{}`", name.name),
-                ));
+            for name in top_level_names(item) {
+                let internal = if module_id == modules.root
+                    || matches!(item, Item::Extern(_) | Item::ExternGlobal(_))
+                {
+                    name.name
+                } else {
+                    let generated = format!("$m{module_id}${}", name.name);
+                    &*arena.alloc_str(&generated)
+                };
+                if module_bindings.insert(name.name, internal).is_some() {
+                    return Err(module_error_at(
+                        modules,
+                        module_id,
+                        name.span,
+                        format!("duplicate module binding `{}`", name.name),
+                    ));
+                }
             }
         }
         bindings.push(module_bindings);
@@ -621,6 +729,14 @@ pub fn link_modules<'arena>(
                 "internal module dependency mismatch",
             ));
         }
+        if program.foreign_imports.len() != modules.modules[module_id].foreign_dependencies.len() {
+            return Err(module_error_at(
+                modules,
+                module_id,
+                program.span,
+                "internal foreign module dependency mismatch",
+            ));
+        }
         for import in program.imports {
             for specifier in import.specifiers {
                 if !reserved[module_id].insert(specifier.local.name) {
@@ -633,7 +749,45 @@ pub fn link_modules<'arena>(
                 }
             }
         }
-        let mut exported_names = AHashSet::new();
+        let mut foreign_locals = AHashSet::default();
+        for import in program.foreign_imports {
+            for specifier in import.specifiers {
+                if !foreign_locals.insert(specifier.local.name) {
+                    return Err(module_error_at(
+                        modules,
+                        module_id,
+                        specifier.local.span,
+                        format!(
+                            "duplicate foreign import binding `{}`",
+                            specifier.local.name
+                        ),
+                    ));
+                }
+                if !program.items.iter().any(|item| {
+                    matches!(
+                        item,
+                        Item::Extern(decl) if decl.name.name == specifier.local.name
+                    ) || matches!(
+                        item,
+                        Item::ExternGlobal(decl) if decl.name.name == specifier.local.name
+                    ) || matches!(
+                        item,
+                        Item::ExternClass(decl) if decl.name.name == specifier.local.name
+                    )
+                }) {
+                    return Err(module_error_at(
+                        modules,
+                        module_id,
+                        specifier.local.span,
+                        format!(
+                            "foreign import `{}` requires a matching extern declaration",
+                            specifier.local.name
+                        ),
+                    ));
+                }
+            }
+        }
+        let mut exported_names = AHashSet::default();
         for export in program.exports {
             if !exported_names.insert(export.exported.name) {
                 return Err(module_error_at(
@@ -649,7 +803,7 @@ pub fn link_modules<'arena>(
     // Resolve module interfaces to a fixed point. A dynamic edge may legally
     // contain a static edge back to an already loaded module, so dependency
     // order alone is insufficient for live bindings in that graph shape.
-    let mut exports = vec![AHashMap::new(); programs.len()];
+    let mut exports = vec![AHashMap::default(); programs.len()];
     loop {
         let mut changed = false;
         for (module_id, program) in programs.iter().enumerate() {
@@ -725,7 +879,7 @@ pub fn link_modules<'arena>(
     }
 
     let mut items = BumpVec::new_in(arena);
-    let mut seen_externs = AHashMap::<&str, ExternDecl<'arena, 'arena>>::new();
+    let mut seen_externs = AHashMap::<&str, ExternDecl<'arena, 'arena>>::default();
     for &module_id in &modules.dependency_order {
         let mut cloner = ModuleCloner::new(
             arena,
@@ -760,6 +914,70 @@ pub fn link_modules<'arena>(
     }
     let items = items.into_bump_slice();
     let root = modules.root;
+    let root_directory = modules.modules[root]
+        .path
+        .parent()
+        .unwrap_or_else(|| Path::new("."));
+    let mut linked_foreign_imports = BumpVec::new_in(arena);
+    let mut foreign_bindings = AHashMap::<&str, (&str, &str)>::default();
+    for (module_id, program) in programs.iter().enumerate() {
+        for (import, dependency) in program
+            .foreign_imports
+            .iter()
+            .zip(&modules.modules[module_id].foreign_dependencies)
+        {
+            let source = if let Some(path) = &dependency.path {
+                arena.alloc_str(&relative_module_specifier(root_directory, path))
+            } else {
+                arena.alloc_str(&dependency.specifier)
+            };
+            let mut specifiers = BumpVec::new_in(arena);
+            for specifier in import.specifiers {
+                if let Some((previous_source, previous_imported)) =
+                    foreign_bindings.get(specifier.local.name)
+                {
+                    if *previous_source != source || *previous_imported != specifier.imported.name {
+                        return Err(module_error_at(
+                            modules,
+                            module_id,
+                            specifier.local.span,
+                            format!(
+                                "foreign binding `{}` is imported from conflicting modules",
+                                specifier.local.name
+                            ),
+                        ));
+                    }
+                    continue;
+                }
+                foreign_bindings.insert(specifier.local.name, (source, specifier.imported.name));
+                let offset = modules.modules[module_id].offset;
+                specifiers.push(ImportSpecifier {
+                    imported: Ident {
+                        name: specifier.imported.name,
+                        span: Span::new(
+                            specifier.imported.span.start + offset,
+                            specifier.imported.span.end + offset,
+                        ),
+                    },
+                    local: Ident {
+                        name: specifier.local.name,
+                        span: Span::new(
+                            specifier.local.span.start + offset,
+                            specifier.local.span.end + offset,
+                        ),
+                    },
+                });
+            }
+            if !specifiers.is_empty() || import.specifiers.is_empty() {
+                let offset = modules.modules[module_id].offset;
+                linked_foreign_imports.push(ForeignImportDecl {
+                    specifiers: specifiers.into_bump_slice(),
+                    source,
+                    span: Span::new(import.span.start + offset, import.span.end + offset),
+                });
+            }
+        }
+    }
     let mut linked_exports = BumpVec::new_in(arena);
     for export in programs[root].exports {
         let internal = bindings[root]
@@ -849,11 +1067,35 @@ pub fn link_modules<'arena>(
         });
     Ok(Program {
         imports: &[],
+        foreign_imports: linked_foreign_imports.into_bump_slice(),
         dynamic_imports: linked_dynamic_imports.into_bump_slice(),
         exports: linked_exports.into_bump_slice(),
         items,
         span,
     })
+}
+
+fn relative_module_specifier(from: &Path, to: &Path) -> String {
+    let from = from.components().collect::<Vec<_>>();
+    let to = to.components().collect::<Vec<_>>();
+    let common = from
+        .iter()
+        .zip(&to)
+        .take_while(|(left, right)| left == right)
+        .count();
+    let mut parts = Vec::new();
+    parts.extend(std::iter::repeat_n("..".to_string(), from.len() - common));
+    parts.extend(
+        to[common..]
+            .iter()
+            .map(|component| component.as_os_str().to_string_lossy().into_owned()),
+    );
+    let joined = parts.join("/");
+    if joined.starts_with("..") {
+        joined
+    } else {
+        format!("./{joined}")
+    }
 }
 
 fn extern_contracts_match(left: &ExternDecl<'_, '_>, right: &ExternDecl<'_, '_>) -> bool {
@@ -917,16 +1159,29 @@ fn type_contracts_match(left: TypeRef<'_, '_>, right: TypeRef<'_, '_>) -> bool {
     }
 }
 
-fn top_level_name<'src>(item: &Item<'_, 'src>) -> Option<Ident<'src>> {
+fn top_level_names<'src>(item: &Item<'_, 'src>) -> Vec<Ident<'src>> {
     match item {
-        Item::Struct(decl) => Some(decl.name),
-        Item::Class(decl) => Some(decl.name),
-        Item::ExternClass(decl) => Some(decl.name),
-        Item::Function(decl) => Some(decl.name),
-        Item::Extern(decl) => Some(decl.name),
-        Item::ExternGlobal(decl) => Some(decl.name),
-        Item::Stmt(Stmt::VarDecl(decl)) => Some(decl.name),
-        Item::Stmt(_) => None,
+        Item::Enum(decl) => vec![decl.name],
+        Item::Struct(decl) => vec![decl.name],
+        Item::Class(decl) => vec![decl.name],
+        Item::ExternClass(decl) => vec![decl.name],
+        Item::Function(decl) => vec![decl.name],
+        Item::Extern(decl) => vec![decl.name],
+        Item::ExternGlobal(decl) => vec![decl.name],
+        Item::Stmt(Stmt::VarDecl(decl)) => vec![decl.name],
+        Item::Stmt(Stmt::ArrayDestructure { bindings, .. }) => bindings
+            .iter()
+            .filter_map(|binding| match binding {
+                ArrayBinding::Hole(_) => None,
+                ArrayBinding::Name(name) | ArrayBinding::Rest(name) => Some(*name),
+            })
+            .collect(),
+        Item::Stmt(Stmt::RecordDestructure { bindings, rest, .. }) => bindings
+            .iter()
+            .map(|binding| binding.name)
+            .chain(rest.iter().copied())
+            .collect(),
+        Item::Stmt(_) => Vec::new(),
     }
 }
 
@@ -983,6 +1238,11 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
 
     fn clone_item(&mut self, item: &Item<'arena, 'arena>) -> Item<'arena, 'arena> {
         match item {
+            Item::Enum(decl) => Item::Enum(EnumDecl {
+                name: self.global_ident(decl.name),
+                variants: self.clone_idents(decl.variants),
+                span: self.span(decl.span),
+            }),
             Item::Struct(decl) => Item::Struct(self.clone_struct(decl)),
             Item::Class(decl) => Item::Class(self.clone_class(decl)),
             Item::ExternClass(decl) => Item::ExternClass(self.clone_extern_class(decl)),
@@ -1037,6 +1297,7 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
         ClassDecl {
             name: self.global_ident(decl.name),
             type_params: self.clone_idents(decl.type_params),
+            base: decl.base.map(|base| self.clone_type(base)),
             members: members.into_bump_slice(),
             span: self.span(decl.span),
         }
@@ -1065,6 +1326,7 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
         ExternClassDecl {
             name: self.global_ident(decl.name),
             type_params: self.clone_idents(decl.type_params),
+            base: decl.base.map(|base| self.clone_type(base)),
             members: members.into_bump_slice(),
             span: self.span(decl.span),
         }
@@ -1081,6 +1343,8 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
         self.pop_scope();
         FunctionDecl {
             declared_pure: decl.declared_pure,
+            is_async: decl.is_async,
+            is_generator: decl.is_generator,
             return_type: self.clone_type(decl.return_type),
             name: if global_name {
                 self.global_ident(decl.name)
@@ -1136,6 +1400,20 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
         cloned
     }
 
+    /// Arrow defaults share the arrow's complete parameter scope. Predeclare
+    /// every name so self/forward references remain parameter-bound for the
+    /// semantic earlier-only check instead of being renamed to a same-name
+    /// module global. Named callable defaults retain outer-scope binding rules.
+    fn clone_arrow_params_and_declare(
+        &mut self,
+        params: &[Param<'arena, 'arena>],
+    ) -> &'arena [Param<'arena, 'arena>] {
+        for param in params {
+            self.declare_local(param.name.name);
+        }
+        self.clone_params(params)
+    }
+
     fn clone_statements(
         &mut self,
         statements: &[Stmt<'arena, 'arena>],
@@ -1150,11 +1428,121 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
     fn clone_stmt(&mut self, stmt: &Stmt<'arena, 'arena>, top_level: bool) -> Stmt<'arena, 'arena> {
         match stmt {
             Stmt::VarDecl(decl) => Stmt::VarDecl(self.clone_var_decl(decl, top_level)),
+            Stmt::ArrayDestructure {
+                bindings,
+                value,
+                span,
+            } => {
+                let value = self.clone_expr(value);
+                let mut cloned = BumpVec::new_in(self.arena);
+                for binding in *bindings {
+                    cloned.push(match binding {
+                        ArrayBinding::Hole(span) => ArrayBinding::Hole(self.span(*span)),
+                        ArrayBinding::Name(name) => {
+                            ArrayBinding::Name(self.clone_binding_ident(*name, top_level))
+                        }
+                        ArrayBinding::Rest(name) => {
+                            ArrayBinding::Rest(self.clone_binding_ident(*name, top_level))
+                        }
+                    });
+                }
+                Stmt::ArrayDestructure {
+                    bindings: cloned.into_bump_slice(),
+                    value,
+                    span: self.span(*span),
+                }
+            }
+            Stmt::RecordDestructure {
+                bindings,
+                rest,
+                value,
+                span,
+            } => {
+                let value = self.clone_expr(value);
+                let mut cloned = BumpVec::new_in(self.arena);
+                for binding in *bindings {
+                    cloned.push(RecordBinding {
+                        key: self.plain_ident(binding.key),
+                        name: self.clone_binding_ident(binding.name, top_level),
+                        span: self.span(binding.span),
+                    });
+                }
+                Stmt::RecordDestructure {
+                    bindings: cloned.into_bump_slice(),
+                    rest: rest.map(|name| self.clone_binding_ident(name, top_level)),
+                    value,
+                    span: self.span(*span),
+                }
+            }
             Stmt::Expr(expr) => Stmt::Expr(self.clone_expr(expr)),
             Stmt::Return { value, span } => Stmt::Return {
                 value: value.as_ref().map(|value| self.clone_expr(value)),
                 span: self.span(*span),
             },
+            Stmt::Throw { value, span } => Stmt::Throw {
+                value: self.clone_expr(value),
+                span: self.span(*span),
+            },
+            Stmt::SuperCall { args, span } => {
+                let mut cloned = BumpVec::new_in(self.arena);
+                for argument in *args {
+                    cloned.push(self.clone_expr(argument));
+                }
+                Stmt::SuperCall {
+                    args: cloned.into_bump_slice(),
+                    span: self.span(*span),
+                }
+            }
+            Stmt::Yield {
+                value,
+                delegate,
+                span,
+            } => Stmt::Yield {
+                value: self.clone_expr(value),
+                delegate: *delegate,
+                span: self.span(*span),
+            },
+            Stmt::Try {
+                body,
+                catch,
+                finally,
+                span,
+            } => {
+                self.push_scope();
+                let body = self.clone_statements(body);
+                self.pop_scope();
+                let catch = catch.as_ref().map(|clause| {
+                    self.push_scope();
+                    let binding = clause.binding.map(|binding| {
+                        let binding = CatchBinding {
+                            ty: self.clone_type(binding.ty),
+                            name: self.plain_ident(binding.name),
+                            span: self.span(binding.span),
+                        };
+                        self.declare_local(binding.name.name);
+                        binding
+                    });
+                    let body = self.clone_statements(clause.body);
+                    self.pop_scope();
+                    CatchClause {
+                        binding,
+                        body,
+                        span: self.span(clause.span),
+                    }
+                });
+                let finally = finally.map(|body| {
+                    self.push_scope();
+                    let body = self.clone_statements(body);
+                    self.pop_scope();
+                    body
+                });
+                Stmt::Try {
+                    body,
+                    catch,
+                    finally,
+                    span: self.span(*span),
+                }
+            }
             Stmt::Block { body, span } => {
                 self.push_scope();
                 let body = self.clone_statements(body);
@@ -1232,6 +1620,28 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
                     span: self.span(*span),
                 }
             }
+            Stmt::ForOf {
+                element_type,
+                element,
+                iterable,
+                body,
+                span,
+            } => {
+                self.push_scope();
+                let element_type = self.clone_type(*element_type);
+                let iterable = self.clone_expr(iterable);
+                let element = self.plain_ident(*element);
+                self.declare_local(element.name);
+                let body = self.arena.alloc(self.clone_stmt(body, false));
+                self.pop_scope();
+                Stmt::ForOf {
+                    element_type,
+                    element,
+                    iterable,
+                    body,
+                    span: self.span(*span),
+                }
+            }
             Stmt::Break(span) => Stmt::Break(self.span(*span)),
             Stmt::Continue(span) => Stmt::Continue(self.span(*span)),
         }
@@ -1271,6 +1681,16 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
         }
     }
 
+    fn clone_binding_ident(&mut self, ident: Ident<'arena>, top_level: bool) -> Ident<'arena> {
+        if top_level {
+            self.global_ident(ident)
+        } else {
+            let ident = self.plain_ident(ident);
+            self.declare_local(ident.name);
+            ident
+        }
+    }
+
     fn clone_expr(&mut self, expr: &Expr<'arena, 'arena>) -> Expr<'arena, 'arena> {
         match expr {
             Expr::Int(value, span) => Expr::Int(*value, self.span(*span)),
@@ -1279,10 +1699,42 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
             Expr::Bool(value, span) => Expr::Bool(*value, self.span(*span)),
             Expr::Null(span) => Expr::Null(self.span(*span)),
             Expr::Ident(ident) => Expr::Ident(self.reference_ident(*ident)),
-            Expr::ArrayLiteral { elements, span } => Expr::ArrayLiteral {
-                elements: self.clone_exprs(elements),
-                span: self.span(*span),
-            },
+            Expr::ArrayLiteral { elements, span } => {
+                let mut cloned = BumpVec::new_in(self.arena);
+                for element in *elements {
+                    cloned.push(match element {
+                        ArrayElement::Value(value) => ArrayElement::Value(self.clone_expr(value)),
+                        ArrayElement::Spread { value, span } => ArrayElement::Spread {
+                            value: self.clone_expr(value),
+                            span: self.span(*span),
+                        },
+                    });
+                }
+                Expr::ArrayLiteral {
+                    elements: cloned.into_bump_slice(),
+                    span: self.span(*span),
+                }
+            }
+            Expr::RecordLiteral { entries, span } => {
+                let mut cloned = BumpVec::new_in(self.arena);
+                for entry in *entries {
+                    cloned.push(match entry {
+                        RecordElement::Entry(entry) => RecordElement::Entry(RecordEntry {
+                            key: self.plain_ident(entry.key),
+                            value: self.clone_expr(&entry.value),
+                            span: self.span(entry.span),
+                        }),
+                        RecordElement::Spread { value, span } => RecordElement::Spread {
+                            value: self.clone_expr(value),
+                            span: self.span(*span),
+                        },
+                    });
+                }
+                Expr::RecordLiteral {
+                    entries: cloned.into_bump_slice(),
+                    span: self.span(*span),
+                }
+            }
             Expr::StructLiteral { name, values, span } => Expr::StructLiteral {
                 name: self.global_ident(*name),
                 values: self.clone_exprs(values),
@@ -1312,6 +1764,15 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
                 property: self.plain_ident(*property),
                 span: self.span(*span),
             },
+            Expr::OptionalMember {
+                object,
+                property,
+                span,
+            } => Expr::OptionalMember {
+                object: self.arena.alloc(self.clone_expr(object)),
+                property: self.plain_ident(*property),
+                span: self.span(*span),
+            },
             Expr::Call { callee, args, span } => Expr::Call {
                 callee: self.arena.alloc(self.clone_expr(callee)),
                 args: self.clone_exprs(args),
@@ -1319,7 +1780,7 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
             },
             Expr::ArrowFunction { params, body, span } => {
                 self.push_scope();
-                let params = self.clone_params_and_declare(params);
+                let params = self.clone_arrow_params_and_declare(params);
                 let body = match body {
                     ArrowBody::Expr(expr) => {
                         ArrowBody::Expr(self.arena.alloc(self.clone_expr(expr)))
@@ -1336,6 +1797,10 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
             Expr::Unary { op, expr, span } => Expr::Unary {
                 op: *op,
                 expr: self.arena.alloc(self.clone_expr(expr)),
+                span: self.span(*span),
+            },
+            Expr::Await { task, span } => Expr::Await {
+                task: self.arena.alloc(self.clone_expr(task)),
                 span: self.span(*span),
             },
             Expr::Binary { op, lhs, rhs, span } => Expr::Binary {
@@ -1362,6 +1827,42 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
                 index: self.arena.alloc(self.clone_expr(index)),
                 span: self.span(*span),
             },
+            Expr::OptionalIndex {
+                object,
+                index,
+                span,
+            } => Expr::OptionalIndex {
+                object: self.arena.alloc(self.clone_expr(object)),
+                index: self.arena.alloc(self.clone_expr(index)),
+                span: self.span(*span),
+            },
+            Expr::Match { value, arms, span } => {
+                let mut cloned = BumpVec::new_in(self.arena);
+                for arm in *arms {
+                    let pattern = match arm.pattern {
+                        MatchPattern::EnumVariant {
+                            enum_name,
+                            variant,
+                            span,
+                        } => MatchPattern::EnumVariant {
+                            enum_name: self.global_ident(enum_name),
+                            variant: self.plain_ident(variant),
+                            span: self.span(span),
+                        },
+                        MatchPattern::Wildcard(span) => MatchPattern::Wildcard(self.span(span)),
+                    };
+                    cloned.push(MatchArm {
+                        pattern,
+                        value: self.clone_expr(&arm.value),
+                        span: self.span(arm.span),
+                    });
+                }
+                Expr::Match {
+                    value: self.arena.alloc(self.clone_expr(value)),
+                    arms: cloned.into_bump_slice(),
+                    span: self.span(*span),
+                }
+            }
             Expr::Assignment {
                 op,
                 target,
@@ -1489,7 +1990,7 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
     }
 
     fn push_scope(&mut self) {
-        self.scopes.push(AHashSet::new());
+        self.scopes.push(AHashSet::default());
     }
 
     fn pop_scope(&mut self) {
@@ -1513,5 +2014,109 @@ mod tests {
             resolve_import_path(Path::new("/tmp/project"), "./math").unwrap(),
             PathBuf::from("/tmp/project/math")
         );
+    }
+
+    #[test]
+    fn linked_arrow_default_keeps_earlier_parameter_binding() {
+        let root_source = "import {run} from \"./dep.lil\";print(run());";
+        let dependency_source =
+            "int seed=9;export int run(){return ((int seed=1,int value=seed)=>value)(7);}";
+        let modules = ModuleSet {
+            modules: vec![
+                ModuleSource {
+                    path: PathBuf::from("/virtual/root.lil"),
+                    source: root_source.to_string(),
+                    dependencies: vec![1],
+                    foreign_dependencies: Vec::new(),
+                    dynamic_dependencies: Vec::new(),
+                    offset: 0,
+                },
+                ModuleSource {
+                    path: PathBuf::from("/virtual/dep.lil"),
+                    source: dependency_source.to_string(),
+                    dependencies: Vec::new(),
+                    foreign_dependencies: Vec::new(),
+                    dynamic_dependencies: Vec::new(),
+                    offset: root_source.len() + 1,
+                },
+            ],
+            dependency_order: vec![1, 0],
+            root: 0,
+            eager: vec![true, true],
+        };
+        let arena = Bump::new();
+        let modules = arena.alloc(modules);
+        let programs = parse_modules(&arena, modules).unwrap();
+        let programs = arena.alloc_slice_fill_iter(programs);
+        let linked = link_modules(&arena, modules, programs).unwrap();
+
+        let run = linked
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Function(function) if function.name.name.ends_with("$run") => Some(function),
+                _ => None,
+            })
+            .expect("linked dependency function");
+        let Some(Stmt::Return {
+            value:
+                Some(Expr::Call {
+                    callee: Expr::ArrowFunction { params, .. },
+                    ..
+                }),
+            ..
+        }) = run.body.first()
+        else {
+            panic!("expected returned immediate arrow call")
+        };
+        let Some(Expr::Ident(default)) = &params[1].default else {
+            panic!("expected identifier default")
+        };
+        assert_eq!(default.name, "seed");
+    }
+
+    #[test]
+    fn linked_arrow_defaults_reject_self_and_forward_parameter_references() {
+        let root_source = "import {run} from \"./dep.lil\";print(run());";
+        for dependency_source in [
+            "int value=9;export int run(){return ((int value=value)=>value)();}",
+            "int later=9;export int run(){return ((int value=later,int later=1)=>value)();}",
+        ] {
+            let modules = ModuleSet {
+                modules: vec![
+                    ModuleSource {
+                        path: PathBuf::from("/virtual/root.lil"),
+                        source: root_source.to_string(),
+                        dependencies: vec![1],
+                        foreign_dependencies: Vec::new(),
+                        dynamic_dependencies: Vec::new(),
+                        offset: 0,
+                    },
+                    ModuleSource {
+                        path: PathBuf::from("/virtual/dep.lil"),
+                        source: dependency_source.to_string(),
+                        dependencies: Vec::new(),
+                        foreign_dependencies: Vec::new(),
+                        dynamic_dependencies: Vec::new(),
+                        offset: root_source.len() + 1,
+                    },
+                ],
+                dependency_order: vec![1, 0],
+                root: 0,
+                eager: vec![true, true],
+            };
+            let arena = Bump::new();
+            let modules = arena.alloc(modules);
+            let programs = parse_modules(&arena, modules).unwrap();
+            let programs = arena.alloc_slice_fill_iter(programs);
+            let linked = link_modules(&arena, modules, programs).unwrap();
+            let error = crate::semantic::analyze(&linked).unwrap_err();
+            assert!(
+                error
+                    .message
+                    .contains("parameter defaults can only reference earlier parameters"),
+                "{error}"
+            );
+        }
     }
 }

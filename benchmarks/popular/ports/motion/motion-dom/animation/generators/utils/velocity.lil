@@ -1,0 +1,12 @@
+import { velocityPerSecond } from "../../../../motion-utils/velocity-per-second";
+
+float velocitySampleDuration = 5.0;
+
+export float getGeneratorVelocity(
+  func(float)->float resolveValue,
+  float t,
+  float current
+) {
+  float prevT = (t - velocitySampleDuration).max(0.0);
+  return velocityPerSecond(current - resolveValue(prevT), t - prevT);
+}

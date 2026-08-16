@@ -1,0 +1,12 @@
+import { MotionValue, collectMotionValues, motionValue } from "./index";
+import { subscribeValue } from "./subscribe-value";
+
+export MotionValue transformValue(func()->JsValue transform) {
+  MotionValue[] collectedValues = [];
+  collectMotionValues.current = collectedValues;
+  JsValue initialValue = transform();
+  collectMotionValues.current = null;
+  MotionValue value = motionValue(initialValue);
+  subscribeValue(collectedValues, value, transform);
+  return value;
+}

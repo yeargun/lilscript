@@ -1,0 +1,25 @@
+import { getElementTagName } from "../../../dom-host";
+
+Set<string> keyboardAccessibleElements = new Set<string>();
+keyboardAccessibleElements.add("BUTTON");
+keyboardAccessibleElements.add("INPUT");
+keyboardAccessibleElements.add("SELECT");
+keyboardAccessibleElements.add("TEXTAREA");
+keyboardAccessibleElements.add("A");
+
+Set<string> textInputElements = new Set<string>();
+textInputElements.add("INPUT");
+textInputElements.add("SELECT");
+textInputElements.add("TEXTAREA");
+
+export bool isElementKeyboardAccessible(JsValue element) {
+  string tag = getElementTagName(element);
+  JsValue editable = element["isContentEditable"];
+  return keyboardAccessibleElements.has(tag) || editable == true;
+}
+
+export bool isElementTextInput(JsValue element) {
+  string tag = getElementTagName(element);
+  JsValue editable = element["isContentEditable"];
+  return textInputElements.has(tag) || editable == true;
+}

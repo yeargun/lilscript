@@ -1,0 +1,18 @@
+extern int algorithmInt(int index);
+extern int algorithmCount();
+import { evaluateWindow } from "./rules";
+
+int runPolicy() {
+  int total = 0;
+  int count = algorithmCount();
+  for (int index = 0; index + 2 < count; index += 3) {
+    total += evaluateWindow(
+      algorithmInt(index),
+      algorithmInt(index + 1),
+      algorithmInt(index + 2)
+    );
+  }
+  return total;
+}
+
+print(runPolicy());

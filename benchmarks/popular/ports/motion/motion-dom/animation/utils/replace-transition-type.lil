@@ -1,0 +1,24 @@
+import { setProp } from "../../dom-host";
+import { inertia } from "../generators/inertia";
+import { keyframes } from "../generators/keyframes";
+import { spring } from "../generators/spring";
+
+Map<string, JsValue> transitionTypeMap = new Map<string, JsValue>();
+transitionTypeMap.set("decay", inertia);
+transitionTypeMap.set("inertia", inertia);
+transitionTypeMap.set("tween", keyframes);
+transitionTypeMap.set("keyframes", keyframes);
+transitionTypeMap.set("spring", spring);
+
+export void replaceTransitionType(JsValue transition) {
+  if (!transition.isObject()) {
+    return;
+  }
+  JsValue typeValue = transition["type"];
+  if (typeValue is string) {
+    JsValue? mapped = transitionTypeMap.get(typeValue);
+    if (mapped != null) {
+      setProp(transition, "type", mapped);
+    }
+  }
+}

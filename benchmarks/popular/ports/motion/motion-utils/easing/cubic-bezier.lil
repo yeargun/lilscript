@@ -1,0 +1,39 @@
+import { noop } from "../noop";
+
+float calcBezier(float t, float a1, float a2) {
+  return (((1.0 - 3.0 * a2 + 3.0 * a1) * t + (3.0 * a2 - 6.0 * a1)) * t + 3.0 * a1) * t;
+}
+
+float subdivisionPrecision = 0.0000001;
+int subdivisionMaxIterations = 12;
+
+float binarySubdivide(float x, float lowerBound, float upperBound, float mX1, float mX2) {
+  float currentX = 0.0;
+  float currentT = 0.0;
+  int i = 0;
+  bool continueLoop = true;
+  while (continueLoop) {
+    currentT = lowerBound + (upperBound - lowerBound) / 2.0;
+    currentX = calcBezier(currentT, mX1, mX2) - x;
+    if (currentX > 0.0) {
+      upperBound = currentT;
+    } else {
+      lowerBound = currentT;
+    }
+    i = i + 1;
+    continueLoop = currentX.abs() > subdivisionPrecision && i < subdivisionMaxIterations;
+  }
+  return currentT;
+}
+
+export func(float)->float cubicBezier(float mX1, float mY1, float mX2, float mY2) {
+  if (mX1 == mY1 && mX2 == mY2) {
+    return noop;
+  }
+  return (float t) => {
+    if (t == 0.0 || t == 1.0) {
+      return t;
+    }
+    return calcBezier(binarySubdivide(t, 0.0, 1.0, mX1, mX2), mY1, mY2);
+  };
+}

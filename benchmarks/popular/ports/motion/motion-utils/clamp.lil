@@ -1,0 +1,9 @@
+export float clamp(float min, float max, float v) {
+  if (v > max) {
+    return max;
+  }
+  if (v < min) {
+    return min;
+  }
+  return v;
+}

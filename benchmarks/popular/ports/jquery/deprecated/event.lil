@@ -1,0 +1,90 @@
+import { jQuery, each } from "../core";
+import {
+  jsUndefined,
+  stringify,
+  stringSplit,
+  call1,
+  call2,
+  call3,
+  call4
+} from "../js-host.lil";
+
+
+JsValue fn = jQuery["fn"];
+
+JsValue fnBind() {
+  JsValue self = this;
+  JsValue args = arguments;
+  return JS.invoke(self, "on", args[0], null, args[1], args[2]);
+}
+
+JsValue fnUnbind() {
+  JsValue self = this;
+  JsValue args = arguments;
+  return JS.invoke(self, "off", args[0], null, args[1]);
+}
+
+JsValue fnDelegate() {
+  JsValue self = this;
+  JsValue args = arguments;
+  return JS.invoke(self, "on", args[1], args[0], args[2], args[3]);
+}
+
+JsValue fnUndelegate() {
+  JsValue self = this;
+  JsValue args = arguments;
+  if (args.length == 1.0) {
+    return JS.invoke(self, "off", args[0], "**");
+  }
+  JsValue selector = args[0];
+  string selectorFallback = "**";
+  if (selector is string) {
+    string selectorText = selector;
+    if (selectorText.length > 0) {
+      selectorFallback = selectorText;
+    }
+  } else if (selector.truthy()) {
+    selectorFallback = JS.string(selector);
+  }
+  return JS.invoke(self, "off", args[1], selectorFallback, args[2]);
+}
+
+JsValue fnHover() {
+  JsValue self = this;
+  JsValue args = arguments;
+  JsValue fnOver = args[0];
+  JsValue fnOut = args[1];
+  JsValue leaveHandler = fnOver;
+  if (fnOut.truthy()) {
+    leaveHandler = fnOut;
+  }
+  JsValue chained = JS.invoke(self, "on", "mouseenter", fnOver);
+  return JS.invoke(chained, "on", "mouseleave", leaveHandler);
+}
+
+fn["bind"] = fnBind;
+fn["unbind"] = fnUnbind;
+fn["delegate"] = fnDelegate;
+fn["undelegate"] = fnUndelegate;
+fn["hover"] = fnHover;
+
+string[] eventShortcutNames = JS.stringSplit(
+  "blur focus focusin focusout resize scroll click dblclick " +
+  "mousedown mouseup mousemove mouseover mouseout mouseenter mouseleave " +
+  "change select submit keydown keypress keyup contextmenu",
+  " "
+);
+
+void installShortcut(JsValue _i, JsValue nameValue) {
+  string name = JS.string(nameValue);
+  fn[name] = JS.methodRest((JsValue self, JsValue args) => {
+    if (args.length > 0.0) {
+      return JS.invoke(self, "on", name, null, args[0], args[1]);
+    }
+    return JS.invoke(self, "trigger", name);
+  });
+}
+
+each(eventShortcutNames, installShortcut);
+
+export { jQuery };

@@ -1,0 +1,6 @@
+void warningImpl(bool check, string message, string? errorCode = null) {}
+
+void invariantImpl(bool check, string message, string? errorCode = null) {}
+
+export func(bool, string, string?)->void warning = warningImpl;
+export func(bool, string, string?)->void invariant = invariantImpl;

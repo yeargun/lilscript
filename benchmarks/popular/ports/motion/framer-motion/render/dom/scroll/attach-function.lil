@@ -1,0 +1,36 @@
+import { observeTimeline } from "../../../../motion-dom/scroll/observe";
+import { callFn1, callFn2 } from "../../../../motion-dom/dom-host";
+import { scrollInfo } from "./track";
+import { AxisScrollInfo, ScrollInfo } from "./types";
+import { getTimeline } from "./utils/get-timeline";
+import { isElementTracking } from "./utils/is-element-tracking";
+
+bool isOnScrollWithInfo(JsValue onScroll) {
+  JsValue length = onScroll["length"];
+  if (length is float) {
+    return length == 2.0;
+  }
+  return false;
+}
+
+export func()->void attachToFunction(JsValue onScroll, JsValue options) {
+  if (isOnScrollWithInfo(onScroll) || isElementTracking(options)) {
+    string axis = "y";
+    JsValue axisVal = options["axis"];
+    if (axisVal is string) {
+      axis = axisVal;
+    }
+    return scrollInfo((ScrollInfo info) => {
+      AxisScrollInfo axisInfo = info.x;
+      if (axis == "y") {
+        axisInfo = info.y;
+      }
+      callFn2(onScroll, axisInfo.progress, info);
+    }, options);
+  }
+
+  JsValue timeline = getTimeline(options);
+  return observeTimeline((float progress) => {
+    callFn1(onScroll, progress);
+  }, timeline);
+}

@@ -13,11 +13,19 @@ ahash = "0.8"
 indexmap = "2"
 rayon = "1.10"
 lsp-server = "0.10"
-serde_json = "1"
+serde_json = { version = "1", features = ["preserve_order"] }
 serde = { version = "1", features = ["derive"] }
 toml = "0.9"
-flate2 = "1"
-brotli = "8"
+# Use zlib's C backend so compiler-in-loop gzip scoring matches the canonical
+# verification lane byte-for-byte. The direct exact dependency below forces a
+# bundled, static official zlib 1.3.1 instead of whichever system library is
+# installed on the compiler host.
+flate2 = { version = "=1.1.9", default-features = false, features = ["zlib"] }
+libz-sys = { version = "=1.1.24", features = ["static"] }
+# Pin the bundled official Google Brotli 1.1.0 encoder as the repository's
+# canonical implementation. Other compatible encoders can rank short candidates
+# differently, which is not acceptable for an exact served-byte objective.
+compu-brotli-sys = "=1.1.0"
 sha2 = "0.10"
 semver = { version = "1", features = ["serde"] }
 
@@ -28,3 +36,11 @@ path = "src/lib.rs"
 [[bin]]
 name = "lilscript"
 path = "src/main.rs"
+
+[[bin]]
+name = "lilpack"
+path = "src/bin/lilpack.rs"
+
+[[bin]]
+name = "lilscript-codec"
+path = "src/bin/lilscript-codec.rs"

@@ -1,0 +1,12 @@
+import { backIn } from "./back";
+
+export float anticipate(float p) {
+  if (p >= 1.0) {
+    return 1.0;
+  }
+  p = p * 2.0;
+  if (p < 1.0) {
+    return 0.5 * backIn(p);
+  }
+  return 0.5 * (2.0 - ((-10.0 * (p - 1.0)) * (2.0).log()).exp());
+}

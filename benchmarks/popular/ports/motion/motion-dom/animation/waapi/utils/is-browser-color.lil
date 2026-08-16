@@ -1,0 +1,16 @@
+Regex browserColorFunctions = new Regex(
+  "^(?:oklch|oklab|lab|lch|color|color-mix|light-dark)\\(",
+  ""
+);
+
+export bool hasBrowserOnlyColors(JsValue[] keyframes) {
+  for (int i = 0; i < keyframes.length; i++) {
+    JsValue frame = keyframes[i];
+    if (frame is string) {
+      if (browserColorFunctions.test(frame)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}

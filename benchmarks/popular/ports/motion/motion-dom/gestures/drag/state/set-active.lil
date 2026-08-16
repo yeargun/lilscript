@@ -1,0 +1,34 @@
+import { isDragging } from "./is-active";
+
+export (func()->void)? setDragLock(bool | string axis) {
+  if (axis is string) {
+    if (axis == "x" || axis == "y") {
+      if (axis == "x") {
+        if (isDragging.x) {
+          return null;
+        }
+        isDragging.x = true;
+        return () => {
+          isDragging.x = false;
+        };
+      }
+      if (isDragging.y) {
+        return null;
+      }
+      isDragging.y = true;
+      return () => {
+        isDragging.y = false;
+      };
+    }
+  }
+
+  if (isDragging.x || isDragging.y) {
+    return null;
+  }
+  isDragging.x = true;
+  isDragging.y = true;
+  return () => {
+    isDragging.x = false;
+    isDragging.y = false;
+  };
+}

@@ -1,0 +1,12 @@
+import { jQuery } from "../core";
+import {
+  windowSelf
+} from "../js-host.lil";
+
+JsValue root = windowSelf();
+JsValue define = root["define"];
+if (JS.typeOf(define) == "function" && define["amd"].truthy()) {
+  JS.invoke(root, "define", "jquery", JS.array(), () => jQuery);
+}
+
+export { jQuery };

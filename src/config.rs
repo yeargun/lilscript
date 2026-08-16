@@ -1,12 +1,14 @@
 use std::collections::{BTreeMap, HashSet};
 use std::fs;
+use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 
 use crate::codegen_ir_js::{
-    ControlFlowSpelling, FunctionLayout, FunctionSpelling, IdentifierAlphabet, IrJsOptions,
-    LoopSpelling, MutationSpelling, PhiAffinityMode, StateMachineSpelling, StringQuote,
+    ControlFlowSpelling, FunctionLayout, FunctionSpelling, HostAliasSpelling, IdentifierAlphabet,
+    IrJsOptions, LoopSpelling, MutationSpelling, PhiAffinityMode, StateMachineSpelling,
+    StringQuote,
 };
 use crate::codegen_native::NativeOptions;
 use crate::optimizer::OptimizationOptions;
@@ -20,11 +22,57 @@ pub enum PublicAggregateAbi {
     Positional,
 }
 
+/// Runtime layout for class and struct instances. `Positional` emits array slots, which is the
+/// smallest possible output. `Named` emits hidden-class objects, which cost fewer bytes per
+/// instance at runtime because V8 stores named properties inline instead of behind a separate
+/// elements backing store.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum AggregateLayout {
+    #[default]
+    Positional,
+    Named,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct CompilerConfig {
+    pub resources: CompilerResourceConfig,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct CompilerResourceConfig {
+    /// Total Rayon workers for one configured JavaScript compilation. When
+    /// omitted, Rayon keeps its process/global `RAYON_NUM_THREADS` or host
+    /// default rather than creating a per-compilation pool.
+    pub threads: Option<NonZeroUsize>,
+    /// Maximum terminal Brotli plan finalizers. The effective value is also
+    /// capped by the active Rayon pool.
+    pub codec_workers: NonZeroUsize,
+}
+
+impl Default for CompilerResourceConfig {
+    fn default() -> Self {
+        Self {
+            threads: None,
+            codec_workers: NonZeroUsize::new(4).expect("four is nonzero"),
+        }
+    }
+}
+
+impl CompilerResourceConfig {
+    pub fn effective_codec_workers(&self, active_threads: usize) -> usize {
+        self.codec_workers.get().min(active_threads.max(1))
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct ProjectConfig {
     pub package: Option<PackageMetadata>,
     pub dependencies: BTreeMap<String, DependencyConfig>,
+    pub compiler: CompilerConfig,
     pub optimization: OptimizationConfig,
     pub javascript: JavaScriptConfig,
     pub mangle: MangleConfig,
@@ -74,6 +122,13 @@ impl ProjectConfig {
         options.function_subsumption &= self
             .javascript
             .optimization_enabled(JavaScriptOptimization::IrFunctionSubsumptionVariants, None);
+        let compress = self.compress_pass_options();
+        options.pipeline_fusion = compress.pipeline_fusion;
+        options.partial_escape_sinking = compress.partial_escape_sinking;
+        options.region_outlining = compress.region_outlining;
+        options.expression_superopt = compress.expression_superopt;
+        options.path_sensitive_propagation = compress.path_sensitive_propagation;
+        options.parameterized_function_merging = self.js_parameterized_function_merging_enabled();
         if !options.inlining {
             return options;
         }
@@ -178,11 +233,16 @@ impl ProjectConfig {
                 self.javascript.public_aggregate_abi,
                 PublicAggregateAbi::Named
             ),
+            named_aggregate_fields: matches!(
+                self.javascript.aggregate_layout,
+                AggregateLayout::Named
+            ),
             pool_strings: self.mangle.pool_strings.unwrap_or_else(|| {
                 self.javascript
                     .compression_enabled(CompressionDecision::StringPooling)
             }),
             pool_numeric_literals: self.javascript.pool_numeric_literals,
+            ordinary_record_literals: false,
             elide_safe_integer_coercions: self
                 .javascript
                 .compression_enabled(CompressionDecision::SafeIntegerCoercionElision),
@@ -206,6 +266,41 @@ impl ProjectConfig {
             pack_string_arrays: self
                 .javascript
                 .compression_enabled(CompressionDecision::StringArrayPacking),
+            regex_literals: self.javascript.assume_pristine_builtins
+                && self
+                    .javascript
+                    .compression_enabled(CompressionDecision::RegexLiterals),
+            unused_catch_binding_elision: self
+                .javascript
+                .compression_enabled(CompressionDecision::UnusedCatchBindingElision),
+            compact_generator_star: self
+                .javascript
+                .compression_enabled(CompressionDecision::CompactGeneratorStar),
+            // Candidate search can introduce this whole-program
+            // representation when structured-function compression is enabled.
+            // Keeping the configured baseline named preserves predictable
+            // development output and lets the exact transfer codec decide.
+            inline_single_use_functions: false,
+            inline_exclusive_closures: true,
+            iife_private_callee_clusters: true,
+            nested_once_run_helpers: false,
+            batch_property_assigns: true,
+            // Fresh-literal factory substitution changes complete-artifact
+            // repetition history, so candidate search scores it separately.
+            inline_fresh_empty_array_factories: false,
+            // Complete constructor-literal fusion is scored as a distinct
+            // local-codegen candidate; the configured baseline stays dense and
+            // source-shaped for predictable output and codec comparison.
+            constructor_initializer_fusion: false,
+            pure_helper_inlining: crate::codegen_ir_js::PureHelperInliningPolicy::None,
+            // The configured artifact remains source-shaped. Candidate search
+            // introduces the dense representation only when its dedicated
+            // compression decision is enabled and exact codec scoring wins.
+            dense_string_return_tables: false,
+            host_alias_spelling: HostAliasSpelling::Shared,
+            callee_default_arguments: self
+                .javascript
+                .compression_enabled(CompressionDecision::CalleeDefaultArguments),
             scalar_phi_copies: self
                 .javascript
                 .compression_enabled(CompressionDecision::ScalarPhiCopies),
@@ -222,6 +317,25 @@ impl ProjectConfig {
             conditional_expressions: self
                 .javascript
                 .optimization_enabled(JavaScriptOptimization::ConditionalExpressionVariants, None),
+            expression_phi_regions: self
+                .javascript
+                .optimization_enabled(JavaScriptOptimization::ExpressionPhiRegionVariants, None),
+            // Statement-authored phi recovery is raw-positive in the common
+            // case, but may disrupt Brotli's larger-context repetitions. Use
+            // a codec-aware canonical state and let candidate search score the
+            // opposite state over the complete artifact.
+            local_phi_expression_regions: self.javascript.optimization_enabled(
+                JavaScriptOptimization::LocalPhiExpressionRegionVariants,
+                None,
+            ) && !matches!(
+                self.javascript.cost_model,
+                CompressionCostModel::Brotli
+            ),
+            phi_edge_value_forwarding: self
+                .javascript
+                .optimization_enabled(JavaScriptOptimization::PhiEdgeValueForwardingVariants, None)
+                && !matches!(self.javascript.cost_model, CompressionCostModel::Brotli),
+            operand_order_fusion: self.javascript.operand_order_fusion,
             comma_expressions: false,
             update_loop_layout: true,
             cross_scope_name_reuse: self
@@ -234,10 +348,13 @@ impl ProjectConfig {
                 .optimization_enabled(JavaScriptOptimization::EntropyPropertyAssignment, None),
             function_layout: FunctionLayout::Source,
             function_layout_exact_limit: self.javascript.function_layout_exact_limit,
-            function_spelling: self
-                .javascript
-                .function_spelling
-                .unwrap_or(FunctionSpelling::Arrow),
+            function_spelling: self.javascript.function_spelling.unwrap_or(
+                if matches!(self.javascript.cost_model, CompressionCostModel::Brotli) {
+                    FunctionSpelling::Function
+                } else {
+                    FunctionSpelling::Arrow
+                },
+            ),
             public_function_arrows: matches!(
                 self.javascript.function_spelling,
                 Some(FunctionSpelling::Arrow)
@@ -246,6 +363,11 @@ impl ProjectConfig {
             mutation_spelling: MutationSpelling::Assignment,
             identifier_alphabet: IdentifierAlphabet::canonical(),
             string_quote: StringQuote::Double,
+            pool_window_roots: true,
+            alias_array_prototype_methods: !matches!(
+                self.javascript.cost_model,
+                CompressionCostModel::Brotli
+            ),
         }
     }
 
@@ -257,6 +379,34 @@ impl ProjectConfig {
     pub fn quote_style_selection_enabled(&self) -> bool {
         self.javascript
             .compression_enabled(CompressionDecision::QuoteStyleSelection)
+    }
+
+    pub fn single_use_function_expression_candidates_enabled(&self) -> bool {
+        self.javascript.candidate_search_enabled()
+            && self
+                .javascript
+                .compression_enabled(CompressionDecision::StructuredClosureInlining)
+    }
+
+    pub fn pure_helper_inlining_candidates_enabled(&self) -> bool {
+        self.javascript.candidate_search_enabled()
+            && self
+                .javascript
+                .compression_enabled(CompressionDecision::PureHelperInlining)
+    }
+
+    pub fn dense_string_return_table_candidates_enabled(&self) -> bool {
+        self.javascript.candidate_search_enabled()
+            && self
+                .javascript
+                .compression_enabled(CompressionDecision::DenseStringReturnTables)
+    }
+
+    pub fn host_alias_spelling_candidates_enabled(&self) -> bool {
+        self.javascript.candidate_search_enabled()
+            && self
+                .javascript
+                .compression_enabled(CompressionDecision::HostAliasSpelling)
     }
 
     pub fn ir_inlining_variants_enabled(&self) -> bool {
@@ -288,6 +438,22 @@ impl ProjectConfig {
             && self.javascript.optimization_enabled(feature, None)
     }
 
+    pub fn js_scalar_phi_copy_variants_enabled(&self) -> bool {
+        self.javascript.candidate_search_enabled()
+            && self.javascript.optimization_enabled(
+                JavaScriptOptimization::SsaDestructionVariants,
+                Some(CompressionDecision::ScalarPhiCopies),
+            )
+    }
+
+    pub fn js_phi_affinity_variants_enabled(&self) -> bool {
+        self.javascript.candidate_search_enabled()
+            && self.javascript.optimization_enabled(
+                JavaScriptOptimization::SsaDestructionVariants,
+                Some(CompressionDecision::PhiAffinityCoalescing),
+            )
+    }
+
     pub fn javascript_optimization_configured(&self, feature: JavaScriptOptimization) -> bool {
         self.javascript.optimization_enabled(feature, None)
     }
@@ -306,6 +472,89 @@ impl ProjectConfig {
                 JavaScriptOptimization::CompoundMutationVariants,
                 Some(CompressionDecision::MutationSpellingSelection),
             )
+    }
+
+    pub fn compress_pass_options(&self) -> crate::compress_passes::CompressPassOptions {
+        let allow_profile_defaults = self.optimization.preset != OptimizationPreset::None;
+        crate::compress_passes::CompressPassOptions {
+            pipeline_fusion: self
+                .optimization
+                .pipeline_fusion
+                .unwrap_or(allow_profile_defaults)
+                && self
+                    .javascript
+                    .compression_enabled(CompressionDecision::ArrayPipelineFusion),
+            partial_escape_sinking: self
+                .optimization
+                .partial_escape_sinking
+                .unwrap_or(allow_profile_defaults)
+                && self
+                    .javascript
+                    .compression_enabled(CompressionDecision::PartialEscapeSinking),
+            // Default off: helpers often win raw while losing gzip/Brotli. A
+            // codec-scored search may reintroduce outlining only when the
+            // compression policy permits that decision.
+            region_outlining: self.optimization.region_outlining.unwrap_or(false)
+                && self
+                    .javascript
+                    .compression_enabled(CompressionDecision::RegionOutlining),
+            expression_superopt: self
+                .optimization
+                .expression_superopt
+                .unwrap_or(allow_profile_defaults)
+                && self
+                    .javascript
+                    .compression_enabled(CompressionDecision::ExpressionSuperoptimization),
+            path_sensitive_propagation: self
+                .optimization
+                .path_sensitive_propagation
+                .unwrap_or(allow_profile_defaults)
+                && self
+                    .javascript
+                    .compression_enabled(CompressionDecision::PathSensitivePropagation),
+        }
+    }
+
+    pub fn js_joint_chunk_symbol_search_enabled(&self) -> bool {
+        self.javascript.candidate_search_enabled()
+            && self.javascript.optimization_enabled(
+                JavaScriptOptimization::JointChunkSymbolSearch,
+                Some(CompressionDecision::JointChunkSymbolSearch),
+            )
+    }
+
+    pub fn js_region_outlining_candidate_enabled(&self) -> bool {
+        self.javascript.candidate_search_enabled()
+            && self.optimization.region_outlining != Some(false)
+            && self
+                .javascript
+                .compression_enabled(CompressionDecision::RegionOutlining)
+    }
+
+    pub fn js_joint_representation_search_enabled(&self) -> bool {
+        self.javascript.candidate_search_enabled()
+            && self.javascript.optimization_enabled(
+                JavaScriptOptimization::JointRepresentationSearch,
+                Some(CompressionDecision::JointRepresentationSearch),
+            )
+    }
+
+    pub fn js_default_argument_variants_enabled(&self) -> bool {
+        self.javascript.candidate_search_enabled()
+            && self.javascript.optimization_enabled(
+                JavaScriptOptimization::DefaultArgumentVariants,
+                Some(CompressionDecision::CalleeDefaultArguments),
+            )
+    }
+
+    pub fn js_parameterized_function_merging_enabled(&self) -> bool {
+        let allow_profile_defaults = self.optimization.preset != OptimizationPreset::None;
+        self.optimization
+            .parameterized_function_merging
+            .unwrap_or(allow_profile_defaults)
+            && self
+                .javascript
+                .compression_enabled(CompressionDecision::ParameterizedFunctionMerging)
     }
 
     pub fn validate(&self) -> Result<(), String> {
@@ -579,15 +828,37 @@ impl JavaScriptPriority {
             CompressionDecision::StructuredClosureInlining => {
                 !matches!(self, Self::PerformanceFirst)
             }
+            CompressionDecision::PureHelperInlining
+            | CompressionDecision::DenseStringReturnTables
+            | CompressionDecision::HostAliasSpelling => matches!(self, Self::SizeFirst),
             CompressionDecision::StringArrayPacking => matches!(self, Self::SizeFirst),
+            CompressionDecision::RegexLiterals => !matches!(self, Self::PerformanceFirst),
+            CompressionDecision::UnusedCatchBindingElision => true,
+            CompressionDecision::CompactGeneratorStar => true,
+            CompressionDecision::CalleeDefaultArguments => !matches!(self, Self::PerformanceFirst),
             CompressionDecision::ScalarPhiCopies => matches!(self, Self::SizeFirst),
             CompressionDecision::PhiAffinityCoalescing => true,
             CompressionDecision::IrInliningVariants => matches!(self, Self::SizeFirst),
             CompressionDecision::IrClosureFactoryVariants => matches!(self, Self::SizeFirst),
             CompressionDecision::IrPhaseOrderingVariants => matches!(self, Self::SizeFirst),
-            CompressionDecision::LoopSpellingSelection => matches!(self, Self::SizeFirst),
+            CompressionDecision::LoopSpellingSelection => {
+                matches!(self, Self::SizeFirst | Self::Balanced)
+            }
             CompressionDecision::MutationSpellingSelection => matches!(self, Self::SizeFirst),
-            CompressionDecision::PropertyMangling | CompressionDecision::ExportMangling => false,
+            CompressionDecision::PropertyMangling => matches!(self, Self::SizeFirst),
+            CompressionDecision::ExportMangling => false,
+            CompressionDecision::ArrayPipelineFusion
+            | CompressionDecision::PartialEscapeSinking
+            | CompressionDecision::RegionOutlining
+            | CompressionDecision::JointRepresentationSearch
+            | CompressionDecision::JointChunkSymbolSearch
+            | CompressionDecision::ParameterizedFunctionMerging => {
+                matches!(self, Self::SizeFirst)
+            }
+            CompressionDecision::ExpressionSuperoptimization
+            | CompressionDecision::PathSensitivePropagation => {
+                matches!(self, Self::SizeFirst | Self::Balanced)
+            }
         }
     }
 }
@@ -627,7 +898,14 @@ pub enum CompressionDecision {
     CompactBooleanLiterals,
     StandardGrammarElision,
     StructuredClosureInlining,
+    PureHelperInlining,
+    DenseStringReturnTables,
+    HostAliasSpelling,
     StringArrayPacking,
+    RegexLiterals,
+    UnusedCatchBindingElision,
+    CompactGeneratorStar,
+    CalleeDefaultArguments,
     ScalarPhiCopies,
     PhiAffinityCoalescing,
     IrInliningVariants,
@@ -635,6 +913,14 @@ pub enum CompressionDecision {
     IrPhaseOrderingVariants,
     LoopSpellingSelection,
     MutationSpellingSelection,
+    ArrayPipelineFusion,
+    PartialEscapeSinking,
+    RegionOutlining,
+    ExpressionSuperoptimization,
+    PathSensitivePropagation,
+    JointRepresentationSearch,
+    JointChunkSymbolSearch,
+    ParameterizedFunctionMerging,
 }
 
 impl CompressionDecision {
@@ -651,7 +937,14 @@ impl CompressionDecision {
             Self::CompactBooleanLiterals => "compact-boolean-literals",
             Self::StandardGrammarElision => "standard-grammar-elision",
             Self::StructuredClosureInlining => "structured-closure-inlining",
+            Self::PureHelperInlining => "pure-helper-inlining",
+            Self::DenseStringReturnTables => "dense-string-return-tables",
+            Self::HostAliasSpelling => "host-alias-spelling",
             Self::StringArrayPacking => "string-array-packing",
+            Self::RegexLiterals => "regex-literals",
+            Self::UnusedCatchBindingElision => "unused-catch-binding-elision",
+            Self::CompactGeneratorStar => "compact-generator-star",
+            Self::CalleeDefaultArguments => "callee-default-arguments",
             Self::ScalarPhiCopies => "scalar-phi-copies",
             Self::PhiAffinityCoalescing => "phi-affinity-coalescing",
             Self::IrInliningVariants => "ir-inlining-variants",
@@ -659,6 +952,14 @@ impl CompressionDecision {
             Self::IrPhaseOrderingVariants => "ir-phase-ordering-variants",
             Self::LoopSpellingSelection => "loop-spelling-selection",
             Self::MutationSpellingSelection => "mutation-spelling-selection",
+            Self::ArrayPipelineFusion => "array-pipeline-fusion",
+            Self::PartialEscapeSinking => "partial-escape-sinking",
+            Self::RegionOutlining => "region-outlining",
+            Self::ExpressionSuperoptimization => "expression-superoptimization",
+            Self::PathSensitivePropagation => "path-sensitive-propagation",
+            Self::JointRepresentationSearch => "joint-representation-search",
+            Self::JointChunkSymbolSearch => "joint-chunk-symbol-search",
+            Self::ParameterizedFunctionMerging => "parameterized-function-merging",
         }
     }
 }
@@ -683,8 +984,21 @@ pub struct JavaScriptConfig {
     pub function_layout_exact_limit: usize,
     pub local_name_reserve: usize,
     pub stable_local_names: bool,
+    /// Rebuild a nested expression when a run of single-use producers all feed
+    /// one consumer that reads them in production order. Off only for oracles
+    /// that need the three-address spelling their fixture was written against.
+    pub operand_order_fusion: bool,
     pub function_spelling: Option<FunctionSpelling>,
     pub public_aggregate_abi: PublicAggregateAbi,
+    pub aggregate_layout: AggregateLayout,
+    /// Allow representations that bypass ambient JavaScript constructor
+    /// bindings. This is false for open-world library output. At present it
+    /// gates only `new RegExp(...)` to regular-expression literal candidates.
+    pub assume_pristine_builtins: bool,
+    /// Drop `print()` / `debugLog` from JavaScript. On by default so production
+    /// builds do not ship `console.log`. Test oracles set false. Does not strip
+    /// `console.warn` (observable library behavior).
+    pub strip_console: bool,
     pub startup: StartupCostConfig,
     pub performance: JavaScriptPerformanceConfig,
 }
@@ -709,8 +1023,12 @@ impl Default for JavaScriptConfig {
             function_layout_exact_limit: 13,
             local_name_reserve: 16,
             stable_local_names: true,
+            operand_order_fusion: true,
             function_spelling: None,
             public_aggregate_abi: PublicAggregateAbi::Named,
+            aggregate_layout: AggregateLayout::default(),
+            assume_pristine_builtins: false,
+            strip_console: true,
             startup: StartupCostConfig::default(),
             performance: JavaScriptPerformanceConfig::default(),
         }
@@ -728,7 +1046,14 @@ pub enum JavaScriptOptimization {
     StructuralControlFlowVariants,
     SsaDestructionVariants,
     ConditionalExpressionVariants,
+    ExpressionPhiRegionVariants,
+    LocalPhiExpressionRegionVariants,
+    PhiEdgeValueForwardingVariants,
+    ConstructorInitializerFusionVariants,
+    FreshLiteralFactoryInliningVariants,
+    DefaultArgumentVariants,
     CommaExpressionVariants,
+    OperandOrderFusionVariants,
     StructuralLoopVariants,
     DoLoopVariants,
     UpdateLoopVariants,
@@ -744,6 +1069,9 @@ pub enum JavaScriptOptimization {
     CaptureSignatureCloning,
     IdenticalFunctionFolding,
     FunctionLayoutVariants,
+    IrCompressPassVariants,
+    JointChunkSymbolSearch,
+    JointRepresentationSearch,
 }
 
 impl JavaScriptOptimization {
@@ -757,7 +1085,14 @@ impl JavaScriptOptimization {
             Self::StructuralControlFlowVariants => "structural-control-flow-variants",
             Self::SsaDestructionVariants => "ssa-destruction-variants",
             Self::ConditionalExpressionVariants => "conditional-expression-variants",
+            Self::ExpressionPhiRegionVariants => "expression-phi-region-variants",
+            Self::LocalPhiExpressionRegionVariants => "local-phi-expression-region-variants",
+            Self::PhiEdgeValueForwardingVariants => "phi-edge-value-forwarding-variants",
+            Self::ConstructorInitializerFusionVariants => "constructor-initializer-fusion-variants",
+            Self::FreshLiteralFactoryInliningVariants => "fresh-literal-factory-inlining-variants",
+            Self::DefaultArgumentVariants => "default-argument-variants",
             Self::CommaExpressionVariants => "comma-expression-variants",
+            Self::OperandOrderFusionVariants => "operand-order-fusion-variants",
             Self::StructuralLoopVariants => "structural-loop-variants",
             Self::DoLoopVariants => "do-loop-variants",
             Self::UpdateLoopVariants => "update-loop-variants",
@@ -773,14 +1108,25 @@ impl JavaScriptOptimization {
             Self::CaptureSignatureCloning => "capture-signature-cloning",
             Self::IdenticalFunctionFolding => "identical-function-folding",
             Self::FunctionLayoutVariants => "function-layout-variants",
+            Self::IrCompressPassVariants => "ir-compress-pass-variants",
+            Self::JointChunkSymbolSearch => "joint-chunk-symbol-search",
+            Self::JointRepresentationSearch => "joint-representation-search",
         }
     }
 
     const fn minimum_level(self) -> u8 {
         match self {
             Self::ConditionalExpressionVariants => 4,
-            Self::UpdateLoopVariants | Self::CompoundMutationVariants => 5,
+            Self::ExpressionPhiRegionVariants => 4,
+            Self::LocalPhiExpressionRegionVariants => 4,
+            Self::PhiEdgeValueForwardingVariants => 4,
+            Self::DefaultArgumentVariants => 7,
+            Self::UpdateLoopVariants
+            | Self::CompoundMutationVariants
+            | Self::ConstructorInitializerFusionVariants
+            | Self::FreshLiteralFactoryInliningVariants => 5,
             Self::CommaExpressionVariants | Self::SsaDestructionVariants => 7,
+            Self::OperandOrderFusionVariants => 4,
             Self::EntropyCrossScopeReuse | Self::EntropyPropertyAssignment => 8,
             Self::StructuralLoopVariants | Self::ParsedPeephole => 9,
             Self::IrInliningVariants
@@ -795,7 +1141,11 @@ impl JavaScriptOptimization {
             Self::CaptureSignatureCloning => 12,
             Self::IdenticalFunctionFolding => 13,
             Self::FunctionLayoutVariants => 13,
-            Self::IrFunctionSubsumptionVariants | Self::IrPhaseOrderingVariants => 14,
+            Self::JointRepresentationSearch => 13,
+            Self::IrFunctionSubsumptionVariants
+            | Self::IrPhaseOrderingVariants
+            | Self::IrCompressPassVariants
+            | Self::JointChunkSymbolSearch => 14,
         }
     }
 }
@@ -1000,11 +1350,10 @@ impl JavaScriptConfig {
         feature: JavaScriptOptimization,
         legacy: Option<CompressionDecision>,
     ) -> bool {
-        if let Some(features) = &self.optimizations {
-            return features.contains(&feature);
-        }
-        self.optimization_level >= feature.minimum_level()
-            && legacy.is_none_or(|decision| self.compression_enabled(decision))
+        self.optimizations.as_ref().map_or_else(
+            || self.optimization_level >= feature.minimum_level(),
+            |features| features.contains(&feature),
+        ) && legacy.is_none_or(|decision| self.compression_enabled(decision))
     }
 
     pub fn effective_candidate_limit(&self) -> usize {
@@ -1059,6 +1408,12 @@ pub struct OptimizationConfig {
     pub capture_signature_cloning: Option<bool>,
     pub identical_function_folding: Option<bool>,
     pub function_subsumption: Option<bool>,
+    pub pipeline_fusion: Option<bool>,
+    pub partial_escape_sinking: Option<bool>,
+    pub region_outlining: Option<bool>,
+    pub expression_superopt: Option<bool>,
+    pub path_sensitive_propagation: Option<bool>,
+    pub parameterized_function_merging: Option<bool>,
     pub profile_guided: Option<bool>,
 }
 
@@ -1082,6 +1437,12 @@ impl Default for OptimizationConfig {
             capture_signature_cloning: None,
             identical_function_folding: None,
             function_subsumption: None,
+            pipeline_fusion: None,
+            partial_escape_sinking: None,
+            region_outlining: None,
+            expression_superopt: None,
+            path_sensitive_propagation: None,
+            parameterized_function_merging: None,
             profile_guided: None,
         }
     }
@@ -1134,6 +1495,18 @@ impl OptimizationConfig {
             function_subsumption: self
                 .function_subsumption
                 .unwrap_or(base.function_subsumption),
+            pipeline_fusion: self.pipeline_fusion.unwrap_or(base.pipeline_fusion),
+            partial_escape_sinking: self
+                .partial_escape_sinking
+                .unwrap_or(base.partial_escape_sinking),
+            region_outlining: self.region_outlining.unwrap_or(base.region_outlining),
+            expression_superopt: self.expression_superopt.unwrap_or(base.expression_superopt),
+            path_sensitive_propagation: self
+                .path_sensitive_propagation
+                .unwrap_or(base.path_sensitive_propagation),
+            parameterized_function_merging: self
+                .parameterized_function_merging
+                .unwrap_or(base.parameterized_function_merging),
             inline_instruction_limit: base.inline_instruction_limit,
             inline_control_flow_limit: base.inline_control_flow_limit,
             inline_growth_limit: base.inline_growth_limit,
@@ -1293,6 +1666,28 @@ mod tests {
     use super::*;
 
     #[test]
+    fn parses_typed_compiler_resource_limits() {
+        let defaults = ProjectConfig::default();
+        assert_eq!(defaults.compiler.resources.threads, None);
+        assert_eq!(defaults.compiler.resources.codec_workers.get(), 4);
+
+        let configured: ProjectConfig =
+            toml::from_str("[compiler.resources]\nthreads=12\ncodec_workers=8\n").unwrap();
+        assert_eq!(configured.compiler.resources.threads.unwrap().get(), 12);
+        assert_eq!(configured.compiler.resources.codec_workers.get(), 8);
+        assert_eq!(configured.compiler.resources.effective_codec_workers(6), 6);
+        assert_eq!(configured.compiler.resources.effective_codec_workers(16), 8);
+
+        assert!(toml::from_str::<ProjectConfig>(
+            "[compiler.resources]\nthreads=0\ncodec_workers=4\n"
+        )
+        .is_err());
+        assert!(
+            toml::from_str::<ProjectConfig>("[compiler.resources]\ncodec_workers=0\n").is_err()
+        );
+    }
+
+    #[test]
     fn resolves_presets_and_fine_grained_overrides() {
         let config: ProjectConfig = toml::from_str(
             r#"
@@ -1324,11 +1719,37 @@ shared_min_imports = 3
         assert!(optimizer.inline_closure_factories);
         assert!(!optimizer.inlining);
         assert_eq!(config.javascript.priority, JavaScriptPriority::SizeFirst);
+        assert!(config.javascript.strip_console);
         assert!(!config.js_options().mangle_identifiers);
         assert!(config.js_options().mangle_properties);
         assert_eq!(config.bundle.mode, BundleMode::Split);
         assert_eq!(config.bundle.min_chunk_bytes, 4096);
         config.validate().unwrap();
+    }
+
+    #[test]
+    fn parses_javascript_strip_console() {
+        let enabled: ProjectConfig = toml::from_str("[javascript]\nstrip_console=true\n").unwrap();
+        assert!(enabled.javascript.strip_console);
+        let disabled: ProjectConfig =
+            toml::from_str("[javascript]\nstrip_console=false\n").unwrap();
+        assert!(!disabled.javascript.strip_console);
+        assert!(ProjectConfig::default().javascript.strip_console);
+    }
+
+    #[test]
+    fn regex_literals_require_an_explicit_pristine_builtin_contract() {
+        let open_world: ProjectConfig =
+            toml::from_str("[javascript]\npriority='size-first'\ncompression=['regex-literals']\n")
+                .unwrap();
+        assert!(!open_world.js_options().regex_literals);
+
+        let pristine: ProjectConfig = toml::from_str(
+            "[javascript]\npriority='size-first'\ncompression=['regex-literals']\nassume_pristine_builtins=true\n",
+        )
+        .unwrap();
+        assert!(pristine.js_options().regex_literals);
+        assert!(!ProjectConfig::default().javascript.assume_pristine_builtins);
     }
 
     #[test]
@@ -1387,11 +1808,25 @@ shared_min_imports = 3
         assert!(size.js_options().inline_structured_closures);
         assert!(size.js_options().pack_string_arrays);
         assert!(size.js_options().scalar_phi_copies);
+        assert!(size.js_options().mangle_properties);
+        assert!(!size.js_options().mangle_exports);
         assert!(size.ir_inlining_variants_enabled());
+        assert!(size.pure_helper_inlining_candidates_enabled());
+        assert!(size.dense_string_return_table_candidates_enabled());
+        assert!(size.host_alias_spelling_candidates_enabled());
         assert!(size.ir_closure_factory_variants_enabled());
         assert!(size.ir_phase_ordering_variants_enabled());
         assert!(size.loop_spelling_selection_enabled());
         assert!(size.mutation_spelling_selection_enabled());
+        assert!(size.js_joint_chunk_symbol_search_enabled());
+        assert!(size.js_joint_representation_search_enabled());
+        assert!(size.js_parameterized_function_merging_enabled());
+        let size_passes = size.compress_pass_options();
+        assert!(size_passes.pipeline_fusion);
+        assert!(size_passes.partial_escape_sinking);
+        assert!(!size_passes.region_outlining);
+        assert!(size_passes.expression_superopt);
+        assert!(size_passes.path_sensitive_propagation);
         assert_eq!(
             size.js_options().phi_affinity_mode,
             PhiAffinityMode::Grouped
@@ -1404,11 +1839,37 @@ shared_min_imports = 3
         assert!(!performance.entropy_aware_mangling_enabled());
         assert!(!performance.js_options().compact_boolean_literals);
         assert!(performance.js_options().elide_block_terminal_semicolons);
+        assert!(!performance.js_options().mangle_properties);
         assert!(!performance.ir_inlining_variants_enabled());
+        assert!(!performance.pure_helper_inlining_candidates_enabled());
+        assert!(!performance.dense_string_return_table_candidates_enabled());
+        assert!(!performance.host_alias_spelling_candidates_enabled());
         assert!(!performance.ir_closure_factory_variants_enabled());
         assert!(!performance.ir_phase_ordering_variants_enabled());
         assert!(!performance.loop_spelling_selection_enabled());
         assert!(!performance.mutation_spelling_selection_enabled());
+        assert!(!performance.js_joint_chunk_symbol_search_enabled());
+        assert!(!performance.js_joint_representation_search_enabled());
+        assert!(!performance.js_parameterized_function_merging_enabled());
+        let performance_passes = performance.compress_pass_options();
+        assert!(!performance_passes.pipeline_fusion);
+        assert!(!performance_passes.partial_escape_sinking);
+        assert!(!performance_passes.region_outlining);
+        assert!(!performance_passes.expression_superopt);
+        assert!(!performance_passes.path_sensitive_propagation);
+
+        assert!(!balanced.js_options().mangle_properties);
+        assert!(balanced.loop_spelling_selection_enabled());
+        assert!(!balanced.mutation_spelling_selection_enabled());
+        let balanced_passes = balanced.compress_pass_options();
+        assert!(!balanced_passes.pipeline_fusion);
+        assert!(!balanced_passes.partial_escape_sinking);
+        assert!(!balanced_passes.region_outlining);
+        assert!(balanced_passes.expression_superopt);
+        assert!(balanced_passes.path_sensitive_propagation);
+        assert!(!balanced.js_joint_chunk_symbol_search_enabled());
+        assert!(!balanced.js_joint_representation_search_enabled());
+        assert!(!balanced.js_parameterized_function_merging_enabled());
 
         let explicit_pooling: ProjectConfig = toml::from_str(
             "[javascript]\npriority='performance-first'\n[mangle]\npool_strings=true\n",
@@ -1449,6 +1910,7 @@ max_inline_growth = 3
         assert!(!codegen.elide_block_terminal_semicolons);
         assert!(!codegen.elide_new_parentheses);
         assert!(!codegen.elide_call_chain_parentheses);
+        assert!(!codegen.compact_generator_star);
         assert!(!custom.ir_inlining_variants_enabled());
         assert!(!custom.ir_closure_factory_variants_enabled());
         assert!(!custom.ir_phase_ordering_variants_enabled());
@@ -1468,12 +1930,21 @@ max_inline_growth = 3
         assert!(!none_codegen.elide_new_parentheses);
         assert!(!none_codegen.elide_call_chain_parentheses);
         assert!(!none_codegen.pack_string_arrays);
+        assert!(!none_codegen.compact_generator_star);
         assert!(!none_codegen.scalar_phi_copies);
         assert_eq!(
             none_codegen.phi_affinity_mode,
             PhiAffinityMode::Conservative
         );
         assert!(!none.entropy_aware_mangling_enabled());
+        assert!(!none.js_region_outlining_candidate_enabled());
+        assert!(ProjectConfig::default().js_region_outlining_candidate_enabled());
+
+        let hard_disabled_outlining: ProjectConfig = toml::from_str(
+            "[optimization]\nregion_outlining=false\n[javascript]\ncompression=['region-outlining']\n",
+        )
+        .unwrap();
+        assert!(!hard_disabled_outlining.js_region_outlining_candidate_enabled());
 
         let explicit_mangle: ProjectConfig = toml::from_str(
             "[javascript]\ncompression=[]\n[mangle]\nidentifiers=true\npool_strings=true\n",
@@ -1481,6 +1952,134 @@ max_inline_growth = 3
         .unwrap();
         assert!(explicit_mangle.js_options().mangle_identifiers);
         assert!(explicit_mangle.js_options().pool_strings);
+    }
+
+    #[test]
+    fn paired_variant_searches_require_both_exact_allowlists() {
+        fn states(config: &ProjectConfig) -> [bool; 10] {
+            [
+                config.ir_inlining_variants_enabled(),
+                config.ir_closure_factory_variants_enabled(),
+                config.ir_phase_ordering_variants_enabled(),
+                config.loop_spelling_selection_enabled(),
+                config.mutation_spelling_selection_enabled(),
+                config.js_joint_chunk_symbol_search_enabled(),
+                config.js_joint_representation_search_enabled(),
+                config.js_default_argument_variants_enabled(),
+                config.js_scalar_phi_copy_variants_enabled(),
+                config.js_phi_affinity_variants_enabled(),
+            ]
+        }
+
+        let all_optimizations = vec![
+            JavaScriptOptimization::IrInliningVariants,
+            JavaScriptOptimization::IrClosureFactoryVariants,
+            JavaScriptOptimization::IrPhaseOrderingVariants,
+            JavaScriptOptimization::StructuralLoopVariants,
+            JavaScriptOptimization::CompoundMutationVariants,
+            JavaScriptOptimization::JointChunkSymbolSearch,
+            JavaScriptOptimization::JointRepresentationSearch,
+            JavaScriptOptimization::DefaultArgumentVariants,
+            JavaScriptOptimization::SsaDestructionVariants,
+        ];
+        let all_compression = vec![
+            CompressionDecision::IrInliningVariants,
+            CompressionDecision::IrClosureFactoryVariants,
+            CompressionDecision::IrPhaseOrderingVariants,
+            CompressionDecision::LoopSpellingSelection,
+            CompressionDecision::MutationSpellingSelection,
+            CompressionDecision::JointChunkSymbolSearch,
+            CompressionDecision::JointRepresentationSearch,
+            CompressionDecision::CalleeDefaultArguments,
+            CompressionDecision::ScalarPhiCopies,
+            CompressionDecision::PhiAffinityCoalescing,
+        ];
+
+        let mut enabled = ProjectConfig::default();
+        enabled.javascript.optimizations = Some(all_optimizations.clone());
+        enabled.javascript.compression = Some(all_compression.clone());
+        assert_eq!(states(&enabled), [true; 10]);
+
+        let mut no_compression = enabled.clone();
+        no_compression.javascript.compression = Some(Vec::new());
+        assert_eq!(states(&no_compression), [false; 10]);
+
+        let mut no_optimizations = enabled.clone();
+        no_optimizations.javascript.optimizations = Some(Vec::new());
+        assert_eq!(states(&no_optimizations), [false; 10]);
+
+        let mut exact_empty = ProjectConfig::default();
+        exact_empty.javascript.optimizations = Some(Vec::new());
+        exact_empty.javascript.compression = Some(Vec::new());
+        assert_eq!(states(&exact_empty), [false; 10]);
+
+        let mut mixed = ProjectConfig::default();
+        mixed.javascript.optimizations = Some(vec![
+            JavaScriptOptimization::IrInliningVariants,
+            JavaScriptOptimization::DefaultArgumentVariants,
+            JavaScriptOptimization::SsaDestructionVariants,
+        ]);
+        mixed.javascript.compression = Some(vec![
+            CompressionDecision::IrClosureFactoryVariants,
+            CompressionDecision::CalleeDefaultArguments,
+            CompressionDecision::ScalarPhiCopies,
+        ]);
+        assert_eq!(
+            states(&mixed),
+            [false, false, false, false, false, false, false, true, true, false]
+        );
+
+        let mut legacy = ProjectConfig::default();
+        legacy.javascript.optimizations = None;
+        legacy.javascript.compression = Some(all_compression);
+        assert_eq!(states(&legacy), [true; 10]);
+    }
+
+    #[test]
+    fn gates_helper_and_dense_table_search_with_independent_decisions() {
+        let helper_only: ProjectConfig =
+            toml::from_str("[javascript]\ncompression=['pure-helper-inlining']\n").unwrap();
+        assert!(helper_only.pure_helper_inlining_candidates_enabled());
+        assert!(!helper_only.dense_string_return_table_candidates_enabled());
+        assert!(!helper_only.single_use_function_expression_candidates_enabled());
+
+        let table_only: ProjectConfig =
+            toml::from_str("[javascript]\ncompression=['dense-string-return-tables']\n").unwrap();
+        assert!(!table_only.pure_helper_inlining_candidates_enabled());
+        assert!(table_only.dense_string_return_table_candidates_enabled());
+        assert!(!table_only.single_use_function_expression_candidates_enabled());
+
+        let legacy_closure_only: ProjectConfig =
+            toml::from_str("[javascript]\ncompression=['structured-closure-inlining']\n").unwrap();
+        assert!(!legacy_closure_only.pure_helper_inlining_candidates_enabled());
+        assert!(!legacy_closure_only.dense_string_return_table_candidates_enabled());
+        assert!(legacy_closure_only.single_use_function_expression_candidates_enabled());
+    }
+
+    #[test]
+    fn gates_host_alias_spelling_with_search_and_the_exact_compression_set() {
+        let enabled: ProjectConfig =
+            toml::from_str("[javascript]\ncompression=['host-alias-spelling']\n").unwrap();
+        assert!(enabled.host_alias_spelling_candidates_enabled());
+        assert_eq!(
+            enabled.js_options().host_alias_spelling,
+            HostAliasSpelling::Shared
+        );
+
+        let exact_empty: ProjectConfig = toml::from_str("[javascript]\ncompression=[]\n").unwrap();
+        assert!(!exact_empty.host_alias_spelling_candidates_enabled());
+
+        let search_off: ProjectConfig = toml::from_str(
+            "[javascript]\ncandidate_search='off'\ncompression=['host-alias-spelling']\n",
+        )
+        .unwrap();
+        assert!(!search_off.host_alias_spelling_candidates_enabled());
+
+        let explicit_override: ProjectConfig = toml::from_str(
+            "[javascript]\npriority='performance-first'\ncompression=['host-alias-spelling']\n",
+        )
+        .unwrap();
+        assert!(explicit_override.host_alias_spelling_candidates_enabled());
     }
 
     #[test]
@@ -1502,6 +2101,17 @@ max_inline_growth = 3
             !disabled.javascript_optimization_configured(JavaScriptOptimization::StartupCostGuard)
         );
         assert!(!disabled.js_options().conditional_expressions);
+        assert!(!disabled.js_options().expression_phi_regions);
+        assert!(!disabled.js_options().local_phi_expression_regions);
+        assert!(!disabled.js_options().phi_edge_value_forwarding);
+        assert!(!disabled.js_options().constructor_initializer_fusion);
+        assert!(!disabled.js_options().inline_fresh_empty_array_factories);
+        assert!(!disabled.javascript_optimization_configured(
+            JavaScriptOptimization::ConstructorInitializerFusionVariants
+        ));
+        assert!(!disabled.javascript_optimization_configured(
+            JavaScriptOptimization::FreshLiteralFactoryInliningVariants
+        ));
         assert!(!disabled.js_options().cross_scope_name_reuse);
 
         let standard: ProjectConfig =
@@ -1510,8 +2120,23 @@ max_inline_growth = 3
         assert!(standard.javascript_optimization_configured(JavaScriptOptimization::ParsedPeephole));
         assert!(standard
             .javascript_optimization_configured(JavaScriptOptimization::EntropyPropertyAssignment));
+        assert!(standard.javascript_optimization_configured(
+            JavaScriptOptimization::ConstructorInitializerFusionVariants
+        ));
+        assert!(standard.javascript_optimization_configured(
+            JavaScriptOptimization::FreshLiteralFactoryInliningVariants
+        ));
+        assert!(!standard.js_options().constructor_initializer_fusion);
+        assert!(!standard.js_options().inline_fresh_empty_array_factories);
         assert!(!standard
             .javascript_optimization_configured(JavaScriptOptimization::IrInliningVariants));
+        assert!(!standard.js_options().local_phi_expression_regions);
+        assert!(!standard.js_options().phi_edge_value_forwarding);
+
+        let gzip: ProjectConfig =
+            toml::from_str("[javascript]\noptimization_level=9\ncost_model='gzip'\n").unwrap();
+        assert!(gzip.js_options().local_phi_expression_regions);
+        assert!(gzip.js_options().phi_edge_value_forwarding);
 
         let exhaustive: ProjectConfig =
             toml::from_str("[javascript]\noptimization_level=13\n").unwrap();
@@ -1519,22 +2144,32 @@ max_inline_growth = 3
             .javascript_optimization_configured(JavaScriptOptimization::FunctionLayoutVariants));
         assert!(exhaustive
             .javascript_optimization_configured(JavaScriptOptimization::IdenticalFunctionFolding));
+        assert!(exhaustive
+            .javascript_optimization_configured(JavaScriptOptimization::JointRepresentationSearch));
         assert!(!exhaustive.javascript_optimization_configured(
             JavaScriptOptimization::IrFunctionSubsumptionVariants
         ));
+        assert!(!exhaustive
+            .javascript_optimization_configured(JavaScriptOptimization::IrCompressPassVariants));
+        assert!(!exhaustive
+            .javascript_optimization_configured(JavaScriptOptimization::JointChunkSymbolSearch));
 
         let level_fourteen: ProjectConfig =
             toml::from_str("[javascript]\noptimization_level=14\n").unwrap();
         assert!(level_fourteen.javascript_optimization_configured(
             JavaScriptOptimization::IrFunctionSubsumptionVariants
         ));
+        assert!(level_fourteen
+            .javascript_optimization_configured(JavaScriptOptimization::IrCompressPassVariants));
+        assert!(level_fourteen
+            .javascript_optimization_configured(JavaScriptOptimization::JointChunkSymbolSearch));
         assert!(level_fourteen.js_function_subsumption_variants_enabled());
 
         let exact: ProjectConfig = toml::from_str(
             r#"
 [javascript]
 optimization_level = 0
-optimizations = ["parsed-peephole", "do-loop-variants", "function-layout-variants", "ir-function-subsumption-variants"]
+  optimizations = ["parsed-peephole", "do-loop-variants", "function-layout-variants", "ir-function-subsumption-variants", "constructor-initializer-fusion-variants", "fresh-literal-factory-inlining-variants"]
 "#,
         )
         .unwrap();
@@ -1547,8 +2182,23 @@ optimizations = ["parsed-peephole", "do-loop-variants", "function-layout-variant
         assert!(exact.javascript_optimization_configured(
             JavaScriptOptimization::IrFunctionSubsumptionVariants
         ));
+        assert!(exact.javascript_optimization_configured(
+            JavaScriptOptimization::ConstructorInitializerFusionVariants
+        ));
+        assert!(exact.javascript_optimization_configured(
+            JavaScriptOptimization::FreshLiteralFactoryInliningVariants
+        ));
         assert!(!exact.javascript_optimization_configured(
             JavaScriptOptimization::ConditionalExpressionVariants
+        ));
+        assert!(!exact.javascript_optimization_configured(
+            JavaScriptOptimization::ExpressionPhiRegionVariants
+        ));
+        assert!(!exact.javascript_optimization_configured(
+            JavaScriptOptimization::LocalPhiExpressionRegionVariants
+        ));
+        assert!(!exact.javascript_optimization_configured(
+            JavaScriptOptimization::PhiEdgeValueForwardingVariants
         ));
 
         let mut exact_always = exact.clone();

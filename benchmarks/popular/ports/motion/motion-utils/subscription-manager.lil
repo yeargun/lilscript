@@ -1,0 +1,40 @@
+import { addUniqueItem, removeItem } from "./array";
+
+export class SubscriptionManager {
+  (func(JsValue?, JsValue?, JsValue?)->void)[] subscriptions;
+
+  init() {
+    this.subscriptions = [];
+  }
+
+  func()->void add(func(JsValue?, JsValue?, JsValue?)->void handler) {
+    addUniqueItem(this.subscriptions, handler);
+    return () => {
+      removeItem(this.subscriptions, handler);
+    };
+  }
+
+  void notify(JsValue? a = null, JsValue? b = null, JsValue? c = null) {
+    int numSubscriptions = this.subscriptions.length;
+    if (numSubscriptions == 0) {
+      return;
+    }
+    if (numSubscriptions == 1) {
+      this.subscriptions[0](a, b, c);
+    } else {
+      for (int i = 0; i < numSubscriptions; i++) {
+        if (i < this.subscriptions.length) {
+          this.subscriptions[i](a, b, c);
+        }
+      }
+    }
+  }
+
+  int getSize() {
+    return this.subscriptions.length;
+  }
+
+  void clear() {
+    this.subscriptions = [];
+  }
+}

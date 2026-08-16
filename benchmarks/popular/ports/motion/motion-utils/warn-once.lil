@@ -1,0 +1,21 @@
+import { formatErrorMessage } from "./format-error-message";
+
+extern class Console {
+  void warn(string message);
+}
+
+extern Console console;
+
+Set<string> warned = new Set<string>();
+
+export bool hasWarned(string message) {
+  return warned.has(message);
+}
+
+export void warnOnce(bool condition, string message, string? errorCode = null) {
+  if (condition || warned.has(message)) {
+    return;
+  }
+  console.warn(formatErrorMessage(message, errorCode));
+  warned.add(message);
+}

@@ -1,4 +1,8 @@
 .tools/
 apps/*/build/
+cases/generated/
+cases/build/
+cases/summary.json
+cases/summary.md
 summary.json
 summary.md

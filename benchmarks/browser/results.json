@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-06T16:35:03.686Z",
+  "generatedAt": "2026-08-10T03:10:45.440Z",
   "browser": "Chromium 151.0.7922.34",
   "regressionLimit": 1.03,
   "results": [
@@ -7,8 +7,8 @@
       "id": "boolean-literals",
       "batches": 2000000,
       "samples": 50,
-      "lilscriptMedianMs": 9.099999994039536,
-      "closureMedianMs": 9,
+      "lilscriptMedianMs": 8.800000011920929,
+      "closureMedianMs": 8.700000047683716,
       "upper95Ratio": 1,
       "identicalCode": true
     },
@@ -16,8 +16,8 @@
       "id": "constant-parameter-specialization",
       "batches": 2000000,
       "samples": 50,
-      "lilscriptMedianMs": 8.799999997019768,
-      "closureMedianMs": 8.899999998509884,
+      "lilscriptMedianMs": 8.899999976158142,
+      "closureMedianMs": 8.799999952316284,
       "upper95Ratio": 1,
       "identicalCode": true
     },
@@ -25,35 +25,35 @@
       "id": "bounded-induction",
       "batches": 200,
       "samples": 50,
-      "lilscriptMedianMs": 10.100000001490116,
-      "closureMedianMs": 12.5,
-      "upper95Ratio": 0.8160000002384186,
+      "lilscriptMedianMs": 10.299999952316284,
+      "closureMedianMs": 12.399999976158142,
+      "upper95Ratio": 0.8306451638487946,
       "identicalCode": false
     },
     {
       "id": "exact-wrapping-multiply",
       "batches": 2000,
       "samples": 50,
-      "lilscriptMedianMs": 8,
-      "closureMedianMs": 8,
-      "upper95Ratio": 1.0126582270840616,
+      "lilscriptMedianMs": 7.900000035762787,
+      "closureMedianMs": 7.899999976158142,
+      "upper95Ratio": 1.0000000075448918,
       "identicalCode": false
     },
     {
       "id": "ordinary-integer-multiply",
       "batches": 2000,
       "samples": 50,
-      "lilscriptMedianMs": 8,
-      "closureMedianMs": 8,
-      "upper95Ratio": 1,
+      "lilscriptMedianMs": 7.900000035762787,
+      "closureMedianMs": 7.900000035762787,
+      "upper95Ratio": 1.0000000075448918,
       "identicalCode": false
     },
     {
       "id": "pure-call-chain",
       "batches": 2000000,
       "samples": 50,
-      "lilscriptMedianMs": 8.800000004470348,
-      "closureMedianMs": 9,
+      "lilscriptMedianMs": 8.800000011920929,
+      "closureMedianMs": 8.800000011920929,
       "upper95Ratio": 1,
       "identicalCode": true
     }

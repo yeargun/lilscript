@@ -1,0 +1,26 @@
+export JsValue resolveTransition(JsValue? transition, JsValue? parentTransition = null) {
+  if (transition == null) {
+    return transition;
+  }
+  if (!transition.isObject()) {
+    return transition;
+  }
+  JsValue inheritFlag = transition["inherit"];
+  bool shouldInherit = false;
+  if (inheritFlag is bool) {
+    shouldInherit = inheritFlag;
+  }
+  if (shouldInherit && parentTransition != null && parentTransition.isObject()) {
+    JsValue merged = record{};
+    for (string key in parentTransition) {
+      merged[key] = parentTransition[key];
+    }
+    for (string key in transition) {
+      if (key != "inherit") {
+        merged[key] = transition[key];
+      }
+    }
+    return merged;
+  }
+  return transition;
+}

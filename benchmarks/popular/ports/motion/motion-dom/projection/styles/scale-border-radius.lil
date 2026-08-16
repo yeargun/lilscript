@@ -1,0 +1,42 @@
+import { Axis, Box } from "../../../motion-utils/types/geometry";
+import { px } from "../../value/types/numbers/units";
+import { ScaleCorrectionNode, ScaleCorrectorDefinition } from "./types";
+
+extern float parseFloat(string value);
+
+export float pixelsToPercent(float pixels, Axis axis) {
+  if (axis.max == axis.min) {
+    return 0.0;
+  }
+  return (pixels / (axis.max - axis.min)) * 100.0;
+}
+
+JsValue correctBorderRadiusValue(JsValue latest, ScaleCorrectionNode node) {
+  Box? target = node.target;
+  if (target == null) {
+    return latest;
+  }
+
+  float latestNum = 0.0;
+  if (latest is string) {
+    if (px.test(latest)) {
+      latestNum = parseFloat(latest);
+    } else {
+      return latest;
+    }
+  } else {
+    if (latest is float) {
+      latestNum = latest;
+    } else {
+      return latest;
+    }
+  }
+
+  float x = pixelsToPercent(latestNum, target.x);
+  float y = pixelsToPercent(latestNum, target.y);
+  return `${x}% ${y}%`;
+}
+
+export ScaleCorrectorDefinition correctBorderRadius = new ScaleCorrectorDefinition(
+  correctBorderRadiusValue
+);

@@ -1,0 +1,29 @@
+import { resolveTransition } from "./resolve-transition";
+
+export JsValue getValueTransition(JsValue? transition, string key) {
+  if (transition == null) {
+    return null;
+  }
+  JsValue valueTransition = transition;
+  bool foundKey = false;
+  if (transition.isObject()) {
+    for (string k in transition) {
+      if (k == key) {
+        valueTransition = transition[key];
+        foundKey = true;
+      }
+    }
+    if (!foundKey) {
+      for (string k in transition) {
+        if (k == "default") {
+          valueTransition = transition["default"];
+          foundKey = true;
+        }
+      }
+    }
+  }
+  if (foundKey) {
+    return resolveTransition(valueTransition, transition);
+  }
+  return valueTransition;
+}

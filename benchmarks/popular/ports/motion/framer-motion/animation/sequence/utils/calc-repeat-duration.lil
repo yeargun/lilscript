@@ -1,0 +1,3 @@
+export float calculateRepeatDuration(float duration, float repeat, float repeatDelay) {
+  return duration * (repeat + 1.0) + repeatDelay * repeat;
+}

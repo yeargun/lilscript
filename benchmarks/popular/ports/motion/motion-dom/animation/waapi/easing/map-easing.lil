@@ -1,0 +1,51 @@
+import { isBezierDefinition } from "../../../../motion-utils/easing/utils/is-bezier-definition";
+import { supportsLinearEasing } from "../../../utils/supports/linear-easing";
+import { generateLinearEasing } from "../utils/linear";
+import { cubicBezierAsString } from "./cubic-bezier";
+import { supportedWaapiEasing } from "./supported";
+
+export string mapEasingFunctionToNativeEasing(
+  func(float)->float easing,
+  float duration
+) {
+  if (supportsLinearEasing()) {
+    return generateLinearEasing(easing, duration);
+  }
+  return "ease-out";
+}
+
+export string? mapEasingToNativeEasing(
+  (string | float[] | func(float)->float)? easing,
+  float duration
+) {
+  if (easing == null) {
+    return null;
+  }
+  if (easing is (func(float)->float)) {
+    return mapEasingFunctionToNativeEasing(easing, duration);
+  }
+  if (easing is float[]) {
+    return cubicBezierAsString(easing);
+  }
+  if (easing is string) {
+    return supportedWaapiEasing.get(easing);
+  }
+  return null;
+}
+
+export string[] mapEasingArrayToNativeEasing(
+  (string | float[] | func(float)->float)[] easing,
+  float duration
+) {
+  string[] mapped = [];
+  for (int i = 0; i < easing.length; i++) {
+    string | float[] | func(float)->float segment = easing[i];
+    string? native = mapEasingToNativeEasing(segment, duration);
+    if (native != null) {
+      mapped.push(native);
+    } else {
+      mapped.push(supportedWaapiEasing.easeOut);
+    }
+  }
+  return mapped;
+}

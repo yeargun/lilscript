@@ -1,0 +1,130 @@
+import { Axis, AxisDelta, Box, Delta, Point } from "../../../motion-utils/types/geometry";
+import { mixNumber } from "../../utils/mix/number";
+
+float SCALE_PRECISION = 0.0001;
+float SCALE_MIN = 1.0 - SCALE_PRECISION;
+float SCALE_MAX = 1.0 + SCALE_PRECISION;
+float TRANSLATE_PRECISION = 0.01;
+float TRANSLATE_MIN = 0.0 - TRANSLATE_PRECISION;
+float TRANSLATE_MAX = 0.0 + TRANSLATE_PRECISION;
+
+export float calcLength(Axis axis) {
+  return axis.max - axis.min;
+}
+
+export bool isNear(float value, float target, float maxDistance) {
+  return (value - target).abs() <= maxDistance;
+}
+
+export void calcAxisDelta(
+  AxisDelta delta,
+  Axis source,
+  Axis target,
+  float origin = 0.5
+) {
+  delta.origin = origin;
+  delta.originPoint = mixNumber(source.min, source.max, delta.origin);
+  delta.scale = calcLength(target) / calcLength(source);
+  delta.translate =
+    mixNumber(target.min, target.max, delta.origin) - delta.originPoint;
+
+  if (
+    (delta.scale >= SCALE_MIN && delta.scale <= SCALE_MAX) ||
+    delta.scale != delta.scale
+  ) {
+    delta.scale = 1.0;
+  }
+
+  if (
+    (delta.translate >= TRANSLATE_MIN && delta.translate <= TRANSLATE_MAX) ||
+    delta.translate != delta.translate
+  ) {
+    delta.translate = 0.0;
+  }
+}
+
+export void calcBoxDelta(
+  Delta delta,
+  Box source,
+  Box target,
+  Record<JsValue>? origin = null
+) {
+  float originX = 0.5;
+  float originY = 0.5;
+  if (origin != null) {
+    JsValue? ox = origin.originX;
+    JsValue? oy = origin.originY;
+    if (ox != null) {
+      if (ox is float) {
+        originX = ox;
+      }
+    }
+    if (oy != null) {
+      if (oy is float) {
+        originY = oy;
+      }
+    }
+  }
+  calcAxisDelta(delta.x, source.x, target.x, originX);
+  calcAxisDelta(delta.y, source.y, target.y, originY);
+}
+
+export void calcRelativeAxis(
+  Axis target,
+  Axis relative,
+  Axis parent,
+  float anchor = 0.0
+) {
+  float anchorPoint = parent.min;
+  if (anchor != 0.0) {
+    anchorPoint = mixNumber(parent.min, parent.max, anchor);
+  }
+  target.min = anchorPoint + relative.min;
+  target.max = target.min + calcLength(relative);
+}
+
+export void calcRelativeBox(
+  Box target,
+  Box relative,
+  Box parent,
+  Point? anchor = null
+) {
+  float ax = 0.0;
+  float ay = 0.0;
+  if (anchor != null) {
+    ax = anchor.x;
+    ay = anchor.y;
+  }
+  calcRelativeAxis(target.x, relative.x, parent.x, ax);
+  calcRelativeAxis(target.y, relative.y, parent.y, ay);
+}
+
+export void calcRelativeAxisPosition(
+  Axis target,
+  Axis layout,
+  Axis parent,
+  float anchor = 0.0
+) {
+  float anchorPoint = parent.min;
+  if (anchor != 0.0) {
+    anchorPoint = mixNumber(parent.min, parent.max, anchor);
+  }
+  target.min = layout.min - anchorPoint;
+  target.max = target.min + calcLength(layout);
+}
+
+export void calcRelativePosition(
+  Box target,
+  Box layout,
+  Box parent,
+  Point? anchor = null
+) {
+  float ax = 0.0;
+  float ay = 0.0;
+  if (anchor != null) {
+    ax = anchor.x;
+    ay = anchor.y;
+  }
+  calcRelativeAxisPosition(target.x, layout.x, parent.x, ax);
+  calcRelativeAxisPosition(target.y, layout.y, parent.y, ay);
+}

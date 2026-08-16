@@ -1,3 +1,3 @@
 LilScript 0.1.0
-Closure v20260803
-Closure SHA-256 acffbafea43d48064ea1ad64cb4ec95828eac696be0c51a05874178acc19e21a
+Closure v20260804
+Closure SHA-256 9cad14d0337b2aaaf9ba8b24446cc45dc737bc34fe591e00835eff700a795d5b

@@ -1,0 +1,23 @@
+import { animate } from "../../../../benchmarks/popular/ports/motion/framer-motion/animation/animate/element";
+import { stagger } from "../../../../benchmarks/popular/ports/motion/motion-dom/utils/stagger";
+import { documentQuerySelectorAll, setProp } from "../../../../benchmarks/popular/ports/motion/motion-dom/dom-host";
+
+JsValue[] grids = documentQuerySelectorAll("#grid");
+if (grids.length > 0) {
+  string html = "";
+  for (int i = 0; i < 25; i++) {
+    html = `${html}<div class="dot"></div>`;
+  }
+  setProp(grids[0], "innerHTML", html);
+}
+
+animate(
+  ".dot",
+  record{ opacity: [0.0, 1.0], scale: [0.4, 1.0], rotate: [20.0, 0.0] },
+  record{
+    delay: stagger(0.035, record{ from: "center" }),
+    type: "spring",
+    stiffness: 320.0,
+    damping: 18.0
+  }
+);

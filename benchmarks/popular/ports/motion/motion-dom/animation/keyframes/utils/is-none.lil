@@ -1,0 +1,14 @@
+import { isZeroValueString } from "../../../../motion-utils/is-zero-value-string";
+
+export bool isNone(JsValue? value) {
+  if (value is float) {
+    return value == 0.0;
+  }
+  if (value != null) {
+    if (value is string) {
+      return value == "none" || value == "0" || isZeroValueString(value);
+    }
+    return false;
+  }
+  return true;
+}

@@ -1,0 +1,22 @@
+import {
+  Axis,
+  AxisDelta,
+  Box,
+  Delta
+} from "../../../motion-utils/types/geometry";
+
+export AxisDelta createAxisDelta() {
+  return AxisDelta{0.0, 1.0, 0.0, 0.0};
+}
+
+export Delta createDelta() {
+  return Delta{createAxisDelta(), createAxisDelta()};
+}
+
+export Axis createAxis() {
+  return Axis{0.0, 0.0};
+}
+
+export Box createBox() {
+  return Box{createAxis(), createAxis()};
+}

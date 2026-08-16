@@ -1,0 +1,9 @@
+import { getElementTagName } from "../dom-host";
+import { isSVGElement } from "./is-svg-element";
+
+export bool isSVGSVGElement(JsValue? element = null) {
+  if (!isSVGElement(element)) {
+    return false;
+  }
+  return getElementTagName(element).toLowerCase() == "svg";
+}

@@ -1,0 +1,5 @@
+import extern { weakMapCreate } from "../weak-host.ts";
+
+extern JsValue weakMapCreate();
+
+export JsValue visualElementStore = weakMapCreate();

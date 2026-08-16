@@ -1,0 +1,35 @@
+import { isFunction, documentScrollingElement, documentElement, documentGet } from "../../../../motion-dom/dom-host";
+import { attachToAnimation } from "./attach-animation";
+import { attachToFunction } from "./attach-function";
+
+export func()->void scroll(JsValue onScroll, JsValue? options = null) {
+  string axis = "y";
+  JsValue container = documentScrollingElement();
+  JsValue resolved = record{};
+
+  if (options != null && options.isObject()) {
+    for (string k in options) {
+      resolved[k] = options[k];
+    }
+    JsValue axisVal = options["axis"];
+    if (axisVal is string) {
+      axis = axisVal;
+    }
+    JsValue c = options["container"];
+    if (c != null) {
+      container = c;
+    }
+  }
+
+  if (container == null) {
+    return () => {};
+  }
+
+  resolved["axis"] = axis;
+  resolved["container"] = container;
+
+  if (isFunction(onScroll)) {
+    return attachToFunction(onScroll, resolved);
+  }
+  return attachToAnimation(onScroll, resolved);
+}

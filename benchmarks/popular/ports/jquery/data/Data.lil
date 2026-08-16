@@ -1,0 +1,164 @@
+import { jQuery, isEmptyObject } from "../core";
+import { camelCase } from "../core/camelCase";
+import { rnothtmlwhite } from "../var/rnothtmlwhite";
+import { acceptData } from "./var/acceptData";
+import {
+  jsUndefined,
+  createEmptyObject,
+  deleteProp,
+  hasProp,
+  typeOf,
+  isUndefined,
+  arrayIsArray,
+  defineConfigurable,
+  stringMatch,
+  stringify
+} from "../js-host.lil";
+
+float dataUid = 1.0;
+
+string asCamel(JsValue key) {
+  return camelCase(JS.string(key));
+}
+
+export class Data {
+  JsValue expando;
+
+  init() {
+    float uid = dataUid;
+    dataUid = uid + 1.0;
+    this.expando = JS.add(jQuery["expando"], uid);
+  }
+
+  JsValue cache(JsValue owner) {
+    JsValue key = this.expando;
+    JsValue value = owner[key];
+
+    if (!value.truthy()) {
+      value = JS.object();
+      if (acceptData(owner)) {
+        JsValue nodeType = JS.and(owner, owner["nodeType"]);
+        if (nodeType.truthy()) {
+          owner[key] = value;
+        } else {
+          defineConfigurable(owner, key, value);
+        }
+      }
+    }
+    return value;
+  }
+
+  JsValue set(JsValue owner, JsValue data, JsValue? valueArg = null) {
+    JsValue cache = this.cache(owner);
+    JsValue value = JS.undefined();
+    if (valueArg != null) {
+      value = valueArg;
+    }
+
+    if (data is string) {
+      cache[asCamel(data)] = value;
+    } else {
+      for (string prop in data) {
+        cache[camelCase(prop)] = data[prop];
+      }
+    }
+    return cache;
+  }
+
+  JsValue get(JsValue owner, JsValue? keyArg = null) {
+    if (keyArg == null) {
+      return this.cache(owner);
+    }
+    JsValue key = keyArg;
+    if (JS.isUndefined(key)) {
+      return this.cache(owner);
+    }
+
+    JsValue store = owner[this.expando];
+    if (!store.truthy()) {
+      return JS.undefined();
+    }
+    return store[asCamel(key)];
+  }
+
+  JsValue access(JsValue owner, JsValue? keyArg = null, JsValue? valueArg = null) {
+    JsValue key = keyArg;
+    JsValue value = JS.undefined();
+    if (valueArg != null) {
+      value = valueArg;
+    }
+
+    if (JS.isUndefined(key) || key == null) {
+      return this.get(owner);
+    }
+
+    if ((key is string) && JS.isUndefined(value)) {
+      return this.get(owner, key);
+    }
+
+    this.set(owner, key, value);
+
+    if (!JS.isUndefined(value)) {
+      return value;
+    }
+    return key;
+  }
+
+  void remove(JsValue owner, JsValue? keyArg = null) {
+    JsValue expando = this.expando;
+    JsValue cache = owner[expando];
+    if (JS.isUndefined(cache)) {
+      return;
+    }
+
+    if (keyArg != null && !JS.isUndefined(keyArg)) {
+      JsValue key = keyArg;
+      string[] keys = [];
+      if (JS.isArray(key)) {
+        float i = 0.0;
+        float len = key.length;
+        for (; i < len; i++) {
+          keys.push(asCamel(key[i]));
+        }
+      } else {
+        string camelKey = asCamel(key);
+        if (JS.in(camelKey, cache)) {
+          keys.push(camelKey);
+        } else {
+          JsValue matched = JS.stringMatch(camelKey, rnothtmlwhite);
+          if (matched.truthy()) {
+            float i = 0.0;
+            float len = matched.length;
+            for (; i < len; i++) {
+              JsValue name = matched[i];
+              keys.push(JS.string(name));
+            }
+          }
+        }
+      }
+
+      int i = keys.length;
+      while (i > 0) {
+        i = i - 1;
+        JS.delete(cache, keys[i]);
+      }
+    }
+
+    if (keyArg == null || JS.isUndefined(keyArg) || isEmptyObject(cache)) {
+      JsValue nodeType = JS.and(owner, owner["nodeType"]);
+      if (nodeType.truthy()) {
+        owner[expando] = JS.undefined();
+      } else {
+        JS.delete(owner, expando);
+      }
+    }
+  }
+
+  bool hasData(JsValue owner) {
+    JsValue cache = owner[this.expando];
+    if (JS.isUndefined(cache)) {
+      return false;
+    }
+    return !isEmptyObject(cache);
+  }
+}

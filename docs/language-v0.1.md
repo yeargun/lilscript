@@ -1,5 +1,7 @@
 # LilScript Language Contract v0.1
 
+Reasoning (types vs glue, closed world, escape, delivery): [knowledge/language](knowledge/language/README.md). This page is the syntax/semantics contract.
+
 ## Identity and compilation model
 
 LilScript is an independent statically typed language. LilScript source is never
@@ -23,6 +25,10 @@ SSA optimization; they are not JavaScript wrappers in the generated bundle.
 - Source text is UTF-8.
 - Identifiers begin with ASCII `_`, `$`, or a letter and continue with those
   characters or digits.
+- Keywords remain reserved for bindings. Property-name positions—including
+  aggregate fields and methods, enum variants, record keys, and member access—
+  accept keyword names so typed JavaScript interfaces can preserve fields such
+  as `async`, `generator`, or `catch` without aliases.
 - `//` line comments and `/* ... */` block comments are ignored.
 - Statements end with `;`, except blocks and declarations ending in `}`.
 - Decimal integer and IEEE-754 decimal float literals are supported.
@@ -30,43 +36,264 @@ SSA optimization; they are not JavaScript wrappers in the generated bundle.
 
 ## Types
 
-| LilScript type | Meaning | JavaScript representation | Native representation |
-| --- | --- | --- | --- |
-| `int` | signed 32-bit integer with operator-defined overflow behavior | number with i32 normalization | `i32` |
-| `float` | IEEE-754 binary64 | number | `f64` |
-| `bool` | `true` or `false` | boolean | C11 `bool` |
-| `string` | immutable UTF-8 text | string | runtime string handle |
-| `T[]` | mutable homogeneous array | optimized array representation | runtime array handle |
-| `Map<K, V>` | mutable insertion-ordered key/value collection | native `Map` | tagged-value map handle |
-| `Set<T>` | mutable insertion-ordered unique-value collection | native `Set` | tagged-value set handle |
-| `ArrayBuffer` | fixed-length byte storage | native `ArrayBuffer` | owned byte-buffer handle |
-| `SharedArrayBuffer` | fixed-length storage shared by views | native `SharedArrayBuffer` | shared-designated byte-buffer handle |
-| `Int8Array` | signed 8-bit view | native `Int8Array` | typed-array view handle |
-| `Uint8Array` | unsigned byte view | native `Uint8Array` | typed-array view handle |
-| `Uint8ClampedArray` | clamped unsigned byte view | native `Uint8ClampedArray` | typed-array view handle |
-| `Int16Array` | signed 16-bit view | native `Int16Array` | typed-array view handle |
-| `Uint16Array` | unsigned 16-bit view | native `Uint16Array` | typed-array view handle |
-| `Int32Array` | signed 32-bit view | native `Int32Array` | typed-array view handle |
-| `Uint32Array` | unsigned 32-bit view (`int` bit pattern) | native `Uint32Array` | typed-array view handle |
-| `Float32Array` | IEEE-754 single-precision view | native `Float32Array` | typed-array view handle |
-| `Float64Array` | IEEE-754 double-precision view | native `Float64Array` | typed-array view handle |
-| `Symbol` | unique opaque identity value | native `Symbol` | unique symbol handle |
-| `JsValue` | raw dynamically typed JavaScript boundary value | unchanged host value | unsupported |
-| `T?` | either a `T` value or `null` | `T` or raw `null` | tagged `LilScriptOptional` |
-| `A \| B` | value belonging to either member type | raw member value | tagged `LilScriptValue` at union boundaries |
-| `struct S` | positional value aggregate | scalars, tuple, or boundary object | positional C value record |
-| `class C` | nominal reference value with methods | dissolved record or class at an escaping boundary | pointer to a C record |
-| `extern class C` | typed JavaScript host object interface | existing host object with exact member names | unsupported without an explicit user ABI |
-| `func(T...)->R` | callable value | function/closure | function plus environment |
-| `C<T...>` | applied generic class | same nominal class layout | pointer with boxed polymorphic fields |
-| `void` | no value | no value | no value |
+| LilScript type      | Meaning                                                       | JavaScript representation                         | Native representation                       |
+| ------------------- | ------------------------------------------------------------- | ------------------------------------------------- | ------------------------------------------- |
+| `int`               | signed 32-bit integer with operator-defined overflow behavior | number with i32 normalization                     | `i32`                                       |
+| `number` / `float`  | IEEE-754 binary64 web number                                  | number                                            | `f64`                                       |
+| `bool`              | `true` or `false`                                             | boolean                                           | C11 `bool`                                  |
+| `string`            | immutable UTF-8 text                                          | string                                            | runtime string handle                       |
+| `T[]`               | mutable homogeneous array                                     | optimized array representation                    | runtime array handle                        |
+| `Record<T>`         | mutable open string-keyed homogeneous record                  | plain object                                      | tagged-value string map handle              |
+| `Map<K, V>`         | mutable insertion-ordered key/value collection                | native `Map`                                      | tagged-value map handle                     |
+| `Set<T>`            | mutable insertion-ordered unique-value collection             | native `Set`                                      | tagged-value set handle                     |
+| `ArrayBuffer`       | fixed-length byte storage                                     | native `ArrayBuffer`                              | owned byte-buffer handle                    |
+| `SharedArrayBuffer` | fixed-length storage shared by views                          | native `SharedArrayBuffer`                        | shared-designated byte-buffer handle        |
+| `Int8Array`         | signed 8-bit view                                             | native `Int8Array`                                | typed-array view handle                     |
+| `Uint8Array`        | unsigned byte view                                            | native `Uint8Array`                               | typed-array view handle                     |
+| `Uint8ClampedArray` | clamped unsigned byte view                                    | native `Uint8ClampedArray`                        | typed-array view handle                     |
+| `Int16Array`        | signed 16-bit view                                            | native `Int16Array`                               | typed-array view handle                     |
+| `Uint16Array`       | unsigned 16-bit view                                          | native `Uint16Array`                              | typed-array view handle                     |
+| `Int32Array`        | signed 32-bit view                                            | native `Int32Array`                               | typed-array view handle                     |
+| `Uint32Array`       | unsigned 32-bit view (`int` bit pattern)                      | native `Uint32Array`                              | typed-array view handle                     |
+| `Float32Array`      | IEEE-754 single-precision view                                | native `Float32Array`                             | typed-array view handle                     |
+| `Float64Array`      | IEEE-754 double-precision view                                | native `Float64Array`                             | typed-array view handle                     |
+| `Symbol`            | unique opaque identity value                                  | native `Symbol`                                   | unique symbol handle                        |
+| `Regex`             | exact ECMAScript regular expression                           | native `RegExp`                                   | unsupported                                 |
+| `Task<T>`           | typed asynchronous result                                     | native `Promise`                                  | unsupported                                 |
+| `Generator<T>`      | typed synchronous iterable yielding `T`                       | native generator object                           | unsupported                                 |
+| `JsValue`           | raw dynamically typed JavaScript boundary value               | unchanged host value                              | unsupported                                 |
+| `T?`                | either a `T` value or `null`                                  | `T` or raw `null`                                 | tagged `LilScriptOptional`                  |
+| `A \| B`            | value belonging to either member type                         | raw member value                                  | tagged `LilScriptValue` at union boundaries |
+| `enum E`            | one value from a closed named variant set                     | zero-based integer discriminant                   | `int32_t` discriminant                      |
+| `struct S`          | positional value aggregate                                    | scalars, tuple, or boundary object                | positional C value record                   |
+| `class C`           | nominal reference value with methods                          | dissolved record or class at an escaping boundary | pointer to a C record                       |
+| `extern class C`    | typed JavaScript host object interface                        | existing host object with exact member names      | unsupported without an explicit user ABI    |
+| `func(T...)->R`     | callable value                                                | function/closure                                  | function plus environment                   |
+| `C<T...>`           | applied generic class                                         | same nominal class layout                         | pointer with boxed polymorphic fields       |
+| `void`              | no value                                                      | no value                                          | no value                                    |
 
 `auto` is a declaration inference marker, not a runtime type. It is legal only
 for a local or top-level variable with an initializer.
 
-An `int` widens implicitly to `float`. Other conversions require an explicit
-standard conversion function. Arrays and nominal types do not implicitly
-coerce.
+An `int` widens implicitly to `number`/`float`. Use `number` for ordinary web
+numeric values that do not require i32 wrapping. It is the preferred spelling
+of the existing `float` representation: arithmetic stays as JavaScript number
+operations without `|0` boundaries and native lowering uses binary64. Integer
+literals assigned or passed to `number` are promoted before subsequent
+arithmetic. Bitwise and shift operators remain `int`-only because JavaScript
+itself applies i32 coercion to those operations. Other conversions require an
+explicit standard conversion function. Arrays and nominal types do not
+implicitly coerce.
+
+Closed enums use declaration-order discriminants and do not emit a JavaScript
+metadata object:
+
+```lilscript
+enum Status { Draft, Active, Sold }
+
+string label(Status status) {
+  return match(status) {
+    Status.Draft => "draft",
+    Status.Active => "active",
+    Status.Sold => "sold"
+  };
+}
+```
+
+Every non-wildcard pattern must name a variant of the scrutinee's exact enum.
+Duplicate variants, unknown variants, and arms after `_` are rejected. Without
+`_`, all declared variants must be covered; `_` may occur only once and last.
+The scrutinee is evaluated exactly once and only the selected arm is evaluated.
+All arms must have a common assignable result type. Enum values are nominal:
+they do not implicitly convert to `int` or to another enum. The numeric ABI is
+intended for closed LilScript code; string-valued external protocols require an
+explicit conversion such as the exhaustive `match` above.
+
+`Record<T>` is an open structural record whose values all have the same static
+type. A record literal uses `record { key: value, "quoted-key": value }` and
+lowers directly to a null-prototype plain JavaScript object; it is distinct from a nominal,
+fixed-layout `struct`. Duplicate literal keys and mixed value types are
+rejected. An empty literal needs an expected `Record<T>` type.
+
+Member and string-index reads return `T?` because an open key may be absent.
+Direct member and index writes require `T`. Compound assignment and update on a
+record entry are rejected until presence has been represented by an explicit
+place operation; this prevents a missing property from accidentally becoming a
+JavaScript `NaN` or concatenated string. Record property names are observable
+data and are never mangled. Enumeration follows JavaScript own-property order:
+canonical array-index strings first in ascending numeric order, followed by
+other strings in insertion order. The null prototype makes inherited names
+absent and turns `__proto__` into an ordinary data key on dynamically written
+records rather than a prototype mutation.
+
+The portable static record operations are:
+
+- `Object.keys(record)` returns `string[]`;
+- `Object.values(record)` returns `T[]` in the same key order;
+- `Object.hasOwn(record, key)` returns `bool`;
+- `Object.assign(target, source)` mutates and returns `target`; both records
+  must have the exact same invariant `Record<T>` type.
+
+`JSON.stringify(value)` returns `string` for `int`, enum, `string`, `bool`,
+`null`, nullable forms of those scalars, and homogeneous arrays or records of
+those scalars. Floats are currently rejected: the native runtime does not yet
+implement ECMAScript's shortest binary64-to-decimal algorithm, so accepting
+them would make output target-dependent. `JSON.parse(string)` returns
+`JsValue` and is therefore JavaScript-only; native compilation rejects it
+instead of substituting a different dynamic representation.
+
+`Regex` is the exact JavaScript-target ECMAScript regular-expression type:
+
+```lilscript
+Regex sale = new Regex("sale", "gi");
+bool first = sale.test("SALE sale");
+bool second = sale.test("SALE sale");
+string source = sale.source;
+string flags = sale.flags;
+```
+
+Construction accepts a pattern plus an optional flags string. `test(string)`
+preserves JavaScript's stateful `global` and `sticky` behavior. The typed
+metadata surface is `source`, `flags`, `global`, `ignoreCase`, `multiline`,
+`dotAll`, `sticky`, and `unicode`. Construction and testing remain effectful in
+the optimizer because invalid patterns can throw and stateful tests update the
+regular expression. Native compilation rejects `Regex` rather than
+approximating ECMAScript syntax or Unicode behavior.
+
+With the `regex-literals` compression decision enabled **and**
+`javascript.assume_pristine_builtins = true`, the JavaScript emitter may
+replace a constructor with a literal only for a deliberately narrow,
+statically valid pattern and valid-flags subset, and only when the literal is
+shorter. The explicit runtime assumption is required because a literal bypasses
+the ambient `RegExp` constructor binding; open-world library builds keep the
+constructor form. Unsupported escapes or grammar, slashes, line terminators,
+duplicate or unknown flags, and incompatible `u`/`v` flags retain
+`new RegExp(...)`, preserving runtime error timing. Constants eliminated by
+this substitution must have no other uses, so the transformation cannot leave
+dead bindings or alter shared-value emission. The release benchmark records raw,
+gzip, and Brotli measurements plus runtime, memory, and stateful behavior. Both
+variants are Brotli-target builds, so only Brotli is gated; raw and gzip are
+diagnostics and may regress.
+
+## Async tasks and exceptions
+
+JavaScript-target functions and methods may be declared `async`; their body
+retains the declared inner return type while calls have type `Task<T>`:
+
+```lilscript
+async int loadCount() {
+  try {
+    return await Task.resolve(4);
+  } catch (auto error) {
+    print(error.message ?? "rejected");
+    return 0;
+  } finally {
+    print("settled");
+  }
+}
+```
+
+`await` is legal only inside an async body and accepts only `Task<T>`.
+`Task.resolve(value)` returns `Task<T>`, `Task.reject(reason)` obtains `T` from
+its expected task context, and `Task.all(Task<T>[])` returns `Task<T[]>`.
+Tasks expose typed `then`, `catch`, and `finally` chains and lower directly to
+native promises without a Lilscript scheduler or wrapper. General rejection
+reasons are `JsValue`, not assumed error records; their `message` and
+`specifier` reads are nullable and use null-safe JavaScript access.
+
+`throw` accepts any non-`void` value. A try statement requires `catch`,
+`finally`, or both. Catch may use `catch (auto error)`,
+`catch (JsValue error)`, or omit the binding as `catch { ... }`. Each clause is
+lexically scoped. JavaScript's native completion rules are preserved: finally
+runs on normal completion, throw, return, break, and continue, and a completion
+from finally overrides the earlier one.
+
+Exception regions are emitted as native structured JavaScript. Their mutable
+locals deliberately remain native mutable bindings instead of being promoted
+to exception-insensitive SSA, so a catch observes every assignment completed
+before the exact operation that threw. Exception-bearing functions are also
+excluded from CFG rewrites that cannot preserve structured regions. The
+`unused-catch-binding-elision` compression decision removes `(error)` only when
+the checked binding has zero uses; codec-specific release fixtures require a
+strict gzip/Brotli win and guard output, runtime, and retained heap. Async,
+tasks, and exceptions are rejected by the native backend rather than
+approximated.
+
+## Generators
+
+A generator declares its yielded element type after the `generator` modifier.
+Calling it returns `Generator<T>`; its body may `yield` one `T`, delegate with
+`yield*` to `T[]`, a compatible typed array, or another `Generator<T>`, and may
+return only without a value:
+
+```lilscript
+generator int range(int stop) {
+  for (int value = 0; value < stop; value++) {
+    yield value;
+  }
+}
+
+generator int values() {
+  yield* [7, 8];
+  yield* range(3);
+}
+
+for (int value of values()) {
+  print(value);
+}
+```
+
+Generator methods use the same modifier. JavaScript emission is direct
+`function*`, `yield`, `yield*`, and `for...of`; there is no iterator helper or
+state-machine runtime. Native compilation rejects generator functions. A
+regular or arrow-function boundary blocks `yield`, so a nested callback cannot
+accidentally suspend its containing generator. Async generators are not yet in
+the portable core.
+
+The `compact-generator-star` compression decision compares the equivalent
+spellings `function*name` and `function* name`. Lilpack retains both candidates
+and accepts the compact form only when the selected whole-artifact codec wins.
+
+## Collection literals, destructuring, and iteration
+
+Array and record literals support left-to-right shallow spread:
+
+```lilscript
+int[] copy = [0, ...values, 3];
+Record<int> merged = record{...base, count: 2};
+```
+
+An array spread operand must be `T[]`; typed arrays are deliberately rejected
+until their unboxed native representation can be copied without a hidden boxed
+conversion. A record spread operand must have the exact invariant
+`Record<T>` value type. Both forms allocate a new collection, preserve source
+order, evaluate each operand once, and do not retain the source collection as
+an alias.
+
+Destructuring declarations use `auto` because their binding types are inferred:
+
+```lilscript
+auto [first, , third, ...tail] = values;
+auto {name, "unit-price": price, ...remaining} = listing;
+```
+
+An ordinary array or record binding has type `T?`: arrays may be shorter than
+their patterns and open records may omit a key. Missing values are normalized
+to `null` in JavaScript and use the native optional representation. Array rest
+has type `T[]`; record rest has type `Record<T>`. Rest is always last, produces
+a shallow copy, and never aliases later source insertion or replacement.
+Record rest excludes the named source keys, retains JavaScript own-key order,
+and preserves the null-prototype record contract. The right-hand expression is
+evaluated exactly once. Duplicate record keys and duplicate binding names are
+rejected.
+
+`for (T value of collection)` accepts `T[]` and typed arrays. It uses live
+array length, matching JavaScript array-iterator behavior when the loop appends
+elements. Lowering uses a direct indexed loop in both JavaScript and native
+output; it does not allocate an iterator or callback. Strings are not accepted
+because JavaScript string iteration uses Unicode code points while the native
+string indexing contract is UTF-16-oriented, and silently combining those
+semantics would be target-dependent.
 
 `Map<K, V>` and `Set<T>` are mutable and invariant. `Map.get(key)` returns
 `V?`; missing keys and stored `null` values therefore have the same result, as
@@ -135,6 +362,30 @@ dispatch. Its implemented operations are deliberately explicit:
 - `value[index]`, for a numeric or string index, remains `JsValue`;
 - `for (string key in value)` emits direct JavaScript `for-in`, including inherited enumerable string keys and without allocating `Object.keys(...)`;
 - `value is string`, `value is float`, and `value is bool` are sound narrowing guards. JavaScript numbers must use `float`; array and function signatures cannot be proven by `typeof` and are rejected as narrowing targets.
+- `JS.construct(ctor, ...args)` evaluates `new ctor(...args)`. The callee is required; up to six further `JsValue` arguments are constructor arguments. C/native targets reject it.
+
+Four typed JavaScript adapter primitives create ordinary host-callable
+functions without weakening the callback's static signature:
+
+- `JS.method0(func(JsValue) -> JsValue)` passes the wrapper's `this` and no
+  call arguments;
+- `JS.method1(func(JsValue, JsValue) -> JsValue)` passes `this` and the first
+  call argument;
+- `JS.methodRest(func(JsValue, JsValue) -> JsValue)` passes `this` and the
+  wrapper's real JavaScript `arguments` object;
+- `JS.staticRest(func(JsValue) -> JsValue)` passes only that `arguments`
+  object.
+
+Each evaluation returns a fresh anonymous, constructible ordinary function.
+Their JavaScript `length` values are respectively `0`, `1`, `0`, and `0`, and
+their callback is invoked as a plain function. Semantic analysis resolves these
+operations by builtin identity and checks the exact callback arity and types; an
+unrelated extern with the same spelling has no special behavior. The JavaScript
+backend may fuse a private callback with its wrapper only after proving its
+identity and lexical bindings do not escape; where JavaScript would infer a
+function name, the fused spelling explicitly preserves the wrapper's anonymous
+reflection. Otherwise it emits a compiler-private shared factory. C/native
+targets reject all four adapters.
 
 String concatenation may consume a guarded `JsValue` and uses JavaScript's
 ordinary coercion. An unguarded Symbol therefore throws exactly as it would in
@@ -143,6 +394,17 @@ function's JavaScript `arguments` object; the emitter forces that function to
 ordinary-function syntax even when public arrows are requested. Every
 `JsValue` operation is rejected by the C/native backend rather than receiving a
 different approximation.
+
+`JsValue` does not carry a blanket purity assumption. An operation that can run
+user-controlled JavaScript coercion (`Symbol.toPrimitive`, `valueOf`, or
+`toString`), trigger a proxy trap or revoked-proxy check, or throw during a
+dynamic conversion is an observable evaluation point. This includes applicable
+dynamic arithmetic/equality/string conversion, dynamic indexing and property
+inspection, and `isArray()` on an unknown host value. Such an evaluation is not
+deleted merely because its result is unused, is not merged with an equal-looking
+evaluation, stays in source order, and makes a declared `pure` function invalid.
+Non-coercive operations such as truthiness, `typeof`-based narrowing, and nullish
+tests remain pure when their operands need no observable access.
 
 Postfix `?` makes a value type nullable. `null` is assignable only to a nullable
 type, and `auto value = null;` is rejected because it has no concrete value type
@@ -277,6 +539,38 @@ form an acyclic graph. Every static module is initialized once in
 dependency-first order, so side-effect-only imports preserve initialization
 behavior.
 
+A foreign ESM edge uses `import extern`. Its local binding must be backed by a
+top-level `extern` declaration in the importing LilScript module:
+
+```lilscript
+import extern { add as hostAdd, version } from "./host.ts";
+extern int hostAdd(int left, int right);
+extern string version;
+```
+
+The import clause supplies runtime ESM identity; the extern declaration
+supplies the static LilScript contract. Aliases are allowed. Conflicting
+foreign sources for one local binding and imports without a matching extern are
+errors. Relative `.js`, `.mjs`, `.ts`, `.mts`, `.jsx`, and `.tsx` sources are
+validated by the Lilscript graph loader. Bare ESM specifiers remain runtime
+package edges.
+Foreign imports are JavaScript-only and are rejected by C/native targets.
+`import extern "./setup.ts";` represents a side-effect-only ESM edge and has no
+binding contract.
+
+An import's external name is ABI, while its local alias is not. JavaScript
+emission may give that local a different hygienic spelling—even when identifier
+mangling is disabled—and maps the matching `extern` function or global to the
+same spelling. Source bindings and foreign aliases therefore cannot capture
+compiler-generated runtime roots such as `Math`, `Array`, `Object`, or `Promise`;
+the external import/export names themselves remain unchanged.
+
+The compiler emits the foreign source specifier as native ESM and does not parse
+the foreign language. Lilpack integrates Vite to resolve, transform, bundle,
+watch, and hot-reload the complete JavaScript/TypeScript/JSX/TSX and asset graph.
+The `extern` contract is Lilscript's static view of that runtime binding; Vite's
+TypeScript transform does not replace Lilscript type checking at the boundary.
+
 In an executable build, an export is an accessibility declaration rather than a
 retention root. Unused imported and exported functions, types, globals, and pure
 initializers remain eligible for whole-program elimination, and static module
@@ -292,9 +586,10 @@ application artifact. A project can opt into static ESM chunks with
 whole-program optimization and produces a manifest. These imports are eager.
 The dynamic expression `import("./feature")` returns a typed `Task<module>`.
 `then`, `catch`, and `finally` are statically checked; contextual `auto` arrow
-parameters receive the module namespace or `ModuleLoadError`. Split builds emit
-lazy ESM chunks, normalize load failures to stable `specifier` and `message`
-fields, and tree-shake unreferenced namespace exports. Lazy-only modules must be
+parameters receive the module namespace or a general `JsValue` rejection.
+Split builds normalize loader-created failures to objects with stable
+`specifier` and `message` fields, while user-created task rejections may carry
+any non-void JavaScript value. Lazy chunks tree-shake unreferenced namespace exports. Lazy-only modules must be
 initialization-free. Dynamic module tasks are JavaScript-only. The complete
 delivery and package contract is in `docs/modules-and-delivery.md`.
 
@@ -332,8 +627,42 @@ class Vector {
 Vector vector = new Vector(3.0, 4.0);
 ```
 
+Classes also support sound, non-virtual single inheritance:
+
+```lilscript
+class Priced {
+  int price;
+  init(int price) { this.price = price; }
+  int total(int count) { return this.price * count; }
+}
+
+class Listing extends Priced {
+  int stock;
+  init(int price, int stock) {
+    super(price);
+    this.stock = stock;
+  }
+}
+
+Listing listing = new Listing(17, 4);
+Priced priced = listing;
+print(priced.total(2));
+```
+
+Base fields are flattened first and inherited methods call their original
+statically known function. Generic base applications such as
+`class Child<T> extends Base<T>` substitute inherited member types, derived
+values may upcast through the full base chain, and internal/extern inheritance
+chains remain separate. A derived `init` must put `super(...)` first and call it
+exactly once when the base declares a constructor. Inherited member shadowing
+and method overriding are rejected: silently static-dispatching an override
+would be unsound, while per-instance vtables would add the size and memory cost
+this representation is designed to avoid. The optimized C backend rejects
+inheritance until its subtype pointer ABI is fixed rather than emitting
+incompatible C pointer calls.
+
 Structs and classes that do not escape are eligible for scalar replacement.
-Non-escaping class calls are statically devirtualized. Crossing `extern`
+Class calls are statically devirtualized, including inherited calls. Crossing `extern`
 materializes the boundary representation. JavaScript uses named object fields;
 native C uses generated positional value records for structs and pointer
 records for classes.
@@ -350,10 +679,11 @@ int add(int left, int right) {
 auto increment = (int value) => value + 1;
 ```
 
-Functions and typed arrows are first-class values. Closures capture local
-lexical values when the closure is created. Captured bindings are read-only
-inside the closure, while objects and arrays referenced by a capture remain
-mutable. Top-level bindings are shared globals rather than closure captures.
+Functions and typed arrows are first-class values. Closures share captured
+local lexical bindings, so a closure may both read and reassign an outer local;
+sibling closures observe the same binding. Objects and arrays referenced by a
+capture remain mutable as usual. Top-level bindings are shared globals rather
+than closure captures.
 All paths of a non-`void` function must return a value.
 
 Trailing parameters can provide scalar, typed array, struct, class-construction,
@@ -417,7 +747,9 @@ A declared-pure LilScript function is rejected if it can print, mutate a global,
 array, struct, or class, or call code with observable effects. Calls whose result
 is unused can be removed when their target is inferred or declared pure.
 `pure extern` is a trusted host ABI promise; violating it is a host integration
-error.
+error. Dynamic `JsValue` coercions, proxy-sensitive operations, and operations
+that may throw through the explicit JavaScript boundary are observable effects;
+writing `pure` cannot override that analysis.
 
 Untyped host calls must be declared explicitly:
 
@@ -451,23 +783,58 @@ arithmetic, comparison, equality, bitwise, shift, and short-circuit logical
 operators are supported. Assignment is an expression and evaluates to the
 assigned value.
 
+Nullable values support lazy `value ?? fallback` and `place ??= fallback`.
+Only `null` selects the fallback; falsy non-null values such as `false`, `0`,
+and `""` are preserved. The left value or assignment place is evaluated once,
+and `??=` accepts only a fallback assignable to the nullable target. Applying
+either operator to a statically non-nullable left operand is rejected.
+
+Nullable data receivers also support `value?.field` and `value?.[index]`. An
+absent receiver produces `null`; the index expression is not evaluated on that
+path. Combining either form with `??` is lowered as one branch, so no
+intermediate nullable value or second test is required. Optional method calls
+are deliberately rejected until their receiver binding, argument laziness, and
+portable native-call semantics are implemented.
+
 ## Standard library surface
 
 Arrays provide typed `length`, `map`, `filter`, `reduce`, `forEach`, `push`,
-`pop`, `indexOf`, `slice`, and `splice`. Callback methods snapshot the receiver length when the call begins, so
+`pop`, `indexOf`, `includes`, `join`, `some`, `every`, `findIndex`, `concat`,
+`slice`, `splice`, `fill`, `copyWithin`, and `reverse`. Callback methods snapshot the receiver length when the call begins, so
 elements appended by a callback are not visited by that call. Reads of existing
 future elements remain live, matching JavaScript's dense-array iteration
-behavior. `indexOf` returns the first matching index or `-1`. `slice(start = 0, end = length)`
+behavior. `indexOf` uses strict equality; `includes` uses SameValueZero, so it
+finds `NaN`. Both accept a normalized negative starting index. `some` and
+`every` short circuit, while `findIndex` returns the first matching index or
+`-1`. `join(separator = ",")` is portable for integer, string, boolean, null,
+nullable, and matching union elements; float and nominal-element joins are
+rejected because native formatting cannot promise JavaScript's exact text.
+`slice(start = 0, end = length)`
 returns a shallow copy and accepts negative indices. `splice(start, deleteCount)`
 removes `deleteCount` elements beginning at `start` (negative `start` counts from the end)
-and returns an array of the removed elements. Strings provide UTF-16 code-unit `length`, `charCodeAt`, and `charAt`, plus
-`includes`, `startsWith`, `endsWith`, `toUpperCase`, and `toLowerCase`. This
+and returns an array of the removed elements. `fill(value)`, `copyWithin`, and
+`reverse` mutate in place and return the receiver. `concat` produces a new
+same-element-type array. Strings provide UTF-16 code-unit `length`,
+`charCodeAt`, and `charAt`, plus `includes`, `startsWith`, `endsWith`,
+`indexOf`, `lastIndexOf`, `repeat`, `toUpperCase`, and `toLowerCase`. This
 matches JavaScript string indexing while native storage uses UTF-8 plus WTF-8
 for lone surrogate code units produced by `charAt`.
 `charCodeAt` returns `0` for an out-of-range index. `charAt` returns an empty
 string out of range, otherwise a one-code-unit string. Calls are statically checked
 and are intrinsic optimization candidates; they are not untyped JavaScript
 dispatch.
+
+Non-mutating typed array, string, and `Math` operations are pure LilScript
+language operations, even when JavaScript output uses a compact built-in
+spelling. Their behavior is derived from the receiver's static type rather than
+from `JsValue` dispatch. Array and typed-array mutators still carry their precise
+receiver-mutation effect, and effectful callbacks remain effectful.
+
+Every core typed-array view provides checked same-kind `set(source, offset =
+0)`, plus fluent `fill(value, start = 0, end = length)` and
+`copyWithin(target, start, end = length)`. Overlapping source and destination
+ranges use snapshot/memmove semantics on every backend. Cross-kind `set` is
+rejected until an element-wise conversion contract is implemented.
 
 Integers provide `toString(radix = 10)` for signed output and
 `toUnsignedString(radix = 10)` for the unsigned 32-bit bit pattern. Radices from

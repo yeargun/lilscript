@@ -1,0 +1,32 @@
+import { document } from "../var/document";
+import { support } from "../var/support";
+import {
+  call0,
+  call1
+} from "../js-host.lil";
+
+void initManipulationSupport() {
+  JsValue fragment = JS.invoke(document, "createDocumentFragment");
+  JsValue div = JS.invoke(fragment, "appendChild", JS.invoke(document, "createElement", "div"));
+  JsValue input = JS.invoke(document, "createElement", "input");
+
+  JS.invoke(input, "setAttribute", "type", "radio");
+  JS.invoke(input, "setAttribute", "checked", "checked");
+  JS.invoke(input, "setAttribute", "name", "t");
+
+  JS.invoke(div, "appendChild", input);
+
+  JsValue clonedOnce = JS.invoke(div, "cloneNode", true);
+  JsValue clonedTwice = JS.invoke(clonedOnce, "cloneNode", true);
+  support["checkClone"] = clonedTwice["lastChild"]["checked"];
+
+  div["innerHTML"] = "<textarea>x</textarea>";
+  support["noCloneChecked"] = JS.invoke(div, "cloneNode", true)["lastChild"]["defaultValue"].truthy();
+
+  div["innerHTML"] = "<option></option>";
+  support["option"] = div["lastChild"].truthy();
+}
+
+initManipulationSupport();
+
+export { support };

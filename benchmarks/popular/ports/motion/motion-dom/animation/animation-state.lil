@@ -1,0 +1,9 @@
+export class AnimationState {
+  bool done;
+  float value;
+
+  init(float origin) {
+    this.done = false;
+    this.value = origin;
+  }
+}

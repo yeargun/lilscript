@@ -1,0 +1,515 @@
+import { clamp } from "../../motion-utils/clamp";
+import { millisecondsToSeconds, secondsToMilliseconds } from "../../motion-utils/time-conversion";
+import { time } from "../frameloop/sync-time";
+import { frameloopDriver } from "./drivers/frame";
+import { DriverControls } from "./drivers/types";
+import { keyframes as keyframesGenerator } from "./generators/keyframes";
+import { KeyframesInput } from "./generators/keyframes";
+import { SpringGenerator } from "./generators/generator";
+import { calcGeneratorDuration } from "./generators/utils/calc-duration";
+import { getGeneratorVelocity } from "./generators/utils/velocity";
+import { getFinalKeyframe } from "./keyframes/get-final";
+import { replaceTransitionType } from "./utils/replace-transition-type-keyframes";
+import { WithPromise } from "./utils/WithPromise";
+import { AnimationState } from "./animation-state";
+import { isGenerator } from "./generators/utils/is-generator";
+import {
+  callMethod0,
+  callMethod2,
+  isFunction,
+  invoke1,
+  callFn0,
+  callFn1,
+  parseFloatValue,
+  setProp,
+  windowGet
+} from "../dom-host";
+
+
+float percentToProgress(float percent) {
+  return percent / 100.0;
+}
+
+export class JSAnimationOptions {
+  float[] keyframes;
+  float velocity;
+  string? type;
+  float? restDelta;
+  float? restSpeed;
+  (func(float)->void)? onUpdate;
+  JsValue? extra;
+
+  init(
+    float[] keyframes,
+    float velocity = 0.0,
+    string? type = null,
+    float? restDelta = null,
+    float? restSpeed = null,
+    (func(float)->void)? onUpdate = null
+  ) {
+    this.keyframes = keyframes;
+    this.velocity = velocity;
+    this.type = type;
+    this.restDelta = restDelta;
+    this.restSpeed = restSpeed;
+    this.onUpdate = onUpdate;
+    this.extra = null;
+  }
+}
+
+export class SampleResult {
+  float value;
+  bool done;
+  init(float value, bool done = false) {
+    this.value = value;
+    this.done = done;
+  }
+}
+
+export class JSAnimation extends WithPromise {
+  JSAnimationOptions options;
+  bool stopped;
+  string state;
+  float? startTime;
+  float currentTime;
+  float? holdTime;
+  float playbackSpeed;
+  float calculatedDuration;
+  float resolvedDuration;
+  float totalDuration;
+  SpringGenerator? springGen;
+  DriverControls? driver;
+  AnimationState delayState;
+
+  init(JSAnimationOptions options) {
+    super();
+    this.options = options;
+    this.stopped = false;
+    this.state = "idle";
+    this.startTime = null;
+    this.currentTime = 0.0;
+    this.holdTime = null;
+    this.playbackSpeed = 1.0;
+    this.calculatedDuration = 0.0;
+    this.resolvedDuration = 0.0;
+    this.totalDuration = 0.0;
+    this.springGen = null;
+    this.driver = null;
+    this.delayState = new AnimationState(0.0);
+    this.initAnimation();
+    this.play();
+    JsValue extra = options.extra;
+    if (extra.truthy()) {
+      JsValue autoplay = extra["autoplay"];
+      if (autoplay is bool) {
+        bool autoplayFlag = autoplay;
+        if (autoplayFlag == false) {
+          this.pause();
+        }
+      }
+    }
+    JSAnimation self = this;
+    setProp(this, "attachTimeline", (JsValue timeline) => {
+      return self.attachTimeline(timeline);
+    });
+    setProp(this, "pause", () => {
+      self.pause();
+    });
+    setProp(this, "play", () => {
+      self.play();
+    });
+    setProp(this, "stop", () => {
+      self.stop();
+    });
+    setProp(this, "getPlaybackTime", () => {
+      return self.getPlaybackTime();
+    });
+    setProp(this, "setPlaybackTime", (JsValue value) => {
+      if (value is float) {
+        self.setPlaybackTime(value);
+      }
+    });
+    setProp(this, "getDuration", () => {
+      return self.getDuration();
+    });
+    self.refreshIterationDuration();
+  }
+
+  void refreshIterationDuration() {
+    float delaySec = 0.0;
+    JsValue extraOpts = this.options.extra;
+    if (extraOpts.truthy() && extraOpts.isObject()) {
+      JsValue delay = extraOpts["delay"];
+      if (delay is float) {
+        delaySec = millisecondsToSeconds(delay);
+      }
+    }
+    setProp(this, "iterationDuration", this.getDuration() + delaySec);
+  }
+
+  void initAnimation() {
+    float[] keys = this.options.keyframes;
+    if (keys.length == 0) {
+      keys = [0.0];
+    }
+    string? type = this.options.type;
+    JsValue extra = this.options.extra;
+    if (extra.truthy() && extra.isObject()) {
+      JsValue typeVal = extra["type"];
+      if (typeVal is string) {
+        type = typeVal;
+      }
+    }
+    float velocity = this.options.velocity;
+    if (type == "inertia" || type == "decay" || type == "spring") {
+      float duration = 300.0;
+      if (extra.truthy() && extra.isObject()) {
+        JsValue durationVal = extra["duration"];
+        if (durationVal is float) {
+          duration = durationVal;
+        }
+      }
+      this.springGen = keyframesGenerator(new KeyframesInput(keys, duration));
+    } else {
+      float duration = 300.0;
+      string | float[] | func(float)->float easeOpt = "easeOut";
+      float[]? timesOpt = null;
+      if (extra.truthy() && extra.isObject()) {
+        JsValue durationVal = extra["duration"];
+        if (durationVal is float) {
+          duration = durationVal;
+        }
+        JsValue easeVal = extra["ease"];
+        if (easeVal is string) {
+          easeOpt = easeVal;
+        } else if (easeVal.isArray()) {
+          float[] bezier = [];
+          int easeLen = easeVal.length.toInt();
+          for (int ei = 0; ei < easeLen; ei++) {
+            JsValue p = easeVal[ei];
+            if (p is float) {
+              bezier.push(p);
+            }
+          }
+          if (bezier.length > 0) {
+            easeOpt = bezier;
+          }
+        }
+        JsValue timesVal = extra["times"];
+        if (timesVal.isArray()) {
+          float[] times = [];
+          int timesLen = timesVal.length.toInt();
+          for (int ti = 0; ti < timesLen; ti++) {
+            JsValue tv = timesVal[ti];
+            if (tv is float) {
+              times.push(tv);
+            }
+          }
+          if (times.length == keys.length) {
+            timesOpt = times;
+          }
+        }
+      }
+      this.springGen = keyframesGenerator(
+        new KeyframesInput(keys, duration, timesOpt, easeOpt)
+      );
+    }
+    SpringGenerator? gen = this.springGen;
+    if (gen != null) {
+      float? knownDuration = gen.calculatedDuration;
+      if (knownDuration != null) {
+        this.calculatedDuration = knownDuration;
+      } else {
+        this.calculatedDuration = calcGeneratorDuration(gen.next);
+      }
+      this.resolvedDuration = this.calculatedDuration;
+      this.totalDuration = this.resolvedDuration;
+    }
+  }
+
+  SampleResult sample(float sampleTime) {
+    SpringGenerator? gen = this.springGen;
+    if (gen == null) {
+      float[] keys = this.options.keyframes;
+      float v = 0.0;
+      if (keys.length > 0) {
+        v = keys[keys.length - 1];
+      }
+      return new SampleResult(v, true);
+    }
+    AnimationState state = gen.next(sampleTime);
+    return new SampleResult(state.value, state.done);
+  }
+
+  void tick(float timestamp) {
+    float? startOpt = this.startTime;
+    if (startOpt == null && this.holdTime == null) {
+      this.startTime = timestamp;
+      startOpt = timestamp;
+    }
+
+    float? heldOpt = this.holdTime;
+    if (heldOpt != null) {
+      float held = 0.0;
+      held = heldOpt;
+      this.currentTime = held;
+    } else {
+      float start = timestamp;
+      if (startOpt != null) {
+        start = startOpt;
+      }
+      this.currentTime = (timestamp - start) * this.playbackSpeed;
+    }
+
+    float delayMs = 0.0;
+    JsValue extra = this.options.extra;
+    if (extra.truthy() && extra.isObject()) {
+      JsValue delayVal = extra["delay"];
+      if (delayVal is float) {
+        delayMs = delayVal;
+      }
+    }
+
+    float timeWithoutDelay = this.currentTime - delayMs;
+    bool isInDelayPhase = timeWithoutDelay < 0.0;
+    if (timeWithoutDelay < 0.0) {
+      this.currentTime = 0.0;
+    } else {
+      this.currentTime = timeWithoutDelay;
+    }
+
+    SampleResult result = this.sample(this.currentTime);
+    if (isInDelayPhase) {
+      float[] keys = this.options.keyframes;
+      float first = 0.0;
+      if (keys.length > 0) {
+        first = keys[0];
+      }
+      result = new SampleResult(first, false);
+    }
+
+    (func(float)->void)? onUpdate = this.options.onUpdate;
+    if (onUpdate != null) {
+      onUpdate(result.value);
+    }
+    if (extra.truthy()) {
+      JsValue ou = extra["onUpdate"];
+      if (isFunction(ou)) {
+        invoke1(ou, result.value);
+      }
+    }
+    if (!isInDelayPhase && result.done && this.holdTime == null && this.state == "running") {
+      this.finish();
+    }
+  }
+
+  void play() {
+    if (this.stopped) {
+      return;
+    }
+    this.state = "running";
+    if (this.holdTime != null) {
+      float? start = this.startTime;
+      if (start != null) {
+        float? hold = this.holdTime;
+        float holdValue = 0.0;
+        if (hold != null) {
+          holdValue = hold;
+        }
+        this.startTime = time.now() - holdValue;
+      }
+      this.holdTime = null;
+    } else if (this.startTime == null) {
+      this.startTime = time.now();
+    }
+    JSAnimation self = this;
+    this.driver = frameloopDriver((float timestamp) => {
+      self.tick(timestamp);
+    });
+    DriverControls? started = this.driver;
+    if (started != null) {
+      started.start(true);
+    }
+  }
+
+  void pause() {
+    this.state = "paused";
+    this.holdTime = this.currentTime;
+    this.stopDriver();
+  }
+
+  void stop() {
+    if (this.state == "idle") {
+      this.stopped = true;
+      return;
+    }
+    this.stopped = true;
+    this.teardown();
+    JsValue extra = this.options.extra;
+    if (extra.truthy()) {
+      JsValue os = extra["onStop"];
+      if (isFunction(os)) {
+        callFn0(os);
+      }
+    }
+  }
+
+  void complete() {
+    if (this.state != "running") {
+      this.play();
+    }
+    this.state = "finished";
+    this.holdTime = null;
+  }
+
+  void finish() {
+    this.notifyFinished();
+    this.teardown();
+    this.state = "finished";
+    JsValue extra = this.options.extra;
+    if (extra.truthy()) {
+      JsValue oc = extra["onComplete"];
+      if (isFunction(oc)) {
+        callFn0(oc);
+      }
+    }
+  }
+
+  void cancel() {
+    this.holdTime = null;
+    this.startTime = 0.0;
+    this.tick(0.0);
+    this.teardown();
+    JsValue extra = this.options.extra;
+    if (extra.truthy()) {
+      JsValue oc = extra["onCancel"];
+      if (isFunction(oc)) {
+        callFn0(oc);
+      }
+    }
+  }
+
+  void teardown() {
+    this.state = "idle";
+    this.stopDriver();
+    this.startTime = null;
+    this.holdTime = null;
+  }
+
+  void stopDriver() {
+    DriverControls? driver = this.driver;
+    if (driver != null) {
+      driver.stop();
+      this.driver = null;
+    }
+  }
+
+  float getDuration() {
+    return millisecondsToSeconds(this.calculatedDuration);
+  }
+
+  float getPlaybackTime() {
+    return millisecondsToSeconds(this.currentTime);
+  }
+
+  void setPlaybackTime(float newTimeSeconds) {
+    float newTime = secondsToMilliseconds(newTimeSeconds);
+    this.currentTime = newTime;
+    if (this.startTime == null || this.holdTime != null || this.playbackSpeed == 0.0) {
+      this.holdTime = newTime;
+    } else {
+      DriverControls? driver = this.driver;
+      if (driver != null) {
+        float now = driver.now();
+        this.startTime = now - newTime / this.playbackSpeed;
+      }
+    }
+    DriverControls? driverOpt = this.driver;
+    if (driverOpt != null) {
+      driverOpt.start(true);
+    } else {
+      this.startTime = 0.0;
+      this.state = "paused";
+      this.holdTime = newTime;
+      this.tick(newTime);
+    }
+  }
+
+  float getPlaybackSpeed() {
+    return this.playbackSpeed;
+  }
+
+  void setPlaybackSpeed(float newSpeed) {
+    bool hasChanged = this.playbackSpeed != newSpeed;
+    if (hasChanged) {
+      DriverControls? driver = this.driver;
+      if (driver != null) {
+        float? startOpt = this.startTime;
+        float start = time.now();
+        if (startOpt != null) {
+          start = startOpt;
+        }
+        this.currentTime = (time.now() - start) * this.playbackSpeed;
+      }
+    }
+    this.playbackSpeed = newSpeed;
+    if (hasChanged) {
+      DriverControls? driverOpt = this.driver;
+      if (driverOpt != null) {
+        this.setPlaybackTime(millisecondsToSeconds(this.currentTime));
+      }
+    }
+  }
+
+  float getGeneratorVelocity() {
+    SpringGenerator? gen = this.springGen;
+    if (gen != null) {
+      return getGeneratorVelocity(
+        (float sampleT) => gen.next(sampleT).value,
+        this.currentTime,
+        gen.next(this.currentTime).value
+      );
+    }
+    return this.options.velocity;
+  }
+
+  func()->void attachTimeline(JsValue timeline) {
+    JsValue extra = this.options.extra;
+    if (extra.truthy()) {
+      JsValue allowFlatten = extra["allowFlatten"];
+      if (allowFlatten is bool) {
+        bool flatten = allowFlatten;
+        if (flatten) {
+          extra["type"] = "keyframes";
+          extra["ease"] = "linear";
+          this.options.extra = extra;
+          this.initAnimation();
+          this.refreshIterationDuration();
+        }
+      }
+    }
+    this.stopDriver();
+    this.refreshIterationDuration();
+    if (timeline.isObject()) {
+      JsValue observe = timeline["observe"];
+      if (isFunction(observe)) {
+        JsValue cancel = callFn1(observe, this);
+        return () => {
+          if (isFunction(cancel)) {
+            callFn0(cancel);
+          }
+        };
+      }
+    }
+    if (isFunction(timeline)) {
+      JsValue cancel = callFn1(timeline, this);
+      return () => {
+        if (isFunction(cancel)) {
+          callFn0(cancel);
+        }
+      };
+    }
+    return () => {};
+  }
+
+}

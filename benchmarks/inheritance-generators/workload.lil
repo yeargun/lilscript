@@ -1,0 +1,41 @@
+class ListingBase {
+  string title;
+  int price;
+  init(string title, int price) {
+    this.title = title;
+    this.price = price;
+  }
+  int weighted(int quantity) { return this.price * quantity; }
+}
+
+class Listing extends ListingBase {
+  int stock;
+  init(string title, int price, int stock) {
+    super(title, price);
+    this.stock = stock;
+  }
+  int available() { return this.stock; }
+}
+
+generator int seed() { yield* [1, 2, 3]; }
+generator int four() { yield* seed(); yield 4; }
+generator int five() { yield* four(); yield 5; }
+generator int six() { yield* five(); yield 6; }
+generator int seven() { yield* six(); yield 7; }
+generator int eight() { yield* seven(); yield 8; }
+generator int nine() { yield* eight(); yield 9; }
+generator int ten() { yield* nine(); yield 10; }
+generator int eleven() { yield* ten(); yield 11; }
+generator int twelve() { yield* eleven(); yield 12; }
+
+Listing listing = new Listing("market", 17, 9);
+ListingBase base = listing;
+print(listing.title);
+print(base.weighted(2));
+int checksum = 0;
+for (int round = 0; round < 30000; round++) {
+  for (int quantity of twelve()) {
+    checksum += listing.weighted(quantity) + listing.available();
+  }
+}
+print(checksum);

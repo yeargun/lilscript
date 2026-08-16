@@ -1,8 +1,53 @@
 {
-  "schemaVersion": 1,
-  "generatedAt": "2026-08-07T08:52:45.940Z",
-  "closureVersion": "v20260803",
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-15T23:45:15.915Z",
+  "closureVersion": "v20260804",
+  "compiler": {
+    "path": "target/release/lilscript",
+    "version": "lilscript 0.1.0",
+    "sha256": "29440d198fd5270e36823166cbf5fd306d5c2f7ad2c0c85dd379e3345f3b8997"
+  },
+  "objectiveConfig": {
+    "path": "comparison/cases/configs/brotli.toml",
+    "sha256": "017d38e39b23de5b861f9a7ffb4f20a8e0a9cc84e6ae9d9e2fed65aa1cdbbb69"
+  },
   "costModel": "brotli",
+  "objectiveContract": {
+    "config": "comparison/cases/configs/brotli.toml",
+    "gateMetric": "brotli",
+    "diagnosticMetrics": [
+      "raw",
+      "gzip"
+    ],
+    "note": "one Brotli-objective artifact is gated only on Brotli-11; raw and gzip may lose"
+  },
+  "codecs": {
+    "implementation": "lilscript-codec",
+    "schemaVersion": 1,
+    "scorer": {
+      "path": "target/release/lilscript-codec",
+      "sha256": "c2eef048db71a45c882ba23232a0c492569ef74cfbfddf9e98da5793e4fe5e39",
+      "bytes": 1805568
+    },
+    "gzip9": {
+      "encoder": "upstream-stock-zlib-c",
+      "libraryVersion": "1.3.1",
+      "cargoPackage": "libz-sys",
+      "cargoPackageVersion": "1.1.24",
+      "level": 9,
+      "mtime": 0
+    },
+    "brotli11": {
+      "encoder": "official-google-brotli-c",
+      "libraryVersion": "1.1.0",
+      "cargoPackage": "compu-brotli-sys",
+      "cargoPackageVersion": "1.1.0",
+      "quality": 11,
+      "lgwin": 22,
+      "mode": "generic"
+    },
+    "nodeCodecsAreDiagnosticOnly": true
+  },
   "source": "benchmarks/paired/specs.json",
   "results": [
     {
@@ -37,13 +82,13 @@
       "id": "bounded-induction",
       "contract": "959979",
       "lilscript": {
-        "raw": 54,
-        "gzip": 74,
-        "brotli": 54
+        "raw": 53,
+        "gzip": 73,
+        "brotli": 53
       },
       "closure": {
         "raw": 66,
-        "gzip": 86,
+        "gzip": 82,
         "brotli": 70
       }
     },
@@ -51,13 +96,13 @@
       "id": "exact-wrapping-multiply",
       "contract": "2093565239",
       "lilscript": {
-        "raw": 66,
-        "gzip": 84,
-        "brotli": 64
+        "raw": 62,
+        "gzip": 82,
+        "brotli": 60
       },
       "closure": {
         "raw": 71,
-        "gzip": 89,
+        "gzip": 87,
         "brotli": 75
       }
     },
@@ -65,13 +110,13 @@
       "id": "ordinary-integer-multiply",
       "contract": "2093565239",
       "lilscript": {
-        "raw": 56,
-        "gzip": 76,
-        "brotli": 54
+        "raw": 55,
+        "gzip": 75,
+        "brotli": 52
       },
       "closure": {
         "raw": 64,
-        "gzip": 81,
+        "gzip": 79,
         "brotli": 68
       }
     },

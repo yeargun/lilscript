@@ -1,0 +1,11 @@
+import extern { add, showAnswer } from "./host.ts";
+extern int add(int _left, int _right);
+extern void showAnswer(int _value);
+void render() {
+  showAnswer(add(20, 22));
+}
+export void hotDispose() {
+}
+export void hotAccept() {
+}
+render();

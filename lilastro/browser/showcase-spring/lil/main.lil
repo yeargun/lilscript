@@ -1,0 +1,18 @@
+import { animate } from "../../../../benchmarks/popular/ports/motion/framer-motion/animation/animate/element-spring";
+import { documentQuerySelectorAll } from "../../../../benchmarks/popular/ports/motion/motion-dom/dom-host";
+
+JsValue[] nodes = documentQuerySelectorAll("#box");
+if (nodes.length > 0) {
+  JsValue box = nodes[0];
+  animate(
+    box,
+    record{ rotate: [0.0, 90.0], scale: [1.0, 1.15, 1.0] },
+    record{
+      type: "spring",
+      stiffness: 180.0,
+      damping: 12.0,
+      repeat: 1000.0,
+      repeatType: "mirror"
+    }
+  );
+}

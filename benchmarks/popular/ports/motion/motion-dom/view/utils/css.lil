@@ -1,0 +1,62 @@
+import {
+  callMethod1,
+  documentCreateElement,
+  documentHead,
+  setProp
+} from "../../dom-host";
+
+Map<string, JsValue> pendingRules = new Map<string, JsValue>();
+string[] pendingSelectors = [];
+JsValue? styleEl = null;
+
+export class CssApi {
+  void set(string selector, JsValue values) {
+    if (!pendingRules.has(selector)) {
+      pendingSelectors.push(selector);
+    }
+    pendingRules.set(selector, values);
+  }
+
+  void commit() {
+    if (styleEl == null) {
+      JsValue created = documentCreateElement("style");
+      setProp(created, "id", "motion-view");
+      styleEl = created;
+    }
+    string cssText = "";
+    for (int i = 0; i < pendingSelectors.length; i++) {
+      string selector = pendingSelectors[i];
+      JsValue? ruleOpt = pendingRules.get(selector);
+      if (ruleOpt != null) {
+        JsValue rule = ruleOpt;
+        cssText = cssText + `${selector} {\n`;
+        for (string property in rule) {
+          JsValue value = rule[property];
+          if (value is string) {
+            cssText = cssText + `  ${property}: ${value};\n`;
+          }
+        }
+        cssText = cssText + "}\n";
+      }
+    }
+    JsValue? el = styleEl;
+    if (el != null) {
+      setProp(el, "textContent", cssText);
+      callMethod1(documentHead(), "appendChild", el);
+    }
+    pendingRules = new Map<string, JsValue>();
+    pendingSelectors = [];
+  }
+
+  void remove() {
+    JsValue? el = styleEl;
+    if (el != null) {
+      JsValue parent = el["parentElement"];
+      if (parent.truthy()) {
+        callMethod1(parent, "removeChild", el);
+      }
+    }
+  }
+}
+
+export CssApi css = new CssApi();

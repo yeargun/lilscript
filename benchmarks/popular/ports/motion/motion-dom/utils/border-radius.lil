@@ -1,0 +1,6 @@
+export string[] cornerRadiusProps = [
+  "borderTopLeftRadius",
+  "borderTopRightRadius",
+  "borderBottomRightRadius",
+  "borderBottomLeftRadius"
+];

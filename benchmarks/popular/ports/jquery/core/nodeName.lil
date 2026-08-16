@@ -1,0 +1,8 @@
+export bool nodeName(JsValue elem, string name) {
+  JsValue n = JS.and(elem, elem["nodeName"]);
+  if (!n.truthy()) {
+    return false;
+  }
+  string node = JS.assume(n);
+  return node.toLowerCase() == name.toLowerCase();
+}

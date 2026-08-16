@@ -1,0 +1,547 @@
+import { clamp } from "../../../motion-utils/clamp";
+import {
+  millisecondsToSeconds,
+  secondsToMilliseconds
+} from "../../../motion-utils/time-conversion";
+import { warning } from "../../../motion-utils/errors";
+import { AnimationState } from "../animation-state";
+import {
+  calcGeneratorDuration,
+  maxGeneratorDuration
+} from "./utils/calc-duration";
+import { generateLinearEasing } from "../waapi/utils/linear";
+import { SpringGenerator } from "./generator";
+
+export { SpringGenerator };
+
+float springDefaultStiffness = 100.0;
+float springDefaultDamping = 10.0;
+float springDefaultMass = 1.0;
+float springDefaultVelocity = 0.0;
+float springDefaultDuration = 800.0;
+float springDefaultBounce = 0.3;
+float springDefaultVisualDuration = 0.3;
+float restSpeedGranular = 0.01;
+float restSpeedDefault = 2.0;
+float restDeltaGranular = 0.005;
+float restDeltaDefault = 0.5;
+float springMinDuration = 0.01;
+float springMaxDuration = 10.0;
+float springMinDamping = 0.05;
+float springMaxDamping = 1.0;
+
+float calcAngularFreq(float undampedFreq, float dampingRatio) {
+  return undampedFreq * (1.0 - dampingRatio * dampingRatio).sqrt();
+}
+
+float approximateRoot(
+  func(float)->float envelope,
+  func(float)->float derivative,
+  float initialGuess
+) {
+  float result = initialGuess;
+  for (int i = 1; i < 12; i++) {
+    result = result - envelope(result) / derivative(result);
+  }
+  return result;
+}
+
+float sinh(float x) {
+  float e = x.exp();
+  float inv = (-x).exp();
+  return (e - inv) / 2.0;
+}
+
+float cosh(float x) {
+  float e = x.exp();
+  float inv = (-x).exp();
+  return (e + inv) / 2.0;
+}
+
+export class SpringInput {
+  float[] keyframes;
+  float? stiffness;
+  float? damping;
+  float? mass;
+  float? velocity;
+  float? duration;
+  float? bounce;
+  float? visualDuration;
+  float? restSpeed;
+  float? restDelta;
+
+  init(
+    float[] keyframes,
+    float? stiffness = null,
+    float? damping = null,
+    float? mass = null,
+    float? velocity = null,
+    float? duration = null,
+    float? bounce = null,
+    float? visualDuration = null,
+    float? restSpeed = null,
+    float? restDelta = null
+  ) {
+    this.keyframes = keyframes;
+    this.stiffness = stiffness;
+    this.damping = damping;
+    this.mass = mass;
+    this.velocity = velocity;
+    this.duration = duration;
+    this.bounce = bounce;
+    this.visualDuration = visualDuration;
+    this.restSpeed = restSpeed;
+    this.restDelta = restDelta;
+  }
+}
+
+class ResolvedSpring {
+  float velocity;
+  float stiffness;
+  float damping;
+  float mass;
+  float? duration;
+  bool isResolvedFromDuration;
+
+  init(
+    float velocity,
+    float stiffness,
+    float damping,
+    float mass,
+    float? duration,
+    bool isResolvedFromDuration
+  ) {
+    this.velocity = velocity;
+    this.stiffness = stiffness;
+    this.damping = damping;
+    this.mass = mass;
+    this.duration = duration;
+    this.isResolvedFromDuration = isResolvedFromDuration;
+  }
+}
+
+class FindSpringResult {
+  float stiffness;
+  float damping;
+  float duration;
+
+  init(float stiffness, float damping, float duration) {
+    this.stiffness = stiffness;
+    this.damping = damping;
+    this.duration = duration;
+  }
+}
+
+FindSpringResult findSpring(
+  float duration,
+  float bounce,
+  float velocity,
+  float mass
+) {
+  warning(
+    duration <= secondsToMilliseconds(springMaxDuration),
+    "Spring duration must be 10 seconds or less",
+    "spring-duration-limit"
+  );
+  float dampingRatio = 1.0 - bounce;
+  dampingRatio = clamp(springMinDamping, springMaxDamping, dampingRatio);
+  duration = clamp(
+    springMinDuration,
+    springMaxDuration,
+    millisecondsToSeconds(duration)
+  );
+  float safeMin = 0.001;
+  func(float)->float envelope = (float undampedFreq) => 0.0;
+  func(float)->float derivative = (float undampedFreq) => 0.0;
+  if (dampingRatio < 1.0) {
+    envelope = (float undampedFreq) => {
+      float exponentialDecay = undampedFreq * dampingRatio;
+      float delta = exponentialDecay * duration;
+      float a = exponentialDecay - velocity;
+      float b = calcAngularFreq(undampedFreq, dampingRatio);
+      float c = (-delta).exp();
+      return safeMin - (a / b) * c;
+    };
+    derivative = (float undampedFreq) => {
+      float exponentialDecay = undampedFreq * dampingRatio;
+      float delta = exponentialDecay * duration;
+      float d = delta * velocity + velocity;
+      float e = dampingRatio * dampingRatio * undampedFreq * undampedFreq * duration;
+      float f = (-delta).exp();
+      float g = calcAngularFreq(undampedFreq * undampedFreq, dampingRatio);
+      float factor = 1.0;
+      if (-envelope(undampedFreq) + safeMin > 0.0) {
+        factor = -1.0;
+      }
+      return (factor * ((d - e) * f)) / g;
+    };
+  } else {
+    envelope = (float undampedFreq) => {
+      float a = (-undampedFreq * duration).exp();
+      float b = (undampedFreq - velocity) * duration + 1.0;
+      return -safeMin + a * b;
+    };
+    derivative = (float undampedFreq) => {
+      float a = (-undampedFreq * duration).exp();
+      float b = (velocity - undampedFreq) * (duration * duration);
+      return a * b;
+    };
+  }
+  float initialGuess = 5.0 / duration;
+  float undampedFreq = approximateRoot(envelope, derivative, initialGuess);
+  duration = secondsToMilliseconds(duration);
+  if (undampedFreq != undampedFreq) {
+    return new FindSpringResult(
+      springDefaultStiffness,
+      springDefaultDamping,
+      duration
+    );
+  }
+  float stiffness = undampedFreq * undampedFreq * mass;
+  return new FindSpringResult(
+    stiffness,
+    dampingRatio * 2.0 * (mass * stiffness).sqrt(),
+    duration
+  );
+}
+
+bool hasPhysicsKeys(SpringInput options) {
+  return options.stiffness != null || options.damping != null || options.mass != null;
+}
+
+bool hasDurationKeys(SpringInput options) {
+  return options.duration != null || options.bounce != null;
+}
+
+ResolvedSpring getSpringOptions(SpringInput options) {
+  float velocity = springDefaultVelocity;
+  float stiffness = springDefaultStiffness;
+  float damping = springDefaultDamping;
+  float mass = springDefaultMass;
+  float? duration = null;
+  bool isResolvedFromDuration = false;
+  float? velocityOpt = options.velocity;
+  if (velocityOpt != null) {
+    velocity = velocityOpt;
+  }
+  float? stiffnessOpt = options.stiffness;
+  if (stiffnessOpt != null) {
+    stiffness = stiffnessOpt;
+  }
+  float? dampingOpt = options.damping;
+  if (dampingOpt != null) {
+    damping = dampingOpt;
+  }
+  float? massOpt = options.mass;
+  if (massOpt != null) {
+    mass = massOpt;
+  }
+  float? durationOpt = options.duration;
+  if (durationOpt != null) {
+    duration = durationOpt;
+  }
+  if (!hasPhysicsKeys(options) && hasDurationKeys(options)) {
+    velocity = 0.0;
+    float? visualDurationOpt = options.visualDuration;
+    if (visualDurationOpt != null) {
+      float visualDuration = visualDurationOpt;
+      float root = (2.0 * 3.141592653589793) / (visualDuration * 1.2);
+      stiffness = root * root;
+      float bounce = 0.0;
+      float? bounceOpt = options.bounce;
+      if (bounceOpt != null) {
+        bounce = bounceOpt;
+      }
+      damping = 2.0 * clamp(0.05, 1.0, 1.0 - bounce) * stiffness.sqrt();
+      mass = springDefaultMass;
+    } else {
+      float findDuration = springDefaultDuration;
+      float findBounce = springDefaultBounce;
+      float? findDurationOpt = options.duration;
+      if (findDurationOpt != null) {
+        findDuration = findDurationOpt;
+      }
+      float? findBounceOpt = options.bounce;
+      if (findBounceOpt != null) {
+        findBounce = findBounceOpt;
+      }
+      FindSpringResult derived = findSpring(findDuration, findBounce, 0.0, mass);
+      stiffness = derived.stiffness;
+      damping = derived.damping;
+      duration = derived.duration;
+      mass = springDefaultMass;
+      isResolvedFromDuration = true;
+    }
+  }
+  return new ResolvedSpring(
+    velocity,
+    stiffness,
+    damping,
+    mass,
+    duration,
+    isResolvedFromDuration
+  );
+}
+
+export SpringGenerator springFromInput(SpringInput options) {
+  float? restSpeed = options.restSpeed;
+  float? restDelta = options.restDelta;
+  float origin = options.keyframes[0];
+  float target = options.keyframes[options.keyframes.length - 1];
+  AnimationState state = new AnimationState(origin);
+  float inputVelocity = 0.0;
+  float? velocityOpt = options.velocity;
+  if (velocityOpt != null) {
+    inputVelocity = velocityOpt;
+  }
+  SpringInput resolvedInput = new SpringInput(
+    options.keyframes,
+    options.stiffness,
+    options.damping,
+    options.mass,
+    -millisecondsToSeconds(inputVelocity),
+    options.duration,
+    options.bounce,
+    options.visualDuration,
+    options.restSpeed,
+    options.restDelta
+  );
+  ResolvedSpring resolved = getSpringOptions(resolvedInput);
+  float stiffness = resolved.stiffness;
+  float damping = resolved.damping;
+  float mass = resolved.mass;
+  float? duration = resolved.duration;
+  float initialVelocity = resolved.velocity;
+  bool isResolvedFromDuration = resolved.isResolvedFromDuration;
+  float dampingRatio = damping / (2.0 * (stiffness * mass).sqrt());
+  float initialDelta = target - origin;
+  float undampedAngularFreq = millisecondsToSeconds((stiffness / mass).sqrt());
+  bool isGranularScale = initialDelta.abs() < 5.0;
+  if (restSpeed == null) {
+    if (isGranularScale) {
+      restSpeed = restSpeedGranular;
+    } else {
+      restSpeed = restSpeedDefault;
+    }
+  }
+  if (restDelta == null) {
+    if (isGranularScale) {
+      restDelta = restDeltaGranular;
+    } else {
+      restDelta = restDeltaDefault;
+    }
+  }
+  float restSpeedValue = 0.0;
+  float? restSpeedFinal = restSpeed;
+  if (restSpeedFinal != null) {
+    restSpeedValue = restSpeedFinal;
+  }
+  float restDeltaValue = 0.0;
+  float? restDeltaFinal = restDelta;
+  if (restDeltaFinal != null) {
+    restDeltaValue = restDeltaFinal;
+  }
+  float angularFreq = 0.0;
+  float A = 0.0;
+  float sinCoeff = 0.0;
+  float cosCoeff = 0.0;
+  float dampedAngularFreq = 0.0;
+  float C = 0.0;
+  float P = 0.0;
+  float sinhCoeff = 0.0;
+  float coshCoeff = 0.0;
+  int springKind = 0;
+  if (dampingRatio < 1.0) {
+    springKind = 0;
+    angularFreq = calcAngularFreq(undampedAngularFreq, dampingRatio);
+    A =
+      (initialVelocity + dampingRatio * undampedAngularFreq * initialDelta) /
+      angularFreq;
+    sinCoeff = dampingRatio * undampedAngularFreq * A + initialDelta * angularFreq;
+    cosCoeff = dampingRatio * undampedAngularFreq * initialDelta - A * angularFreq;
+  } else if (dampingRatio == 1.0) {
+    springKind = 1;
+    C = initialVelocity + undampedAngularFreq * initialDelta;
+  } else {
+    springKind = 2;
+    dampedAngularFreq =
+      undampedAngularFreq * (dampingRatio * dampingRatio - 1.0).sqrt();
+    P =
+      (initialVelocity + dampingRatio * undampedAngularFreq * initialDelta) /
+      dampedAngularFreq;
+    sinhCoeff =
+      dampingRatio * undampedAngularFreq * P - initialDelta * dampedAngularFreq;
+    coshCoeff =
+      dampingRatio * undampedAngularFreq * initialDelta - P * dampedAngularFreq;
+  }
+  func(float)->float resolveSpring = (float t) => {
+    if (springKind == 0) {
+      float envelope = (-dampingRatio * undampedAngularFreq * t).exp();
+      return target -
+        envelope * (A * (angularFreq * t).sin() + initialDelta * (angularFreq * t).cos());
+    }
+    if (springKind == 1) {
+      return target -
+        (-undampedAngularFreq * t).exp() *
+          (initialDelta + (initialVelocity + undampedAngularFreq * initialDelta) * t);
+    }
+    float envelope = (-dampingRatio * undampedAngularFreq * t).exp();
+    float freqForT = (dampedAngularFreq * t).min(300.0);
+    return target -
+      (envelope *
+        ((initialVelocity + dampingRatio * undampedAngularFreq * initialDelta) *
+            sinh(freqForT) +
+          dampedAngularFreq * initialDelta * cosh(freqForT))) /
+        dampedAngularFreq;
+  };
+  func(float)->float resolveVelocity = (float t) => {
+    if (springKind == 0) {
+      float envelope = (-dampingRatio * undampedAngularFreq * t).exp();
+      return envelope *
+        (sinCoeff * (angularFreq * t).sin() + cosCoeff * (angularFreq * t).cos());
+    }
+    if (springKind == 1) {
+      return (-undampedAngularFreq * t).exp() *
+        (undampedAngularFreq * C * t - initialVelocity);
+    }
+    float envelope = (-dampingRatio * undampedAngularFreq * t).exp();
+    float freqForT = (dampedAngularFreq * t).min(300.0);
+    return envelope * (sinhCoeff * sinh(freqForT) + coshCoeff * cosh(freqForT));
+  };
+  float? calculatedDuration = null;
+  if (isResolvedFromDuration) {
+    calculatedDuration = duration;
+  }
+  SpringGenerator springGen = new SpringGenerator(
+    calculatedDuration,
+    (float t) => secondsToMilliseconds(resolveVelocity(t)),
+    (float t) => state,
+    () => "",
+    () => {}
+  );
+  func(float)->AnimationState nextFn = (float t) => {
+    if (!isResolvedFromDuration && dampingRatio < 1.0) {
+      float envelope = (-dampingRatio * undampedAngularFreq * t).exp();
+      float sin = (angularFreq * t).sin();
+      float cos = (angularFreq * t).cos();
+      float current = target - envelope * (A * sin + initialDelta * cos);
+      float currentVelocity =
+        secondsToMilliseconds(envelope * (sinCoeff * sin + cosCoeff * cos));
+      state.done =
+        currentVelocity.abs() <= restSpeedValue &&
+        (target - current).abs() <= restDeltaValue;
+      if (state.done) {
+        state.value = target;
+      } else {
+        state.value = current;
+      }
+      return state;
+    }
+    float current = resolveSpring(t);
+    if (!isResolvedFromDuration) {
+      float currentVelocity = secondsToMilliseconds(resolveVelocity(t));
+      state.done =
+        currentVelocity.abs() <= restSpeedValue &&
+        (target - current).abs() <= restDeltaValue;
+    } else {
+      float doneDuration = 0.0;
+      if (duration != null) {
+        doneDuration = duration;
+      }
+      state.done = t >= doneDuration;
+    }
+    if (state.done) {
+      state.value = target;
+    } else {
+      state.value = current;
+    }
+    return state;
+  };
+  func(float)->float velocityFn = (float t) => secondsToMilliseconds(resolveVelocity(t));
+  func()->string toStringFn = () => {
+    float calculated = calcGeneratorDuration(springGen.next).min(maxGeneratorDuration);
+    string easing = generateLinearEasing(
+      (float progress) => springGen.next(calculated * progress).value,
+      calculated,
+      30.0
+    );
+    return `${calculated}ms ${easing}`;
+  };
+  springGen.calculatedDuration = calculatedDuration;
+  springGen.velocity = velocityFn;
+  springGen.next = nextFn;
+  springGen.toString = toStringFn;
+  springGen.toTransition = () => {};
+  return springGen;
+}
+
+export SpringGenerator spring(float | JsValue optionsOrVisualDuration, float bounce = 0.3) {
+  SpringInput options = new SpringInput([0.0, 1.0]);
+  if (optionsOrVisualDuration is float) {
+    options = new SpringInput(
+      [0.0, 1.0],
+      null,
+      null,
+      null,
+      null,
+      null,
+      bounce,
+      optionsOrVisualDuration
+    );
+  } else {
+    JsValue raw = optionsOrVisualDuration;
+    float[] keyframes = [0.0, 1.0];
+    JsValue keyframesVal = raw["keyframes"];
+    if (keyframesVal.isArray()) {
+      keyframes = [];
+      float len = keyframesVal.length;
+      for (float i = 0.0; i < len; i++) {
+        JsValue item = keyframesVal[i];
+        if (item is float) {
+          keyframes.push(item);
+        }
+      }
+    }
+    float? stiffness = null;
+    float? damping = null;
+    float? mass = null;
+    float? velocity = null;
+    float? duration = null;
+    float? bounceOpt = null;
+    float? visualDuration = null;
+    float? restSpeedOpt = null;
+    float? restDeltaOpt = null;
+    JsValue stiffnessVal = raw["stiffness"];
+    if (stiffnessVal is float) { stiffness = stiffnessVal; }
+    JsValue dampingVal = raw["damping"];
+    if (dampingVal is float) { damping = dampingVal; }
+    JsValue massVal = raw["mass"];
+    if (massVal is float) { mass = massVal; }
+    JsValue velocityVal = raw["velocity"];
+    if (velocityVal is float) { velocity = velocityVal; }
+    JsValue durationVal = raw["duration"];
+    if (durationVal is float) { duration = durationVal; }
+    JsValue bounceVal = raw["bounce"];
+    if (bounceVal is float) { bounceOpt = bounceVal; }
+    JsValue visualDurationVal = raw["visualDuration"];
+    if (visualDurationVal is float) { visualDuration = visualDurationVal; }
+    JsValue restSpeedRaw = raw["restSpeed"];
+    if (restSpeedRaw is float) { restSpeedOpt = restSpeedRaw; }
+    JsValue restDeltaRaw = raw["restDelta"];
+    if (restDeltaRaw is float) { restDeltaOpt = restDeltaRaw; }
+    options = new SpringInput(
+      keyframes,
+      stiffness,
+      damping,
+      mass,
+      velocity,
+      duration,
+      bounceOpt,
+      visualDuration,
+      restSpeedOpt,
+      restDeltaOpt
+    );
+  }
+  return springFromInput(options);
+}
+

@@ -1,0 +1,17 @@
+export void buildSVGPath(
+  JsValue attrs,
+  float length,
+  float spacing = 1.0,
+  float offset = 0.0,
+  bool useDashCase = true
+) {
+  attrs["pathLength"] = 1.0;
+  string offsetKey = "strokeDashoffset";
+  string arrayKey = "strokeDasharray";
+  if (useDashCase) {
+    offsetKey = "stroke-dashoffset";
+    arrayKey = "stroke-dasharray";
+  }
+  attrs[offsetKey] = `${0.0 - offset}`;
+  attrs[arrayKey] = `${length} ${spacing}`;
+}

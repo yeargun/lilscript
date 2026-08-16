@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.cache/
+coverage/
+upstream/
+packages/solidlil/reactive.generated.js
+.DS_Store
+tests/lil/.solidlil-lsx-*.js
+tests/lil/.solidlil-lsx-*.lil
+tests/lil/*.generated.lil

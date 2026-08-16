@@ -1,0 +1,561 @@
+import { jQuery } from "./core";
+import { access } from "./core/access";
+import { camelCase } from "./core/camelCase";
+import { nodeName } from "./core/nodeName";
+import { rcssNum } from "./var/rcssNum";
+import { rnumnonpx } from "./css/var/rnumnonpx";
+import { rcustomProp } from "./css/var/rcustomProp";
+import { cssExpand } from "./css/var/cssExpand";
+import { getStyles } from "./css/var/getStyles";
+import { swap } from "./css/var/swap";
+import { curCSS } from "./css/curCSS";
+import { addGetHookIf } from "./css/addGetHookIf";
+import { support, boxSizingReliable, reliableTrDimensions, scrollboxSize, reliableMarginLeft } from "./css/support";
+import { finalPropName } from "./css/finalPropName";
+import {
+  createEmptyObject,
+  hasProp,
+  call0,
+  call2,
+  call3,
+  arrayIsArray,
+  regexTest,
+  regexExec,
+  stringSplit,
+  stringSlice,
+  stringify,
+  unaryPlus,
+  isUndefined,
+  isNullish,
+  parseFloatValue,
+  isFiniteValue,
+  mathCeil
+} from "./js-host.lil";
+
+(func(JsValue, string, JsValue)->float)? relativeCssAdjust = null;
+
+export void registerRelativeCssAdjust(func(JsValue, string, JsValue)->float fn) {
+  relativeCssAdjust = fn;
+}
+
+Regex rdisplayswap = new Regex("^(none|table(?!-c[ea]).+)");
+
+struct CssShow {
+  string position;
+  string visibility;
+  string display;
+}
+
+struct CssNormalTransform {
+  string letterSpacing;
+  string fontWeight;
+}
+
+struct OpacityHook {
+  JsValue get;
+}
+
+struct CssHooks {
+  JsValue opacity;
+}
+
+struct MarginZero {
+  float marginLeft;
+}
+
+struct DimensionHooks {
+  JsValue get;
+  JsValue set;
+}
+
+struct ExpandHook {
+  JsValue expand;
+  JsValue set;
+}
+
+struct ExpandHookGetOnly {
+  JsValue expand;
+}
+
+struct CssNumber {
+  bool animationIterationCount;
+  bool aspectRatio;
+  bool borderImageSlice;
+  bool columnCount;
+  bool flexGrow;
+  bool flexShrink;
+  bool fontWeight;
+  bool gridArea;
+  bool gridColumn;
+  bool gridColumnEnd;
+  bool gridColumnStart;
+  bool gridRow;
+  bool gridRowEnd;
+  bool gridRowStart;
+  bool lineHeight;
+  bool opacity;
+  bool order;
+  bool orphans;
+  bool scale;
+  bool widows;
+  bool zIndex;
+  bool zoom;
+  bool fillOpacity;
+  bool floodOpacity;
+  bool stopOpacity;
+  bool strokeMiterlimit;
+  bool strokeOpacity;
+}
+
+JsValue cssShow = CssShow{"absolute", "hidden", "block"};
+JsValue cssNormalTransform = CssNormalTransform{"0", "400"};
+
+bool isFalsyNumber(float x) {
+  return x == 0.0 || x != x;
+}
+
+JsValue cssNumber = CssNumber{
+  true, true, true, true, true, true, true, true, true, true, true, true, true,
+  true, true, true, true, true, true, true, true, true, true, true, true, true, true
+};
+
+bool cssNumberHas(string prop) {
+  return cssNumber[prop].truthy();
+}
+
+JsValue cssProps = JS.object();
+
+JsValue cssHooks = CssHooks{OpacityHook{(JsValue elem, JsValue computed, JsValue extra) => {
+  if (computed.truthy()) {
+    JsValue ret = curCSS(elem, "opacity", null);
+    if (JS.strictEqual(ret, "")) {
+      return "1";
+    }
+    return ret;
+  }
+  return JS.undefined();
+}}};
+
+jQuery["cssHooks"] = cssHooks;
+jQuery["cssNumber"] = cssNumber;
+jQuery["cssProps"] = cssProps;
+
+export JsValue style(JsValue elem, string name, JsValue valueArg = JS.undefined(), JsValue extra = null) {
+  if (!elem.truthy() || JS.strictEqual(elem["nodeType"], 3.0) || JS.strictEqual(elem["nodeType"], 8.0)) {
+    return JS.undefined();
+  }
+
+  JsValue styleObj = elem["style"];
+  if (!styleObj.truthy()) {
+    return JS.undefined();
+  }
+
+  string origName = camelCase(name);
+  bool isCustomProp = JS.regexTest(rcustomProp, name);
+  string finalName = name;
+  if (!isCustomProp) {
+    finalName = finalPropName(origName);
+  }
+
+  JsValue hooks = JS.or(jQuery["cssHooks"][finalName], jQuery["cssHooks"][origName]);
+
+  if (!JS.isUndefined(valueArg)) {
+    JsValue value = valueArg;
+    string valueType = JS.typeOf(value);
+
+    JsValue matchResult = JS.undefined();
+    if (valueType == "string") {
+      string valueStr = JS.assume(value);
+      matchResult = JS.regexExec(rcssNum, valueStr);
+      if (JS.and(matchResult, matchResult[1]).truthy()) {
+        (func(JsValue, string, JsValue)->float)? adjustFn = relativeCssAdjust;
+        if (adjustFn != null) {
+          value = adjustFn(elem, finalName, matchResult);
+          valueType = "number";
+        }
+      }
+    }
+
+    if (JS.isNullish(value) || JS.strictNotEqual(value, value)) {
+      return JS.undefined();
+    }
+
+    if (valueType == "number" && !isCustomProp) {
+      JsValue defaultUnit = "";
+      if (!cssNumberHas(origName)) {
+        defaultUnit = "px";
+      }
+      JsValue unit = JS.or(JS.and(matchResult, matchResult[3]), defaultUnit);
+      value = JS.add(value, unit);
+    }
+
+    if (!support["clearCloneStyle"].truthy() && JS.strictEqual(value, "") && finalName.indexOf("background") == 0) {
+      styleObj[finalName] = "inherit";
+    }
+
+    bool shouldSetDirectly = !hooks.truthy() || !JS.in("set", hooks);
+    if (!shouldSetDirectly) {
+      value = JS.invoke(hooks, "set", elem, value, extra);
+      shouldSetDirectly = !JS.isUndefined(value);
+    }
+    if (shouldSetDirectly) {
+      if (isCustomProp) {
+        JS.invoke(styleObj, "setProperty", finalName, value);
+      } else {
+        styleObj[finalName] = value;
+      }
+    }
+
+    return JS.undefined();
+  }
+
+  if (hooks.truthy() && JS.in("get", hooks)) {
+    JsValue hookResult = JS.invoke(hooks, "get", elem, false, extra);
+    if (!JS.isUndefined(hookResult)) {
+      return hookResult;
+    }
+  }
+
+  return styleObj[finalName];
+}
+
+export JsValue css(JsValue elem, string name, JsValue extra = null, JsValue stylesArg = null) {
+  string origName = camelCase(name);
+  bool isCustomProp = JS.regexTest(rcustomProp, name);
+  string finalName = name;
+  if (!isCustomProp) {
+    finalName = finalPropName(origName);
+  }
+
+  JsValue hooks = JS.or(jQuery["cssHooks"][finalName], jQuery["cssHooks"][origName]);
+  JsValue val = JS.undefined();
+  if (hooks.truthy() && JS.in("get", hooks)) {
+    val = JS.invoke(hooks, "get", elem, true, extra);
+  }
+
+  if (JS.isUndefined(val)) {
+    val = curCSS(elem, finalName, stylesArg);
+  }
+
+  if (JS.strictEqual(val, "normal") && JS.in(finalName, cssNormalTransform)) {
+    val = cssNormalTransform[finalName];
+  }
+
+  if (JS.strictEqual(extra, "") || extra.truthy()) {
+    float num = parseFloatValue(JS.string(val));
+    if (JS.strictEqual(extra, true) || isFiniteValue(num)) {
+      if (isFalsyNumber(num)) {
+        return 0.0;
+      }
+      return num;
+    }
+    return val;
+  }
+
+  return val;
+}
+
+jQuery["style"] = style;
+jQuery["css"] = css;
+
+float cssNumeric(JsValue elem, string prop, JsValue styles) {
+  return JS.number(css(elem, prop, true, styles));
+}
+
+float boxModelAdjustment(JsValue elem, string dimension, string box, bool isBorderBox, JsValue styles, float computedVal) {
+  int i = 0;
+  if (dimension == "width") {
+    i = 1;
+  }
+  float extra = 0.0;
+  float delta = 0.0;
+  float marginDelta = 0.0;
+
+  string neutralBox = "content";
+  if (isBorderBox) {
+    neutralBox = "border";
+  }
+  if (box == neutralBox) {
+    return 0.0;
+  }
+
+  for (; i < 4; i += 2) {
+    if (box == "margin") {
+      marginDelta = marginDelta + cssNumeric(elem, box + cssExpand[i], styles);
+    }
+
+    if (!isBorderBox) {
+      delta = delta + cssNumeric(elem, "padding" + cssExpand[i], styles);
+      if (box != "padding") {
+        delta = delta + cssNumeric(elem, "border" + cssExpand[i] + "Width", styles);
+      } else {
+        extra = extra + cssNumeric(elem, "border" + cssExpand[i] + "Width", styles);
+      }
+    } else {
+      if (box == "content") {
+        delta = delta - cssNumeric(elem, "padding" + cssExpand[i], styles);
+      }
+      if (box != "margin") {
+        delta = delta - cssNumeric(elem, "border" + cssExpand[i] + "Width", styles);
+      }
+    }
+  }
+
+  if (!isBorderBox && computedVal >= 0.0) {
+    string offsetProp = "offset" + dimension.charAt(0).toUpperCase() + JS.stringSlice(dimension, 1.0);
+    float offsetValue = JS.number(elem[offsetProp]);
+    float ceiled = mathCeil(offsetValue - computedVal - delta - extra - 0.5);
+    if (ceiled < 0.0) {
+      ceiled = 0.0;
+    }
+    delta = delta + ceiled;
+  }
+
+  return delta + marginDelta;
+}
+
+JsValue setPositiveNumber(JsValue _elem, JsValue value, JsValue subtract) {
+  JsValue matches = JS.regexExec(rcssNum, JS.string(value));
+  if (!matches.truthy()) {
+    return value;
+  }
+  float result = JS.number(matches[2]) - JS.number(JS.or(subtract, 0.0));
+  if (result < 0.0) {
+    result = 0.0;
+  }
+  return JS.add(result, JS.or(matches[3], "px"));
+}
+
+string getWidthOrHeight(JsValue elem, string dimension, JsValue extra) {
+  JsValue styles = getStyles(elem);
+
+  bool boxSizingUnreliable = !boxSizingReliable();
+  bool boxSizingNeeded = boxSizingUnreliable || extra.truthy();
+
+  bool isBorderBox = false;
+  if (boxSizingNeeded) {
+    isBorderBox = JS.strictEqual(css(elem, "boxSizing", false, styles), "border-box");
+  }
+  bool valueIsBorderBox = isBorderBox;
+
+  JsValue valRaw = curCSS(elem, dimension, styles);
+  string offsetProp = "offset" + dimension.charAt(0).toUpperCase() + JS.stringSlice(dimension, 1.0);
+
+  bool valMatchesNonPx = JS.regexTest(rnumnonpx, JS.string(valRaw));
+
+  if (valMatchesNonPx) {
+    if (!extra.truthy()) {
+      return JS.string(valRaw);
+    }
+    valRaw = "auto";
+  }
+
+  bool trUnreliableAndIsTr = !reliableTrDimensions() && nodeName(elem, "tr");
+  bool valIsAuto = JS.strictEqual(valRaw, "auto");
+  bool inlineDisplayZero = false;
+  if (isFalsyNumber(parseFloatValue(JS.string(valRaw)))) {
+    inlineDisplayZero = JS.strictEqual(css(elem, "display", false, styles), "inline");
+  }
+
+  bool needsOffsetFallback = (boxSizingUnreliable && isBorderBox) || trUnreliableAndIsTr || valIsAuto || inlineDisplayZero;
+
+  if (needsOffsetFallback) {
+    JsValue rects = JS.invoke(elem, "getClientRects");
+    if (rects.length > 0.0) {
+      isBorderBox = JS.strictEqual(css(elem, "boxSizing", false, styles), "border-box");
+      valueIsBorderBox = JS.in(offsetProp, elem);
+      if (valueIsBorderBox) {
+        valRaw = elem[offsetProp];
+      }
+    }
+  }
+
+  float val = parseFloatValue(JS.string(valRaw));
+  if (isFalsyNumber(val)) {
+    val = 0.0;
+  }
+
+  string box = "content";
+  if (isBorderBox) {
+    box = "border";
+  }
+  if (extra.truthy() && !JS.strictEqual(extra, true)) {
+    box = JS.string(extra);
+  }
+
+  float adjustment = boxModelAdjustment(elem, dimension, box, valueIsBorderBox, styles, val);
+  return JS.string(val + adjustment) + "px";
+}
+
+JsValue makeDimensionHooks(string dimension) {
+  JsValue hooks = DimensionHooks{
+    (JsValue elem, JsValue computed, JsValue extra) => {
+    if (!computed.truthy()) {
+      return JS.undefined();
+    }
+
+    bool displaySwap = JS.regexTest(rdisplayswap, JS.string(css(elem, "display", null, null)));
+
+    bool needsSwap = false;
+    if (displaySwap) {
+      JsValue rects = JS.invoke(elem, "getClientRects");
+      if (rects.length == 0.0) {
+        needsSwap = true;
+      } else {
+        JsValue rect = JS.invoke(elem, "getBoundingClientRect");
+        needsSwap = JS.number(rect["width"]) == 0.0;
+      }
+    }
+
+    if (needsSwap) {
+      return swap(elem, cssShow, () => {
+        return getWidthOrHeight(elem, dimension, extra);
+      });
+    }
+    return getWidthOrHeight(elem, dimension, extra);
+  },
+    (JsValue elem, JsValue valueArg, JsValue extra) => {
+    JsValue value = valueArg;
+    JsValue styles = getStyles(elem);
+
+    bool isAbsolute = JS.strictEqual(styles["position"], "absolute");
+    bool scrollboxSizeBuggy = !scrollboxSize() && isAbsolute;
+    bool boxSizingNeeded = scrollboxSizeBuggy || extra.truthy();
+
+    bool isBorderBox = false;
+    if (boxSizingNeeded) {
+      isBorderBox = JS.strictEqual(css(elem, "boxSizing", false, styles), "border-box");
+    }
+
+    float subtract = 0.0;
+    if (extra.truthy()) {
+      subtract = boxModelAdjustment(elem, dimension, JS.string(extra), isBorderBox, styles, -1.0);
+    }
+
+    if (isBorderBox && scrollboxSizeBuggy) {
+      string offsetProp = "offset" + dimension.charAt(0).toUpperCase() + JS.stringSlice(dimension, 1.0);
+      float offsetValue = JS.number(elem[offsetProp]);
+      float stylesDim = parseFloatValue(JS.string(styles[dimension]));
+      float borderAdj = boxModelAdjustment(elem, dimension, "border", false, styles, -1.0);
+      float ceiled = mathCeil(offsetValue - stylesDim - borderAdj - 0.5);
+      subtract = subtract - ceiled;
+    }
+
+    if (subtract != 0.0) {
+      JsValue matches = JS.regexExec(rcssNum, JS.string(value));
+      if (matches.truthy()) {
+        if (!JS.strictEqual(JS.or(matches[3], "px"), "px")) {
+          elem["style"][dimension] = value;
+          value = css(elem, dimension, null, null);
+        }
+      }
+    }
+
+    return setPositiveNumber(elem, value, subtract);
+  }
+  };
+  return hooks;
+}
+
+jQuery["cssHooks"]["height"] = makeDimensionHooks("height");
+jQuery["cssHooks"]["width"] = makeDimensionHooks("width");
+
+jQuery["cssHooks"]["marginLeft"] = addGetHookIf(
+  reliableMarginLeft,
+  (JsValue elem, JsValue computed) => {
+    float parsed = parseFloatValue(JS.string(curCSS(elem, "marginLeft", null)));
+    float result = parsed;
+    if (isFalsyNumber(parsed)) {
+      JsValue rect = JS.invoke(elem, "getBoundingClientRect");
+      float left = JS.number(rect["left"]);
+
+      JsValue marginZero = MarginZero{0.0};
+      float swappedLeft = JS.number(swap(elem, marginZero, () => {
+        JsValue rect2 = JS.invoke(elem, "getBoundingClientRect");
+        return rect2["left"];
+      }));
+
+      result = left - swappedLeft;
+    }
+
+    return JS.string(result) + "px";
+  }
+);
+
+JsValue makeExpandHook(string prefix, string suffix, bool includeSet) {
+  JsValue expandFn = (JsValue value) => {
+    JsValue[] parts = [];
+    if (value is string) {
+      string valueStr = value;
+      string[] split = JS.stringSplit(valueStr, " ");
+      for (int k = 0; k < split.length; k++) {
+        parts.push(split[k]);
+      }
+    } else {
+      parts.push(value);
+    }
+
+    JsValue expanded = JS.object();
+    int partsLen = parts.length;
+    for (int i = 0; i < 4; i++) {
+      JsValue part = JS.undefined();
+      if (i < partsLen) {
+        part = parts[i];
+      }
+      if (!part.truthy()) {
+        int altIndex = i - 2;
+        if (altIndex >= 0 && altIndex < partsLen) {
+          part = parts[altIndex];
+        }
+      }
+      if (!part.truthy() && partsLen > 0) {
+        part = parts[0];
+      }
+      expanded[prefix + cssExpand[i] + suffix] = part;
+    }
+
+    return expanded;
+  };
+
+  if (includeSet) {
+    JsValue withSet = ExpandHook{expandFn, setPositiveNumber};
+    return withSet;
+  }
+  JsValue getOnly = ExpandHookGetOnly{expandFn};
+  return getOnly;
+}
+
+jQuery["cssHooks"]["margin"] = makeExpandHook("margin", "", false);
+jQuery["cssHooks"]["padding"] = makeExpandHook("padding", "", true);
+jQuery["cssHooks"]["borderWidth"] = makeExpandHook("border", "Width", true);
+
+JsValue fnCss(JsValue self, JsValue args) {
+  JsValue name = args[0];
+  JsValue value = args[1];
+  bool chainable = args.length > 1.0;
+
+  return access(self, (JsValue elem, JsValue nameArg, JsValue valueArg) => {
+    if (JS.isArray(nameArg)) {
+      JsValue styles = getStyles(elem);
+      JsValue map = JS.object();
+      int lenInt = nameArg.length.toInt();
+      for (int i = 0; i < lenInt; i++) {
+        JsValue propName = nameArg[i];
+        string propStr = JS.string(propName);
+        map[propStr] = css(elem, propStr, false, styles);
+      }
+      return map;
+    }
+
+    string nameStr = JS.string(nameArg);
+
+    if (!JS.isUndefined(valueArg)) {
+      return style(elem, nameStr, valueArg, null);
+    }
+    return css(elem, nameStr, null, null);
+  }, name, value, chainable, null, false);
+}
+
+jQuery["fn"]["css"] = JS.methodRest(fnCss);
+
+export { jQuery, cssNumberHas };

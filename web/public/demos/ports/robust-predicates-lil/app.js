@@ -1,0 +1,1 @@
+var d=(function(){return -1})()==-1?1:0;d=d+1;(function(){return -1})()==-1&&(d=d+1);d=d+1;.5==(function(){return .5})()&&(d=d+1);d=d+1;.75==(function(){return .75})()&&(d=d+1);d=d+1;console.log(`robust-predicates:${d}`)

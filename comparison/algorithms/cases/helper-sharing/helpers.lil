@@ -1,0 +1,27 @@
+pure int affine(int value, int multiplier, int offset) {
+  return value * multiplier + offset;
+}
+
+pure int forward(int value) {
+  return affine(value, 3, 7);
+}
+
+pure int backward(int value) {
+  return affine(value, -2, 11);
+}
+
+pure int foldLeft(int value, int index) {
+  return forward(value) ^ affine(index, 2, 3);
+}
+
+pure int foldRight(int value, int index) {
+  return backward(value + index) ^ affine(index, 2, 3);
+}
+
+export pure int combine(int value, int index) {
+  return foldLeft(value, index) ^ foldRight(value, index);
+}
+
+export pure int finalize(int total, int count) {
+  return affine(total + count * 13, 5, count * -52);
+}

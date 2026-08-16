@@ -1,1 +1,1 @@
-function a(b){return b<=1?1:Math.imul(b,a(b-1|0))}console.log(a(7));var c=1071,b=462,d;while(b!=0){[c,b]=[b,c%b|0];}console.log(c);b=0;c=1;d=0;while(d<12){[b,c,d]=[c,b+c|0,d+1|0];}console.log(b)
+var b=m=>m<=1?1:m*b(m-1|0)|0;console.log(b(7));var o=1071,m=462,l;while(m!=0)[o,m]=[m,o%m|0];console.log(o);l=0;m=1;o=0;while(o<12)l=l+m|0,[l,m,o]=[m,l,o+1|0];console.log(l)

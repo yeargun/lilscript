@@ -64,10 +64,10 @@
       </aside>
 
       <main class="docs-content" id="docs-content">
-        <section id="overview" data-title="Overview introduction standalone language">
+        <section id="overview" data-title="Overview introduction standalone language lilpack compiler">
           <p class="eyebrow">LilScript v0.1</p>
           <h1>Language documentation</h1>
-          <p class="lead">LilScript is an independent statically typed language. It uses type-first declarations and familiar collection APIs, then compiles the complete program through a typed SSA optimizer to JavaScript or native code.</p>
+          <p class="lead">LilScript is an independent statically typed language. It uses type-first declarations and familiar collection APIs, then compiles the complete program through a typed SSA optimizer to JavaScript or native code. Lilpack is the web bundler for that JavaScript; it is not a second language.</p>
           <div class="callout important"><i data-lucide="badge-info" aria-hidden="true"></i><p>LilScript is not TypeScript and does not accept JavaScript or TypeScript source. The <code>.lil</code> file is the source of truth.</p></div>
         </section>
 
@@ -258,9 +258,9 @@ int after = ++total;</code></pre>
           <p>The language supports blocks, <code>if</code>/<code>else</code>, <code>while</code>, C-style <code>for</code>, <code>break</code>, <code>continue</code>, and <code>return</code>. Prefix updates evaluate to the new value; postfix updates evaluate to the old value. Both forms accept numeric variables, members, and array elements. Logical <code>&amp;&amp;</code> and <code>||</code> preserve short-circuit evaluation.</p>
         </section>
 
-        <section id="javascript" data-title="JavaScript application integration web browser generated module">
+        <section id="javascript" data-title="JavaScript application integration web browser generated module lilpack">
           <h2>JavaScript applications</h2>
-          <p>Compile a LilScript entry program during your build, then load the resulting JavaScript as a normal module or bundle input.</p>
+          <p>Compile a LilScript entry program during your build, then load the resulting JavaScript as a normal module or bundle input. Web apps in this repository go through <a href="/delivery.html">Lilpack</a> so mixed <code>.lil</code> graphs, HMR, and production delivery stay one pipeline. Lilpack does not replace the compiler and is not a post-minify step.</p>
           <pre><code># package.json build step
 lilscript src/main.lil -o dist/lilscript-program.js</code></pre>
           <pre><code>&lt;script type="module" src="/lilscript-program.js"&gt;&lt;/script&gt;</code></pre>
@@ -482,7 +482,7 @@ node benchmarks/ir-variants/run.mjs
 node benchmarks/profile-guided/run.mjs
 node benchmarks/paired/run.mjs
 npm --prefix benchmarks/browser run benchmark</code></pre>
-          <p>The matrix compiles 66 programs with maximum and disabled optional optimization, then requires Node, the direct native output, independently compiled emitted C, and checked-in expected output to agree across 132 executions. A separate Rust evaluator walks checked AST directly; its fixed 64-case generated scalar, control-flow, array, captured-callback, and binary-memory corpus must match optimized and optimizer-disabled JavaScript with parsed peepholes enabled and disabled, direct native output, and independently compiled C. Ten equivalent workloads are also executed before comparing raw, gzip-9, and Brotli-11 output against Closure ADVANCED v20260803. A second source-neutral lane mechanically generates both languages and rejects any per-case Brotli loss under the configured objective while publishing raw and gzip tradeoffs; its Chromium gate rejects a 95% runtime upper bound above 1.03. The application and complete-library labs remain separate because installed npm code and a LilScript port are not identical implementations. Complete measurements and limits are on the <a href="/benchmarks.html">benchmark page</a>.</p>
+          <p>The matrix compiles 72 programs with maximum and disabled optional optimization, then requires Node, the direct native output, independently compiled emitted C, and checked-in expected output to agree across 144 executions. A separate Rust evaluator walks checked AST directly; its fixed 64-case generated scalar, control-flow, array, captured-callback, and binary-memory corpus must match optimized and optimizer-disabled JavaScript with parsed peepholes enabled and disabled, direct native output, and independently compiled C. Ten equivalent workloads are also executed before comparing independently selected raw, gzip-9, and Brotli-11 LilScript artifacts against Closure ADVANCED v20260804 in their matching metrics. A second source-neutral lane mechanically generates both languages and gates only the Brotli-selected artifact's Brotli bytes while publishing raw and gzip diagnostics; its Chromium gate rejects a 95% runtime upper bound above 1.03. The application and complete-library labs remain separate because installed npm code and a LilScript port are not identical implementations. Complete measurements and limits are on the <a href="/benchmarks.html">benchmark page</a>.</p>
         </section>
       </main>
     </div>

@@ -1,0 +1,329 @@
+import { frame } from "../../frameloop/frame";
+import { FrameData } from "../../frameloop/types";
+import { fillWildcards } from "./utils/fill-wildcards";
+import { removeNonTranslationalTransform } from "./utils/unit-conversion";
+import { callMethod2 } from "../../dom-host";
+import { visualElementOf, motionValueOf } from "../../cast";
+import { VisualElement } from "../../render/VisualElement";
+import { MotionValue } from "../../value/index";
+
+KeyframeResolver[] toResolve = [];
+bool isScheduled = false;
+bool anyNeedsMeasurement = false;
+bool isForced = false;
+
+void measureAllKeyframes(FrameData data) {
+  float keepAlive = data.timestamp;
+  KeyframeResolver[] resolversToMeasure = [];
+  JsValue[] elementsToMeasure = [];
+  Map<JsValue, JsValue[]> transformsToRestore = new Map<JsValue, JsValue[]>();
+  KeyframeResolver[] snapshot = [];
+  int resolveCount = toResolve.length;
+  int resolveIndex = 0;
+  while (resolveIndex < resolveCount) {
+    KeyframeResolver candidate = toResolve[resolveIndex];
+    if (candidate.needsMeasurement) {
+      resolversToMeasure.push(candidate);
+    }
+    resolveIndex = resolveIndex + 1;
+  }
+
+  if (anyNeedsMeasurement && keepAlive >= 0.0) {
+    int measureCount = resolversToMeasure.length;
+    int measureIndex = 0;
+    while (measureIndex < measureCount) {
+      JsValue? element = resolversToMeasure[measureIndex].element;
+      if (element != null) {
+        bool seen = false;
+        int existingIndex = 0;
+        int existingCount = elementsToMeasure.length;
+        while (existingIndex < existingCount) {
+          if (elementsToMeasure[existingIndex] == element) {
+            seen = true;
+          }
+          existingIndex = existingIndex + 1;
+        }
+        if (!seen) {
+          elementsToMeasure.push(element);
+        }
+      }
+      measureIndex = measureIndex + 1;
+    }
+
+    int elementCount = elementsToMeasure.length;
+    int elementIndex = 0;
+    while (elementIndex < elementCount) {
+      JsValue element = elementsToMeasure[elementIndex];
+      JsValue[] removedTransforms = removeNonTranslationalTransform(element);
+      if (removedTransforms.length != 0) {
+        transformsToRestore.set(element, removedTransforms);
+        visualElementOf(element).render();
+      }
+      elementIndex = elementIndex + 1;
+    }
+
+    measureIndex = 0;
+    while (measureIndex < measureCount) {
+      resolversToMeasure[measureIndex].measureInitialState();
+      measureIndex = measureIndex + 1;
+    }
+
+    elementIndex = 0;
+    while (elementIndex < elementCount) {
+      JsValue element = elementsToMeasure[elementIndex];
+      visualElementOf(element).render();
+      JsValue[]? restore = transformsToRestore.get(element);
+      if (restore != null) {
+        VisualElement typed = visualElementOf(element);
+        int pairIndex = 0;
+        int pairCount = restore.length;
+        while (pairIndex < pairCount) {
+          JsValue pair = restore[pairIndex];
+          string key = `${pair[0]}`;
+          JsValue value = pair[1];
+          JsValue? mv = typed.getValue(key);
+          if (mv != null) {
+            motionValueOf(mv).set(value);
+          }
+          pairIndex = pairIndex + 1;
+        }
+      }
+      elementIndex = elementIndex + 1;
+    }
+
+    measureIndex = 0;
+    while (measureIndex < measureCount) {
+      resolversToMeasure[measureIndex].measureEndState();
+      measureIndex = measureIndex + 1;
+    }
+
+    measureIndex = 0;
+    while (measureIndex < measureCount) {
+      float? scrollY = resolversToMeasure[measureIndex].suspendedScrollY;
+      if (scrollY != null) {
+        callMethod2(null, "scrollTo", 0.0, scrollY);
+      }
+      measureIndex = measureIndex + 1;
+    }
+  }
+
+  anyNeedsMeasurement = false;
+  isScheduled = false;
+  resolveIndex = 0;
+  resolveCount = toResolve.length;
+  while (resolveIndex < resolveCount) {
+    snapshot.push(toResolve[resolveIndex]);
+    resolveIndex = resolveIndex + 1;
+  }
+  int snapshotIndex = 0;
+  int snapshotCount = snapshot.length;
+  while (snapshotIndex < snapshotCount) {
+    snapshot[snapshotIndex].complete(isForced);
+    snapshotIndex = snapshotIndex + 1;
+  }
+  toResolve.splice(0, toResolve.length);
+}
+
+void readAllKeyframes(FrameData data) {
+  float keepAlive = data.timestamp;
+  int resolveIndex = 0;
+  int resolveCount = toResolve.length;
+  while (resolveIndex < resolveCount) {
+    KeyframeResolver resolver = toResolve[resolveIndex];
+    resolver.readKeyframes();
+    if (resolver.needsMeasurement && keepAlive >= 0.0) {
+      anyNeedsMeasurement = true;
+    }
+    resolveIndex = resolveIndex + 1;
+  }
+}
+
+export void flushKeyframeResolvers() {
+  isForced = true;
+  readAllKeyframes(new FrameData());
+  measureAllKeyframes(new FrameData());
+  isForced = false;
+}
+
+export class KeyframeResolver {
+  string? name;
+  JsValue? element;
+  JsValue? finalKeyframe;
+  float? suspendedScrollY;
+  JsValue[] unresolvedKeyframes;
+  JsValue? motionValue;
+  func(JsValue[], JsValue?, bool)->void onComplete;
+  string state;
+  bool isAsync;
+  bool needsMeasurement;
+  (func()->void)? readKeyframesHook;
+  (func()->void)? measureInitialStateHook;
+  (func()->void)? measureEndStateHook;
+
+  init(
+    JsValue[] unresolvedKeyframes,
+    func(JsValue[], JsValue?, bool)->void onComplete,
+    string? name = null,
+    JsValue? motionValue = null,
+    JsValue? element = null,
+    bool isAsync = false
+  ) {
+    this.unresolvedKeyframes = [];
+    int keyframeIndex = 0;
+    int keyframeCount = unresolvedKeyframes.length;
+    while (keyframeIndex < keyframeCount) {
+      this.unresolvedKeyframes.push(unresolvedKeyframes[keyframeIndex]);
+      keyframeIndex = keyframeIndex + 1;
+    }
+    this.onComplete = onComplete;
+    this.name = name;
+    this.motionValue = motionValue;
+    this.element = element;
+    this.isAsync = isAsync;
+    this.state = "pending";
+    this.needsMeasurement = false;
+    this.finalKeyframe = null;
+    this.suspendedScrollY = null;
+    this.readKeyframesHook = null;
+    this.measureInitialStateHook = null;
+    this.measureEndStateHook = null;
+  }
+
+  void scheduleResolve() {
+    this.state = "scheduled";
+    if (this.isAsync) {
+      bool already = false;
+      int resolveIndex = 0;
+      int resolveCount = toResolve.length;
+      while (resolveIndex < resolveCount) {
+        if (toResolve[resolveIndex] == this) {
+          already = true;
+        }
+        resolveIndex = resolveIndex + 1;
+      }
+      if (!already) {
+        toResolve.push(this);
+      }
+      if (!isScheduled) {
+        isScheduled = true;
+        frame.read(readAllKeyframes, false, false);
+        frame.resolveKeyframes(measureAllKeyframes, false, false);
+      }
+    } else {
+      this.readKeyframes();
+      this.complete();
+    }
+  }
+
+  void readKeyframes() {
+    (func()->void)? hook = this.readKeyframesHook;
+    if (hook != null) {
+      hook();
+      return;
+    }
+    this.readKeyframesDefault();
+  }
+
+  void readKeyframesDefault() {
+    JsValue[] unresolvedKeyframes = this.unresolvedKeyframes;
+    string? name = this.name;
+    JsValue? element = this.element;
+    JsValue? motionValue = this.motionValue;
+    if (unresolvedKeyframes.length > 0) {
+      JsValue first = unresolvedKeyframes[0];
+      bool isNull = !(
+        (first is float) ||
+        (first is string) ||
+        (first is bool) ||
+        first.isArray() ||
+        (first.isObject() && first.truthy())
+      );
+      if (isNull) {
+        JsValue? currentValue = null;
+        if (motionValue != null) {
+          currentValue = motionValueOf(motionValue).current;
+        }
+        JsValue finalKeyframe = unresolvedKeyframes[unresolvedKeyframes.length - 1];
+        if (currentValue != null) {
+          unresolvedKeyframes[0] = currentValue;
+        } else if (element != null && name != null) {
+          JsValue? valueAsRead = visualElementOf(element).readValue(name, finalKeyframe);
+          bool defined =
+            valueAsRead != null && (
+              (valueAsRead is float) ||
+              (valueAsRead is string) ||
+              (valueAsRead is bool) ||
+              valueAsRead.isArray() ||
+              (valueAsRead.isObject() && valueAsRead.truthy())
+            );
+          if (defined) {
+            unresolvedKeyframes[0] = valueAsRead;
+          }
+        }
+        bool stillMissing = !(
+          (unresolvedKeyframes[0] is float) ||
+          (unresolvedKeyframes[0] is string) ||
+          (unresolvedKeyframes[0] is bool) ||
+          unresolvedKeyframes[0].isArray() ||
+          (unresolvedKeyframes[0].isObject() && unresolvedKeyframes[0].truthy())
+        );
+        if (stillMissing) {
+          unresolvedKeyframes[0] = finalKeyframe;
+        }
+        if (motionValue != null && currentValue == null) {
+          motionValueOf(motionValue).set(unresolvedKeyframes[0]);
+        }
+      }
+    }
+    fillWildcards(unresolvedKeyframes);
+  }
+
+  void setFinalKeyframe() {}
+
+  void measureInitialState() {
+    (func()->void)? hook = this.measureInitialStateHook;
+    if (hook != null) {
+      hook();
+    }
+  }
+
+  void renderEndStyles() {}
+
+  void measureEndState() {
+    (func()->void)? hook = this.measureEndStateHook;
+    if (hook != null) {
+      hook();
+    }
+  }
+
+  void complete(bool isForcedComplete = false) {
+    this.state = "complete";
+    this.onComplete(this.unresolvedKeyframes, this.finalKeyframe, isForcedComplete);
+    int resolveIndex = toResolve.length - 1;
+    while (resolveIndex >= 0) {
+      if (toResolve[resolveIndex] == this) {
+        toResolve.splice(resolveIndex, 1);
+      }
+      resolveIndex = resolveIndex - 1;
+    }
+  }
+
+  void cancel() {
+    if (this.state == "scheduled") {
+      int resolveIndex = toResolve.length - 1;
+      while (resolveIndex >= 0) {
+        if (toResolve[resolveIndex] == this) {
+          toResolve.splice(resolveIndex, 1);
+        }
+        resolveIndex = resolveIndex - 1;
+      }
+      this.state = "pending";
+    }
+  }
+
+  void resume() {
+    if (this.state == "pending") {
+      this.scheduleResolve();
+    }
+  }
+}

@@ -351,12 +351,15 @@ fn token_class(kind: &TokenKind<'_>) -> TokenClass {
         TokenKind::Ident(_)
         | TokenKind::Int
         | TokenKind::Float
+        | TokenKind::Number
         | TokenKind::String
         | TokenKind::Bool
         | TokenKind::Void
         | TokenKind::Auto
         | TokenKind::Func
         | TokenKind::Struct
+        | TokenKind::Enum
+        | TokenKind::Record
         | TokenKind::Class
         | TokenKind::Return
         | TokenKind::Init
@@ -364,6 +367,7 @@ fn token_class(kind: &TokenKind<'_>) -> TokenClass {
         | TokenKind::Else
         | TokenKind::While
         | TokenKind::For
+        | TokenKind::Of
         | TokenKind::Break
         | TokenKind::Continue
         | TokenKind::Extern
@@ -374,6 +378,7 @@ fn token_class(kind: &TokenKind<'_>) -> TokenClass {
         | TokenKind::Pure
         | TokenKind::New
         | TokenKind::Is => TokenClass::Word,
+        TokenKind::Match => TokenClass::Word,
         TokenKind::IntLiteral(_)
         | TokenKind::FloatLiteral(_)
         | TokenKind::StringLiteral(_)

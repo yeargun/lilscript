@@ -1,0 +1,145 @@
+import { addUniqueItem, removeItem } from "../../../motion-utils/array";
+import { callMethod0, callMethod1 } from "../../dom-host";
+
+export class NodeStack {
+  JsValue? lead;
+  JsValue? prevLead;
+  JsValue[] members;
+
+  init() {
+    this.lead = null;
+    this.prevLead = null;
+    this.members = [];
+  }
+
+  void add(JsValue node) {
+    addUniqueItem(this.members, node);
+    for (int i = this.members.length - 1; i >= 0; i--) {
+      JsValue member = this.members[i];
+      if (member == node || member == this.lead || member == this.prevLead) {
+        continue;
+      }
+      JsValue inst = member["instance"];
+      bool disconnected = false;
+      if (!(inst.isObject() && inst.truthy())) {
+        disconnected = true;
+      } else if (inst["isConnected"] == false) {
+        disconnected = true;
+      }
+      if (disconnected && !member["snapshot"].truthy()) {
+        removeItem(this.members, member);
+        callMethod0(member, "unmount");
+      }
+    }
+    callMethod0(node, "scheduleRender");
+  }
+
+  void remove(JsValue node) {
+    removeItem(this.members, node);
+    if (node == this.prevLead) {
+      this.prevLead = null;
+    }
+    if (node == this.lead) {
+      if (this.members.length > 0) {
+        JsValue prevLead = this.members[this.members.length - 1];
+        this.promote(prevLead);
+      }
+    }
+  }
+
+  bool relegate(JsValue node) {
+    int idx = this.members.indexOf(node);
+    for (int i = idx - 1; i >= 0; i--) {
+      JsValue member = this.members[i];
+      bool present = member["isPresent"] != false;
+      JsValue inst = member["instance"];
+      bool connected = true;
+      if (inst.isObject()) {
+        if (inst["isConnected"] == false) {
+          connected = false;
+        }
+      }
+      if (present && connected) {
+        this.promote(member);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  void promote(JsValue node, bool preserveFollowOpacity = false) {
+    JsValue? prevLead = this.lead;
+    if (node == prevLead) {
+      return;
+    }
+    this.prevLead = prevLead;
+    this.lead = node;
+    callMethod0(node, "show");
+    if (prevLead != null) {
+      callMethod0(prevLead, "updateSnapshot");
+      callMethod0(node, "scheduleRender");
+      JsValue prevDep = prevLead["options"]["layoutDependency"];
+      JsValue nextDep = node["options"]["layoutDependency"];
+      bool depsDiffer = true;
+      if ((prevDep is float) || (prevDep is string) || (prevDep is bool) || prevDep.isObject()) {
+        depsDiffer = prevDep != nextDep;
+      }
+      if (depsDiffer) {
+        node["resumeFrom"] = prevLead;
+        if (preserveFollowOpacity) {
+          prevLead["preserveOpacity"] = true;
+        }
+        if (prevLead["snapshot"].truthy()) {
+          node["snapshot"] = prevLead["snapshot"];
+          JsValue animValues = prevLead["animationValues"];
+          if (animValues.truthy()) {
+            node["snapshot"]["latestValues"] = animValues;
+          } else {
+            node["snapshot"]["latestValues"] = prevLead["latestValues"];
+          }
+        }
+        if (node["root"]["isUpdating"].truthy()) {
+          node["isLayoutDirty"] = true;
+        }
+      }
+      if (node["options"]["crossfade"] == false) {
+        callMethod0(prevLead, "hide");
+      }
+    }
+  }
+
+  void exitAnimationComplete() {
+    for (int i = 0; i < this.members.length; i++) {
+      JsValue member = this.members[i];
+      JsValue onExit = member["options"]["onExitComplete"];
+      if (isFunction(onExit)) {
+        callMethod0(onExit, "call");
+      }
+      JsValue resuming = member["resumingFrom"];
+      if (resuming.truthy()) {
+        JsValue nested = resuming["options"]["onExitComplete"];
+        if (isFunction(nested)) {
+          callMethod0(nested, "call");
+        }
+      }
+    }
+  }
+
+  void scheduleRender() {
+    for (int i = 0; i < this.members.length; i++) {
+      JsValue member = this.members[i];
+      if (member["instance"].truthy()) {
+        callMethod1(member, "scheduleRender", false);
+      }
+    }
+  }
+
+  void removeLeadSnapshot() {
+    JsValue? lead = this.lead;
+    if (lead != null && lead["snapshot"].truthy()) {
+      lead["snapshot"] = null;
+    }
+  }
+}
+
+import { isFunction } from "../../dom-host";

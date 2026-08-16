@@ -22,7 +22,7 @@ export func(float)->string customRandom(
   func(float)->Uint8Array getRandom
 ) {
   int mask = (2 << Math.log2(alphabet.length - 1.0).toInt()) - 1;
-  float step = ((1.6 * mask * defaultSize) / alphabet.length).toInt() + 1.0;
+  float step = 1.0 + ((1.6 * mask * defaultSize) / alphabet.length).toInt();
   return (float size = defaultSize) => {
     string id = "";
     while (true) {

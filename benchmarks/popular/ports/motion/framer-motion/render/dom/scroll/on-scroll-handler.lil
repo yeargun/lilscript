@@ -1,0 +1,111 @@
+import { documentElement, getComputedStyleField, getComputedStyleProperty, getComputedStyleValue, windowGet, documentScrollingElement, documentGet } from "../../../../motion-dom/dom-host";
+import { warnOnce } from "../../../../motion-utils/warn-once";
+import { updateScrollInfo } from "./info";
+import { resolveOffsets } from "./offsets/index";
+import { OnScrollHandler, ScrollInfo } from "./types";
+
+void measure(JsValue container, JsValue? target, ScrollInfo info) {
+  JsValue resolvedTarget = container;
+  if (target != null) {
+    resolvedTarget = target;
+  }
+
+  info.x.targetOffset = 0.0;
+  info.y.targetOffset = 0.0;
+  if (resolvedTarget != container) {
+    JsValue? node = resolvedTarget;
+    while (node != null && node != container) {
+      JsValue offsetLeft = node["offsetLeft"];
+      JsValue offsetTop = node["offsetTop"];
+      if (offsetLeft is float) {
+        info.x.targetOffset = info.x.targetOffset + offsetLeft;
+      }
+      if (offsetTop is float) {
+        info.y.targetOffset = info.y.targetOffset + offsetTop;
+      }
+      node = node["offsetParent"];
+    }
+  }
+
+  if (resolvedTarget == container) {
+    JsValue sw = resolvedTarget["scrollWidth"];
+    JsValue sh = resolvedTarget["scrollHeight"];
+    if (sw is float) {
+      info.x.targetLength = sw;
+    }
+    if (sh is float) {
+      info.y.targetLength = sh;
+    }
+  } else {
+    JsValue cw = resolvedTarget["clientWidth"];
+    JsValue ch = resolvedTarget["clientHeight"];
+    if (cw is float) {
+      info.x.targetLength = cw;
+    }
+    if (ch is float) {
+      info.y.targetLength = ch;
+    }
+  }
+
+  JsValue containerW = container["clientWidth"];
+  JsValue containerH = container["clientHeight"];
+  if (containerW is float) {
+    info.x.containerLength = containerW;
+  }
+  if (containerH is float) {
+    info.y.containerLength = containerH;
+  }
+
+  if (
+    container != null &&
+    resolvedTarget != null &&
+    resolvedTarget != container &&
+    container != documentElement() &&
+    container != documentScrollingElement() &&
+    container != documentGet("body")
+  ) {
+    JsValue style = getComputedStyleValue(container);
+    string position = "";
+    if (style.truthy()) {
+      JsValue pos = style["position"];
+      if (pos is string) {
+        position = pos;
+      }
+    }
+    warnOnce(
+      position != "static",
+      "Please ensure that the container has a non-static position, like 'relative', 'fixed', or 'absolute' to ensure scroll offset is calculated correctly.",
+      null
+    );
+  }
+}
+
+export OnScrollHandler createOnScrollHandler(
+  JsValue element,
+  func(ScrollInfo)->void onScroll,
+  ScrollInfo info,
+  JsValue? options = null
+) {
+  return new OnScrollHandler(
+    (float time) => {
+      JsValue? target = null;
+      if (options != null && options.isObject()) {
+        target = options["target"];
+      }
+      measure(element, target, info);
+      updateScrollInfo(element, info, time);
+      bool needsOffsets = false;
+      if (options != null && options.isObject()) {
+        if (options["offset"] != null || options["target"] != null) {
+          needsOffsets = true;
+        }
+      }
+      if (needsOffsets) {
+        resolveOffsets(element, info, options);
+      }
+    },
+    () => {
+      onScroll(info);
+    }
+  );
+}

@@ -1,0 +1,491 @@
+import { GroupAnimation } from "../animation/GroupAnimation";
+import { frame, frameData, frameSteps } from "../frameloop/frame";
+import { FrameData } from "../frameloop/types";
+import { microtask } from "../frameloop/microtask";
+import { time } from "../frameloop/sync-time";
+import { HTMLProjectionNode } from "../projection/node/HTMLProjectionNode";
+import { hasTransform } from "../projection/utils/has-transform";
+import { visualElementStore } from "../render/store";
+import { HTMLVisualElement } from "../render/html/HTMLVisualElement";
+import { resolveElements } from "../utils/resolve-elements";
+import { createBox } from "../projection/geometry/models";
+import { Box } from "../../motion-utils/types/geometry";
+import { clamp } from "../../motion-utils/clamp";
+import { callMethod0, callMethod1, callFn0, isFunction, scheduleMicrotask, taskFromCallback, documentScrollingElement, documentElement, documentGet, parseFloatValue, windowGet } from "../dom-host";
+import extern {
+  weakMapCreate,
+  weakMapGet,
+  weakMapSet,
+  weakMapDelete,
+  weakMapGet as weakMapGetNode
+} from "../weak-host.ts";
+
+extern JsValue weakMapCreate();
+extern JsValue? weakMapGet(JsValue map, JsValue key);
+extern void weakMapSet(JsValue map, JsValue key, JsValue value);
+extern void weakMapDelete(JsValue map, JsValue key);
+extern HTMLProjectionNode? weakMapGetNode(JsValue map, JsValue key);
+
+string layoutSelector = "[data-layout],[data-layout-id]";
+
+JsValue layoutNodes = weakMapCreate();
+LayoutAnimationBuilder[]? pendingBuilders = null;
+
+JsValue[] collectLayoutElements(JsValue scope) {
+  JsValue[] elements = [];
+  if (isFunction(scope["matches"])) {
+    if (callMethod1(scope, "matches", layoutSelector).truthy()) {
+      elements.push(scope);
+    }
+  }
+  if (isFunction(scope["querySelectorAll"])) {
+    JsValue found = callMethod1(scope, "querySelectorAll", layoutSelector);
+    if (found.isArray() || found.truthy()) {
+      JsValue[] list = resolveElements(found);
+      for (int i = 0; i < list.length; i++) {
+        elements.push(list[i]);
+      }
+    }
+  }
+  return elements;
+}
+
+void flushPendingFrame() {
+  if (frameData.isProcessing) {
+    return;
+  }
+  float now = time.now();
+  frameData.delta = clamp(0.0, 1000.0 / 60.0, now - frameData.timestamp);
+  frameData.timestamp = now;
+  frameData.isProcessing = true;
+  frameSteps.update.process(frameData);
+  frameSteps.preRender.process(frameData);
+  frameSteps.render.process(frameData);
+  frameData.isProcessing = false;
+}
+
+HTMLProjectionNode? getProjectionParent(JsValue element) {
+  JsValue ancestor = element["parentElement"];
+  while (ancestor.truthy()) {
+    HTMLProjectionNode? node = weakMapGetNode(layoutNodes, ancestor);
+    if (node != null) {
+      JsValue? instance = node.node.instance;
+      if (instance != null && instance.truthy()) {
+        return node;
+      }
+    }
+    ancestor = ancestor["parentElement"];
+  }
+  return null;
+}
+
+HTMLVisualElement createVisualElement() {
+  return new HTMLVisualElement(record{
+    props: record{},
+    presenceContext: null,
+    visualState: record{
+      latestValues: record{},
+      renderState: record{
+        transform: record{},
+        transformOrigin: record{},
+        style: record{},
+        vars: record{}
+      }
+    }
+  });
+}
+
+JsValue visualElementFor(JsValue element) {
+  JsValue? stored = weakMapGet(visualElementStore, element);
+  if (stored != null) {
+    return stored;
+  }
+  HTMLVisualElement created = createVisualElement();
+  weakMapSet(visualElementStore, element, created);
+  return created;
+}
+
+JsValue readNodeOptions(JsValue element, JsValue? transition) {
+  string? layoutAttr = null;
+  string? layoutId = null;
+  if (isFunction(element["getAttribute"])) {
+    JsValue attr = callMethod1(element, "getAttribute", "data-layout");
+    if (attr is string) {
+      layoutAttr = attr;
+    }
+    JsValue id = callMethod1(element, "getAttribute", "data-layout-id");
+    if (id is string) {
+      layoutId = id;
+    }
+  }
+  string animationType = "both";
+  if (layoutAttr != null && layoutAttr != "true") {
+    animationType = layoutAttr;
+  }
+  return record{
+    layoutId: layoutId,
+    layout: layoutAttr != null,
+    animationType: animationType,
+    transition: transition
+  };
+}
+
+HTMLProjectionNode prepareNode(JsValue element, JsValue? transition) {
+  HTMLProjectionNode? existingNode = weakMapGetNode(layoutNodes, element);
+  if (existingNode != null) {
+    HTMLProjectionNode node = existingNode;
+    node.setOptions(readNodeOptions(element, transition));
+    node.node.isPresent = true;
+    return node;
+  }
+  JsValue visualElement = visualElementFor(element);
+  JsValue style = element["style"];
+  if (style.truthy() && style["transform"].truthy()) {
+    Record<JsValue> latest = record{};
+    if (!hasTransform(latest)) {
+      style["transform"] = "";
+    }
+  }
+  HTMLProjectionNode node = new HTMLProjectionNode(record{
+    visualElement: visualElement,
+    parent: getProjectionParent(element)
+  });
+  visualElement["projection"] = node;
+  node.setOptions(readNodeOptions(element, transition));
+  node.mount(element);
+  weakMapSet(layoutNodes, element, node);
+  node.node.isPresent = true;
+  return node;
+}
+
+void dropNode(JsValue element, HTMLProjectionNode node) {
+  node.setOptions(record{onExitComplete: null});
+  node.unmount();
+  weakMapDelete(layoutNodes, element);
+}
+
+JsValue[] sortDocumentOrder(JsValue[] elements) {
+  JsValue[] sorted = [];
+  for (int i = 0; i < elements.length; i++) {
+    sorted.push(elements[i]);
+  }
+  for (int i = 0; i < sorted.length; i++) {
+    for (int j = i + 1; j < sorted.length; j++) {
+      JsValue a = sorted[i];
+      JsValue b = sorted[j];
+      float cmp = 0.0;
+      if (isFunction(a["compareDocumentPosition"])) {
+        JsValue result = callMethod1(a, "compareDocumentPosition", b);
+        if (result is float) {
+          cmp = result;
+        }
+      }
+      if ((cmp.toInt() & 4) != 0) {
+        sorted[i] = b;
+        sorted[j] = a;
+      }
+    }
+  }
+  return sorted;
+}
+
+void flushPendingBuilders() {
+  LayoutAnimationBuilder[]? buildersOpt = pendingBuilders;
+  if (buildersOpt == null) {
+    return;
+  }
+  LayoutAnimationBuilder[] builders = buildersOpt;
+  pendingBuilders = null;
+  flushPendingFrame();
+
+  Map<JsValue, LayoutAnimationBuilder[]> targets = new Map<JsValue, LayoutAnimationBuilder[]>();
+  JsValue[] targetElements = [];
+  for (int bi = 0; bi < builders.length; bi++) {
+    LayoutAnimationBuilder builder = builders[bi];
+    JsValue[] collected = builder.collectTargets();
+    for (int ei = 0; ei < collected.length; ei++) {
+      JsValue element = collected[ei];
+      LayoutAnimationBuilder[]? ownersOpt = targets.get(element);
+      LayoutAnimationBuilder[] owners = [];
+      if (ownersOpt != null) {
+        owners = ownersOpt;
+      } else {
+        targetElements.push(element);
+      }
+      owners.push(builder);
+      targets.set(element, owners);
+    }
+  }
+
+  Map<JsValue, HTMLProjectionNode> union = new Map<JsValue, HTMLProjectionNode>();
+  JsValue[] ordered = sortDocumentOrder(targetElements);
+  for (int oi = 0; oi < ordered.length; oi++) {
+    JsValue element = ordered[oi];
+    LayoutAnimationBuilder[]? ownersOpt2 = targets.get(element);
+    if (ownersOpt2 != null) {
+      LayoutAnimationBuilder[] owners = ownersOpt2;
+      if (owners.length > 0) {
+        HTMLProjectionNode node = prepareNode(
+          element,
+          owners[owners.length - 1].transitionFor(element)
+        );
+        for (int oi2 = 0; oi2 < owners.length; oi2++) {
+          owners[oi2].adopt(element, node);
+        }
+        union.set(element, node);
+      }
+    }
+  }
+
+  for (int oi = 0; oi < ordered.length; oi++) {
+    HTMLProjectionNode? node = union.get(ordered[oi]);
+    if (node != null) {
+      node.node.isLayoutDirty = false;
+      node.node.willUpdate();
+    }
+  }
+
+  Task<bool>[] updatePromises = [];
+  for (int bi = 0; bi < builders.length; bi++) {
+    Task<bool>? result = builders[bi].runUpdate();
+    if (result != null) {
+      updatePromises.push(result);
+    }
+  }
+
+  func()->void commit = () => {
+    Set<string> newMemberIds = new Set<string>();
+    for (int bi = 0; bi < builders.length; bi++) {
+      builders[bi].reconcileAdditions(newMemberIds);
+    }
+    for (int bi = 0; bi < builders.length; bi++) {
+      builders[bi].reconcileRemovals(newMemberIds);
+    }
+    for (int bi = 0; bi < builders.length; bi++) {
+      builders[bi].finalize();
+    }
+  };
+
+  if (updatePromises.length > 0) {
+    Task.all(updatePromises).then((bool[] _v) => {
+      commit();
+      return true;
+    });
+  } else {
+    commit();
+  }
+}
+
+export class LayoutAnimationBuilder {
+  JsValue scope;
+  func()->void updateDom;
+  JsValue? defaultOptions;
+  Map<string, JsValue> sharedTransitions;
+  Map<JsValue, HTMLProjectionNode> tracked;
+  JsValue[] trackedElements;
+  Map<JsValue, JsValue> restorePoints;
+  JsValue? updateError;
+  (func(JsValue)->void)? notifyReady;
+  (func(JsValue)->void)? rejectReady;
+  Task<JsValue> readyPromise;
+  Map<JsValue, JsValue> snapshots;
+
+  init(JsValue scope, func()->void updateDom, JsValue? defaultOptions = null) {
+    this.scope = scope;
+    this.updateDom = updateDom;
+    this.defaultOptions = defaultOptions;
+    this.sharedTransitions = new Map<string, JsValue>();
+    this.tracked = new Map<JsValue, HTMLProjectionNode>();
+    this.trackedElements = [];
+    this.restorePoints = new Map<JsValue, JsValue>();
+    this.updateError = null;
+    this.notifyReady = null;
+    this.rejectReady = null;
+    this.snapshots = new Map<JsValue, JsValue>();
+    LayoutAnimationBuilder self = this;
+    this.readyPromise = taskFromCallback((func()->void resolve) => {
+      self.notifyReady = (JsValue animation) => {
+        resolve();
+      };
+      self.rejectReady = (JsValue _error) => {
+        resolve();
+      };
+    }).then((bool _v) => null);
+
+    if (pendingBuilders == null) {
+      LayoutAnimationBuilder[] emptyPending = [];
+      pendingBuilders = emptyPending;
+      scheduleMicrotask(flushPendingBuilders);
+    }
+    LayoutAnimationBuilder[]? pendingOpt = pendingBuilders;
+    if (pendingOpt != null) {
+      pendingOpt.push(this);
+    }
+  }
+
+  LayoutAnimationBuilder shared(string id, JsValue transition) {
+    this.sharedTransitions.set(id, transition);
+    return this;
+  }
+
+  Task<JsValue> then(
+    func(JsValue)->JsValue onResolve,
+    (func(JsValue)->JsValue)? onReject = null
+  ) {
+    return this.readyPromise.then(onResolve);
+  }
+
+  JsValue? transitionFor(JsValue element) {
+    if (isFunction(element["getAttribute"])) {
+      JsValue layoutId = callMethod1(element, "getAttribute", "data-layout-id");
+      if (layoutId is string) {
+        JsValue? shared = this.sharedTransitions.get(layoutId);
+        if (shared != null) {
+          return shared;
+        }
+      }
+    }
+    return this.defaultOptions;
+  }
+
+  void adopt(JsValue element, HTMLProjectionNode node) {
+    if (!this.tracked.has(element)) {
+      this.trackedElements.push(element);
+    }
+    this.tracked.set(element, node);
+    this.restorePoints.set(element, record{
+      parent: element["parentElement"],
+      next: element["nextSibling"]
+    });
+  }
+
+  JsValue[] collectTargets() {
+    return collectLayoutElements(this.scope);
+  }
+
+  Task<bool>? runUpdate() {
+    try {
+      this.updateDom();
+    } catch (JsValue error) {
+      this.updateError = error;
+    }
+    return null;
+  }
+
+  void reconcileAdditions(Set<string> newMemberIds) {
+    JsValue[] elements = collectLayoutElements(this.scope);
+    for (int i = 0; i < elements.length; i++) {
+      JsValue element = elements[i];
+      if (this.tracked.has(element)) {
+        continue;
+      }
+      HTMLProjectionNode node = prepareNode(element, this.transitionFor(element));
+      this.adopt(element, node);
+      JsValue options = node.node.options;
+      JsValue layoutIdVal = options["layoutId"];
+      if (layoutIdVal is string) {
+        string layoutId = layoutIdVal;
+        newMemberIds.add(layoutId);
+      }
+    }
+  }
+
+  void reconcileRemovals(Set<string> newMemberIds) {
+    JsValue[] elements = [];
+    for (int i = 0; i < this.trackedElements.length; i++) {
+      elements.push(this.trackedElements[i]);
+    }
+    for (int i = 0; i < elements.length; i++) {
+      JsValue element = elements[i];
+      HTMLProjectionNode? nodeOpt = this.tracked.get(element);
+      if (nodeOpt != null) {
+        HTMLProjectionNode node = nodeOpt;
+        if (!element["isConnected"].truthy()) {
+          this.restorePoints.delete(element);
+          dropNode(element, node);
+          this.tracked.delete(element);
+        }
+      }
+    }
+  }
+
+  void finalize() {
+    if (this.updateError != null) {
+      (func(JsValue)->void)? reject = this.rejectReady;
+      if (reject != null) {
+        reject(this.updateError);
+      }
+      return;
+    }
+    JsValue[] animations = [];
+    for (int i = 0; i < this.trackedElements.length; i++) {
+      JsValue element = this.trackedElements[i];
+      HTMLProjectionNode? node = this.tracked.get(element);
+      if (node == null) {
+        continue;
+      }
+      JsValue? beforeOpt = this.snapshots.get(element);
+      if (beforeOpt == null) {
+        Box box = createBox();
+        if (isFunction(element["getBoundingClientRect"])) {
+          JsValue rect = callMethod0(element, "getBoundingClientRect");
+          box.x.min = parseFloatValue(rect["left"]);
+          box.x.max = parseFloatValue(rect["right"]);
+          box.y.min = parseFloatValue(rect["top"]);
+          box.y.max = parseFloatValue(rect["bottom"]);
+        }
+        this.snapshots.set(element, record{layoutBox: box});
+        continue;
+      }
+    }
+    (func(JsValue)->void)? notify = this.notifyReady;
+    if (notify != null) {
+      notify(new GroupAnimation(animations));
+    }
+  }
+}
+
+export JsValue parseAnimateLayoutArgs(
+  JsValue scopeOrUpdateDom,
+  JsValue? updateDomOrOptions = null,
+  JsValue? options = null
+) {
+  JsValue documentRef = windowGet("document");
+  if (isFunction(scopeOrUpdateDom)) {
+    return record{
+      scope: documentRef,
+      updateDom: scopeOrUpdateDom,
+      defaultOptions: updateDomOrOptions
+    };
+  }
+  JsValue scope = documentRef;
+  if (scopeOrUpdateDom == documentRef) {
+    scope = scopeOrUpdateDom;
+  } else {
+    JsValue[] resolved = resolveElements(scopeOrUpdateDom);
+    if (resolved.length > 0) {
+      scope = resolved[0];
+    }
+  }
+  return record{
+    scope: scope,
+    updateDom: updateDomOrOptions,
+    defaultOptions: options
+  };
+}
+
+export LayoutAnimationBuilder animateLayout(
+  JsValue scopeOrUpdateDom,
+  JsValue? updateDomOrOptions = null,
+  JsValue? options = null
+) {
+  JsValue parsed = parseAnimateLayoutArgs(scopeOrUpdateDom, updateDomOrOptions, options);
+  func()->void update = () => {};
+  if (isFunction(parsed["updateDom"])) {
+    JsValue updateDom = parsed["updateDom"];
+    update = () => {
+      callFn0(updateDom);
+    };
+  }
+  return new LayoutAnimationBuilder(parsed["scope"], update, parsed["defaultOptions"]);
+}

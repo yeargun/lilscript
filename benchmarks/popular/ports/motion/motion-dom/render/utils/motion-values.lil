@@ -1,0 +1,66 @@
+import { motionValue } from "../../value/index";
+import { isMotionValue } from "../../value/utils/is-motion-value";
+import { callMethod0, callMethod1, hasFunction } from "../../dom-host";
+
+export JsValue updateMotionValuesFromProps(
+  JsValue element,
+  JsValue next,
+  JsValue prev
+) {
+  for (string key in next) {
+    JsValue nextValue = next[key];
+    JsValue prevValue = prev[key];
+    if (isMotionValue(nextValue)) {
+      callMethod2(element, "addValue", key, nextValue);
+    } else if (isMotionValue(prevValue)) {
+      callMethod2(
+        element,
+        "addValue",
+        key,
+        motionValue(nextValue, record{owner: element})
+      );
+    } else if (prevValue != nextValue) {
+      if (callMethod1(element, "hasValue", key).truthy()) {
+        JsValue existingValue = callMethod1(element, "getValue", key);
+        if (existingValue["liveStyle"] == true) {
+          callMethod1(existingValue, "jump", nextValue);
+        } else if (!existingValue["hasAnimated"].truthy()) {
+          callMethod1(existingValue, "set", nextValue);
+        }
+      } else {
+        JsValue latestValue = callMethod1(element, "getStaticValue", key);
+        JsValue initVal = nextValue;
+        bool hasLatest =
+          (latestValue is float) ||
+          (latestValue is string) ||
+          (latestValue is bool) ||
+          latestValue.isArray() ||
+          (latestValue.isObject() && latestValue.truthy());
+        if (hasLatest) {
+          initVal = latestValue;
+        }
+        callMethod2(
+          element,
+          "addValue",
+          key,
+          motionValue(initVal, record{owner: element})
+        );
+      }
+    }
+  }
+  for (string key in prev) {
+    JsValue nextVal = next[key];
+    bool missing =
+      !(nextVal is float) &&
+      !(nextVal is string) &&
+      !(nextVal is bool) &&
+      !nextVal.isArray() &&
+      !(nextVal.isObject() && nextVal.truthy());
+    if (missing) {
+      callMethod1(element, "removeValue", key);
+    }
+  }
+  return next;
+}
+
+import { callMethod2 } from "../../dom-host";

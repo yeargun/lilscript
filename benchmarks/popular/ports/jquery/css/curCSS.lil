@@ -1,0 +1,74 @@
+import { jQuery } from "../core";
+import { isAttached } from "../core/isAttached";
+import { rboxStyle } from "./var/rboxStyle";
+import { rnumnonpx } from "./var/rnumnonpx";
+import { getStyles } from "./var/getStyles";
+import { rcustomProp } from "./var/rcustomProp";
+import { rtrimCSS } from "../var/rtrimCSS";
+import { support } from "./support";
+import {
+  jsUndefined,
+  call0,
+  call1,
+  call2,
+  regexTest,
+  stringReplace,
+  isUndefined,
+  stringify
+} from "../js-host.lil";
+
+export JsValue curCSS(JsValue elem, string name, JsValue computedArg = null) {
+  bool isCustomProp = JS.regexTest(rcustomProp, name);
+  JsValue style = elem["style"];
+
+  JsValue computed = computedArg;
+  if (!computed.truthy()) {
+    computed = getStyles(elem);
+  }
+
+  JsValue ret = JS.undefined();
+
+  if (computed.truthy()) {
+    ret = JS.invoke(computed, "getPropertyValue", name);
+    if (!ret.truthy()) {
+      ret = computed[name];
+    }
+
+    if (isCustomProp && ret.truthy()) {
+      string trimmed = JS.stringReplace(JS.string(ret), rtrimCSS, "$1");
+      if (trimmed.length > 0) {
+        ret = trimmed;
+      } else {
+        ret = JS.undefined();
+      }
+    }
+
+    if (JS.strictEqual(ret, "") && !isAttached(elem)) {
+      ret = JS.invoke(jQuery, "style", elem, name);
+    }
+
+    bool retIsNumNonPx = JS.regexTest(rnumnonpx, JS.string(ret));
+
+    bool pixelBoxStylesOk = JS.invoke(support, "pixelBoxStyles").truthy();
+
+    if (!pixelBoxStylesOk && retIsNumNonPx && JS.regexTest(rboxStyle, name)) {
+      JsValue width = style["width"];
+      JsValue minWidth = style["minWidth"];
+      JsValue maxWidth = style["maxWidth"];
+
+      style["minWidth"] = ret;
+      style["maxWidth"] = ret;
+      style["width"] = ret;
+      ret = computed["width"];
+
+      style["width"] = width;
+      style["minWidth"] = minWidth;
+      style["maxWidth"] = maxWidth;
+    }
+  }
+
+  if (!JS.isUndefined(ret)) {
+    return JS.string(ret);
+  }
+  return ret;
+}

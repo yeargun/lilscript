@@ -1,0 +1,21 @@
+Regex sale = new Regex("sale", "i");
+Regex fresh = new Regex("new", "i");
+Regex featured = new Regex("featured", "i");
+Regex limited = new Regex("limited offer", "i");
+
+int hits = 0;
+for (int index = 0; index < 20000; index++) {
+    if (sale.test("SUMMER SALE")) {
+        hits++;
+    }
+    if (fresh.test("brand new")) {
+        hits++;
+    }
+    if (featured.test("ordinary")) {
+        hits++;
+    }
+    if (limited.test("limited offer")) {
+        hits++;
+    }
+}
+print(hits);

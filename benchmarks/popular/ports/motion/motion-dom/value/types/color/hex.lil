@@ -1,0 +1,45 @@
+import { RGBA } from "../types";
+import { ValueType } from "../types";
+import { rgba } from "./rgba";
+import { isColorString } from "./utils";
+import { stringSubstring } from "../../../string-host";
+
+extern int parseInt(string v, int radix = 10);
+
+RGBA parseHex(string v) {
+  string r = "";
+  string g = "";
+  string b = "";
+  string a = "";
+  if (v.length > 5) {
+    r = stringSubstring(v, 1, 3);
+    g = stringSubstring(v, 3, 5);
+    b = stringSubstring(v, 5, 7);
+    a = stringSubstring(v, 7, 9);
+  } else {
+    r = stringSubstring(v, 1, 2);
+    g = stringSubstring(v, 2, 3);
+    b = stringSubstring(v, 3, 4);
+    a = stringSubstring(v, 4, 5);
+    r = r + r;
+    g = g + g;
+    b = b + b;
+    a = a + a;
+  }
+  float alpha = 1.0;
+  if (a.length > 0) {
+    alpha = parseInt(a, 16) / 255.0;
+  }
+  return new RGBA(parseInt(r, 16), parseInt(g, 16), parseInt(b, 16), alpha);
+}
+
+export ValueType hex = new ValueType(
+  isColorString("#"),
+  (JsValue v) => {
+    if (v is string) {
+      return parseHex(v);
+    }
+    return new RGBA();
+  },
+  rgba.transform
+);

@@ -1,0 +1,4 @@
+export bool acceptData(JsValue owner) {
+  float n = JS.number(JS.and(owner, owner["nodeType"]));
+  return n == 1.0 || n == 9.0 || n != n || n == 0.0;
+}

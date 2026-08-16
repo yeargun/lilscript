@@ -12,4 +12,5 @@ runPassAblation({
       "disabled.js",
     ],
   ],
+  gateMetric: "brotli",
 });

@@ -5,7 +5,7 @@ function score(limit) {
     let inner = 0;
     while (inner < 4) {
       if (((outer + inner | 0) % 2 | 0) === 0) {
-        total = total + Math.imul(outer, inner) | 0;
+        total = total + (outer * inner | 0) | 0;
       } else {
         total = total + 1 | 0;
       }

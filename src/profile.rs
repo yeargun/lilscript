@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, VecDeque};
 
-use ahash::AHashSet;
+use crate::stable_hash::StableHashSet as AHashSet;
 use serde::{Deserialize, Serialize};
 
 use crate::codegen_ir_js::{ControlFlowSpelling, IrJsOptions};
@@ -280,7 +280,7 @@ fn blocks_until_exit(
     start: BlockId,
     exit: BlockId,
 ) -> AHashSet<BlockId> {
-    let mut blocks = AHashSet::new();
+    let mut blocks = AHashSet::default();
     let mut queue = VecDeque::from([start]);
     while let Some(block) = queue.pop_front() {
         if block == exit || !blocks.insert(block) {

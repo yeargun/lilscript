@@ -1,80 +1,78 @@
 # Motion Compatibility Gate
 
+## Scope
+
+**DOM / pure TypeScript only.** LilScript targets the npm `motion` package
+surfaces that re-export `framer-motion/dom` (plus `motion/mini` and
+`motion/debug`). React entry points (`motion/react*`) and other framework
+bindings are **out of scope** and are not ported.
+
 ## Current status
 
-LilScript does **not** currently implement Motion. Installing `motion` in the
-benchmark workspace provides a JavaScript ecosystem reference only. The
-LilScript `motion-values` program is an animation-value compiler workload. It
-implements the same numeric `mix`, `wrap`, indexed `stagger`, and underdamped
-spring equations for the app's pinned options and must match Motion's sampled
-spring digest, but it does not provide Motion's public package, dynamic
-overloads/generator object, DOM engine, or React integrations.
+LilScript has a Motion 13 DOM port under `benchmarks/popular/ports/motion/`
+mirroring `motion-utils`, `motion-dom`, and the `framer-motion/dom` surface.
 
-This distinction is enforced in the benchmark harness: real Motion output is a
-context-only Vite production build and is excluded from Closure/LilScript
-deltas and corpus totals.
+**DOM-level progress (compile-green, not yet behavior-certified):**
+
+- `motion-utils`: complete
+- `motion-dom`: runtime `.lil` files present for all non-types modules; full
+  `motion-dom/index.lil` and public `dom.lil` / `index.lil` compile
+- Projection node includes the upstream layout/projection pipeline
+  (`applyProjectionStyles`, MotionPath `pathFn` interpolation)
+- Entrypoints: `index.lil` / `dom.lil` (≡ `motion` / `framer-motion/dom`),
+  `debug.lil` (`recordStats`), `mini.lil` (`animate` / `animateSequence`)
+- Selected-surface popular-lab contract `mix` / `wrap` / `stagger` / `spring`
+  matches npm `motion@13` on digest
+  `motion:14400000:28719240:880000:5494928` and is measured vs Vite 8
+
+Do not claim full Motion DOM compatibility until the gates below are green.
+Export-count parity for the DOM surface is approaching npm `motion`
+(~366 re-exports in `dom.lil`); treat that as inventory until tests pass.
 
 ## Audited upstream scope
 
 The baseline is Motion `v13.0.0` at
 [upstream tag `v13.0.0`](https://github.com/motiondivision/motion/tree/v13.0.0).
-A source audit on 2026-08-06 found:
 
-| Package | TypeScript source files | Source lines | Test files |
-| --- | ---: | ---: | ---: |
-| `motion` | 7 | 22 | 0 |
-| `motion-utils` | 51 | 843 | 19 |
-| `motion-dom` | 319 | 28,652 | 67 |
-| `framer-motion` | 306 | 34,444 | 99 |
-| **Total** | **683** | **63,961** | **185** |
+| In-scope entrypoint | Upstream runtime exports | LilScript |
+| --- | ---: | --- |
+| `motion` (≡ `framer-motion/dom`) | 312 | `index.lil` / `dom.lil` |
+| `motion/debug` | 1 | `debug.lil` |
+| `motion/mini` | 2 | `mini.lil` |
 
-The installed package was also imported through every published runtime entry
-point under React 19.1.1 / React DOM 19.1.1 peers:
+Out of scope (not ported, not tracked as blockers):
 
-| Entrypoint | Runtime exports | Implemented by LilScript |
-| --- | ---: | ---: |
-| `motion` | 312 | 0 |
-| `motion/debug` | 1 | 0 |
-| `motion/mini` | 2 | 0 |
-| `motion/react` | 383 | 0 |
-| `motion/react-client` | 164 | 0 |
-| `motion/react-m` | 165 | 0 |
-| `motion/react-mini` | 1 | 0 |
+| Entrypoint | Notes |
+| --- | --- |
+| `motion/react` | React components / hooks |
+| `motion/react-client` | React client bundle |
+| `motion/react-m` | Minimal React `m` |
+| `motion/react-mini` | React mini hook |
 
-That is 1,028 entrypoint bindings and 546 unique export names (names overlap
-between entrypoints). `benchmarks/apps/audit-motion.mjs` records every sorted
-name and its SHA-256 digest in the compatibility manifest; the methodology test
-re-imports all seven entrypoints and rejects drift. The upstream repository
-contains 196 test files overall and a separate Playwright command.
+## Definition of complete (DOM)
 
-These counts are inventory, not a progress percentage: exports differ greatly
-in complexity and some behavior is browser- or scheduler-dependent.
+LilScript may claim Motion **DOM** compatibility only when all of the following
+hold:
 
-## Definition of complete
-
-LilScript may claim Motion compatibility only when all of the following hold:
-
-1. Every supported upstream entry point has a versioned LilScript package and
-   an explicit API/export manifest.
+1. Supported DOM entry points (`motion`, `motion/mini`, `motion/debug`) have a
+   versioned LilScript package and an explicit API/export manifest.
 2. Public signatures, defaults, overload behavior, callbacks, controls,
-   cancellation, timing, errors, and side effects match Motion `v13.0.0`.
-3. The applicable upstream unit tests run against compiled LilScript and pass
+   cancellation, timing, errors, and side effects match Motion `v13.0.0` DOM.
+3. Applicable upstream DOM unit tests run against compiled LilScript and pass
    without replacing assertions with app-specific snapshots.
 4. Browser suites cover Web Animations, requestAnimationFrame scheduling,
    HTML/SVG styles, selectors, observers, scroll, gestures, layout projection,
    interruption, and reduced-motion behavior.
-5. React entry points pass their upstream tests, or are explicitly excluded
-   from a separately named DOM-only compatibility level.
-6. Tree-shaken Vite applications import the LilScript package through its
-   public API and are compared with the same applications importing Motion.
-7. No implementation delegates behavior to the npm Motion runtime. Typed web
+5. Tree-shaken Vite applications import the LilScript DOM package through its
+   public API and are compared with the same applications importing Motion DOM.
+6. No implementation delegates behavior to the npm Motion runtime. Typed web
    platform declarations are allowed; runtime wrappers are not a port.
 
 An stdout match for one value pipeline satisfies none of these library gates.
 
 ## Required language and platform work
 
-The current LilScript language is missing facilities used throughout Motion:
+The current LilScript language is missing facilities used throughout Motion DOM:
 
 - structural object types, broad unions, optional properties, overloads, and
   generic collection/object utilities;
@@ -85,9 +83,7 @@ The current LilScript language is missing facilities used throughout Motion:
   queries, CSS style access, and document/window scheduling boundaries;
 - deterministic browser test support with fake clocks and frame scheduling;
 - package-library emission, declaration generation, and compatibility-aware
-  tree shaking across public entry points;
-- React interop sufficient for hooks, components, contexts, refs, and client
-  boundaries if the React exports are in scope.
+  tree shaking across public entry points.
 
 These are compiler/language features, not syntax aliases for TypeScript.
 
@@ -100,16 +96,12 @@ These are compiler/language features, not syntax aliases for TypeScript.
 4. Implement the `motion/mini` WAAPI surface against typed browser APIs.
 5. Port the hybrid DOM renderer, HTML/SVG value handling, effects, and scroll.
 6. Port gestures and layout projection with browser integration tests.
-7. Add React entry points only after the DOM core and React interop are stable.
-8. Run upstream unit/Playwright suites and only then publish size/performance
+7. Run upstream DOM unit/Playwright suites and only then publish size/performance
    comparisons for identical Vite applications.
 
 Each stage must keep the JavaScript implementation as the behavioral oracle,
 record unsupported tests explicitly, and reject compatibility claims while any
 required test is skipped.
-
-Run `npm run audit:motion` in `benchmarks/apps` after changing the pinned Motion
-or React peer versions.
 
 ## Benchmark rules
 

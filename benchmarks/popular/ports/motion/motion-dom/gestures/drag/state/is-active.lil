@@ -1,0 +1,15 @@
+export class DraggingAxes {
+  bool x;
+  bool y;
+
+  init() {
+    this.x = false;
+    this.y = false;
+  }
+}
+
+export DraggingAxes isDragging = new DraggingAxes();
+
+export bool isDragActive() {
+  return isDragging.x || isDragging.y;
+}

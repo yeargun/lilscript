@@ -1,0 +1,1 @@
+let $=[3,4];$=$[0]+$[1];console.log(42);console.log($+6);console.log($+13)

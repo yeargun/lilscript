@@ -1,0 +1,3 @@
+import { recordStats } from "./motion-dom/stats/index";
+
+export { recordStats };

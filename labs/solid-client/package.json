@@ -1,0 +1,55 @@
+{
+  "name": "lilscript-solid-lab",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "npm@11.6.2",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "setup": "npm run setup:compiler && npm run setup:upstream",
+    "setup:compiler": "node tooling/ensure-compiler.mjs",
+    "setup:upstream": "node tooling/setup-upstream.mjs",
+    "dev": "vite --mode lilscript",
+    "dev:lilscript": "vite --mode lilscript",
+    "dev:solid": "vite --mode solid",
+    "build": "node scripts/build-all.mjs",
+    "verify:modes": "node scripts/verify-build-modes.mjs",
+    "build:lilscript": "vite build --mode lilscript",
+    "build:solid": "vite build --mode solid",
+    "build:lsx": "vite build --mode lsx-solid && vite build --mode lsx-lilscript",
+    "check": "npm run lint && npm run test && npm run test:lilx && npm run test:compat && npm run test:upstream && npm run test:upstream:candidate && npm run test:lifecycle && npm run build && npm run verify && npm run verify:web && npm run verify:store && npm run audit:api && npm run audit:lsx && npm run benchmark && npm run publish:web",
+    "lint": "eslint . && prettier --check . && node tooling/lint-lilscript.mjs",
+    "lint:fix": "eslint . --fix && prettier --write .",
+    "test": "vitest run",
+    "test:lilx": "node --test tests/lilx.test.mjs && vitest run --config vitest.lsx.config.js",
+    "test:compat": "node scripts/test-compat.mjs",
+    "test:upstream": "node scripts/test-upstream.mjs",
+    "test:upstream:candidate": "node scripts/test-upstream-candidate.mjs",
+    "test:lifecycle": "node scripts/verify-lifecycle.mjs",
+    "verify": "node scripts/verify-built.mjs",
+    "verify:web": "node scripts/verify-web-surface.mjs",
+    "verify:store": "node scripts/verify-store-surface.mjs",
+    "audit:api": "node scripts/audit-api-parity.mjs",
+    "audit:lsx": "node scripts/audit-lsx-parity.mjs",
+    "parity:api": "node scripts/audit-api-parity.mjs --strict",
+    "parity:lsx": "node scripts/audit-lsx-parity.mjs --strict",
+    "analyze:core": "node scripts/analyze-core-subsets.mjs --individual",
+    "publish:web": "node scripts/publish-web-evidence.mjs",
+    "benchmark": "node scripts/benchmark.mjs",
+    "compare": "npm run build && npm run verify && npm run benchmark"
+  },
+  "dependencies": {
+    "solid-js": "1.9.13"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint": "10.8.0",
+    "google-closure-compiler": "20260803.0.0",
+    "prettier": "3.9.6",
+    "vite": "8.2.0",
+    "vite-plugin-solid": "2.11.14",
+    "vitest": "4.1.10"
+  }
+}

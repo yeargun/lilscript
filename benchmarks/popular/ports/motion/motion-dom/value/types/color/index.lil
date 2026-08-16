@@ -1,0 +1,64 @@
+import { HSLA, RGBA, ValueType } from "../types";
+import { hex } from "./hex";
+import { hsla } from "./hsla";
+import { rgba } from "./rgba";
+import { isHslaShape, isRgbaShape, hslaFromJs, rgbaFromJs } from "./shape";
+
+bool colorTest(JsValue v) {
+  return rgba.test(v) || hex.test(v) || hsla.test(v);
+}
+
+JsValue colorParse(JsValue v) {
+  if (rgba.test(v)) {
+    return rgba.parse(v);
+  } else if (hsla.test(v)) {
+    return hsla.parse(v);
+  } else {
+    return hex.parse(v);
+  }
+}
+
+JsValue colorTransform(JsValue v) {
+  if (v is string) {
+    return v;
+  }
+  if (isRgbaShape(v)) {
+    (func(JsValue)->JsValue)? transform = rgba.transform;
+    if (transform != null) {
+      return transform(v);
+    }
+  }
+  if (isHslaShape(v)) {
+    (func(JsValue)->JsValue)? transform = hsla.transform;
+    if (transform != null) {
+      return transform(v);
+    }
+  }
+  return v;
+}
+
+JsValue colorGetAnimatableNone(JsValue v) {
+  JsValue parsed = colorParse(v);
+  if (isRgbaShape(parsed)) {
+    RGBA color = rgbaFromJs(parsed);
+    color.alpha = 0.0;
+    return colorTransform(color);
+  }
+  if (isHslaShape(parsed)) {
+    HSLA color = hslaFromJs(parsed);
+    color.alpha = 0.0;
+    return colorTransform(color);
+  }
+  return parsed;
+}
+
+export ValueType color = new ValueType(
+  colorTest,
+  colorParse,
+  colorTransform,
+  null,
+  null,
+  colorGetAnimatableNone
+);
+
+export { hex, hsla, rgba };

@@ -1,0 +1,69 @@
+import { getAsType } from "../../../value/types/utils/get-as-type";
+import { numberValueTypes } from "../../../value/types/maps/number";
+import { transformProps } from "../../utils/keys-transform";
+import { isCSSVariableName } from "../../../animation/utils/is-css-variable";
+import { buildTransform } from "./build-transform";
+
+export void buildHTMLStyles(
+  JsValue state,
+  JsValue latestValues,
+  JsValue? transformTemplate = null
+) {
+  JsValue style = state["style"];
+  JsValue vars = state["vars"];
+  JsValue transformOrigin = state["transformOrigin"];
+  bool hasTransform = false;
+  bool hasTransformOrigin = false;
+  for (string key in latestValues) {
+    JsValue value = latestValues[key];
+    if (transformProps.has(key)) {
+      hasTransform = true;
+      continue;
+    } else if (isCSSVariableName(key)) {
+      vars[key] = value;
+      continue;
+    } else {
+      JsValue valueAsType = getAsType(value, numberValueTypes.get(key));
+      if (key.startsWith("origin")) {
+        hasTransformOrigin = true;
+        transformOrigin[key] = valueAsType;
+      } else {
+        style[key] = valueAsType;
+      }
+    }
+  }
+  JsValue existingTransform = latestValues["transform"];
+  bool hasExplicitTransform =
+    (existingTransform is float) ||
+    (existingTransform is string) ||
+    (existingTransform is bool) ||
+    existingTransform.isArray() ||
+    (existingTransform.isObject() && existingTransform.truthy());
+  if (!hasExplicitTransform) {
+    if (hasTransform || transformTemplate != null) {
+      JsValue transformBag = state["transform"];
+      if (!(transformBag.isObject())) {
+        transformBag = record{};
+        state["transform"] = transformBag;
+      }
+      style["transform"] = buildTransform(latestValues, transformBag, transformTemplate);
+    } else if (style["transform"].truthy()) {
+      style["transform"] = "none";
+    }
+  }
+  if (hasTransformOrigin) {
+    JsValue originX = transformOrigin["originX"];
+    JsValue originY = transformOrigin["originY"];
+    JsValue originZ = transformOrigin["originZ"];
+    if (!(originX is float) && !(originX is string)) {
+      originX = "50%";
+    }
+    if (!(originY is float) && !(originY is string)) {
+      originY = "50%";
+    }
+    if (!(originZ is float) && !(originZ is string)) {
+      originZ = 0.0;
+    }
+    style["transformOrigin"] = `${originX} ${originY} ${originZ}`;
+  }
+}

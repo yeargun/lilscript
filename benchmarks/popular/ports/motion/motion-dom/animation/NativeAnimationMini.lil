@@ -1,0 +1,213 @@
+import { WithPromise } from "./utils/WithPromise";
+import { startWaapiAnimation } from "./waapi/start-waapi-animation-mini";
+import {
+  callFn0,
+  callFn1,
+  setProp,
+  getProp,
+  isFunction,
+  callMethod0,
+  callMethod1
+} from "../dom-host";
+
+export class NativeAnimation extends WithPromise {
+  JsValue options;
+  JsValue animation;
+  bool isStopped;
+  string state;
+  bool allowFlatten;
+  bool isPseudoElement;
+  (Map<string, JsValue>)? activeMap;
+  string activeKey;
+
+  init(
+    JsValue? options = null,
+    (Map<string, JsValue>)? activeMap = null,
+    string activeKey = ""
+  ) {
+    super();
+    this.options = options;
+    this.animation = null;
+    this.isStopped = false;
+    this.state = "idle";
+    this.allowFlatten = false;
+    this.isPseudoElement = false;
+    this.activeMap = activeMap;
+    this.activeKey = activeKey;
+    if (options != null && options.isObject()) {
+      JsValue typeVal = options["type"];
+      if (typeVal is string) {
+        this.notifyFinished();
+        return;
+      }
+      JsValue element = options["element"];
+      string nameStr = "";
+      JsValue name = options["name"];
+      if (name is string) {
+        nameStr = name;
+      }
+      JsValue keyframes = options["keyframes"];
+      string? pseudo = null;
+      JsValue pseudoElement = options["pseudoElement"];
+      if (pseudoElement is string) {
+        pseudo = pseudoElement;
+        this.isPseudoElement = true;
+      }
+      JsValue allowFlattenVal = options["allowFlatten"];
+      if (allowFlattenVal is bool) {
+        this.allowFlatten = allowFlattenVal;
+      }
+      this.animation = startWaapiAnimation(element, nameStr, keyframes, options, pseudo);
+      this.state = "running";
+      JsValue autoplay = options["autoplay"];
+      if (autoplay is bool && autoplay == false) {
+        this.pause();
+      }
+      NativeAnimation selfFinish = this;
+      setProp(this.animation, "onfinish", () => {
+        selfFinish.onAnimationFinish();
+      });
+    } else {
+      this.notifyFinished();
+    }
+  }
+
+  void onAnimationFinish() {
+    this.clearActive();
+    JsValue options = this.options;
+    if (options.truthy() && options.isObject() && !this.isPseudoElement) {
+      JsValue keyframes = options["keyframes"];
+      JsValue keyframe = null;
+      if (keyframes.isArray() && keyframes.length.toInt() > 0) {
+        keyframe = keyframes[keyframes.length.toInt() - 1];
+      }
+      JsValue element = options["element"];
+      JsValue name = options["name"];
+      if (element.truthy() && (name is string) && keyframe.truthy()) {
+        JsValue style = element["style"];
+        if (style.truthy()) {
+          setProp(style, name, `${keyframe}`);
+        }
+      }
+      this.cancel();
+    }
+    if (options.truthy() && options.isObject()) {
+      JsValue onComplete = options["onComplete"];
+      if (isFunction(onComplete)) {
+        callFn0(onComplete);
+      }
+    }
+    this.state = "finished";
+    this.notifyFinished();
+  }
+
+  void cancel() {
+    JsValue anim = this.animation;
+    if (anim.truthy() && isFunction(getProp(anim, "cancel"))) {
+      callMethod0(anim, "cancel");
+    }
+  }
+
+  void stop() {
+    if (this.isStopped) {
+      return;
+    }
+    this.isStopped = true;
+    this.clearActive();
+    if (this.state == "idle" || this.state == "finished") {
+      return;
+    }
+    JsValue anim = this.animation;
+    if (!this.isPseudoElement && anim.truthy() && isFunction(getProp(anim, "commitStyles"))) {
+      callMethod0(anim, "commitStyles");
+    }
+    if (!this.isPseudoElement) {
+      this.cancel();
+    }
+    this.state = "idle";
+    this.notifyFinished();
+  }
+
+  void clearActive() {
+    Map<string, JsValue>? map = this.activeMap;
+    if (map != null) {
+      map.delete(this.activeKey);
+      this.activeMap = null;
+    }
+  }
+
+  void pause() {
+    JsValue anim = this.animation;
+    if (anim.truthy() && isFunction(getProp(anim, "pause"))) {
+      callMethod0(anim, "pause");
+    }
+    this.state = "paused";
+  }
+
+  void play() {
+    if (this.isStopped) {
+      return;
+    }
+    JsValue anim = this.animation;
+    if (anim.truthy() && isFunction(getProp(anim, "play"))) {
+      callMethod0(anim, "play");
+    }
+    this.state = "running";
+  }
+
+  func()->void attachTimeline(JsValue timelineOptions) {
+    JsValue observe = null;
+    if (timelineOptions.isObject()) {
+      observe = timelineOptions["observe"];
+    }
+    JsValue anim = this.animation;
+    if (this.allowFlatten && anim.truthy()) {
+      JsValue effect = anim["effect"];
+      if (effect.truthy() && isFunction(getProp(effect, "updateTiming"))) {
+        callMethod1(effect, "updateTiming", record{ easing: "linear" });
+      }
+    }
+    if (anim.truthy()) {
+      setProp(anim, "onfinish", null);
+    }
+    if (isFunction(observe)) {
+      // Keep the mini controller small during normal animation, but provide the
+      // playback surface scroll() needs only when a timeline is attached.
+      float iterationDuration = 0.3;
+      if (anim.truthy()) {
+        JsValue effect = anim["effect"];
+        if (effect.truthy() && isFunction(getProp(effect, "getComputedTiming"))) {
+          JsValue timing = callMethod0(effect, "getComputedTiming");
+          JsValue duration = timing["duration"];
+          if (duration is float) {
+            iterationDuration = duration / 1000.0;
+          }
+        }
+      }
+      JsValue options = this.options;
+      if (options.truthy() && options.isObject()) {
+        JsValue delay = options["delay"];
+        if (delay is float) {
+          iterationDuration = iterationDuration + delay / 1000.0;
+        }
+      }
+      NativeAnimation selfTimeline = this;
+      JsValue valueAnimation = record{ iterationDuration: iterationDuration };
+      setProp(valueAnimation, "pause", () => {
+        selfTimeline.pause();
+      });
+      setProp(valueAnimation, "setPlaybackTime", (JsValue time) => {
+        if (time is float && selfTimeline.animation.truthy()) {
+          setProp(selfTimeline.animation, "currentTime", time * 1000.0);
+        }
+      });
+      JsValue cancel = callFn1(observe, valueAnimation);
+      return () => {
+        if (isFunction(cancel)) {
+          callFn0(cancel);
+        }
+      };
+    }
+    return () => {};
+  }
+}

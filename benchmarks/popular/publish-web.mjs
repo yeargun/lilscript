@@ -1,39 +1,93 @@
+import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { objectiveSizeGate } from "./objective-gate.mjs";
 
 const labRoot = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(labRoot, "../..");
 const manifest = JSON.parse(
   readFileSync(join(labRoot, "compatibility/libraries.json"), "utf8"),
 );
-const packageJson = JSON.parse(readFileSync(join(labRoot, "package.json"), "utf8"));
-const measured = JSON.parse(readFileSync(join(labRoot, "build/results.json"), "utf8"));
+const packageJson = JSON.parse(
+  readFileSync(join(labRoot, "package.json"), "utf8"),
+);
+const measured = JSON.parse(
+  readFileSync(join(labRoot, "build/results.json"), "utf8"),
+);
 const performance = JSON.parse(
   readFileSync(join(labRoot, "build/performance-memory.json"), "utf8"),
 );
+const sizeEvidenceBytes = readFileSync(join(labRoot, "build/results.json"));
 
 const materialRegressionLimit = 1.05;
+
+const primaryMeasuredRows = measured.filter((row) => !row.external);
+assert.ok(primaryMeasuredRows.length > 0, "popular report needs measured rows");
+const canonicalCodecs = primaryMeasuredRows[0].codecs;
+const compilerEvidence = primaryMeasuredRows[0].compiler;
+assert.equal(canonicalCodecs?.implementation, "lilscript-codec");
+assert.equal(canonicalCodecs?.schemaVersion, 1);
+assert.match(canonicalCodecs?.scorer?.sha256 ?? "", /^[a-f0-9]{64}$/);
+assert.match(compilerEvidence?.sha256 ?? "", /^[a-f0-9]{64}$/);
+for (const row of primaryMeasuredRows) {
+  assert.deepEqual(row.codecs, canonicalCodecs, `${row.id} codec provenance`);
+  assert.deepEqual(
+    row.compiler,
+    compilerEvidence,
+    `${row.id} compiler provenance`,
+  );
+  assert.equal(row.costModel, "brotli", `${row.id} objective`);
+  assert.equal(
+    row.objectiveContract?.gateMetric,
+    "brotli",
+    `${row.id} objective gate`,
+  );
+  assert.equal(
+    row.objectiveContract?.artifact,
+    "lilscriptVite",
+    `${row.id} objective artifact`,
+  );
+}
+assert.equal(performance.schemaVersion, 1, "popular performance schema");
+assert.equal(performance.runtimeObjective, "brotli");
+assert.deepEqual(performance.codecs, canonicalCodecs, "performance codecs");
+assert.deepEqual(
+  performance.compiler,
+  compilerEvidence,
+  "performance compiler",
+);
+assert.equal(
+  performance.sizeEvidence?.sha256,
+  createHash("sha256").update(sizeEvidenceBytes).digest("hex"),
+  "performance evidence must bind the current size report",
+);
 const targets = new Map(manifest.targets.map((target) => [target.id, target]));
 const commit = execFileSync("git", ["rev-parse", "--short", "HEAD"], {
   cwd: repoRoot,
   encoding: "utf8",
 }).trim();
-const dirty = execFileSync("git", ["status", "--porcelain"], {
-  cwd: repoRoot,
-  encoding: "utf8",
-}).trim().length > 0;
+const dirty =
+  execFileSync("git", ["status", "--porcelain"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+  }).trim().length > 0;
 
-const results = measured.map((measuredRow) => {
+const selectedResults = measured.map((measuredRow) => {
   let row = measuredRow;
   let solidPerformance = null;
   let externalCompatibilityNotes = null;
   const rowSource = row.source
-    ? (isAbsolute(row.source) ? row.source : join(repoRoot, row.source))
+    ? isAbsolute(row.source)
+      ? row.source
+      : join(repoRoot, row.source)
     : null;
   if (row.id === "solid-js" && rowSource && existsSync(rowSource)) {
     const sizeReport = JSON.parse(readFileSync(rowSource, "utf8"));
+    const evidenceStatus =
+      sizeReport.evidence?.status ?? row.evidenceStatus ?? "external-current";
     const normalize = (size) => ({
       raw: size.raw,
       gzip: size.gzip9 ?? size.gzip,
@@ -44,9 +98,17 @@ const results = measured.map((measuredRow) => {
       vite: normalize(sizeReport.sizes["solid-todolist"]),
       lilscriptVite: normalize(sizeReport.sizes["solidlil-todolist"]),
       comparisons: sizeReport.comparisons?.todolistLilx ?? row.comparisons,
+      evidenceStatus,
     };
+    if (evidenceStatus === "archived-external-snapshot") {
+      externalCompatibilityNotes =
+        "Archived sibling-worktree LSX application snapshot; the parser, lowerer, Vite transform, and feature ledger are integrated, but the todolist and its gates are not yet reproducible from labs/solid-client. Runtime-only SolidLil evidence is verified separately.";
+    }
     const performancePath = join(dirname(rowSource), "performance-report.json");
-    if (existsSync(performancePath)) {
+    if (
+      existsSync(performancePath) &&
+      evidenceStatus !== "archived-external-snapshot"
+    ) {
       const report = JSON.parse(readFileSync(performancePath, "utf8"));
       solidPerformance = {
         performance: {
@@ -80,22 +142,15 @@ const results = measured.map((measuredRow) => {
   const target = targets.get(row.id);
   if (!target) throw new Error(`missing compatibility target for ${row.id}`);
   const runtime = performance.results[row.id] ?? solidPerformance;
-  const performanceGate = runtime
-    && runtime.performance.ratio != null
-    && runtime.retainedMemory.ratio != null
-    ? runtime.performance.ratio <= materialRegressionLimit &&
-      runtime.retainedMemory.ratio <= materialRegressionLimit
-    : null;
-  const exactSurface =
-    target.status.startsWith("exact-");
-  const sizeGate = row.vite && row.lilscriptVite
-    ? row.lilscriptVite.raw <= Math.min(row.vite.raw, row.closure.raw) &&
-      row.lilscriptVite[row.costModel ?? "brotli"] <=
-        Math.min(
-          row.vite[row.costModel ?? "brotli"],
-          row.closure[row.costModel ?? "brotli"],
-        )
-    : null;
+  const performanceGate =
+    runtime &&
+    runtime.performance.ratio != null &&
+    runtime.retainedMemory.ratio != null
+      ? runtime.performance.ratio <= materialRegressionLimit &&
+        runtime.retainedMemory.ratio <= materialRegressionLimit
+      : null;
+  const exactSurface = target.status.startsWith("exact-");
+  const sizeGate = objectiveSizeGate(row);
   return {
     ...row,
     status: target.status,
@@ -115,7 +170,55 @@ const results = measured.map((measuredRow) => {
   };
 });
 
+const supplementalCandidatePaths = [join(labRoot, "build/jquery-results.json")];
+const supplementalCandidates = supplementalCandidatePaths
+  .filter((candidatePath) => existsSync(candidatePath))
+  .map((candidatePath) => JSON.parse(readFileSync(candidatePath, "utf8")))
+  .filter(
+    (candidate) => !selectedResults.some((row) => row.id === candidate.id),
+  )
+  .map((candidate) => {
+    const canonical =
+      candidate.schemaVersion === 1 &&
+      JSON.stringify(candidate.codecs) === JSON.stringify(canonicalCodecs) &&
+      candidate.compiler?.sha256 === compilerEvidence.sha256 &&
+      /^[a-f0-9]{64}$/.test(candidate.compiler?.configSha256 ?? "") &&
+      candidate.objectiveContract?.gateMetric === "brotli";
+    if (canonical) return candidate;
+    return {
+      ...candidate,
+      evidenceStatus: "historical-noncanonical",
+      codecs: null,
+      compiler: null,
+      rawJs: null,
+      terser: null,
+      closure: null,
+      vite: null,
+      lilscript: null,
+      lilscriptVite: null,
+      libraryArtifacts: null,
+      objectiveContract: {
+        gateMetric: null,
+        scope:
+          "stale candidate retained without byte claims until measure-jquery.mjs is rerun with the current compiler/scorer pair",
+      },
+    };
+  });
+for (const candidate of supplementalCandidates) {
+  if (
+    candidate.eligible !== false ||
+    candidate.exactSurface !== false ||
+    !candidate.status?.startsWith("candidate-")
+  ) {
+    throw new Error(
+      `supplemental ${candidate.id} must remain an explicitly ineligible candidate`,
+    );
+  }
+}
+const results = [...selectedResults, ...supplementalCandidates];
+
 const report = {
+  schemaVersion: 2,
   metadata: {
     generatedAt: new Date().toISOString(),
     compilerRevision: `${commit}${dirty ? "-dirty" : ""}`,
@@ -125,7 +228,19 @@ const report = {
     terser: packageJson.devDependencies.terser,
     closure: packageJson.devDependencies["google-closure-compiler"],
     performanceRounds: performance.rounds,
+    runtimeObjective: performance.runtimeObjective ?? "brotli",
+    runtimeConfig: performance.runtimeConfig ?? "lilscript.toml",
     materialRegressionLimit,
+    codecs: canonicalCodecs,
+    compiler: compilerEvidence,
+    objectiveContract: {
+      candidateArtifact: "lilscriptVite",
+      baselineArtifacts: ["vite", "closure"],
+      gateMetric: "brotli",
+      matchingArtifactOnly: true,
+      crossMetricsAreDiagnostic: ["raw", "gzip"],
+      appliesToRows: primaryMeasuredRows.map(({ id }) => id),
+    },
   },
   eligibilityRule: manifest.eligibilityRule,
   results,
@@ -135,65 +250,6 @@ writeFileSync(
   join(repoRoot, "web/src/popular-library-results.json"),
   `${JSON.stringify(report, null, 2)}\n`,
 );
-
-const solidResult = measured.find((row) => row.id === "solid-js");
-const solidSource = solidResult?.source
-  ? (isAbsolute(solidResult.source) ? solidResult.source : join(repoRoot, solidResult.source))
-  : null;
-if (solidSource && existsSync(solidSource)) {
-  const performancePath = join(dirname(solidSource), "performance-report.json");
-  const clientRuntimePath = join(repoRoot, "web/src/client-runtime-results.json");
-  if (existsSync(performancePath) && existsSync(clientRuntimePath)) {
-    const sizeReport = JSON.parse(readFileSync(solidSource, "utf8"));
-    const performanceReport = JSON.parse(readFileSync(performancePath, "utf8"));
-    const clientRuntime = JSON.parse(readFileSync(clientRuntimePath, "utf8"));
-    const sizeSources = {
-      "solid-todolist": "solid-todolist",
-      "solidlil-lsx": "solidlil-todolist",
-      "solidlil-babel": "solidlil-babel-todolist",
-      "solid-core": "solid-core-min",
-      "solidlil-core": "solidlil-core-min",
-    };
-    const solidRoot = dirname(solidSource);
-    const solidRevision = execFileSync("git", ["rev-parse", "--short", "HEAD"], {
-      cwd: solidRoot,
-      encoding: "utf8",
-    }).trim();
-    const solidDirty = execFileSync("git", ["status", "--porcelain"], {
-      cwd: solidRoot,
-      encoding: "utf8",
-    }).trim().length > 0;
-    clientRuntime.sourceRevision = `${solidRevision}${solidDirty ? "-dirty" : ""}`;
-    clientRuntime.compilerRevision = report.metadata.compilerRevision;
-    clientRuntime.sizes = clientRuntime.sizes.map((size) => {
-      const measuredSize = sizeReport.sizes[sizeSources[size.id]];
-      return measuredSize
-        ? {
-            ...size,
-            raw: measuredSize.raw,
-            gzip: measuredSize.gzip9,
-            brotli: measuredSize.brotli11,
-          }
-        : size;
-    });
-    clientRuntime.runtime = {
-      environment: performanceReport.environment,
-      samples: performanceReport.samples,
-      memorySamples: performanceReport.memorySamples,
-      solidMedianMs: performanceReport.medians.solid.total,
-      lsxMedianMs: performanceReport.medians.solidlilLsx.total,
-      babelMedianMs: performanceReport.medians.solidlilBabel.total,
-      lsxTimeRatio: performanceReport.ratios.lsx,
-      babelTimeRatio: performanceReport.ratios.babel,
-      solidRetainedBytes: performanceReport.retainedMemory.solid,
-      lsxRetainedBytes: performanceReport.retainedMemory.solidlilLsx,
-      babelRetainedBytes: performanceReport.retainedMemory.solidlilBabel,
-      lsxMemoryRatio: performanceReport.memoryRatios.lsx,
-      babelMemoryRatio: performanceReport.memoryRatios.babel,
-    };
-    writeFileSync(clientRuntimePath, `${JSON.stringify(clientRuntime, null, 2)}\n`);
-  }
-}
 
 console.log(
   `Published ${results.length} popular-library rows (${results.filter((row) => row.eligible).length} eligible) to web/src/popular-library-results.json`,

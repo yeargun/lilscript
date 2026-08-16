@@ -1,0 +1,41 @@
+import { intType } from "../int";
+import { alpha } from "../numbers/index";
+import { px } from "../numbers/units";
+import { ValueType } from "../types";
+import { transformValueTypes } from "./transform";
+import { ValueTypeMap } from "./types";
+
+export ValueTypeMap numberValueTypes = new ValueTypeMap();
+string[] pxKeys = [
+  "borderWidth", "borderTopWidth", "borderRightWidth", "borderBottomWidth", "borderLeftWidth",
+  "borderRadius", "borderTopLeftRadius", "borderTopRightRadius", "borderBottomRightRadius", "borderBottomLeftRadius",
+  "width", "maxWidth", "height", "maxHeight", "top", "right", "bottom", "left", "inset",
+  "insetBlock", "insetBlockStart", "insetBlockEnd", "insetInline", "insetInlineStart", "insetInlineEnd",
+  "padding", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft",
+  "paddingBlock", "paddingBlockStart", "paddingBlockEnd", "paddingInline", "paddingInlineStart", "paddingInlineEnd",
+  "margin", "marginTop", "marginRight", "marginBottom", "marginLeft",
+  "marginBlock", "marginBlockStart", "marginBlockEnd", "marginInline", "marginInlineStart", "marginInlineEnd",
+  "fontSize", "backgroundPositionX", "backgroundPositionY"
+];
+int i = 0;
+while (i < pxKeys.length) {
+  numberValueTypes.set(pxKeys[i], px);
+  i = i + 1;
+}
+string[] transformKeys = [
+  "rotate", "pathRotation", "rotateX", "rotateY", "rotateZ", "scale", "scaleX", "scaleY", "scaleZ",
+  "skew", "skewX", "skewY", "distance", "translateX", "translateY", "translateZ", "x", "y", "z",
+  "perspective", "transformPerspective", "opacity", "originX", "originY", "originZ"
+];
+i = 0;
+while (i < transformKeys.length) {
+  ValueType? t = transformValueTypes.get(transformKeys[i]);
+  if (t != null) {
+    numberValueTypes.set(transformKeys[i], t);
+  }
+  i = i + 1;
+}
+numberValueTypes.set("zIndex", intType);
+numberValueTypes.set("fillOpacity", alpha);
+numberValueTypes.set("strokeOpacity", alpha);
+numberValueTypes.set("numOctaves", intType);

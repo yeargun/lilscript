@@ -1,0 +1,9 @@
+import { isObject } from "../../motion-utils/is-object";
+import { hasOwn } from "../dom-host";
+
+export bool isSVGElement(JsValue? element = null) {
+  if (element == null) {
+    return false;
+  }
+  return isObject(element) && hasOwn(element, "ownerSVGElement");
+}

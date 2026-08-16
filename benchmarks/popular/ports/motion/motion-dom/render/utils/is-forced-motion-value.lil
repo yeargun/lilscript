@@ -1,0 +1,18 @@
+import { transformProps } from "./keys-transform";
+
+export bool isForcedMotionValue(string key, JsValue options) {
+  if (transformProps.has(key)) {
+    return true;
+  }
+  if (key.startsWith("origin")) {
+    return true;
+  }
+  bool layout = options["layout"].truthy();
+  bool hasLayoutId = options["layoutId"].truthy();
+  if (layout || hasLayoutId) {
+    if (key == "opacity" || key == "boxShadow" || key.includes("adius") || key.includes("Radius")) {
+      return true;
+    }
+  }
+  return false;
+}

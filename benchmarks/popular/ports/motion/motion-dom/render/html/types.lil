@@ -1,0 +1,25 @@
+export class TransformOrigin {
+  JsValue? originX;
+  JsValue? originY;
+  JsValue? originZ;
+
+  init() {
+    this.originX = null;
+    this.originY = null;
+    this.originZ = null;
+  }
+}
+
+export class HTMLRenderState {
+  Record<JsValue> transform;
+  TransformOrigin transformOrigin;
+  Record<JsValue> style;
+  Record<JsValue> vars;
+
+  init() {
+    this.transform = record{};
+    this.transformOrigin = new TransformOrigin();
+    this.style = record{};
+    this.vars = record{};
+  }
+}

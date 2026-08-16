@@ -1,0 +1,408 @@
+import { SubscriptionManager } from "../../motion-utils/subscription-manager";
+import { velocityPerSecond } from "../../motion-utils/velocity-per-second";
+import { parseFloatValue, taskFromCallback, callFn0, callMethod0, isFunction, setProp, getProp } from "../dom-host";
+import { frame } from "../frameloop/index";
+import { time } from "../frameloop/sync-time";
+import { FrameData } from "../frameloop/types";
+
+float MAX_VELOCITY_DELTA = 30.0;
+
+bool isFloat(JsValue value) {
+  if (value is float) {
+    return true;
+  }
+  if (value is string) {
+    float parsed = parseFloatValue(value);
+    return parsed == parsed;
+  }
+  return false;
+}
+
+export class Owner {
+  JsValue current;
+  func()->JsValue getProps;
+
+  init(JsValue current, func()->JsValue getProps) {
+    this.current = current;
+    this.getProps = getProps;
+  }
+}
+
+export class AccelerateConfig {
+  func(JsValue)->func()->void factory;
+  float[] times;
+  JsValue[] keyframes;
+  JsValue? ease;
+  float duration;
+  bool? isTransformed;
+
+  init(
+    func(JsValue)->func()->void factory,
+    float[] times,
+    JsValue[] keyframes,
+    float duration,
+    JsValue? ease = null,
+    bool? isTransformed = null
+  ) {
+    this.factory = factory;
+    this.times = times;
+    this.keyframes = keyframes;
+    this.ease = ease;
+    this.duration = duration;
+    this.isTransformed = isTransformed;
+  }
+}
+
+export class MotionValueOptions {
+  JsValue? owner;
+
+  init(JsValue? owner = null) {
+    this.owner = owner;
+  }
+}
+
+export class CollectMotionValues {
+  MotionValue[]? current;
+
+  init() {
+    this.current = null;
+  }
+}
+
+export CollectMotionValues collectMotionValues = new CollectMotionValues();
+
+export class MotionValue {
+  JsValue? owner;
+  JsValue? current;
+  JsValue? prev;
+  JsValue? prevFrameValue;
+  float updatedAt;
+  float? prevUpdatedAt;
+  (func(JsValue, func(JsValue)->void)->void)? passiveEffect;
+  (func()->void)? stopPassiveEffect;
+  bool? isEffectActive;
+  JsValue? animation;
+  (func()->void)? stopActive;
+  bool? canTrackVelocity;
+  MotionValue[]? dependents;
+  bool? liveStyle;
+  AccelerateConfig? accelerate;
+  Map<string, SubscriptionManager> events;
+  string[] eventKeys;
+  bool hasAnimated;
+
+  init(JsValue initValue, MotionValueOptions? options = null) {
+    this.owner = null;
+    this.current = null;
+    this.prev = null;
+    this.prevFrameValue = null;
+    this.updatedAt = 0.0;
+    this.prevUpdatedAt = null;
+    this.passiveEffect = null;
+    this.stopPassiveEffect = null;
+    this.isEffectActive = null;
+    this.animation = null;
+    this.stopActive = null;
+    this.canTrackVelocity = null;
+    this.dependents = null;
+    this.liveStyle = null;
+    this.accelerate = null;
+    this.events = new Map<string, SubscriptionManager>();
+    this.eventKeys = [];
+    this.hasAnimated = false;
+    this.setCurrent(initValue);
+    if (options != null) {
+      this.owner = options.owner;
+    }
+    MotionValue self = this;
+    setProp(this, "getVelocity", () => {
+      return self.getVelocity();
+    });
+    setProp(this, "get", () => {
+      return self.get();
+    });
+  }
+
+  void setCurrent(JsValue currentValue) {
+    this.current = currentValue;
+    this.updatedAt = time.now();
+    if (this.canTrackVelocity == null) {
+      this.canTrackVelocity = isFloat(currentValue);
+    }
+  }
+
+  void setPrevFrameValue(JsValue? prevFrameValue = null) {
+    if (prevFrameValue != null) {
+      this.prevFrameValue = prevFrameValue;
+    } else {
+      this.prevFrameValue = this.current;
+    }
+    this.prevUpdatedAt = this.updatedAt;
+  }
+
+  func()->void onChange(func(JsValue?, JsValue?, JsValue?)->void subscription) {
+    return this.on("change", subscription);
+  }
+
+  func()->void on(string eventName, func(JsValue?, JsValue?, JsValue?)->void callback) {
+    SubscriptionManager? existing = this.events.get(eventName);
+    SubscriptionManager manager = new SubscriptionManager();
+    if (existing == null) {
+      this.events.set(eventName, manager);
+      if (this.eventKeys.indexOf(eventName) == -1) {
+        this.eventKeys.push(eventName);
+      }
+    } else {
+      manager = existing;
+    }
+    func()->void unsubscribe = manager.add(callback);
+    if (eventName == "change") {
+      MotionValue self = this;
+      return () => {
+        unsubscribe();
+        frame.read((FrameData _data) => {
+          SubscriptionManager? change = self.events.get("change");
+          if (change == null) {
+            self.stop();
+          } else if (change.getSize() == 0) {
+            self.stop();
+          }
+        }, false, false);
+      };
+    }
+    return unsubscribe;
+  }
+
+  void clearListeners() {
+    int i = 0;
+    while (i < this.eventKeys.length) {
+      SubscriptionManager? manager = this.events.get(this.eventKeys[i]);
+      if (manager != null) {
+        manager.clear();
+      }
+      i = i + 1;
+    }
+  }
+
+  void attach(
+    func(JsValue, func(JsValue)->void)->void passiveEffect,
+    func()->void stopPassiveEffect
+  ) {
+    this.passiveEffect = passiveEffect;
+    this.stopPassiveEffect = stopPassiveEffect;
+  }
+
+  void set(JsValue v) {
+    (func(JsValue, func(JsValue)->void)->void)? effect = this.passiveEffect;
+    if (effect == null) {
+      this.updateAndNotify(v);
+    } else {
+      MotionValue self = this;
+      effect(v, (JsValue latest) => {
+        self.updateAndNotify(latest);
+      });
+    }
+  }
+
+  void setWithVelocity(JsValue prevValue, JsValue currentValue, float delta) {
+    this.set(currentValue);
+    this.prev = null;
+    this.prevFrameValue = prevValue;
+    this.prevUpdatedAt = this.updatedAt - delta;
+  }
+
+  void jump(JsValue v, bool endAnimation = true) {
+    this.updateAndNotify(v);
+    this.prev = v;
+    this.prevUpdatedAt = null;
+    this.prevFrameValue = null;
+    if (endAnimation) {
+      this.stop();
+    }
+    (func()->void)? stopEffect = this.stopPassiveEffect;
+    if (stopEffect != null) {
+      stopEffect();
+    }
+  }
+
+  void dirty() {
+    SubscriptionManager? change = this.events.get("change");
+    if (change != null) {
+      change.notify(this.current);
+    }
+  }
+
+  void addDependent(MotionValue dependent) {
+    if (this.dependents == null) {
+      MotionValue[] emptyDeps = [];
+      this.dependents = emptyDeps;
+    }
+    MotionValue[]? deps = this.dependents;
+    if (deps != null) {
+      if (deps.indexOf(dependent) == -1) {
+        deps.push(dependent);
+      }
+    }
+  }
+
+  void removeDependent(MotionValue dependent) {
+    MotionValue[]? deps = this.dependents;
+    if (deps != null) {
+      int index = deps.indexOf(dependent);
+      if (index > -1) {
+        deps.splice(index, 1);
+      }
+    }
+  }
+
+  void updateAndNotify(JsValue v) {
+    float currentTime = time.now();
+    if (this.updatedAt != currentTime) {
+      this.setPrevFrameValue();
+    }
+    this.prev = this.current;
+    this.setCurrent(v);
+    if (this.current != this.prev) {
+      SubscriptionManager? change = this.events.get("change");
+      if (change != null) {
+        change.notify(this.current);
+      }
+      MotionValue[]? deps = this.dependents;
+      if (deps != null) {
+        int i = 0;
+        while (i < deps.length) {
+          deps[i].dirty();
+          i = i + 1;
+        }
+      }
+    }
+  }
+
+  JsValue? get() {
+    MotionValue[]? collected = collectMotionValues.current;
+    if (collected != null) {
+      collected.push(this);
+    }
+    return this.current;
+  }
+
+  JsValue? getPrevious() {
+    return this.prev;
+  }
+
+  float getVelocity() {
+    float currentTime = time.now();
+    bool? canTrack = this.canTrackVelocity;
+    if (canTrack == null) {
+      return 0.0;
+    }
+    if (!canTrack) {
+      return 0.0;
+    }
+    if (this.prevFrameValue == null) {
+      return 0.0;
+    }
+    if (currentTime - this.updatedAt > MAX_VELOCITY_DELTA) {
+      return 0.0;
+    }
+    float? prevUpdated = this.prevUpdatedAt;
+    if (prevUpdated == null) {
+      return 0.0;
+    }
+    float delta = this.updatedAt - prevUpdated;
+    if (delta > MAX_VELOCITY_DELTA) {
+      delta = MAX_VELOCITY_DELTA;
+    }
+    JsValue? currentValue = this.current;
+    JsValue? prevFrame = this.prevFrameValue;
+    if (currentValue == null || prevFrame == null) {
+      return 0.0;
+    }
+    return velocityPerSecond(
+      parseFloatValue(currentValue) - parseFloatValue(prevFrame),
+      delta
+    );
+  }
+
+  Task<bool> start(func(func()->void)->JsValue? startAnimation) {
+    this.stop();
+    MotionValue self = this;
+    return taskFromCallback((func()->void resolve) => {
+      self.hasAnimated = true;
+      JsValue? anim = startAnimation(resolve);
+      self.animation = anim;
+      if (anim != null) {
+        JsValue captured = anim;
+        self.stopActive = () => {
+          JsValue stopFn = captured["stopActive"];
+          if (isFunction(stopFn)) {
+            callFn0(stopFn);
+          }
+        };
+      }
+      SubscriptionManager? startEvt = self.events.get("animationStart");
+      if (startEvt != null) {
+        startEvt.notify();
+      }
+    }).then((bool _done) => {
+      SubscriptionManager? complete = self.events.get("animationComplete");
+      if (complete != null) {
+        complete.notify();
+      }
+      self.clearAnimation();
+      return true;
+    });
+  }
+
+  void stop() {
+    JsValue? animation = this.animation;
+    if (animation != null) {
+      JsValue stopFn = getProp(animation, "stop");
+      if (isFunction(stopFn)) {
+        callMethod0(animation, "stop");
+      } else {
+        (func()->void)? cancelActive = this.stopActive;
+        if (cancelActive != null) {
+          cancelActive();
+        }
+      }
+      SubscriptionManager? cancel = this.events.get("animationCancel");
+      if (cancel != null) {
+        cancel.notify();
+      }
+    }
+    this.clearAnimation();
+  }
+
+  bool isAnimating() {
+    return this.animation != null;
+  }
+
+  void clearAnimation() {
+    this.animation = null;
+    this.stopActive = null;
+  }
+
+  void destroy() {
+    MotionValue[] cleared = [];
+    this.dependents = cleared;
+    SubscriptionManager? destroyEvt = this.events.get("destroy");
+    if (destroyEvt != null) {
+      destroyEvt.notify();
+    }
+    this.clearListeners();
+    this.stop();
+    (func()->void)? stopEffect = this.stopPassiveEffect;
+    if (stopEffect != null) {
+      stopEffect();
+    }
+  }
+}
+
+export MotionValue motionValue(JsValue initValue, JsValue? options = null) {
+  MotionValueOptions? typed = null;
+  if (options != null) {
+    typed = new MotionValueOptions(options["owner"]);
+  }
+  return new MotionValue(initValue, typed);
+}

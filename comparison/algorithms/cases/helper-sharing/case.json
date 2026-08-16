@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "helper-sharing",
+  "title": "Inlining versus parameterized helper sharing",
+  "hypothesis": "Across a real module edge, exact codec scoring should choose between retaining the repeated affine helper and inlining its call chain as effectively as JS bundlers and minifiers.",
+  "tier": "medium-structural",
+  "boundary": "runtime-host-script",
+  "structure": { "functions": 8, "modules": 2, "hostBoundaries": 2, "callDepth": 5 },
+  "opportunities": ["inlining", "helper-sharing", "function-subsumption", "parameterized-merging"],
+  "expectations": { "raw": "le", "gzip9": "le", "brotli11": "le" },
+  "vectors": [
+    { "name": "short", "ints": [2, 4, 6, 8], "strings": [], "expected": "-68\n" },
+    { "name": "signed", "ints": [-5, 9, -2, 14, 3, -8], "strings": [], "expected": "-487\n" },
+    { "name": "sequence", "ints": [1, 1, 2, 3, 5, 8, 13, 21], "strings": [], "expected": "-806\n" },
+    { "name": "i32-extrema", "ints": [2147483647, -2147483648], "strings": [], "expected": "141\n" }
+  ]
+}

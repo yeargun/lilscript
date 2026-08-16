@@ -1,0 +1,162 @@
+import { document } from "../var/document";
+import { documentElement } from "../var/documentElement";
+import { support } from "../var/support";
+import {
+  call1,
+  windowSelf,
+  parseFloatValue,
+  parseIntRadix,
+  mathRound
+} from "../js-host.lil";
+
+JsValue container = JS.invoke(document, "createElement", "div");
+JsValue div = JS.invoke(document, "createElement", "div");
+JsValue divStyle = div["style"];
+bool hasDiv = divStyle.truthy();
+
+bool? pixelPositionVal = null;
+bool? boxSizingReliableVal = null;
+bool? scrollboxSizeVal = null;
+bool? pixelBoxStylesVal = null;
+bool? reliableMarginLeftVal = null;
+bool? reliableTrDimensionsVal = null;
+
+float roundCssMeasure(JsValue measure) {
+  return mathRound(parseFloatValue(JS.string(measure)));
+}
+
+void computeStyleTests() {
+  if (!hasDiv) {
+    return;
+  }
+
+  JsValue containerStyle = container["style"];
+  containerStyle["cssText"] = "position:absolute;left:-11111px;width:60px;margin-top:1px;padding:0;border:0";
+  divStyle["cssText"] = "position:relative;display:block;box-sizing:border-box;overflow:scroll;margin:auto;border:1px;padding:1px;width:60%;top:1%";
+
+  JsValue appendedContainer = JS.invoke(documentElement, "appendChild", container);
+  JS.invoke(appendedContainer, "appendChild", div);
+
+  JsValue win = windowSelf();
+  JsValue computed = JS.invoke(win, "getComputedStyle", div);
+
+  pixelPositionVal = !JS.strictEqual(computed["top"], "1%");
+  reliableMarginLeftVal = roundCssMeasure(computed["marginLeft"]) == 12.0;
+
+  divStyle["right"] = "60%";
+  pixelBoxStylesVal = roundCssMeasure(computed["right"]) == 36.0;
+  boxSizingReliableVal = roundCssMeasure(computed["width"]) == 36.0;
+
+  divStyle["position"] = "absolute";
+  float offsetWidth = JS.number(div["offsetWidth"]);
+  scrollboxSizeVal = mathRound(offsetWidth / 3.0) == 12.0;
+
+  JS.invoke(documentElement, "removeChild", container);
+  hasDiv = false;
+}
+
+export bool boxSizingReliable() {
+  computeStyleTests();
+  if (boxSizingReliableVal == null) {
+    return false;
+  }
+  bool value = boxSizingReliableVal;
+  return value;
+}
+
+bool pixelBoxStyles() {
+  computeStyleTests();
+  if (pixelBoxStylesVal == null) {
+    return false;
+  }
+  bool value = pixelBoxStylesVal;
+  return value;
+}
+
+export bool pixelPosition() {
+  computeStyleTests();
+  if (pixelPositionVal == null) {
+    return false;
+  }
+  bool value = pixelPositionVal;
+  return value;
+}
+
+export bool reliableMarginLeft() {
+  computeStyleTests();
+  if (reliableMarginLeftVal == null) {
+    return false;
+  }
+  bool value = reliableMarginLeftVal;
+  return value;
+}
+
+export bool scrollboxSize() {
+  computeStyleTests();
+  if (scrollboxSizeVal == null) {
+    return false;
+  }
+  bool value = scrollboxSizeVal;
+  return value;
+}
+
+export bool reliableTrDimensions() {
+  if (reliableTrDimensionsVal == null) {
+    JsValue table = JS.invoke(document, "createElement", "table");
+    JsValue tr = JS.invoke(document, "createElement", "tr");
+    JsValue trChild = JS.invoke(document, "createElement", "div");
+
+    table["style"]["cssText"] = "position:absolute;left:-11111px;border-collapse:separate";
+    JsValue trStyleDecl = tr["style"];
+    trStyleDecl["cssText"] = "box-sizing:content-box;border:1px solid";
+    trStyleDecl["height"] = "1px";
+    trChild["style"]["height"] = "9px";
+    trChild["style"]["display"] = "block";
+
+    JsValue appendedTable = JS.invoke(documentElement, "appendChild", table);
+    JsValue appendedTr = JS.invoke(appendedTable, "appendChild", tr);
+    JS.invoke(appendedTr, "appendChild", trChild);
+
+    JsValue win = windowSelf();
+    JsValue trStyle = JS.invoke(win, "getComputedStyle", tr);
+
+    float heightPart = parseIntRadix(JS.string(trStyle["height"]), 10.0);
+    float borderTopPart = parseIntRadix(JS.string(trStyle["borderTopWidth"]), 10.0);
+    float borderBottomPart = parseIntRadix(JS.string(trStyle["borderBottomWidth"]), 10.0);
+
+    float offsetHeight = JS.number(tr["offsetHeight"]);
+
+    reliableTrDimensionsVal = (heightPart + borderTopPart + borderBottomPart) == offsetHeight;
+
+    JS.invoke(documentElement, "removeChild", table);
+  }
+
+  if (reliableTrDimensionsVal == null) {
+    return false;
+  }
+  bool value = reliableTrDimensionsVal;
+  return value;
+}
+
+void initSupport() {
+  if (!hasDiv) {
+    return;
+  }
+
+  divStyle["backgroundClip"] = "content-box";
+  JsValue clonedDiv = JS.invoke(div, "cloneNode", true);
+  clonedDiv["style"]["backgroundClip"] = "";
+  bool clearCloneStyle = JS.strictEqual(divStyle["backgroundClip"], "content-box");
+  support["clearCloneStyle"] = clearCloneStyle;
+
+  support["boxSizingReliable"] = boxSizingReliable;
+  support["pixelBoxStyles"] = pixelBoxStyles;
+  support["pixelPosition"] = pixelPosition;
+  support["reliableMarginLeft"] = reliableMarginLeft;
+  support["scrollboxSize"] = scrollboxSize;
+  support["reliableTrDimensions"] = reliableTrDimensions;
+}
+
+initSupport();
+
+export { support };

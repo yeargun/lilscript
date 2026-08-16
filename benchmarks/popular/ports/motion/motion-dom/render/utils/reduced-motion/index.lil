@@ -1,0 +1,15 @@
+import { addMatchMediaListener, hasWindow, matchMediaMatches } from "../../../dom-host";
+import { hasReducedMotionListener, prefersReducedMotion } from "./state";
+
+export void initPrefersReducedMotion() {
+  hasReducedMotionListener.current = true;
+  if (!hasWindow()) {
+    return;
+  }
+  prefersReducedMotion.current = matchMediaMatches("(prefers-reduced-motion)");
+  addMatchMediaListener("(prefers-reduced-motion)", () => {
+    prefersReducedMotion.current = matchMediaMatches("(prefers-reduced-motion)");
+  });
+}
+
+export { prefersReducedMotion, hasReducedMotionListener };

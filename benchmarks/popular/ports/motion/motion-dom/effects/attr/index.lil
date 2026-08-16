@@ -1,0 +1,57 @@
+import { camelToDash } from "../../render/dom/utils/camel-to-dash";
+import { MotionValue } from "../../value/index";
+import { MotionValueState } from "../MotionValueState";
+import { createSelectorEffect } from "../utils/create-dom-effect";
+import { createEffect } from "../utils/create-effect";
+import { hasOwn } from "../../dom-host";
+
+bool canSetAsProperty(JsValue element, string name) {
+  if (!hasOwn(element, name)) {
+    return false;
+  }
+  return true;
+}
+
+export func()->void addAttrValue(
+  JsValue element,
+  MotionValueState state,
+  string key,
+  MotionValue value
+) {
+  bool isProp = canSetAsProperty(element, key);
+  string name = key;
+  if (!isProp) {
+    if (key.startsWith("data") || key.startsWith("aria")) {
+      name = camelToDash(key);
+    }
+  }
+  (func()->void)? render = null;
+  if (isProp) {
+    string propName = name;
+    render = () => {
+      element[propName] = state.latest[key];
+    };
+  } else {
+    string attrName = name;
+    render = () => {
+      JsValue v = state.latest[key];
+      bool missing =
+        !(v is float) &&
+        !(v is string) &&
+        !(v is bool) &&
+        !v.isArray() &&
+        !(v.isObject() && v.truthy());
+      if (missing) {
+        callMethod1(element, "removeAttribute", attrName);
+      } else {
+        callMethod2(element, "setAttribute", attrName, `${v}`);
+      }
+    };
+  }
+  return state.set(key, value, render);
+}
+
+import { callMethod1, callMethod2 } from "../../dom-host";
+
+export func(JsValue, Record<MotionValue>)->func()->void attrEffect =
+  createSelectorEffect(createEffect(addAttrValue));

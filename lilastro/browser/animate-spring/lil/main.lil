@@ -1,0 +1,7 @@
+import { animate } from "../../../../benchmarks/popular/ports/motion/framer-motion/animation/animate/element-spring";
+
+animate(
+  "#box",
+  record{ x: 120.0 },
+  record{ type: "spring", stiffness: 400.0, damping: 28.0 }
+);

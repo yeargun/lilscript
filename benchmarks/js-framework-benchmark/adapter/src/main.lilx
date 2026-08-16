@@ -1,0 +1,212 @@
+import {
+  DomNode,
+  Signal,
+  append,
+  batch,
+  classToggle,
+  createSignal,
+  onCleanup,
+  render
+} from "solidlil";
+
+extern float mathRandom();
+
+string[] adjectives = [
+  "pretty", "large", "big", "small", "tall", "short", "long",
+  "handsome", "plain", "quaint", "clean", "elegant", "easy", "angry",
+  "crazy", "helpful", "mushy", "odd", "unsightly", "adorable",
+  "important", "inexpensive", "cheap", "expensive", "fancy"
+];
+string[] colors = [
+  "red", "yellow", "blue", "green", "pink", "brown", "purple", "brown",
+  "white", "black", "orange"
+];
+string[] nouns = [
+  "table", "chair", "house", "bbq", "desk", "car", "pony", "cookie",
+  "sandwich", "burger", "pizza", "mouse", "keyboard"
+];
+
+class Row {
+  int id;
+  Signal<string> label;
+  DomNode? node;
+
+  init(int id, string label) {
+    this.id = id;
+    this.label = createSignal(
+      label,
+      (string previous, string next) => previous == next
+    );
+    this.node = null;
+  }
+}
+
+int nextId = 1;
+Signal<Row[]> rows = createSignal(
+  [],
+  (Row[] previous, Row[] next) => false
+);
+Row? selectedRow = null;
+
+void captureRow(Row row, DomNode node) {
+  row.node = node;
+}
+
+void selectRow(Row row) {
+  Row? previous = selectedRow;
+  if (previous == row) {
+    return;
+  }
+  if (previous != null) {
+    DomNode? previousNode = previous.node;
+    if (previousNode != null) {
+      classToggle(previousNode, "danger", false);
+    }
+  }
+  DomNode? nextNode = row.node;
+  if (nextNode != null) {
+    classToggle(nextNode, "danger", true);
+  }
+  selectedRow = row;
+}
+
+int randomIndex(int maximum) {
+  return (mathRandom() * 1000.0).round().toInt() % maximum;
+}
+
+Row[] buildData(int count) {
+  Row[] result = [];
+  for (int index = 0; index < count; index++) {
+    string label =
+      adjectives[randomIndex(adjectives.length)] + " " +
+      colors[randomIndex(colors.length)] + " " +
+      nouns[randomIndex(nouns.length)];
+    result.push(new Row(nextId, label));
+    nextId += 1;
+  }
+  return result;
+}
+
+void replaceRows(int count) {
+  selectedRow = null;
+  rows.write(buildData(count));
+}
+
+void appendRows() {
+  rows.write(rows.read().concat(buildData(1000)));
+}
+
+void updateRows() {
+  Row[] current = rows.read();
+  batch(() => {
+    for (int index = 0; index < current.length; index += 10) {
+      Row row = current[index];
+      row.label.write(row.label.read() + " !!!");
+    }
+  });
+}
+
+void clearRows() {
+  selectedRow = null;
+  rows.write([]);
+}
+
+void swapRows() {
+  Row[] current = rows.read();
+  if (current.length <= 998) {
+    return;
+  }
+  Row[] next = current.slice();
+  Row second = next[1];
+  next[1] = next[998];
+  next[998] = second;
+  rows.write(next);
+}
+
+void removeRow(int id) {
+  Row[] current = rows.read();
+  for (int index = 0; index < current.length; index++) {
+    Row row = current[index];
+    if (row.id != id) {
+      continue;
+    }
+    if (selectedRow == row) {
+      selectedRow = null;
+    }
+    rows.write(current.slice(0, index).concat(current.slice(index + 1)));
+    return;
+  }
+}
+
+func()->void dispose = render("#main", (DomNode root) => {
+  onCleanup(() => {
+    selectedRow = null;
+  });
+  DomNode view = (
+    <div class="container">
+    <div class="jumbotron">
+      <div class="row">
+        <div class="col-md-6">
+          <h1>SolidLil</h1>
+        </div>
+        <div class="col-md-6">
+          <div class="row">
+            <div class="col-sm-6 smallpad">
+              <button id="run" class="btn btn-primary btn-block" type="button" onClick={() => replaceRows(1000)}>
+                Create 1,000 rows
+              </button>
+            </div>
+            <div class="col-sm-6 smallpad">
+              <button id="runlots" class="btn btn-primary btn-block" type="button" onClick={() => replaceRows(10000)}>
+                Create 10,000 rows
+              </button>
+            </div>
+            <div class="col-sm-6 smallpad">
+              <button id="add" class="btn btn-primary btn-block" type="button" onClick={appendRows}>
+                Append 1,000 rows
+              </button>
+            </div>
+            <div class="col-sm-6 smallpad">
+              <button id="update" class="btn btn-primary btn-block" type="button" onClick={updateRows}>
+                Update every 10th row
+              </button>
+            </div>
+            <div class="col-sm-6 smallpad">
+              <button id="clear" class="btn btn-primary btn-block" type="button" onClick={clearRows}>
+                Clear
+              </button>
+            </div>
+            <div class="col-sm-6 smallpad">
+              <button id="swaprows" class="btn btn-primary btn-block" type="button" onClick={swapRows}>
+                Swap Rows
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <table class="table table-hover table-striped test-data">
+      <tbody>
+        <For each={rows}>
+          {(Row row) => (
+            <tr ref={(DomNode node) => captureRow(row, node)}>
+              <td class="col-md-1">{row.id}</td>
+              <td class="col-md-4">
+                <a onClick={() => selectRow(row)}>{row.label.read()}</a>
+              </td>
+              <td class="col-md-1">
+                <a onClick={() => removeRow(row.id)}>
+                  <span class="glyphicon glyphicon-remove" aria-hidden="true" />
+                </a>
+              </td>
+              <td class="col-md-6" />
+            </tr>
+          )}
+        </For>
+      </tbody>
+    </table>
+    <span class="preloadicon glyphicon glyphicon-remove" aria-hidden="true" />
+    </div>
+  );
+  append(root, view);
+});

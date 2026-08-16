@@ -11,6 +11,7 @@ import npmLevenshtein from "js-levenshtein";
 import npmEmotionHash from "@emotion/hash";
 import npmMurmur from "murmurhash-js";
 import * as npmRobust from "robust-predicates";
+import { configForObjective } from "../objective-config.mjs";
 
 import { clamp as lilClamp } from "../build/ports/clamp.mjs";
 import { lerp as lilLerp } from "../build/ports/lerp.mjs";
@@ -49,12 +50,16 @@ test("audited exclusions match their pinned published entrypoints", async () => 
 });
 
 test("only compatibility-gated ports enter the measured result set", () => {
+  assert.equal(report.metadata.runtimeObjective, "brotli");
+  assert.equal(report.metadata.runtimeConfig, "lilscript.toml");
   assert.deepEqual(report.diagnostics.map((result) => result.id), compatibility.ports.map((port) => port.id));
   assert.deepEqual(report.results.map((result) => result.id), report.diagnostics.filter((result) => result.eligible).map((result) => result.id));
   for (const result of report.diagnostics) {
     assert.deepEqual(result.artifacts.map((artifact) => artifact.id), ["vite", "closure", "lilscript"]);
     assert.deepEqual(result.surfaceArtifacts.map((artifact) => artifact.id), ["vite", "closure", "lilscript"]);
     const lilscript = result.artifacts.at(-1);
+    assert.equal(lilscript.runtimeObjective, "brotli");
+    assert.equal(lilscript.runtimeConfig, report.metadata.runtimeConfig);
     assert.equal(lilscript.nativeVerified, true);
     assert.equal(lilscript.cEmitted, true);
     assert.ok(result.translatedAssertions + result.additionalAssertions > 0);
@@ -64,6 +69,18 @@ test("only compatibility-gated ports enter the measured result set", () => {
     const vite = result.surfaceArtifacts[0];
     const closure = result.surfaceArtifacts[1];
     const lilscript = result.surfaceArtifacts[2];
+    let objectiveExports;
+    for (const metric of ["raw", "gzip", "brotli"]) {
+      const objective = lilscript.objectiveArtifacts.find(
+        (artifact) => artifact.gateMetric === metric,
+      );
+      assert.ok(objective, `${result.id}/${metric} objective artifact missing`);
+      assert.equal(lilscript[metric], objective[metric]);
+      assert.equal(objective.behaviorVerified, true);
+      assert.ok(objective.publicExports.length > 0);
+      objectiveExports ??= objective.publicExports;
+      assert.deepEqual(objective.publicExports, objectiveExports);
+    }
     assert.ok(lilscript.raw <= vite.raw);
     assert.ok(lilscript.raw <= closure.raw);
     assert.ok(lilscript[report.metadata.selectedCodec] <= vite[report.metadata.selectedCodec]);
@@ -71,6 +88,17 @@ test("only compatibility-gated ports enter the measured result set", () => {
     assert.ok(result.workload.performance.ratio <= report.metadata.materialRegressionLimit);
     assert.ok(result.workload.retainedMemory.ratio <= report.metadata.materialRegressionLimit);
   }
+});
+
+test("generated surface configs differ only by cost model", async () => {
+  const source = await readFile(new URL("../surface-size.toml", import.meta.url), "utf8");
+  const configs = ["raw", "gzip", "brotli"].map((objective) =>
+    configForObjective(source, objective)
+  );
+  const normalized = configs.map((source) =>
+    source.replace(/^cost_model\s*=.*$/m, 'cost_model = "<objective>"')
+  );
+  assert.equal(new Set(normalized).size, 1);
 });
 
 test("the complete Motion easing entrypoint matches over a dense curve grid", () => {

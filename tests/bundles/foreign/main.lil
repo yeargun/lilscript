@@ -1,0 +1,8 @@
+import { left } from "./value.lil";
+import extern { add } from "./host.ts";
+extern int add(int _left, int _right);
+print(add(left(), 22));
+export void hotDispose() {
+}
+export void hotAccept() {
+}

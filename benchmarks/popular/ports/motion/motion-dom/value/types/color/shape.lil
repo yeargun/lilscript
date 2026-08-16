@@ -1,0 +1,57 @@
+import { HSLA, RGBA } from "../types";
+
+export bool isRgbaShape(JsValue v) {
+  if (!v.isObject()) {
+    return false;
+  }
+  if (v.isArray()) {
+    return false;
+  }
+  for (string key in v) {
+    if (key == "red") {
+      return true;
+    }
+  }
+  return false;
+}
+
+export bool isHslaShape(JsValue v) {
+  if (!v.isObject()) {
+    return false;
+  }
+  if (v.isArray()) {
+    return false;
+  }
+  for (string key in v) {
+    if (key == "hue") {
+      return true;
+    }
+  }
+  return false;
+}
+
+float channelOr(JsValue v, string name, float fallback) {
+  JsValue raw = v[name];
+  if (raw is float) {
+    return raw;
+  }
+  return fallback;
+}
+
+export RGBA rgbaFromJs(JsValue v) {
+  return new RGBA(
+    channelOr(v, "red", 0.0),
+    channelOr(v, "green", 0.0),
+    channelOr(v, "blue", 0.0),
+    channelOr(v, "alpha", 1.0)
+  );
+}
+
+export HSLA hslaFromJs(JsValue v) {
+  return new HSLA(
+    channelOr(v, "hue", 0.0),
+    channelOr(v, "saturation", 0.0),
+    channelOr(v, "lightness", 0.0),
+    channelOr(v, "alpha", 1.0)
+  );
+}

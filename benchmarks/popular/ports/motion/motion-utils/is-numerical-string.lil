@@ -1,0 +1,5 @@
+Regex numericalString = new Regex("^-?(?:\\d+(?:\\.\\d+)?|\\.\\d+)$", "u");
+
+export bool isNumericalString(string v) {
+  return numericalString.test(v);
+}

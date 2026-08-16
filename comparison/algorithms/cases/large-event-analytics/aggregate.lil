@@ -1,0 +1,33 @@
+export struct Stats {
+  int total;
+  int high;
+  int low;
+  int count;
+  int fingerprint;
+}
+
+export pure Stats beginAggregate(int first) {
+  return Stats{first, first, first, 1, first ^ 97};
+}
+
+export pure Stats updateAggregate(Stats stats, int score, int index) {
+  int high = stats.high;
+  int low = stats.low;
+  if (score > high) { high = score; }
+  if (score < low) { low = score; }
+  return Stats{
+    stats.total + score,
+    high,
+    low,
+    stats.count + 1,
+    (stats.fingerprint * 33) ^ (score + index * 7)
+  };
+}
+
+pure int checksumAggregate(Stats stats) {
+  return stats.fingerprint ^ (stats.high * 17 + stats.low * 11 + stats.count * 5);
+}
+
+export pure int finishAggregate(Stats stats) {
+  return stats.total + checksumAggregate(stats);
+}

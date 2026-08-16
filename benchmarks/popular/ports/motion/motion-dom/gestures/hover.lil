@@ -1,0 +1,135 @@
+import { setupGesture, GestureSetup } from "./utils/setup";
+import {
+  addEventListener,
+  removeEventListener,
+  addWindowListener,
+  removeWindowListener,
+  callFn2,
+  invoke1,
+  isFunction
+} from "../dom-host";
+import { isDragActive } from "./drag/state/is-active";
+
+bool isValidHover(JsValue event) {
+  JsValue pointerType = event["pointerType"];
+  if (pointerType is string) {
+    string pointerTypeName = pointerType;
+    if (pointerTypeName == "touch") {
+      return false;
+    }
+  }
+  if (isDragActive()) {
+    return false;
+  }
+  return true;
+}
+
+class HoverCell {
+  bool isPressed;
+  bool deferredHoverEnd;
+  JsValue? hoverEndCallback;
+  (func(JsValue)->void)? pointerLeave;
+  (func()->void)? pointerUpWindow;
+
+  init() {
+    this.isPressed = false;
+    this.deferredHoverEnd = false;
+    this.hoverEndCallback = null;
+    this.pointerLeave = null;
+    this.pointerUpWindow = null;
+  }
+}
+
+export func()->void hover(
+  JsValue elementOrSelector,
+  JsValue onHoverStart,
+  JsValue? options = null
+) {
+  JsValue opts = options;
+  if (opts == null) {
+    opts = record{};
+  }
+  GestureSetup setup = setupGesture(elementOrSelector, opts);
+  JsValue[] elements = setup.elements;
+  JsValue eventOptions = setup.eventOptions;
+  func()->void cancel = setup.cancel;
+
+  for (int i = 0; i < elements.length; i++) {
+    JsValue element = elements[i];
+    HoverCell cell = new HoverCell();
+
+    cell.pointerUpWindow = () => {
+      cell.isPressed = false;
+      (func()->void)? up = cell.pointerUpWindow;
+      if (up != null) {
+        removeWindowListener("pointerup", up);
+        removeWindowListener("pointercancel", up);
+      }
+      if (cell.deferredHoverEnd) {
+        cell.deferredHoverEnd = false;
+        JsValue? cb = cell.hoverEndCallback;
+        if (cb != null && isFunction(cb)) {
+          invoke1(cb, record{passive: true});
+          cell.hoverEndCallback = null;
+        }
+        (func(JsValue)->void)? leave = cell.pointerLeave;
+        if (leave != null) {
+          removeEventListener(element, "pointerleave", leave, eventOptions);
+        }
+      }
+    };
+
+    cell.pointerLeave = (JsValue leaveEvent) => {
+      JsValue pointerType = leaveEvent["pointerType"];
+      if (pointerType is string) {
+        string pointerTypeName = pointerType;
+        if (pointerTypeName == "touch") {
+          return;
+        }
+      }
+      if (cell.isPressed) {
+        cell.deferredHoverEnd = true;
+        return;
+      }
+      JsValue? cb = cell.hoverEndCallback;
+      if (cb != null && isFunction(cb)) {
+        invoke1(cb, leaveEvent);
+        cell.hoverEndCallback = null;
+      }
+      (func(JsValue)->void)? leave = cell.pointerLeave;
+      if (leave != null) {
+        removeEventListener(element, "pointerleave", leave, eventOptions);
+      }
+    };
+
+    func()->void onPointerDown = () => {
+      cell.isPressed = true;
+      (func()->void)? up = cell.pointerUpWindow;
+      if (up != null) {
+        addWindowListener("pointerup", up);
+        addWindowListener("pointercancel", up);
+      }
+    };
+
+    func(JsValue)->void onPointerEnter = (JsValue enterEvent) => {
+      if (!isValidHover(enterEvent)) {
+        return;
+      }
+      cell.deferredHoverEnd = false;
+      JsValue result = callFn2(onHoverStart, element, enterEvent);
+      if (!isFunction(result)) {
+        return;
+      }
+      cell.hoverEndCallback = result;
+      (func(JsValue)->void)? leave = cell.pointerLeave;
+      if (leave != null) {
+        addEventListener(element, "pointerleave", leave, eventOptions);
+      }
+    };
+
+    addEventListener(element, "pointerenter", onPointerEnter, eventOptions);
+    addEventListener(element, "pointerdown", onPointerDown, eventOptions);
+  }
+
+  return cancel;
+}

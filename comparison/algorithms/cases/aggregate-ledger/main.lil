@@ -1,0 +1,47 @@
+extern int algorithmInt(int index);
+extern int algorithmCount();
+
+struct Ledger {
+  int total;
+  int weighted;
+  int minimum;
+  int maximum;
+}
+
+pure int smaller(int left, int right) {
+  if (left < right) { return left; }
+  return right;
+}
+
+pure int larger(int left, int right) {
+  if (left > right) { return left; }
+  return right;
+}
+
+pure Ledger beginLedger(int value) {
+  return Ledger{value, value, value, value};
+}
+
+pure Ledger appendLedger(Ledger ledger, int value, int index) {
+  return Ledger{
+    ledger.total + value,
+    ledger.weighted + value * (index + 1),
+    smaller(ledger.minimum, value),
+    larger(ledger.maximum, value)
+  };
+}
+
+pure int finishLedger(Ledger ledger) {
+  return ledger.total + ledger.weighted + ledger.maximum - ledger.minimum;
+}
+
+int analyzeLedger() {
+  int count = algorithmCount();
+  Ledger ledger = beginLedger(algorithmInt(0));
+  for (int index = 1; index < count; index++) {
+    ledger = appendLedger(ledger, algorithmInt(index), index);
+  }
+  return finishLedger(ledger);
+}
+
+print(analyzeLedger());

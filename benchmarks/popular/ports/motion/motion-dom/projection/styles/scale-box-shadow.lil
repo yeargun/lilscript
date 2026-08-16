@@ -1,0 +1,83 @@
+import { Delta, Point } from "../../../motion-utils/types/geometry";
+import { mixNumber } from "../../utils/mix/number";
+import { complex } from "../../value/types/complex/index";
+import { ScaleCorrectionNode, ScaleCorrectorDefinition } from "./types";
+
+JsValue correctBoxShadowValue(JsValue latest, ScaleCorrectionNode node) {
+  if (!(latest is string)) {
+    return latest;
+  }
+  string original = latest;
+  JsValue parsed = complex.parse(latest);
+  JsValue[] shadow = [];
+  if (parsed.isArray()) {
+    int len = parsed.length.toInt();
+    for (int i = 0; i < len; i++) {
+      shadow.push(parsed[i]);
+    }
+  }
+  if (shadow.length > 5) {
+    return original;
+  }
+
+  (func(string)->func(JsValue)->JsValue)? createTransformer = complex.createTransformer;
+  if (createTransformer == null) {
+    return original;
+  }
+  func(JsValue)->JsValue template = createTransformer(latest);
+  int offset = 0;
+  if (shadow.length > 0) {
+    if (!(shadow[0] is float)) {
+      offset = 1;
+    }
+  }
+
+  Delta? projectionDelta = node.projectionDelta;
+  Point? treeScale = node.treeScale;
+  if (projectionDelta == null) {
+    return original;
+  }
+  if (treeScale == null) {
+    return original;
+  }
+
+  float xScale = projectionDelta.x.scale * treeScale.x;
+  float yScale = projectionDelta.y.scale * treeScale.y;
+
+  int xi = 0 + offset;
+  int yi = 1 + offset;
+  if (xi < shadow.length) {
+    JsValue sx = shadow[xi];
+    if (sx is float) {
+      shadow[xi] = sx / xScale;
+    }
+  }
+  if (yi < shadow.length) {
+    JsValue sy = shadow[yi];
+    if (sy is float) {
+      shadow[yi] = sy / yScale;
+    }
+  }
+
+  float averageScale = mixNumber(xScale, yScale, 0.5);
+  int blurI = 2 + offset;
+  int spreadI = 3 + offset;
+  if (blurI < shadow.length) {
+    JsValue blur = shadow[blurI];
+    if (blur is float) {
+      shadow[blurI] = blur / averageScale;
+    }
+  }
+  if (spreadI < shadow.length) {
+    JsValue spread = shadow[spreadI];
+    if (spread is float) {
+      shadow[spreadI] = spread / averageScale;
+    }
+  }
+
+  return template(shadow);
+}
+
+export ScaleCorrectorDefinition correctBoxShadow = new ScaleCorrectorDefinition(
+  correctBoxShadowValue
+);

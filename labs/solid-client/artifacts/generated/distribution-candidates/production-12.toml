@@ -1,0 +1,20 @@
+# Reusable-package build: JavaScript consumers observe exports and public fields.
+[javascript]
+priority = "size-first"
+optimization_level = 12
+cost_model = "brotli"
+function_spelling = "arrow"
+# The package facade exposes raw runtime aggregates only as opaque handles.
+# Positional layout lets the compiler compact their internal fields while the
+# facade keeps the Solid-compatible named public API stable.
+public_aggregate_abi = "positional"
+pool_numeric_literals = true
+
+[mangle]
+identifiers = true
+properties = true
+exports = false
+pool_strings = true
+
+[bundle]
+mode = "single"

@@ -1,0 +1,306 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-14T12:42:35.790Z",
+  "objectiveContract": {
+    "gateMetric": "brotli11",
+    "matchingArtifactOnly": true,
+    "selectionStage": "final-tree-shaken-minified-chunk",
+    "crossMetricsAreDiagnostic": [
+      "raw",
+      "gzip9"
+    ]
+  },
+  "identity": {
+    "compilerSha256": "46eeb54e8ee2d737b17fb988494ff968747908fa8fe3ffa8ace676618a2c8189",
+    "sourceSha256": "66f51ae0beffe04d52a7990150c7747362b998e8da7a7e71f279446a9fd6db83",
+    "baseConfigSha256": "92e25d9fd4ff21f8b85ae967ac74fdf619c772ce44a2cd609d400b3e59463384"
+  },
+  "identitySha256": "815a0e8aa645ba92266a4ce30994b6688c9610e5ac819fa74360238646d6e4be",
+  "compiler": {
+    "path": "../../target/release/lilscript",
+    "sha256": "46eeb54e8ee2d737b17fb988494ff968747908fa8fe3ffa8ace676618a2c8189"
+  },
+  "codecs": {
+    "implementation": "lilscript-codec",
+    "schemaVersion": 1,
+    "scorer": {
+      "path": "target/release/lilscript-codec",
+      "sha256": "48340e70c3a53ae5f58cee5dbb48ca5553b2feff6f29f086fc8060bd036594c8",
+      "bytes": 1804784
+    },
+    "gzip9": {
+      "encoder": "upstream-stock-zlib-c",
+      "libraryVersion": "1.3.1",
+      "cargoPackage": "libz-sys",
+      "cargoPackageVersion": "1.1.24",
+      "level": 9,
+      "mtime": 0
+    },
+    "brotli11": {
+      "encoder": "official-google-brotli-c",
+      "libraryVersion": "1.1.0",
+      "cargoPackage": "compu-brotli-sys",
+      "cargoPackageVersion": "1.1.0",
+      "quality": 11,
+      "lgwin": 22,
+      "mode": "generic"
+    },
+    "nodeCodecsAreDiagnosticOnly": true
+  },
+  "candidates": {
+    "production-15": {
+      "description": "Level 15 with production codec-guided candidate search",
+      "mode": "production",
+      "config": "artifacts/generated/distribution-candidates/production-15.toml",
+      "configSha256": "92e25d9fd4ff21f8b85ae967ac74fdf619c772ce44a2cd609d400b3e59463384",
+      "runtime": "artifacts/generated/distribution-candidates/production-15.runtime.js",
+      "runtimeSha256": "f4cb80b083bac49785408cc7ba39c85b0f4c653cc1e121c62e0f4954669f740e",
+      "runtimeRawBytes": 13500
+    },
+    "source-15": {
+      "description": "Level 15 source-shaped development output without candidate search",
+      "mode": "development",
+      "config": "artifacts/generated/distribution-candidates/source-15.toml",
+      "configSha256": "92e25d9fd4ff21f8b85ae967ac74fdf619c772ce44a2cd609d400b3e59463384",
+      "runtime": "artifacts/generated/distribution-candidates/source-15.runtime.js",
+      "runtimeSha256": "c056f03b08be2ba9d377e1daae1d70ce5d955d05f956a2f4177e43ca2526dd92",
+      "runtimeRawBytes": 13828
+    },
+    "production-12": {
+      "description": "Level 12 production search, retaining a different phase/layout frontier",
+      "mode": "production",
+      "config": "artifacts/generated/distribution-candidates/production-12.toml",
+      "configSha256": "c5f6fdf6e4978c387fc2367ce0e80c34c3f04f8693b89df7aa0724f3dd083f44",
+      "runtime": "artifacts/generated/distribution-candidates/production-12.runtime.js",
+      "runtimeSha256": "fe6831469d5ceadee58ab039cd09225bcf0ab18c6043f38c5cab7151271ba904",
+      "runtimeRawBytes": 13726
+    },
+    "layout-18": {
+      "description": "Level 15 production search with the largest exact function-layout frontier",
+      "mode": "production",
+      "config": "artifacts/generated/distribution-candidates/layout-18.toml",
+      "configSha256": "8b951834c7930535d9dccf0278032e9f302c0c50596c3c0edc9d6ca4d66f04fa",
+      "runtime": "artifacts/generated/distribution-candidates/layout-18.runtime.js",
+      "runtimeSha256": "f4cb80b083bac49785408cc7ba39c85b0f4c653cc1e121c62e0f4954669f740e",
+      "runtimeRawBytes": 13500
+    }
+  },
+  "targets": {
+    "web-full": {
+      "entry": "api/solidlil-web.js",
+      "output": "artifacts/generated/solidlil-web.js",
+      "clientOnly": false,
+      "winner": "production-15",
+      "sizes": {
+        "brotli11": 11667,
+        "gzip9": 13074,
+        "raw": 40467
+      },
+      "artifactSha256": "1846d6961d807debb6d34f4d4984179fce8d9887a07cb9c561365977b7e1fff5",
+      "candidates": {
+        "layout-18": {
+          "artifact": "artifacts/generated/distribution-candidates/web-full.layout-18.js",
+          "artifactSha256": "1846d6961d807debb6d34f4d4984179fce8d9887a07cb9c561365977b7e1fff5",
+          "runtimeSha256": "f4cb80b083bac49785408cc7ba39c85b0f4c653cc1e121c62e0f4954669f740e",
+          "sizes": {
+            "brotli11": 11667,
+            "gzip9": 13074,
+            "raw": 40467
+          }
+        },
+        "production-12": {
+          "artifact": "artifacts/generated/distribution-candidates/web-full.production-12.js",
+          "artifactSha256": "0c9fadeb7dfeae7f7fea8f8996d661d8a8b166fc9fed55fcf07299e7702cceac",
+          "runtimeSha256": "fe6831469d5ceadee58ab039cd09225bcf0ab18c6043f38c5cab7151271ba904",
+          "sizes": {
+            "brotli11": 11723,
+            "gzip9": 13141,
+            "raw": 40579
+          }
+        },
+        "production-15": {
+          "artifact": "artifacts/generated/distribution-candidates/web-full.production-15.js",
+          "artifactSha256": "1846d6961d807debb6d34f4d4984179fce8d9887a07cb9c561365977b7e1fff5",
+          "runtimeSha256": "f4cb80b083bac49785408cc7ba39c85b0f4c653cc1e121c62e0f4954669f740e",
+          "sizes": {
+            "brotli11": 11667,
+            "gzip9": 13074,
+            "raw": 40467
+          }
+        },
+        "source-15": {
+          "artifact": "artifacts/generated/distribution-candidates/web-full.source-15.js",
+          "artifactSha256": "df3b676386c12c1c4995e4ac6637b7fa84811f27c180bf84bc47c0b1b416e6f4",
+          "runtimeSha256": "c056f03b08be2ba9d377e1daae1d70ce5d955d05f956a2f4177e43ca2526dd92",
+          "sizes": {
+            "brotli11": 11752,
+            "gzip9": 13157,
+            "raw": 40736
+          }
+        }
+      }
+    },
+    "web-client": {
+      "entry": "api/solidlil-web-client.js",
+      "output": "artifacts/generated/solidlil-web-client.js",
+      "clientOnly": true,
+      "winner": "production-15",
+      "sizes": {
+        "brotli11": 10643,
+        "gzip9": 11939,
+        "raw": 36980
+      },
+      "artifactSha256": "9567a450ef452d8edd88453507053a15d7c7d48088fa820f4895f37df826cdd7",
+      "candidates": {
+        "layout-18": {
+          "artifact": "artifacts/generated/distribution-candidates/web-client.layout-18.js",
+          "artifactSha256": "9567a450ef452d8edd88453507053a15d7c7d48088fa820f4895f37df826cdd7",
+          "runtimeSha256": "f4cb80b083bac49785408cc7ba39c85b0f4c653cc1e121c62e0f4954669f740e",
+          "sizes": {
+            "brotli11": 10643,
+            "gzip9": 11939,
+            "raw": 36980
+          }
+        },
+        "production-12": {
+          "artifact": "artifacts/generated/distribution-candidates/web-client.production-12.js",
+          "artifactSha256": "4bdba6aef5290f0cb9c694726d57d6a871cc2c2992829c05b831a098dd87be52",
+          "runtimeSha256": "fe6831469d5ceadee58ab039cd09225bcf0ab18c6043f38c5cab7151271ba904",
+          "sizes": {
+            "brotli11": 10691,
+            "gzip9": 12011,
+            "raw": 37092
+          }
+        },
+        "production-15": {
+          "artifact": "artifacts/generated/distribution-candidates/web-client.production-15.js",
+          "artifactSha256": "9567a450ef452d8edd88453507053a15d7c7d48088fa820f4895f37df826cdd7",
+          "runtimeSha256": "f4cb80b083bac49785408cc7ba39c85b0f4c653cc1e121c62e0f4954669f740e",
+          "sizes": {
+            "brotli11": 10643,
+            "gzip9": 11939,
+            "raw": 36980
+          }
+        },
+        "source-15": {
+          "artifact": "artifacts/generated/distribution-candidates/web-client.source-15.js",
+          "artifactSha256": "4fbb25c44314de70c564192bfec93fd01bc1b27f818bf5668d3e6867d094a4e1",
+          "runtimeSha256": "c056f03b08be2ba9d377e1daae1d70ce5d955d05f956a2f4177e43ca2526dd92",
+          "sizes": {
+            "brotli11": 10700,
+            "gzip9": 12029,
+            "raw": 37249
+          }
+        }
+      }
+    },
+    "core-open": {
+      "entry": "api/solidlil-core.js",
+      "output": "artifacts/generated/solidlil-core-open.js",
+      "clientOnly": false,
+      "winner": "production-15",
+      "sizes": {
+        "brotli11": 8433,
+        "gzip9": 9340,
+        "raw": 30074
+      },
+      "artifactSha256": "a97b3e64cdd72ec3349b141882071ed1e2715df4e2ec407cd78f793c02d00562",
+      "candidates": {
+        "layout-18": {
+          "artifact": "artifacts/generated/distribution-candidates/core-open.layout-18.js",
+          "artifactSha256": "a97b3e64cdd72ec3349b141882071ed1e2715df4e2ec407cd78f793c02d00562",
+          "runtimeSha256": "f4cb80b083bac49785408cc7ba39c85b0f4c653cc1e121c62e0f4954669f740e",
+          "sizes": {
+            "brotli11": 8433,
+            "gzip9": 9340,
+            "raw": 30074
+          }
+        },
+        "production-12": {
+          "artifact": "artifacts/generated/distribution-candidates/core-open.production-12.js",
+          "artifactSha256": "98715730afea789b6ba56d88dcc691abd5c74ad20ae0bd779a2e5aa381c836b0",
+          "runtimeSha256": "fe6831469d5ceadee58ab039cd09225bcf0ab18c6043f38c5cab7151271ba904",
+          "sizes": {
+            "brotli11": 8512,
+            "gzip9": 9445,
+            "raw": 30191
+          }
+        },
+        "production-15": {
+          "artifact": "artifacts/generated/distribution-candidates/core-open.production-15.js",
+          "artifactSha256": "a97b3e64cdd72ec3349b141882071ed1e2715df4e2ec407cd78f793c02d00562",
+          "runtimeSha256": "f4cb80b083bac49785408cc7ba39c85b0f4c653cc1e121c62e0f4954669f740e",
+          "sizes": {
+            "brotli11": 8433,
+            "gzip9": 9340,
+            "raw": 30074
+          }
+        },
+        "source-15": {
+          "artifact": "artifacts/generated/distribution-candidates/core-open.source-15.js",
+          "artifactSha256": "69749875676ee1f2e68780ffdd20d79ce73e0aa4a079b8a6c2e8ed862895ff69",
+          "runtimeSha256": "c056f03b08be2ba9d377e1daae1d70ce5d955d05f956a2f4177e43ca2526dd92",
+          "sizes": {
+            "brotli11": 8524,
+            "gzip9": 9473,
+            "raw": 30390
+          }
+        }
+      }
+    },
+    "store-open": {
+      "entry": "api/solidlil-store.js",
+      "output": "artifacts/generated/solidlil-store.js",
+      "clientOnly": false,
+      "winner": "production-12",
+      "sizes": {
+        "brotli11": 4231,
+        "gzip9": 4691,
+        "raw": 15634
+      },
+      "artifactSha256": "44103291b772cd54e29ca7524d7396941efa1dcd0efaf5151b7c48a8545a1bb5",
+      "candidates": {
+        "layout-18": {
+          "artifact": "artifacts/generated/distribution-candidates/store-open.layout-18.js",
+          "artifactSha256": "442730732345d599ca288b4aa265edccd2f4479aac0e9b9ea8740704f421de4a",
+          "runtimeSha256": "f4cb80b083bac49785408cc7ba39c85b0f4c653cc1e121c62e0f4954669f740e",
+          "sizes": {
+            "brotli11": 4253,
+            "gzip9": 4695,
+            "raw": 15679
+          }
+        },
+        "production-12": {
+          "artifact": "artifacts/generated/distribution-candidates/store-open.production-12.js",
+          "artifactSha256": "44103291b772cd54e29ca7524d7396941efa1dcd0efaf5151b7c48a8545a1bb5",
+          "runtimeSha256": "fe6831469d5ceadee58ab039cd09225bcf0ab18c6043f38c5cab7151271ba904",
+          "sizes": {
+            "brotli11": 4231,
+            "gzip9": 4691,
+            "raw": 15634
+          }
+        },
+        "production-15": {
+          "artifact": "artifacts/generated/distribution-candidates/store-open.production-15.js",
+          "artifactSha256": "442730732345d599ca288b4aa265edccd2f4479aac0e9b9ea8740704f421de4a",
+          "runtimeSha256": "f4cb80b083bac49785408cc7ba39c85b0f4c653cc1e121c62e0f4954669f740e",
+          "sizes": {
+            "brotli11": 4253,
+            "gzip9": 4695,
+            "raw": 15679
+          }
+        },
+        "source-15": {
+          "artifact": "artifacts/generated/distribution-candidates/store-open.source-15.js",
+          "artifactSha256": "fb1ffb6bf9e3f272d47a04fddb30686e847d46a5ffefa84dfad9d97569066531",
+          "runtimeSha256": "c056f03b08be2ba9d377e1daae1d70ce5d955d05f956a2f4177e43ca2526dd92",
+          "sizes": {
+            "brotli11": 4237,
+            "gzip9": 4695,
+            "raw": 15668
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,247 @@
+import { frame } from "../../frameloop/frame";
+import { FrameData } from "../../frameloop/types";
+import { getValueTransition } from "../utils/get-value-transition";
+import { resolveTransition } from "../utils/resolve-transition";
+import { positionalKeys } from "../../render/utils/keys-position";
+import { setTarget } from "../../render/utils/setters";
+import { addValueToWillChange } from "../../value/will-change/add-will-change";
+import { getOptimisedAppearId } from "../optimized-appear/get-appear-id";
+import { animateMotionValue } from "./motion-value";
+import { VisualElement } from "../../render/VisualElement";
+import { MotionValue } from "../../value/index";
+import { visualElementOf, motionValueOf, withPromiseOf } from "../../cast";
+import {
+  callFn3,
+  callFn5,
+  callMethod2,
+  hasOwn,
+  hasFunction,
+  isFunction,
+  windowGet
+} from "../../dom-host";
+
+bool shouldBlockAnimation(JsValue state, string key) {
+  JsValue protectedKeys = state["protectedKeys"];
+  JsValue needsAnimating = state["needsAnimating"];
+  bool blocked = hasOwn(protectedKeys, key) && needsAnimating[key] != true;
+  needsAnimating[key] = false;
+  return blocked;
+}
+
+void assignObject(JsValue target, JsValue? source) {
+  if (source != null && source.isObject()) {
+    callMethod2(windowGet("Object"), "assign", target, source);
+  }
+}
+
+export JsValue[] animateTarget(
+  JsValue visualElement,
+  JsValue definition,
+  JsValue? options = null
+) {
+  JsValue opts = options;
+  if (opts == null) {
+    opts = record{};
+  }
+
+  VisualElement element = visualElementOf(visualElement);
+
+  float delayAmt = 0.0;
+  JsValue delayOpt = opts["delay"];
+  if (delayOpt is float) {
+    delayAmt = delayOpt;
+  }
+  JsValue transitionOverride = opts["transitionOverride"];
+  JsValue animationType = opts["type"];
+
+  JsValue transition = definition["transition"];
+  JsValue transitionEnd = definition["transitionEnd"];
+  JsValue target = record{};
+  for (string key in definition) {
+    if (key != "transition" && key != "transitionEnd") {
+      target[key] = definition[key];
+    }
+  }
+
+  JsValue defaultTransition = element.props["transition"];
+  if (transition.truthy()) {
+    transition = resolveTransition(transition, defaultTransition);
+  } else {
+    transition = defaultTransition;
+  }
+
+  bool? reduceMotion = null;
+  if (transition != null && transition.isObject()) {
+    JsValue reduceMotionValue = transition["reduceMotion"];
+    if (reduceMotionValue is bool) {
+      reduceMotion = reduceMotionValue;
+    }
+  }
+  bool skipAnimations = false;
+  if (transition != null && transition.isObject()) {
+    JsValue skipAnimationsValue = transition["skipAnimations"];
+    if (skipAnimationsValue is bool) {
+      skipAnimations = skipAnimationsValue;
+    }
+  }
+
+  if (transitionOverride.truthy()) {
+    transition = transitionOverride;
+  }
+  if (transition == null || !transition.isObject()) {
+    transition = record{};
+  }
+
+  JsValue[] animations = [];
+
+  JsValue animationTypeState = null;
+  if (animationType is string) {
+    string typeKey = animationType;
+    JsValue animationState = element.animationState;
+    if (animationState.truthy() && animationState.isObject()) {
+      JsValue stateMap = animationState["state"];
+      if (stateMap.truthy()) {
+        animationTypeState = stateMap[typeKey];
+      }
+    }
+  }
+
+  JsValue path = transition["path"];
+  if (path.truthy() && hasFunction(path, "animateVisualElement")) {
+    callFn5(path["animateVisualElement"], visualElement, target, transition, delayAmt, animations);
+  }
+
+  for (string key in target) {
+    JsValue fallback = element.latestValues[key];
+    JsValue? valueRef = element.getValue(key, fallback, true);
+    if (valueRef == null) {
+      continue;
+    }
+    MotionValue value = motionValueOf(valueRef);
+    JsValue valueTarget = target[key];
+
+    if (!(
+      (valueTarget is float) ||
+      (valueTarget is string) ||
+      (valueTarget is bool) ||
+      valueTarget.isArray() ||
+      (valueTarget.isObject() && valueTarget.truthy())
+    )) {
+      continue;
+    }
+
+    if (animationTypeState.truthy() && shouldBlockAnimation(animationTypeState, key)) {
+      continue;
+    }
+
+    JsValue valueTransition = record{ delay: delayAmt };
+    JsValue keyTransition = getValueTransition(transition, key);
+    assignObject(valueTransition, keyTransition);
+    if (delayOpt is float) {
+      valueTransition["delay"] = delayAmt;
+    } else {
+      JsValue transitionDelay = null;
+      if (transition != null && transition.isObject()) {
+        transitionDelay = transition["delay"];
+      }
+      if (transitionDelay is float) {
+        valueTransition["delay"] = transitionDelay;
+      } else if (!(valueTransition["delay"] is float)) {
+        valueTransition["delay"] = delayAmt;
+      }
+    }
+    if (skipAnimations) {
+      valueTransition["skipAnimations"] = true;
+    }
+
+    JsValue? currentValue = value.current;
+    bool isAnimating = value.isAnimating();
+    if (
+      currentValue != null &&
+      !isAnimating &&
+      !valueTarget.isArray() &&
+      valueTarget == currentValue &&
+      !valueTransition["velocity"].truthy()
+    ) {
+      MotionValue capturedValue = value;
+      JsValue capturedTarget = valueTarget;
+      frame.update((FrameData _d) => {
+        capturedValue.set(capturedTarget);
+      }, false, false);
+      continue;
+    }
+
+    bool isHandoff = false;
+    JsValue handoff = windowGet("MotionHandoffAnimation");
+    if (isFunction(handoff)) {
+      JsValue appearId = getOptimisedAppearId(visualElement);
+      if (appearId.truthy()) {
+        JsValue startTime = callFn3(handoff, appearId, key, frame);
+        if (startTime != null) {
+          valueTransition["startTime"] = startTime;
+          isHandoff = true;
+        }
+      }
+    }
+
+    addValueToWillChange(visualElement, key);
+
+    bool shouldReduce = false;
+    if (reduceMotion != null) {
+      shouldReduce = reduceMotion;
+    } else {
+      bool? srm = element.shouldReduceMotion;
+      if (srm != null) {
+        shouldReduce = srm;
+      }
+    }
+
+    JsValue motionTransition = valueTransition;
+    if (shouldReduce && positionalKeys.has(key)) {
+      motionTransition = record{};
+      for (string tKey in valueTransition) {
+        motionTransition[tKey] = valueTransition[tKey];
+      }
+      motionTransition["type"] = false;
+    }
+
+    func(func()->void)->JsValue? starter = animateMotionValue(
+      key,
+      valueRef,
+      valueTarget,
+      motionTransition,
+      visualElement,
+      isHandoff
+    );
+    value.start(starter);
+
+    JsValue? animation = value.animation;
+    if (animation != null) {
+      animations.push(animation);
+    }
+  }
+
+  if (transitionEnd.truthy() && transitionEnd.isObject()) {
+    JsValue transitionEndCapture = transitionEnd;
+    JsValue visualCapture = visualElement;
+    func()->void applyTransitionEnd = () => {
+      frame.update((FrameData _d) => {
+        setTarget(visualCapture, transitionEndCapture);
+      }, false, false);
+    };
+    if (animations.length > 0) {
+      Task<bool>[] tasks = [];
+      for (int i = 0; i < animations.length; i++) {
+        tasks.push(withPromiseOf(animations[i]).finished());
+      }
+      Task.all(tasks).then((bool[] _v) => {
+        applyTransitionEnd();
+        return true;
+      });
+    } else {
+      applyTransitionEnd();
+    }
+  }
+
+  return animations;
+}

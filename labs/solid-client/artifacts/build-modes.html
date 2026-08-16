@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en"><head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Solid and SolidLil open-world and closed-world build verification.">
+  <title>SolidLil build-mode verification</title>
+  <style>
+    :root{color-scheme:light;--paper:#f4f1e9;--ink:#17221f;--muted:#58655f;--line:#cfd7cf;--green:#08785b;--panel:#fffdf7}*{box-sizing:border-box}body{margin:0;background:linear-gradient(135deg,#e2f1e9,transparent 38rem),var(--paper);color:var(--ink);font:16px/1.55 Inter,system-ui,sans-serif}main{width:min(1040px,calc(100% - 32px));margin:auto;padding:64px 0 88px}h1{max-width:13ch;margin:.15em 0;font-size:clamp(2.5rem,7vw,5.2rem);line-height:.96;letter-spacing:-.055em}.eyebrow{color:var(--green);font:700 .76rem/1 ui-monospace,monospace;letter-spacing:.13em;text-transform:uppercase}.lead{max-width:68ch;color:var(--muted)}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:32px 0}.card{padding:24px;border:1px solid var(--line);border-radius:18px;background:var(--panel)}.card strong{display:block;color:var(--green);font-size:1.55rem}.table{overflow:auto;border:1px solid var(--line);border-radius:18px;background:var(--panel)}table{width:100%;min-width:720px;border-collapse:collapse;font-variant-numeric:tabular-nums}th,td{padding:13px 16px;border-bottom:1px solid var(--line);text-align:right}th:first-child{text-align:left}thead th{color:var(--muted);font-size:.75rem;text-transform:uppercase}.win{color:var(--green);font-weight:750}.note{max-width:72ch;margin-top:28px;padding-left:16px;border-left:3px solid var(--green);color:var(--muted)}code{font-family:ui-monospace,monospace}@media(max-width:680px){main{padding-top:40px}.grid{grid-template-columns:1fr}}
+  </style>
+</head><body><main>
+  <p class="eyebrow">Solid 1.9.13 · reusable ABI evidence</p>
+  <h1>The public surface stays public.</h1>
+  <p class="lead">The open-world module preserves and executes 54 Solid-compatible primitives. The closed-world diagnostic retains the same binding count while renaming every public symbol; the application lane links those calls away entirely.</p>
+  <section class="grid" aria-label="Results"><article class="card"><span>Open-world API</span><strong>pass</strong><p>Exact exports and reactive behavior match the official client runtime.</p></article><article class="card"><span>Closed-world mangling</span><strong>pass</strong><p>55 of 55 runtime exports renamed.</p></article></section>
+  <h2>Reusable core bundle</h2><p class="lead">One Vite 8/Oxc ESM chunk per implementation; lower is better. Brotli-11 is the primary release gate; gzip and raw bytes remain visible diagnostics.</p>
+  <div class="table"><table><thead><tr><th>Artifact</th><th>Brotli-11 · primary</th><th>Gzip-9</th><th>Raw</th></tr></thead><tbody><tr><th>Official Solid core</th><td>8,551</td><td>9,422</td><td>29,474</td></tr><tr><th>SolidLil core</th><td>8,433</td><td>9,340</td><td>30,074</td></tr><tr><th>Delta vs Solid</th><td>-1.4%</td><td>-0.9%</td><td>+2.0%</td></tr></tbody></table></div>
+  <p class="note"><strong>Scope:</strong> this is the exact 54-export Solid browser-core surface. JSX/LSX, DOM, Store, application, performance, and retained-memory evidence are reported as separate gates.</p>
+</main></body></html>

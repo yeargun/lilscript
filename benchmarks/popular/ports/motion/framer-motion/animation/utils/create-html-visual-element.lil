@@ -1,0 +1,28 @@
+import { HTMLVisualElement } from "../../../motion-dom/render/html/HTMLVisualElement";
+import { visualElementStore } from "../../../motion-dom/render/store";
+import extern { weakMapSet } from "../../../motion-dom/weak-host.ts";
+
+extern void weakMapSet(JsValue map, JsValue key, JsValue value);
+
+JsValue visualOptions() {
+  JsValue options = record{};
+  options["presenceContext"] = null;
+  options["props"] = record{};
+  JsValue visualState = record{};
+  JsValue renderState = record{};
+  renderState["transform"] = record{};
+  renderState["transformOrigin"] = record{};
+  renderState["style"] = record{};
+  renderState["vars"] = record{};
+  renderState["attrs"] = record{};
+  visualState["renderState"] = renderState;
+  visualState["latestValues"] = record{};
+  options["visualState"] = visualState;
+  return options;
+}
+
+export void createDOMVisualElement(JsValue element) {
+  HTMLVisualElement node = new HTMLVisualElement(visualOptions());
+  node.mount(element);
+  weakMapSet(visualElementStore, element, node);
+}

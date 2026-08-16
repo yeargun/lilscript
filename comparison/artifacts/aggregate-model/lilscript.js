@@ -1,1 +1,1 @@
-let a=[3,4];console.log(42);let b=((a[0]+a[1]|0)+6|0);console.log(b);console.log(b+7|0)
+let l=[3,4];l=l[0]+l[1];console.log(42);l+=6;console.log(l);console.log(l+7)

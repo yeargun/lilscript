@@ -1,0 +1,1 @@
+var I=algorithmCount(),b=0,l=0,d;for(;l<I;++l)d=algorithmInt(l),b=b+((d*3|0)+7^(l*2|0)+3^((d+l|0)*-2|0)+11^(l*2|0)+3)|0;l=((b+(I*13|0)|0)*5|0)+(I*-52|0)|0;console.log(l)

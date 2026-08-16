@@ -1,0 +1,1248 @@
+import {
+  Context,
+  OwnerHandle,
+  Signal,
+  SuspenseState,
+  createContext,
+  createMemo,
+  createRenderEffect as createReactiveRenderEffect,
+  createRoot,
+  enableSuspenseResolution,
+  getOwner,
+  indexArrayWithFallback,
+  mapArrayWithFallback,
+  mapArrayValues,
+  mapArrayValuesWithFallback,
+  onCleanup,
+  provideContext,
+  runWithOwner,
+  untrack,
+  useContext
+} from "./reactive";
+
+extern JsValue domQueryRoot(string selector);
+extern JsValue domCreateElement(string tag);
+extern JsValue domCreateIntrinsicElement(string tag);
+extern JsValue domCreateSvgElement(string tag);
+extern JsValue domCreateMathElement(string tag);
+extern JsValue domCreateText(string value);
+extern JsValue domCreateComment();
+extern JsValue domCreateFragment();
+extern JsValue domPrepareTemplate(string html);
+extern JsValue domPrepareSvgTemplate(string html);
+extern JsValue domPrepareMathTemplate(string html);
+extern JsValue domCloneNode(JsValue node);
+extern JsValue domFirstChild(JsValue node);
+extern JsValue domNextSibling(JsValue node);
+extern JsValue[] domChildNodes(JsValue parent);
+extern void domReleaseNode(JsValue node);
+extern bool domIsFragment(JsValue node);
+extern void domAppendChild(JsValue parent, JsValue child);
+extern void domRemoveNode(JsValue node);
+extern void domReconcile(
+  JsValue parent,
+  JsValue marker,
+  JsValue[] current,
+  JsValue[] next
+);
+extern void domReconcileOne(
+  JsValue parent,
+  JsValue marker,
+  JsValue current,
+  JsValue next
+);
+extern void domSetText(JsValue node, string value);
+extern void domSetAttribute(JsValue node, string name, string value);
+extern void domSetAttributeNS(
+  JsValue node,
+  string namespace,
+  string name,
+  string value
+);
+extern void domSetBoolAttribute(JsValue node, string name, bool value);
+extern void domSetStringProperty(JsValue node, string name, string value);
+extern void domSetBoolProperty(JsValue node, string name, bool value);
+extern void domToggleClass(JsValue node, string name, bool value);
+extern void domSetStyleProperty(JsValue node, string name, string value);
+extern JsValue domSpread(
+  JsValue node,
+  JsValue props,
+  JsValue previous,
+  bool svg
+);
+extern JsValue domAddEventListener(
+  JsValue node,
+  string event,
+  func()->void callback
+);
+extern void domRemoveEventListener(JsValue listener);
+extern JsValue domAddDelegatedEvent(
+  JsValue node,
+  string event,
+  func(JsValue)->void callback
+);
+extern JsValue domAddDelegatedEventVoid(
+  JsValue node,
+  string event,
+  func()->void callback
+);
+extern JsValue domAddDelegatedClickVoid(
+  JsValue node,
+  func()->void callback
+);
+extern void domSetDelegatedClickVoid(
+  JsValue node,
+  func()->void callback
+);
+extern void domRemoveDelegatedClick(JsValue listener);
+extern void domRemoveDelegatedEvent(JsValue listener);
+extern void domClearDelegatedEvents();
+extern JsValue domEventTarget(JsValue event);
+extern JsValue domEventCurrentTarget(JsValue event);
+extern string domEventType(JsValue event);
+extern bool domEventDefaultPrevented(JsValue event);
+extern void domEventPreventDefault(JsValue event);
+extern void domEventStopPropagation(JsValue event);
+extern void domSetEventHost(JsValue node, JsValue host);
+extern bool domIsHead(JsValue node);
+extern JsValue domAttachShadow(JsValue node);
+extern void domClear(JsValue node);
+
+extern class HostElement {
+  void setAttribute(string name, string value);
+}
+
+extern class HostDocument {
+  HostElement documentElement;
+}
+
+extern HostDocument document;
+
+extern class HostObjectConstructor {
+  JsValue defineProperty(JsValue object, string name, JsValue descriptor);
+  string[] keys(JsValue object);
+}
+
+extern HostObjectConstructor Object;
+
+class ErrorHandlerState {
+  OwnerHandle? owner;
+  (func(JsValue)->void)[] handlers;
+
+  init(OwnerHandle? owner, func(JsValue)->void handler) {
+    this.owner = owner;
+    this.handlers = [handler];
+  }
+}
+
+Context<ErrorHandlerState?> errorHandlerContext = createContext(null);
+Context<SuspenseState?> suspenseContext = createContext(null);
+
+bool routeDomError(JsValue error, OwnerHandle? owner) {
+  ErrorHandlerState? state = runWithOwner(
+    owner,
+    () => useContext(errorHandlerContext)
+  );
+  if (state == null) {
+    return false;
+  }
+  for (int index = 0; index < state.handlers.length; index++) {
+    func(JsValue)->void handler = state.handlers[index];
+    try {
+      handler(error);
+    } catch (auto nextError) {
+      OwnerHandle? parent = null;
+      OwnerHandle? boundaryOwner = state.owner;
+      if (boundaryOwner != null) {
+        parent = boundaryOwner.owner;
+      }
+      return routeDomError(nextError, parent);
+    }
+  }
+  return true;
+}
+
+enableSuspenseResolution(() => useContext(suspenseContext));
+
+export int createRenderEffect(func()->void callback) {
+  return createReactiveRenderEffect(() => {
+    try {
+      callback();
+    } catch (auto error) {
+      if (!routeDomError(error, getOwner())) {
+        throw error;
+      }
+    }
+  });
+}
+
+export class DomNode {
+  JsValue id;
+
+  init(JsValue id) {
+    this.id = id;
+  }
+}
+
+export JsValue componentProps() {
+  return JS.object();
+}
+
+export void componentProperty(
+  JsValue props,
+  string name,
+  func()->JsValue getter
+) {
+  Object.defineProperty(
+    props,
+    name,
+    record{
+      configurable: true,
+      enumerable: true,
+      get: getter
+    }
+  );
+}
+
+export void componentSpread(JsValue props, JsValue source) {
+  string[] keys = Object.keys(source);
+  for (int index = 0; index < keys.length; index++) {
+    string name = keys[index];
+    componentProperty(props, name, () => JS.get(source, name));
+  }
+}
+
+export T componentProp<T>(JsValue props, string name) {
+  return JS.assume(JS.get(props, name));
+}
+
+export DomNode componentNode(JsValue component, JsValue props) {
+  func(JsValue)->DomNode renderComponent = JS.assume(component);
+  return untrack(() => renderComponent(props));
+}
+
+export DomNode[] componentNodes(JsValue component, JsValue props) {
+  DomNode node = componentNode(component, props);
+  return nodeGroup(node);
+}
+
+export DomNode fragment() {
+  DomNode node = new DomNode(domCreateFragment());
+  onCleanup(() => domReleaseNode(node.id));
+  return node;
+}
+
+export DomNode[] childNodes(DomNode parent) {
+  JsValue[] ids = domChildNodes(parent.id);
+  DomNode[] nodes = [];
+  for (int index = 0; index < ids.length; index++) {
+    nodes.push(new DomNode(ids[index]));
+  }
+  return nodes;
+}
+
+export DomNode[] nodeGroup(DomNode node) {
+  if (domIsFragment(node.id)) {
+    return childNodes(node);
+  }
+  return [node];
+}
+
+export DomNode materializeNodeGroup(DomNode[] nodes) {
+  if (nodes.length == 1) {
+    return nodes[0];
+  }
+  DomNode value = fragment();
+  for (int index = 0; index < nodes.length; index++) {
+    append(value, nodes[index]);
+  }
+  return value;
+}
+
+export DomNode[] flattenNodeGroups(DomNode[][] groups) {
+  DomNode[] nodes = [];
+  for (int outer = 0; outer < groups.length; outer++) {
+    DomNode[] group = groups[outer];
+    for (int inner = 0; inner < group.length; inner++) {
+      nodes.push(group[inner]);
+    }
+  }
+  return nodes;
+}
+
+export void appendComponentChildren(DomNode parent, JsValue props) {
+  DomNode[] nodes = componentProp(props, "children");
+  for (int index = 0; index < nodes.length; index++) {
+    append(parent, nodes[index]);
+  }
+}
+
+export class DomRegion {
+  DomNode parent;
+  DomNode marker;
+  DomNode[] current;
+  bool disposed;
+
+  init(DomNode parent, bool textMarker = false) {
+    this.parent = parent;
+    if (textMarker) {
+      this.marker = text("");
+    } else {
+      this.marker = new DomNode(domCreateComment());
+    }
+    this.current = [];
+    this.disposed = false;
+    append(parent, this.marker);
+  }
+
+  void replace(DomNode[] next) {
+    if (this.current.length == 1 && next.length == 1) {
+      domReconcileOne(
+        this.parent.id,
+        this.marker.id,
+        this.current[0].id,
+        next[0].id
+      );
+      this.current = next;
+      return;
+    }
+    JsValue[] currentIds = [];
+    for (int index = 0; index < this.current.length; index++) {
+      currentIds.push(this.current[index].id);
+    }
+    JsValue[] nextIds = [];
+    for (int index = 0; index < next.length; index++) {
+      nextIds.push(next[index].id);
+    }
+    domReconcile(this.parent.id, this.marker.id, currentIds, nextIds);
+    this.current = next;
+  }
+
+  void dispose() {
+    if (this.disposed) {
+      return;
+    }
+    this.replace([]);
+    domRemoveNode(this.marker.id);
+    this.disposed = true;
+  }
+}
+
+export class DomEvent {
+  JsValue id;
+
+  init(JsValue id) {
+    this.id = id;
+  }
+
+  DomNode target() {
+    return new DomNode(domEventTarget(this.id));
+  }
+
+  DomNode currentTarget() {
+    return new DomNode(domEventCurrentTarget(this.id));
+  }
+
+  string type() {
+    return domEventType(this.id);
+  }
+
+  bool defaultPrevented() {
+    return domEventDefaultPrevented(this.id);
+  }
+
+  void preventDefault() {
+    domEventPreventDefault(this.id);
+  }
+
+  void stopPropagation() {
+    domEventStopPropagation(this.id);
+  }
+}
+
+class DomBranch {
+  func()->void disposer;
+  bool active;
+
+  init() {
+    this.disposer = () => {};
+    this.active = false;
+  }
+
+  DomNode[] render(func()->DomNode[] view) {
+    this.clear();
+    this.active = true;
+    return createRoot((func()->void dispose) => {
+      this.disposer = dispose;
+      return untrack(view);
+    });
+  }
+
+  DomNode[] renderWithError(
+    func()->DomNode[] view,
+    func(JsValue)->void onFailure
+  ) {
+    this.clear();
+    this.active = true;
+    bool failed = false;
+    JsValue failure = JS.undefined();
+    DomNode[] result = createRoot((func()->void dispose) => {
+      this.disposer = dispose;
+      ErrorHandlerState state = new ErrorHandlerState(getOwner(), onFailure);
+      try {
+        return provideContext(
+          errorHandlerContext,
+          state,
+          () => untrack(view)
+        );
+      } catch (auto error) {
+        failed = true;
+        failure = error;
+        return [];
+      }
+    });
+    if (failed) {
+      this.clear();
+      onFailure(failure);
+    }
+    return result;
+  }
+
+  DomNode[] renderWithSuspense(
+    func()->DomNode[] view,
+    SuspenseState state
+  ) {
+    this.clear();
+    this.active = true;
+    return createRoot((func()->void dispose) => {
+      this.disposer = dispose;
+      return provideContext(
+        suspenseContext,
+        state,
+        () => untrack(view)
+      );
+    });
+  }
+
+  void clear() {
+    if (!this.active) {
+      return;
+    }
+    this.active = false;
+    func()->void dispose = this.disposer;
+    this.disposer = () => {};
+    dispose();
+  }
+}
+
+export DomNode element(string tag) {
+  return new DomNode(domCreateElement(tag));
+}
+
+export DomNode query(string selector) {
+  return new DomNode(domQueryRoot(selector));
+}
+
+export DomNode intrinsicElement(string tag) {
+  return new DomNode(domCreateIntrinsicElement(tag));
+}
+
+export DomNode svgElement(string tag) {
+  return new DomNode(domCreateSvgElement(tag));
+}
+
+export DomNode mathElement(string tag) {
+  return new DomNode(domCreateMathElement(tag));
+}
+
+export JsValue prepareTemplate(string html) {
+  return domPrepareTemplate(html);
+}
+
+export JsValue prepareSvgTemplate(string html) {
+  return domPrepareSvgTemplate(html);
+}
+
+export JsValue prepareMathTemplate(string html) {
+  return domPrepareMathTemplate(html);
+}
+
+export DomNode cloneTemplate(JsValue template) {
+  return new DomNode(domCloneNode(template));
+}
+
+export DomNode firstChild(DomNode node) {
+  return new DomNode(domFirstChild(node.id));
+}
+
+export DomNode nextSibling(DomNode node) {
+  return new DomNode(domNextSibling(node.id));
+}
+
+export void setText(DomNode node, string value) {
+  domSetText(node.id, value);
+}
+
+export DomNode text(string value) {
+  return new DomNode(domCreateText(value));
+}
+
+export void append(DomNode parent, DomNode child) {
+  domAppendChild(parent.id, child.id);
+}
+
+export void attribute(DomNode node, string name, string value) {
+  domSetAttribute(node.id, name, value);
+}
+
+export void namespacedAttribute(
+  DomNode node,
+  string namespace,
+  string name,
+  string value
+) {
+  domSetAttributeNS(node.id, namespace, name, value);
+}
+
+export void boolAttribute(DomNode node, string name, bool value) {
+  domSetBoolAttribute(node.id, name, value);
+}
+
+export void stringProperty(DomNode node, string name, string value) {
+  domSetStringProperty(node.id, name, value);
+}
+
+export void boolProperty(DomNode node, string name, bool value) {
+  domSetBoolProperty(node.id, name, value);
+}
+
+export void classToggle(DomNode node, string name, bool value) {
+  domToggleClass(node.id, name, value);
+}
+
+export void styleProperty(DomNode node, string name, string value) {
+  domSetStyleProperty(node.id, name, value);
+}
+
+export void spreadProps(DomNode node, JsValue props, bool svg) {
+  JsValue previous = JS.object();
+  onCleanup(() => {
+    previous = domSpread(node.id, JS.object(), previous, svg);
+  });
+  createRenderEffect(() => {
+    if (JS.has(props, "ref")) {
+      JsValue refValue = JS.get(props, "ref");
+      if (!JS.isNullish(refValue)) {
+        func(DomNode)->void ref = JS.assume(refValue);
+        untrack(() => {
+          ref(node);
+          return 0;
+        });
+      }
+    }
+  });
+  createRenderEffect(() => {
+    previous = domSpread(node.id, props, previous, svg);
+  });
+}
+
+export void dynamicAttribute(
+  DomNode node,
+  string name,
+  func()->string value
+) {
+  createRenderEffect(() => domSetAttribute(node.id, name, value()));
+}
+
+export void dynamicBoolAttribute(
+  DomNode node,
+  string name,
+  Signal<bool> value
+) {
+  createRenderEffect(() => domSetBoolAttribute(node.id, name, value.read()));
+}
+
+export void dynamicStringProperty(
+  DomNode node,
+  string name,
+  func()->string value
+) {
+  createRenderEffect(() => domSetStringProperty(node.id, name, value()));
+}
+
+export void dynamicBoolProperty(
+  DomNode node,
+  string name,
+  Signal<bool> value
+) {
+  createRenderEffect(() => domSetBoolProperty(node.id, name, value.read()));
+}
+
+export void dynamicClass(
+  DomNode node,
+  string name,
+  Signal<bool> value
+) {
+  createRenderEffect(() => domToggleClass(node.id, name, value.read()));
+}
+
+export void dynamicStyle(
+  DomNode node,
+  string name,
+  func()->string value
+) {
+  createRenderEffect(() => domSetStyleProperty(node.id, name, value()));
+}
+
+export void use<T>(DomNode node, func(DomNode,T)->void directive, T value) {
+  untrack(() => {
+    directive(node, value);
+    return 0;
+  });
+}
+
+export void dynamicText(DomNode parent, func()->string value) {
+  DomNode content = text("");
+  append(parent, content);
+  createRenderEffect(() => domSetText(content.id, value()));
+}
+
+export void dynamicTextNode(DomNode content, func()->string value) {
+  createRenderEffect(() => domSetText(content.id, value()));
+}
+
+export DomNode reactiveText(func()->string value) {
+  DomNode content = text("");
+  createRenderEffect(() => domSetText(content.id, value()));
+  return content;
+}
+
+export DomRegion region(DomNode parent) {
+  DomRegion value = new DomRegion(parent, false);
+  onCleanup(() => value.dispose());
+  return value;
+}
+
+DomRegion silentRegion(DomNode parent) {
+  DomRegion value = new DomRegion(parent, true);
+  onCleanup(() => value.dispose());
+  return value;
+}
+
+export void dynamicShow(
+  DomRegion target,
+  Signal<bool> when,
+  func()->DomNode[] children,
+  func()->DomNode[] fallback
+) {
+  DomBranch branch = new DomBranch();
+  int active = -1;
+  Signal<bool> visible = createMemo(
+    false,
+    () => when.read(),
+    (bool previous, bool next) => previous == next
+  );
+  onCleanup(() => branch.clear());
+  createRenderEffect(() => {
+    int selected = 0;
+    if (visible.read()) {
+      selected = 1;
+    }
+    if (selected == active) {
+      return;
+    }
+    active = selected;
+    if (selected == 1) {
+      target.replace(branch.render(children));
+    } else {
+      target.replace(branch.render(fallback));
+    }
+  });
+}
+
+export void dynamicShowValue(
+  DomRegion target,
+  func()->JsValue when,
+  bool keyed,
+  func(JsValue,func()->JsValue)->DomNode[] children,
+  func()->DomNode[] fallback
+) {
+  DomBranch branch = new DomBranch();
+  int active = -1;
+  int generation = 0;
+  JsValue activeValue = JS.undefined();
+  Signal<JsValue> conditionValue = createMemo(
+    JS.undefined(),
+    when,
+    (JsValue previous, JsValue next) => JS.strictEqual(previous, next)
+  );
+  onCleanup(() => branch.clear());
+  createRenderEffect(() => {
+    JsValue value = conditionValue.read();
+    int selected = 0;
+    if (value.truthy()) {
+      selected = 1;
+    }
+    bool changed = selected != active;
+    if (
+      selected == 1 &&
+      active == 1 &&
+      keyed &&
+      !JS.strictEqual(value, activeValue)
+    ) {
+      changed = true;
+    }
+    activeValue = value;
+    if (!changed) {
+      return;
+    }
+    active = selected;
+    generation += 1;
+    int branchGeneration = generation;
+    if (selected == 1) {
+      target.replace(branch.render(() => children(value, () => {
+        if (active != 1 || generation != branchGeneration) {
+          throw "Stale read from <Show>.";
+        }
+        return conditionValue.read();
+      })));
+    } else {
+      target.replace(branch.render(fallback));
+    }
+  });
+}
+
+export void dynamicSwitch(
+  DomRegion target,
+  (func()->bool)[] matches,
+  (func()->DomNode[])[] children,
+  func()->DomNode[] fallback
+) {
+  DomBranch branch = new DomBranch();
+  int active = -2;
+  Signal<int> selection = createMemo(
+    -1,
+    () => {
+      for (int index = 0; index < matches.length; index++) {
+        func()->bool matchesCurrent = matches[index];
+        if (matchesCurrent()) {
+          return index;
+        }
+      }
+      return -1;
+    },
+    (int previous, int next) => previous == next
+  );
+  onCleanup(() => branch.clear());
+  createRenderEffect(() => {
+    int selected = selection.read();
+    if (selected == active) {
+      return;
+    }
+    active = selected;
+    if (selected < 0) {
+      target.replace(branch.render(fallback));
+      return;
+    }
+    func()->DomNode[] renderSelected = children[selected];
+    target.replace(branch.render(renderSelected));
+  });
+}
+
+export void dynamicErrorBoundary(
+  DomRegion target,
+  func()->DomNode[] children,
+  func(JsValue,func()->void)->DomNode[] fallback
+) {
+  DomBranch branch = new DomBranch();
+  Signal<bool> failed = new Signal(
+    false,
+    (bool previous, bool next) => previous == next
+  );
+  JsValue failure = JS.undefined();
+  func(JsValue)->void onFailure = (JsValue error) => {
+    failure = error;
+    failed.write(true);
+  };
+  func()->void reset = () => {
+    failure = JS.undefined();
+    failed.write(false);
+  };
+  onCleanup(() => branch.clear());
+  createRenderEffect(() => {
+    if (failed.read()) {
+      target.replace(branch.render(() => fallback(failure, reset)));
+    } else {
+      target.replace(branch.renderWithError(children, onFailure));
+    }
+  });
+}
+
+export void dynamicSuspense(
+  DomRegion target,
+  func()->DomNode[] children,
+  func()->DomNode[] fallback
+) {
+  DomBranch contentBranch = new DomBranch();
+  DomBranch fallbackBranch = new DomBranch();
+  SuspenseState state = new SuspenseState();
+  DomNode[] content = [];
+  bool initialized = false;
+  int active = -1;
+  onCleanup(() => {
+    state.dispose();
+    fallbackBranch.clear();
+    contentBranch.clear();
+  });
+  createRenderEffect(() => {
+    bool pending = state.pending.read() > 0;
+    if (!initialized) {
+      initialized = true;
+      content = contentBranch.renderWithSuspense(children, state);
+      pending = state.pending.read() > 0;
+    }
+    if (pending) {
+      if (active != 1) {
+        active = 1;
+        target.replace(fallbackBranch.render(fallback));
+      }
+      return;
+    }
+    if (active != 0) {
+      active = 0;
+      fallbackBranch.clear();
+      target.replace(content);
+    }
+  });
+}
+
+export void dynamicSwitchValues(
+  DomRegion target,
+  (func()->JsValue)[] matches,
+  bool[] keyed,
+  (func(JsValue,func()->JsValue)->DomNode[])[] children,
+  func()->DomNode[] fallback
+) {
+  DomBranch branch = new DomBranch();
+  Signal<JsValue> selectedValue = new Signal(
+    JS.undefined(),
+    (JsValue previous, JsValue next) => JS.strictEqual(previous, next)
+  );
+  int active = -2;
+  int generation = 0;
+  JsValue activeValue = JS.undefined();
+  onCleanup(() => branch.clear());
+  createRenderEffect(() => {
+    int selected = -1;
+    JsValue value = JS.undefined();
+    for (int index = 0; index < matches.length; index++) {
+      func()->JsValue readMatch = matches[index];
+      JsValue candidate = readMatch();
+      if (candidate.truthy()) {
+        selected = index;
+        value = candidate;
+        break;
+      }
+    }
+    selectedValue.write(value);
+    bool changed = selected != active;
+    if (
+      selected >= 0 &&
+      selected == active &&
+      keyed[selected] &&
+      !JS.strictEqual(value, activeValue)
+    ) {
+      changed = true;
+    }
+    activeValue = value;
+    if (!changed) {
+      return;
+    }
+    active = selected;
+    generation += 1;
+    int branchGeneration = generation;
+    if (selected < 0) {
+      target.replace(branch.render(fallback));
+      return;
+    }
+    func(JsValue,func()->JsValue)->DomNode[] renderSelected = children[selected];
+    target.replace(branch.render(() => renderSelected(value, () => {
+      if (active != selected || generation != branchGeneration) {
+        throw "Stale read from <Match>.";
+      }
+      return selectedValue.read();
+    })));
+  });
+}
+
+export DomRegion dynamicElement(
+  DomNode parent,
+  Signal<string> tag,
+  func(DomNode)->void configure
+) {
+  DomRegion target = region(parent);
+  DomBranch branch = new DomBranch();
+  string active = "";
+  Signal<string> selectedTag = createMemo(
+    "",
+    () => tag.read(),
+    (string previous, string next) => previous == next
+  );
+  onCleanup(() => branch.clear());
+  createRenderEffect(() => {
+    string name = selectedTag.read();
+    if (name == active) {
+      return;
+    }
+    active = name;
+    if (name == "") {
+      branch.clear();
+      target.replace([]);
+    } else {
+      target.replace(branch.render(() => {
+        DomNode node = intrinsicElement(name);
+        configure(node);
+        return [node];
+      }));
+    }
+  });
+  return target;
+}
+
+export DomRegion dynamicElementValue(
+  DomNode parent,
+  func()->string tag,
+  func(DomNode)->void configure
+) {
+  DomRegion target = region(parent);
+  DomBranch branch = new DomBranch();
+  string active = "";
+  Signal<string> selectedTag = createMemo(
+    "",
+    tag,
+    (string previous, string next) => previous == next
+  );
+  onCleanup(() => branch.clear());
+  createRenderEffect(() => {
+    string name = selectedTag.read();
+    if (name == active) {
+      return;
+    }
+    active = name;
+    if (name == "") {
+      branch.clear();
+      target.replace([]);
+    } else {
+      target.replace(branch.render(() => {
+        DomNode node = intrinsicElement(name);
+        configure(node);
+        return [node];
+      }));
+    }
+  });
+  return target;
+}
+
+export DomRegion dynamicComponent<P>(
+  DomNode parent,
+  Signal<func(P)->DomNode> component,
+  P props
+) {
+  DomRegion target = region(parent);
+  DomBranch branch = new DomBranch();
+  (func(P)->DomNode)? active = null;
+  onCleanup(() => branch.clear());
+  createRenderEffect(() => {
+    func(P)->DomNode renderComponent = component.read();
+    if (active != null && active == renderComponent) {
+      return;
+    }
+    active = renderComponent;
+    target.replace(branch.render(() => nodeGroup(renderComponent(props))));
+  });
+  return target;
+}
+
+export DomRegion Dynamic<P>(
+  DomNode parent,
+  Signal<(string|func(P)->DomNode)?> component,
+  P props,
+  func(DomNode)->void configure
+) {
+  DomRegion target = region(parent);
+  DomBranch branch = new DomBranch();
+  (string|func(P)->DomNode)? active = null;
+  onCleanup(() => branch.clear());
+  createRenderEffect(() => {
+    (string|func(P)->DomNode)? selected = component.read();
+    if (selected == active) {
+      return;
+    }
+    active = selected;
+    if (selected == null) {
+      branch.clear();
+      target.replace([]);
+      return;
+    }
+    if (selected is string) {
+      string name = selected;
+      target.replace(branch.render(() => {
+        DomNode node = intrinsicElement(name);
+        configure(node);
+        return [node];
+      }));
+    } else {
+      func(P)->DomNode renderComponent = selected;
+      target.replace(branch.render(() => nodeGroup(renderComponent(props))));
+    }
+  });
+  return target;
+}
+
+export DomRegion dynamicValue(
+  DomNode parent,
+  func()->JsValue component,
+  JsValue props,
+  func(DomNode)->void configure
+) {
+  DomRegion target = region(parent);
+  DomBranch branch = new DomBranch();
+  JsValue active = JS.undefined();
+  onCleanup(() => branch.clear());
+  createRenderEffect(() => {
+    JsValue selected = component();
+    if (selected == active) {
+      return;
+    }
+    active = selected;
+    if (JS.isNullish(selected)) {
+      branch.clear();
+      target.replace([]);
+      return;
+    }
+    if (selected is string) {
+      string name = selected;
+      target.replace(branch.render(() => {
+        DomNode node = intrinsicElement(name);
+        configure(node);
+        return [node];
+      }));
+    } else {
+      target.replace(
+        branch.render(() => nodeGroup(componentNode(selected, props)))
+      );
+    }
+  });
+  return target;
+}
+
+export DomRegion dynamicFor<T>(
+  DomNode parent,
+  Signal<T[]> each,
+  func(T,Signal<int>)->DomNode children,
+  func()->DomNode fallback
+) {
+  func()->DomNode[] mapped = mapArrayWithFallback(each, children, fallback);
+  DomRegion target = region(parent);
+  createRenderEffect(() => target.replace(mapped()));
+  return target;
+}
+
+export DomRegion dynamicIndex<T>(
+  DomNode parent,
+  Signal<T[]> each,
+  func(Signal<T>,int)->DomNode children,
+  func()->DomNode fallback
+) {
+  func()->DomNode[] mapped = indexArrayWithFallback(each, children, fallback);
+  DomRegion target = region(parent);
+  createRenderEffect(() => target.replace(mapped()));
+  return target;
+}
+
+export DomRegion dynamicForNodes<T>(
+  DomNode parent,
+  Signal<T[]> each,
+  func(T,Signal<int>)->DomNode[] children,
+  func()->DomNode[] fallback
+) {
+  func()->DomNode[][] mapped = mapArrayWithFallback(each, children, fallback);
+  DomRegion target = region(parent);
+  createRenderEffect(() => target.replace(flattenNodeGroups(mapped())));
+  return target;
+}
+
+export DomRegion dynamicForValueNodes<T>(
+  DomNode parent,
+  Signal<T[]> each,
+  func(T)->DomNode[] children,
+  func()->DomNode[] fallback
+) {
+  func()->DomNode[][] mapped = mapArrayValuesWithFallback(
+    each,
+    children,
+    fallback
+  );
+  DomRegion target = region(parent);
+  createRenderEffect(() => target.replace(flattenNodeGroups(mapped())));
+  return target;
+}
+
+export DomRegion dynamicForValue<T>(
+  DomNode parent,
+  Signal<T[]> each,
+  func(T)->DomNode children
+) {
+  func()->DomNode[] mapped = mapArrayValues(each, children);
+  DomRegion target = region(parent);
+  createRenderEffect(() => target.replace(mapped()));
+  return target;
+}
+
+export DomRegion dynamicIndexNodes<T>(
+  DomNode parent,
+  Signal<T[]> each,
+  func(Signal<T>,int)->DomNode[] children,
+  func()->DomNode[] fallback
+) {
+  func()->DomNode[][] mapped = indexArrayWithFallback(each, children, fallback);
+  DomRegion target = region(parent);
+  createRenderEffect(() => target.replace(flattenNodeGroups(mapped())));
+  return target;
+}
+
+DomNode createPortalContainer(bool svg) {
+  if (svg) {
+    return svgElement("g");
+  }
+  return element("div");
+}
+
+export DomNode portal(
+  DomNode host,
+  DomNode mount,
+  bool svg,
+  func(DomNode)->void view
+) {
+  DomNode container = createPortalContainer(svg);
+  domSetEventHost(container.id, host.id);
+  append(mount, container);
+  untrack(() => {
+    view(container);
+    return 0;
+  });
+  onCleanup(() => domRemoveNode(container.id));
+  return container;
+}
+
+export DomNode portalNodes(
+  DomNode host,
+  DomNode mount,
+  bool svg,
+  bool useShadow,
+  func(DomNode)->void ref,
+  func()->DomNode[] children
+) {
+  if (domIsHead(mount.id)) {
+    DomRegion target = silentRegion(mount);
+    DomNode[] nodes = untrack(children);
+    for (int index = 0; index < nodes.length; index++) {
+      domSetEventHost(nodes[index].id, host.id);
+    }
+    target.replace(nodes);
+    return target.marker;
+  }
+
+  DomNode container = createPortalContainer(svg);
+  domSetEventHost(container.id, host.id);
+  append(mount, container);
+  DomNode renderRoot = container;
+  if (useShadow) {
+    renderRoot = new DomNode(domAttachShadow(container.id));
+  }
+  DomNode[] nodes = untrack(children);
+  for (int index = 0; index < nodes.length; index++) {
+    append(renderRoot, nodes[index]);
+  }
+  untrack(() => {
+    ref(container);
+    return 0;
+  });
+  onCleanup(() => domRemoveNode(container.id));
+  return container;
+}
+
+export void onEvent(DomNode node, string event, func()->void callback) {
+  JsValue listener = domAddEventListener(node.id, event, callback);
+  onCleanup(() => domRemoveEventListener(listener));
+}
+
+export void onDelegatedEvent(
+  DomNode node,
+  string event,
+  func(DomEvent)->void callback
+) {
+  JsValue listener = domAddDelegatedEvent(
+    node.id,
+    event,
+    (JsValue eventId) => callback(new DomEvent(eventId))
+  );
+  onCleanup(() => domRemoveDelegatedEvent(listener));
+}
+
+export void onDelegatedEventVoid(
+  DomNode node,
+  string event,
+  func()->void callback
+) {
+  JsValue listener = domAddDelegatedEventVoid(node.id, event, callback);
+  onCleanup(() => domRemoveDelegatedEvent(listener));
+}
+
+export void onDelegatedClickVoid(DomNode node, func()->void callback) {
+  JsValue listener = domAddDelegatedClickVoid(node.id, callback);
+  onCleanup(() => domRemoveDelegatedClick(listener));
+}
+
+export void onDelegatedClickVoidPermanent(
+  DomNode node,
+  func()->void callback
+) {
+  domSetDelegatedClickVoid(node.id, callback);
+}
+
+export void onDelegatedEventWithData<T>(
+  DomNode node,
+  string event,
+  T data,
+  func(T,DomEvent)->void callback
+) {
+  JsValue listener = domAddDelegatedEvent(
+    node.id,
+    event,
+    (JsValue eventId) => callback(data, new DomEvent(eventId))
+  );
+  onCleanup(() => domRemoveDelegatedEvent(listener));
+}
+
+export void clearDelegatedEvents() {
+  domClearDelegatedEvents();
+}
+
+export void documentAttribute(string name, func()->string value) {
+  createRenderEffect(() => document.documentElement.setAttribute(name, value()));
+}
+
+export func()->void render(string selector, func(DomNode)->void view) {
+  JsValue rootId = domQueryRoot(selector);
+  return createRoot((func()->void dispose) => {
+    DomNode root = new DomNode(rootId);
+    domClear(rootId);
+    // Owner cleanups run in reverse registration order. Register the host
+    // clear first so regions, portals, and listeners release their own DOM
+    // handles before the root recursively releases what remains.
+    onCleanup(() => domClear(rootId));
+    view(root);
+    return dispose;
+  });
+}

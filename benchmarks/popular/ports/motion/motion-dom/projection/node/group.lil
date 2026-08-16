@@ -1,0 +1,91 @@
+export class ProjectionGroupNode {
+  bool isLayoutDirty;
+  Map<string, (func()->void)[]> listeners;
+
+  init() {
+    this.isLayoutDirty = false;
+    this.listeners = new Map<string, (func()->void)[]>();
+  }
+
+  void willUpdate(bool skip = false) {}
+
+  func()->void addEventListener(string name, func()->void callback) {
+    (func()->void)[]? existing = this.listeners.get(name);
+    (func()->void)[] list = [];
+    if (existing != null) {
+      list = existing;
+    }
+    list.push(callback);
+    this.listeners.set(name, list);
+    return () => {
+      (func()->void)[]? current = this.listeners.get(name);
+      if (current == null) {
+        return;
+      }
+      int idx = current.indexOf(callback);
+      if (idx > -1) {
+        current.splice(idx, 1);
+      }
+    };
+  }
+}
+
+void notify(ProjectionGroupNode node) {
+  if (!node.isLayoutDirty) {
+    node.willUpdate(false);
+  }
+}
+
+export class UnsubscribeCell {
+  func()->void run;
+  init(func()->void run) {
+    this.run = run;
+  }
+}
+
+export class NodeGroup {
+  ProjectionGroupNode[] nodes;
+  Map<ProjectionGroupNode, UnsubscribeCell> subscriptions;
+
+  init() {
+    this.nodes = [];
+    this.subscriptions = new Map<ProjectionGroupNode, UnsubscribeCell>();
+  }
+
+  void dirtyAll() {
+    ProjectionGroupNode[] snapshot = [...this.nodes];
+    for (int i = 0; i < snapshot.length; i++) {
+      notify(snapshot[i]);
+    }
+  }
+
+  void add(ProjectionGroupNode node) {
+    if (this.nodes.indexOf(node) == -1) {
+      this.nodes.push(node);
+    }
+    NodeGroup self = this;
+    this.subscriptions.set(
+      node,
+      new UnsubscribeCell(node.addEventListener("willUpdate", () => {
+        self.dirtyAll();
+      }))
+    );
+  }
+
+  void remove(ProjectionGroupNode node) {
+    int idx = this.nodes.indexOf(node);
+    if (idx > -1) {
+      this.nodes.splice(idx, 1);
+    }
+    UnsubscribeCell? cell = this.subscriptions.get(node);
+    if (cell != null) {
+      cell.run();
+      this.subscriptions.delete(node);
+    }
+    this.dirtyAll();
+  }
+}
+
+export NodeGroup nodeGroup() {
+  return new NodeGroup();
+}

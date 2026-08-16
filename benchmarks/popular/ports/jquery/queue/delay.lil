@@ -1,0 +1,43 @@
+import { jQuery } from "../core";
+import {
+  isUndefined,
+  scheduleTimeoutMs,
+  clearTimeoutId,
+  stringify
+} from "../js-host.lil";
+
+JsValue fnDelay(JsValue self, JsValue args) {
+  JsValue time = args[0];
+  JsValue type = "fx";
+  if (args.length > 1.0 && !JS.isUndefined(args[1]) && args[1].truthy()) {
+    type = args[1];
+  }
+
+  JsValue fx = jQuery["fx"];
+  if (fx.truthy()) {
+    JsValue speeds = fx["speeds"];
+    if (speeds.truthy()) {
+      JsValue mapped = speeds[JS.string(time)];
+      if (mapped.truthy()) {
+        time = mapped;
+      }
+    }
+  }
+
+  return JS.invoke(self, "queue", type, (JsValue next, JsValue hooks) => {
+    float ms = 0.0;
+    if (time is float) {
+      ms = time;
+    }
+    JsValue timeout = scheduleTimeoutMs(next, ms);
+    hooks["stop"] = () => {
+      clearTimeoutId(timeout);
+      return JS.undefined();
+    };
+    return JS.undefined();
+  });
+}
+
+jQuery["fn"]["delay"] = JS.methodRest(fnDelay);
+
+export { jQuery };

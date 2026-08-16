@@ -1,0 +1,23 @@
+Set<string> invisibleValues = new Set<string>();
+invisibleValues.add("none");
+invisibleValues.add("hidden");
+
+export { invisibleValues };
+
+export func(float)->string mixVisibility(string origin, string target) {
+  if (invisibleValues.has(origin)) {
+    return (float p) => {
+      if (p <= 0.0) {
+        return origin;
+      }
+      return target;
+    };
+  } else {
+    return (float p) => {
+      if (p >= 1.0) {
+        return target;
+      }
+      return origin;
+    };
+  }
+}

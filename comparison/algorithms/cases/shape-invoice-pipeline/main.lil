@@ -1,0 +1,19 @@
+extern int algorithmInt(int index);
+extern int algorithmCount();
+import { Summary, beginSummary, makeLine, appendSummary, finishSummary } from "./model";
+
+int runInvoice() {
+  Summary summary = beginSummary();
+  int count = algorithmCount();
+  for (int index = 0; index + 3 < count; index += 4) {
+    summary = appendSummary(summary, makeLine(
+      algorithmInt(index),
+      algorithmInt(index + 1),
+      algorithmInt(index + 2),
+      algorithmInt(index + 3)
+    ));
+  }
+  return finishSummary(summary);
+}
+
+print(runInvoice());

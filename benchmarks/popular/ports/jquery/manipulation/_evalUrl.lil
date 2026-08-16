@@ -1,0 +1,43 @@
+import { jQuery, globalEval } from "../core";
+import { ajax } from "../ajax";
+import { createEmptyObject, setProp, noop, jsUndefined, stringify } from "../js-host.lil";
+
+struct EvalUrlSettings {
+  string url;
+  string type;
+  string dataType;
+  bool cache;
+  bool async;
+  bool global;
+  JsValue converters;
+  JsValue dataFilter;
+}
+
+JsValue evalUrl(string url, JsValue options, JsValue doc) {
+  JsValue converters = JS.object();
+  converters["text script"] = noop;
+
+  return ajax(EvalUrlSettings{
+    url,
+    "GET",
+    "script",
+    true,
+    false,
+    false,
+    converters,
+    (JsValue response) => {
+    string code = "";
+    if (response is string) {
+      code = response;
+    } else {
+      code = JS.string(response);
+    }
+    globalEval(code, options, doc);
+    return JS.undefined();
+  }
+  }, JS.undefined());
+}
+
+JS.set(jQuery, "_evalUrl", evalUrl);
+
+export { evalUrl };

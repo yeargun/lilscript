@@ -1,0 +1,6 @@
+import { document } from "./document";
+import {
+  documentElementOf
+} from "../js-host.lil";
+
+export JsValue documentElement = documentElementOf(document);

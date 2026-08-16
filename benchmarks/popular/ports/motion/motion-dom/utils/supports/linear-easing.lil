@@ -1,0 +1,7 @@
+import { supportsLinearEasingCheck } from "../../dom-host";
+import { memoSupports } from "./memo";
+
+export func()->bool supportsLinearEasing = memoSupports(
+  () => supportsLinearEasingCheck(),
+  "linearEasing"
+);

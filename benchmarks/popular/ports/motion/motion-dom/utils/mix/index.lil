@@ -1,0 +1,7 @@
+import { mixNumber as mixNumberImmediate } from "./number";
+
+export float mix(float from, float to, float p) {
+  return mixNumberImmediate(from, to, p);
+}
+
+export { mixNumberImmediate as mixNumber };

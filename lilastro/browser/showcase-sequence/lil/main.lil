@@ -1,0 +1,9 @@
+import { animate } from "../../../../benchmarks/popular/ports/motion/framer-motion/animation/animate/sequence-entry";
+
+JsValue[] sequence = [];
+sequence.push(["#a", record{ opacity: 1.0, scale: [0.5, 1.2, 1.0] }, record{ duration: 0.45 }]);
+sequence.push(["#b", record{ opacity: 1.0, y: [0.0 - 40.0, 0.0], scale: 1.0 }, record{ duration: 0.4 }]);
+sequence.push(["#c", record{ opacity: 1.0, x: [40.0, 0.0], rotate: [30.0, 0.0] }, record{ duration: 0.45 }]);
+sequence.push(["#a, #b, #c", record{ scale: 0.9 }, record{ duration: 0.25 }]);
+sequence.push(["#a, #b, #c", record{ scale: 1.0, opacity: 0.35 }, record{ duration: 0.35 }]);
+animate(sequence, null, null);

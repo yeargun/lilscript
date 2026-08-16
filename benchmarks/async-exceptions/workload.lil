@@ -1,0 +1,20 @@
+async int adjust(int value) {
+  try {
+    if (value % 2 == 0) { throw value; }
+    return await Task.resolve(value + 1);
+  } catch (auto ignored) {
+    return value;
+  }
+}
+
+string[] inventory = ["featured", "limited", "sale"];
+string[] rendered = inventory.map((string item) => item.toUpperCase());
+print(rendered.join(""));
+int checksum = 0;
+for (int index = 0; index < 200000; index++) {
+  checksum += Math.imul(index, 17) ^ (index >>> 3);
+}
+print(checksum);
+adjust(4).then((int value) => print(value));
+print("limited");
+print("done");

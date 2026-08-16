@@ -1,0 +1,11 @@
+import { Point } from "../../motion-utils/types/geometry";
+
+export float distance(float a, float b) {
+  return (a - b).abs();
+}
+
+export float distance2D(Point a, Point b) {
+  float xDelta = distance(a.x, b.x);
+  float yDelta = distance(a.y, b.y);
+  return (xDelta * xDelta + yDelta * yDelta).sqrt();
+}

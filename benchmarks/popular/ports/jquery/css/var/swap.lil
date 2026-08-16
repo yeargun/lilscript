@@ -1,0 +1,22 @@
+import {
+  createEmptyObject,
+  call0
+} from "../../js-host.lil";
+
+export JsValue swap(JsValue elem, JsValue options, JsValue callback) {
+  JsValue style = elem["style"];
+  JsValue old = JS.object();
+
+  for (string name in options) {
+    old[name] = style[name];
+    style[name] = options[name];
+  }
+
+  JsValue ret = JS.call(callback, elem);
+
+  for (string name in options) {
+    style[name] = old[name];
+  }
+
+  return ret;
+}

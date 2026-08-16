@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "aggregate-ledger",
+  "title": "Private aggregate layout and property mangling",
+  "hypothesis": "A typed, non-escaping ledger gives LilScript enough ownership information to shorten its private representation while JS minifiers optimize an idiomatic object accumulator.",
+  "tier": "small-structural",
+  "boundary": "runtime-host-script",
+  "structure": { "functions": 6, "modules": 1, "hostBoundaries": 2, "callDepth": 3 },
+  "opportunities": ["aggregate-layout", "property-mangling", "safe-property-mangling", "scalar-replacement", "escape-analysis"],
+  "expectations": { "raw": "le", "gzip9": "le", "brotli11": "le" },
+  "vectors": [
+    { "name": "positive", "ints": [3, 5, 8, 13, 21], "strings": [], "expected": "262\n" },
+    { "name": "signed", "ints": [7, -4, 12, -9, 2, 18], "strings": [], "expected": "170\n" },
+    { "name": "flat", "ints": [6, 6, 6, 6, 6, 6, 6], "strings": [], "expected": "210\n" },
+    { "name": "i32-wrap", "ints": [2147483647, 2147483647, -2147483648], "strings": [], "expected": "2147483642\n" }
+  ]
+}

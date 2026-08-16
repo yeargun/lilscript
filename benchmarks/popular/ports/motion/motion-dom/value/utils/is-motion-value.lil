@@ -1,0 +1,11 @@
+import { hasFunction } from "../../dom-host";
+
+export bool isMotionValue(JsValue? value = null) {
+  if (value == null) {
+    return false;
+  }
+  if (!value.truthy()) {
+    return false;
+  }
+  return hasFunction(value, "getVelocity");
+}

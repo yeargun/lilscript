@@ -1,0 +1,12 @@
+export JsValue siblings(JsValue n, JsValue elem = null) {
+  JsValue[] matched = [];
+  JsValue current = n;
+  while (current.truthy()) {
+    JsValue nodeTypeValue = current["nodeType"];
+    if (nodeTypeValue == 1.0 && current != elem) {
+      matched.push(current);
+    }
+    current = current["nextSibling"];
+  }
+  return matched;
+}

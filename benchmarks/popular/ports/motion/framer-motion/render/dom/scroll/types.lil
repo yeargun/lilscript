@@ -1,0 +1,72 @@
+export class AxisScrollInfo {
+  float current;
+  float[] offset;
+  float progress;
+  float scrollLength;
+  float velocity;
+  float targetOffset;
+  float targetLength;
+  float containerLength;
+  float[]? interpolatorOffsets;
+  (func(float)->float)? interpolateFn;
+
+  init() {
+    this.current = 0.0;
+    this.offset = [];
+    this.progress = 0.0;
+    this.scrollLength = 0.0;
+    this.velocity = 0.0;
+    this.targetOffset = 0.0;
+    this.targetLength = 0.0;
+    this.containerLength = 0.0;
+    this.interpolatorOffsets = null;
+    this.interpolateFn = null;
+  }
+}
+
+export class ScrollInfo {
+  float time;
+  AxisScrollInfo x;
+  AxisScrollInfo y;
+
+  init() {
+    this.time = 0.0;
+    this.x = new AxisScrollInfo();
+    this.y = new AxisScrollInfo();
+  }
+}
+
+export class ScrollOptions {
+  JsValue? source;
+  JsValue? container;
+  JsValue? target;
+  string axis;
+  JsValue? offset;
+  bool trackContentSize;
+
+  init(
+    JsValue? source = null,
+    JsValue? container = null,
+    JsValue? target = null,
+    string axis = "y",
+    JsValue? offset = null,
+    bool trackContentSize = false
+  ) {
+    this.source = source;
+    this.container = container;
+    this.target = target;
+    this.axis = axis;
+    this.offset = offset;
+    this.trackContentSize = trackContentSize;
+  }
+}
+
+export class OnScrollHandler {
+  func(float)->void measure;
+  func()->void notify;
+
+  init(func(float)->void measure, func()->void notify) {
+    this.measure = measure;
+    this.notify = notify;
+  }
+}

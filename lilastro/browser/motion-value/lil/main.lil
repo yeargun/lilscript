@@ -1,0 +1,22 @@
+import { animate } from "../../../../benchmarks/popular/ports/motion/framer-motion/animation/animate/element";
+import { motionValue, MotionValue } from "../../../../benchmarks/popular/ports/motion/motion-dom/value/index";
+import { documentQuerySelectorAll, setProp, parseFloatValue } from "../../../../benchmarks/popular/ports/motion/motion-dom/dom-host";
+
+void setStatus(string text) {
+  JsValue[] nodes = documentQuerySelectorAll("#status");
+  if (nodes.length > 0) {
+    setProp(nodes[0], "textContent", text);
+  }
+}
+
+MotionValue x = motionValue(0.0);
+x.on("change", (JsValue? v, JsValue? _a, JsValue? _b) => {
+  float n = 0.0;
+  if (v != null) {
+    n = parseFloatValue(v);
+  }
+  int rounded = n.toInt();
+  setStatus(`${rounded}`);
+});
+animate(x, 200.0, record{ duration: 0.2 });
+animate("#box", record{ x: 200.0 }, record{ duration: 0.2 });

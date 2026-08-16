@@ -1,0 +1,816 @@
+import {
+  DomNode,
+  Signal,
+  append,
+  attribute,
+  createSignal,
+  render
+} from "solidlil";
+
+extern void registerLsxDispose(func()->void callback);
+extern void registerLsxDiagnostics(
+  func()->int ownerSlots,
+  func()->int effectSlots,
+  func()->int freeOwnerSlots,
+  func()->int freeEffectSlots,
+  func()->int pendingEffects
+);
+extern void registerLsxBoundaryDiagnostics(
+  func()->int boundaryCleanups,
+  func()->int initialBoundaryCleanups,
+  func()->int suspenseContentCleanups,
+  func()->int suspenseFallbackCleanups
+);
+
+Signal<int> count = createSignal(
+  0,
+  (int previous, int next) => previous == next
+);
+Signal<bool> visible = createSignal(
+  true,
+  (bool previous, bool next) => previous == next
+);
+Signal<int[]> rows = createSignal(
+  [1, 2],
+  (int[] previous, int[] next) => false
+);
+Signal<int[]> indexed = createSignal(
+  [4, 5],
+  (int[] previous, int[] next) => false
+);
+Signal<int> selected = createSignal(
+  0,
+  (int previous, int next) => previous == next
+);
+Signal<string> dynamicTag = createSignal(
+  "aside",
+  (string previous, string next) => previous == next
+);
+Signal<int> componentCleanups = createSignal(
+  0,
+  (int previous, int next) => previous == next
+);
+Signal<int> dynamicCleanups = createSignal(
+  0,
+  (int previous, int next) => previous == next
+);
+Signal<int> rowCleanups = createSignal(
+  0,
+  (int previous, int next) => previous == next
+);
+Signal<int> forFallbackCleanups = createSignal(
+  0,
+  (int previous, int next) => previous == next
+);
+Signal<bool> boundaryFault = createSignal(
+  false,
+  (bool previous, bool next) => previous == next
+);
+Signal<int> boundaryCleanups = createSignal(
+  0,
+  (int previous, int next) => previous == next
+);
+Signal<int> initialBoundaryCleanups = createSignal(
+  0,
+  (int previous, int next) => previous == next
+);
+Signal<int> suspenseContentCleanups = createSignal(
+  0,
+  (int previous, int next) => previous == next
+);
+Signal<int> suspenseFallbackCleanups = createSignal(
+  0,
+  (int previous, int next) => previous == next
+);
+Signal<int> suspenseKey = createSignal(
+  1,
+  (int previous, int next) => previous == next
+);
+Future<string> firstSuspenseFuture = new Future<string>("");
+Future<string> secondSuspenseFuture = new Future<string>("");
+Signal<int> indexedCleanups = createSignal(
+  0,
+  (int previous, int next) => previous == next
+);
+Signal<int> nestedCleanups = createSignal(
+  0,
+  (int previous, int next) => previous == next
+);
+Signal<int> keyedShowCleanups = createSignal(
+  0,
+  (int previous, int next) => previous == next
+);
+Signal<int> keyedMatchCleanups = createSignal(
+  0,
+  (int previous, int next) => previous == next
+);
+Signal<int> dynamicMode = createSignal(
+  0,
+  (int previous, int next) => previous == next
+);
+Signal<JsValue> dynamicChoice = createSignal(
+  "aside",
+  (JsValue previous, JsValue next) => previous == next
+);
+Signal<string> dynamicSvgTag = createSignal(
+  "path",
+  (string previous, string next) => previous == next
+);
+Signal<int> spreadClicks = createSignal(
+  0,
+  (int previous, int next) => previous == next
+);
+Signal<string> spreadTitle = createSignal(
+  "spread-initial",
+  (string previous, string next) => previous == next
+);
+Signal<bool> spreadEnabled = createSignal(
+  true,
+  (bool previous, bool next) => previous == next
+);
+Signal<func()->void> spreadHandler = createSignal(
+  () => {},
+  (func()->void previous, func()->void next) => false
+);
+JsValue greetingSpread = record{tone: "spread"};
+
+class NodeBox {
+  DomNode? value;
+
+  init() {
+    this.value = null;
+  }
+
+  void set(DomNode node) {
+    this.value = node;
+  }
+
+  void mark(string value) {
+    DomNode? node = this.value;
+    if (node != null) {
+      attribute(node, "data-handler-count", value);
+    }
+  }
+
+  void markStale(string value) {
+    DomNode? node = this.value;
+    if (node != null) {
+      attribute(node, "data-stale-match", value);
+    }
+  }
+}
+
+NodeBox spreadButton = new NodeBox();
+
+class IntAccessorBox {
+  func()->int value;
+
+  init() {
+    this.value = () => -1;
+  }
+
+  void set(func()->int value) {
+    this.value = value;
+  }
+
+  bool isStale() {
+    func()->int value = this.value;
+    try {
+      value();
+      return false;
+    } catch (auto error) {
+      return true;
+    }
+  }
+}
+
+IntAccessorBox liveMatchAccessor = new IntAccessorBox();
+JsValue hostSpread = componentProps();
+JsValue inputSpread = componentProps();
+
+DomNode Greeting(JsValue props) {
+  DomNode node = element("p");
+  string tone = componentProp(props, "tone");
+  attribute(node, "data-component", tone);
+  dynamicText(node, () => {
+    string label = componentProp(props, "label");
+    return label;
+  });
+  DomNode[] childNodes = componentProp(props, "children");
+  for (int index = 0; index < childNodes.length; index++) {
+    append(node, childNodes[index]);
+  }
+  onCleanup(() => {
+    componentCleanups.write(componentCleanups.read() + 1);
+  });
+  return node;
+}
+
+DomNode DynamicGreeting(JsValue props) {
+  DomNode node = element("p");
+  attribute(node, "data-dynamic-component", "greeting");
+  dynamicText(node, () => {
+    string label = componentProp(props, "label");
+    return label;
+  });
+  DomNode[] childNodes = componentProp(props, "children");
+  for (int index = 0; index < childNodes.length; index++) {
+    append(node, childNodes[index]);
+  }
+  onCleanup(() => {
+    dynamicCleanups.write(dynamicCleanups.read() + 1);
+  });
+  return node;
+}
+
+DomNode RowView(JsValue props) {
+  int row = componentProp(props, "row");
+  Signal<int> position = componentProp(props, "position");
+  DomNode node = element("li");
+  attribute(node, "data-row", "" + row);
+  dynamicText(node, () => "" + row + ":" + position.read());
+  onCleanup(() => {
+    rowCleanups.write(rowCleanups.read() + 1);
+  });
+  return node;
+}
+
+DomNode ForFallback(JsValue props) {
+  DomNode node = element("li");
+  attribute(node, "data-row", "empty");
+  append(node, text("Empty"));
+  onCleanup(() => {
+    forFallbackCleanups.write(forFallbackCleanups.read() + 1);
+  });
+  return node;
+}
+
+string boundaryLabel() {
+  if (boundaryFault.read()) {
+    throw "Boundary failure";
+  }
+  return "Healthy";
+}
+
+string boundaryErrorMessage(JsValue error) {
+  if (JS.typeOf(error) == "string") {
+    return JS.string(error);
+  }
+  if (JS.has(error, "message")) {
+    return JS.string(JS.get(error, "message"));
+  }
+  return "Unknown error";
+}
+
+DomNode BoundaryOwned(JsValue props) {
+  onCleanup(() => {
+    boundaryCleanups.write(boundaryCleanups.read() + 1);
+  });
+  return <p data-boundary="healthy">{boundaryLabel()}</p>;
+}
+
+DomNode InitialBoundaryFailure(JsValue props) {
+  onCleanup(() => {
+    initialBoundaryCleanups.write(initialBoundaryCleanups.read() + 1);
+  });
+  throw "Initial boundary failure";
+}
+
+DomNode SuspenseOwned(JsValue props) {
+  Resource<string,int> firstResource = createResource(
+    suspenseKey,
+    (int key) => firstSuspenseFuture,
+    "",
+    (string previous, string next) => previous == next
+  );
+  Resource<string,int> secondResource = createResource(
+    suspenseKey,
+    (int key) => secondSuspenseFuture,
+    "",
+    (string previous, string next) => previous == next
+  );
+  onCleanup(() => {
+    suspenseContentCleanups.write(suspenseContentCleanups.read() + 1);
+  });
+  DomNode node = element("p");
+  attribute(node, "data-suspense", "content");
+  dynamicText(node, () => firstResource.read() + " + " + secondResource.read());
+  return node;
+}
+
+DomNode SuspenseFallback(JsValue props) {
+  onCleanup(() => {
+    suspenseFallbackCleanups.write(suspenseFallbackCleanups.read() + 1);
+  });
+  return <p data-suspense="fallback">Loading</p>;
+}
+
+DomNode IndexedRow(JsValue props) {
+  Signal<int> value = componentProp(props, "value");
+  int position = componentProp(props, "position");
+  DomNode node = element("li");
+  attribute(node, "data-index", "" + position);
+  dynamicText(node, () => "" + value.read());
+  onCleanup(() => {
+    indexedCleanups.write(indexedCleanups.read() + 1);
+  });
+  return node;
+}
+
+DomNode NestedOwned(JsValue props) {
+  DomNode node = element("mark");
+  attribute(node, "data-nested", "owned");
+  dynamicText(node, () => {
+    string label = componentProp(props, "label");
+    return label;
+  });
+  onCleanup(() => {
+    nestedCleanups.write(nestedCleanups.read() + 1);
+  });
+  return node;
+}
+
+DomNode TopLevelControl(JsValue props) {
+  return (
+    <Show
+      when={visible.read()}
+      fallback={<u data-top-level="hidden">Top hidden</u>}
+    >
+      <u data-top-level="shown">Top shown</u>
+      <span data-top-level-tail="shown">Tail</span>
+    </Show>
+  );
+}
+
+DomNode KeyedShowOwned(JsValue props) {
+  int value = componentProp(props, "value");
+  DomNode node = element("output");
+  attribute(node, "data-keyed-show", "" + value);
+  append(node, text("" + value));
+  onCleanup(() => {
+    keyedShowCleanups.write(keyedShowCleanups.read() + 1);
+  });
+  return node;
+}
+
+DomNode KeyedMatchOwned(JsValue props) {
+  int value = componentProp(props, "value");
+  DomNode node = element("output");
+  attribute(node, "data-keyed-match", "" + value);
+  append(node, text("" + value));
+  onCleanup(() => {
+    keyedMatchCleanups.write(keyedMatchCleanups.read() + 1);
+  });
+  return node;
+}
+
+DomNode LiveMatchOwned(JsValue props) {
+  func()->int value = componentProp(props, "value");
+  liveMatchAccessor.set(value);
+  DomNode node = element("output");
+  attribute(node, "data-live-match", "active");
+  dynamicText(node, () => "" + value());
+  return node;
+}
+
+void checkStaleMatch() {
+  if (liveMatchAccessor.isStale()) {
+    spreadButton.markStale("throw");
+  } else {
+    spreadButton.markStale("live");
+  }
+}
+
+void spreadHit(int amount) {
+  int next = spreadClicks.read() + amount;
+  spreadClicks.write(next);
+  spreadButton.mark("" + next);
+}
+
+void captureSpreadRef(DomNode node) {
+  spreadButton.set(node);
+  attribute(node, "data-spread-ref", "captured");
+}
+
+string spreadColor() {
+  if (spreadEnabled.read()) {
+    return "green";
+  }
+  return "purple";
+}
+
+componentProperty(hostSpread, "data-order", () => "spread");
+componentProperty(hostSpread, "data-action", () => "spread");
+componentProperty(hostSpread, "title", () => spreadTitle.read());
+componentProperty(hostSpread, "ref", () => captureSpreadRef);
+componentProperty(hostSpread, "onClick", () => spreadHandler.read());
+componentProperty(
+  hostSpread,
+  "classList",
+  () => record{ready: spreadEnabled.read(), "spread pair": spreadEnabled.read()}
+);
+componentProperty(
+  hostSpread,
+  "style",
+  () => record{
+    "--spread-count": "" + spreadClicks.read(),
+    color: spreadColor()
+  }
+);
+componentProperty(inputSpread, "value", () => "" + spreadClicks.read());
+componentProperty(inputSpread, "checked", () => spreadEnabled.read());
+spreadHandler.write(() => {
+  spreadHit(1);
+});
+
+void captureRef(DomNode node) {
+  attribute(node, "data-ref", "captured");
+}
+
+void captureShadowPortal(DomNode node) {
+  attribute(node, "data-shadow-ref", "captured");
+}
+
+void mark(DomNode node, string value) {
+  attribute(node, "data-directive", value);
+}
+
+void toggleDynamicTag() {
+  if (dynamicTag.read() == "aside") {
+    dynamicTag.write("article");
+  } else {
+    dynamicTag.write("aside");
+  }
+}
+
+void toggleDynamicChoice() {
+  int mode = dynamicMode.read();
+  if (mode == 0) {
+    dynamicChoice.write(DynamicGreeting);
+    dynamicSvgTag.write("circle");
+    dynamicMode.write(1);
+  } else if (mode == 1) {
+    dynamicChoice.write("article");
+    dynamicTag.write("article");
+    dynamicSvgTag.write("path");
+    dynamicMode.write(2);
+  } else if (mode == 2) {
+    dynamicChoice.write(null);
+    dynamicMode.write(3);
+  } else {
+    dynamicChoice.write("aside");
+    dynamicTag.write("aside");
+    dynamicMode.write(0);
+  }
+}
+
+void updateSpread() {
+  spreadTitle.write("spread-updated");
+  spreadEnabled.write(false);
+  spreadHandler.write(() => {
+    spreadHit(10);
+  });
+}
+
+string currentXlinkHref() {
+  if (visible.read()) {
+    return "#shown";
+  }
+  return "#hidden";
+}
+
+string currentLanguage() {
+  if (visible.read()) {
+    return "en";
+  }
+  return "tr";
+}
+
+int liveMatchValue() {
+  if (selected.read() != 2) {
+    return count.read();
+  }
+  return 0;
+}
+
+func()->void dispose = render("#app", (DomNode root) => {
+  DomNode view = (
+    <section
+      id="lsx-root"
+      data-count={count.read()}
+      classList={{ active: visible.read(), counted: count.read() > 0 }}
+      data-component-cleanups={componentCleanups.read()}
+      data-dynamic-cleanups={dynamicCleanups.read()}
+      data-row-cleanups={rowCleanups.read()}
+      data-for-fallback-cleanups={forFallbackCleanups.read()}
+      data-boundary-cleanups={boundaryCleanups.read()}
+      data-initial-boundary-cleanups={initialBoundaryCleanups.read()}
+      data-suspense-content-cleanups={suspenseContentCleanups.read()}
+      data-suspense-fallback-cleanups={suspenseFallbackCleanups.read()}
+      data-indexed-cleanups={indexedCleanups.read()}
+      data-nested-cleanups={nestedCleanups.read()}
+      data-keyed-show-cleanups={keyedShowCleanups.read()}
+      data-keyed-match-cleanups={keyedMatchCleanups.read()}
+      data-spread-clicks={spreadClicks.read()}
+    >
+      <h1>Count {count.read()}</h1>
+      <input
+        required
+        value={count.read()}
+        checked={visible.read()}
+        disabled={!visible.read()}
+      />
+      <button
+        type="button"
+        data-action="increment"
+        onClick={() => count.write(count.read() + 1)}
+      >
+        Increment
+      </button>
+      <button
+        type="button"
+        data-action="toggle"
+        onClick={() => visible.write(!visible.read())}
+      >
+        Toggle
+      </button>
+      <button
+        type="button"
+        data-action="rows"
+        onClick={() => rows.write([2, 1, 3])}
+      >
+        Rows
+      </button>
+      <button
+        type="button"
+        data-action="rows-duplicate"
+        onClick={() => rows.write([1, 1, 3])}
+      >
+        Duplicate rows
+      </button>
+      <button
+        type="button"
+        data-action="rows-remove"
+        onClick={() => rows.write([1, 3])}
+      >
+        Remove row
+      </button>
+      <button
+        type="button"
+        data-action="rows-clear"
+        onClick={() => rows.write([])}
+      >
+        Clear rows
+      </button>
+      <button
+        type="button"
+        data-action="rows-restore"
+        onClick={() => rows.write([3, 4])}
+      >
+        Restore rows
+      </button>
+      <button
+        type="button"
+        data-action="indexed"
+        onClick={() => indexed.write([7])}
+      >
+        Indexed
+      </button>
+      <button
+        type="button"
+        data-action="boundary-fail"
+        onClick={() => boundaryFault.write(true)}
+      >
+        Fail boundary
+      </button>
+      <button
+        type="button"
+        data-action="suspense-resolve-first"
+        onClick={() => firstSuspenseFuture.resolve("First")}
+      >
+        Resolve first suspense resource
+      </button>
+      <button
+        type="button"
+        data-action="suspense-resolve-second"
+        onClick={() => secondSuspenseFuture.resolve("Second")}
+      >
+        Resolve second suspense resource
+      </button>
+      <button
+        type="button"
+        data-action="switch"
+        onClick={() => selected.write((selected.read() + 1) % 3)}
+      >
+        Switch
+      </button>
+      <button
+        type="button"
+        data-action="stale-match"
+        onClick={checkStaleMatch}
+      >
+        Check stale match
+      </button>
+      <button
+        type="button"
+        data-action="dynamic"
+        onClick={toggleDynamicChoice}
+      >
+        Dynamic
+      </button>
+      <button
+        type="button"
+        data-action="spread-update"
+        onClick={updateSpread}
+      >
+        Update spread
+      </button>
+      <div
+        data-action="native"
+        onScroll={() => count.write(count.read() + 10)}
+      >
+        Native event
+      </div>
+      <p ref={captureRef} use:mark={"ready"}>Owned directives</p>
+      <div data-control="show">
+        <Show
+          when={visible.read()}
+          fallback={<em data-state="hidden">Hidden</em>}
+        >
+          <strong data-state="shown">Shown</strong>
+        </Show>
+      </div>
+      <ul data-control="for">
+        <For each={rows} fallback={<ForFallback />}>
+          {((int) row, Signal<int> index) => (
+            <RowView row={row} position={index} />
+          )}
+        </For>
+      </ul>
+      <ol data-control="index">
+        <Index each={indexed} fallback={<li data-index="empty">Empty</li>}>
+          {(Signal<int> value, int index) => (
+            <IndexedRow value={value} position={index} />
+          )}
+        </Index>
+      </ol>
+      <div data-control="boundary">
+        <ErrorBoundary
+          fallback={(JsValue error, func()->void reset) => (
+            <button
+              type="button"
+              data-action="boundary-reset"
+              onClick={() => {
+                boundaryFault.write(false);
+                reset();
+              }}
+            >
+              {boundaryErrorMessage(error)}
+            </button>
+          )}
+        >
+          <BoundaryOwned />
+        </ErrorBoundary>
+        <ErrorBoundary
+          fallback={
+            <span data-boundary-initial="fallback">
+              Initial boundary failure
+            </span>
+          }
+        >
+          <InitialBoundaryFailure />
+        </ErrorBoundary>
+      </div>
+      <div data-control="suspense">
+        <Suspense fallback={<SuspenseFallback />}>
+          <SuspenseOwned />
+        </Suspense>
+      </div>
+      <div data-control="switch">
+        <Switch fallback={<i data-switch="fallback">Fallback</i>}>
+          <Match when={selected.read() == 1}>
+            <Greeting
+              {...greetingSpread}
+              tone="after"
+              label={"First " + count.read()}
+            >
+              <span data-component-child="present"> Child</span>
+            </Greeting>
+          </Match>
+          <Match when={selected.read() == 2}>
+            <b data-switch="second">Second</b>
+          </Match>
+        </Switch>
+      </div>
+      <div data-control="dynamic">
+        <Dynamic
+          component={dynamicChoice.read()}
+          data-dynamic={dynamicTag.read()}
+          label={"Dynamic " + count.read()}
+        >
+          <small data-dynamic-child="present"> Child</small>
+        </Dynamic>
+      </div>
+      <div data-control="nested">
+        <Show
+          when={visible.read()}
+          fallback={<small data-nested="outer-fallback">Outer fallback</small>}
+        >
+          <span data-nested="prefix">Prefix</span>
+          <Switch fallback={<i data-nested="switch-fallback">Nested fallback</i>}>
+            <Match when={selected.read() == 2}>
+              <NestedOwned label={"Nested " + count.read()} />
+            </Match>
+          </Switch>
+        </Show>
+      </div>
+      <TopLevelControl />
+      <div data-control="keyed">
+        <Show
+          when={count.read()}
+          keyed
+          fallback={<i data-keyed-show="fallback">Show fallback</i>}
+        >
+          {(int value) => <KeyedShowOwned value={value} />}
+        </Show>
+        <Show
+          when={count.read()}
+          fallback={<i data-live-show="fallback">Live fallback</i>}
+        >
+          {(func()->int value) => <output data-live-show={value()}>{value()}</output>}
+        </Show>
+        <Switch fallback={<i data-keyed-match="fallback">Match fallback</i>}>
+          <Match when={selected.read() == 2}>
+            <span data-keyed-match="priority">Priority</span>
+          </Match>
+          <Match when={count.read()} keyed>
+            {(int value) => <KeyedMatchOwned value={value} />}
+          </Match>
+        </Switch>
+        <Switch fallback={<i data-live-match="fallback">Live match fallback</i>}>
+          <Match when={liveMatchValue()}>
+            {(func()->int value) => <LiveMatchOwned value={value} />}
+          </Match>
+        </Switch>
+      </div>
+      <div data-control="spread">
+        <button {...hostSpread} data-order="after">Spread</button>
+        <input {...inputSpread} data-spread-input="present" />
+      </div>
+      <Portal mount={query("#portal-target")}>
+        <button
+          type="button"
+          data-action="portal"
+          onClick={() => count.write(count.read() + 100)}
+        >
+          Portal {count.read()}
+        </button>
+      </Portal>
+      <Portal mount={query("head")}>
+        <title>SolidLil {count.read()}</title>
+      </Portal>
+      <Portal mount={query("#svg-portal-target")} isSVG>
+        <circle data-portal-svg="circle" cx="3" cy="3" r="2" />
+      </Portal>
+      <Portal
+        mount={query("#shadow-portal-target")}
+        useShadow
+        ref={captureShadowPortal}
+      >
+        <span data-portal-shadow="content">Shadow {count.read()}</span>
+      </Portal>
+      <svg data-namespace="svg" viewBox="0 0 10 10">
+        <circle data-shape="circle" cx="5" cy="5" r="4" />
+        <use
+          data-shape="use"
+          xlink:href={currentXlinkHref()}
+        />
+        <text
+          data-xml="language"
+          xml:lang={currentLanguage()}
+        >Language</text>
+        <Dynamic
+          component={dynamicSvgTag.read()}
+          data-dynamic-svg={dynamicSvgTag.read()}
+        />
+      </svg>
+      <math data-namespace="math"><mi>x</mi></math>
+    </section>
+  );
+  append(root, view);
+});
+
+registerLsxDispose(dispose);
+registerLsxDiagnostics(
+  diagnosticOwnerSlots,
+  diagnosticEffectSlots,
+  diagnosticFreeOwnerSlots,
+  diagnosticFreeEffectSlots,
+  diagnosticPendingEffects
+);
+registerLsxBoundaryDiagnostics(
+  () => boundaryCleanups.read(),
+  () => initialBoundaryCleanups.read(),
+  () => suspenseContentCleanups.read(),
+  () => suspenseFallbackCleanups.read()
+);

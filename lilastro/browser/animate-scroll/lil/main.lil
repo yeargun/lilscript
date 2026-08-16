@@ -1,0 +1,22 @@
+import { animate } from "../../../../benchmarks/popular/ports/motion/framer-motion/animation/animate/element";
+import { animateMini } from "../../../../benchmarks/popular/ports/motion/framer-motion/animation/animators/waapi/animate-style-mini";
+import { scroll } from "../../../../benchmarks/popular/ports/motion/framer-motion/render/dom/scroll/index";
+import { documentQuerySelectorAll, setProp } from "../../../../benchmarks/popular/ports/motion/motion-dom/dom-host";
+
+JsValue options = record{ duration: 0.2 };
+JsValue mini = animateMini("#mini", record{ transform: "translateX(100px)" }, options);
+JsValue js = animate("#js", record{ x: 100.0 }, options);
+JsValue waapi = animate("#waapi", record{ transform: "translateX(100px)" }, options);
+JsValue scrollOptions = record{ offset: ["start start", "end end"] };
+
+int progressSamples = 0;
+scroll((float progress) => {
+  progressSamples = progressSamples + 1;
+  JsValue[] statusNodes = documentQuerySelectorAll("#status");
+  if (statusNodes.length > 0) {
+    setProp(statusNodes[0], "textContent", `progress:${progress}:${progressSamples}`);
+  }
+}, scrollOptions);
+scroll(mini, scrollOptions);
+scroll(js, scrollOptions);
+scroll(waapi, scrollOptions);

@@ -1,0 +1,32 @@
+export void addUniqueItem<T>(T[] arr, T item) {
+  if (arr.indexOf(item) == -1) {
+    arr.push(item);
+  }
+}
+
+export void removeItem<T>(T[] arr, T item) {
+  int index = arr.indexOf(item);
+  if (index > -1) {
+    arr.splice(index, 1);
+  }
+}
+
+export T[] moveItem<T>(T[] input, int fromIndex, int toIndex) {
+  T[] arr = [...input];
+  int startIndex = fromIndex;
+  if (fromIndex < 0) {
+    startIndex = arr.length + fromIndex;
+  }
+  if (startIndex >= 0 && startIndex < arr.length) {
+    int endIndex = toIndex;
+    if (toIndex < 0) {
+      endIndex = arr.length + toIndex;
+    }
+    T[] removed = arr.splice(fromIndex, 1);
+    T item = removed[0];
+    T[] before = arr.slice(0, endIndex);
+    T[] after = arr.slice(endIndex);
+    return [...before, item, ...after];
+  }
+  return arr;
+}

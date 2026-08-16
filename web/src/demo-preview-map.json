@@ -1,0 +1,142 @@
+{
+  "lib-nanoid": {
+    "baseline": "/demos/libs/nanoid-js/index.html",
+    "candidate": "/demos/libs/nanoid-lil/index.html"
+  },
+  "lib-mitt": {
+    "baseline": "/demos/libs/mitt-js/index.html",
+    "candidate": "/demos/libs/mitt-lil/index.html"
+  },
+  "lib-clsx": {
+    "baseline": "/demos/libs/clsx-js/index.html",
+    "candidate": "/demos/libs/clsx-lil/index.html"
+  },
+  "lib-immer": {
+    "baseline": "/demos/libs/immer-js/index.html",
+    "candidate": "/demos/libs/immer-lil/index.html"
+  },
+  "lib-redux-toolkit": {
+    "baseline": "/demos/libs/redux-toolkit-js/index.html",
+    "candidate": "/demos/libs/redux-toolkit-lil/index.html"
+  },
+  "lib-zod": {
+    "baseline": "/demos/libs/zod-js/index.html",
+    "candidate": "/demos/libs/zod-lil/index.html"
+  },
+  "lib-acorn": {
+    "baseline": "/demos/libs/acorn-js/index.html",
+    "candidate": "/demos/libs/acorn-lil/index.html"
+  },
+  "lib-preact": {
+    "baseline": "/demos/libs/preact-js/index.html",
+    "candidate": "/demos/libs/preact-lil/index.html"
+  },
+  "lib-gl-matrix": {
+    "baseline": "/demos/libs/gl-matrix-js/index.html",
+    "candidate": "/demos/libs/gl-matrix-lil/index.html"
+  },
+  "lib-motion": {
+    "baseline": "/demos/libs/motion-js/index.html",
+    "candidate": "/demos/libs/motion-lil/index.html"
+  },
+  "lib-jquery": {
+    "baseline": "/demos/libs/jquery-js/index.html",
+    "candidate": "/demos/libs/jquery-lil/index.html"
+  },
+  "port-micro-math": {
+    "baseline": "/demos/ports/micro-math-js/index.html",
+    "candidate": "/demos/ports/micro-math-lil/index.html"
+  },
+  "port-string-hash": {
+    "baseline": "/demos/ports/string-hash-js/index.html",
+    "candidate": "/demos/ports/string-hash-lil/index.html"
+  },
+  "port-js-levenshtein": {
+    "baseline": "/demos/ports/js-levenshtein-js/index.html",
+    "candidate": "/demos/ports/js-levenshtein-lil/index.html"
+  },
+  "port-emotion-hash": {
+    "baseline": "/demos/ports/emotion-hash-js/index.html",
+    "candidate": "/demos/ports/emotion-hash-lil/index.html"
+  },
+  "port-murmurhash-js": {
+    "baseline": "/demos/ports/murmurhash-js-js/index.html",
+    "candidate": "/demos/ports/murmurhash-js-lil/index.html"
+  },
+  "port-robust-predicates": {
+    "baseline": "/demos/ports/robust-predicates-js/index.html",
+    "candidate": "/demos/ports/robust-predicates-lil/index.html"
+  },
+  "port-motion-easing": {
+    "baseline": "/demos/ports/motion-easing-js/index.html",
+    "candidate": "/demos/ports/motion-easing-lil/index.html"
+  },
+  "algo-aggregate-ledger": {
+    "baseline": "/demos/algo/aggregate-ledger-js/index.html",
+    "candidate": "/demos/algo/aggregate-ledger-lil/index.html"
+  },
+  "algo-collection-geometry": {
+    "baseline": "/demos/algo/collection-geometry-js/index.html",
+    "candidate": "/demos/algo/collection-geometry-lil/index.html"
+  },
+  "algo-dictionary-template-router": {
+    "baseline": "/demos/algo/dictionary-template-router-js/index.html",
+    "candidate": "/demos/algo/dictionary-template-router-lil/index.html"
+  },
+  "algo-helper-sharing": {
+    "baseline": "/demos/algo/helper-sharing-js/index.html",
+    "candidate": "/demos/algo/helper-sharing-lil/index.html"
+  },
+  "algo-large-event-analytics": {
+    "baseline": "/demos/algo/large-event-analytics-js/index.html",
+    "candidate": "/demos/algo/large-event-analytics-lil/index.html"
+  },
+  "algo-policy-specialization": {
+    "baseline": "/demos/algo/policy-specialization-js/index.html",
+    "candidate": "/demos/algo/policy-specialization-lil/index.html"
+  },
+  "algo-shape-invoice-pipeline": {
+    "baseline": "/demos/algo/shape-invoice-pipeline-js/index.html",
+    "candidate": "/demos/algo/shape-invoice-pipeline-lil/index.html"
+  },
+  "algo-state-machine-parser": {
+    "baseline": "/demos/algo/state-machine-parser-js/index.html",
+    "candidate": "/demos/algo/state-machine-parser-lil/index.html"
+  },
+  "algo-stateful-packet-decoder": {
+    "baseline": "/demos/algo/stateful-packet-decoder-js/index.html",
+    "candidate": "/demos/algo/stateful-packet-decoder-lil/index.html"
+  },
+  "algo-static-rule-engine": {
+    "baseline": "/demos/algo/static-rule-engine-js/index.html",
+    "candidate": "/demos/algo/static-rule-engine-lil/index.html"
+  },
+  "algo-string-dictionary": {
+    "baseline": "/demos/algo/string-dictionary-js/index.html",
+    "candidate": "/demos/algo/string-dictionary-lil/index.html"
+  },
+  "paired-boolean-literals": {
+    "baseline": "/demos/paired/boolean-literals-js/index.html",
+    "candidate": "/demos/paired/boolean-literals-lil/index.html"
+  },
+  "paired-constant-parameter-specialization": {
+    "baseline": "/demos/paired/constant-parameter-specialization-js/index.html",
+    "candidate": "/demos/paired/constant-parameter-specialization-lil/index.html"
+  },
+  "paired-bounded-induction": {
+    "baseline": "/demos/paired/bounded-induction-js/index.html",
+    "candidate": "/demos/paired/bounded-induction-lil/index.html"
+  },
+  "paired-exact-wrapping-multiply": {
+    "baseline": "/demos/paired/exact-wrapping-multiply-js/index.html",
+    "candidate": "/demos/paired/exact-wrapping-multiply-lil/index.html"
+  },
+  "paired-ordinary-integer-multiply": {
+    "baseline": "/demos/paired/ordinary-integer-multiply-js/index.html",
+    "candidate": "/demos/paired/ordinary-integer-multiply-lil/index.html"
+  },
+  "paired-pure-call-chain": {
+    "baseline": "/demos/paired/pure-call-chain-js/index.html",
+    "candidate": "/demos/paired/pure-call-chain-lil/index.html"
+  }
+}

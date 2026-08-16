@@ -1,0 +1,11 @@
+export number kernel(number seed, number rounds) {
+  number value = seed;
+  for (number round = 0; round < rounds; round++) {
+    value = value * 2 + 1;
+    if (value > 1000000) {
+      value = 7;
+    }
+  }
+  return value;
+}
+print(kernel(7, 50000));

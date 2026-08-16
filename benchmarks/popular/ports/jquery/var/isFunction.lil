@@ -1,0 +1,3 @@
+export bool isFunction(JsValue obj) {
+  return JS.typeOf(obj) == "function" && JS.typeOf(obj["nodeType"]) != "number" && JS.typeOf(obj["item"]) != "function";
+}

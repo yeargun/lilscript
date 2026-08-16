@@ -1,0 +1,17 @@
+import { MotionValue } from "../../value/index";
+import { MotionValueState } from "../MotionValueState";
+import { createEffect } from "../utils/create-effect";
+
+export func(JsValue, Record<MotionValue>)->func()->void propEffect = createEffect(
+  (JsValue subject, MotionValueState state, string key, MotionValue value) => {
+    return state.set(
+      key,
+      value,
+      () => {
+        subject[key] = state.latest[key];
+      },
+      null,
+      false
+    );
+  }
+);

@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "static-rule-engine",
+  "title": "Static rule propagation and dead branch removal",
+  "hypothesis": "Both implementations expose the same unreachable audit branch and reusable static rules, so whole-program propagation, DCE, specialization, and inlining must jointly choose a compact result.",
+  "tier": "small-structural",
+  "boundary": "runtime-host-script",
+  "structure": { "functions": 5, "modules": 1, "hostBoundaries": 2, "callDepth": 4 },
+  "opportunities": ["static-propagation", "dead-code-elimination", "specialization", "inlining"],
+  "expectations": { "raw": "le", "gzip9": "le", "brotli11": "le" },
+  "vectors": [
+    { "name": "mixed", "ints": [0, 12, 1, -4, 2, 55, 3, 8], "strings": [], "expected": "293\n" },
+    { "name": "clamped", "ints": [0, 140, 2, -130, 1, 99, 3, -75], "strings": [], "expected": "923\n" },
+    { "name": "balanced", "ints": [3, 7, 0, 2, 1, -9, 2, 4, 2, 20, 2, 20], "strings": [], "expected": "7\n" }
+  ]
+}

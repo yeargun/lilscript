@@ -1,0 +1,3 @@
+import { animate } from "../../../../benchmarks/popular/ports/motion/framer-motion/animation/animate/element";
+
+animate("#box", record{ "--opacity": 1.0 }, record{ duration: 0.2 });

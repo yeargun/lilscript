@@ -1,0 +1,489 @@
+import { AsyncMotionValueAnimation } from "./animation/AsyncMotionValueAnimation";
+import { GroupAnimation } from "./animation/GroupAnimation";
+import { GroupAnimationWithThen } from "./animation/GroupAnimationWithThen";
+import { JSAnimation, JSAnimationOptions, SampleResult } from "./animation/JSAnimation";
+import { NativeAnimation } from "./animation/NativeAnimation";
+import { NativeAnimationExtended } from "./animation/NativeAnimationExtended";
+import { NativeAnimationWrapper } from "./animation/NativeAnimationWrapper";
+import { AnimationPlaybackControls, AnimationPlaybackControlsWithThen, AnimationState, ProgressTimeline, SpringOptions, ValueAnimationTransition } from "./animation/types";
+import { animationMapKey, getAnimationMap } from "./animation/utils/active-animations";
+import { getVariableValue, parseCSSVariable } from "./animation/utils/css-variables-conversion";
+import { getValueTransition } from "./animation/utils/get-value-transition";
+import { resolveTransition } from "./animation/utils/resolve-transition";
+import { containsCSSVariable, isCSSVariableName, isCSSVariableToken } from "./animation/utils/is-css-variable";
+import { makeAnimationInstant } from "./animation/utils/make-animation-instant";
+import { InertiaInput, inertia } from "./animation/generators/inertia";
+import { KeyframesInput, keyframes } from "./animation/generators/keyframes";
+import { SpringGenerator, SpringInput, spring, springFromInput } from "./animation/generators/spring";
+import { calcGeneratorDuration, maxGeneratorDuration } from "./animation/generators/utils/calc-duration";
+import { GeneratorEasingResult, createGeneratorEasing } from "./animation/generators/utils/create-generator-easing";
+import { isGenerator } from "./animation/generators/utils/is-generator";
+import { DOMKeyframesResolver } from "./animation/keyframes/DOMKeyframesResolver";
+import { KeyframeResolver, flushKeyframeResolvers } from "./animation/keyframes/KeyframesResolver";
+import { defaultOffset, defaultOffsetFloats } from "./animation/keyframes/offsets/default";
+import { fillOffset } from "./animation/keyframes/offsets/fill";
+import { convertOffsetToTimes } from "./animation/keyframes/offsets/time";
+import { applyPxDefaults } from "./animation/keyframes/utils/apply-px-defaults";
+import { fillWildcards } from "./animation/keyframes/utils/fill-wildcards";
+import { cubicBezierAsString } from "./animation/waapi/easing/cubic-bezier";
+import { isWaapiSupportedEasing } from "./animation/waapi/easing/is-supported";
+import { mapEasingArrayToNativeEasing, mapEasingFunctionToNativeEasing, mapEasingToNativeEasing } from "./animation/waapi/easing/map-easing";
+import { SupportedWaapiEasing, supportedWaapiEasing } from "./animation/waapi/easing/supported";
+import { startWaapiAnimation } from "./animation/waapi/start-waapi-animation";
+import { supportsPartialKeyframes } from "./animation/waapi/supports/partial-keyframes";
+import { BrowserAnimationOptions, supportsBrowserAnimation, supportsWaapi } from "./animation/waapi/supports/waapi";
+import { acceleratedValues } from "./animation/waapi/utils/accelerated-values";
+import { applyGeneratorOptions } from "./animation/waapi/utils/apply-generator";
+import { generateLinearEasing } from "./animation/waapi/utils/linear";
+import { addAttrValue, attrEffect } from "./effects/attr/index";
+import { propEffect } from "./effects/prop/index";
+import { addStyleValue, styleEffect } from "./effects/style/index";
+import { svgEffect } from "./effects/svg/index";
+import { cancelFrame, frame, frameData, frameSteps } from "./frameloop/index";
+import { RenderBatcher, createRenderBatcher } from "./frameloop/batcher";
+import { cancelMicrotask, microtask } from "./frameloop/microtask";
+import { TimeApi, time } from "./frameloop/sync-time";
+import { Batcher, FrameData, Step, Steps } from "./frameloop/types";
+import { DraggingAxes, isDragActive, isDragging } from "./gestures/drag/state/is-active";
+import { setDragLock } from "./gestures/drag/state/set-active";
+import { hover } from "./gestures/hover";
+import { press } from "./gestures/press/index";
+import { isElementKeyboardAccessible, isElementTextInput } from "./gestures/press/utils/is-keyboard-accessible";
+import { isNodeOrChild } from "./gestures/utils/is-node-or-child";
+import { isPrimaryPointer } from "./gestures/utils/is-primary-pointer";
+import { defaultTransformValue, parseValueFromTransform, readTransformValue } from "./render/dom/parse-transform";
+import { getComputedStyle } from "./render/dom/style-computed";
+import { setStyle } from "./render/dom/style-set";
+import { positionalKeys } from "./render/utils/keys-position";
+import { transformPropOrder, transformProps } from "./render/utils/keys-transform";
+import { ResizeInfo, resize, resizeElement, resizeWindow } from "./resize/index";
+import { observeTimeline } from "./scroll/observe";
+import { recordStats } from "./stats/index";
+import { StatsBuffer, statsBuffer } from "./stats/buffer";
+import { InterpolateOptions, interpolate } from "./utils/interpolate";
+import { isHTMLElement } from "./utils/is-html-element";
+import { isSVGElement } from "./utils/is-svg-element";
+import { isSVGSVGElement } from "./utils/is-svg-svg-element";
+import { mix, mixNumber } from "./utils/mix/index";
+import { mixColor, mixLinearColor } from "./utils/mix/color";
+import { getMixer, mixArray, mixComplex, mixComplexExport, mixObject } from "./utils/mix/complex";
+import { mixImmediate } from "./utils/mix/immediate";
+import { invisibleValues, mixVisibility } from "./utils/mix/visibility";
+import { AnimationScope, SelectorCache, resolveElements } from "./utils/resolve-elements";
+import { StaggerOptions, getOriginIndex, stagger } from "./utils/stagger";
+import { supportsFlags } from "./utils/supports/flags";
+import { supportsLinearEasing } from "./utils/supports/linear-easing";
+import { supportsScrollTimeline, supportsViewTimeline } from "./utils/supports/scroll-timeline";
+import { TransformOptions, transform, transformRange } from "./utils/transform";
+import { AccelerateConfig, CollectMotionValues, MotionValue, MotionValueOptions, Owner, collectMotionValues, motionValue } from "./value/index";
+import { FollowValueOptions, attachFollow, followValue } from "./value/follow-value";
+import { mapValue } from "./value/map-value";
+import { attachSpring, springValue } from "./value/spring-value";
+import { transformValue } from "./value/transform-value";
+import { color, hex, hsla, rgba } from "./value/types/color/index";
+import { hslaToRgba } from "./value/types/color/hsla-to-rgba";
+import { rgbUnit } from "./value/types/color/rgba";
+import { ComplexValueInfo, ValueIndexes, analyseComplexValue, buildTransformer, complex, createComplexTransformer } from "./value/types/complex/index";
+import { dimensionValueTypes, findDimensionValueType } from "./value/types/dimensions";
+import { defaultValueTypes, getDefaultValueType } from "./value/types/maps/defaults";
+import { numberValueTypes } from "./value/types/maps/number";
+import { transformValueTypes } from "./value/types/maps/transform";
+import { alpha, numberType, scale } from "./value/types/numbers/index";
+import { degrees, percent, progressPercentage, px, vh, vw } from "./value/types/numbers/units";
+import { testValueType } from "./value/types/test";
+import { getAnimatableNone } from "./value/types/utils/animatable-none";
+import { findValueType } from "./value/types/utils/find";
+import { getAsType } from "./value/types/utils/get-as-type";
+import { isMotionValue } from "./value/utils/is-motion-value";
+import { ViewTransitionBuilder, addToQueue, animateView } from "./view/index";
+import { ViewAnimationLayerInfo, getViewAnimationLayerInfo } from "./view/utils/get-layer-info";
+import { getViewAnimations } from "./view/utils/get-view-animations";
+import { convertBoundingBoxToBox, convertBoxToBoundingBox, transformBoxPoints } from "./projection/geometry/conversion";
+import { copyAxisDeltaInto, copyAxisInto, copyBoxInto } from "./projection/geometry/copy";
+import { ProjectionTreeNode, applyAxisDelta, applyBoxDelta, applyPointDelta, applyTreeDeltas, scalePoint, transformAxis, transformBox, translateAxis } from "./projection/geometry/delta-apply";
+import { calcAxisDelta, calcBoxDelta, calcLength, calcRelativeAxis, calcRelativeAxisPosition, calcRelativeBox, calcRelativePosition, isNear } from "./projection/geometry/delta-calc";
+import { removeAxisDelta, removeAxisTransforms, removeBoxTransforms, removePointDelta } from "./projection/geometry/delta-remove";
+import { createAxis, createAxisDelta, createBox, createDelta } from "./projection/geometry/models";
+import { aspectRatio, axisDeltaEquals, axisEquals, axisEqualsRounded, boxEquals, boxEqualsRounded, isDeltaZero } from "./projection/geometry/utils";
+import { calcChildStagger } from "./animation/utils/calc-child-stagger";
+import { arc } from "./animation/utils/arc";
+import { getDefaultTransition } from "./animation/utils/default-transitions";
+import { getFinalKeyframe } from "./animation/keyframes/get-final";
+import { isTransitionDefined } from "./animation/utils/is-transition-defined";
+import { animateMotionValue } from "./animation/interfaces/motion-value";
+import { animateVisualElement } from "./animation/interfaces/visual-element";
+import { animateTarget } from "./animation/interfaces/visual-element-target";
+import { animateVariant } from "./animation/interfaces/visual-element-variant";
+import { optimizedAppearDataAttribute, optimizedAppearDataId } from "./animation/optimized-appear/data-id";
+import { getOptimisedAppearId } from "./animation/optimized-appear/get-appear-id";
+import { isKeyframesTarget } from "./render/utils/is-keyframes-target";
+import { addValueToWillChange } from "./value/will-change/add-will-change";
+import { isWillChangeMotionValue } from "./value/will-change/is";
+import { DOMVisualElement } from "./render/dom/DOMVisualElement";
+import { Feature } from "./render/Feature";
+import { HTMLVisualElement } from "./render/html/HTMLVisualElement";
+import { ObjectVisualElement } from "./render/object/ObjectVisualElement";
+import { visualElementStore } from "./render/store";
+import { SVGVisualElement } from "./render/svg/SVGVisualElement";
+import { getFeatureDefinitions, setFeatureDefinitions, VisualElement } from "./render/VisualElement";
+import { checkVariantsDidChange, createAnimationState } from "./render/utils/animation-state";
+import { getVariantContext } from "./render/utils/get-variant-context";
+import { isAnimationControls } from "./render/utils/is-animation-controls";
+import { isControllingVariants, isVariantNode } from "./render/utils/is-controlling-variants";
+import { isForcedMotionValue } from "./render/utils/is-forced-motion-value";
+import { addScaleCorrector, scaleCorrectors } from "./projection/styles/scale-correction";
+import { isVariantLabel } from "./render/utils/is-variant-label";
+import { updateMotionValuesFromProps } from "./render/utils/motion-values";
+import { resolveVariant } from "./render/utils/resolve-dynamic-variants";
+import { resolveVariantFromProps } from "./render/utils/resolve-variants";
+import { setTarget } from "./render/utils/setters";
+import { variantPriorityOrder, variantProps } from "./render/utils/variant-props";
+import { hasReducedMotionListener, initPrefersReducedMotion, prefersReducedMotion } from "./render/utils/reduced-motion/index";
+import { eachAxis } from "./projection/utils/each-axis";
+import { has2DTranslate, hasScale, hasTransform } from "./projection/utils/has-transform";
+import { measurePageBox, measureViewportBox } from "./projection/utils/measure";
+import { correctBorderRadius, pixelsToPercent } from "./projection/styles/scale-border-radius";
+import { correctBoxShadow } from "./projection/styles/scale-box-shadow";
+import { buildProjectionTransform } from "./projection/styles/transform";
+import { mixValues } from "./projection/animation/mix-values";
+import { animateSingleValue } from "./animation/animate/single-value";
+import { addDomEvent } from "./events/add-dom-event";
+import { compareByDepth } from "./projection/utils/compare-by-depth";
+import { FlatTree } from "./projection/utils/flat-tree";
+import { delay, delayInSeconds } from "./utils/delay";
+import { resolveMotionValue } from "./value/utils/resolve-motion-value";
+import { cleanDirtyNodes, createProjectionNode, propagateDirtyNodes } from "./projection/node/create-projection-node";
+import { DocumentProjectionNode } from "./projection/node/DocumentProjectionNode";
+import { nodeGroup } from "./projection/node/group";
+import { HTMLProjectionNode, rootProjectionNode } from "./projection/node/HTMLProjectionNode";
+import { globalProjectionState } from "./projection/node/state";
+import { NodeStack } from "./projection/shared/stack";
+import { camelToDash } from "./render/dom/utils/camel-to-dash";
+import { buildHTMLStyles } from "./render/html/utils/build-styles";
+import { buildTransform } from "./render/html/utils/build-transform";
+import { renderHTML } from "./render/html/utils/render";
+import { scrapeMotionValuesFromProps as scrapeHTMLMotionValuesFromProps } from "./render/html/utils/scrape-motion-values";
+import { buildSVGAttrs } from "./render/svg/utils/build-attrs";
+import { camelCaseAttributes } from "./render/svg/utils/camel-case-attrs";
+import { isSVGTag } from "./render/svg/utils/is-svg-tag";
+import { buildSVGPath } from "./render/svg/utils/path";
+import { renderSVG } from "./render/svg/utils/render";
+import { scrapeMotionValuesFromProps as scrapeSVGMotionValuesFromProps } from "./render/svg/utils/scrape-motion-values";
+import { LayoutAnimationBuilder, parseAnimateLayoutArgs } from "./layout/LayoutAnimationBuilder";
+import { cancelSync, sync } from "./frameloop/index-legacy";
+
+export {
+  AsyncMotionValueAnimation,
+  GroupAnimation,
+  GroupAnimationWithThen,
+  JSAnimation,
+  JSAnimationOptions,
+  SampleResult,
+  NativeAnimation,
+  NativeAnimationExtended,
+  NativeAnimationWrapper,
+  AnimationPlaybackControls,
+  AnimationPlaybackControlsWithThen,
+  AnimationState,
+  ProgressTimeline,
+  SpringOptions,
+  ValueAnimationTransition,
+  animationMapKey,
+  getAnimationMap,
+  getVariableValue,
+  parseCSSVariable,
+  getValueTransition,
+  resolveTransition,
+  containsCSSVariable,
+  isCSSVariableName,
+  isCSSVariableToken,
+  makeAnimationInstant,
+  InertiaInput,
+  inertia,
+  KeyframesInput,
+  keyframes,
+  SpringGenerator,
+  SpringInput,
+  spring,
+  springFromInput,
+  calcGeneratorDuration,
+  maxGeneratorDuration,
+  GeneratorEasingResult,
+  createGeneratorEasing,
+  isGenerator,
+  DOMKeyframesResolver,
+  KeyframeResolver,
+  flushKeyframeResolvers,
+  defaultOffset,
+  defaultOffsetFloats,
+  fillOffset,
+  convertOffsetToTimes,
+  applyPxDefaults,
+  fillWildcards,
+  cubicBezierAsString,
+  isWaapiSupportedEasing,
+  mapEasingArrayToNativeEasing,
+  mapEasingFunctionToNativeEasing,
+  mapEasingToNativeEasing,
+  SupportedWaapiEasing,
+  supportedWaapiEasing,
+  startWaapiAnimation,
+  supportsPartialKeyframes,
+  BrowserAnimationOptions,
+  supportsBrowserAnimation,
+  supportsWaapi,
+  acceleratedValues,
+  applyGeneratorOptions,
+  generateLinearEasing,
+  addAttrValue,
+  attrEffect,
+  propEffect,
+  addStyleValue,
+  styleEffect,
+  svgEffect,
+  cancelFrame,
+  frame,
+  frameData,
+  frameSteps,
+  RenderBatcher,
+  createRenderBatcher,
+  cancelMicrotask,
+  microtask,
+  TimeApi,
+  time,
+  Batcher,
+  FrameData,
+  Step,
+  Steps,
+  DraggingAxes,
+  isDragActive,
+  isDragging,
+  setDragLock,
+  hover,
+  press,
+  isElementKeyboardAccessible,
+  isElementTextInput,
+  isNodeOrChild,
+  isPrimaryPointer,
+  defaultTransformValue,
+  parseValueFromTransform,
+  readTransformValue,
+  getComputedStyle,
+  setStyle,
+  positionalKeys,
+  transformPropOrder,
+  transformProps,
+  ResizeInfo,
+  resize,
+  resizeElement,
+  resizeWindow,
+  observeTimeline,
+  recordStats,
+  StatsBuffer,
+  statsBuffer,
+  InterpolateOptions,
+  interpolate,
+  isHTMLElement,
+  isSVGElement,
+  isSVGSVGElement,
+  mix,
+  mixNumber,
+  mixColor,
+  mixLinearColor,
+  getMixer,
+  mixArray,
+  mixComplex,
+  mixComplexExport,
+  mixObject,
+  mixImmediate,
+  invisibleValues,
+  mixVisibility,
+  AnimationScope,
+  SelectorCache,
+  resolveElements,
+  StaggerOptions,
+  getOriginIndex,
+  stagger,
+  supportsFlags,
+  supportsLinearEasing,
+  supportsScrollTimeline,
+  supportsViewTimeline,
+  TransformOptions,
+  transform,
+  transformRange,
+  AccelerateConfig,
+  CollectMotionValues,
+  MotionValue,
+  MotionValueOptions,
+  Owner,
+  collectMotionValues,
+  motionValue,
+  FollowValueOptions,
+  attachFollow,
+  followValue,
+  mapValue,
+  attachSpring,
+  springValue,
+  transformValue,
+  color,
+  hex,
+  hsla,
+  rgba,
+  hslaToRgba,
+  rgbUnit,
+  ComplexValueInfo,
+  ValueIndexes,
+  analyseComplexValue,
+  buildTransformer,
+  complex,
+  createComplexTransformer,
+  dimensionValueTypes,
+  findDimensionValueType,
+  defaultValueTypes,
+  getDefaultValueType,
+  numberValueTypes,
+  transformValueTypes,
+  alpha,
+  numberType,
+  scale,
+  degrees,
+  percent,
+  progressPercentage,
+  px,
+  vh,
+  vw,
+  testValueType,
+  getAnimatableNone,
+  findValueType,
+  getAsType,
+  isMotionValue,
+  ViewTransitionBuilder,
+  addToQueue,
+  animateView,
+  ViewAnimationLayerInfo,
+  getViewAnimationLayerInfo,
+  getViewAnimations,
+  convertBoundingBoxToBox,
+  convertBoxToBoundingBox,
+  transformBoxPoints,
+  copyAxisDeltaInto,
+  copyAxisInto,
+  copyBoxInto,
+  ProjectionTreeNode,
+  applyAxisDelta,
+  applyBoxDelta,
+  applyPointDelta,
+  applyTreeDeltas,
+  scalePoint,
+  transformAxis,
+  transformBox,
+  translateAxis,
+  calcAxisDelta,
+  calcBoxDelta,
+  calcLength,
+  calcRelativeAxis,
+  calcRelativeAxisPosition,
+  calcRelativeBox,
+  calcRelativePosition,
+  isNear,
+  removeAxisDelta,
+  removeAxisTransforms,
+  removeBoxTransforms,
+  removePointDelta,
+  createAxis,
+  createAxisDelta,
+  createBox,
+  createDelta,
+  aspectRatio,
+  axisDeltaEquals,
+  axisEquals,
+  axisEqualsRounded,
+  boxEquals,
+  boxEqualsRounded,
+  isDeltaZero,
+  calcChildStagger,
+  arc,
+  getDefaultTransition,
+  getFinalKeyframe,
+  isTransitionDefined,
+  animateMotionValue,
+  animateVisualElement,
+  animateTarget,
+  animateVariant,
+  optimizedAppearDataAttribute,
+  optimizedAppearDataId,
+  getOptimisedAppearId,
+  isKeyframesTarget,
+  addValueToWillChange,
+  isWillChangeMotionValue,
+  DOMVisualElement,
+  Feature,
+  HTMLVisualElement,
+  ObjectVisualElement,
+  visualElementStore,
+  SVGVisualElement,
+  getFeatureDefinitions,
+  setFeatureDefinitions,
+  VisualElement,
+  checkVariantsDidChange,
+  createAnimationState,
+  getVariantContext,
+  isAnimationControls,
+  isControllingVariants,
+  isVariantNode,
+  addScaleCorrector,
+  isForcedMotionValue,
+  scaleCorrectors,
+  isVariantLabel,
+  updateMotionValuesFromProps,
+  resolveVariant,
+  resolveVariantFromProps,
+  setTarget,
+  variantPriorityOrder,
+  variantProps,
+  hasReducedMotionListener,
+  initPrefersReducedMotion,
+  prefersReducedMotion,
+  eachAxis,
+  has2DTranslate,
+  hasScale,
+  hasTransform,
+  measurePageBox,
+  measureViewportBox,
+  correctBorderRadius,
+  pixelsToPercent,
+  correctBoxShadow,
+  buildProjectionTransform,
+  mixValues,
+  animateSingleValue,
+  addDomEvent,
+  compareByDepth,
+  FlatTree,
+  delay,
+  delayInSeconds,
+  resolveMotionValue,
+  cleanDirtyNodes,
+  createProjectionNode,
+  propagateDirtyNodes,
+  DocumentProjectionNode,
+  nodeGroup,
+  HTMLProjectionNode,
+  rootProjectionNode,
+  globalProjectionState,
+  NodeStack,
+  camelToDash,
+  buildHTMLStyles,
+  buildTransform,
+  renderHTML,
+  scrapeHTMLMotionValuesFromProps,
+  buildSVGAttrs,
+  camelCaseAttributes,
+  isSVGTag,
+  buildSVGPath,
+  renderSVG,
+  scrapeSVGMotionValuesFromProps,
+  LayoutAnimationBuilder,
+  parseAnimateLayoutArgs,
+  cancelSync,
+  sync
+};

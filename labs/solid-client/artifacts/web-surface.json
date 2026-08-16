@@ -1,0 +1,194 @@
+{
+  "generatedAt": "2026-08-14T12:42:35.105Z",
+  "baseline": "solid-js@1.9.13 full browser bundle",
+  "scope": "complete browser export compatibility",
+  "buildDefines": {},
+  "exports": [
+    "Aliases",
+    "Assets",
+    "ChildProperties",
+    "DOMElements",
+    "DelegatedEvents",
+    "Dynamic",
+    "ErrorBoundary",
+    "For",
+    "Hydration",
+    "HydrationScript",
+    "Index",
+    "Match",
+    "NoHydration",
+    "Portal",
+    "Properties",
+    "RequestContext",
+    "SVGElements",
+    "SVGNamespace",
+    "Show",
+    "Suspense",
+    "SuspenseList",
+    "Switch",
+    "addEventListener",
+    "assign",
+    "classList",
+    "className",
+    "clearDelegatedEvents",
+    "createComponent",
+    "createDynamic",
+    "delegateEvents",
+    "dynamicProperty",
+    "effect",
+    "escape",
+    "generateHydrationScript",
+    "getAssets",
+    "getHydrationKey",
+    "getNextElement",
+    "getNextMarker",
+    "getNextMatch",
+    "getOwner",
+    "getPropAlias",
+    "getRequestEvent",
+    "hydrate",
+    "innerHTML",
+    "insert",
+    "isDev",
+    "isServer",
+    "memo",
+    "mergeProps",
+    "render",
+    "renderToStream",
+    "renderToString",
+    "renderToStringAsync",
+    "resolveSSRNode",
+    "runHydrationEvents",
+    "setAttribute",
+    "setAttributeNS",
+    "setBoolAttribute",
+    "setProperty",
+    "setStyleProperty",
+    "spread",
+    "ssr",
+    "ssrAttribute",
+    "ssrClassList",
+    "ssrElement",
+    "ssrHydrationKey",
+    "ssrSpread",
+    "ssrStyle",
+    "style",
+    "template",
+    "untrack",
+    "use",
+    "useAssets"
+  ],
+  "exportCount": 73,
+  "exactExports": true,
+  "behaviorEquivalent": true,
+  "distributionSelection": {
+    "entry": "api/solidlil-web.js",
+    "output": "artifacts/generated/solidlil-web.js",
+    "clientOnly": false,
+    "winner": "production-15",
+    "sizes": {
+      "brotli11": 11667,
+      "gzip9": 13074,
+      "raw": 40467
+    },
+    "artifactSha256": "1846d6961d807debb6d34f4d4984179fce8d9887a07cb9c561365977b7e1fff5",
+    "candidates": {
+      "layout-18": {
+        "artifact": "artifacts/generated/distribution-candidates/web-full.layout-18.js",
+        "artifactSha256": "1846d6961d807debb6d34f4d4984179fce8d9887a07cb9c561365977b7e1fff5",
+        "runtimeSha256": "f4cb80b083bac49785408cc7ba39c85b0f4c653cc1e121c62e0f4954669f740e",
+        "sizes": {
+          "brotli11": 11667,
+          "gzip9": 13074,
+          "raw": 40467
+        }
+      },
+      "production-12": {
+        "artifact": "artifacts/generated/distribution-candidates/web-full.production-12.js",
+        "artifactSha256": "0c9fadeb7dfeae7f7fea8f8996d661d8a8b166fc9fed55fcf07299e7702cceac",
+        "runtimeSha256": "fe6831469d5ceadee58ab039cd09225bcf0ab18c6043f38c5cab7151271ba904",
+        "sizes": {
+          "brotli11": 11723,
+          "gzip9": 13141,
+          "raw": 40579
+        }
+      },
+      "production-15": {
+        "artifact": "artifacts/generated/distribution-candidates/web-full.production-15.js",
+        "artifactSha256": "1846d6961d807debb6d34f4d4984179fce8d9887a07cb9c561365977b7e1fff5",
+        "runtimeSha256": "f4cb80b083bac49785408cc7ba39c85b0f4c653cc1e121c62e0f4954669f740e",
+        "sizes": {
+          "brotli11": 11667,
+          "gzip9": 13074,
+          "raw": 40467
+        }
+      },
+      "source-15": {
+        "artifact": "artifacts/generated/distribution-candidates/web-full.source-15.js",
+        "artifactSha256": "df3b676386c12c1c4995e4ac6637b7fa84811f27c180bf84bc47c0b1b416e6f4",
+        "runtimeSha256": "c056f03b08be2ba9d377e1daae1d70ce5d955d05f956a2f4177e43ca2526dd92",
+        "sizes": {
+          "brotli11": 11752,
+          "gzip9": 13157,
+          "raw": 40736
+        }
+      }
+    }
+  },
+  "codecs": {
+    "implementation": "lilscript-codec",
+    "schemaVersion": 1,
+    "scorer": {
+      "path": "target/release/lilscript-codec",
+      "sha256": "48340e70c3a53ae5f58cee5dbb48ca5553b2feff6f29f086fc8060bd036594c8",
+      "bytes": 1804784
+    },
+    "gzip9": {
+      "encoder": "upstream-stock-zlib-c",
+      "libraryVersion": "1.3.1",
+      "cargoPackage": "libz-sys",
+      "cargoPackageVersion": "1.1.24",
+      "level": 9,
+      "mtime": 0
+    },
+    "brotli11": {
+      "encoder": "official-google-brotli-c",
+      "libraryVersion": "1.1.0",
+      "cargoPackage": "compu-brotli-sys",
+      "cargoPackageVersion": "1.1.0",
+      "quality": 11,
+      "lgwin": 22,
+      "mode": "generic"
+    },
+    "nodeCodecsAreDiagnosticOnly": true
+  },
+  "compiler": {
+    "source": "repository-release",
+    "path": "../../target/release/lilscript",
+    "version": "lilscript 0.1.0",
+    "sha256": "46eeb54e8ee2d737b17fb988494ff968747908fa8fe3ffa8ace676618a2c8189"
+  },
+  "sourceBuildModesSha256": "e13ea4d35862303be32c34abf50e6cb0a9c1877233327ffac2ea8a8e433802b8",
+  "sizes": {
+    "solid": {
+      "schemaVersion": 2,
+      "brotli11": 11655,
+      "gzip9": 12977,
+      "raw": 39583
+    },
+    "solidlil": {
+      "schemaVersion": 2,
+      "brotli11": 11667,
+      "gzip9": 13074,
+      "raw": 40467
+    }
+  },
+  "ratio": {
+    "schemaVersion": 1,
+    "brotli11": 1.001029601029601,
+    "gzip9": 1.0074747630423055,
+    "raw": 1.022332819644797
+  },
+  "brotliSuperior": false,
+  "compressedSuperior": false
+}

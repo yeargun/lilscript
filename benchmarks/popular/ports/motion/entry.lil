@@ -1,0 +1,19 @@
+import { mix, mixNumber } from "./motion-dom/utils/mix/index";
+import { stagger, getOriginIndex } from "./motion-dom/utils/stagger";
+import { spring, SpringGenerator } from "./motion-dom/animation/generators/spring";
+import { wrap } from "./motion-utils/wrap";
+import { clamp } from "./motion-utils/clamp";
+import { distance, distance2D } from "./framer-motion/utils/distance";
+
+export {
+  mix,
+  mixNumber,
+  stagger,
+  getOriginIndex,
+  spring,
+  SpringGenerator,
+  wrap,
+  clamp,
+  distance,
+  distance2D
+};

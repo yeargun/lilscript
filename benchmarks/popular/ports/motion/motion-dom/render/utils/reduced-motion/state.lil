@@ -1,0 +1,16 @@
+export class ReducedMotionState {
+  bool? current;
+  init() {
+    this.current = null;
+  }
+}
+
+export class BoolCell {
+  bool current;
+  init(bool current = false) {
+    this.current = current;
+  }
+}
+
+export ReducedMotionState prefersReducedMotion = new ReducedMotionState();
+export BoolCell hasReducedMotionListener = new BoolCell(false);

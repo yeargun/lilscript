@@ -1,0 +1,62 @@
+import { progress } from "../../../../motion-utils/progress";
+import { velocityPerSecond } from "../../../../motion-utils/velocity-per-second";
+import { AxisScrollInfo, ScrollInfo } from "./types";
+
+float maxElapsed = 50.0;
+
+AxisScrollInfo createAxisInfo() {
+  return new AxisScrollInfo();
+}
+
+export ScrollInfo createScrollInfo() {
+  return new ScrollInfo();
+}
+
+void updateAxisInfo(JsValue element, string axisName, ScrollInfo info, float time) {
+  AxisScrollInfo axis = info.x;
+  string lengthSuffix = "Width";
+  string positionSuffix = "Left";
+  if (axisName == "y") {
+    axis = info.y;
+    lengthSuffix = "Height";
+    positionSuffix = "Top";
+  }
+
+  float prev = axis.current;
+  float prevTime = info.time;
+
+  JsValue scrollPos = element[`scroll${positionSuffix}`];
+  float current = 0.0;
+  if (scrollPos is float) {
+    current = scrollPos.abs();
+  }
+  axis.current = current;
+
+  JsValue scrollLen = element[`scroll${lengthSuffix}`];
+  JsValue clientLen = element[`client${lengthSuffix}`];
+  float scrollLength = 0.0;
+  float clientLength = 0.0;
+  if (scrollLen is float) {
+    scrollLength = scrollLen;
+  }
+  if (clientLen is float) {
+    clientLength = clientLen;
+  }
+  axis.scrollLength = scrollLength - clientLength;
+
+  axis.offset = [0.0, axis.scrollLength];
+  axis.progress = progress(0.0, axis.scrollLength, axis.current);
+
+  float elapsed = time - prevTime;
+  if (elapsed > maxElapsed) {
+    axis.velocity = 0.0;
+  } else {
+    axis.velocity = velocityPerSecond(axis.current - prev, elapsed);
+  }
+}
+
+export void updateScrollInfo(JsValue element, ScrollInfo info, float time) {
+  updateAxisInfo(element, "x", info, time);
+  updateAxisInfo(element, "y", info, time);
+  info.time = time;
+}

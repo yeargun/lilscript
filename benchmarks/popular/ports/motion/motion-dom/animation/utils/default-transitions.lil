@@ -1,0 +1,54 @@
+import { transformProps } from "../../render/utils/keys-transform";
+
+JsValue underDampedSpring = record{
+  type: "spring",
+  stiffness: 500.0,
+  damping: 25.0,
+  restSpeed: 10.0
+};
+
+JsValue criticallyDampedSpring(JsValue target) {
+  float damping = 30.0;
+  if ((target is float) && target == 0.0) {
+    damping = 2.0 * (550.0).sqrt();
+  }
+  return record{
+    type: "spring",
+    stiffness: 550.0,
+    damping: damping,
+    restSpeed: 10.0
+  };
+}
+
+JsValue keyframesTransition = record{
+  type: "keyframes",
+  duration: 0.8
+};
+
+JsValue easeTransition = record{
+  type: "keyframes",
+  ease: [0.25, 0.1, 0.35, 1.0],
+  duration: 0.3
+};
+
+export JsValue getDefaultTransition(string valueKey, JsValue options) {
+  JsValue keyframes = options["keyframes"];
+  float keyframeCount = 0.0;
+  if (keyframes.isArray()) {
+    keyframeCount = keyframes.length;
+  }
+  if (keyframeCount > 2.0) {
+    return keyframesTransition;
+  }
+  if (transformProps.has(valueKey)) {
+    if (valueKey.startsWith("scale")) {
+      JsValue target = null;
+      if (keyframes.isArray() && keyframes.length > 1.0) {
+        target = keyframes[1];
+      }
+      return criticallyDampedSpring(target);
+    }
+    return underDampedSpring;
+  }
+  return easeTransition;
+}

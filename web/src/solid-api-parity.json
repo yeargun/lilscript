@@ -1,0 +1,1282 @@
+{
+  "generatedAt": "2026-08-14T12:42:35.947Z",
+  "baseline": "solid-js@1.9.13 browser ESM exports",
+  "definition": "Complete means exact exports, matching browser value types and function arities, plus differential behavior evidence for every export.",
+  "complete": true,
+  "totals": {
+    "expected": 135,
+    "implemented": 135,
+    "verified": 135,
+    "missing": 0,
+    "contractMismatches": 0,
+    "extra": 0
+  },
+  "surfaces": [
+    {
+      "name": "core",
+      "counts": {
+        "expected": 54,
+        "implemented": 54,
+        "verified": 54,
+        "missing": 0,
+        "contractMismatches": 0,
+        "extra": 0
+      },
+      "exportParity": true,
+      "behaviorParity": true,
+      "complete": true,
+      "rows": [
+        {
+          "name": "$DEVCOMP",
+          "status": "verified",
+          "type": "symbol",
+          "candidateType": "symbol",
+          "arity": null,
+          "candidateArity": null,
+          "contractMatches": true
+        },
+        {
+          "name": "$PROXY",
+          "status": "verified",
+          "type": "symbol",
+          "candidateType": "symbol",
+          "arity": null,
+          "candidateArity": null,
+          "contractMatches": true
+        },
+        {
+          "name": "$TRACK",
+          "status": "verified",
+          "type": "symbol",
+          "candidateType": "symbol",
+          "arity": null,
+          "candidateArity": null,
+          "contractMatches": true
+        },
+        {
+          "name": "DEV",
+          "status": "verified",
+          "type": "undefined",
+          "candidateType": "undefined",
+          "arity": null,
+          "candidateArity": null,
+          "contractMatches": true
+        },
+        {
+          "name": "ErrorBoundary",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        },
+        {
+          "name": "For",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        },
+        {
+          "name": "Index",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        },
+        {
+          "name": "Match",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        },
+        {
+          "name": "Show",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        },
+        {
+          "name": "Suspense",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        },
+        {
+          "name": "SuspenseList",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        },
+        {
+          "name": "Switch",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        },
+        {
+          "name": "batch",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        },
+        {
+          "name": "cancelCallback",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        },
+        {
+          "name": "catchError",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 2,
+          "candidateArity": 2,
+          "contractMatches": true
+        },
+        {
+          "name": "children",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        },
+        {
+          "name": "createComponent",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 2,
+          "candidateArity": 2,
+          "contractMatches": true
+        },
+        {
+          "name": "createComputed",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 3,
+          "candidateArity": 3,
+          "contractMatches": true
+        },
+        {
+          "name": "createContext",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 2,
+          "candidateArity": 2,
+          "contractMatches": true
+        },
+        {
+          "name": "createDeferred",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 2,
+          "candidateArity": 2,
+          "contractMatches": true
+        },
+        {
+          "name": "createEffect",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 3,
+          "candidateArity": 3,
+          "contractMatches": true
+        },
+        {
+          "name": "createMemo",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 3,
+          "candidateArity": 3,
+          "contractMatches": true
+        },
+        {
+          "name": "createReaction",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 2,
+          "candidateArity": 2,
+          "contractMatches": true
+        },
+        {
+          "name": "createRenderEffect",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 3,
+          "candidateArity": 3,
+          "contractMatches": true
+        },
+        {
+          "name": "createResource",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 3,
+          "candidateArity": 3,
+          "contractMatches": true
+        },
+        {
+          "name": "createRoot",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 2,
+          "candidateArity": 2,
+          "contractMatches": true
+        },
+        {
+          "name": "createSelector",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        },
+        {
+          "name": "createSignal",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 2,
+          "candidateArity": 2,
+          "contractMatches": true
+        },
+        {
+          "name": "createUniqueId",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 0,
+          "candidateArity": 0,
+          "contractMatches": true
+        },
+        {
+          "name": "enableExternalSource",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        },
+        {
+          "name": "enableHydration",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 0,
+          "candidateArity": 0,
+          "contractMatches": true
+        },
+        {
+          "name": "enableScheduling",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 0,
+          "candidateArity": 0,
+          "contractMatches": true
+        },
+        {
+          "name": "equalFn",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 2,
+          "candidateArity": 2,
+          "contractMatches": true
+        },
+        {
+          "name": "from",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        },
+        {
+          "name": "getListener",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 0,
+          "candidateArity": 0,
+          "contractMatches": true
+        },
+        {
+          "name": "getOwner",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 0,
+          "candidateArity": 0,
+          "contractMatches": true
+        },
+        {
+          "name": "indexArray",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 2,
+          "candidateArity": 2,
+          "contractMatches": true
+        },
+        {
+          "name": "lazy",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        },
+        {
+          "name": "mapArray",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 2,
+          "candidateArity": 2,
+          "contractMatches": true
+        },
+        {
+          "name": "mergeProps",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 0,
+          "candidateArity": 0,
+          "contractMatches": true
+        },
+        {
+          "name": "observable",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        },
+        {
+          "name": "on",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 3,
+          "candidateArity": 3,
+          "contractMatches": true
+        },
+        {
+          "name": "onCleanup",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        },
+        {
+          "name": "onError",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        },
+        {
+          "name": "onMount",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        },
+        {
+          "name": "requestCallback",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 2,
+          "candidateArity": 2,
+          "contractMatches": true
+        },
+        {
+          "name": "resetErrorBoundaries",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 0,
+          "candidateArity": 0,
+          "contractMatches": true
+        },
+        {
+          "name": "runWithOwner",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 2,
+          "candidateArity": 2,
+          "contractMatches": true
+        },
+        {
+          "name": "sharedConfig",
+          "status": "verified",
+          "type": "object",
+          "candidateType": "object",
+          "arity": null,
+          "candidateArity": null,
+          "contractMatches": true
+        },
+        {
+          "name": "splitProps",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        },
+        {
+          "name": "startTransition",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        },
+        {
+          "name": "untrack",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        },
+        {
+          "name": "useContext",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        },
+        {
+          "name": "useTransition",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 0,
+          "candidateArity": 0,
+          "contractMatches": true
+        }
+      ],
+      "extra": []
+    },
+    {
+      "name": "web",
+      "counts": {
+        "expected": 73,
+        "implemented": 73,
+        "verified": 73,
+        "missing": 0,
+        "contractMismatches": 0,
+        "extra": 0
+      },
+      "exportParity": true,
+      "behaviorParity": true,
+      "complete": true,
+      "rows": [
+        {
+          "name": "Aliases",
+          "status": "verified",
+          "type": "object",
+          "candidateType": "object",
+          "arity": null,
+          "candidateArity": null,
+          "contractMatches": true
+        },
+        {
+          "name": "Assets",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 0,
+          "candidateArity": 0,
+          "contractMatches": true
+        },
+        {
+          "name": "ChildProperties",
+          "status": "verified",
+          "type": "object",
+          "candidateType": "object",
+          "arity": null,
+          "candidateArity": null,
+          "contractMatches": true
+        },
+        {
+          "name": "DOMElements",
+          "status": "verified",
+          "type": "object",
+          "candidateType": "object",
+          "arity": null,
+          "candidateArity": null,
+          "contractMatches": true
+        },
+        {
+          "name": "DelegatedEvents",
+          "status": "verified",
+          "type": "object",
+          "candidateType": "object",
+          "arity": null,
+          "candidateArity": null,
+          "contractMatches": true
+        },
+        {
+          "name": "Dynamic",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        },
+        {
+          "name": "ErrorBoundary",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        },
+        {
+          "name": "For",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        },
+        {
+          "name": "Hydration",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        },
+        {
+          "name": "HydrationScript",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 0,
+          "candidateArity": 0,
+          "contractMatches": true
+        },
+        {
+          "name": "Index",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        },
+        {
+          "name": "Match",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        },
+        {
+          "name": "NoHydration",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        },
+        {
+          "name": "Portal",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        },
+        {
+          "name": "Properties",
+          "status": "verified",
+          "type": "object",
+          "candidateType": "object",
+          "arity": null,
+          "candidateArity": null,
+          "contractMatches": true
+        },
+        {
+          "name": "RequestContext",
+          "status": "verified",
+          "type": "symbol",
+          "candidateType": "symbol",
+          "arity": null,
+          "candidateArity": null,
+          "contractMatches": true
+        },
+        {
+          "name": "SVGElements",
+          "status": "verified",
+          "type": "object",
+          "candidateType": "object",
+          "arity": null,
+          "candidateArity": null,
+          "contractMatches": true
+        },
+        {
+          "name": "SVGNamespace",
+          "status": "verified",
+          "type": "object",
+          "candidateType": "object",
+          "arity": null,
+          "candidateArity": null,
+          "contractMatches": true
+        },
+        {
+          "name": "Show",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        },
+        {
+          "name": "Suspense",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        },
+        {
+          "name": "SuspenseList",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        },
+        {
+          "name": "Switch",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        },
+        {
+          "name": "addEventListener",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 4,
+          "candidateArity": 4,
+          "contractMatches": true
+        },
+        {
+          "name": "assign",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 4,
+          "candidateArity": 4,
+          "contractMatches": true
+        },
+        {
+          "name": "classList",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 2,
+          "candidateArity": 2,
+          "contractMatches": true
+        },
+        {
+          "name": "className",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 2,
+          "candidateArity": 2,
+          "contractMatches": true
+        },
+        {
+          "name": "clearDelegatedEvents",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 0,
+          "candidateArity": 0,
+          "contractMatches": true
+        },
+        {
+          "name": "createComponent",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 2,
+          "candidateArity": 2,
+          "contractMatches": true
+        },
+        {
+          "name": "createDynamic",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 2,
+          "candidateArity": 2,
+          "contractMatches": true
+        },
+        {
+          "name": "delegateEvents",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        },
+        {
+          "name": "dynamicProperty",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 2,
+          "candidateArity": 2,
+          "contractMatches": true
+        },
+        {
+          "name": "effect",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 3,
+          "candidateArity": 3,
+          "contractMatches": true
+        },
+        {
+          "name": "escape",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        },
+        {
+          "name": "generateHydrationScript",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 0,
+          "candidateArity": 0,
+          "contractMatches": true
+        },
+        {
+          "name": "getAssets",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 0,
+          "candidateArity": 0,
+          "contractMatches": true
+        },
+        {
+          "name": "getHydrationKey",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 0,
+          "candidateArity": 0,
+          "contractMatches": true
+        },
+        {
+          "name": "getNextElement",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        },
+        {
+          "name": "getNextMarker",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        },
+        {
+          "name": "getNextMatch",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 2,
+          "candidateArity": 2,
+          "contractMatches": true
+        },
+        {
+          "name": "getOwner",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 0,
+          "candidateArity": 0,
+          "contractMatches": true
+        },
+        {
+          "name": "getPropAlias",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 2,
+          "candidateArity": 2,
+          "contractMatches": true
+        },
+        {
+          "name": "getRequestEvent",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 0,
+          "candidateArity": 0,
+          "contractMatches": true
+        },
+        {
+          "name": "hydrate",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 0,
+          "candidateArity": 0,
+          "contractMatches": true
+        },
+        {
+          "name": "innerHTML",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 2,
+          "candidateArity": 2,
+          "contractMatches": true
+        },
+        {
+          "name": "insert",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 4,
+          "candidateArity": 4,
+          "contractMatches": true
+        },
+        {
+          "name": "isDev",
+          "status": "verified",
+          "type": "boolean",
+          "candidateType": "boolean",
+          "arity": null,
+          "candidateArity": null,
+          "contractMatches": true
+        },
+        {
+          "name": "isServer",
+          "status": "verified",
+          "type": "boolean",
+          "candidateType": "boolean",
+          "arity": null,
+          "candidateArity": null,
+          "contractMatches": true
+        },
+        {
+          "name": "memo",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        },
+        {
+          "name": "mergeProps",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 0,
+          "candidateArity": 0,
+          "contractMatches": true
+        },
+        {
+          "name": "render",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 3,
+          "candidateArity": 3,
+          "contractMatches": true
+        },
+        {
+          "name": "renderToStream",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 2,
+          "candidateArity": 2,
+          "contractMatches": true
+        },
+        {
+          "name": "renderToString",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 2,
+          "candidateArity": 2,
+          "contractMatches": true
+        },
+        {
+          "name": "renderToStringAsync",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 2,
+          "candidateArity": 2,
+          "contractMatches": true
+        },
+        {
+          "name": "resolveSSRNode",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        },
+        {
+          "name": "runHydrationEvents",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 0,
+          "candidateArity": 0,
+          "contractMatches": true
+        },
+        {
+          "name": "setAttribute",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 3,
+          "candidateArity": 3,
+          "contractMatches": true
+        },
+        {
+          "name": "setAttributeNS",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 4,
+          "candidateArity": 4,
+          "contractMatches": true
+        },
+        {
+          "name": "setBoolAttribute",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 3,
+          "candidateArity": 3,
+          "contractMatches": true
+        },
+        {
+          "name": "setProperty",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 3,
+          "candidateArity": 3,
+          "contractMatches": true
+        },
+        {
+          "name": "setStyleProperty",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 3,
+          "candidateArity": 3,
+          "contractMatches": true
+        },
+        {
+          "name": "spread",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        },
+        {
+          "name": "ssr",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        },
+        {
+          "name": "ssrAttribute",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 2,
+          "candidateArity": 2,
+          "contractMatches": true
+        },
+        {
+          "name": "ssrClassList",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        },
+        {
+          "name": "ssrElement",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 4,
+          "candidateArity": 4,
+          "contractMatches": true
+        },
+        {
+          "name": "ssrHydrationKey",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 0,
+          "candidateArity": 0,
+          "contractMatches": true
+        },
+        {
+          "name": "ssrSpread",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 3,
+          "candidateArity": 3,
+          "contractMatches": true
+        },
+        {
+          "name": "ssrStyle",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        },
+        {
+          "name": "style",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 3,
+          "candidateArity": 3,
+          "contractMatches": true
+        },
+        {
+          "name": "template",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 4,
+          "candidateArity": 4,
+          "contractMatches": true
+        },
+        {
+          "name": "untrack",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        },
+        {
+          "name": "use",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 3,
+          "candidateArity": 3,
+          "contractMatches": true
+        },
+        {
+          "name": "useAssets",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 0,
+          "candidateArity": 0,
+          "contractMatches": true
+        }
+      ],
+      "extra": []
+    },
+    {
+      "name": "store",
+      "counts": {
+        "expected": 8,
+        "implemented": 8,
+        "verified": 8,
+        "missing": 0,
+        "contractMismatches": 0,
+        "extra": 0
+      },
+      "exportParity": true,
+      "behaviorParity": true,
+      "complete": true,
+      "rows": [
+        {
+          "name": "$RAW",
+          "status": "verified",
+          "type": "symbol",
+          "candidateType": "symbol",
+          "arity": null,
+          "candidateArity": null,
+          "contractMatches": true
+        },
+        {
+          "name": "DEV",
+          "status": "verified",
+          "type": "undefined",
+          "candidateType": "undefined",
+          "arity": null,
+          "candidateArity": null,
+          "contractMatches": true
+        },
+        {
+          "name": "createMutable",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 2,
+          "candidateArity": 2,
+          "contractMatches": true
+        },
+        {
+          "name": "createStore",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 0,
+          "candidateArity": 0,
+          "contractMatches": true
+        },
+        {
+          "name": "modifyMutable",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 2,
+          "candidateArity": 2,
+          "contractMatches": true
+        },
+        {
+          "name": "produce",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        },
+        {
+          "name": "reconcile",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        },
+        {
+          "name": "unwrap",
+          "status": "verified",
+          "type": "function",
+          "candidateType": "function",
+          "arity": 1,
+          "candidateArity": 1,
+          "contractMatches": true
+        }
+      ],
+      "extra": []
+    }
+  ]
+}

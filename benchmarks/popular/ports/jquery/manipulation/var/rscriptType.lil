@@ -1,0 +1,1 @@
+export Regex rscriptType = new Regex("^$|^module$|\\/(?:java|ecma)script", "i");

@@ -1,0 +1,903 @@
+import { jQuery, each, mergeObject, inArray, isPlainObject, wrap } from "./core";
+import { Deferred } from "./deferred";
+import { trigger } from "./event/trigger";
+import { newCallbacksOnceMemory } from "./callbacks";
+import { document } from "./var/document";
+import { isFunction } from "./var/isFunction";
+import { rnothtmlwhite } from "./var/rnothtmlwhite";
+import { param } from "./serialize";
+import { location } from "./ajax/var/location";
+import { nonce } from "./ajax/var/nonce";
+import { rquery } from "./ajax/var/rquery";
+import {
+  createEmptyObject,
+  deleteProp,
+  typeOf,
+  isNullish,
+  isUndefined,
+  hasProp,
+  arrayPush,
+  arrayShift,
+  arraySlice,
+  arrayUnshift,
+  stringMatch,
+  stringSplit,
+  stringReplace,
+  stringSlice,
+  stringIndexOf,
+  regexTest,
+  regexExec,
+  jsUndefined,
+  call1,
+  call2,
+  call3,
+  call4,
+  scheduleTimeoutMs,
+  clearTimeoutId,
+  stringify
+} from "./js-host.lil";
+
+/*
+ * Full port of upstream ajax.js. Per-request mutable state is captured
+ * directly by the request closures. Values set once before those closures
+ * are created stay as ordinary locals. jqXHR remains a JsValue string-key
+ * facade for the public API.
+ */
+
+enum ConvertState {
+  Success,
+  ParserError
+}
+
+struct ConvertResult {
+  ConvertState state;
+  JsValue data;
+  JsValue error;
+}
+
+struct AjaxContents {
+  Regex xml;
+  Regex html;
+  Regex json;
+}
+
+struct AjaxResponseFields {
+  string xml;
+  string text;
+  string json;
+}
+
+struct AjaxFlatOptions {
+  bool url;
+  bool context;
+}
+
+struct AjaxSettings {
+  JsValue url;
+  string type;
+  bool isLocal;
+  bool global;
+  bool processData;
+  bool async;
+  string contentType;
+  JsValue accepts;
+  JsValue contents;
+  JsValue responseFields;
+  JsValue converters;
+  JsValue flatOptions;
+}
+
+struct MethodOptions {
+  JsValue url;
+  string type;
+  JsValue dataType;
+  JsValue data;
+  JsValue success;
+}
+
+struct AjaxAccepts {
+  string text;
+  string html;
+  string xml;
+  string json;
+}
+
+struct JqXHR {
+  float readyState;
+  JsValue getResponseHeader;
+  JsValue setRequestHeader;
+  JsValue getAllResponseHeaders;
+  JsValue overrideMimeType;
+  JsValue statusCode;
+  JsValue abort;
+}
+
+Regex r20 = new Regex("%20", "g");
+Regex rhash = new Regex("#.*$");
+Regex rantiCache = new Regex("([?&])_=[^&]*");
+Regex rheaders = new Regex("^(.*?):[ \\t]*([^\\r\\n]*)$", "mg");
+Regex rlocalProtocol = new Regex("^(?:about|app|app-storage|.+-extension|file|res|widget):$");
+Regex rnoContent = new Regex("^(?:GET|HEAD)$");
+Regex rprotocol = new Regex("^//");
+
+JsValue prefilters = JS.object();
+JsValue transports = JS.object();
+string allTypes = "*/*";
+
+JsValue originAnchor = JS.invoke(document, "createElement", "a");
+originAnchor["href"] = location["href"];
+
+void addToStructure(JsValue structure, JsValue dataType, JsValue handlerFn) {
+  JsValue dt = dataType;
+  if (JS.strictEqual(dt[0], "+")) {
+    dt = JS.or(JS.invoke(dt, "slice", 1.0), "*");
+    JsValue list = JS.or(structure[dt], JS.array());
+    structure[dt] = list;
+    JS.unshift(list, handlerFn);
+  } else {
+    JsValue list = JS.or(structure[dt], JS.array());
+    structure[dt] = list;
+    JS.push(list, handlerFn);
+  }
+}
+
+void addToPrefiltersOrTransportsImpl(JsValue structure, JsValue dataTypeExpressionArg, JsValue funcArg) {
+  JsValue dataTypeExpression = dataTypeExpressionArg;
+  JsValue handlerFn = funcArg;
+  if (!(dataTypeExpression is string)) {
+    handlerFn = dataTypeExpression;
+    dataTypeExpression = "*";
+  }
+  if (!isFunction(handlerFn)) {
+    return;
+  }
+
+  JsValue matched = JS.or(
+    JS.invoke(JS.invoke(dataTypeExpression, "toLowerCase"), "match", rnothtmlwhite),
+    JS.array()
+  );
+  float i = 0.0;
+  float length = matched.length;
+  for (; i < length; i++) {
+    addToStructure(structure, matched[i], handlerFn);
+  }
+}
+
+JsValue addToPrefiltersOrTransports(JsValue structure) {
+  return (JsValue dataTypeExpression, JsValue handlerFn) => {
+    addToPrefiltersOrTransportsImpl(structure, dataTypeExpression, handlerFn);
+    return JS.undefined();
+  };
+}
+
+JsValue inspectPrefiltersOrTransports(JsValue structure, JsValue options, JsValue originalOptions, JsValue jqXHR) {
+  JsValue inspected = JS.object();
+  bool seekingTransport = structure == transports;
+
+  func(JsValue)->JsValue inspect = (JsValue _dataType) => {
+    return JS.undefined();
+  };
+  inspect = (JsValue dataType) => {
+    inspected[dataType] = true;
+    JsValue list = JS.or(structure[dataType], JS.array());
+    JsValue selected = null;
+    each(list, (JsValue _index, JsValue prefilterOrFactory) => {
+      JsValue dataTypeOrTransport = prefilterOrFactory(options, originalOptions, jqXHR);
+      if (dataTypeOrTransport is string) {
+        if (!seekingTransport && !inspected[dataTypeOrTransport].truthy()) {
+          JS.unshift(options["dataTypes"], dataTypeOrTransport);
+          inspect(dataTypeOrTransport);
+          return false;
+        }
+      }
+      if (seekingTransport) {
+        selected = dataTypeOrTransport;
+        return !dataTypeOrTransport.truthy();
+      }
+      return JS.undefined();
+    });
+    return selected;
+  };
+
+  JsValue selected = inspect(options["dataTypes"][0]);
+  if (selected.truthy() || inspected["*"].truthy()) {
+    return selected;
+  }
+  return inspect("*");
+}
+
+JsValue ajaxExtend(JsValue target, JsValue src) {
+  JsValue flatOptions = jQuery["ajaxSettings"]["flatOptions"];
+  if (!flatOptions.truthy()) {
+    flatOptions = JS.object();
+  }
+  JsValue deep = null;
+  for (string key in src) {
+    JsValue value = src[key];
+    if (!JS.isUndefined(value)) {
+      if (flatOptions[key].truthy()) {
+        target[key] = value;
+      } else {
+        if (!deep.truthy()) {
+          deep = JS.object();
+        }
+        deep[key] = value;
+      }
+    }
+  }
+  if (deep.truthy()) {
+    mergeObject(target, deep, true);
+  }
+  return target;
+}
+
+JsValue findConvertibleResponseType(JsValue s, JsValue responses, JsValue firstOfDataTypes) {
+  JsValue firstDataType = null;
+  for (string type in responses) {
+    if (!firstOfDataTypes.truthy() || s["converters"][JS.add(JS.add(type, " "), firstOfDataTypes)].truthy()) {
+      return type;
+    }
+    if (!firstDataType.truthy()) {
+      firstDataType = type;
+    }
+  }
+  return firstDataType;
+}
+
+JsValue ajaxHandleResponses(JsValue s, JsValue jqXHR, JsValue responses) {
+  JsValue contents = s["contents"];
+  JsValue dataTypes = s["dataTypes"];
+
+  JsValue ct = null;
+  bool ctSet = false;
+  while (JS.strictEqual(dataTypes[0], "*")) {
+    JS.shift(dataTypes);
+    if (!ctSet) {
+      ct = s["mimeType"];
+      if (!ct.truthy()) {
+        ct = JS.invoke(jqXHR, "getResponseHeader", "Content-Type");
+      }
+      ctSet = true;
+    }
+  }
+
+  if (ct.truthy()) {
+    for (string type in contents) {
+      JsValue pattern = contents[type];
+      if (pattern.truthy() && JS.invoke(pattern, "test", ct).truthy()) {
+        JS.unshift(dataTypes, type);
+        break;
+      }
+    }
+  }
+
+  JsValue finalDataType = dataTypes[0];
+  if (!JS.in(finalDataType, responses)) {
+    finalDataType = findConvertibleResponseType(s, responses, finalDataType);
+  }
+
+  if (finalDataType.truthy()) {
+    if (!JS.strictEqual(finalDataType, dataTypes[0])) {
+      JS.unshift(dataTypes, finalDataType);
+    }
+    return responses[finalDataType];
+  }
+  return JS.undefined();
+}
+
+ConvertResult ajaxConvert(JsValue s, JsValue responseArg, JsValue jqXHR, bool isSuccess) {
+  JsValue response = responseArg;
+  JsValue converters = JS.object();
+  JsValue dataTypes = JS.slice(s["dataTypes"]);
+
+  if (dataTypes[1].truthy()) {
+    for (string conv in s["converters"]) {
+      converters[conv.toLowerCase()] = s["converters"][conv];
+    }
+  }
+
+  JsValue current = JS.shift(dataTypes);
+  JsValue prev = null;
+  bool prevSet = false;
+
+  while (current.truthy()) {
+    JsValue responseField = s["responseFields"][current];
+    if (responseField.truthy()) {
+      jqXHR[responseField] = response;
+    }
+
+    if (!prevSet && isSuccess && s["dataFilter"].truthy()) {
+      response = s["dataFilter"](response, s["dataType"]);
+    }
+
+    prev = current;
+    prevSet = true;
+    current = JS.shift(dataTypes);
+
+    if (current.truthy()) {
+      if (JS.strictEqual(current, "*")) {
+        current = prev;
+      } else if (!JS.strictEqual(prev, "*") && !JS.strictEqual(prev, current)) {
+        JsValue conv = converters[JS.add(JS.add(prev, " "), current)];
+        if (!conv.truthy()) {
+          conv = converters[JS.add("* ", current)];
+        }
+
+        if (!conv.truthy()) {
+          for (string conv2 in converters) {
+            JsValue tmp = JS.invoke(conv2, "split", " ");
+            if (tmp.length > 1.0 && JS.strictEqual(tmp[1], current)) {
+              JsValue candidate = converters[JS.add(JS.add(prev, " "), tmp[0])];
+              if (!candidate.truthy()) {
+                candidate = converters[JS.add("* ", tmp[0])];
+              }
+              if (candidate.truthy()) {
+                conv = candidate;
+                if (conv == true) {
+                  conv = converters[conv2];
+                } else if (converters[conv2] != true) {
+                  current = tmp[0];
+                  JS.unshift(dataTypes, tmp[1]);
+                }
+                break;
+              }
+            }
+          }
+        }
+
+        if (conv != true) {
+          if (conv.truthy() && s["throws"].truthy()) {
+            response = conv(response);
+          } else {
+            try {
+              response = conv(response);
+            } catch (JsValue error) {
+              JsValue convError = error;
+              if (!conv.truthy()) {
+                convError = JS.add(JS.add("No conversion from ", prev), JS.add(" to ", current));
+              }
+              return ConvertResult{ConvertState.ParserError, null, convError};
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return ConvertResult{ConvertState.Success, response, null};
+}
+
+JsValue buildResponseHeaders(string headersString) {
+  JsValue headers = JS.object();
+  JsValue headerMatch = JS.regexExec(rheaders, headersString);
+  while (headerMatch.truthy()) {
+    JsValue key = JS.add(JS.invoke(headerMatch[1], "toLowerCase"), " ");
+    JsValue value = headerMatch[2];
+    JsValue list = JS.or(headers[key], JS.array());
+    headers[key] = list;
+    JS.push(list, value);
+    headerMatch = JS.regexExec(rheaders, headersString);
+  }
+  return headers;
+}
+
+string stringConverter(JsValue value) {
+  return JS.string(value);
+}
+
+JsValue jsonParseConverter(JsValue value) {
+  return JSON.parse(JS.string(value));
+}
+
+JsValue ajaxAccepts = AjaxAccepts{
+  "text/plain",
+  "text/html",
+  "application/xml, text/xml",
+  "application/json, text/javascript"
+};
+ajaxAccepts["*"] = allTypes;
+
+JsValue ajaxContents = AjaxContents{
+  new Regex("\\bxml\\b"),
+  new Regex("\\bhtml"),
+  new Regex("\\bjson\\b")
+};
+
+JsValue ajaxResponseFields = AjaxResponseFields{"responseXML", "responseText", "responseJSON"};
+
+JsValue ajaxConverters = JS.object();
+ajaxConverters["* text"] = stringConverter;
+ajaxConverters["text html"] = true;
+ajaxConverters["text json"] = jsonParseConverter;
+ajaxConverters["text xml"] = jQuery["parseXML"];
+
+JsValue ajaxFlatOptions = AjaxFlatOptions{true, true};
+
+JsValue ajaxSettings = AjaxSettings{
+  location["href"],
+  "GET",
+  JS.regexTest(rlocalProtocol, JS.string(location["protocol"])),
+  true,
+  true,
+  true,
+  "application/x-www-form-urlencoded; charset=UTF-8",
+  ajaxAccepts,
+  ajaxContents,
+  ajaxResponseFields,
+  ajaxConverters,
+  ajaxFlatOptions
+};
+
+JsValue ajaxSetup(JsValue target, JsValue settings) {
+  if (settings.truthy()) {
+    return ajaxExtend(ajaxExtend(target, ajaxSettings), settings);
+  }
+  return ajaxExtend(ajaxSettings, target);
+}
+
+JsValue ajax(JsValue urlArg, JsValue optionsArg) {
+  JsValue url = urlArg;
+  JsValue options = optionsArg;
+  if (JS.typeOf(url) == "object") {
+    options = url;
+    url = JS.undefined();
+  }
+  options = JS.or(options, JS.object());
+
+  JsValue completed = null;
+  JsValue transport = null;
+  JsValue responseHeadersString = null;
+  JsValue responseHeaders = null;
+  JsValue timeoutTimer = null;
+  string strAbort = "canceled";
+  JsValue statusCode = null;
+  JsValue done = null;
+
+  JsValue s = ajaxSetup(JS.object(), options);
+
+  JsValue callbackContext = JS.or(s["context"], s);
+
+  JsValue globalEventContext = jQuery["event"];
+  if (JS.and(s["context"], JS.or(callbackContext["nodeType"], callbackContext["jquery"])).truthy()) {
+    globalEventContext = wrap(callbackContext);
+  }
+
+  JsValue deferred = Deferred();
+  JsValue completeDeferred = newCallbacksOnceMemory();
+
+  statusCode = JS.or(s["statusCode"], JS.object());
+
+  JsValue requestHeaders = JS.object();
+  JsValue requestHeadersNames = JS.object();
+
+  JsValue jqXHR = JqXHR{
+    0.0,
+    JS.method1((JsValue _self, JsValue key) => {
+    if (completed.truthy()) {
+      JsValue headerKey = JS.add(JS.invoke(key, "toLowerCase"), " ");
+      JsValue list = null;
+      if (responseHeaders.truthy()) {
+        list = responseHeaders[headerKey];
+      } else {
+        string headersString = JS.assume(responseHeadersString);
+        responseHeaders = buildResponseHeaders(headersString);
+        list = responseHeaders[headerKey];
+      }
+      if (list.truthy()) {
+        return JS.invoke(list, "join", ", ");
+      }
+      return null;
+    }
+    return null;
+  }),
+    JS.methodRest((JsValue self, JsValue args) => {
+    string name = JS.string(args[0]);
+    JsValue value = args[1];
+    if (JS.isNullish(completed)) {
+      string lowerName = name.toLowerCase();
+      JsValue existing = requestHeadersNames[lowerName];
+      string canonicalName = name;
+      if (existing.truthy()) {
+        canonicalName = JS.string(existing);
+      }
+      requestHeadersNames[lowerName] = canonicalName;
+      requestHeaders[canonicalName] = value;
+    }
+    return self;
+  }),
+    JS.method0((JsValue _self) => {
+    if (completed.truthy()) {
+      return responseHeadersString;
+    }
+    return null;
+  }),
+    JS.method1((JsValue self, JsValue type) => {
+    if (JS.isNullish(completed)) {
+      s["mimeType"] = type;
+    }
+    return self;
+  }),
+    JS.method1((JsValue self, JsValue map) => {
+    if (map.truthy()) {
+      if (completed.truthy()) {
+        JS.invoke(self, "always", map[self["status"]]);
+      } else {
+        for (string code in map) {
+          JsValue[] pair = [statusCode[code], map[code]];
+          statusCode[code] = pair;
+        }
+      }
+    }
+    return self;
+  }),
+    JS.method1((JsValue self, JsValue statusText) => {
+    string finalText = strAbort;
+    if (statusText.truthy()) {
+      finalText = JS.string(statusText);
+    }
+    if (transport.truthy()) {
+      JS.invoke(transport, "abort", finalText);
+    }
+    done(0.0, finalText);
+    return self;
+  })
+  };
+
+  JS.invoke(deferred, "promise", jqXHR);
+
+  string urlStr = JS.string(JS.or(url, JS.or(s["url"], location["href"])));
+  s["url"] = JS.stringReplace(urlStr, rprotocol, JS.string(location["protocol"]) + "//");
+
+  s["type"] = JS.or(options["method"], JS.or(options["type"], JS.or(s["method"], s["type"])));
+
+  string dataTypeExpr = JS.assume(JS.or(s["dataType"], "*"));
+  JsValue extractedTypes = JS.stringMatch(dataTypeExpr.toLowerCase(), rnothtmlwhite);
+  s["dataTypes"] = JS.or(extractedTypes, [""]);
+
+  if (JS.isNullish(s["crossDomain"])) {
+    JsValue urlAnchor = JS.invoke(document, "createElement", "a");
+    try {
+      urlAnchor["href"] = s["url"];
+      urlAnchor["href"] = urlAnchor["href"];
+      s["crossDomain"] = (JS.string(originAnchor["protocol"]) + "//" + JS.string(originAnchor["host"]))
+        != (JS.string(urlAnchor["protocol"]) + "//" + JS.string(urlAnchor["host"]));
+    } catch {
+      s["crossDomain"] = true;
+    }
+  }
+
+  if (s["data"].truthy() && s["processData"].truthy() && JS.typeOf(s["data"]) != "string") {
+    s["data"] = param(s["data"], s["traditional"].truthy());
+  }
+
+  inspectPrefiltersOrTransports(prefilters, s, options, jqXHR);
+
+  if (completed.truthy()) {
+    return jqXHR;
+  }
+
+  bool fireGlobals = JS.and(jQuery["event"], s["global"]).truthy();
+
+  if (fireGlobals) {
+    float activeBefore = JS.number(jQuery["active"]);
+    jQuery["active"] = activeBefore + 1.0;
+    if (activeBefore == 0.0) {
+      trigger("ajaxStart");
+    }
+  }
+
+  string requestType = JS.assume(s["type"]);
+  requestType = requestType.toUpperCase();
+  s["type"] = requestType;
+  s["hasContent"] = !JS.regexTest(rnoContent, requestType);
+
+  string cacheURL = JS.stringReplace(JS.string(s["url"]), rhash, "");
+
+  if (!s["hasContent"].truthy()) {
+    string uncached = JS.stringSlice(JS.string(s["url"]), cacheURL.length);
+
+    if (s["data"].truthy() && (s["processData"].truthy() || (s["data"]) is string)) {
+      string sep = "?";
+      if (JS.regexTest(rquery, cacheURL)) {
+        sep = "&";
+      }
+      cacheURL = cacheURL + sep + JS.string(s["data"]);
+      JS.delete(s, "data");
+    }
+
+    if (s["cache"] == false) {
+      cacheURL = JS.stringReplace(cacheURL, rantiCache, "$1");
+      string sep2 = "?";
+      if (JS.regexTest(rquery, cacheURL)) {
+        sep2 = "&";
+      }
+      float guidVal = JS.number(nonce["guid"]);
+      nonce["guid"] = guidVal + 1.0;
+      uncached = sep2 + "_=" + JS.string(guidVal) + uncached;
+    }
+
+    s["url"] = cacheURL + uncached;
+  } else {
+    string contentTypeStr = JS.assume(JS.or(s["contentType"], ""));
+    if (s["data"].truthy() && s["processData"].truthy() && JS.stringIndexOf(contentTypeStr, "application/x-www-form-urlencoded") == 0.0) {
+      s["data"] = JS.stringReplace(JS.string(s["data"]), r20, "+");
+    }
+  }
+
+  if (s["ifModified"].truthy()) {
+    JsValue lm = jQuery["lastModified"][cacheURL];
+    if (lm.truthy()) {
+      JS.invoke(jqXHR, "setRequestHeader", "If-Modified-Since", lm);
+    }
+    JsValue et = jQuery["etag"][cacheURL];
+    if (et.truthy()) {
+      JS.invoke(jqXHR, "setRequestHeader", "If-None-Match", et);
+    }
+  }
+
+  bool setContentType = JS.or(
+    JS.and(JS.and(s["data"], s["hasContent"]), JS.strictNotEqual(s["contentType"], false)),
+    options["contentType"]
+  ).truthy();
+  if (setContentType) {
+    JS.invoke(jqXHR, "setRequestHeader", "Content-Type", s["contentType"]);
+  }
+
+  JsValue acceptsVal = null;
+  JsValue dt0 = s["dataTypes"][0];
+  if (dt0.truthy() && s["accepts"][dt0].truthy()) {
+    JsValue acceptsBase = s["accepts"][dt0];
+    if (!JS.strictEqual(dt0, "*")) {
+      acceptsVal = JS.add(acceptsBase, ", " + allTypes + "; q=0.01");
+    } else {
+      acceptsVal = acceptsBase;
+    }
+  } else {
+    acceptsVal = s["accepts"]["*"];
+  }
+  JS.invoke(jqXHR, "setRequestHeader", "Accept", acceptsVal);
+
+  for (string headerName in s["headers"]) {
+    JS.invoke(jqXHR, "setRequestHeader", headerName, s["headers"][headerName]);
+  }
+
+  if (s["beforeSend"].truthy()) {
+    JsValue beforeResult = JS.call(s["beforeSend"], callbackContext, jqXHR, s);
+    if (JS.isFalse(beforeResult) || completed.truthy()) {
+      return JS.invoke(jqXHR, "abort");
+    }
+  }
+
+  strAbort = "abort";
+
+  JS.invoke(completeDeferred, "add", s["complete"]);
+  JS.invoke(jqXHR, "done", s["success"]);
+  JS.invoke(jqXHR, "fail", s["error"]);
+
+  transport = inspectPrefiltersOrTransports(transports, s, options, jqXHR);
+
+  done = (JsValue status, JsValue nativeStatusText, JsValue responses, JsValue headers) => {
+    if (completed.truthy()) {
+      return JS.undefined();
+    }
+    completed = true;
+
+    if (timeoutTimer.truthy()) {
+      clearTimeoutId(timeoutTimer);
+    }
+
+    transport = JS.undefined();
+    responseHeadersString = JS.or(headers, "");
+
+    if (JS.greaterThan(status, 0.0)) {
+      jqXHR["readyState"] = 4.0;
+    } else {
+      jqXHR["readyState"] = 0.0;
+    }
+
+    bool isSuccess = (JS.greaterThanOrEqual(status, 200.0) && JS.lessThan(status, 300.0)) || JS.strictEqual(status, 304.0);
+
+    JsValue response = JS.undefined();
+    if (responses.truthy()) {
+      response = ajaxHandleResponses(s, jqXHR, responses);
+    }
+
+    if (!isSuccess && inArray("script", s["dataTypes"]) > -1.0 && inArray("json", s["dataTypes"]) < 0.0) {
+      s["converters"]["text script"] = () => {
+        return JS.undefined();
+      };
+    }
+
+    ConvertResult converted = ajaxConvert(s, response, jqXHR, isSuccess);
+
+    JsValue statusText = nativeStatusText;
+
+    JsValue success = null;
+    JsValue error = null;
+
+    if (isSuccess) {
+      if (s["ifModified"].truthy()) {
+        JsValue modifiedHeader = JS.invoke(jqXHR, "getResponseHeader", "Last-Modified");
+        if (modifiedHeader.truthy()) {
+          jQuery["lastModified"][cacheURL] = modifiedHeader;
+        }
+        JsValue etagHeader = JS.invoke(jqXHR, "getResponseHeader", "etag");
+        if (etagHeader.truthy()) {
+          jQuery["etag"][cacheURL] = etagHeader;
+        }
+      }
+
+      if (JS.strictEqual(status, 204.0) || JS.strictEqual(s["type"], "HEAD")) {
+        statusText = "nocontent";
+      } else if (JS.strictEqual(status, 304.0)) {
+        statusText = "notmodified";
+      } else {
+        statusText = "success";
+        if (converted.state == ConvertState.ParserError) {
+          statusText = "parsererror";
+        }
+        success = converted.data;
+        error = converted.error;
+        isSuccess = !error.truthy();
+      }
+    } else {
+      error = statusText;
+      if (status.truthy() || !statusText.truthy()) {
+        statusText = "error";
+        if (JS.lessThan(status, 0.0)) {
+          status = 0.0;
+        }
+      }
+    }
+
+    jqXHR["status"] = status;
+    jqXHR["statusText"] = JS.string(JS.or(nativeStatusText, statusText));
+
+    if (isSuccess) {
+      JsValue[] successArgs = [success, statusText, jqXHR];
+      JS.invoke(deferred, "resolveWith", callbackContext, successArgs);
+    } else {
+      JsValue[] errorArgs = [jqXHR, statusText, error];
+      JS.invoke(deferred, "rejectWith", callbackContext, errorArgs);
+    }
+
+    JS.invoke(jqXHR, "statusCode", statusCode);
+    statusCode = JS.undefined();
+
+    if (fireGlobals) {
+      string globalEvent = "ajaxError";
+      JsValue globalArgData = error;
+      if (isSuccess) {
+        globalEvent = "ajaxSuccess";
+        globalArgData = success;
+      }
+      JsValue[] globalArgs = [jqXHR, s, globalArgData];
+      JS.invoke(globalEventContext, "trigger", globalEvent, globalArgs);
+    }
+
+    JsValue[] completeArgs = [jqXHR, statusText];
+    JS.invoke(completeDeferred, "fireWith", callbackContext, completeArgs);
+
+    if (fireGlobals) {
+      JsValue[] completeGlobalArgs = [jqXHR, s];
+      JS.invoke(globalEventContext, "trigger", "ajaxComplete", completeGlobalArgs);
+
+      float activeAfter = JS.number(jQuery["active"]) - 1.0;
+      jQuery["active"] = activeAfter;
+      if (activeAfter == 0.0) {
+        trigger("ajaxStop");
+      }
+    }
+
+    return JS.undefined();
+  };
+
+  if (!transport.truthy()) {
+    done(-1.0, "No Transport");
+  } else {
+    jqXHR["readyState"] = 1.0;
+
+    if (fireGlobals) {
+      JsValue[] sendArgs = [jqXHR, s];
+      JS.invoke(globalEventContext, "trigger", "ajaxSend", sendArgs);
+    }
+
+    if (completed.truthy()) {
+      return jqXHR;
+    }
+
+    if (s["async"].truthy() && JS.greaterThan(s["timeout"], 0.0)) {
+      float timeoutMs = JS.number(s["timeout"]);
+      timeoutTimer = scheduleTimeoutMs(() => {
+        JS.invoke(jqXHR, "abort", "timeout");
+        return JS.undefined();
+      }, timeoutMs);
+    }
+
+    try {
+      completed = false;
+      JS.invoke(transport, "send", requestHeaders, done);
+    } catch (JsValue error) {
+      if (completed.truthy()) {
+        throw error;
+      }
+      done(-1.0, error);
+    }
+  }
+
+  return jqXHR;
+}
+
+JsValue ajaxMethod(string method, JsValue urlArg, JsValue dataArg, JsValue callbackArg, JsValue typeArg) {
+  JsValue data = dataArg;
+  JsValue callback = callbackArg;
+  JsValue type = typeArg;
+  if (isFunction(data)) {
+    if (!type.truthy()) {
+      type = callback;
+    }
+    callback = data;
+    data = JS.undefined();
+  }
+
+  JsValue methodOptions = MethodOptions{urlArg, method, type, data, callback};
+
+  JsValue urlAsOptions = false;
+  if (isPlainObject(urlArg)) {
+    urlAsOptions = urlArg;
+  }
+  JsValue merged = mergeObject(methodOptions, urlAsOptions, false);
+
+  return ajax(merged, JS.undefined());
+}
+
+JsValue getJSON(JsValue url, JsValue data, JsValue callback) {
+  return ajaxMethod("get", url, data, callback, "json");
+}
+
+JsValue getScript(JsValue url, JsValue callback) {
+  return ajaxMethod("get", url, JS.undefined(), callback, "script");
+}
+
+void install() {
+  jQuery["active"] = 0.0;
+  jQuery["lastModified"] = JS.object();
+  jQuery["etag"] = JS.object();
+
+  jQuery["ajaxSettings"] = ajaxSettings;
+  jQuery["ajaxSetup"] = ajaxSetup;
+  jQuery["ajaxPrefilter"] = addToPrefiltersOrTransports(prefilters);
+  jQuery["ajaxTransport"] = addToPrefiltersOrTransports(transports);
+  jQuery["ajax"] = ajax;
+  jQuery["getJSON"] = getJSON;
+  jQuery["getScript"] = getScript;
+
+  each(["get", "post"], (JsValue _i, JsValue method) => {
+    string methodName = JS.string(method);
+    jQuery[methodName] = (JsValue urlArg, JsValue dataArg, JsValue callbackArg, JsValue typeArg) => {
+      return ajaxMethod(methodName, urlArg, dataArg, callbackArg, typeArg);
+    };
+    return JS.undefined();
+  });
+
+  addToPrefiltersOrTransportsImpl(prefilters, "*", (JsValue s) => {
+    JsValue headers = s["headers"];
+    if (headers.truthy()) {
+      for (string headerName in headers) {
+        if (headerName.toLowerCase() == "content-type") {
+          JsValue value = headers[headerName];
+          string contentType = "";
+          if (value.truthy()) {
+            contentType = JS.string(value);
+          }
+          s["contentType"] = contentType;
+        }
+      }
+    }
+    return JS.undefined();
+  });
+}
+
+install();
+
+export { jQuery, ajax, ajaxSettings, ajaxSetup, ajaxExtend, ajaxConvert, ajaxHandleResponses, inspectPrefiltersOrTransports, prefilters, transports, allTypes };

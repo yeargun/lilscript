@@ -1,0 +1,10 @@
+import { progress } from "../../../../motion-utils/progress";
+import { mixNumber } from "../../../utils/mix/number";
+
+export void fillOffset(float[] offset, int remaining) {
+  float min = offset[offset.length - 1];
+  for (int i = 1; i <= remaining; i++) {
+    float offsetProgress = progress(0.0, remaining, i);
+    offset.push(mixNumber(min, 1.0, offsetProgress));
+  }
+}

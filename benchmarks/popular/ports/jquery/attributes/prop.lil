@@ -1,0 +1,152 @@
+import { jQuery, each, isXMLDoc } from "../core";
+import { access } from "../core/access";
+import { support } from "./support";
+import { find } from "../selector";
+import {
+  jsUndefined,
+  createEmptyObject,
+  deleteProp,
+  hasProp,
+  isUndefined,
+  isNullish,
+  regexTest,
+  stringify,
+  parseIntRadix,
+  call1,
+  call2,
+  call3
+} from "../js-host.lil";
+
+
+Regex rfocusable = new Regex("^(?:input|select|textarea|button)$", "i");
+Regex rclickable = new Regex("^(?:a|area)$", "i");
+
+struct GetHook {
+  JsValue get;
+}
+
+struct GetSetHook {
+  JsValue get;
+  JsValue set;
+}
+
+struct PropFix {
+  string for;
+  string class;
+}
+
+struct PropHooks {
+  JsValue tabIndex;
+}
+
+JsValue propFix = PropFix{"htmlFor", "className"};
+each(["tabIndex", "readOnly", "maxLength", "cellSpacing", "cellPadding", "rowSpan", "colSpan", "useMap", "frameBorder", "contentEditable"], (JsValue _i, JsValue name) => {
+  string n = JS.string(name);
+  propFix[n.toLowerCase()] = n;
+  return JS.undefined();
+});
+
+JsValue tabIndexGet(JsValue elem) {
+  JsValue tabindex = JS.invoke(find, "attr", elem, "tabindex");
+  if (tabindex.truthy()) {
+    return parseIntRadix(JS.string(tabindex), 10.0);
+  }
+
+  JsValue nodeNameText = JS.or(JS.and(elem, elem["nodeName"]), "");
+
+  if (JS.regexTest(rfocusable, nodeNameText)) {
+    return 0.0;
+  }
+  if (JS.regexTest(rclickable, nodeNameText) && elem["href"].truthy()) {
+    return 0.0;
+  }
+  return -1.0;
+}
+
+JsValue propHooks = PropHooks{GetHook{tabIndexGet}};
+
+JsValue selectedGet(JsValue elem) {
+  JsValue parent = elem["parentNode"];
+  if (parent.truthy() && parent["parentNode"].truthy()) {
+    parent["parentNode"]["selectedIndex"];
+  }
+  return null;
+}
+
+JsValue selectedSet(JsValue elem) {
+  JsValue parent = elem["parentNode"];
+  if (parent.truthy()) {
+    parent["selectedIndex"];
+    if (parent["parentNode"].truthy()) {
+      parent["parentNode"]["selectedIndex"];
+    }
+  }
+  return null;
+}
+
+if (!support["optSelected"].truthy()) {
+  JsValue selectedHookBag = GetSetHook{selectedGet, selectedSet};
+  propHooks["selected"] = selectedHookBag;
+}
+
+export JsValue prop(JsValue elem, JsValue nameValue, JsValue value) {
+  JsValue nodeTypeValue = JS.and(elem, elem["nodeType"]);
+  if (nodeTypeValue == 3.0 || nodeTypeValue == 8.0 || nodeTypeValue == 2.0) {
+    return JS.undefined();
+  }
+
+  JsValue name = nameValue;
+  JsValue hooks = null;
+  if (nodeTypeValue != 1.0 || !isXMLDoc(elem)) {
+    JsValue fixed = propFix[nameValue];
+    if (fixed.truthy()) {
+      name = fixed;
+    }
+    hooks = propHooks[name];
+  }
+
+  if (!JS.isUndefined(value)) {
+    if (hooks.truthy() && JS.in("set", hooks)) {
+      JsValue ret = JS.invoke(hooks, "set", elem, value, name);
+      if (!JS.isUndefined(ret)) {
+        return ret;
+      }
+    }
+    elem[name] = value;
+    return value;
+  }
+
+  if (hooks.truthy() && JS.in("get", hooks)) {
+    JsValue ret = JS.invoke(hooks, "get", elem, name);
+    if (!JS.isNullish(ret)) {
+      return ret;
+    }
+  }
+  return elem[name];
+}
+
+export JsValue fnProp(JsValue self, JsValue args) {
+  return access(self, prop, args[0], args[1], args.length > 1.0, JS.undefined(), false);
+}
+
+export JsValue fnRemoveProp(JsValue nameArg) {
+  JsValue self = this;
+  return each(self, (JsValue _i, JsValue el) => {
+    JsValue fixed = propFix[nameArg];
+    JsValue key = nameArg;
+    if (fixed.truthy()) {
+      key = fixed;
+    }
+    JS.delete(el, key);
+    return JS.undefined();
+  });
+}
+
+jQuery["fn"]["prop"] = JS.methodRest(fnProp);
+jQuery["fn"]["removeProp"] = fnRemoveProp;
+
+jQuery["prop"] = prop;
+jQuery["propHooks"] = propHooks;
+jQuery["propFix"] = propFix;
+
+export { jQuery };

@@ -1,0 +1,25 @@
+export pure int prefixClass(string token) {
+  if (token.startsWith("cache:")) { return 11; }
+  if (token.startsWith("view:")) { return 17; }
+  if (token.startsWith("data:")) { return 23; }
+  return 3;
+}
+
+export pure int suffixClass(string token) {
+  if (token.endsWith(":hot")) { return 13; }
+  if (token.endsWith(":cold")) { return -5; }
+  if (token.endsWith(":idle")) { return 7; }
+  return 1;
+}
+
+export pure int keywordClass(string token) {
+  if (token == "render") { return 29; }
+  if (token == "hydrate") { return 31; }
+  if (token == "commit") { return 37; }
+  if (token == "invalidate") { return 41; }
+  return 5;
+}
+
+export pure int tokenClass(string token) {
+  return prefixClass(token) * 3 + suffixClass(token) * 5 + keywordClass(token);
+}

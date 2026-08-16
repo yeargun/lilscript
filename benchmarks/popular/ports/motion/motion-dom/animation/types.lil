@@ -1,0 +1,113 @@
+import { AnimationState } from "./animation-state";
+
+export { AnimationState };
+
+export class ProgressTimeline {
+  JsValue? currentTime;
+  (func()->void)? cancel;
+
+  init() {
+    this.currentTime = null;
+    this.cancel = null;
+  }
+}
+
+export class ValueAnimationTransition {
+  JsValue? type;
+  float? stiffness;
+  float? damping;
+  float? mass;
+  float? duration;
+  float? restDelta;
+  float? restSpeed;
+  float? velocity;
+  JsValue? ease;
+  float? delay;
+  float? repeat;
+  string? repeatType;
+  float[]? times;
+  bool? skipInitialAnimation;
+
+  init() {
+    this.type = null;
+    this.stiffness = null;
+    this.damping = null;
+    this.mass = null;
+    this.duration = null;
+    this.restDelta = null;
+    this.restSpeed = null;
+    this.velocity = null;
+    this.ease = null;
+    this.delay = null;
+    this.repeat = null;
+    this.repeatType = null;
+    this.times = null;
+    this.skipInitialAnimation = null;
+  }
+}
+
+export class SpringOptions {
+  float? stiffness;
+  float? damping;
+  float? mass;
+  float? restDelta;
+  float? restSpeed;
+  float? velocity;
+  float? duration;
+  bool? skipInitialAnimation;
+
+  init() {
+    this.stiffness = null;
+    this.damping = null;
+    this.mass = null;
+    this.restDelta = null;
+    this.restSpeed = null;
+    this.velocity = null;
+    this.duration = null;
+    this.skipInitialAnimation = null;
+  }
+}
+
+export class AnimationPlaybackControls {
+  float time;
+  float speed;
+  float? startTime;
+  string state;
+  float duration;
+  float iterationDuration;
+
+  init() {
+    this.time = 0.0;
+    this.speed = 1.0;
+    this.startTime = null;
+    this.state = "idle";
+    this.duration = 0.0;
+    this.iterationDuration = 0.0;
+  }
+
+  void stop() {}
+}
+
+export class AnimationPlaybackControlsWithThen {
+  float time;
+  float speed;
+  float? startTime;
+  string state;
+  float duration;
+  float iterationDuration;
+
+  init() {
+    this.time = 0.0;
+    this.speed = 1.0;
+    this.startTime = null;
+    this.state = "idle";
+    this.duration = 0.0;
+    this.iterationDuration = 0.0;
+  }
+
+  void stop() {}
+
+  void then(func()->void resolve, (func()->void)? reject = null) {
+    resolve();
+  }
+}

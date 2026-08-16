@@ -1,1 +1,1 @@
-var b=0,a=0;var i=[3,1,4,1,5,9];while(a<6){b=b+(Math.imul(i[a],(a+3|0))+a|0)|0;a=a+1|0;}console.log(`checksum=${b}`)
+var n=[3,1,4,1,5,9],$=0,u=0;for(;u<6;++u)$=$+(((n[u]|0)*(u+3)|0)+u|0)|0;console.log(`checksum=${$}`)

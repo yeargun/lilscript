@@ -1,0 +1,12 @@
+import { hasScrollTimeline, hasViewTimeline } from "../../dom-host";
+import { memoSupports } from "./memo";
+
+export func()->bool supportsScrollTimeline = memoSupports(
+  () => hasScrollTimeline(),
+  "scrollTimeline"
+);
+
+export func()->bool supportsViewTimeline = memoSupports(
+  () => hasViewTimeline(),
+  "viewTimeline"
+);

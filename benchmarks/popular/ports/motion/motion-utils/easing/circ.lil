@@ -1,0 +1,9 @@
+import { mirrorEasing } from "./modifiers/mirror";
+import { reverseEasing } from "./modifiers/reverse";
+
+export float circIn(float p) {
+  return 1.0 - (p.acos()).sin();
+}
+
+export func(float)->float circOut = reverseEasing(circIn);
+export func(float)->float circInOut = mirrorEasing(circIn);

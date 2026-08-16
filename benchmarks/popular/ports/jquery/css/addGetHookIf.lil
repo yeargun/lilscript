@@ -1,0 +1,16 @@
+import {
+  jsUndefined
+} from "../js-host.lil";
+
+struct GetHook {
+  JsValue get;
+}
+
+export JsValue addGetHookIf(func()->bool conditionFn, func(JsValue, JsValue)->JsValue hookFn) {
+  return GetHook{(JsValue elem, JsValue computed, JsValue extra) => {
+    if (conditionFn()) {
+      return JS.undefined();
+    }
+    return hookFn(elem, computed);
+  }};
+}

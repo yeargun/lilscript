@@ -1,0 +1,20 @@
+import { transformRange, TransformOptions } from "../utils/transform";
+import { MotionValue } from "./index";
+import { transformValue } from "./transform-value";
+
+export MotionValue mapValue(
+  MotionValue inputValue,
+  float[] inputRange,
+  float[] outputRange,
+  TransformOptions? options = null
+) {
+  func(float)->float map = transformRange(inputRange, outputRange, options);
+  return transformValue(() => {
+    JsValue latest = inputValue.get();
+    float n = 0.0;
+    if (latest is float) {
+      n = latest;
+    }
+    return map(n);
+  });
+}

@@ -1,0 +1,23 @@
+import { documentGetAnimations, documentElement } from "../../dom-host";
+
+export JsValue[] getViewAnimations() {
+  JsValue[] animations = documentGetAnimations();
+  JsValue[] filtered = [];
+  for (int i = 0; i < animations.length; i++) {
+    JsValue animation = animations[i];
+    JsValue effect = animation["effect"];
+    if (!effect.truthy()) {
+      continue;
+    }
+    JsValue target = effect["target"];
+    JsValue pseudo = effect["pseudoElement"];
+    if (target == documentElement()) {
+      if (pseudo is string) {
+        if (pseudo.startsWith("::view-transition")) {
+          filtered.push(animation);
+        }
+      }
+    }
+  }
+  return filtered;
+}

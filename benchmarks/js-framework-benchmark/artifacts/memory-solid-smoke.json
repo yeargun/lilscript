@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "provenance": {
+    "generatedAt": "2026-08-14T23:07:18.552Z",
+    "upstreamRepository": "https://github.com/krausest/js-framework-benchmark.git",
+    "upstreamCommit": "afe7c118dd217ccae4c10813613ac0d7566b1ef1",
+    "lilscriptCommit": "51ee9b9a5aec927a83179f3409188573ae39aa8c",
+    "compilerSha256": "3d8f05259b5518004dfd573a9a8088272faee3853729840cd06d0510298cce15",
+    "node": "v20.12.0",
+    "chrome": "Google Chrome 151.0.7922.138",
+    "platform": "darwin 24.6.0 arm64",
+    "cpu": "Apple M3 Pro",
+    "logicalCpuCount": 12,
+    "totalMemoryBytes": 19327352832
+  },
+  "configuration": {
+    "runner": "upstream Playwright implementation",
+    "browser": "installed Google Chrome",
+    "blocks": 3,
+    "seed": 20260814,
+    "cpuThrottling": true,
+    "warmups": "upstream workload-specific warmupCount",
+    "memoryCollection": "forceGC + performance.measureUserAgentSpecificMemory",
+    "coldLoad": "fresh browser context with an empty cache",
+    "brotliQuality": 11,
+    "frameworkFilter": "solid",
+    "measurementFingerprint": "e0d3b476defe801b1a545d07fff842f74e3bd29e44f62830405872393740ecaf"
+  },
+  "sizes": {},
+  "samples": [
+    {
+      "phase": "memory",
+      "block": 0,
+      "workload": "21_ready-memory",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 19483,
+      "value": 1.0661649703979492,
+      "warnings": []
+    },
+    {
+      "phase": "memory",
+      "block": 0,
+      "workload": "25_run-clear-memory",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 15696,
+      "value": 1.2696666717529297,
+      "warnings": []
+    },
+    {
+      "phase": "memory",
+      "block": 0,
+      "workload": "22_run-memory",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 11479,
+      "value": 3.143890380859375,
+      "warnings": []
+    },
+    {
+      "phase": "memory",
+      "block": 1,
+      "workload": "22_run-memory",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 15422,
+      "value": 3.1677188873291016,
+      "warnings": []
+    },
+    {
+      "phase": "memory",
+      "block": 1,
+      "workload": "25_run-clear-memory",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 20963,
+      "value": 1.300668716430664,
+      "warnings": []
+    },
+    {
+      "phase": "memory",
+      "block": 1,
+      "workload": "21_ready-memory",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 12569,
+      "value": 1.096724510192871,
+      "warnings": []
+    },
+    {
+      "phase": "memory",
+      "block": 2,
+      "workload": "25_run-clear-memory",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 17775,
+      "value": 1.2699451446533203,
+      "warnings": []
+    },
+    {
+      "phase": "memory",
+      "block": 2,
+      "workload": "21_ready-memory",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 16427,
+      "value": 1.060868263244629,
+      "warnings": []
+    },
+    {
+      "phase": "memory",
+      "block": 2,
+      "workload": "22_run-memory",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 15510,
+      "value": 3.1692333221435547,
+      "warnings": []
+    }
+  ],
+  "completedAt": "2026-08-14T23:09:44.273Z"
+}

@@ -1,0 +1,47 @@
+import { jQuery } from "../core";
+import {
+  windowSelf,
+  hasProp,
+  isNullish,
+  regexTest,
+  stringify,
+  consoleWarn3
+} from "../js-host.lil";
+
+Regex rerrorNames = new Regex("^(Eval|Internal|Range|Reference|Syntax|Type|URI)Error$");
+
+jQuery["Deferred"]["exceptionHook"] = (JsValue error, JsValue asyncError) => {
+  JsValue win = windowSelf();
+  if (!JS.in("console", win)) {
+    return JS.undefined();
+  }
+  JsValue consoleObj = win["console"];
+  if (!consoleObj.truthy() || !JS.in("warn", consoleObj) || !consoleObj["warn"].truthy()) {
+    return JS.undefined();
+  }
+  if (!error.truthy()) {
+    return JS.undefined();
+  }
+  JsValue nameValue = error["name"];
+  if (JS.isNullish(nameValue)) {
+    return JS.undefined();
+  }
+  string nameText = JS.string(nameValue);
+  if (!JS.regexTest(rerrorNames, nameText)) {
+    return JS.undefined();
+  }
+
+  JsValue messageValue = error["message"];
+  string messageText = "";
+  if (!JS.isNullish(messageValue)) {
+    messageText = JS.string(messageValue);
+  }
+  consoleWarn3(
+    "jQuery.Deferred exception: " + messageText,
+    error["stack"],
+    asyncError
+  );
+  return JS.undefined();
+};
+
+export { jQuery };

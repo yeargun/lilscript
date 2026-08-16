@@ -1,0 +1,1 @@
+var b=console,c=b.log,d=0,e=algorithmCount();for(let a=0;a<e;a++){var f=d,g=algorithmInt(a),h=a,k=h;d=f+(((g*3|0)+7|0)^((h*2|0)+3|0)^(((g+k|0)*-2|0)+11|0)^((k*2|0)+3|0))|0}c.call(b,((d+(e*13|0)|0)*5|0)+(e*-52|0)|0);

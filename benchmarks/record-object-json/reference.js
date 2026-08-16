@@ -1,0 +1,1 @@
+function m(s){let r={__proto__:null,"10":s+10,"2":s+2,alpha:s+1,beta:s+3,gamma:s+5};Object.assign(r,{__proto__:null,beta:s+7,delta:s+9});let v=Object.values(r),n=Object.keys(r).length+v.length+JSON.stringify(r).length+v[0]+v[3];if(Object.hasOwn(r,"delta"))n++;return n}let t=0;for(let i=0;i<3000;i++)t+=m(i%97);console.log(t);

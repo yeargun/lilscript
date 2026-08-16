@@ -1,0 +1,1788 @@
+{
+  "schemaVersion": 1,
+  "provenance": {
+    "generatedAt": "2026-08-15T12:12:47.541Z",
+    "upstreamRepository": "https://github.com/krausest/js-framework-benchmark.git",
+    "upstreamCommit": "afe7c118dd217ccae4c10813613ac0d7566b1ef1",
+    "lilscriptCommit": "51ee9b9a5aec927a83179f3409188573ae39aa8c",
+    "compilerSha256": "2983ed413371a51dc9fc2c030d5d24ae4d31e5a592090f1461d295cfe7fa1a83",
+    "node": "v24.11.1",
+    "chrome": "Google Chrome 151.0.7922.138",
+    "platform": "darwin 24.6.0 arm64",
+    "cpu": "Apple M3 Pro",
+    "logicalCpuCount": 12,
+    "totalMemoryBytes": 19327352832
+  },
+  "configuration": {
+    "runner": "upstream Playwright implementation",
+    "browser": "installed Google Chrome",
+    "blocks": 15,
+    "seed": 20260814,
+    "cpuThrottling": true,
+    "warmups": "upstream workload-specific warmupCount",
+    "memoryCollection": "forceGC + performance.measureUserAgentSpecificMemory",
+    "coldLoad": "fresh browser context with an empty cache",
+    "brotliQuality": 11,
+    "frameworkFilter": "solid",
+    "measurementFingerprint": "6dd917b68a6115ef920f6fc2f829b36c6d5a192e3f7bfec12c2b62b403a27dbb"
+  },
+  "sizes": {},
+  "samples": [
+    {
+      "phase": "cpu",
+      "block": 0,
+      "workload": "05_swap1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 2412,
+      "value": {
+        "total": 19.754,
+        "script": 1.882,
+        "paint": 13.192
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 0,
+      "workload": "02_replace1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1737,
+      "value": {
+        "total": 27.737,
+        "script": 5.523,
+        "paint": 21.596
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 0,
+      "workload": "03_update10th1k_x16",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1620,
+      "value": {
+        "total": 16.187,
+        "script": 1.665,
+        "paint": 12.323
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 0,
+      "workload": "09_clear1k_x8",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1964,
+      "value": {
+        "total": 13.25,
+        "script": 9.794,
+        "paint": 2.221
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 0,
+      "workload": "06_remove-one-1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1841,
+      "value": {
+        "total": 13.379,
+        "script": 0.533,
+        "paint": 11.993
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 0,
+      "workload": "04_select1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1767,
+      "value": {
+        "total": 5.476,
+        "script": 1.506,
+        "paint": 2.972
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 0,
+      "workload": "07_create10k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 2393,
+      "value": {
+        "total": 277.421,
+        "script": 25.411,
+        "paint": 241.708
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 0,
+      "workload": "01_run1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1813,
+      "value": {
+        "total": 24.284,
+        "script": 2.609,
+        "paint": 21.184
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 0,
+      "workload": "08_create1k-after1k_x2",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1896,
+      "value": {
+        "total": 28.887,
+        "script": 3.271,
+        "paint": 24.645
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 1,
+      "workload": "04_select1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1584,
+      "value": {
+        "total": 4.871,
+        "script": 1.17,
+        "paint": 2.926
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 1,
+      "workload": "05_swap1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1741,
+      "value": {
+        "total": 16.904,
+        "script": 1.159,
+        "paint": 14.127
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 1,
+      "workload": "07_create10k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 2404,
+      "value": {
+        "total": 276.071,
+        "script": 25.529,
+        "paint": 241.453
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 1,
+      "workload": "01_run1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1809,
+      "value": {
+        "total": 24.165,
+        "script": 2.563,
+        "paint": 21.097
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 1,
+      "workload": "08_create1k-after1k_x2",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1878,
+      "value": {
+        "total": 30.603,
+        "script": 4.078,
+        "paint": 25.476
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 1,
+      "workload": "06_remove-one-1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1830,
+      "value": {
+        "total": 12.901,
+        "script": 0.367,
+        "paint": 11.466
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 1,
+      "workload": "09_clear1k_x8",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1859,
+      "value": {
+        "total": 12.354,
+        "script": 9.691,
+        "paint": 1.442
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 1,
+      "workload": "02_replace1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1765,
+      "value": {
+        "total": 27.745,
+        "script": 5.416,
+        "paint": 21.697
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 1,
+      "workload": "03_update10th1k_x16",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1644,
+      "value": {
+        "total": 14.543,
+        "script": 0.89,
+        "paint": 12.271
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 2,
+      "workload": "02_replace1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1783,
+      "value": {
+        "total": 27.938,
+        "script": 5.46,
+        "paint": 21.848
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 2,
+      "workload": "07_create10k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 2378,
+      "value": {
+        "total": 279.887,
+        "script": 25.304,
+        "paint": 245.156
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 2,
+      "workload": "01_run1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1824,
+      "value": {
+        "total": 24.159,
+        "script": 2.553,
+        "paint": 21.105
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 2,
+      "workload": "06_remove-one-1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1807,
+      "value": {
+        "total": 12.974,
+        "script": 0.433,
+        "paint": 11.644
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 2,
+      "workload": "03_update10th1k_x16",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1632,
+      "value": {
+        "total": 15.651,
+        "script": 1.636,
+        "paint": 12.665
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 2,
+      "workload": "05_swap1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1742,
+      "value": {
+        "total": 16.652,
+        "script": 0.627,
+        "paint": 14.593
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 2,
+      "workload": "08_create1k-after1k_x2",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1872,
+      "value": {
+        "total": 29.863,
+        "script": 3.269,
+        "paint": 25.558
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 2,
+      "workload": "04_select1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1627,
+      "value": {
+        "total": 4.622,
+        "script": 0.203,
+        "paint": 4.227
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 2,
+      "workload": "09_clear1k_x8",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1876,
+      "value": {
+        "total": 12.181,
+        "script": 10.077,
+        "paint": 1.931
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 3,
+      "workload": "04_select1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1715,
+      "value": {
+        "total": 5.488,
+        "script": 1.247,
+        "paint": 3.915
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 3,
+      "workload": "09_clear1k_x8",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1875,
+      "value": {
+        "total": 13,
+        "script": 10.562,
+        "paint": 2.154
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 3,
+      "workload": "07_create10k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 2377,
+      "value": {
+        "total": 281.85,
+        "script": 26.142,
+        "paint": 245.339
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 3,
+      "workload": "08_create1k-after1k_x2",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1907,
+      "value": {
+        "total": 29.15,
+        "script": 3.274,
+        "paint": 24.877
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 3,
+      "workload": "06_remove-one-1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1926,
+      "value": {
+        "total": 13.248,
+        "script": 0.53,
+        "paint": 11.33
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 3,
+      "workload": "05_swap1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1765,
+      "value": {
+        "total": 16.166,
+        "script": 1.195,
+        "paint": 13.607
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 3,
+      "workload": "01_run1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1848,
+      "value": {
+        "total": 25.406,
+        "script": 2.54,
+        "paint": 22.192
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 3,
+      "workload": "03_update10th1k_x16",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1642,
+      "value": {
+        "total": 16.105,
+        "script": 1.746,
+        "paint": 12.312
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 3,
+      "workload": "02_replace1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1865,
+      "value": {
+        "total": 30.697,
+        "script": 6.048,
+        "paint": 23.866
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 4,
+      "workload": "07_create10k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 2405,
+      "value": {
+        "total": 276.808,
+        "script": 25.317,
+        "paint": 242.267
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 4,
+      "workload": "09_clear1k_x8",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1869,
+      "value": {
+        "total": 13.511,
+        "script": 10.741,
+        "paint": 2.015
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 4,
+      "workload": "04_select1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1598,
+      "value": {
+        "total": 5.449,
+        "script": 0.775,
+        "paint": 4.463
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 4,
+      "workload": "06_remove-one-1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1784,
+      "value": {
+        "total": 13.359,
+        "script": 0.529,
+        "paint": 11.728
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 4,
+      "workload": "08_create1k-after1k_x2",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1899,
+      "value": {
+        "total": 29.452,
+        "script": 3.612,
+        "paint": 24.868
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 4,
+      "workload": "03_update10th1k_x16",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1642,
+      "value": {
+        "total": 16.965,
+        "script": 1.247,
+        "paint": 12.482
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 4,
+      "workload": "01_run1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1848,
+      "value": {
+        "total": 24.607,
+        "script": 2.6,
+        "paint": 21.408
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 4,
+      "workload": "02_replace1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1795,
+      "value": {
+        "total": 27.533,
+        "script": 5.347,
+        "paint": 21.701
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 4,
+      "workload": "05_swap1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1723,
+      "value": {
+        "total": 16.878,
+        "script": 0.655,
+        "paint": 14.871
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 5,
+      "workload": "08_create1k-after1k_x2",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1885,
+      "value": {
+        "total": 29.356,
+        "script": 3.402,
+        "paint": 24.886
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 5,
+      "workload": "05_swap1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1744,
+      "value": {
+        "total": 16.159,
+        "script": 0.771,
+        "paint": 13.568
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 5,
+      "workload": "04_select1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1643,
+      "value": {
+        "total": 5.361,
+        "script": 0.224,
+        "paint": 3.861
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 5,
+      "workload": "02_replace1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1795,
+      "value": {
+        "total": 27.871,
+        "script": 5.342,
+        "paint": 22.033
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 5,
+      "workload": "01_run1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1790,
+      "value": {
+        "total": 24.34,
+        "script": 2.631,
+        "paint": 21.243
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 5,
+      "workload": "07_create10k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 2352,
+      "value": {
+        "total": 274.493,
+        "script": 25.226,
+        "paint": 239.91
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 5,
+      "workload": "03_update10th1k_x16",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1694,
+      "value": {
+        "total": 14.589,
+        "script": 1.223,
+        "paint": 12.361
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 5,
+      "workload": "09_clear1k_x8",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1850,
+      "value": {
+        "total": 11.664,
+        "script": 9.306,
+        "paint": 2.084
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 5,
+      "workload": "06_remove-one-1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1821,
+      "value": {
+        "total": 14.25,
+        "script": 0.459,
+        "paint": 12.921
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 6,
+      "workload": "06_remove-one-1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1976,
+      "value": {
+        "total": 13.896,
+        "script": 0.443,
+        "paint": 12.44
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 6,
+      "workload": "02_replace1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1852,
+      "value": {
+        "total": 26.784,
+        "script": 5.507,
+        "paint": 20.672
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 6,
+      "workload": "01_run1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1904,
+      "value": {
+        "total": 25.575,
+        "script": 2.534,
+        "paint": 22.139
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 6,
+      "workload": "08_create1k-after1k_x2",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1960,
+      "value": {
+        "total": 29.347,
+        "script": 3.382,
+        "paint": 24.989
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 6,
+      "workload": "04_select1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1597,
+      "value": {
+        "total": 5.631,
+        "script": 1.047,
+        "paint": 3.324
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 6,
+      "workload": "07_create10k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 2343,
+      "value": {
+        "total": 275.625,
+        "script": 25.496,
+        "paint": 240.69
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 6,
+      "workload": "03_update10th1k_x16",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1667,
+      "value": {
+        "total": 14.615,
+        "script": 0.838,
+        "paint": 11.654
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 6,
+      "workload": "05_swap1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1727,
+      "value": {
+        "total": 17.157,
+        "script": 1.662,
+        "paint": 13.094
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 6,
+      "workload": "09_clear1k_x8",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1867,
+      "value": {
+        "total": 11.269,
+        "script": 9.084,
+        "paint": 1.208
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 7,
+      "workload": "01_run1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1849,
+      "value": {
+        "total": 25.12,
+        "script": 2.557,
+        "paint": 21.864
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 7,
+      "workload": "03_update10th1k_x16",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1780,
+      "value": {
+        "total": 18.234,
+        "script": 1.496,
+        "paint": 14.178
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 7,
+      "workload": "04_select1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1578,
+      "value": {
+        "total": 4.809,
+        "script": 0.618,
+        "paint": 2.776
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 7,
+      "workload": "09_clear1k_x8",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1955,
+      "value": {
+        "total": 11.921,
+        "script": 9.979,
+        "paint": 1.813
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 7,
+      "workload": "02_replace1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1805,
+      "value": {
+        "total": 28.733,
+        "script": 5.913,
+        "paint": 22.104
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 7,
+      "workload": "06_remove-one-1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1811,
+      "value": {
+        "total": 13.478,
+        "script": 0.232,
+        "paint": 12.4
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 7,
+      "workload": "08_create1k-after1k_x2",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1863,
+      "value": {
+        "total": 29.517,
+        "script": 3.332,
+        "paint": 25.149
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 7,
+      "workload": "07_create10k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 2403,
+      "value": {
+        "total": 288.402,
+        "script": 25.477,
+        "paint": 250.796
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 7,
+      "workload": "05_swap1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1722,
+      "value": {
+        "total": 18.027,
+        "script": 1.608,
+        "paint": 14.071
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 8,
+      "workload": "02_replace1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1763,
+      "value": {
+        "total": 29.134,
+        "script": 6.103,
+        "paint": 22.369
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 8,
+      "workload": "07_create10k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 2344,
+      "value": {
+        "total": 274.507,
+        "script": 25.498,
+        "paint": 239.65
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 8,
+      "workload": "05_swap1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1733,
+      "value": {
+        "total": 16.984,
+        "script": 0.924,
+        "paint": 13.795
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 8,
+      "workload": "01_run1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1784,
+      "value": {
+        "total": 24.266,
+        "script": 2.616,
+        "paint": 21.17
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 8,
+      "workload": "08_create1k-after1k_x2",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1882,
+      "value": {
+        "total": 28.798,
+        "script": 3.277,
+        "paint": 24.554
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 8,
+      "workload": "06_remove-one-1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1808,
+      "value": {
+        "total": 13.271,
+        "script": 0.526,
+        "paint": 11.864
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 8,
+      "workload": "04_select1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1716,
+      "value": {
+        "total": 4.351,
+        "script": 0.863,
+        "paint": 2.524
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 8,
+      "workload": "09_clear1k_x8",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 2030,
+      "value": {
+        "total": 11.835,
+        "script": 9.439,
+        "paint": 1.903
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 8,
+      "workload": "03_update10th1k_x16",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1678,
+      "value": {
+        "total": 18.114,
+        "script": 1.471,
+        "paint": 14.067
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 9,
+      "workload": "02_replace1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1811,
+      "value": {
+        "total": 27.665,
+        "script": 5.644,
+        "paint": 21.545
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 9,
+      "workload": "09_clear1k_x8",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1903,
+      "value": {
+        "total": 11.932,
+        "script": 9.851,
+        "paint": 1.918
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 9,
+      "workload": "08_create1k-after1k_x2",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1907,
+      "value": {
+        "total": 28.828,
+        "script": 3.298,
+        "paint": 24.544
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 9,
+      "workload": "04_select1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1616,
+      "value": {
+        "total": 4.949,
+        "script": 0.577,
+        "paint": 3.267
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 9,
+      "workload": "01_run1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1840,
+      "value": {
+        "total": 25.683,
+        "script": 2.65,
+        "paint": 22.333
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 9,
+      "workload": "06_remove-one-1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1996,
+      "value": {
+        "total": 14.021,
+        "script": 0.535,
+        "paint": 12.016
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 9,
+      "workload": "05_swap1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1745,
+      "value": {
+        "total": 17.688,
+        "script": 1.483,
+        "paint": 14.732
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 9,
+      "workload": "03_update10th1k_x16",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1692,
+      "value": {
+        "total": 19.04,
+        "script": 1.827,
+        "paint": 15.182
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 9,
+      "workload": "07_create10k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 2387,
+      "value": {
+        "total": 272.875,
+        "script": 25.914,
+        "paint": 237.681
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 10,
+      "workload": "05_swap1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1772,
+      "value": {
+        "total": 17.492,
+        "script": 1.713,
+        "paint": 14.074
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 10,
+      "workload": "02_replace1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1777,
+      "value": {
+        "total": 27.326,
+        "script": 5.357,
+        "paint": 21.472
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 10,
+      "workload": "09_clear1k_x8",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1876,
+      "value": {
+        "total": 13.528,
+        "script": 10.713,
+        "paint": 1.648
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 10,
+      "workload": "01_run1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1808,
+      "value": {
+        "total": 23.855,
+        "script": 2.503,
+        "paint": 20.886
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 10,
+      "workload": "06_remove-one-1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1801,
+      "value": {
+        "total": 12.789,
+        "script": 0.514,
+        "paint": 10.873
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 10,
+      "workload": "04_select1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1682,
+      "value": {
+        "total": 5.188,
+        "script": 0.782,
+        "paint": 3.124
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 10,
+      "workload": "07_create10k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 2611,
+      "value": {
+        "total": 286.365,
+        "script": 25.824,
+        "paint": 250.092
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 10,
+      "workload": "08_create1k-after1k_x2",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1997,
+      "value": {
+        "total": 30.65,
+        "script": 3.269,
+        "paint": 26.334
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 10,
+      "workload": "03_update10th1k_x16",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1615,
+      "value": {
+        "total": 15.981,
+        "script": 0.93,
+        "paint": 12.92
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 11,
+      "workload": "02_replace1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1754,
+      "value": {
+        "total": 27.889,
+        "script": 5.424,
+        "paint": 21.802
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 11,
+      "workload": "08_create1k-after1k_x2",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1990,
+      "value": {
+        "total": 33.123,
+        "script": 3.418,
+        "paint": 27.734
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 11,
+      "workload": "05_swap1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1745,
+      "value": {
+        "total": 17.331,
+        "script": 1.262,
+        "paint": 14.446
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 11,
+      "workload": "01_run1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1872,
+      "value": {
+        "total": 26.077,
+        "script": 2.671,
+        "paint": 22.654
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 11,
+      "workload": "09_clear1k_x8",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1877,
+      "value": {
+        "total": 12.302,
+        "script": 9.817,
+        "paint": 2.183
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 11,
+      "workload": "04_select1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1605,
+      "value": {
+        "total": 4.48,
+        "script": 0.197,
+        "paint": 3.7
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 11,
+      "workload": "03_update10th1k_x16",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1666,
+      "value": {
+        "total": 15.903,
+        "script": 1.156,
+        "paint": 12.171
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 11,
+      "workload": "06_remove-one-1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1807,
+      "value": {
+        "total": 13.029,
+        "script": 0.51,
+        "paint": 11.566
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 11,
+      "workload": "07_create10k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 2403,
+      "value": {
+        "total": 283.415,
+        "script": 26.452,
+        "paint": 247.211
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 12,
+      "workload": "08_create1k-after1k_x2",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1920,
+      "value": {
+        "total": 28.519,
+        "script": 3.272,
+        "paint": 24.306
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 12,
+      "workload": "07_create10k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 2416,
+      "value": {
+        "total": 275.445,
+        "script": 26.514,
+        "paint": 239.63
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 12,
+      "workload": "03_update10th1k_x16",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1712,
+      "value": {
+        "total": 18.407,
+        "script": 2.001,
+        "paint": 13.464
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 12,
+      "workload": "04_select1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1599,
+      "value": {
+        "total": 4.787,
+        "script": 0.986,
+        "paint": 2.99
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 12,
+      "workload": "09_clear1k_x8",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1882,
+      "value": {
+        "total": 11.848,
+        "script": 9.666,
+        "paint": 1.015
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 12,
+      "workload": "06_remove-one-1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1792,
+      "value": {
+        "total": 13.243,
+        "script": 0.441,
+        "paint": 11.821
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 12,
+      "workload": "02_replace1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1774,
+      "value": {
+        "total": 27.471,
+        "script": 5.468,
+        "paint": 21.541
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 12,
+      "workload": "01_run1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1848,
+      "value": {
+        "total": 25.721,
+        "script": 2.636,
+        "paint": 22.274
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 12,
+      "workload": "05_swap1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1946,
+      "value": {
+        "total": 18.723,
+        "script": 0.947,
+        "paint": 14.952
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 13,
+      "workload": "04_select1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1627,
+      "value": {
+        "total": 4.543,
+        "script": 0.892,
+        "paint": 2.999
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 13,
+      "workload": "02_replace1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1907,
+      "value": {
+        "total": 28.255,
+        "script": 5.673,
+        "paint": 21.944
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 13,
+      "workload": "08_create1k-after1k_x2",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1979,
+      "value": {
+        "total": 31.198,
+        "script": 3.311,
+        "paint": 26.269
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 13,
+      "workload": "03_update10th1k_x16",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1707,
+      "value": {
+        "total": 22.348,
+        "script": 1.549,
+        "paint": 17.362
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 13,
+      "workload": "05_swap1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1865,
+      "value": {
+        "total": 23.256,
+        "script": 1.821,
+        "paint": 17.654
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 13,
+      "workload": "01_run1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1921,
+      "value": {
+        "total": 24.56,
+        "script": 2.631,
+        "paint": 21.446
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 13,
+      "workload": "09_clear1k_x8",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 2027,
+      "value": {
+        "total": 13.249,
+        "script": 10.038,
+        "paint": 2.273
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 13,
+      "workload": "06_remove-one-1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1892,
+      "value": {
+        "total": 15.295,
+        "script": 0.532,
+        "paint": 12.968
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 13,
+      "workload": "07_create10k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 2519,
+      "value": {
+        "total": 276.247,
+        "script": 27.005,
+        "paint": 239.515
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 14,
+      "workload": "01_run1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1870,
+      "value": {
+        "total": 25.474,
+        "script": 2.584,
+        "paint": 22.272
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 14,
+      "workload": "05_swap1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1796,
+      "value": {
+        "total": 18.492,
+        "script": 0.977,
+        "paint": 14.746
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 14,
+      "workload": "08_create1k-after1k_x2",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1932,
+      "value": {
+        "total": 28.491,
+        "script": 3.241,
+        "paint": 24.269
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 14,
+      "workload": "02_replace1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1828,
+      "value": {
+        "total": 28.133,
+        "script": 5.486,
+        "paint": 22.129
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 14,
+      "workload": "03_update10th1k_x16",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1754,
+      "value": {
+        "total": 26.519,
+        "script": 1.032,
+        "paint": 21.382
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 14,
+      "workload": "04_select1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1716,
+      "value": {
+        "total": 4.286,
+        "script": 0.186,
+        "paint": 2.752
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 14,
+      "workload": "06_remove-one-1k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 1956,
+      "value": {
+        "total": 13.328,
+        "script": 0.538,
+        "paint": 11.959
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 14,
+      "workload": "09_clear1k_x8",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 2007,
+      "value": {
+        "total": 12.191,
+        "script": 10.087,
+        "paint": 1.967
+      },
+      "warnings": []
+    },
+    {
+      "phase": "cpu",
+      "block": 14,
+      "workload": "07_create10k",
+      "framework": "solid-v1.9.3-keyed",
+      "elapsedMs": 2438,
+      "value": {
+        "total": 274.599,
+        "script": 25.407,
+        "paint": 239.544
+      },
+      "warnings": []
+    }
+  ],
+  "completedAt": "2026-08-15T12:17:01.040Z"
+}

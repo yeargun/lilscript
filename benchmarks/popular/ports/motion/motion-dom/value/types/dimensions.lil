@@ -1,0 +1,20 @@
+import { autoType } from "./auto";
+import { numberType } from "./numbers/index";
+import { degrees, percent, px, vh, vw } from "./numbers/units";
+import { testValueType } from "./test";
+import { ValueType } from "./types";
+
+export ValueType[] dimensionValueTypes = [numberType, px, percent, degrees, vw, vh, autoType];
+
+export ValueType? findDimensionValueType(JsValue v) {
+  func(ValueType)->bool test = testValueType(v);
+  int i = 0;
+  while (i < dimensionValueTypes.length) {
+    ValueType type = dimensionValueTypes[i];
+    if (test(type)) {
+      return type;
+    }
+    i = i + 1;
+  }
+  return null;
+}

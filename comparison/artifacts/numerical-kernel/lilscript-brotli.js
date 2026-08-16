@@ -1,0 +1,1 @@
+var e=o=>o<=1?1:o*e(o-1|0)|0;console.log(e(7));var l=1071,o=462,r;for(;o!=0;)[l,o]=[o,l%o|0];for(console.log(l),o=0,l=1,r=0;r<12;)o=o+l|0,[o,l,r]=[l,o,r+1];console.log(o)

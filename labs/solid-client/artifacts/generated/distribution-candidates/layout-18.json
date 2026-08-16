@@ -1,0 +1,9 @@
+{
+  "id": "layout-18",
+  "description": "Level 15 production search with the largest exact function-layout frontier",
+  "mode": "production",
+  "fingerprint": "417f65fed13ca9a3fac412be2246aaba119c4c328fd17aa38e96787f62647f7c",
+  "configSha256": "8b951834c7930535d9dccf0278032e9f302c0c50596c3c0edc9d6ca4d66f04fa",
+  "runtimeSha256": "f4cb80b083bac49785408cc7ba39c85b0f4c653cc1e121c62e0f4954669f740e",
+  "runtimeRawBytes": 13500
+}

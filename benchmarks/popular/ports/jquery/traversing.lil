@@ -1,0 +1,256 @@
+import { jQuery, merge, map, wrap, wrap2 } from "./core";
+import { dir } from "./traversing/var/dir";
+import { siblings } from "./traversing/var/siblings";
+import { rneedsContext } from "./traversing/var/rneedsContext";
+import { nodeName } from "./core/nodeName";
+import { matchesSelectorImpl, uniqueSortImpl } from "./selector";
+import "./core/init";
+import { filterImpl } from "./traversing/findFilter";
+import { containsImpl } from "./selector/contains";
+import {
+  isNullish,
+  regexTest,
+  call0,
+  arrayIndexOf,
+  getPrototypeOf
+} from "./js-host.lil";
+
+JsValue fnHas(JsValue self, JsValue target) {
+  JsValue targets = wrap2(target, self);
+  float l = targets.length;
+  JsValue predicate = (JsValue _i, JsValue elem) => {
+    bool found = false;
+    float i = 0.0;
+    for (; i < l; i++) {
+      if (!found && containsImpl(elem, targets[i])) {
+        found = true;
+      }
+    }
+    return found;
+  };
+  return JS.invoke(self, "filter", predicate);
+}
+
+JsValue fnClosest(JsValue self, JsValue args) {
+  JsValue selectorsArg = args[0];
+  JsValue context = args[1];
+  JsValue[] matched = [];
+  JsValue targets = null;
+  if (!(selectorsArg is string)) {
+    targets = wrap(selectorsArg);
+  }
+
+  bool positional = false;
+  if (selectorsArg is string) {
+    string selText = selectorsArg;
+    positional = JS.regexTest(rneedsContext, selText);
+  }
+
+  if (!positional) {
+    float i = 0.0;
+    float l = self.length;
+    for (; i < l; i++) {
+      JsValue cur = self[i];
+      bool stop = false;
+      while (cur.truthy() && cur != context && !stop) {
+        JsValue nodeTypeValue = cur["nodeType"];
+        bool ltEleven = JS.lessThan(nodeTypeValue, 11.0);
+        bool isMatch = false;
+        if (ltEleven) {
+          if (targets.truthy()) {
+            isMatch = JS.greaterThan(JS.invoke(targets, "index", cur), -1.0);
+          } else {
+            isMatch = nodeTypeValue == 1.0 && matchesSelectorImpl(cur, JS.string(selectorsArg));
+          }
+        }
+        if (isMatch) {
+          matched.push(cur);
+          stop = true;
+        }
+        if (!stop) {
+          cur = cur["parentNode"];
+        }
+      }
+    }
+  }
+
+  JsValue result = matched;
+  if (matched.length > 1.0) {
+    result = uniqueSortImpl(matched);
+  }
+  return JS.invoke(self, "pushStack", result);
+}
+
+export JsValue fnIndex(JsValue self, JsValue elemArg) {
+  if (JS.isNullish(elemArg)) {
+    JsValue first = self[0];
+    if (first.truthy() && first["parentNode"].truthy()) {
+      JsValue firstOnly = JS.invoke(self, "first");
+      JsValue prevs = JS.invoke(firstOnly, "prevAll");
+      return prevs.length;
+    }
+    return -1.0;
+  }
+
+  if (elemArg is string) {
+    string selText = elemArg;
+    return arrayIndexOf(wrap(selText), self[0], 0.0);
+  }
+
+  JsValue target = elemArg;
+  if (elemArg["jquery"].truthy()) {
+    target = elemArg[0];
+  }
+  return arrayIndexOf(self, target, 0.0);
+}
+
+export JsValue fnAdd(JsValue self, JsValue args) {
+  JsValue combined = merge(JS.invoke(self, "get"), wrap2(args[0], args[1]));
+  return JS.invoke(self, "pushStack", uniqueSortImpl(combined));
+}
+
+JsValue fnAddBack(JsValue self, JsValue selectorArg) {
+  JsValue prev = self["prevObject"];
+  JsValue target = prev;
+  if (!JS.isNullish(selectorArg)) {
+    target = JS.invoke(prev, "filter", selectorArg);
+  }
+  return JS.invoke(self, "add", target);
+}
+
+/* ---- parent/parents/next/prev family ---- */
+
+JsValue siblingWalk(JsValue curIn, string direction) {
+  JsValue cur = curIn;
+  bool done = false;
+  while (!done) {
+    cur = cur[direction];
+    if (!cur.truthy()) {
+      done = true;
+    } else {
+      JsValue nt = cur["nodeType"];
+      if (nt == 1.0) {
+        done = true;
+      }
+    }
+  }
+  return cur;
+}
+
+JsValue installedTraverse(JsValue self, JsValue args, JsValue fn, bool unique, bool reverse, bool until) {
+  JsValue untilArg = args[0];
+  JsValue selectorArg = args[1];
+  JsValue matched = map(self, fn, untilArg);
+
+  if (!until) {
+    selectorArg = untilArg;
+  }
+
+  if (!JS.isNullish(selectorArg) && selectorArg.truthy() && selectorArg is string) {
+    string selText = selectorArg;
+    matched = filterImpl(selText, matched);
+  }
+
+  if (self.length > 1.0) {
+    if (!unique) {
+      uniqueSortImpl(matched);
+    }
+    if (reverse) {
+      JS.invoke(matched, "reverse");
+    }
+  }
+
+  return JS.invoke(self, "pushStack", matched);
+}
+
+JsValue parentWalk = (JsValue elem) => {
+  JsValue parent = elem["parentNode"];
+  if (parent.truthy()) {
+    JsValue nt = parent["nodeType"];
+    if (nt != 11.0) {
+      return parent;
+    }
+  }
+  return null;
+};
+JsValue parentsWalk = (JsValue elem) => dir(elem, "parentNode");
+JsValue parentsUntilWalk = (JsValue elem, JsValue _i, JsValue until) => dir(elem, "parentNode", until);
+JsValue nextWalk = (JsValue elem) => siblingWalk(elem, "nextSibling");
+JsValue prevWalk = (JsValue elem) => siblingWalk(elem, "previousSibling");
+JsValue nextAllWalk = (JsValue elem) => dir(elem, "nextSibling");
+JsValue prevAllWalk = (JsValue elem) => dir(elem, "previousSibling");
+JsValue nextUntilWalk = (JsValue elem, JsValue _i, JsValue until) => dir(elem, "nextSibling", until);
+JsValue prevUntilWalk = (JsValue elem, JsValue _i, JsValue until) => dir(elem, "previousSibling", until);
+JsValue siblingsWalk = (JsValue elem) => {
+  JsValue parent = elem["parentNode"];
+  JsValue firstChild = null;
+  if (parent.truthy()) {
+    firstChild = parent["firstChild"];
+  }
+  return siblings(firstChild, elem);
+};
+JsValue childrenWalk = (JsValue elem) => siblings(elem["firstChild"]);
+JsValue contentsWalk = (JsValue elem) => {
+  JsValue contentDocument = elem["contentDocument"];
+  if (!JS.isNullish(contentDocument) && getPrototypeOf(contentDocument).truthy()) {
+    return contentDocument;
+  }
+
+  JsValue target = elem;
+  if (nodeName(elem, "template")) {
+    JsValue content = elem["content"];
+    if (content.truthy()) {
+      target = content;
+    }
+  }
+
+  JsValue[] result = [];
+  merge(result, target["childNodes"]);
+  return result;
+};
+
+jQuery["fn"]["has"] = JS.method1(fnHas);
+jQuery["fn"]["closest"] = JS.methodRest(fnClosest);
+jQuery["fn"]["index"] = JS.method1(fnIndex);
+jQuery["fn"]["add"] = JS.methodRest(fnAdd);
+jQuery["fn"]["addBack"] = JS.method1(fnAddBack);
+
+JsValue fn = jQuery["fn"];
+fn["parent"] = JS.methodRest((JsValue self, JsValue args) => {
+  return installedTraverse(self, args, parentWalk, false, false, false);
+});
+fn["parents"] = JS.methodRest((JsValue self, JsValue args) => {
+  return installedTraverse(self, args, parentsWalk, false, true, false);
+});
+fn["parentsUntil"] = JS.methodRest((JsValue self, JsValue args) => {
+  return installedTraverse(self, args, parentsUntilWalk, false, true, true);
+});
+fn["next"] = JS.methodRest((JsValue self, JsValue args) => {
+  return installedTraverse(self, args, nextWalk, true, false, false);
+});
+fn["prev"] = JS.methodRest((JsValue self, JsValue args) => {
+  return installedTraverse(self, args, prevWalk, true, false, false);
+});
+fn["nextAll"] = JS.methodRest((JsValue self, JsValue args) => {
+  return installedTraverse(self, args, nextAllWalk, false, false, false);
+});
+fn["prevAll"] = JS.methodRest((JsValue self, JsValue args) => {
+  return installedTraverse(self, args, prevAllWalk, false, true, false);
+});
+fn["nextUntil"] = JS.methodRest((JsValue self, JsValue args) => {
+  return installedTraverse(self, args, nextUntilWalk, false, false, true);
+});
+fn["prevUntil"] = JS.methodRest((JsValue self, JsValue args) => {
+  return installedTraverse(self, args, prevUntilWalk, false, true, true);
+});
+fn["siblings"] = JS.methodRest((JsValue self, JsValue args) => {
+  return installedTraverse(self, args, siblingsWalk, false, false, false);
+});
+fn["children"] = JS.methodRest((JsValue self, JsValue args) => {
+  return installedTraverse(self, args, childrenWalk, true, false, false);
+});
+fn["contents"] = JS.methodRest((JsValue self, JsValue args) => {
+  return installedTraverse(self, args, contentsWalk, true, false, false);
+});
+
+export { jQuery };

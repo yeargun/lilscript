@@ -8,7 +8,12 @@ permissions:
   contents: write
 
 jobs:
+  verify:
+    uses: ./.github/workflows/ci.yml
+
   binaries:
+    env:
+      LIBZ_SYS_STATIC: "1"
     strategy:
       matrix:
         include:
@@ -27,12 +32,51 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
       - run: cargo build --release --bins --target ${{ matrix.target }}
+      - name: Verify packaged scorer fixtures
+        env:
+          LILSCRIPT_CODEC: target/${{ matrix.target }}/release/lilscript-codec${{ matrix.extension }}
+        run: node --test benchmarks/codec-contract.test.mjs
+      - name: Reject dynamic codec libraries (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          for binary in lilscript lilscript-codec; do
+            if ldd "target/${{ matrix.target }}/release/$binary${{ matrix.extension }}" | grep -Eiq 'zlib|libz|brotli'; then
+              echo "$binary dynamically links a codec library" >&2
+              exit 1
+            fi
+          done
+      - name: Reject dynamic codec libraries (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          for binary in lilscript lilscript-codec; do
+            if otool -L "target/${{ matrix.target }}/release/$binary${{ matrix.extension }}" | tail -n +2 | grep -Eiq 'zlib|libz|brotli'; then
+              echo "$binary dynamically links a codec library" >&2
+              exit 1
+            fi
+          done
+      - name: Reject dynamic codec libraries (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          foreach ($binary in @("lilscript", "lilscript-codec")) {
+            $path = "target/${{ matrix.target }}/release/$binary${{ matrix.extension }}"
+            $bytes = [System.IO.File]::ReadAllBytes($path)
+            $strings = [System.Text.Encoding]::ASCII.GetString($bytes)
+            if ($strings -match '(?i)(?:zlib|libz|brotli)[^\x00\r\n]{0,64}\.dll') {
+              throw "$binary imports a dynamic codec library"
+            }
+          }
       - name: Package binaries
         shell: bash
         run: |
           mkdir -p dist/lilscript-${{ matrix.target }}
-          for binary in lilscript lilscript-fmt lilscript-lint lilscript-lsp lilscript-playground; do
+          for binary in lilscript lilscript-codec lilpack lilscript-fmt lilscript-lint lilscript-lsp lilscript-playground; do
             cp "target/${{ matrix.target }}/release/${binary}${{ matrix.extension }}" "dist/lilscript-${{ matrix.target }}/"
           done
           cp README.md LICENSE-MIT LICENSE-APACHE dist/lilscript-${{ matrix.target }}/
@@ -59,7 +103,7 @@ jobs:
           path: vscode-extension/*.vsix
 
   publish:
-    needs: [binaries, extension]
+    needs: [verify, binaries, extension]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4

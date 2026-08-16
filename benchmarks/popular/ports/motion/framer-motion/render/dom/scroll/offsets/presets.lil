@@ -1,0 +1,20 @@
+export float[][] scrollOffsetEnter = [[0.0, 1.0], [1.0, 1.0]];
+export float[][] scrollOffsetExit = [[0.0, 0.0], [1.0, 0.0]];
+export float[][] scrollOffsetAny = [[1.0, 0.0], [0.0, 1.0]];
+export float[][] scrollOffsetAll = [[0.0, 0.0], [1.0, 1.0]];
+
+export class ScrollOffset {
+  float[][] Enter;
+  float[][] Exit;
+  float[][] Any;
+  float[][] All;
+
+  init() {
+    this.Enter = scrollOffsetEnter;
+    this.Exit = scrollOffsetExit;
+    this.Any = scrollOffsetAny;
+    this.All = scrollOffsetAll;
+  }
+}
+
+export ScrollOffset ScrollOffsetValues = new ScrollOffset();

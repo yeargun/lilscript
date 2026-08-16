@@ -1,0 +1,35 @@
+import { invariant } from "../../errors";
+import { noop } from "../../noop";
+import { cubicBezier } from "../cubic-bezier";
+import { easeIn, easeInOut, easeOut } from "../ease";
+
+export func(float)->float easingDefinitionToFunction(
+  string | float[] | func(float)->float definition
+) {
+  if (definition is float[]) {
+    invariant(
+      definition.length == 4,
+      "Cubic bezier arrays must contain four numerical values.",
+      "cubic-bezier-length"
+    );
+    return cubicBezier(definition[0], definition[1], definition[2], definition[3]);
+  }
+  if (definition is string) {
+    string name = definition;
+    if (name == "linear") {
+      return noop;
+    }
+    if (name == "easeIn") {
+      return easeIn;
+    }
+    if (name == "easeInOut") {
+      return easeInOut;
+    }
+    if (name == "easeOut") {
+      return easeOut;
+    }
+    invariant(false, `Invalid easing type '${name}'`, "invalid-easing-type");
+    return noop;
+  }
+  return definition;
+}

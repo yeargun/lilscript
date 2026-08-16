@@ -1,0 +1,6 @@
+export bool isDOMKeyframes(JsValue? keyframes = null) {
+  if (keyframes == null) {
+    return false;
+  }
+  return keyframes.isObject() && !keyframes.isArray();
+}

@@ -1,0 +1,10 @@
+export string[] stepsOrder = [
+  "setup",
+  "read",
+  "resolveKeyframes",
+  "preUpdate",
+  "update",
+  "preRender",
+  "render",
+  "postRender"
+];

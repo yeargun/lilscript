@@ -1,0 +1,9 @@
+import { callMethod0 } from "../../dom-host";
+import { isMotionValue } from "./is-motion-value";
+
+export JsValue? resolveMotionValue(JsValue? value = null) {
+  if (isMotionValue(value)) {
+    return callMethod0(value, "get");
+  }
+  return value;
+}

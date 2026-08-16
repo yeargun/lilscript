@@ -1,0 +1,1 @@
+var o=0,r=0,f;for(;r<12;++r){if(r%3==0)continue;f=0;while(f<4)o=(r+f)%2==0?o+r*f|0:o+1|0,++f;}console.log(o)

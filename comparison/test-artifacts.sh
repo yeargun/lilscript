@@ -12,11 +12,17 @@ for artifact in "$COMPARISON"/artifacts/*; do
   [ -d "$artifact" ] || continue
   name=$(basename "$artifact")
   node "$artifact/lilscript.js" > "$temporary/$name-lilscript-js.stdout"
+  node "$artifact/lilscript-raw.js" > "$temporary/$name-lilscript-raw.stdout"
+  node "$artifact/lilscript-gzip.js" > "$temporary/$name-lilscript-gzip.stdout"
+  node "$artifact/lilscript-brotli.js" > "$temporary/$name-lilscript-brotli.stdout"
   node "$artifact/closure-advanced.js" > "$temporary/$name-closure.stdout"
   "$CC" -std=c11 -O3 "$artifact/lilscript.c" -o "$temporary/$name-from-c"
   "$temporary/$name-from-c" > "$temporary/$name-c.stdout"
 
   diff -u "$artifact/expected.stdout" "$temporary/$name-lilscript-js.stdout"
+  diff -u "$artifact/expected.stdout" "$temporary/$name-lilscript-raw.stdout"
+  diff -u "$artifact/expected.stdout" "$temporary/$name-lilscript-gzip.stdout"
+  diff -u "$artifact/expected.stdout" "$temporary/$name-lilscript-brotli.stdout"
   diff -u "$artifact/expected.stdout" "$temporary/$name-closure.stdout"
   diff -u "$artifact/expected.stdout" "$temporary/$name-c.stdout"
 
@@ -26,5 +32,7 @@ for artifact in "$COMPARISON"/artifacts/*; do
   fi
   count=$((count + 1))
 done
+
+node "$COMPARISON/lib/check-artifacts.mjs" "$COMPARISON"
 
 printf '%s checked-in comparison artifact sets passed.\n' "$count"

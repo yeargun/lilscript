@@ -38,7 +38,7 @@ Every workload produces and executes these artifacts:
 | `Reference JS esbuild` | the exact reference bundled and minified by esbuild |
 | `JS Closure ADVANCED` | that exact readable reference compiled with `ADVANCED` |
 | `JS hand-specialized` | checked-in, manually minified code specialized to the app contract |
-| `LilScript` | a readable LilScript implementation with matching app scope |
+| `LilScript objective builds` | the same readable LilScript implementation compiled independently for raw, gzip, and Brotli |
 
 The Motion-derived kernel also emits a specialized LilScript diagnostic. It
 shows how much of the gap is authoring/optimization versus backend syntax, and
@@ -61,7 +61,11 @@ input to be byte-identical to the readable reference and prevent Vite ecosystem
 records from entering compiler totals. Sizes are normalized UTF-8 bytes,
 deterministic gzip level 9, and Brotli quality 11. Runtime is the median of
 cache-busted module parsing plus execution inside one dedicated Node process
-per artifact after warmup; process startup is outside the interval. Readable
+per artifact after warmup; the LilScript runtime row uses its Brotli-objective
+artifact. The raw, gzip-9, and Brotli-11 LilScript size cells come from separate
+objective builds and each is gated only against the matching Closure metric;
+cross-metric sizes are retained in `build/results.json` only as diagnostics and
+may regress. Process startup is outside the interval. Readable
 JavaScript references use ordinary multiplication plus signed 32-bit
 normalization for LilScript `*`, and retain `Math.imul` only where the LilScript
 source calls it explicitly. The hand-specialized baseline may remove coercions

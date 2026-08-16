@@ -1,12 +1,17 @@
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { arch, platform, release } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { brotliCompressSync, constants, gzipSync } from "node:zlib";
 import { build } from "esbuild";
 import { build as viteBuild } from "vite";
+import {
+  canonicalCodecProvenance,
+  canonicalCodecSizes,
+  requireCanonicalCodecRuntime,
+} from "../codec-contract.mjs";
 
 const labRoot = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(labRoot, "../..");
@@ -18,12 +23,39 @@ const cargo = process.env.CARGO ?? "cargo";
 const closure = join(
   labRoot,
   "node_modules/.bin",
-  platform() === "win32" ? "google-closure-compiler.cmd" : "google-closure-compiler",
+  platform() === "win32"
+    ? "google-closure-compiler.cmd"
+    : "google-closure-compiler",
 );
 const verifyOnly = process.argv.includes("--verify-only");
 const warmups = verifyOnly ? 0 : Number(process.env.BENCH_WARMUPS ?? 5);
 const samples = verifyOnly ? 1 : Number(process.env.BENCH_SAMPLES ?? 25);
-const comparableArtifactIds = ["reference", "esbuild", "closure", "hand", "lilscript"];
+const comparableArtifactIds = [
+  "reference",
+  "esbuild",
+  "closure",
+  "hand",
+  "lilscript",
+];
+const objectiveLanes = [
+  {
+    objective: "raw",
+    metric: "raw",
+    config: join(repoRoot, "comparison/cases/configs/raw.toml"),
+  },
+  {
+    objective: "gzip",
+    metric: "gzip",
+    config: join(repoRoot, "comparison/cases/configs/gzip.toml"),
+  },
+  {
+    objective: "brotli",
+    metric: "brotli",
+    config: join(repoRoot, "comparison/cases/configs/brotli.toml"),
+  },
+];
+const sha256File = (path) =>
+  createHash("sha256").update(readFileSync(path)).digest("hex");
 
 const cases = [
   {
@@ -137,11 +169,16 @@ async function viteProductionBundle(root, outDir) {
     },
   });
 
-  const manifest = JSON.parse(await readFile(join(outDir, ".vite/manifest.json"), "utf8"));
+  const manifest = JSON.parse(
+    await readFile(join(outDir, ".vite/manifest.json"), "utf8"),
+  );
   const entry = Object.values(manifest).find((item) => item.isEntry);
-  if (!entry) throw new Error(`Vite emitted no entry for ${relative(labRoot, root)}`);
+  if (!entry)
+    throw new Error(`Vite emitted no entry for ${relative(labRoot, root)}`);
 
-  const files = (await sourceFiles(outDir)).filter((path) => /\.(?:css|html|js)$/.test(path));
+  const files = (await sourceFiles(outDir)).filter((path) =>
+    /\.(?:css|html|js)$/.test(path),
+  );
   const totals = { raw: 0, gzip: 0, brotli: 0 };
   for (const path of files) {
     const fileMetrics = metrics(await readFile(path, "utf8"));
@@ -166,10 +203,14 @@ function execute(path) {
   });
   if (result.error) throw result.error;
   if (result.status !== 0) {
-    throw new Error(`${relative(labRoot, path)} failed (${result.status})\n${result.stderr}`);
+    throw new Error(
+      `${relative(labRoot, path)} failed (${result.status})\n${result.stderr}`,
+    );
   }
   if (result.stderr) {
-    throw new Error(`${relative(labRoot, path)} wrote to stderr:\n${result.stderr}`);
+    throw new Error(
+      `${relative(labRoot, path)} wrote to stderr:\n${result.stderr}`,
+    );
   }
   return normalize(result.stdout);
 }
@@ -183,19 +224,27 @@ function executeNative(path) {
   });
   if (result.error) throw result.error;
   if (result.status !== 0) {
-    throw new Error(`${relative(labRoot, path)} failed (${result.status})\n${result.stderr}`);
+    throw new Error(
+      `${relative(labRoot, path)} failed (${result.status})\n${result.stderr}`,
+    );
   }
   if (result.stderr) {
-    throw new Error(`${relative(labRoot, path)} wrote to stderr:\n${result.stderr}`);
+    throw new Error(
+      `${relative(labRoot, path)} wrote to stderr:\n${result.stderr}`,
+    );
   }
   return normalize(result.stdout);
 }
 
 function measureExecutions(paths) {
   return JSON.parse(
-    command(process.execPath, [timingRunner, String(warmups), String(samples), ...paths], {
-      cwd: labRoot,
-    }),
+    command(
+      process.execPath,
+      [timingRunner, String(warmups), String(samples), ...paths],
+      {
+        cwd: labRoot,
+      },
+    ),
   );
 }
 
@@ -208,22 +257,17 @@ function median(values) {
 }
 
 function metrics(code) {
-  const bytes = Buffer.from(normalize(code));
-  return {
-    raw: bytes.length,
-    gzip: gzipSync(bytes, { level: 9, mtime: 0 }).length,
-    brotli: brotliCompressSync(bytes, {
-      params: { [constants.BROTLI_PARAM_QUALITY]: 11 },
-    }).length,
-  };
+  return canonicalCodecSizes(code);
 }
 
 async function sourceFiles(directory, extension) {
   const found = [];
   for (const entry of await readdir(directory, { withFileTypes: true })) {
     const path = join(directory, entry.name);
-    if (entry.isDirectory()) found.push(...(await sourceFiles(path, extension)));
-    else if (extension === undefined || entry.name.endsWith(extension)) found.push(path);
+    if (entry.isDirectory())
+      found.push(...(await sourceFiles(path, extension)));
+    else if (extension === undefined || entry.name.endsWith(extension))
+      found.push(path);
   }
   return found.sort();
 }
@@ -235,12 +279,13 @@ async function sourceBytes(entry, extension) {
 }
 
 function packageVersion(name) {
-  return JSON.parse(readFileSync(join(labRoot, `node_modules/${name}/package.json`), "utf8"))
-    .version;
+  return JSON.parse(
+    readFileSync(join(labRoot, `node_modules/${name}/package.json`), "utf8"),
+  ).version;
 }
 
 function percent(value, baseline) {
-  return `${value <= baseline ? "" : "+"}${(((value / baseline) - 1) * 100).toFixed(1)}%`;
+  return `${value <= baseline ? "" : "+"}${((value / baseline - 1) * 100).toFixed(1)}%`;
 }
 
 function renderReport(results, metadata) {
@@ -252,6 +297,8 @@ function renderReport(results, metadata) {
       `Google Closure Compiler \`${metadata.closure}\` on \`${metadata.system}\`.`,
     "",
     "This report contains two deliberately separate datasets. Compiler rows use a readable JavaScript reference and a LilScript implementation with the same app algorithm and abstraction scope. Ecosystem rows build real npm packages with Vite and are never included in compiler totals.",
+    "",
+    "LilScript's raw, gzip-9, and Brotli-11 cells come from three independent objective builds. Each build is judged only on its matching metric; cross-metric sizes remain attached to the machine report as diagnostics. Runtime uses the Brotli-objective artifact.",
     "",
     "Every emitted artifact passed its checked-in stdout contract. That rejects observed behavior mismatches for these inputs; it does not prove complete semantic or library API equivalence.",
     "",
@@ -272,7 +319,9 @@ function renderReport(results, metadata) {
   }
 
   for (const result of results) {
-    const closureRow = result.artifacts.find((artifact) => artifact.id === "closure");
+    const closureRow = result.artifacts.find(
+      (artifact) => artifact.id === "closure",
+    );
     lines.push(
       "",
       `## ${result.title}`,
@@ -315,20 +364,27 @@ function renderReport(results, metadata) {
     "| --- | ---: | ---: | ---: | ---: | ---: |",
   );
   const closureBrotli = results.reduce(
-    (total, result) => total + result.artifacts.find((artifact) => artifact.id === "closure").brotli,
+    (total, result) =>
+      total +
+      result.artifacts.find((artifact) => artifact.id === "closure").brotli,
     0,
   );
   for (const id of comparableArtifactIds) {
-    const rows = results.map((result) => result.artifacts.find((artifact) => artifact.id === id));
+    const rows = results.map((result) =>
+      result.artifacts.find((artifact) => artifact.id === id),
+    );
     const raw = rows.reduce((total, row) => total + row.raw, 0);
     const gzip = rows.reduce((total, row) => total + row.gzip, 0);
     const brotli = rows.reduce((total, row) => total + row.brotli, 0);
     const ratios = results.map((result, index) => {
-      const closureTime = result.artifacts.find((artifact) => artifact.id === "closure").medianMs;
+      const closureTime = result.artifacts.find(
+        (artifact) => artifact.id === "closure",
+      ).medianMs;
       return rows[index].medianMs / closureTime;
     });
     const runtimeRatio = Math.exp(
-      ratios.reduce((total, ratio) => total + Math.log(ratio), 0) / ratios.length,
+      ratios.reduce((total, ratio) => total + Math.log(ratio), 0) /
+        ratios.length,
     );
     lines.push(
       `| ${rows[0].label} | ${raw} | ${gzip} | ${brotli} | ${percent(brotli, closureBrotli)} | ` +
@@ -346,7 +402,7 @@ function renderReport(results, metadata) {
     "- Generated C and native executables are behavior gates; only JavaScript artifacts are included in transfer-size and Node runtime tables.",
     "- Closure receives the exact readable JavaScript reference used by the unminified and esbuild rows.",
     "- Matching one deterministic stdout contract can have false negatives; it is regression evidence, not a proof of general equivalence.",
-    "- The checked methodology gate requires every LilScript workload to be no larger than Closure in raw, gzip-9, and Brotli-11 bytes; full 20+-sample runs also require median runtime within 5% of Closure.",
+    "- The checked methodology gate requires every objective-specific LilScript workload to be no larger than Closure in its matching raw, gzip-9, or Brotli-11 metric; full 20+-sample runs also require the Brotli-objective artifact's median runtime to remain within 5% of Closure.",
     "- Runtime is repeated cache-busted module parsing plus execution inside one dedicated Node process per artifact. It excludes process startup but is not a browser-frame benchmark.",
     "- These results apply to this corpus and compiler revision; they do not prove universal superiority over Closure.",
     "",
@@ -357,12 +413,24 @@ function renderReport(results, metadata) {
 await rm(buildRoot, { force: true, recursive: true });
 await mkdir(buildRoot, { recursive: true });
 if (commandExists(cargo)) {
-  command(cargo, ["build", "--release", "--bin", "lilscript"]);
+  command(cargo, [
+    "build",
+    "--release",
+    "--bin",
+    "lilscript",
+    "--bin",
+    "lilscript-codec",
+  ]);
 } else if (!existsSync(compiler)) {
-  throw new Error("Cargo is unavailable and target/release/lilscript does not exist");
+  throw new Error(
+    "Cargo is unavailable and target/release/lilscript does not exist",
+  );
 } else {
-  console.warn("Cargo is unavailable; using the existing target/release/lilscript binary");
+  console.warn(
+    "Cargo is unavailable; using the existing target/release/lilscript binary",
+  );
 }
+requireCanonicalCodecRuntime("application compiler gate");
 
 const results = [];
 for (const benchmark of cases) {
@@ -379,8 +447,14 @@ for (const benchmark of cases) {
 
   const referenceCode = await bundle(benchmark.referenceEntry, false);
   await writeNormalized(paths.reference, referenceCode);
-  await writeNormalized(paths.esbuild, await bundle(benchmark.referenceEntry, true));
-  await writeNormalized(paths.hand, await readFile(join(labRoot, benchmark.hand), "utf8"));
+  await writeNormalized(
+    paths.esbuild,
+    await bundle(benchmark.referenceEntry, true),
+  );
+  await writeNormalized(
+    paths.hand,
+    await readFile(join(labRoot, benchmark.hand), "utf8"),
+  );
   command(compiler, [
     join(labRoot, benchmark.lilEntry),
     "--target",
@@ -388,6 +462,25 @@ for (const benchmark of cases) {
     "-o",
     lilscriptBase,
   ]);
+  const lilscriptObjectivePaths = Object.fromEntries(
+    objectiveLanes.map((lane) => [
+      lane.objective,
+      join(directory, `lilscript-${lane.objective}.js`),
+    ]),
+  );
+  for (const lane of objectiveLanes) {
+    command(compiler, [
+      join(labRoot, benchmark.lilEntry),
+      "--target",
+      "js",
+      "--mode",
+      "production",
+      "--config",
+      lane.config,
+      "-o",
+      lilscriptObjectivePaths[lane.objective],
+    ]);
+  }
   const closureInput = join(directory, "closure-input.js");
   await writeNormalized(closureInput, referenceCode);
   command(closure, [
@@ -407,7 +500,9 @@ for (const benchmark of cases) {
     "--rewrite_polyfills=false",
   ]);
 
-  const expected = normalize(await readFile(join(labRoot, benchmark.expected), "utf8"));
+  const expected = normalize(
+    await readFile(join(labRoot, benchmark.expected), "utf8"),
+  );
   const nativeOutput = executeNative(lilscriptBase);
   if (nativeOutput !== expected) {
     throw new Error(
@@ -419,7 +514,6 @@ for (const benchmark of cases) {
     { id: "esbuild", label: "Reference JS esbuild", path: paths.esbuild },
     { id: "closure", label: "JS Closure ADVANCED", path: paths.closure },
     { id: "hand", label: "JS hand-specialized", path: paths.hand },
-    { id: "lilscript", label: "LilScript", path: paths.lilscript },
   ];
 
   let specializedNative;
@@ -450,9 +544,46 @@ for (const benchmark of cases) {
     Object.assign(artifact, metrics(await readFile(artifact.path, "utf8")));
   }
 
-  if (artifacts.slice(0, comparableArtifactIds.length).some(
-    (artifact, index) => artifact.id !== comparableArtifactIds[index]
-  )) {
+  const defaultJavaScriptOutput = execute(paths.lilscript);
+  if (defaultJavaScriptOutput !== expected) {
+    throw new Error(`${benchmark.name}/lilscript-default output mismatch`);
+  }
+  const objectiveArtifacts = [];
+  for (const lane of objectiveLanes) {
+    const path = lilscriptObjectivePaths[lane.objective];
+    const actual = execute(path);
+    if (actual !== expected) {
+      throw new Error(
+        `${benchmark.name}/lilscript-${lane.objective} output mismatch`,
+      );
+    }
+    objectiveArtifacts.push({
+      objective: lane.objective,
+      gateMetric: lane.metric,
+      config: relative(repoRoot, lane.config),
+      file: relative(buildRoot, path),
+      behaviorVerified: true,
+      ...metrics(await readFile(path, "utf8")),
+    });
+  }
+  const objectiveArtifact = (objective) =>
+    objectiveArtifacts.find((artifact) => artifact.objective === objective);
+  artifacts.splice(4, 0, {
+    id: "lilscript",
+    label: "LilScript objective builds",
+    path: lilscriptObjectivePaths.brotli,
+    raw: objectiveArtifact("raw").raw,
+    gzip: objectiveArtifact("gzip").gzip,
+    brotli: objectiveArtifact("brotli").brotli,
+    runtimeObjective: "brotli",
+    objectiveArtifacts,
+  });
+
+  if (
+    artifacts
+      .slice(0, comparableArtifactIds.length)
+      .some((artifact, index) => artifact.id !== comparableArtifactIds[index])
+  ) {
     throw new Error(`${benchmark.name}: comparable artifact scope changed`);
   }
 
@@ -467,7 +598,9 @@ for (const benchmark of cases) {
       join(directory, "vite-production"),
     );
     const ecosystemExpected = benchmark.ecosystemExpected
-      ? normalize(await readFile(join(labRoot, benchmark.ecosystemExpected), "utf8"))
+      ? normalize(
+          await readFile(join(labRoot, benchmark.ecosystemExpected), "utf8"),
+        )
       : expected;
     const actual = execute(production.entry);
     if (actual !== ecosystemExpected) {
@@ -505,9 +638,14 @@ for (const benchmark of cases) {
     title: benchmark.title,
     expected,
     source: {
-      reference: await sourceBytes(join(labRoot, benchmark.referenceEntry), ".js"),
+      reference: await sourceBytes(
+        join(labRoot, benchmark.referenceEntry),
+        ".js",
+      ),
       lilscript: await sourceBytes(join(labRoot, benchmark.lilEntry), ".lil"),
-      hand: Buffer.byteLength(await readFile(join(labRoot, benchmark.hand), "utf8")),
+      hand: Buffer.byteLength(
+        await readFile(join(labRoot, benchmark.hand), "utf8"),
+      ),
     },
     artifacts,
     ecosystem,
@@ -517,10 +655,26 @@ for (const benchmark of cases) {
   );
 }
 
-const packageJson = JSON.parse(await readFile(join(labRoot, "package.json"), "utf8"));
+const packageJson = JSON.parse(
+  await readFile(join(labRoot, "package.json"), "utf8"),
+);
 const metadata = {
   generatedAt: new Date().toISOString(),
   compilerRevision: command("git", ["rev-parse", "--short", "HEAD"]),
+  compiler: {
+    path: relative(repoRoot, compiler),
+    version: command(compiler, ["--version"]),
+    sha256: sha256File(compiler),
+  },
+  objectiveConfigs: Object.fromEntries(
+    objectiveLanes.map((lane) => [
+      lane.objective,
+      {
+        path: relative(repoRoot, lane.config),
+        sha256: sha256File(lane.config),
+      },
+    ]),
+  ),
   node: process.version,
   vite: packageJson.devDependencies.vite,
   esbuild: packageJson.devDependencies.esbuild,
@@ -531,8 +685,19 @@ const metadata = {
   system: `${platform()} ${release()} ${arch()}`,
   warmups,
   samples,
+  runtimeObjective: "brotli",
+  objectiveContract: {
+    raw: "raw-config artifact measured as raw UTF-8",
+    gzip: "gzip-config artifact measured as gzip level 9",
+    brotli: "brotli-config artifact measured as Brotli quality 11",
+    diagnosticCrossMetricsMayLose: true,
+  },
+  codecs: canonicalCodecProvenance(),
 };
-await writeFile(join(buildRoot, "results.json"), `${JSON.stringify({ metadata, results }, null, 2)}\n`);
+await writeFile(
+  join(buildRoot, "results.json"),
+  `${JSON.stringify({ schemaVersion: 2, metadata, results }, null, 2)}\n`,
+);
 if (!verifyOnly) {
   await writeFile(join(labRoot, "RESULTS.md"), renderReport(results, metadata));
   const publishedResults = results.map((result) => ({
@@ -544,7 +709,9 @@ if (!verifyOnly) {
   }));
   await writeFile(
     webResults,
-    `${JSON.stringify({ metadata, results: publishedResults }, null, 2)}\n`,
+    `${JSON.stringify({ schemaVersion: 2, metadata, results: publishedResults }, null, 2)}\n`,
   );
 }
-console.log(`verified ${results.length} workloads; ${samples} measured execution(s) per artifact`);
+console.log(
+  `verified ${results.length} workloads; ${samples} measured execution(s) per artifact`,
+);

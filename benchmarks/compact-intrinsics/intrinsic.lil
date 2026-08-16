@@ -1,0 +1,25 @@
+int digest = 0;
+Uint8Array retained = new Uint8Array(256);
+for (int round = 0; round < 20000; round++) {
+  Uint8Array target = new Uint8Array(256);
+  Uint8Array source = new Uint8Array(64);
+  target.fill(round);
+  source.fill(round + 3);
+  target.set(source, 32);
+  target.copyWithin(128, 0, 96);
+  digest = digest * 31 + target[0] + target[32] + target[128] + target[191];
+  if (round == 19999) {
+    retained = target;
+  }
+}
+
+int[] values = [3, 1, 4, 1, 5, 9];
+bool contains = values.includes(1, -2);
+bool any = values.some((int value) => value > 8);
+bool all = values.every((int value) => value > 0);
+int found = values.findIndex((int value) => value == 4);
+string joined = values.join("|");
+int firstFour = joined.indexOf("4", 1);
+int lastOne = joined.lastIndexOf("1");
+string repeated = joined.repeat(found);
+print(`${digest}:${retained[32]}:${contains}:${any}:${all}:${found}:${firstFour}:${lastOne}:${repeated.length}:${joined}`);

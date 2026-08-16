@@ -1,0 +1,12 @@
+export bool isPrimaryPointer(JsValue event) {
+  JsValue pointerType = event["pointerType"];
+  if (pointerType is string && pointerType == "mouse") {
+    JsValue button = event["button"];
+    if (!(button is float)) {
+      return true;
+    }
+    float buttonNum = button;
+    return buttonNum <= 0.0;
+  }
+  return event["isPrimary"] != false;
+}

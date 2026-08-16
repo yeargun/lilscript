@@ -1,0 +1,52 @@
+pure int keywordWeight(string value) {
+  if (value == "render") { return 31; }
+  if (value == "hydrate") { return 37; }
+  if (value == "prefetch") { return 41; }
+  if (value == "invalidate") { return 43; }
+  if (value == "commit") { return 47; }
+  return 5;
+}
+
+pure int prefixWeight(string value) {
+  if (value.startsWith("cache:")) { return 17; }
+  if (value.startsWith("view:")) { return 19; }
+  if (value.startsWith("data:")) { return 23; }
+  return 3;
+}
+
+pure int suffixWeight(string value) {
+  if (value.endsWith(":hot")) { return 13; }
+  if (value.endsWith(":cold")) { return -7; }
+  if (value.endsWith(":idle")) { return 2; }
+  return 1;
+}
+
+pure int shapeWeight(string value) {
+  if (value.length == 0) { return 0; }
+  return value.charCodeAt(0) % 13;
+}
+
+pure int lengthWeight(string value, int index) {
+  return value.length * (index + 3);
+}
+
+pure int tokenClass(string value) {
+  return prefixWeight(value) * 3 + suffixWeight(value) * 5;
+}
+
+export pure int tokenScore(string value, int index) {
+  return keywordWeight(value) + tokenClass(value) + shapeWeight(value) + lengthWeight(value, index);
+}
+
+export pure string labelFor(int total) {
+  int group = ((total % 5) + 5) % 5;
+  if (group == 0) { return "template-route-stable"; }
+  if (group == 1) { return "template-route-warm"; }
+  if (group == 2) { return "template-route-cold"; }
+  if (group == 3) { return "template-route-deferred"; }
+  return "template-route-retry";
+}
+
+export pure int renderDigest(int total, int count) {
+  return total * 7 + count * 29;
+}

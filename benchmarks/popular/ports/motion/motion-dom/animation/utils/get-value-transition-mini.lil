@@ -1,0 +1,14 @@
+export JsValue getValueTransition(JsValue? transition, string key) {
+  if (transition == null || !transition.isObject()) {
+    return transition;
+  }
+  JsValue keyed = transition[key];
+  if (keyed.isObject() && keyed.truthy()) {
+    return keyed;
+  }
+  JsValue defaultTransition = transition["default"];
+  if (defaultTransition.isObject() && defaultTransition.truthy()) {
+    return defaultTransition;
+  }
+  return transition;
+}

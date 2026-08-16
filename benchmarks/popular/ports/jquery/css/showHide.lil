@@ -1,0 +1,120 @@
+import { emptyArray } from "../alloc.lil";
+import { jQuery, each, wrap } from "../core";
+import { dataPriv } from "../data/var/dataPriv";
+import { css } from "../css";
+import { isHiddenWithinTree } from "./var/isHiddenWithinTree";
+import {
+  createEmptyObject,
+  call1,
+  call0,
+  isNullish
+} from "../js-host.lil";
+
+
+JsValue defaultDisplayMap = JS.object();
+
+string getDefaultDisplay(JsValue elem) {
+  JsValue doc = JS.and(elem, elem["ownerDocument"]);
+  string nodeNameKey = JS.string(JS.and(elem, elem["nodeName"]));
+
+  JsValue cached = defaultDisplayMap[nodeNameKey];
+  if (cached.truthy()) {
+    return JS.assume(cached);
+  }
+
+  JsValue body = doc["body"];
+  JsValue created = JS.invoke(doc, "createElement", nodeNameKey);
+  JsValue temp = JS.invoke(body, "appendChild", created);
+  JsValue displayValue = css(temp, "display");
+  JsValue parent = temp["parentNode"];
+  JS.invoke(parent, "removeChild", temp);
+
+  string display = "block";
+  if (!JS.strictEqual(displayValue, "none") && JS.string(displayValue).length > 0) {
+    display = JS.string(displayValue);
+  }
+
+  defaultDisplayMap[nodeNameKey] = display;
+  return display;
+}
+
+JsValue showHide(JsValue elements, bool show) {
+  int index = 0;
+  int length = elements.length.toInt();
+  JsValue values = emptyArray();
+
+  for (; index < length; index++) {
+    JsValue elem = elements[index];
+    JsValue style = elem["style"];
+    if (!style.truthy()) {
+      continue;
+    }
+
+    string display = JS.string(style["display"]);
+
+    if (show) {
+      if (display == "none") {
+        JsValue stored = dataPriv.get(elem, "display");
+        if (!stored.truthy()) {
+          stored = null;
+        }
+        values[index] = stored;
+        if (!stored.truthy()) {
+          style["display"] = "";
+        }
+      }
+
+      if (JS.strictEqual(style["display"], "") && isHiddenWithinTree(elem)) {
+        values[index] = getDefaultDisplay(elem);
+      }
+    } else if (display != "none") {
+      values[index] = "none";
+      dataPriv.set(elem, "display", display);
+    }
+  }
+
+  for (index = 0; index < length; index++) {
+    JsValue val = values[index];
+    if (!JS.isNullish(val)) {
+      JsValue elem2 = elements[index];
+      JsValue style2 = elem2["style"];
+      style2["display"] = val;
+    }
+  }
+
+  return elements;
+}
+
+JsValue fnShow(JsValue self) {
+  return showHide(self, true);
+}
+
+JsValue fnHide(JsValue self) {
+  return showHide(self, false);
+}
+
+JsValue fnToggle(JsValue self, JsValue state) {
+  if (state is bool) {
+    bool stateValue = state;
+    if (stateValue) {
+      return JS.invoke(self, "show");
+    }
+    return JS.invoke(self, "hide");
+  }
+
+  return each(self, (JsValue _i, JsValue el) => {
+    JsValue wrapped = wrap(el);
+    if (isHiddenWithinTree(el)) {
+      JS.invoke(wrapped, "show");
+    } else {
+      JS.invoke(wrapped, "hide");
+    }
+    return JS.undefined();
+  });
+}
+
+jQuery["fn"]["show"] = JS.method0(fnShow);
+jQuery["fn"]["hide"] = JS.method0(fnHide);
+jQuery["fn"]["toggle"] = JS.method1(fnToggle);
+
+export { jQuery, showHide, getDefaultDisplay };

@@ -1,0 +1,26 @@
+enum Status { Draft, Active, Sold, Archived, Pending }
+
+Status statusAt(int value) {
+  int kind = value % 5;
+  if (kind == 0) { return Status.Draft; }
+  if (kind == 1) { return Status.Active; }
+  if (kind == 2) { return Status.Sold; }
+  if (kind == 3) { return Status.Archived; }
+  return Status.Pending;
+}
+
+int score(Status status) {
+  return match(status) {
+    Status.Draft => 3,
+    Status.Active => 7,
+    Status.Sold => 13,
+    Status.Archived => 19,
+    Status.Pending => 29
+  };
+}
+
+int digest = 0;
+for (int round = 0; round < 50000; round++) {
+  digest = digest * 31 + score(statusAt(round));
+}
+print(digest);

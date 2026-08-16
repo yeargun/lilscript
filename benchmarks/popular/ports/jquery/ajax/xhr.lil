@@ -1,0 +1,203 @@
+import { jQuery } from "../core";
+import { support } from "../var/support";
+import {
+  jsUndefined,
+  createEmptyObject,
+  hasProp,
+  isUndefined,
+  typeOf,
+  stringify,
+  newXMLHttpRequest,
+  call0,
+  call1,
+  call2,
+  call4,
+  apply,
+  scheduleTimeoutMs,
+  unaryPlus
+} from "../js-host.lil";
+
+/*
+ * Full port of upstream ajax/xhr.js. Nested send handlers share callback
+ * bindings through ordinary lexical captures, matching upstream locals.
+ */
+
+JsValue xhrFactory() {
+  try {
+    JsValue xhr = newXMLHttpRequest();
+    if (xhr.truthy()) {
+      return xhr;
+    }
+  } catch {
+  }
+  return JS.undefined();
+}
+
+jQuery["ajaxSettings"]["xhr"] = xhrFactory;
+
+float xhrMappedStatus(JsValue status) {
+  if (status == 0.0) {
+    return 200.0;
+  }
+  if (status == 1223.0) {
+    return 204.0;
+  }
+  return JS.number(status);
+}
+
+JsValue xhrProbe = xhrFactory();
+support["cors"] = xhrProbe.truthy() && JS.in("withCredentials", xhrProbe);
+support["ajax"] = xhrProbe.truthy();
+bool xhrSupported = support["ajax"].truthy();
+
+enum XhrCb {
+  Success,
+  Abort,
+  Error
+}
+
+struct XhrTransport {
+  JsValue send;
+  JsValue abort;
+}
+
+struct XhrTextResponses {
+  JsValue text;
+}
+
+struct XhrBinaryResponses {
+  JsValue binary;
+}
+
+JsValue xhrTransportFactory(JsValue options) {
+  if (support["cors"].truthy() || (xhrSupported && !options["crossDomain"].truthy())) {
+    JsValue callback = null;
+    JsValue errorCallback = null;
+
+    return XhrTransport{
+      JS.methodRest((JsValue _self, JsValue args) => {
+      JsValue headers = args[0];
+      JsValue complete = args[1];
+      JsValue xhr = JS.invoke(options, "xhr");
+
+      JsValue[] openArgs = [];
+      openArgs.push(options["type"]);
+      openArgs.push(options["url"]);
+      openArgs.push(options["async"]);
+      openArgs.push(options["username"]);
+      openArgs.push(options["password"]);
+      JS.apply(xhr["open"], xhr, openArgs);
+
+      if (options["xhrFields"].truthy()) {
+        for (string key in options["xhrFields"]) {
+          xhr[key] = options["xhrFields"][key];
+        }
+      }
+
+      if (options["mimeType"].truthy() && xhr["overrideMimeType"].truthy()) {
+        JS.invoke(xhr, "overrideMimeType", options["mimeType"]);
+      }
+
+      if (!options["crossDomain"].truthy() && !headers["X-Requested-With"].truthy()) {
+        headers["X-Requested-With"] = "XMLHttpRequest";
+      }
+
+      for (string headerName in headers) {
+        JS.invoke(xhr, "setRequestHeader", headerName, headers[headerName]);
+      }
+
+      func(XhrCb)->JsValue makeCallback = (XhrCb kind) => {
+        return JS.staticRest((JsValue _eventArgs) => {
+          if (callback.truthy()) {
+            callback = null;
+            errorCallback = null;
+            xhr["onload"] = null;
+            xhr["onerror"] = null;
+            xhr["onabort"] = null;
+            xhr["ontimeout"] = null;
+            xhr["onreadystatechange"] = null;
+
+            if (kind == XhrCb.Abort) {
+              JS.invoke(xhr, "abort");
+            } else if (kind == XhrCb.Error) {
+              if (JS.typeOf(xhr["status"]) != "number") {
+                complete(0.0, "error");
+              } else {
+                complete(xhr["status"], xhr["statusText"]);
+              }
+            } else {
+              JsValue statusVal = xhrMappedStatus(xhr["status"]);
+
+              string responseTypeStr = "text";
+              JsValue responseType = xhr["responseType"];
+              if (responseType is string) {
+                string rt = responseType;
+                if (rt.length > 0) {
+                  responseTypeStr = rt;
+                }
+              }
+
+              JsValue responsesRecord = XhrTextResponses{xhr["responseText"]};
+              if (responseTypeStr != "text" || JS.typeOf(xhr["responseText"]) != "string") {
+                responsesRecord = XhrBinaryResponses{xhr["response"]};
+              }
+
+              complete(statusVal, xhr["statusText"], responsesRecord, JS.invoke(xhr, "getAllResponseHeaders"));
+            }
+          }
+          return JS.undefined();
+        });
+      };
+
+      xhr["onload"] = makeCallback(XhrCb.Success);
+      JsValue errorHandler = makeCallback(XhrCb.Error);
+      errorCallback = errorHandler;
+      xhr["onerror"] = errorHandler;
+      xhr["ontimeout"] = errorHandler;
+
+      if (!JS.isUndefined(xhr["onabort"])) {
+        xhr["onabort"] = errorHandler;
+      } else {
+        xhr["onreadystatechange"] = JS.staticRest((JsValue _args) => {
+          if (xhr["readyState"] == 4.0) {
+            scheduleTimeoutMs(() => {
+              if (callback.truthy()) {
+                errorCallback();
+              }
+              return JS.undefined();
+            }, 0.0);
+          }
+          return JS.undefined();
+        });
+      }
+
+      callback = makeCallback(XhrCb.Abort);
+
+      JsValue body = null;
+      if (options["hasContent"].truthy() && options["data"].truthy()) {
+        body = options["data"];
+      }
+      try {
+        JS.invoke(xhr, "send", body);
+      } catch (JsValue error) {
+        if (callback.truthy()) {
+          throw error;
+        }
+      }
+
+      return JS.undefined();
+    }),
+      JS.method0((JsValue _self) => {
+      if (callback.truthy()) {
+        callback();
+      }
+      return JS.undefined();
+    })
+    };
+  }
+  return JS.undefined();
+}
+
+JS.invoke(jQuery, "ajaxTransport", xhrTransportFactory);
+
+export { jQuery };

@@ -1,0 +1,25 @@
+import extern {
+  weakMapCreate,
+  weakMapSet,
+  weakMapGet as weakMapGetAnimationMap
+} from "../../weak-host.ts";
+
+extern JsValue weakMapCreate();
+extern void weakMapSet(JsValue map, JsValue key, JsValue value);
+extern (Map<string, JsValue>)? weakMapGetAnimationMap(JsValue map, JsValue key);
+
+JsValue animationMaps = weakMapCreate();
+
+export string animationMapKey(string name, string pseudoElement = "") {
+  return `${name}:${pseudoElement}`;
+}
+
+export Map<string, JsValue> getAnimationMap(JsValue element) {
+  (Map<string, JsValue>)? existing = weakMapGetAnimationMap(animationMaps, element);
+  if (existing != null) {
+    return existing;
+  }
+  Map<string, JsValue> created = new Map<string, JsValue>();
+  weakMapSet(animationMaps, element, created);
+  return created;
+}

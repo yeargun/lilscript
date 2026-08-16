@@ -1,0 +1,3 @@
+export bool isNullish(JsValue? v = null) {
+  return v == null;
+}

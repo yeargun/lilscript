@@ -1,0 +1,29 @@
+import { mixNumber } from "../../../../motion-dom/utils/mix/number";
+import { getEasingForSegment } from "../../../../motion-utils/easing/utils/get-easing-for-segment";
+import { removeItem } from "../../../../motion-utils/array";
+import { AbsoluteKeyframe } from "./sort";
+
+export void eraseKeyframes(AbsoluteKeyframe[] sequence, float startTime, float endTime) {
+  for (int i = 0; i < sequence.length; i++) {
+    AbsoluteKeyframe keyframe = sequence[i];
+    if (keyframe.at > startTime && keyframe.at < endTime) {
+      removeItem(sequence, keyframe);
+      i = i - 1;
+    }
+  }
+}
+
+export void addKeyframes(
+  AbsoluteKeyframe[] sequence,
+  JsValue[] keyframes,
+  JsValue easing,
+  float[] offset,
+  float startTime,
+  float endTime
+) {
+  eraseKeyframes(sequence, startTime, endTime);
+  for (int i = 0; i < keyframes.length; i++) {
+    float at = mixNumber(startTime, endTime, offset[i]);
+    sequence.push(new AbsoluteKeyframe(keyframes[i], at, getEasingForSegment(easing, i)));
+  }
+}

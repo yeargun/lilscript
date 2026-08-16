@@ -1,0 +1,81 @@
+import { easeInOut } from "../../../motion-utils/easing/ease";
+import { easingDefinitionToFunction } from "../../../motion-utils/easing/utils/map";
+import { interpolate, InterpolateOptions } from "../../utils/interpolate";
+import { defaultOffsetFloats } from "../keyframes/offsets/default";
+import { convertOffsetToTimes } from "../keyframes/offsets/time";
+import { AnimationState } from "../animation-state";
+import { SpringGenerator } from "./generator";
+
+export (func(float)->float)[] defaultEasing(
+  float[] values,
+  (func(float)->float)? easing = null
+) {
+  (func(float)->float)[] result = [];
+  func(float)->float chosen = easeInOut;
+  if (easing != null) {
+    chosen = easing;
+  }
+  for (int i = 0; i < values.length; i++) {
+    result.push(chosen);
+  }
+  return result.splice(0, values.length - 1);
+}
+
+export class KeyframesInput {
+  float duration;
+  float[] keyframes;
+  float[]? times;
+  string | float[] | func(float)->float ease;
+
+  init(
+    float[] keyframes,
+    float duration = 300.0,
+    float[]? times = null,
+    string | float[] | func(float)->float ease = "easeInOut"
+  ) {
+    this.keyframes = keyframes;
+    this.duration = duration;
+    this.times = times;
+    this.ease = ease;
+  }
+}
+
+export SpringGenerator keyframes(KeyframesInput options) {
+  float duration = options.duration;
+  float[] keyframeValues = options.keyframes;
+  func(float)->float singleEase = easeInOut;
+  string | float[] | func(float)->float easeOpt = options.ease;
+  if (easeOpt is string) {
+    singleEase = easingDefinitionToFunction(easeOpt);
+  } else if (easeOpt is float[]) {
+    singleEase = easingDefinitionToFunction(easeOpt);
+  } else if (easeOpt is (func(float)->float)) {
+    singleEase = easeOpt;
+  }
+  AnimationState state = new AnimationState(keyframeValues[0]);
+  float[] offsetTimes = defaultOffsetFloats(keyframeValues);
+  float[]? timesOpt = options.times;
+  if (timesOpt != null) {
+    if (timesOpt.length == keyframeValues.length) {
+      offsetTimes = timesOpt;
+    }
+  }
+  float[] absoluteTimes = convertOffsetToTimes(offsetTimes, duration);
+  (func(float)->float)[] easeForMix = defaultEasing(keyframeValues, singleEase);
+  func(float)->float mapTimeToKeyframe = interpolate(
+    absoluteTimes,
+    keyframeValues,
+    new InterpolateOptions(true, easeForMix)
+  );
+  return new SpringGenerator(
+    duration,
+    (float t) => 0.0,
+    (float t) => {
+      state.value = mapTimeToKeyframe(t);
+      state.done = t >= duration;
+      return state;
+    },
+    () => "",
+    () => {}
+  );
+}

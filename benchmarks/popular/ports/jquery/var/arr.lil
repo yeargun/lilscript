@@ -1,0 +1,3 @@
+import { emptyArray } from "../alloc.lil";
+
+export JsValue arr = emptyArray();

@@ -1,0 +1,30 @@
+import { anticipate } from "../../../../motion-utils/easing/anticipate";
+import { backInOut } from "../../../../motion-utils/easing/back";
+import { circInOut } from "../../../../motion-utils/easing/circ";
+import { setProp } from "../../../dom-host";
+
+bool isUnsupportedEase(string key) {
+  return key == "anticipate" || key == "backInOut" || key == "circInOut";
+}
+
+func(float)->float unsupportedEasingFunction(string key) {
+  if (key == "anticipate") {
+    return anticipate;
+  }
+  if (key == "backInOut") {
+    return backInOut;
+  }
+  return circInOut;
+}
+
+export void replaceStringEasing(JsValue transition) {
+  if (!transition.isObject()) {
+    return;
+  }
+  JsValue easeOpt = transition["ease"];
+  if (easeOpt is string) {
+    if (isUnsupportedEase(easeOpt)) {
+      setProp(transition, "ease", unsupportedEasingFunction(easeOpt));
+    }
+  }
+}

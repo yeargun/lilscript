@@ -1,0 +1,28 @@
+{
+  "generatedAt": "2026-08-15T23:50:00.000Z",
+  "results": [
+    {
+      "id": "solid-js",
+      "raw": 11563,
+      "gzip9": 4810,
+      "brotli11": 4358,
+      "sha256": "9a7954aedff39e0f0107a9223f717bdcee63a1609b5bb2626065283f633314fe"
+    },
+    {
+      "id": "size-first-compiler",
+      "terser": false,
+      "raw": 11131,
+      "gzip9": 4436,
+      "brotli11": 3940,
+      "sha256": "2d6782c25cce0a5470f48920382b8c0ba22433276a393f3d4ef8953ef4d4a8f6"
+    },
+    {
+      "id": "size-first-old-terser-diagnostic",
+      "terser": true,
+      "raw": 11127,
+      "gzip9": 4493,
+      "brotli11": 3964,
+      "sha256": "df40b6f5b5b6382290579e02d767898aa24cf0680a1b1235c3030ca781b86050"
+    }
+  ]
+}

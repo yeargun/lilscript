@@ -1,0 +1,45 @@
+import { MotionGlobalConfig } from "../../motion-utils/global-config";
+import { performanceNow, scheduleMicrotask } from "../dom-host";
+import { frameData } from "./frame";
+
+class TimeState {
+  float? now;
+  init() {
+    this.now = null;
+  }
+}
+
+TimeState timeState = new TimeState();
+
+void clearTime() {
+  timeState.now = null;
+}
+
+export class TimeApi {
+  float now() {
+    if (timeState.now == null) {
+      bool? manual = MotionGlobalConfig.useManualTiming;
+      bool useManual = false;
+      if (manual != null) {
+        useManual = manual;
+      }
+      float value = frameData.timestamp;
+      if (!(frameData.isProcessing || useManual)) {
+        value = performanceNow();
+      }
+      this.set(value);
+    }
+    float? current = timeState.now;
+    if (current != null) {
+      return current;
+    }
+    return 0.0;
+  }
+
+  void set(float newTime) {
+    timeState.now = newTime;
+    scheduleMicrotask(clearTime);
+  }
+}
+
+export TimeApi time = new TimeApi();

@@ -1,0 +1,6 @@
+import { memo } from "../../../../motion-utils/memo";
+import { supportsPartialKeyframesCheck } from "../../../dom-host";
+
+export func()->bool supportsPartialKeyframes = memo(() => {
+  return supportsPartialKeyframesCheck();
+});

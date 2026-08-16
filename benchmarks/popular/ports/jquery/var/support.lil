@@ -1,0 +1,5 @@
+import {
+  createEmptyObject
+} from "../js-host.lil";
+
+export JsValue support = JS.object();

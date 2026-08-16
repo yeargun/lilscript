@@ -1,0 +1,265 @@
+import {
+  Signal,
+  createIntSignal,
+  createMemo,
+  createSignal,
+  indexArray,
+  indexArrayWithFallback,
+  mapArray,
+  mapArrayWithFallback,
+  untrack
+} from "./reactive";
+
+export class BoolMatch<T> {
+  func()->bool when;
+  func()->T children;
+
+  init(func()->bool when, func()->T children) {
+    this.when = when;
+    this.children = children;
+  }
+}
+
+export class IntMatch<T> {
+  func()->int when;
+  func(func()->int)->T children;
+
+  init(func()->int when, func(func()->int)->T children) {
+    this.when = when;
+    this.children = children;
+  }
+}
+
+export class KeyedIntMatch<T> {
+  func()->int when;
+  func(int)->T children;
+
+  init(func()->int when, func(int)->T children) {
+    this.when = when;
+    this.children = children;
+  }
+}
+
+class IntSelection {
+  int index;
+  int value;
+
+  init(int index, int value) {
+    this.index = index;
+    this.value = value;
+  }
+}
+
+Signal<int> appendBoolStage<T>(
+  Signal<int> previous,
+  BoolMatch<T> current,
+  int index
+) {
+  return createMemo(
+    -1,
+    () => {
+      int selected = previous.read();
+      if (selected >= 0) {
+        return selected;
+      }
+      func()->bool when = current.when;
+      if (when()) {
+        return index;
+      }
+      return -1;
+    },
+    (int before, int after) => before == after
+  );
+}
+
+Signal<int> appendIntStage<T>(
+  Signal<int> previous,
+  IntMatch<T> current,
+  int index
+) {
+  return createMemo(
+    -1,
+    () => {
+      int selected = previous.read();
+      if (selected >= 0) {
+        return selected;
+      }
+      func()->int when = current.when;
+      if (when() != 0) {
+        return index;
+      }
+      return -1;
+    },
+    (int before, int after) => before == after
+  );
+}
+
+Signal<IntSelection> appendKeyedIntStage<T>(
+  Signal<IntSelection> previous,
+  KeyedIntMatch<T> current,
+  int index
+) {
+  return createMemo(
+    new IntSelection(-1, 0),
+    () => {
+      IntSelection selected = previous.read();
+      if (selected.index >= 0) {
+        return selected;
+      }
+      func()->int when = current.when;
+      int value = when();
+      if (value != 0) {
+        return new IntSelection(index, value);
+      }
+      return new IntSelection(-1, 0);
+    },
+    (IntSelection before, IntSelection after) =>
+      before.index == after.index && before.value == after.value
+  );
+}
+
+export Signal<T> switchBool<T>(
+  BoolMatch<T>[] matches,
+  T initial,
+  func()->T fallback,
+  func(T,T)->bool equals
+) {
+  Signal<int> selected = createIntSignal(-1);
+  for (int index = 0; index < matches.length; index++) {
+    selected = appendBoolStage(selected, matches[index], index);
+  }
+  return createMemo(
+    initial,
+    () => {
+      int index = selected.read();
+      if (index < 0) {
+        return untrack(fallback);
+      }
+      BoolMatch<T> current = matches[index];
+      return untrack(current.children);
+    },
+    equals
+  );
+}
+
+export Signal<T> switchInt<T>(
+  IntMatch<T>[] matches,
+  T initial,
+  func()->T fallback,
+  func(T,T)->bool equals
+) {
+  Signal<int> selected = createIntSignal(-1);
+  for (int index = 0; index < matches.length; index++) {
+    selected = appendIntStage(selected, matches[index], index);
+  }
+  return createMemo(
+    initial,
+    () => {
+      int index = selected.read();
+      if (index < 0) {
+        return untrack(fallback);
+      }
+      IntMatch<T> current = matches[index];
+      func()->int when = current.when;
+      return untrack(() => current.children(when));
+    },
+    equals
+  );
+}
+
+export Signal<T> switchKeyedInt<T>(
+  KeyedIntMatch<T>[] matches,
+  T initial,
+  func()->T fallback,
+  func(T,T)->bool equals
+) {
+  Signal<IntSelection> selected = createSignal(
+    new IntSelection(-1, 0),
+    (IntSelection before, IntSelection after) =>
+      before.index == after.index && before.value == after.value
+  );
+  for (int index = 0; index < matches.length; index++) {
+    selected = appendKeyedIntStage(selected, matches[index], index);
+  }
+  return createMemo(
+    initial,
+    () => {
+      IntSelection selection = selected.read();
+      if (selection.index < 0) {
+        return untrack(fallback);
+      }
+      KeyedIntMatch<T> current = matches[selection.index];
+      return untrack(() => current.children(selection.value));
+    },
+    equals
+  );
+}
+
+export Signal<T> show<T>(
+  Signal<bool> when,
+  T initial,
+  func()->T children,
+  func()->T fallback,
+  func(T,T)->bool equals
+) {
+  return createMemo(
+    initial,
+    () => {
+      if (when.read()) {
+        return untrack(children);
+      }
+      return untrack(fallback);
+    },
+    equals
+  );
+}
+
+export Signal<T> showKeyedInt<T>(
+  Signal<int> when,
+  T initial,
+  func(int)->T children,
+  func()->T fallback,
+  func(T,T)->bool equals
+) {
+  return createMemo(
+    initial,
+    () => {
+      int value = when.read();
+      if (value != 0) {
+        return untrack(() => children(value));
+      }
+      return untrack(fallback);
+    },
+    equals
+  );
+}
+
+export func()->U[] forEach<T,U>(
+  Signal<T[]> each,
+  func(T,Signal<int>)->U children
+) {
+  return mapArray(each, children);
+}
+
+export func()->U[] forEachWithFallback<T,U>(
+  Signal<T[]> each,
+  func(T,Signal<int>)->U children,
+  func()->U fallback
+) {
+  return mapArrayWithFallback(each, children, fallback);
+}
+
+export func()->U[] indexEach<T,U>(
+  Signal<T[]> each,
+  func(Signal<T>,int)->U children
+) {
+  return indexArray(each, children);
+}
+
+export func()->U[] indexEachWithFallback<T,U>(
+  Signal<T[]> each,
+  func(Signal<T>,int)->U children,
+  func()->U fallback
+) {
+  return indexArrayWithFallback(each, children, fallback);
+}

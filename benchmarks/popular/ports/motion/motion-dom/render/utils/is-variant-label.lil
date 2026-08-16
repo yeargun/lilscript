@@ -1,0 +1,6 @@
+export bool isVariantLabel(JsValue v) {
+  if (v is string) {
+    return true;
+  }
+  return v.isArray();
+}

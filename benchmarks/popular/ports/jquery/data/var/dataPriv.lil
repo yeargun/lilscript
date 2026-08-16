@@ -1,0 +1,3 @@
+import { Data } from "../Data";
+
+export Data dataPriv = new Data();

@@ -1,0 +1,41 @@
+import { isMotionValue } from "../../../value/utils/is-motion-value";
+import { transformPropOrder } from "../../utils/keys-transform";
+import { scrapeMotionValuesFromProps as scrapeHTMLMotionValuesFromProps } from "../../html/utils/scrape-motion-values";
+
+string capitalizeFirst(string key) {
+  if (key.length == 0) {
+    return key;
+  }
+  string first = key.charAt(0).toUpperCase();
+  string rest = "";
+  for (int i = 1; i < key.length; i++) {
+    rest = rest + key.charAt(i);
+  }
+  return first + rest;
+}
+
+export JsValue scrapeMotionValuesFromProps(
+  JsValue props,
+  JsValue? prevProps = null,
+  JsValue? visualElement = null
+) {
+  JsValue prev = record{};
+  if (prevProps != null) {
+    prev = prevProps;
+  }
+  JsValue newValues = scrapeHTMLMotionValuesFromProps(props, prev, visualElement);
+
+  for (string key in props) {
+    JsValue next = props[key];
+    JsValue previous = prev[key];
+    if (isMotionValue(next) || isMotionValue(previous)) {
+      string targetKey = key;
+      if (transformPropOrder.indexOf(key) != -1) {
+        targetKey = "attr" + capitalizeFirst(key);
+      }
+      newValues[targetKey] = next;
+    }
+  }
+
+  return newValues;
+}

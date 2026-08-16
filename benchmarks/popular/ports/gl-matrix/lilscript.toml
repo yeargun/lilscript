@@ -2,6 +2,7 @@
 priority = "size-first"
 optimization_level = 15
 cost_model = "brotli"
+local_name_reserve = 48
 
 [mangle]
 identifiers = true

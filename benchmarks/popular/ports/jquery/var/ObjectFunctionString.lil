@@ -1,0 +1,6 @@
+import {
+  objectConstructor,
+  functionToString
+} from "../js-host.lil";
+
+export string ObjectFunctionString = functionToString(objectConstructor());

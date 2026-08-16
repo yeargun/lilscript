@@ -1,0 +1,28 @@
+import { MotionGlobalConfig } from "../../../motion-utils/global-config";
+import { constructConfigured, callFn1, isFunction } from "../../dom-host";
+import { VisualElement } from "../../render/VisualElement";
+import { isWillChangeMotionValue } from "./is";
+import { visualElementOf } from "../../cast";
+
+export void addValueToWillChange(JsValue visualElement, string key) {
+  VisualElement element = visualElementOf(visualElement);
+  JsValue? willChange = element.getValue("willChange");
+  if (willChange != null && isWillChangeMotionValue(willChange)) {
+    JsValue add = willChange["add"];
+    if (isFunction(add)) {
+      callFn1(add, key);
+    }
+    return;
+  }
+  if (willChange == null) {
+    JsValue? WillChangeCtor = MotionGlobalConfig.WillChange;
+    if (WillChangeCtor != null) {
+      JsValue newWillChange = constructConfigured(WillChangeCtor, "auto");
+      element.addValue("willChange", newWillChange);
+      JsValue add = newWillChange["add"];
+      if (isFunction(add)) {
+        callFn1(add, key);
+      }
+    }
+  }
+}

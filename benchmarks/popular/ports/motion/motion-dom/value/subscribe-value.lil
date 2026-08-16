@@ -1,0 +1,30 @@
+import { cancelFrame, frame } from "../frameloop/index";
+import { FrameData } from "../frameloop/types";
+import { MotionValue } from "./index";
+
+export void subscribeValue(
+  MotionValue[] inputValues,
+  MotionValue outputValue,
+  func()->JsValue getLatest
+) {
+  func(FrameData)->void update = (FrameData _data) => {
+    outputValue.set(getLatest());
+  };
+  func(JsValue?, JsValue?, JsValue?)->void scheduleUpdate = (JsValue? _a = null, JsValue? _b = null, JsValue? _c = null) => {
+    frame.preRender(update, false, true);
+  };
+  (func()->void)[] subscriptions = [];
+  int i = 0;
+  while (i < inputValues.length) {
+    subscriptions.push(inputValues[i].on("change", scheduleUpdate));
+    i = i + 1;
+  }
+  outputValue.on("destroy", (JsValue? _a = null, JsValue? _b = null, JsValue? _c = null) => {
+    int j = 0;
+    while (j < subscriptions.length) {
+      subscriptions[j]();
+      j = j + 1;
+    }
+    cancelFrame(update);
+  });
+}

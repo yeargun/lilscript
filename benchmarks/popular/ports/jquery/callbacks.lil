@@ -1,0 +1,264 @@
+import { emptyArray } from "./alloc.lil";
+import { jQuery, each, extend, inArray } from "./core";
+import { isFunction } from "./var/isFunction";
+import { toType } from "./core/toType";
+import { rnothtmlwhite } from "./var/rnothtmlwhite";
+import {
+  createEmptyObject,
+  isFalse,
+  apply,
+  hasProp,
+  stringMatch,
+  call0,
+  jsUndefined
+} from "./js-host.lil";
+
+struct CallbacksOptions {
+  bool once;
+  bool memory;
+  bool unique;
+  bool stopOnFalse;
+}
+
+struct CallbacksApi {
+  JsValue add;
+  JsValue remove;
+  JsValue has;
+  JsValue empty;
+  JsValue disable;
+  JsValue disabled;
+  JsValue lock;
+  JsValue locked;
+  JsValue fireWith;
+  JsValue fire;
+  JsValue fired;
+}
+
+void addNestedCallbacks(JsValue args, JsValue[] list, bool unique) {
+  each(args, (JsValue _i, JsValue arg) => {
+    if (isFunction(arg)) {
+      if (!unique || inArray(arg, list, 0.0) < 0.0) {
+        list.push(arg);
+      }
+    } else if (arg.truthy() && arg["length"].truthy() && toType(arg) != "string") {
+      addNestedCallbacks(arg, list, unique);
+    }
+    return JS.undefined();
+  });
+}
+
+CallbacksOptions createOptions(string optionsStr) {
+  bool once = false;
+  bool memory = false;
+  bool unique = false;
+  bool stopOnFalse = false;
+  JsValue matched = JS.stringMatch(optionsStr, rnothtmlwhite);
+  if (matched.truthy()) {
+    float len = matched.length;
+    float i = 0.0;
+    while (i < len) {
+      JsValue flag = matched[i];
+      if (flag is string) {
+        if (flag == "once") {
+          once = true;
+        } else if (flag == "memory") {
+          memory = true;
+        } else if (flag == "unique") {
+          unique = true;
+        } else if (flag == "stopOnFalse") {
+          stopOnFalse = true;
+        }
+      }
+      i = i + 1.0;
+    }
+  }
+  return CallbacksOptions{once, memory, unique, stopOnFalse};
+}
+
+CallbacksOptions optionsFromObject(JsValue object) {
+  return CallbacksOptions{
+    object["once"].truthy(),
+    object["memory"].truthy(),
+    object["unique"].truthy(),
+    object["stopOnFalse"].truthy()
+  };
+}
+
+CallbacksOptions parseCallbacksOptions(JsValue optionsArg) {
+  if (optionsArg is string) {
+    return createOptions(optionsArg);
+  }
+  JsValue[] extendArgs = [];
+  extendArgs.push(JS.object());
+  extendArgs.push(optionsArg);
+  return optionsFromObject(JS.apply(extend, null, extendArgs));
+}
+
+JsValue callbacksFacade(CallbacksOptions options) {
+  JsValue[] list = [];
+  JsValue[] queue = [];
+  int firingIndex = -1;
+  bool locked = false;
+  bool fired = false;
+  bool firing = false;
+  JsValue memory = false;
+  bool listAlive = true;
+
+  func()->void fireQueue = () => {
+    if (!locked) {
+      locked = options.once;
+    }
+    fired = true;
+    firing = true;
+
+    while (queue.length > 0) {
+      memory = queue.splice(0, 1)[0];
+      while (true) {
+        firingIndex = firingIndex + 1;
+        if (firingIndex >= list.length) {
+          break;
+        }
+        JsValue fireMemory = memory;
+        JsValue result = JS.apply(list[firingIndex], fireMemory[0], fireMemory[1]);
+        if (JS.isFalse(result) && options.stopOnFalse) {
+          firingIndex = list.length;
+          memory = false;
+        }
+      }
+      firingIndex = -1;
+    }
+
+    if (!options.memory) {
+      memory = false;
+    }
+    firing = false;
+    if (locked) {
+      listAlive = options.memory && memory.truthy();
+      list = [];
+    }
+  };
+
+  return CallbacksApi{
+    JS.methodRest((JsValue thisArg, JsValue args) => {
+    if (listAlive) {
+      if (memory.truthy() && !firing) {
+        firingIndex = list.length - 1;
+        queue.push(memory);
+      }
+      addNestedCallbacks(args, list, options.unique);
+      if (memory.truthy() && !firing) {
+        fireQueue();
+      }
+    }
+    return thisArg;
+  }),
+    JS.methodRest((JsValue thisArg, JsValue args) => {
+    each(args, (JsValue _i, JsValue arg) => {
+      int index = 0;
+      while (true) {
+        index = inArray(arg, list, index).toInt();
+        if (index < 0) {
+          break;
+        }
+        list.splice(index, 1);
+        if (index <= firingIndex) {
+          firingIndex = firingIndex - 1;
+        }
+      }
+      return JS.undefined();
+    });
+    return thisArg;
+  }),
+    (JsValue fn) => {
+    if (fn.truthy()) {
+      return list.indexOf(fn) > -1;
+    }
+    return list.length > 0;
+  },
+    JS.method0((JsValue thisArg) => {
+    if (listAlive) {
+      list = [];
+    }
+    return thisArg;
+  }),
+    JS.method0((JsValue thisArg) => {
+    locked = true;
+    queue = [];
+    listAlive = false;
+    list = [];
+    memory = false;
+    return thisArg;
+  }),
+    () => {
+    return !listAlive;
+  },
+    JS.method0((JsValue thisArg) => {
+    locked = true;
+    queue = [];
+    if (!memory.truthy() && !firing) {
+      listAlive = false;
+      list = [];
+      memory = false;
+    }
+    return thisArg;
+  }),
+    () => {
+    return locked;
+  },
+    JS.methodRest((JsValue thisArg, JsValue args) => {
+    JsValue context = args[0];
+    JsValue fireArgs = null;
+    if (args.length > 1.0) {
+      fireArgs = args[1];
+    }
+    if (!locked) {
+      if (!fireArgs.truthy()) {
+        fireArgs = emptyArray();
+      }
+      JsValue copiedArgs = fireArgs;
+      if (fireArgs["slice"].truthy()) {
+        copiedArgs = JS.invoke(fireArgs, "slice");
+      }
+      JsValue[] queued = [context, copiedArgs];
+      queue.push(queued);
+      if (!firing) {
+        fireQueue();
+      }
+    }
+    return thisArg;
+  }),
+    JS.methodRest((JsValue thisArg, JsValue args) => {
+    if (!locked) {
+      JsValue[] queued = [thisArg, args];
+      queue.push(queued);
+      if (!firing) {
+        fireQueue();
+      }
+    }
+    return thisArg;
+  }),
+    () => {
+    return fired;
+  }
+  };
+}
+
+export JsValue newCallbacksMemory() {
+  return callbacksFacade(CallbacksOptions{false, true, false, false});
+}
+
+export JsValue newCallbacksOnceMemory() {
+  return callbacksFacade(CallbacksOptions{true, true, false, false});
+}
+
+JsValue CallbacksFactory(JsValue optionsArg = null) {
+  return callbacksFacade(parseCallbacksOptions(optionsArg));
+}
+
+jQuery["Callbacks"] = CallbacksFactory;
+
+export JsValue onceMemoryCallbacks() {
+  return newCallbacksOnceMemory();
+}
+
+export { jQuery };

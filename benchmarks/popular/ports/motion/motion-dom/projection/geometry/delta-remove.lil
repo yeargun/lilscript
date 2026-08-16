@@ -1,0 +1,121 @@
+import { Axis, Box } from "../../../motion-utils/types/geometry";
+import { mixNumber } from "../../utils/mix/number";
+import { percent } from "../../value/types/numbers/units";
+import { scalePoint } from "./delta-apply";
+
+extern float parseFloat(string value);
+
+export float removePointDelta(
+  float point,
+  float translate,
+  float scale,
+  float originPoint,
+  float? boxScale = null
+) {
+  float result = point - translate;
+  result = scalePoint(result, 1.0 / scale, originPoint);
+  if (boxScale != null) {
+    result = scalePoint(result, 1.0 / boxScale, originPoint);
+  }
+  return result;
+}
+
+export void removeAxisDelta(
+  Axis axis,
+  JsValue? translate = 0.0,
+  float scale = 1.0,
+  float origin = 0.5,
+  float? boxScale = null,
+  Axis? originAxis = null,
+  Axis? sourceAxis = null
+) {
+  bool sameOrigin = originAxis == null;
+  Axis originAx = axis;
+  if (originAxis != null) {
+    originAx = originAxis;
+  }
+  Axis sourceAx = axis;
+  if (sourceAxis != null) {
+    sourceAx = sourceAxis;
+  }
+
+  float translateNum = 0.0;
+  if (translate != null) {
+    if (percent.test(translate)) {
+      if (translate is string) {
+        float pct = parseFloat(translate);
+        float relativeProgress = mixNumber(sourceAx.min, sourceAx.max, pct / 100.0);
+        translateNum = relativeProgress - sourceAx.min;
+      }
+    } else {
+      if (translate is float) {
+        translateNum = translate;
+      } else {
+        return;
+      }
+    }
+  }
+
+  float originPoint = mixNumber(originAx.min, originAx.max, origin);
+  if (sameOrigin) {
+    originPoint = originPoint - translateNum;
+  }
+
+  axis.min = removePointDelta(axis.min, translateNum, scale, originPoint, boxScale);
+  axis.max = removePointDelta(axis.max, translateNum, scale, originPoint, boxScale);
+}
+
+float? asFloat(JsValue? value) {
+  if (value == null) {
+    return null;
+  }
+  if (value is float) {
+    return value;
+  }
+  return null;
+}
+
+export void removeAxisTransforms(
+  Axis axis,
+  Record<JsValue> transforms,
+  string key,
+  string scaleKey,
+  string originKey,
+  Axis? origin = null,
+  Axis? sourceAxis = null
+) {
+  float scale = asFloat(transforms[scaleKey]) ?? 1.0;
+  float originVal = asFloat(transforms[originKey]) ?? 0.5;
+  float boxScale = asFloat(transforms.scale) ?? 1.0;
+  removeAxisDelta(
+    axis,
+    transforms[key],
+    scale,
+    originVal,
+    boxScale,
+    origin,
+    sourceAxis
+  );
+}
+
+export void removeBoxTransforms(
+  Box box,
+  Record<JsValue> transforms,
+  Box? originBox = null,
+  Box? sourceBox = null
+) {
+  Axis? ox = null;
+  Axis? oy = null;
+  Axis? sx = null;
+  Axis? sy = null;
+  if (originBox != null) {
+    ox = originBox.x;
+    oy = originBox.y;
+  }
+  if (sourceBox != null) {
+    sx = sourceBox.x;
+    sy = sourceBox.y;
+  }
+  removeAxisTransforms(box.x, transforms, "x", "scaleX", "originX", ox, sx);
+  removeAxisTransforms(box.y, transforms, "y", "scaleY", "originY", oy, sy);
+}

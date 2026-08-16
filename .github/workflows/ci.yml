@@ -3,6 +3,7 @@ name: CI
 on:
   push:
   pull_request:
+  workflow_call:
 
 jobs:
   compiler:
@@ -17,6 +18,11 @@ jobs:
             benchmarks/apps/package-lock.json
             benchmarks/browser/package-lock.json
             benchmarks/libraries/package-lock.json
+            benchmarks/popular/package-lock.json
+            benchmarks/scenarios/package-lock.json
+            labs/solid-client/package-lock.json
+            lilastro/package-lock.json
+            tooling/lilpack/package-lock.json
             vscode-extension/package-lock.json
             web/package-lock.json
       - uses: actions/setup-java@v4
@@ -27,12 +33,35 @@ jobs:
       - run: npm ci --prefix benchmarks/apps
       - run: npm ci --prefix benchmarks/browser
       - run: npm ci --prefix benchmarks/libraries
+      - run: npm ci --prefix benchmarks/popular
+      - run: npm ci --prefix benchmarks/scenarios
+      - run: npm ci --prefix labs/solid-client
+      - run: npm ci --prefix lilastro
+      - run: npm ci --prefix tooling/lilpack
       - run: npm ci --prefix vscode-extension
       - run: npm ci --prefix web
       - run: npm --prefix benchmarks/browser exec -- playwright install --with-deps chromium
       - run: scripts/release-check.sh
+      - name: Upload comparison evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: comparison-evidence
+          if-no-files-found: warn
+          path: |
+            comparison/cases/summary.json
+            comparison/cases/summary.md
+            comparison/cases/build/
+            comparison/cases/generated/
+            comparison/algorithms/summary.json
+            comparison/algorithms/summary.md
+            comparison/algorithms/build/
+            comparison/summary.json
+            comparison/summary.md
 
   build-matrix:
+    env:
+      LIBZ_SYS_STATIC: "1"
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
@@ -40,5 +69,41 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
       - run: cargo test --all-targets
       - run: cargo build --release --bins
+      - name: Verify canonical scorer fixtures
+        run: node --test benchmarks/codec-contract.test.mjs
+      - name: Reject dynamic codec libraries (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          for binary in lilscript lilscript-codec; do
+            if ldd "target/release/$binary" | grep -Eiq 'zlib|libz|brotli'; then
+              echo "$binary dynamically links a codec library" >&2
+              exit 1
+            fi
+          done
+      - name: Reject dynamic codec libraries (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          for binary in lilscript lilscript-codec; do
+            if otool -L "target/release/$binary" | tail -n +2 | grep -Eiq 'zlib|libz|brotli'; then
+              echo "$binary dynamically links a codec library" >&2
+              exit 1
+            fi
+          done
+      - name: Reject dynamic codec libraries (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          foreach ($binary in @("lilscript", "lilscript-codec")) {
+            $bytes = [System.IO.File]::ReadAllBytes("target/release/$binary.exe")
+            $strings = [System.Text.Encoding]::ASCII.GetString($bytes)
+            if ($strings -match '(?i)(?:zlib|libz|brotli)[^\x00\r\n]{0,64}\.dll') {
+              throw "$binary imports a dynamic codec library"
+            }
+          }

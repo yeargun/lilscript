@@ -1,0 +1,124 @@
+import { resolveElements } from "../../../../motion-dom/utils/resolve-elements";
+import {
+  constructConfigured2,
+  callMethod1,
+  callMethod0,
+  callFn1,
+  callFn2,
+  isFunction,
+  windowGet
+} from "../../../../motion-dom/dom-host";
+import extern {
+  weakMapCreate,
+  weakMapGet,
+  weakMapSet,
+  weakMapDelete
+} from "../../../../motion-dom/weak-host.ts";
+
+extern JsValue weakMapCreate();
+extern JsValue? weakMapGet(JsValue map, JsValue key);
+extern void weakMapSet(JsValue map, JsValue key, JsValue value);
+extern void weakMapDelete(JsValue map, JsValue key);
+
+Map<string, float> thresholds = new Map<string, float>();
+
+void initThresholds() {
+  if (thresholds.size == 0) {
+    thresholds.set("some", 0.0);
+    thresholds.set("all", 1.0);
+  }
+}
+
+export func()->void inView(
+  JsValue elementOrSelector,
+  JsValue onStart,
+  JsValue? options = null
+) {
+  initThresholds();
+  JsValue[] elements = resolveElements(elementOrSelector);
+  JsValue activeIntersections = weakMapCreate();
+
+  JsValue root = null;
+  string? rootMargin = null;
+  JsValue amount = "some";
+  if (options != null && options.isObject()) {
+    root = options["root"];
+    JsValue margin = options["margin"];
+    if (margin is string) {
+      rootMargin = margin;
+    }
+    JsValue amountVal = options["amount"];
+    if (amountVal.truthy() || (amountVal is float) || (amountVal is string)) {
+      amount = amountVal;
+    }
+  }
+
+  float threshold = 0.0;
+  if (amount is float) {
+    threshold = amount;
+  } else if (amount is string) {
+    float? named = thresholds.get(amount);
+    if (named != null) {
+      threshold = named;
+    }
+  }
+
+  JsValue observerOptions = record{};
+  observerOptions["root"] = root;
+  if (rootMargin != null) {
+    observerOptions["rootMargin"] = rootMargin;
+  }
+  observerOptions["threshold"] = threshold;
+
+  JsValue observerHolder = record{};
+
+  func(JsValue)->void onIntersectionChange = (JsValue entries) => {
+    JsValue observer = observerHolder["observer"];
+    if (!entries.isArray()) {
+      return;
+    }
+    int len = entries.length.toInt();
+    for (int i = 0; i < len; i++) {
+      JsValue entry = entries[i];
+      JsValue target = entry["target"];
+      JsValue? onEnd = weakMapGet(activeIntersections, target);
+      bool isIntersecting = false;
+      JsValue intersecting = entry["isIntersecting"];
+      if (intersecting is bool) {
+        isIntersecting = intersecting;
+      }
+
+      bool hasOnEnd = onEnd != null;
+      if (isIntersecting == hasOnEnd) {
+        continue;
+      }
+
+      if (isIntersecting) {
+        JsValue newOnEnd = callFn2(onStart, target, entry);
+        if (isFunction(newOnEnd)) {
+          weakMapSet(activeIntersections, target, newOnEnd);
+        } else if (observer.truthy()) {
+          callMethod1(observer, "unobserve", target);
+        }
+      } else if (onEnd != null) {
+        callFn1(onEnd, entry);
+        weakMapDelete(activeIntersections, target);
+      }
+    }
+  };
+
+  JsValue observer = constructConfigured2(
+    windowGet("IntersectionObserver"),
+    onIntersectionChange,
+    observerOptions
+  );
+  observerHolder["observer"] = observer;
+
+  for (int i = 0; i < elements.length; i++) {
+    callMethod1(observer, "observe", elements[i]);
+  }
+
+  return () => {
+    callMethod0(observer, "disconnect");
+  };
+}

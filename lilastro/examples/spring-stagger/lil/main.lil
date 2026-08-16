@@ -1,0 +1,27 @@
+import { mix } from "../../../../benchmarks/popular/ports/motion/motion-dom/utils/mix/index";
+import { spring, SpringGenerator } from "../../../../benchmarks/popular/ports/motion/motion-dom/animation/generators/spring";
+import { stagger } from "../../../../benchmarks/popular/ports/motion/motion-dom/utils/stagger";
+
+func(int, int)->float delay = stagger(0.08, record{startDelay: 0.1, from: 0.0});
+float schedule = 0.0;
+float springDigest = 0.0;
+float blend = 0.0;
+
+for (int i = 0; i < 48; i++) {
+  schedule = schedule + delay(i, 48) * 1000.0;
+  blend = blend + mix(0.0, 1.0, i / 47.0);
+}
+
+SpringGenerator gen = spring(
+  record{
+    keyframes: [0.0, 1.0],
+    stiffness: 300.0,
+    damping: 20.0,
+    mass: 1.0
+  }
+);
+for (int t = 0; t <= 800; t = t + 10) {
+  springDigest = springDigest + (gen.next(t).value * 10000.0).round();
+}
+
+print(`spring-stagger:${schedule}:${blend}:${springDigest}`);

@@ -1,0 +1,37 @@
+int measure(int seed) {
+    int[] prefix = [seed, seed + 1];
+    int[] values = [];
+    for (int index = 0; index < prefix.length; index++) {
+        values.push(prefix[index]);
+    }
+    values.push(seed + 2);
+    values.push(seed + 3);
+    int first = values[0];
+    int second = values[1];
+    int[] tail = values.slice(2);
+    int total = first + second;
+    for (int index = 0; index < tail.length; index++) {
+        total += tail[index];
+    }
+
+    Record<int> base = record{a: seed, b: seed + 1, c: seed + 2, d: seed + 3};
+    Record<int> merged = record{};
+    Object.assign(merged, base);
+    merged.b = seed + 4;
+    merged.e = seed + 5;
+    int a = merged.a ?? 0;
+    int b = merged.b ?? 0;
+    Record<int> remaining = record{
+        c: merged.c ?? 0,
+        d: merged.d ?? 0,
+        e: merged.e ?? 0,
+    };
+    return total + a + b + (remaining.c ?? 0) +
+        (remaining.d ?? 0) + (remaining.e ?? 0);
+}
+
+int total = 0;
+for (int i = 0; i < 4000; i++) {
+    total += measure(i % 97);
+}
+print(total);

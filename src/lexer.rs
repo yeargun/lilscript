@@ -11,6 +11,8 @@ pub enum TokenKind<'src> {
     Int,
     #[token("float")]
     Float,
+    #[token("number")]
+    Number,
     #[token("string")]
     String,
     #[token("bool")]
@@ -23,8 +25,16 @@ pub enum TokenKind<'src> {
     Func,
     #[token("struct")]
     Struct,
+    #[token("record")]
+    Record,
+    #[token("enum")]
+    Enum,
     #[token("class")]
     Class,
+    #[token("extends")]
+    Extends,
+    #[token("super")]
+    Super,
     #[token("return")]
     Return,
     #[token("init")]
@@ -39,6 +49,8 @@ pub enum TokenKind<'src> {
     For,
     #[token("in")]
     In,
+    #[token("of")]
+    Of,
     #[token("break")]
     Break,
     #[token("continue")]
@@ -65,6 +77,24 @@ pub enum TokenKind<'src> {
     New,
     #[token("is")]
     Is,
+    #[token("match")]
+    Match,
+    #[token("async")]
+    Async,
+    #[token("generator")]
+    Generator,
+    #[token("yield")]
+    Yield,
+    #[token("await")]
+    Await,
+    #[token("throw")]
+    Throw,
+    #[token("try")]
+    Try,
+    #[token("catch")]
+    Catch,
+    #[token("finally")]
+    Finally,
 
     #[regex(r"[0-9]+\.[0-9]+([eE][+-]?[0-9]+)?", |lex| lex.slice().parse::<f64>().ok())]
     FloatLiteral(f64),
@@ -79,6 +109,8 @@ pub enum TokenKind<'src> {
 
     #[token("=>")]
     FatArrow,
+    #[token("...")]
+    Ellipsis,
     #[token("->")]
     ThinArrow,
     #[token("==")]
@@ -93,6 +125,12 @@ pub enum TokenKind<'src> {
     AndAnd,
     #[token("||")]
     OrOr,
+    #[token("??=")]
+    QuestionQuestionEq,
+    #[token("??")]
+    QuestionQuestion,
+    #[token("?.")]
+    QuestionDot,
     #[token("++")]
     PlusPlus,
     #[token("--")]

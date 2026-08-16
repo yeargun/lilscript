@@ -1,0 +1,24 @@
+import { statsBuffer } from "./buffer";
+import { LayoutProjectionMetrics, StatsRecording } from "./types";
+
+void clearStatsBuffer() {
+  statsBuffer.value = null;
+  statsBuffer.addProjectionMetrics = null;
+}
+
+export void recordStats() {
+  if (statsBuffer.value != null) {
+    clearStatsBuffer();
+    throw "Stats are already being measured";
+  }
+  StatsRecording recording = new StatsRecording();
+  statsBuffer.value = recording;
+  statsBuffer.addProjectionMetrics = (LayoutProjectionMetrics metrics) => {
+    StatsRecording? value = statsBuffer.value;
+    if (value != null) {
+      value.layoutProjection.nodes.push(metrics.nodes);
+      value.layoutProjection.calculatedTargetDeltas.push(metrics.calculatedTargetDeltas);
+      value.layoutProjection.calculatedProjections.push(metrics.calculatedProjections);
+    }
+  };
+}

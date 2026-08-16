@@ -1,0 +1,52 @@
+import { HSLA, RGBA } from "../types";
+
+float hueToRgb(float p, float q, float t) {
+  float tt = t;
+  if (tt < 0.0) {
+    tt = tt + 1.0;
+  }
+  if (tt > 1.0) {
+    tt = tt - 1.0;
+  }
+  if (tt < 1.0 / 6.0) {
+    return p + (q - p) * 6.0 * tt;
+  }
+  if (tt < 1.0 / 2.0) {
+    return q;
+  }
+  if (tt < 2.0 / 3.0) {
+    return p + (q - p) * (2.0 / 3.0 - tt) * 6.0;
+  }
+  return p;
+}
+
+export RGBA hslaToRgba(HSLA color) {
+  float hue = color.hue / 360.0;
+  float saturation = color.saturation / 100.0;
+  float lightness = color.lightness / 100.0;
+  float red = 0.0;
+  float green = 0.0;
+  float blue = 0.0;
+  if (saturation == 0.0) {
+    red = lightness;
+    green = lightness;
+    blue = lightness;
+  } else {
+    float q = 0.0;
+    if (lightness < 0.5) {
+      q = lightness * (1.0 + saturation);
+    } else {
+      q = lightness + saturation - lightness * saturation;
+    }
+    float p = 2.0 * lightness - q;
+    red = hueToRgb(p, q, hue + 1.0 / 3.0);
+    green = hueToRgb(p, q, hue);
+    blue = hueToRgb(p, q, hue - 1.0 / 3.0);
+  }
+  return new RGBA(
+    (red * 255.0).round(),
+    (green * 255.0).round(),
+    (blue * 255.0).round(),
+    color.alpha
+  );
+}

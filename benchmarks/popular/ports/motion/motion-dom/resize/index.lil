@@ -1,0 +1,19 @@
+import { invoke1, invoke2, isFunction } from "../dom-host";
+import { resizeElement } from "./handle-element";
+import { resizeWindow } from "./handle-window";
+import { ResizeInfo } from "./types";
+
+export func()->void resize(JsValue a, JsValue? b = null) {
+  if (isFunction(a)) {
+    return resizeWindow((ResizeInfo info) => {
+      invoke1(a, info);
+    });
+  }
+  return resizeElement(a, (JsValue element, ResizeInfo info) => {
+    if (b != null) {
+      invoke2(b, element, info);
+    }
+  });
+}
+
+export { resizeElement, resizeWindow, ResizeInfo };

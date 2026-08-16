@@ -1,0 +1,59 @@
+import { setProp } from "../dom-host";
+import { NativeAnimation } from "./NativeAnimationMini";
+
+export class GroupAnimation {
+  NativeAnimation[] animations;
+
+  init(NativeAnimation[] input) {
+    this.animations = [];
+    for (int i = 0; i < input.length; i++) {
+      this.animations.push(input[i]);
+    }
+    GroupAnimation self = this;
+    setProp(this, "attachTimeline", (JsValue timeline) => {
+      return self.attachTimeline(timeline);
+    });
+    setProp(this, "pause", () => {
+      self.pause();
+    });
+    setProp(this, "play", () => {
+      self.play();
+    });
+    setProp(this, "stop", () => {
+      self.stop();
+    });
+  }
+
+  void pause() {
+    for (int i = 0; i < this.animations.length; i++) {
+      this.animations[i].pause();
+    }
+  }
+
+  void play() {
+    for (int i = 0; i < this.animations.length; i++) {
+      this.animations[i].play();
+    }
+  }
+
+  void stop() {
+    for (int i = 0; i < this.animations.length; i++) {
+      this.animations[i].stop();
+    }
+  }
+
+  func()->void attachTimeline(JsValue timeline) {
+    (func()->void)[] subscriptions = [];
+    for (int i = 0; i < this.animations.length; i++) {
+      func()->void cancel = this.animations[i].attachTimeline(timeline);
+      subscriptions.push(() => {
+        cancel();
+      });
+    }
+    return () => {
+      for (int i = 0; i < subscriptions.length; i++) {
+        subscriptions[i]();
+      }
+    };
+  }
+}

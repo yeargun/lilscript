@@ -1,0 +1,183 @@
+{
+  "metadata": {
+    "generatedAt": "2026-08-14T01:25:14.265Z",
+    "codec": "brotli",
+    "formula": "case-normalized percentage difference; negative values mean smaller",
+    "selection": "behavior-verified publishable rows only"
+  },
+  "overall": {
+    "count": 25,
+    "mean": -16.30616587797485,
+    "median": -8.275862068965523,
+    "wins": 23,
+    "ties": 2,
+    "losses": 0,
+    "candidateTotal": 59010,
+    "baselineTotal": 61326,
+    "aggregate": -3.7765384991683804
+  },
+  "smallScripts": {
+    "paired": {
+      "count": 6,
+      "mean": -12.554369495545968,
+      "median": -12.114845938375352,
+      "wins": 6,
+      "ties": 0,
+      "losses": 0,
+      "candidateTotal": 263,
+      "baselineTotal": 308,
+      "aggregate": -14.610389610389607
+    },
+    "compilerWorkloads": {
+      "count": 5,
+      "mean": -15.943642805365744,
+      "median": -11.979166666666663,
+      "wins": 5,
+      "ties": 0,
+      "losses": 0,
+      "candidateTotal": 1088,
+      "baselineTotal": 1303,
+      "aggregate": -16.500383729854185
+    }
+  },
+  "packages": {
+    "completePorts": {
+      "count": 6,
+      "mean": -40.416304340993314,
+      "median": -46.50860344137655,
+      "wins": 6,
+      "ties": 0,
+      "losses": 0,
+      "candidateTotal": 7468,
+      "baselineTotal": 8832,
+      "aggregate": -15.443840579710145
+    },
+    "exactEntrypoints": {
+      "count": 4,
+      "mean": -1.0865374135312384,
+      "median": -0.9560362875087214,
+      "wins": 2,
+      "ties": 2,
+      "losses": 0,
+      "candidateTotal": 15246,
+      "baselineTotal": 15532,
+      "aggregate": -1.8413597733711096
+    },
+    "exactRows": [
+      {
+        "id": "nanoid",
+        "candidate": 409,
+        "baseline": 409
+      },
+      {
+        "id": "mitt",
+        "candidate": 300,
+        "baseline": 300
+      },
+      {
+        "id": "clsx",
+        "candidate": 481,
+        "baseline": 493
+      },
+      {
+        "id": "gl-matrix",
+        "candidate": 14056,
+        "baseline": 14330
+      }
+    ]
+  },
+  "frameworkRuntime": {
+    "exactSurfaces": {
+      "count": 4,
+      "mean": -1.441435062295465,
+      "median": -1.3340914966455786,
+      "wins": 4,
+      "ties": 0,
+      "losses": 0,
+      "candidateTotal": 34945,
+      "baselineTotal": 35351,
+      "aggregate": -1.1484823625922846
+    },
+    "rows": [
+      {
+        "id": "core",
+        "candidate": 8372,
+        "baseline": 8551,
+        "status": "eligible"
+      },
+      {
+        "id": "store",
+        "candidate": 4171,
+        "baseline": 4286,
+        "status": "eligible"
+      },
+      {
+        "id": "web-client",
+        "candidate": 10814,
+        "baseline": 10859,
+        "status": "eligible"
+      },
+      {
+        "id": "web-full",
+        "candidate": 11588,
+        "baseline": 11655,
+        "status": "eligible"
+      }
+    ]
+  },
+  "apps": {
+    "marketplace": {
+      "candidate": {
+        "raw": 7957,
+        "gzip": 3132,
+        "brotli": 2665
+      },
+      "baseline": {
+        "raw": 8801,
+        "gzip": 3132,
+        "brotli": 2672
+      },
+      "source": "project1-marketplace/docs/BUNDLE_COMPARISON.md",
+      "evidenceStatus": "historical-noncanonical",
+      "includedInOverall": false
+    },
+    "solidLsx": {
+      "candidate": {
+        "id": "solidlil-lsx-vite",
+        "label": "SolidLil LSX parity fixture + Vite 8",
+        "raw": 34412,
+        "gzip": 12069,
+        "brotli": 10780,
+        "boundary": "closed-world client fixture with host ABI"
+      },
+      "baseline": {
+        "id": "solid-lsx-vite",
+        "label": "Official Solid JSX parity fixture + Vite 8",
+        "raw": 38629,
+        "gzip": 13905,
+        "brotli": 12560,
+        "boundary": "closed-world client fixture"
+      },
+      "status": "eligible"
+    },
+    "solid": {
+      "candidate": {
+        "id": "solidlil-lsx",
+        "label": "solidlil LSX todolist + Vite 8",
+        "raw": 10590,
+        "gzip": 4226,
+        "brotli": 3722
+      },
+      "baseline": {
+        "id": "solid-todolist",
+        "label": "Official Solid JSX todolist + Vite 8",
+        "raw": 15456,
+        "gzip": 6077,
+        "brotli": 5479
+      },
+      "timeRatio": 1.028459091727998,
+      "memoryRatio": 1.0471799621998914,
+      "status": "partial"
+    }
+  }
+}

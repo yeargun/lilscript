@@ -1,0 +1,16 @@
+import { resizeElement } from "../../../../benchmarks/popular/ports/motion/motion-dom/resize/handle-element-mini";
+import { ResizeInfo } from "../../../../benchmarks/popular/ports/motion/motion-dom/resize/types";
+import { documentQuerySelectorAll, setProp } from "../../../../benchmarks/popular/ports/motion/motion-dom/dom-host";
+
+void setStatus(string text) {
+  JsValue[] nodes = documentQuerySelectorAll("#status");
+  if (nodes.length > 0) {
+    setProp(nodes[0], "textContent", text);
+  }
+}
+
+resizeElement("#box", (JsValue _element, ResizeInfo info) => {
+  int w = info.width.toInt();
+  int h = info.height.toInt();
+  setStatus(`${w}x${h}`);
+});

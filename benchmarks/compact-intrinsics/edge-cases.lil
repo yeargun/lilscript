@@ -1,0 +1,22 @@
+auto nullable = [1, null, 2];
+print(nullable.join("-"));
+
+float nan = 0.0 / 0.0;
+float[] values = [nan];
+print(values.includes(nan));
+print(values.indexOf(nan));
+
+Uint8Array bytes = new Uint8Array(5);
+bytes[0] = 1;
+bytes[1] = 2;
+bytes[2] = 3;
+bytes[3] = 4;
+bytes[4] = 5;
+bytes.set(bytes.subarray(0, 3), 1);
+print(`${bytes[0]}:${bytes[1]}:${bytes[2]}:${bytes[3]}:${bytes[4]}`);
+
+string unicode = "a😀b😀";
+print(`${unicode.indexOf("😀")}:${unicode.indexOf("😀", 2)}:${unicode.lastIndexOf("😀")}`);
+print("ab".repeat(3));
+bytes.copyWithin(1, 0, 4);
+print(`${bytes[0]}:${bytes[1]}:${bytes[2]}:${bytes[3]}:${bytes[4]}`);

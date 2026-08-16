@@ -1,0 +1,8 @@
+extern string algorithmString(int index);
+import { decodePacket } from "./decoder";
+
+int runPacketDecoder() {
+  return decodePacket(algorithmString(0));
+}
+
+print(runPacketDecoder());

@@ -1,0 +1,26 @@
+import { animate } from "../../../../benchmarks/popular/ports/motion/framer-motion/animation/animate/element";
+import { animateMini } from "../../../../benchmarks/popular/ports/motion/framer-motion/animation/animators/waapi/animate-style";
+import { scroll } from "../../../../benchmarks/popular/ports/motion/framer-motion/render/dom/scroll/index";
+import { stagger } from "../../../../benchmarks/popular/ports/motion/motion-dom/utils/stagger";
+import {
+  documentCreateElement,
+  documentGet,
+  callMethod1
+} from "../../../../benchmarks/popular/ports/motion/motion-dom/dom-host";
+
+string keep = "animate|animateMini|scroll|stagger";
+func(int, int)->float delay = stagger(0.05, record{ startDelay: 0.0, from: 0.0 });
+float schedule = 0.0;
+for (int i = 0; i < 12; i++) {
+  schedule = schedule + delay(i, 12);
+}
+
+JsValue el = documentCreateElement("div");
+callMethod1(documentGet("body"), "append", el);
+JsValue anim = animate(el, record{ x: 100.0 }, record{ duration: 0.2 });
+JsValue mini = animateMini(el, record{ transform: "translateX(100px)" }, record{ duration: 0.2 });
+JsValue scrollOptions = record{ offset: ["start start", "end end"] };
+scroll(anim, scrollOptions);
+scroll(mini, scrollOptions);
+
+print(`animate-scroll:${keep}:${schedule}`);

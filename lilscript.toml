@@ -9,13 +9,16 @@ identical_function_folding = true
 priority = "size-first"
 optimization_level = 15
 cost_model = "brotli"
+# Language tests use `print` as the observable oracle.
+strip_console = false
 pool_numeric_literals = true
 candidate_search = "production"
 candidate_limit = 1536
 # Approximate aggregate bytes of whole-artifact candidates retained and scored.
 candidate_byte_budget = 1048576
 candidate_beam_width = 12
-# Never trade raw bytes for codec bytes unless a project explicitly opts in.
+# For gzip/Brotli, a transfer non-regression may be admitted despite raw growth;
+# this controls the fallback raw-side allowance against the configured baseline.
 max_candidate_raw_growth_percent = 0
 # Exact Held-Karp declaration ordering cutoff (0 = always use bounded heuristic, max 18).
 function_layout_exact_limit = 13
@@ -23,7 +26,8 @@ function_layout_exact_limit = 13
 local_name_reserve = 48
 stable_local_names = true
 # function_spelling = "arrow" # explicit public-ABI override; arrow | function
-# Omit this exact allowlist to use optimization_level.
+# Omit this exact allowlist to use `priority` compression defaults.
+# `optimization_level` separately controls the search-feature set.
 # optimizations = ["parsed-peephole", "startup-cost-guard"]
 compression = [
   "identifier-mangling",
@@ -35,7 +39,11 @@ compression = [
   "compact-boolean-literals",
   "standard-grammar-elision",
   "structured-closure-inlining",
+  "pure-helper-inlining",
+  "dense-string-return-tables",
+  "host-alias-spelling",
   "string-array-packing",
+  "callee-default-arguments",
   "scalar-phi-copies",
   "phi-affinity-coalescing",
   "ir-inlining-variants",

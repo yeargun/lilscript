@@ -1,0 +1,5 @@
+import {
+  arrayIndexOf
+} from "../js-host.lil";
+
+export func(JsValue, JsValue, float)->float indexOf = arrayIndexOf;

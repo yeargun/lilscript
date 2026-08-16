@@ -1,0 +1,9 @@
+export string chooseLayerType(string valueName) {
+  if (valueName == "layout") {
+    return "group";
+  }
+  if (valueName == "enter" || valueName == "new") {
+    return "new";
+  }
+  return "old";
+}

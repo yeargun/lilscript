@@ -1,0 +1,19 @@
+import { clamp } from "../clamp";
+
+export func(float)->float steps(int numSteps, string direction = "end") {
+  return (float progress) => {
+    if (direction == "end") {
+      progress = progress.min(0.999);
+    } else {
+      progress = progress.max(0.001);
+    }
+    float expanded = progress * numSteps;
+    float rounded = 0.0;
+    if (direction == "end") {
+      rounded = expanded.floor();
+    } else {
+      rounded = expanded.ceil();
+    }
+    return clamp(0.0, 1.0, rounded / numSteps);
+  };
+}

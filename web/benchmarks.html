@@ -1,11 +1,14 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Scoped LilScript compiler and Vite ecosystem bundle comparisons.">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Scoped LilScript compiler and Vite ecosystem bundle comparisons."
+    />
     <title>Benchmarks | LilScript</title>
-    <link rel="stylesheet" href="/src/styles.css">
+    <link rel="stylesheet" href="/src/styles.css" />
   </head>
   <body class="content-page">
     <header class="site-header">
@@ -13,7 +16,12 @@
         <span class="wordmark-mark" aria-hidden="true">L</span>
         <span>LilScript</span>
       </a>
-      <button class="nav-toggle icon-button" type="button" aria-label="Toggle navigation" aria-expanded="false">
+      <button
+        class="nav-toggle icon-button"
+        type="button"
+        aria-label="Toggle navigation"
+        aria-expanded="false"
+      >
         <i data-lucide="menu" aria-hidden="true"></i>
       </button>
       <nav class="site-nav" aria-label="Primary navigation">
@@ -28,186 +36,810 @@
     </header>
 
     <main class="comparison-main content-width">
-      <section class="comparison-intro">
-        <p class="eyebrow">Scoped evidence</p>
-        <h1>Comparable compilers, separate ecosystems</h1>
-        <p class="lead">Compiler tables use readable JavaScript and LilScript programs with the same app algorithm and abstraction scope. Closure receives the exact JavaScript reference. Real npm packages are built independently with Vite 8 and never enter compiler totals.</p>
-        <p class="comparison-note">Matching one stdout contract catches regressions for measured inputs; it does not prove complete semantic or library compatibility. Hand-specialized JavaScript is an optimization oracle, not source given to either compiler.</p>
-        <div class="hero-actions"><a class="primary-link" href="/explorer.html">Filter all benchmark rows<i data-lucide="arrow-right" aria-hidden="true"></i></a><a class="secondary-link" href="/roadmap.html">Progress and roadmap</a></div>
+      <section class="comparison-intro comparison-intro-simple">
+        <p class="eyebrow">The straight answer</p>
+        <h1>Where Lilscript wins—and where it mostly ties.</h1>
+        <p class="lead">
+          Small typed programs currently show clear size wins. Complete package
+          entrypoints are usually much closer. SolidLil’s exact Core, Store,
+          client Web, and full Web-compatibility distribution bundles pass their
+          Brotli objective. Raw and gzip remain visible diagnostics for those
+          Brotli-selected artifacts. Its historical LSX app stays outside the
+          verified aggregate. The accessible Lilastro marketplace is effectively
+          the same compressed size as Astro.
+        </p>
+        <div class="overall-verdict" data-overall-verdict aria-live="polite">
+          <strong>Calculating verified comparisons…</strong>
+        </div>
+        <nav class="comparison-jumps" aria-label="Comparison page sections">
+          <a href="#small-scripts">Small scripts</a
+          ><a href="#package-projects">Packages</a
+          ><a href="#framework-runtimes">Framework runtimes</a
+          ><a href="#ui-projects">UI projects</a
+          ><a href="#technical-evidence">Technical evidence</a>
+        </nav>
       </section>
 
-      <section class="benchmark-project" aria-labelledby="corpus-title">
-        <header>
-          <p class="eyebrow">Five-workload compiler corpus</p>
-          <h2 id="corpus-title">Comparable totals</h2>
-          <p data-corpus-summary>Loading generated benchmark summary.</p>
+      <section
+        class="scale-comparison"
+        id="framework-runtimes"
+        aria-labelledby="framework-runtimes-title"
+      >
+        <header class="scale-heading">
+          <div>
+            <p class="eyebrow">Exact framework browser entries</p>
+            <h2 id="framework-runtimes-title">
+              Parity and optimization are separate columns
+            </h2>
+          </div>
+          <p>
+            All four SolidLil rows preserve their declared public ABI and pass
+            differential behavior. Client Web excludes SSR and hydration; full
+            Web compatibility keeps all 73 browser exports as a separate row.
+            Every row passes the declared Brotli objective; raw and gzip are
+            reported as diagnostics for that Brotli-selected artifact.
+          </p>
         </header>
-        <div class="benchmark-table-wrap corpus-table" data-corpus-table></div>
+        <div class="scale-card-grid" data-framework-runtime-cards></div>
+        <div class="tradeoff-strip">
+          <strong>The gate</strong>
+          <p>
+            135/135 Core, Web, and Store exports and 469/469 unchanged upstream
+            tests.
+          </p>
+          <strong>The boundary</strong>
+          <p>
+            These are reusable open-world bundles. The separate closed-world
+            diagnostic verifies that every runtime export can be mangled when
+            the consumer graph is complete.
+          </p>
+        </div>
+        <a
+          class="secondary-link comparison-more-link"
+          href="/libraries.html?scope=exact&amp;libs=solidlil-core%2Csolidlil-store%2Csolidlil-web-client%2Csolidlil-web-full#compare"
+          >Select and compare the SolidLil surfaces<i
+            data-lucide="arrow-right"
+            aria-hidden="true"
+          ></i
+        ></a>
       </section>
 
-      <section class="benchmark-project" aria-labelledby="paired-title">
-        <header>
-          <p class="eyebrow">Mechanical source parity</p>
-          <h2 id="paired-title">Generated Closure gate</h2>
-          <p data-paired-method>Loading generated paired benchmark metadata.</p>
-          <p>Both readable sources come from the same typed integer expression and statement schema. The release gate fails when any LilScript row exceeds Closure ADVANCED under raw bytes, gzip-9, or Brotli-11.</p>
-        </header>
-        <div class="benchmark-table-wrap" data-paired-table></div>
+      <section class="comparison-overview" aria-labelledby="overview-title">
+        <div class="section-heading">
+          <p class="eyebrow">Across every publishable row</p>
+          <h2 id="overview-title">
+            A useful average, with the warning attached
+          </h2>
+          <p>
+            The overview normalizes each verified case against its fair control,
+            then averages the percentage differences. It is a directional
+            scorecard—not a promise that an arbitrary JavaScript app becomes
+            that much smaller.
+          </p>
+        </div>
+        <div class="overview-score-grid" data-overview-scores></div>
+        <p class="method-warning">
+          <strong>Selection warning:</strong> this includes only
+          behavior-verified rows whose scope is publishable. Unsupported and
+          partial package experiments are excluded rather than counted as wins.
+          Different categories use different fair controls, so the category
+          results below matter more than the single overall number.
+        </p>
       </section>
 
-      <section class="benchmark-project" aria-labelledby="finite-values-title">
-        <header>
-          <p class="eyebrow">Single-pass ablation</p>
-          <h2 id="finite-values-title">Interprocedural finite values</h2>
-          <p>Both artifacts disable inlining and scalar replacement and execute the same JavaScript/native contract. Only <code>finite_value_propagation</code> changes, isolating branch, field, and signature cleanup exposed by the bounded lattice.</p>
+      <section
+        class="scale-comparison"
+        id="small-scripts"
+        aria-labelledby="small-scripts-title"
+      >
+        <header class="scale-heading">
+          <div>
+            <p class="eyebrow">Small scripts and compiler kernels</p>
+            <h2 id="small-scripts-title">
+              Double-digit savings are common here
+            </h2>
+          </div>
+          <p>
+            These are the cleanest compiler comparisons: the algorithms and
+            outputs match, Closure receives the readable JavaScript control, and
+            Lilscript owns the typed whole-program input.
+          </p>
         </header>
-        <div class="benchmark-table-wrap">
-          <table><thead><tr><th>Variant</th><th>Raw</th><th>Gzip-9</th><th>Brotli-11</th></tr></thead><tbody><tr class="lilscript-row"><th>Finite values enabled</th><td>143</td><td>108</td><td>77</td></tr><tr><th>Finite values disabled</th><td>216</td><td>155</td><td>118</td></tr></tbody></table>
+        <div class="scale-card-grid" data-small-script-cards></div>
+        <div class="tradeoff-strip">
+          <strong>What this proves</strong>
+          <p>
+            Lilscript can erase typed abstractions and select compact output
+            better than Closure on these bounded cases.
+          </p>
+          <strong>What it does not prove</strong>
+          <p>
+            Six tiny scripts and five compiler workloads do not predict
+            framework overhead, network waterfalls, rendering speed, or
+            arbitrary npm compatibility.
+          </p>
         </div>
       </section>
 
-      <section class="benchmark-project" aria-labelledby="function-folding-title">
-        <header>
-          <p class="eyebrow">Whole-program ablation</p>
-          <h2 id="function-folding-title">Identical private functions</h2>
-          <p>Both builds disable inlining and execute to 95660. The enabled build folds one residual directly called private implementation after specialization settles; observable function identities are excluded.</p>
+      <section
+        class="scale-comparison"
+        id="package-projects"
+        aria-labelledby="package-projects-title"
+      >
+        <header class="scale-heading">
+          <div>
+            <p class="eyebrow">Complete package work</p>
+            <h2 id="package-projects-title">
+              The advantage shrinks as compatibility becomes stricter
+            </h2>
+          </div>
+          <p>
+            Two views matter: translated complete package surfaces show what
+            deeper language knowledge can remove; exact published ESM
+            entrypoints show the cost when the public JavaScript boundary must
+            remain intact.
+          </p>
         </header>
-        <div class="benchmark-table-wrap">
-          <table><thead><tr><th>Variant</th><th>Raw</th><th>Gzip-9</th><th>Brotli-11</th></tr></thead><tbody><tr class="lilscript-row"><th>Folding enabled</th><td>123</td><td>129</td><td>105</td></tr><tr><th>Folding disabled</th><td>177</td><td>139</td><td>111</td></tr></tbody></table>
+        <div class="scale-card-grid" data-package-cards></div>
+        <div class="tradeoff-strip">
+          <strong>The win</strong>
+          <p>
+            Complete selected ports are smaller without exceeding the lab’s 5%
+            material runtime or retained-memory gate.
+          </p>
+          <strong>The tradeoff</strong>
+          <p>
+            Only four of ten audited popular root entrypoints currently qualify
+            as exact. Partial Preact, Solid, Immer, Redux Toolkit, Zod, and
+            Acorn work is not counted as compatibility.
+          </p>
         </div>
+        <a class="secondary-link comparison-more-link" href="/libraries.html"
+          >Open the package-by-package evidence<i
+            data-lucide="arrow-right"
+            aria-hidden="true"
+          ></i
+        ></a>
       </section>
 
-      <section class="benchmark-project" aria-labelledby="function-subsumption-title">
-        <header>
-          <p class="eyebrow">Proof-driven IR ablation</p>
-          <h2 id="function-subsumption-title">Private implementation sharing</h2>
-          <p>Specialized private functions are redirected to existing broader scalar and higher-order implementations only after typed bindings make their normalized SSA/CFG exactly equal. Both builds execute to 3940336; observable function identities remain excluded.</p>
+      <section
+        class="scale-comparison"
+        id="ui-projects"
+        aria-labelledby="ui-projects-title"
+      >
+        <header class="scale-heading">
+          <div>
+            <p class="eyebrow">Larger UI projects</p>
+            <h2 id="ui-projects-title">
+              The two real apps tell different stories
+            </h2>
+          </div>
+          <p>
+            A large percentage is only meaningful beside its compatibility
+            boundary. A tiny percentage can still be valuable when both sides
+            implement the same complete experience.
+          </p>
         </header>
-        <div class="benchmark-table-wrap">
-          <table><thead><tr><th>Variant</th><th>Raw</th><th>Gzip-9</th><th>Brotli-11</th></tr></thead><tbody><tr class="lilscript-row"><th>Subsumption enabled</th><td>351</td><td>201</td><td>172</td></tr><tr><th>Subsumption disabled</th><td>445</td><td>217</td><td>179</td></tr></tbody></table>
-        </div>
+        <div class="app-comparison-grid" data-app-comparisons></div>
+        <p class="comparison-note">
+          Lastro is the application experiment represented by Parcel Market; it
+          uses the Lilastro result and is not counted as a second bundle win.
+          Neither UI project currently supplies a browser-rendering performance
+          comparison.
+        </p>
       </section>
 
-      <section class="benchmark-project" aria-labelledby="function-layout-title">
-        <header>
-          <p class="eyebrow">Codec-layout ablation</p>
-          <h2 id="function-layout-title">Declaration clustering</h2>
-          <p>Dynamic programming proposes an order for four interleaved function families. Source order remains a complete-artifact candidate, both builds execute to -1393288640, and raw bytes remain unchanged.</p>
-        </header>
-        <div class="benchmark-table-wrap">
-          <table><thead><tr><th>Variant</th><th>Raw</th><th>Gzip-9</th><th>Brotli-11</th></tr></thead><tbody><tr class="lilscript-row"><th>Layout search enabled</th><td>1,133</td><td>454</td><td>362</td></tr><tr><th>Source order</th><td>1,133</td><td>460</td><td>369</td></tr></tbody></table>
-        </div>
+      <section
+        class="detailed-evidence-intro"
+        id="technical-evidence"
+        aria-labelledby="technical-title"
+      >
+        <p class="eyebrow">Reproducible detail</p>
+        <h2 id="technical-title">Open the evidence you need</h2>
+        <p>
+          The tables, per-workload results, confidence gates, and optimizer
+          ablations remain below. They are collapsed so methodology does not
+          hide the answer.
+        </p>
       </section>
 
-      <section class="benchmark-project" aria-labelledby="profile-guided-title">
-        <header>
-          <p class="eyebrow">External-profile ablation</p>
-          <h2 id="profile-guided-title">Higher-order specialization</h2>
-          <p>Both builds disable ordinary inlining and execute the same 10,000-iteration callback contract. The enabled build uses a versioned hot-loop profile and bounded call-site specialization; the static build omits that pass.</p>
-        </header>
-        <div class="benchmark-table-wrap">
-          <table><thead><tr><th>Variant</th><th>Raw</th><th>Gzip-9</th><th>Brotli-11</th></tr></thead><tbody><tr class="lilscript-row"><th>Profile-guided specialization</th><td>107</td><td>104</td><td>77</td></tr><tr><th>Static higher-order call</th><td>111</td><td>107</td><td>80</td></tr></tbody></table>
-          <p>This isolated fixture wins four raw bytes and three bytes under both codecs. It demonstrates one bounded decision, not a universal PGO advantage.</p>
-        </div>
-      </section>
+      <details class="evidence-disclosure">
+        <summary>
+          <span>Five readable compiler workloads</span
+          ><small>Totals, codecs, runtime ratios, and per-compiler rows</small>
+        </summary>
+        <section class="benchmark-project" aria-labelledby="corpus-title">
+          <header>
+            <p class="eyebrow">Five-workload compiler corpus</p>
+            <h2 id="corpus-title">Comparable totals</h2>
+            <p data-corpus-summary>Loading generated benchmark summary.</p>
+          </header>
+          <div
+            class="benchmark-table-wrap corpus-table"
+            data-corpus-table
+          ></div>
+        </section>
+      </details>
 
-      <section class="benchmark-project" aria-labelledby="ir-variants-title">
-        <header>
-          <p class="eyebrow">Optimizer-IR ablation</p>
-          <h2 id="ir-variants-title">Codec-selected inlining</h2>
-          <p>Both artifacts execute the same JavaScript/native contract with identical final-emission search. The enabled build lets configured inlining compete with an outlined IR; Brotli retains the shared helper.</p>
-        </header>
-        <div class="benchmark-table-wrap">
-          <table><thead><tr><th>Variant</th><th>Raw</th><th>Gzip-9</th><th>Brotli-11</th></tr></thead><tbody><tr class="lilscript-row"><th>Inlining IR variants enabled</th><td>219</td><td>113</td><td>83</td></tr><tr><th>Inlining IR variants disabled</th><td>267</td><td>144</td><td>109</td></tr></tbody></table>
-        </div>
-      </section>
+      <details class="evidence-disclosure">
+        <summary>
+          <span>Six mechanically paired small scripts</span
+          ><small>Brotli gate and 400-sample browser confidence gate</small>
+        </summary>
+        <section class="benchmark-project" aria-labelledby="paired-title">
+          <header>
+            <p class="eyebrow">Mechanical source parity</p>
+            <h2 id="paired-title">Generated Closure gate</h2>
+            <p data-paired-method>
+              Loading generated paired benchmark metadata.
+            </p>
+            <p>
+              Both readable sources come from the same typed integer expression
+              and statement schema. This lane compiles a Brotli-target LilScript
+              artifact and gates its Brotli-11 size against Closure ADVANCED.
+              Raw and gzip-9 measurements of that same deploy artifact are
+              diagnostics, not additional objectives.
+            </p>
+          </header>
+          <div class="benchmark-table-wrap" data-paired-table></div>
+        </section>
+      </details>
 
-      <section class="benchmark-project" aria-labelledby="loop-spelling-title">
-        <header>
-          <p class="eyebrow">Emitter ablation</p>
-          <h2 id="loop-spelling-title">Codec-selected loop spelling</h2>
-          <p>An order-sensitive control-flow fixture executes to 137 in both builds. The broader do/update/structural search now reaches the same artifact with the legacy while/for dimension enabled or disabled, so this is a non-regression gate rather than a size-win claim. The complete MurmurHash port is also byte-identical.</p>
-        </header>
-        <div class="benchmark-table-wrap">
-          <table><thead><tr><th>Variant</th><th>Raw</th><th>Gzip-9</th><th>Brotli-11</th></tr></thead><tbody><tr class="lilscript-row"><th>Codec-selected spelling</th><td>527</td><td>243</td><td>178</td></tr><tr><th>Frequency heuristic</th><td>527</td><td>243</td><td>178</td></tr></tbody></table>
-        </div>
-      </section>
+      <details class="evidence-disclosure">
+        <summary>
+          <span>Optimizer ablations</span
+          ><small>Isolated pass wins, ties, and codec tradeoffs</small>
+        </summary>
+        <section
+          class="benchmark-project"
+          aria-labelledby="finite-values-title"
+        >
+          <header>
+            <p class="eyebrow">Single-pass ablation</p>
+            <h2 id="finite-values-title">Interprocedural finite values</h2>
+            <p>
+              Both artifacts disable inlining and scalar replacement and execute
+              the same JavaScript/native contract. Only
+              <code>finite_value_propagation</code> changes, isolating branch,
+              field, and signature cleanup exposed by the bounded lattice.
+            </p>
+          </header>
+          <div class="benchmark-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Variant</th>
+                  <th>Brotli-11 · primary</th>
+                  <th>Gzip-9</th>
+                  <th>Raw</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="lilscript-row">
+                  <th>Finite values enabled</th>
+                  <td>77</td>
+                  <td>108</td>
+                  <td>143</td>
+                </tr>
+                <tr>
+                  <th>Finite values disabled</th>
+                  <td>118</td>
+                  <td>155</td>
+                  <td>216</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
 
-      <section class="benchmark-project" aria-labelledby="closure-factory-title">
-        <header>
-          <p class="eyebrow">Partial-inlining ablation</p>
-          <h2 id="closure-factory-title">Reusable closure factories</h2>
-          <p>Twelve capture signatures execute through JavaScript, C, and native outputs. The enabled build adds a factory-preserving IR while retaining both configured and fully outlined optimizer baselines.</p>
-        </header>
-        <div class="benchmark-table-wrap">
-          <table><thead><tr><th>Variant</th><th>Raw</th><th>Gzip-9</th><th>Brotli-11</th></tr></thead><tbody><tr class="lilscript-row"><th>Factory IR variants enabled</th><td>648</td><td>255</td><td>176</td></tr><tr><th>Factory IR variants disabled</th><td>677</td><td>244</td><td>177</td></tr></tbody></table>
-          <p>The default objective is Brotli-11: factory preservation wins raw and Brotli while spending 11 gzip bytes. Gzip-targeted builds score the fully outlined IR independently.</p>
-        </div>
-      </section>
+        <section
+          class="benchmark-project"
+          aria-labelledby="function-folding-title"
+        >
+          <header>
+            <p class="eyebrow">Whole-program ablation</p>
+            <h2 id="function-folding-title">Identical private functions</h2>
+            <p>
+              Both builds disable inlining and execute to 95660. The enabled
+              build folds one residual directly called private implementation
+              after specialization settles; observable function identities are
+              excluded.
+            </p>
+          </header>
+          <div class="benchmark-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Variant</th>
+                  <th>Brotli-11 · primary</th>
+                  <th>Gzip-9</th>
+                  <th>Raw</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="lilscript-row">
+                  <th>Folding enabled</th>
+                  <td>105</td>
+                  <td>129</td>
+                  <td>123</td>
+                </tr>
+                <tr>
+                  <th>Folding disabled</th>
+                  <td>111</td>
+                  <td>139</td>
+                  <td>177</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
 
-      <section class="benchmark-project" aria-labelledby="mutation-spelling-title">
-        <header>
-          <p class="eyebrow">SSA emitter ablation</p>
-          <h2 id="mutation-spelling-title">Range-proven increments</h2>
-          <p>The complete Levenshtein port executes in both builds. Prefix and postfix forms compete only for one-use loop-carried adds whose range proves signed-i32 normalization unnecessary.</p>
-        </header>
-        <div class="benchmark-table-wrap">
-          <table><thead><tr><th>Variant</th><th>Raw</th><th>Gzip-9</th><th>Brotli-11</th></tr></thead><tbody><tr class="lilscript-row"><th>Mutation spelling selected</th><td>1582</td><td>900</td><td>777</td></tr><tr><th>Assignment spelling only</th><td>1583</td><td>899</td><td>780</td></tr></tbody></table>
-          <p>The default Brotli objective wins one raw byte and three Brotli bytes while spending one gzip byte. Assignment spelling remains available when gzip is selected.</p>
-        </div>
-      </section>
+        <section
+          class="benchmark-project"
+          aria-labelledby="function-subsumption-title"
+        >
+          <header>
+            <p class="eyebrow">Proof-driven IR ablation</p>
+            <h2 id="function-subsumption-title">
+              Private implementation sharing
+            </h2>
+            <p>
+              Specialized private functions are redirected to existing broader
+              scalar and higher-order implementations only after typed bindings
+              make their normalized SSA/CFG exactly equal. Both builds execute
+              to 3940336; observable function identities remain excluded.
+            </p>
+          </header>
+          <div class="benchmark-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Variant</th>
+                  <th>Brotli-11 · primary</th>
+                  <th>Gzip-9</th>
+                  <th>Raw</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="lilscript-row">
+                  <th>Subsumption enabled</th>
+                  <td>172</td>
+                  <td>201</td>
+                  <td>351</td>
+                </tr>
+                <tr>
+                  <th>Subsumption disabled</th>
+                  <td>179</td>
+                  <td>217</td>
+                  <td>445</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
 
-      <section class="benchmark-project library-lab-callout" aria-labelledby="library-lab-title">
+        <section
+          class="benchmark-project"
+          aria-labelledby="function-layout-title"
+        >
+          <header>
+            <p class="eyebrow">Codec-layout ablation</p>
+            <h2 id="function-layout-title">Declaration clustering</h2>
+            <p>
+              Dynamic programming proposes an order for four interleaved
+              function families. Source order remains a complete-artifact
+              candidate, both builds execute to -1393288640, and raw bytes
+              remain unchanged.
+            </p>
+          </header>
+          <div class="benchmark-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Variant</th>
+                  <th>Brotli-11 · primary</th>
+                  <th>Gzip-9</th>
+                  <th>Raw</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="lilscript-row">
+                  <th>Layout search enabled</th>
+                  <td>362</td>
+                  <td>454</td>
+                  <td>1,133</td>
+                </tr>
+                <tr>
+                  <th>Source order</th>
+                  <td>369</td>
+                  <td>460</td>
+                  <td>1,133</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section
+          class="benchmark-project"
+          aria-labelledby="profile-guided-title"
+        >
+          <header>
+            <p class="eyebrow">External-profile ablation</p>
+            <h2 id="profile-guided-title">Higher-order specialization</h2>
+            <p>
+              Both builds disable ordinary inlining and execute the same
+              10,000-iteration callback contract. The enabled build uses a
+              versioned hot-loop profile and bounded call-site specialization;
+              the static build omits that pass.
+            </p>
+          </header>
+          <div class="benchmark-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Variant</th>
+                  <th>Brotli-11 · primary</th>
+                  <th>Gzip-9</th>
+                  <th>Raw</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="lilscript-row">
+                  <th>Profile-guided specialization</th>
+                  <td>77</td>
+                  <td>104</td>
+                  <td>107</td>
+                </tr>
+                <tr>
+                  <th>Static higher-order call</th>
+                  <td>80</td>
+                  <td>107</td>
+                  <td>111</td>
+                </tr>
+              </tbody>
+            </table>
+            <p>
+              This isolated fixture wins four raw bytes and three bytes under
+              both codecs. It demonstrates one bounded decision, not a universal
+              PGO advantage.
+            </p>
+          </div>
+        </section>
+
+        <section class="benchmark-project" aria-labelledby="ir-variants-title">
+          <header>
+            <p class="eyebrow">Optimizer-IR ablation</p>
+            <h2 id="ir-variants-title">Codec-selected inlining</h2>
+            <p>
+              Both artifacts execute the same JavaScript/native contract with
+              identical final-emission search. The enabled build lets configured
+              inlining compete with an outlined IR; Brotli retains the shared
+              helper.
+            </p>
+          </header>
+          <div class="benchmark-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Variant</th>
+                  <th>Brotli-11 · primary</th>
+                  <th>Gzip-9</th>
+                  <th>Raw</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="lilscript-row">
+                  <th>Inlining IR variants enabled</th>
+                  <td>83</td>
+                  <td>113</td>
+                  <td>219</td>
+                </tr>
+                <tr>
+                  <th>Inlining IR variants disabled</th>
+                  <td>109</td>
+                  <td>144</td>
+                  <td>267</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section
+          class="benchmark-project"
+          aria-labelledby="loop-spelling-title"
+        >
+          <header>
+            <p class="eyebrow">Emitter ablation</p>
+            <h2 id="loop-spelling-title">Codec-selected loop spelling</h2>
+            <p>
+              An order-sensitive control-flow fixture executes to 137 in both
+              builds. The broader do/update/structural search now reaches the
+              same artifact with the legacy while/for dimension enabled or
+              disabled, so this is a non-regression gate rather than a size-win
+              claim. The complete MurmurHash port is also byte-identical.
+            </p>
+          </header>
+          <div class="benchmark-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Variant</th>
+                  <th>Brotli-11 · primary</th>
+                  <th>Gzip-9</th>
+                  <th>Raw</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="lilscript-row">
+                  <th>Codec-selected spelling</th>
+                  <td>178</td>
+                  <td>243</td>
+                  <td>527</td>
+                </tr>
+                <tr>
+                  <th>Frequency heuristic</th>
+                  <td>178</td>
+                  <td>243</td>
+                  <td>527</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section
+          class="benchmark-project"
+          aria-labelledby="closure-factory-title"
+        >
+          <header>
+            <p class="eyebrow">Partial-inlining ablation</p>
+            <h2 id="closure-factory-title">Reusable closure factories</h2>
+            <p>
+              Twelve capture signatures execute through JavaScript, C, and
+              native outputs. The enabled build adds a factory-preserving IR
+              while retaining both configured and fully outlined optimizer
+              baselines.
+            </p>
+          </header>
+          <div class="benchmark-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Variant</th>
+                  <th>Brotli-11 · primary</th>
+                  <th>Gzip-9</th>
+                  <th>Raw</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="lilscript-row">
+                  <th>Factory IR variants enabled</th>
+                  <td>176</td>
+                  <td>255</td>
+                  <td>648</td>
+                </tr>
+                <tr>
+                  <th>Factory IR variants disabled</th>
+                  <td>177</td>
+                  <td>244</td>
+                  <td>677</td>
+                </tr>
+              </tbody>
+            </table>
+            <p>
+              The default objective is Brotli-11: factory preservation wins raw
+              and Brotli while spending 11 gzip bytes. Gzip-targeted builds
+              score the fully outlined IR independently.
+            </p>
+          </div>
+        </section>
+
+        <section
+          class="benchmark-project"
+          aria-labelledby="mutation-spelling-title"
+        >
+          <header>
+            <p class="eyebrow">SSA emitter ablation</p>
+            <h2 id="mutation-spelling-title">Range-proven increments</h2>
+            <p>
+              The complete Levenshtein port executes in both builds. Prefix and
+              postfix forms compete only for one-use loop-carried adds whose
+              range proves signed-i32 normalization unnecessary.
+            </p>
+          </header>
+          <div class="benchmark-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Variant</th>
+                  <th>Brotli-11 · primary</th>
+                  <th>Gzip-9</th>
+                  <th>Raw</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="lilscript-row">
+                  <th>Mutation spelling selected</th>
+                  <td>777</td>
+                  <td>900</td>
+                  <td>1582</td>
+                </tr>
+                <tr>
+                  <th>Assignment spelling only</th>
+                  <td>780</td>
+                  <td>899</td>
+                  <td>1583</td>
+                </tr>
+              </tbody>
+            </table>
+            <p>
+              The default Brotli objective wins one raw byte and three Brotli
+              bytes while spending one gzip byte. Assignment spelling remains
+              available when gzip is selected.
+            </p>
+          </div>
+        </section>
+      </details>
+
+      <section
+        class="benchmark-project library-lab-callout"
+        aria-labelledby="library-lab-title"
+      >
         <header>
           <p class="eyebrow">Complete npm ports</p>
           <h2 id="library-lab-title">Library compatibility lab</h2>
-          <p>Six version-pinned apps covering Motion easing, clamp, lerp, string hashing, edit distance, and MurmurHash run translated upstream assertions, dense differential tests, Vite and Closure builds, and LilScript JavaScript/C/native outputs.</p>
-          <a class="primary-link" href="/libraries.html">Open library results<i data-lucide="arrow-right" aria-hidden="true"></i></a>
+          <p>
+            Six version-pinned apps covering Motion easing, clamp, lerp, string
+            hashing, edit distance, and MurmurHash run translated upstream
+            assertions, dense differential tests, Vite and Closure builds, and
+            LilScript JavaScript/C/native outputs.
+          </p>
+          <a class="primary-link" href="/libraries.html"
+            >Open library results<i
+              data-lucide="arrow-right"
+              aria-hidden="true"
+            ></i
+          ></a>
         </header>
       </section>
 
-      <section class="benchmark-project" id="reactive-store">
-        <header><p class="eyebrow">Typed signal graph</p><h2>Reactive store</h2><p>The compiler comparison uses equivalent signal classes. A real Alien Signals application appears only in the separate Vite context.</p><code class="benchmark-contract">reactive:1890621774:408</code></header>
-        <div class="benchmark-table-wrap" data-compiler-table="reactive-store"></div>
-        <div data-ecosystem="reactive-store"></div>
-      </section>
+      <details class="evidence-disclosure">
+        <summary>
+          <span>Per-workload compiler tables</span
+          ><small
+            >Reactive store, events, binary memory, modules, and motion
+            helpers</small
+          >
+        </summary>
+        <section class="benchmark-project" id="reactive-store">
+          <header>
+            <p class="eyebrow">Typed signal graph</p>
+            <h2>Reactive store</h2>
+            <p>
+              The compiler comparison uses equivalent signal classes. A real
+              Alien Signals application appears only in the separate Vite
+              context.
+            </p>
+            <code class="benchmark-contract">reactive:1890621774:408</code>
+          </header>
+          <div
+            class="benchmark-table-wrap"
+            data-compiler-table="reactive-store"
+          ></div>
+          <div data-ecosystem="reactive-store"></div>
+        </section>
 
-      <section class="benchmark-project" id="event-pipeline">
-        <header><p class="eyebrow">Typed event dispatcher</p><h2>Event pipeline</h2><p>The compiler comparison uses equivalent dispatchers. A real mitt application appears only in the separate Vite context.</p><code class="benchmark-contract">events:975625712:9718960</code></header>
-        <div class="benchmark-table-wrap" data-compiler-table="event-pipeline"></div>
-        <div data-ecosystem="event-pipeline"></div>
-      </section>
+        <section class="benchmark-project" id="event-pipeline">
+          <header>
+            <p class="eyebrow">Typed event dispatcher</p>
+            <h2>Event pipeline</h2>
+            <p>
+              The compiler comparison uses equivalent dispatchers. A real mitt
+              application appears only in the separate Vite context.
+            </p>
+            <code class="benchmark-contract">events:975625712:9718960</code>
+          </header>
+          <div
+            class="benchmark-table-wrap"
+            data-compiler-table="event-pipeline"
+          ></div>
+          <div data-ecosystem="event-pipeline"></div>
+        </section>
 
-      <section class="benchmark-project" id="binary-telemetry">
-        <header><p class="eyebrow">Binary memory</p><h2>Binary telemetry</h2><p>Equivalent ArrayBuffer, SharedArrayBuffer, Uint8Array, checksum, and signed-integer behavior without a dependency.</p><code class="benchmark-contract">binary:446359193:32</code></header>
-        <div class="benchmark-table-wrap" data-compiler-table="binary-telemetry"></div>
-      </section>
+        <section class="benchmark-project" id="binary-telemetry">
+          <header>
+            <p class="eyebrow">Binary memory</p>
+            <h2>Binary telemetry</h2>
+            <p>
+              Equivalent ArrayBuffer, SharedArrayBuffer, Uint8Array, checksum,
+              and signed-integer behavior without a dependency.
+            </p>
+            <code class="benchmark-contract">binary:446359193:32</code>
+          </header>
+          <div
+            class="benchmark-table-wrap"
+            data-compiler-table="binary-telemetry"
+          ></div>
+        </section>
 
-      <section class="benchmark-project" id="module-pricing">
-        <header><p class="eyebrow">Static modules</p><h2>Module pricing</h2><p>Equivalent side effects, imports, aggregates, unused exports, cross-file inlining, and dead-code elimination.</p><code class="benchmark-contract">module:init / modules:593759979:4940</code></header>
-        <div class="benchmark-table-wrap" data-compiler-table="module-pricing"></div>
-      </section>
+        <section class="benchmark-project" id="module-pricing">
+          <header>
+            <p class="eyebrow">Static modules</p>
+            <h2>Module pricing</h2>
+            <p>
+              Equivalent side effects, imports, aggregates, unused exports,
+              cross-file inlining, and dead-code elimination.
+            </p>
+            <code class="benchmark-contract"
+              >module:init / modules:593759979:4940</code
+            >
+          </header>
+          <div
+            class="benchmark-table-wrap"
+            data-compiler-table="module-pricing"
+          ></div>
+        </section>
 
-      <section class="benchmark-project" id="motion-values">
-        <header><p class="eyebrow">Animation compiler kernel</p><h2>Value mixing, wrapping, and staggering</h2><p>The comparable rows implement the same three-helper value algorithm. The specialized LilScript row diagnoses optimizer headroom. A separate Motion 13 Vite app also exercises its deterministic spring generator as context only.</p><code class="benchmark-contract">motion:14400000:28719240:880000</code></header>
-        <div class="benchmark-table-wrap" data-compiler-table="motion-values"></div>
-        <div data-ecosystem="motion-values"></div>
+        <section class="benchmark-project" id="motion-values">
+          <header>
+            <p class="eyebrow">Animation compiler kernel</p>
+            <h2>Value mixing, wrapping, and staggering</h2>
+            <p>
+              The comparable rows implement the same three-helper value
+              algorithm. The specialized LilScript row diagnoses optimizer
+              headroom. A separate Motion 13 Vite app also exercises its
+              deterministic spring generator as context only.
+            </p>
+            <code class="benchmark-contract"
+              >motion:14400000:28719240:880000</code
+            >
+          </header>
+          <div
+            class="benchmark-table-wrap"
+            data-compiler-table="motion-values"
+          ></div>
+          <div data-ecosystem="motion-values"></div>
+        </section>
+      </details>
+
+      <section class="comparison-method">
+        <p class="eyebrow">Compatibility status</p>
+        <h2>Motion 13 is a candidate surface, not a full port</h2>
+        <p>
+          The current npm package exposes 312 root exports and spans
+          approximately 64,000 source lines across Motion, Motion Utils, Motion
+          DOM, and Framer Motion. The monorepo now contains open/closed-world
+          Motion JS/DOM work and openable paired fixtures, while React/Vue
+          entrypoints and the full published root contract remain outside the
+          claim. The independently published two-export
+          <code>@motionone/easing</code> package has a separate complete
+          measured port.
+        </p>
+        <p>
+          The versioned scope, missing language/platform facilities, port
+          sequence, and no-false-claim gates are documented in
+          <code>docs/motion-compatibility.md</code>.
+        </p>
       </section>
 
       <section class="comparison-method">
-        <p class="eyebrow">Compatibility status</p><h2>Motion 13 is not implemented yet</h2>
-        <p>The current npm package exposes 312 root exports and spans approximately 64,000 source lines across Motion, Motion Utils, Motion DOM, and Framer Motion. The independently published two-export <code>@motionone/easing</code> package now has a complete measured port, but that does not imply compatibility with the current Motion DOM engine.</p>
-        <p>The versioned scope, missing language/platform facilities, port sequence, and no-false-claim gates are documented in <code>docs/motion-compatibility.md</code>.</p>
-      </section>
-
-      <section class="comparison-method">
-        <p class="eyebrow">Method</p><h2>Generated from checked evidence</h2>
+        <p class="eyebrow">Method</p>
+        <h2>Generated from checked evidence</h2>
         <p data-benchmark-method>Loading benchmark metadata.</p>
-        <p>All displayed measurements come from <code>benchmarks/apps/RESULTS.md</code> through checked-in generated data. The harness runs methodology tests after behavior verification.</p>
+        <p>
+          All displayed measurements come from
+          <code>benchmarks/apps/RESULTS.md</code> through checked-in generated
+          data. The harness runs methodology tests after behavior verification.
+        </p>
       </section>
     </main>
 
-    <footer class="site-footer content-width"><span>LilScript benchmark lab</span><a href="/docs.html#verification">Verification method</a></footer>
+    <footer class="site-footer content-width">
+      <span>LilScript benchmark lab</span
+      ><a href="/docs.html#verification">Verification method</a>
+    </footer>
     <script type="module" src="/src/benchmarks.js"></script>
   </body>
 </html>

@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "large-event-analytics",
+  "title": "Large six-module event analytics graph",
+  "hypothesis": "A six-module pipeline forces global choices across helper reuse, export reachability, private aggregate layout, property and identifier mangling, string dictionaries, branch recovery, and declaration order. Every module contributes to the runtime result, while one meaningful diagnostic export remains unreachable from the closed script entry.",
+  "tier": "large-structural",
+  "boundary": "runtime-host-script",
+  "structure": { "functions": 22, "modules": 6, "hostBoundaries": 3, "callDepth": 7 },
+  "opportunities": ["module-tree-shaking", "export-reachability", "cross-module-inlining", "helper-sharing", "aggregate-layout", "property-mangling", "safe-property-mangling", "identifier-mangling", "dictionary-repetition", "string-pooling", "declaration-order", "control-flow-structuring"],
+  "expectations": { "raw": "le", "gzip9": "le", "brotli11": "le" },
+  "vectors": [
+    { "name": "mixed", "ints": [12, -45, 190, 7, 520, -33], "strings": ["render", "cache:item:hot", "view:home:cold", "commit", "data:user:idle", "hydrate"], "expected": "analytics-wide\n1585158164\n" },
+    { "name": "wide", "ints": [-500, 1, 499, -2, 301, 25, -140, 700], "strings": ["cache:a:cold", "invalidate", "data:b:hot", "render", "view:c:idle", "unknown", "commit", "hydrate"], "expected": "analytics-wide\n1460091341\n" },
+    { "name": "compact", "ints": [3, 5, 8, 13], "strings": ["render", "hydrate", "commit", "invalidate"], "expected": "analytics-compact\n20927257\n" },
+    { "name": "signed-i32-min", "ints": [-2147483648], "strings": ["unknown"], "expected": "analytics-negative\n8436\n" },
+    { "name": "batch", "ints": [0, 0, 0, 0, 0, 0], "strings": ["unknown", "unknown", "unknown", "unknown", "unknown", "unknown"], "expected": "analytics-batch\n-2081416341\n" }
+  ]
+}

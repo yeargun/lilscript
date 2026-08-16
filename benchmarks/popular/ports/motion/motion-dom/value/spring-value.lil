@@ -1,0 +1,24 @@
+import { FollowValueOptions, attachFollow, followValue } from "./follow-value";
+import { MotionValue } from "./index";
+
+export MotionValue springValue(JsValue source, FollowValueOptions? options = null) {
+  FollowValueOptions opts = new FollowValueOptions();
+  if (options != null) {
+    opts = options;
+  }
+  opts.type = "spring";
+  return followValue(source, opts);
+}
+
+export func()->void attachSpring(
+  MotionValue value,
+  JsValue source,
+  FollowValueOptions? options = null
+) {
+  FollowValueOptions opts = new FollowValueOptions();
+  if (options != null) {
+    opts = options;
+  }
+  opts.type = "spring";
+  return attachFollow(value, source, opts);
+}

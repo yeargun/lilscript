@@ -1,0 +1,43 @@
+import { isMotionValue } from "../../../value/utils/is-motion-value";
+import { isForcedMotionValue } from "../../utils/is-forced-motion-value";
+
+export JsValue scrapeMotionValuesFromProps(
+  JsValue props,
+  JsValue? prevProps = null,
+  JsValue? visualElement = null
+) {
+  JsValue newValues = record{};
+  JsValue styleCandidate = props["style"];
+  if (!styleCandidate.isObject()) {
+    return newValues;
+  }
+  JsValue styleVal = styleCandidate;
+
+  JsValue? prevStyle = null;
+  if (prevProps != null) {
+    prevStyle = prevProps["style"];
+  }
+
+  for (string key in styleVal) {
+    JsValue next = styleVal[key];
+    bool include = isMotionValue(next);
+    if (!include && prevStyle != null && prevStyle.isObject()) {
+      include = isMotionValue(prevStyle[key]);
+    }
+    if (!include) {
+      include = isForcedMotionValue(key, props);
+    }
+    if (!include && visualElement != null) {
+      JsValue getValue = visualElement["getValue"];
+      // liveStyle check requires calling getValue - use optional dynamic path
+      if (getValue.truthy()) {
+        include = true;
+      }
+    }
+    if (include) {
+      newValues[key] = next;
+    }
+  }
+
+  return newValues;
+}

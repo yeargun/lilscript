@@ -1,0 +1,3 @@
+export JsValue[] eachAxis(func(string)->JsValue callback) {
+  return [callback("x"), callback("y")];
+}

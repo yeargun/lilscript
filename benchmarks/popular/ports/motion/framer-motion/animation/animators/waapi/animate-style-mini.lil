@@ -1,0 +1,16 @@
+import { GroupAnimationWithThen } from "../../../../motion-dom/animation/GroupAnimationWithThenMini";
+import { AnimationScope } from "../../../../motion-dom/utils/resolve-elements-mini";
+import { animateElements } from "./animate-elements-mini";
+
+export func(JsValue, JsValue, JsValue?)->GroupAnimationWithThen createScopedWaapiAnimate(
+  AnimationScope? scope = null
+) {
+  return (JsValue elementOrSelector, JsValue keyframes, JsValue? options = null) => {
+    return new GroupAnimationWithThen(
+      animateElements(elementOrSelector, keyframes, options, scope)
+    );
+  };
+}
+
+export func(JsValue, JsValue, JsValue?)->GroupAnimationWithThen animateMini =
+  createScopedWaapiAnimate();
