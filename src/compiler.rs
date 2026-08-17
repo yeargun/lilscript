@@ -3266,25 +3266,10 @@ fn select_javascript_candidate_global(
             }]
         },
     )?;
-    let finalists = top_candidate_options(
-        &mut candidates,
-        candidate_beam_width,
-        config.javascript.cost_model,
-    )?;
-    extend_javascript_candidate_beam(
-        ir,
-        module_output,
-        beam_policy,
-        &integer_analysis,
-        &mut candidates,
-        finalists,
-        |options| {
-            [crate::codegen_ir_js::IrJsOptions {
-                bare_window_root: !options.bare_window_root,
-                ..options
-            }]
-        },
-    )?;
+    // `bare_window_root` is never explored as a candidate: spelling the root
+    // as bare `window` changes observable behavior on runtimes without a
+    // `window` global (Node, workers), and emitted programs must run wherever
+    // JavaScript runs.
     let finalists = top_candidate_options(
         &mut candidates,
         candidate_beam_width,
@@ -6205,8 +6190,7 @@ fn search_identifier_alphabet_groups_by<Error>(
         .collect()
 }
 
-const ONE_BYTE_IDENTIFIER_STARTS: &[u8] =
-    b"etnrisouacldhpfmgybvwkxzjqETNRISOUACLDHPFMGYBVWKXZJQ_$";
+const ONE_BYTE_IDENTIFIER_STARTS: &[u8] = b"etnrisouacldhpfmgybvwkxzjqETNRISOUACLDHPFMGYBVWKXZJQ_$";
 const UNUSED_LETTER_REMAP_PASSES: usize = 8;
 
 fn unused_letter_remap_pair_budget(code_len: usize) -> usize {
@@ -6237,9 +6221,7 @@ fn apply_unused_letter_binding_remaps(
         code = next;
         transfer_cost = cost;
     }
-    if let Some((next, cost)) =
-        best_short_binding_remaps(&code, config.javascript.cost_model)?
-    {
+    if let Some((next, cost)) = best_short_binding_remaps(&code, config.javascript.cost_model)? {
         code = next;
         transfer_cost = cost;
     }
@@ -6271,9 +6253,8 @@ fn apply_late_javascript_cleanup(
     if cleaned == selected.code {
         return Ok(selected);
     }
-    let cost = compressed_size(cleaned.as_bytes(), config.javascript.cost_model).map_err(
-        |message| crate::codegen_js::CodegenError::new(Span::empty(0), message),
-    )?;
+    let cost = compressed_size(cleaned.as_bytes(), config.javascript.cost_model)
+        .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
     if cost > selected.transfer_cost
         || (cost == selected.transfer_cost && cleaned.len() >= selected.code.len())
     {
@@ -6300,12 +6281,12 @@ fn best_short_binding_remaps(
     model: CompressionCostModel,
 ) -> Result<Option<(String, usize)>, CompileError> {
     let mut current = code.to_string();
-    let mut current_cost = compressed_size(current.as_bytes(), model).map_err(|message| {
-        crate::codegen_js::CodegenError::new(Span::empty(0), message)
-    })?;
+    let mut current_cost = compressed_size(current.as_bytes(), model)
+        .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
     let mut improved = false;
     for _ in 0..UNUSED_LETTER_REMAP_PASSES {
-        let Some((next, cost)) = best_one_short_binding_remap(&current, model, current_cost)? else {
+        let Some((next, cost)) = best_one_short_binding_remap(&current, model, current_cost)?
+        else {
             break;
         };
         current = next;
@@ -6330,18 +6311,13 @@ fn best_one_short_binding_remap(
     if unused.is_empty() {
         return Ok(None);
     }
-    let mut sources = two_character_identifier_use_counts(code)
-        .map_err(generated_javascript_parse_error)?;
+    let mut sources =
+        two_character_identifier_use_counts(code).map_err(generated_javascript_parse_error)?;
     sources.retain(|(name, _)| {
         !TWO_BYTE_RESERVED_BINDINGS.contains(&name.as_str())
             && identifier_name_is_clear_binding(code, name).unwrap_or(false)
     });
-    sources.sort_unstable_by(|left, right| {
-        right
-            .1
-            .cmp(&left.1)
-            .then_with(|| left.0.cmp(&right.0))
-    });
+    sources.sort_unstable_by(|left, right| right.1.cmp(&left.1).then_with(|| left.0.cmp(&right.0)));
     let budget = unused_letter_remap_pair_budget(code.len());
     let mut pairs = Vec::new();
     'pairs: for (source, _) in sources {
@@ -6369,9 +6345,8 @@ fn best_unused_letter_binding_remaps(
     model: CompressionCostModel,
 ) -> Result<Option<(String, usize)>, CompileError> {
     let mut current = code.to_string();
-    let mut current_cost = compressed_size(current.as_bytes(), model).map_err(|message| {
-        crate::codegen_js::CodegenError::new(Span::empty(0), message)
-    })?;
+    let mut current_cost = compressed_size(current.as_bytes(), model)
+        .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
     let mut improved = false;
     for _ in 0..UNUSED_LETTER_REMAP_PASSES {
         let Some((next, cost)) =
@@ -6407,9 +6382,7 @@ fn best_one_unused_letter_binding_remap(
         return Ok(None);
     }
     let mut sources = identifiers;
-    sources.retain(|byte| {
-        single_character_name_is_clear_binding(code, *byte).unwrap_or(false)
-    });
+    sources.retain(|byte| single_character_name_is_clear_binding(code, *byte).unwrap_or(false));
     sources.sort_unstable_by(|left, right| {
         counts[*right as usize]
             .cmp(&counts[*left as usize])
@@ -10530,7 +10503,8 @@ mod tests {
 
     #[test]
     fn short_binding_remap_can_collapse_a_two_character_local() {
-        let code = "var ge=[1,2,3,4,5,6,7,8,9];console.log(ge==ge),ge.reverse(),console.log(ge.join('-'))";
+        let code =
+            "var ge=[1,2,3,4,5,6,7,8,9];console.log(ge==ge),ge.reverse(),console.log(ge.join('-'))";
         let baseline = compressed_size(code.as_bytes(), CompressionCostModel::Brotli).unwrap();
         let remapped = best_short_binding_remaps(code, CompressionCostModel::Brotli)
             .unwrap()

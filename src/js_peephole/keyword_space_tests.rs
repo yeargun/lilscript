@@ -522,7 +522,9 @@ fn reuses_existing_tostring_aliases_for_prototype_calls() {
             .code
             .contains("Function.prototype.toString.call(Object)")
             || later_alias.code.contains("D.call(a)==D.call(Object)")
-            || later_alias.code.contains("t.toString.call(a)==D.call(Object)"),
+            || later_alias
+                .code
+                .contains("t.toString.call(a)==D.call(Object)"),
         "{}",
         later_alias.code
     );
@@ -722,20 +724,17 @@ fn rematerializes_single_use_index_chains() {
 
 #[test]
 fn rematerializes_nested_single_use_literals_and_expression_calls() {
-    let regex = optimize_generated_javascript(
-        "let A=/x/g;function f(e){return e.match(A)}",
-    )
-    .unwrap();
+    let regex =
+        optimize_generated_javascript("let A=/x/g;function f(e){return e.match(A)}").unwrap();
     assert!(
         regex.code.contains("e.match(/x/g)") && !regex.code.contains("A="),
         "{}",
         regex.code
     );
 
-    let object = optimize_generated_javascript(
-        "let N={type:!0};function f(){for(var i in N)return i}",
-    )
-    .unwrap();
+    let object =
+        optimize_generated_javascript("let N={type:!0};function f(){for(var i in N)return i}")
+            .unwrap();
     assert!(
         (object.code.contains("for(var i in {type:!0})")
             || object.code.contains("for(var i in{type:!0})"))
@@ -744,10 +743,8 @@ fn rematerializes_nested_single_use_literals_and_expression_calls() {
         object.code
     );
 
-    let document = optimize_generated_javascript(
-        "var T=document;function f(n){n=n||T;return n}",
-    )
-    .unwrap();
+    let document =
+        optimize_generated_javascript("var T=document;function f(n){n=n||T;return n}").unwrap();
     assert!(
         document.code.contains("n=n||document") && !document.code.contains("T="),
         "{}",
@@ -794,20 +791,16 @@ fn rematerializes_nested_single_use_literals_and_expression_calls() {
         nonce_iife.code
     );
 
-    let later_regex = optimize_generated_javascript(
-        "function f(e){return e.match(A)}var A=/x/g;",
-    )
-    .unwrap();
+    let later_regex =
+        optimize_generated_javascript("function f(e){return e.match(A)}var A=/x/g;").unwrap();
     assert!(
         later_regex.code.contains("e.match(/x/g)") && !later_regex.code.contains("A="),
         "{}",
         later_regex.code
     );
 
-    let later_object = optimize_generated_javascript(
-        "let P=()=>{for(var i in N)return i},N={type:!0};",
-    )
-    .unwrap();
+    let later_object =
+        optimize_generated_javascript("let P=()=>{for(var i in N)return i},N={type:!0};").unwrap();
     assert!(
         (later_object.code.contains("in {type:!0}") || later_object.code.contains("in{type:!0}"))
             && !later_object.code.contains("N="),
@@ -815,10 +808,8 @@ fn rematerializes_nested_single_use_literals_and_expression_calls() {
         later_object.code
     );
 
-    let later_document = optimize_generated_javascript(
-        "let P=(n)=>{n=n||R;return n};var R=document;",
-    )
-    .unwrap();
+    let later_document =
+        optimize_generated_javascript("let P=(n)=>{n=n||R;return n};var R=document;").unwrap();
     assert!(
         later_document.code.contains("n=n||document") && !later_document.code.contains("R="),
         "{}",
@@ -1020,7 +1011,11 @@ fn folds_arguments_length_countdown_for() {
         "a.extend({when(r){var e=arguments.length,t=e,o=[],i=g.call(arguments),n=a.Deferred(),s=d=>function(p){o[d]=this,i[d]=arguments.length>1?g.call(arguments):p,e--,0==e&&n.resolveWith(o,i)};return n.promise()}})",
     )
     .unwrap();
-    assert!(deferred_when.code.contains("--e||"), "{}", deferred_when.code);
+    assert!(
+        deferred_when.code.contains("--e||"),
+        "{}",
+        deferred_when.code
+    );
 
     let comma_stmt = optimize_generated_javascript(
         "function when(){var e=arguments.length;return function(p){a=p,e--,0==e&&done();return a}}",
@@ -1079,10 +1074,7 @@ fn keeps_semicolon_between_var_and_if() {
 
 #[test]
 fn flips_member_false_equality_without_splitting_the_property() {
-    let flipped = optimize_generated_javascript(
-        "function f(e){return e.disabled===!1}",
-    )
-    .unwrap();
+    let flipped = optimize_generated_javascript("function f(e){return e.disabled===!1}").unwrap();
     assert!(
         flipped.code.contains("!1===e.disabled") && !flipped.code.contains("e.!"),
         "{}",
@@ -1110,13 +1102,18 @@ fn parenthesizes_or_conditions_when_folding_if_to_and() {
     )
     .unwrap();
     assert!(
-        cache.code.contains("(1==a.nodeType||9==a.nodeType||!a.nodeType)&&")
-            || cache.code.contains("(1==a.nodeType||9==a.nodeType||!a.nodeType) &&"),
+        cache
+            .code
+            .contains("(1==a.nodeType||9==a.nodeType||!a.nodeType)&&")
+            || cache
+                .code
+                .contains("(1==a.nodeType||9==a.nodeType||!a.nodeType) &&"),
         "{}",
         cache.code
     );
     assert!(
-        !cache.code.contains("||!a.nodeType&&") && !cache.code.contains("||9==a.nodeType||!a.nodeType&&"),
+        !cache.code.contains("||!a.nodeType&&")
+            && !cache.code.contains("||9==a.nodeType||!a.nodeType&&"),
         "{}",
         cache.code
     );
@@ -1188,6 +1185,25 @@ fn folds_ident_ternary_to_or_and_length_not_gt_zero() {
         queue.code.contains("!d") && !queue.code.contains("d>0"),
         "{}",
         queue.code
+    );
+}
+
+#[test]
+fn keeps_a_narrowed_value_distinct_from_its_guard_condition() {
+    let optimized = optimize_generated_javascript(
+        "function fallback(current){if(null!=current)return current;return 0}",
+    )
+    .unwrap();
+
+    assert!(
+        optimized.code.contains("null!=current?current:0"),
+        "{}",
+        optimized.code
+    );
+    assert!(
+        !optimized.code.contains("null!=current||0"),
+        "{}",
+        optimized.code
     );
 }
 
@@ -1664,7 +1680,9 @@ fn folds_trailing_return_this_into_a_comma() {
     )
     .unwrap();
     assert!(
-        unbound.code.contains("return r.y(this==r?void 0:this,arguments),this")
+        unbound
+            .code
+            .contains("return r.y(this==r?void 0:this,arguments),this")
             || unbound.code.contains("r.y(this==r?void 0:this,arguments)"),
         "{}",
         unbound.code
@@ -1747,11 +1765,7 @@ fn reuses_member_aliases_inside_unshadowed_nested_functions() {
         "var l=[],g=l.slice;function when(){var l=[1];return l.slice.call(arguments)}",
     )
     .unwrap();
-    assert!(
-        shadowed.code.contains("l.slice.call"),
-        "{}",
-        shadowed.code
-    );
+    assert!(shadowed.code.contains("l.slice.call"), "{}", shadowed.code);
 
     let inner_arguments = optimize_generated_javascript(
         "function when(){var e=arguments.length;return function(p){return arguments.length>1?slice.call(arguments):p}}",
@@ -1811,8 +1825,12 @@ fn drops_double_not_in_the_middle_of_a_boolean_chain() {
     )
     .unwrap();
     assert!(
-        window_console.code.contains("window.console&&window.console.warn&&e")
-            && !window_console.code.contains("(window.console&&window.console.warn)&&"),
+        window_console
+            .code
+            .contains("window.console&&window.console.warn&&e")
+            && !window_console
+                .code
+                .contains("(window.console&&window.console.warn)&&"),
         "{}",
         window_console.code
     );
@@ -1827,7 +1845,9 @@ fn folds_same_lvalue_ternary_assigns() {
     )
     .unwrap();
     assert!(
-        optimized.code.contains("i[d]=arguments.length>1?g.call(arguments):p"),
+        optimized
+            .code
+            .contains("i[d]=arguments.length>1?g.call(arguments):p"),
         "{}",
         optimized.code
     );
@@ -1898,7 +1918,11 @@ fn rematerializes_a_single_use_object_after_aliasing_index_writes() {
                 !again.code.contains("let V="),
                 "second peephole pass must rematerialize V: {}",
                 &again.code[again.code.find("a.fn.init").unwrap_or(0)
-                    ..again.code.find("a.extend=j").map(|i| i + 20).unwrap_or(again.code.len())]
+                    ..again
+                        .code
+                        .find("a.extend=j")
+                        .map(|i| i + 20)
+                        .unwrap_or(again.code.len())]
             );
         }
     }

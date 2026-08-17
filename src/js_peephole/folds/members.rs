@@ -267,16 +267,43 @@ pub(crate) fn fold_cached_member_reads(
                 .checked_sub(1)
                 .map(|index| tokens[index].text)
                 .unwrap_or(";");
-            if is_object_name(&tokens[scan])
-                && tokens[scan].text == object
-                && tokens.get(scan + 1).map(|token| token.text) == Some(".")
-                && tokens.get(scan + 2).map(|token| token.text) == Some(prop)
-                && tokens.get(scan + 3).map(|token| token.text) != Some("=")
-                && prev != ":"
-            {
-                replacements.push((tokens[scan].start, tokens[scan + 2].end, name.to_string()));
-                scan += 3;
-                continue;
+            if is_object_name(&tokens[scan]) && tokens[scan].text == object {
+                // Any store through the object can change the cached member:
+                // rebinding the object, a computed access, deleting the
+                // property, or writing `object.prop` directly (including
+                // compound assignments and increments).
+                let next = tokens.get(scan + 1).map(|token| token.text);
+                if prev == "delete"
+                    || next == Some("[")
+                    || next.is_some_and(|text| {
+                        text.ends_with('=')
+                            && !matches!(text, "==" | "===" | "!=" | "!==" | "<=" | ">=" | "=>")
+                    })
+                {
+                    break;
+                }
+                if next == Some(".") && tokens.get(scan + 2).map(|token| token.text) == Some(prop) {
+                    let after = tokens.get(scan + 3).map(|token| token.text);
+                    if after.is_some_and(|text| {
+                        matches!(text, "++" | "--")
+                            || text.ends_with('=')
+                                && !matches!(
+                                    text,
+                                    "==" | "===" | "!=" | "!==" | "<=" | ">=" | "=>"
+                                )
+                    }) {
+                        break;
+                    }
+                    if prev != ":" {
+                        replacements.push((
+                            tokens[scan].start,
+                            tokens[scan + 2].end,
+                            name.to_string(),
+                        ));
+                        scan += 3;
+                        continue;
+                    }
+                }
             }
             scan += 1;
         }
@@ -472,7 +499,8 @@ pub(crate) fn fold_object_property_functions_to_methods(
             cursor += 1;
             continue;
         };
-        if function.named || !simple_identifier_params(&tokens, function.params_from, function.params_to)
+        if function.named
+            || !simple_identifier_params(&tokens, function.params_from, function.params_to)
         {
             cursor += 1;
             continue;

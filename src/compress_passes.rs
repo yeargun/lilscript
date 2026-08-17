@@ -1358,7 +1358,36 @@ pub fn propagate_path_sensitive_constants(
 
         let block_count = function.blocks.len();
         let mut executable = vec![false; block_count];
-        let mut values = vec![Lattice::Bottom; function.value_count as usize];
+        // Values without an in-function definition (parameters, captures)
+        // carry unknown runtime data, so they must start overdefined. Leaving
+        // them optimistic keeps branches on them from marking successors
+        // executable, which starves loop phis of their back-edge incomings and
+        // folds them to the preheader constant.
+        let mut defined = vec![false; function.value_count as usize];
+        for block in &function.blocks {
+            for phi in &block.phis {
+                if let Some(slot) = defined.get_mut(phi.out.0 as usize) {
+                    *slot = true;
+                }
+            }
+            for instruction in &block.instructions {
+                if let Some(out) = instruction.out {
+                    if let Some(slot) = defined.get_mut(out.0 as usize) {
+                        *slot = true;
+                    }
+                }
+            }
+        }
+        let mut values = defined
+            .iter()
+            .map(|is_defined| {
+                if *is_defined {
+                    Lattice::Bottom
+                } else {
+                    Lattice::Top
+                }
+            })
+            .collect::<Vec<_>>();
         executable[function.entry.0 as usize] = true;
 
         let mut progressed = true;

@@ -468,6 +468,60 @@ fn rematerialized_literal_needs_grouping(
     )
 }
 
+fn assignment_crosses_loop_boundary(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    scope_start: usize,
+    assign_at: usize,
+    use_at: usize,
+) -> bool {
+    let mut cursor = scope_start;
+    while cursor < assign_at {
+        let keyword = tokens[cursor].text;
+        if !matches!(keyword, "for" | "while" | "do") {
+            cursor += 1;
+            continue;
+        }
+        let body_start = if keyword == "do" {
+            cursor + 1
+        } else {
+            let header_open = cursor + 1;
+            if tokens.get(header_open).map(|token| token.text) != Some("(") {
+                cursor += 1;
+                continue;
+            }
+            let Some(header_close) = matching_close.get(header_open).copied().flatten() else {
+                return true;
+            };
+            header_close + 1
+        };
+        let statement_end = if tokens.get(body_start).map(|token| token.text) == Some("{") {
+            matching_close.get(body_start).copied().flatten()
+        } else {
+            top_level_stop(tokens, body_start, &[";"])
+        };
+        let Some(mut statement_end) = statement_end else {
+            return true;
+        };
+        if keyword == "do" {
+            if tokens.get(statement_end + 1).map(|token| token.text) != Some("while")
+                || tokens.get(statement_end + 2).map(|token| token.text) != Some("(")
+            {
+                return true;
+            }
+            let Some(while_close) = matching_close.get(statement_end + 2).copied().flatten() else {
+                return true;
+            };
+            statement_end = while_close;
+        }
+        if assign_at > cursor && assign_at <= statement_end && use_at > statement_end {
+            return true;
+        }
+        cursor += 1;
+    }
+    false
+}
+
 pub(crate) fn fold_single_use_literal_bindings(
     source: &str,
 ) -> Result<(String, usize), JavaScriptParseError> {
@@ -556,6 +610,13 @@ fn fold_single_use_literals(
             };
             if uses.len() == 1
                 && !name_use_is_mutated(&tokens, uses[0])
+                && !assignment_crosses_loop_boundary(
+                    &tokens,
+                    &matching_close,
+                    scope_start,
+                    name_at,
+                    uses[0],
+                )
                 && can_rematerialize_literal(
                     &tokens,
                     &matching_close,
@@ -647,6 +708,13 @@ fn fold_single_use_literals(
         };
         if uses.len() == 1
             && !name_use_is_mutated(&tokens, uses[0])
+            && !assignment_crosses_loop_boundary(
+                &tokens,
+                &matching_close,
+                scope_start,
+                cursor,
+                uses[0],
+            )
             && can_rematerialize_literal(
                 &tokens,
                 &matching_close,
@@ -1307,26 +1375,6 @@ pub(crate) fn fold_outer_copy_property_assign(
     Ok(apply_token_rewrites(source, replacements))
 }
 
-fn function_body_has_return(
-    tokens: &[Token<'_>],
-    matching_close: &[Option<usize>],
-    block_open: usize,
-    end: usize,
-) -> bool {
-    let mut index = block_open + 1;
-    while index < end {
-        if let Some(close) = nested_function_end(tokens, matching_close, index) {
-            index = close + 1;
-            continue;
-        }
-        if tokens[index].text == "return" {
-            return true;
-        }
-        index += 1;
-    }
-    false
-}
-
 fn name_use_is_invoke(tokens: &[Token<'_>], use_at: usize) -> bool {
     matches!(
         tokens.get(use_at + 1).map(|token| token.text),
@@ -1422,10 +1470,10 @@ pub(crate) fn fold_single_use_function_values(
                     .map(|token| token.text)
                     == Some("new");
                 let expression_arrow = function.is_arrow && function.block_open.is_none();
-                let procedure_iife = called
-                    && function.block_open.is_some_and(|open| {
-                        !function_body_has_return(&tokens, &matching_close, open, function.end)
-                    });
+                // A single called use keeps identical semantics as an IIFE
+                // whether or not the body returns: the call site consumes the
+                // same value either way, and recursion is excluded above.
+                let procedure_iife = called && function.block_open.is_some();
                 let nested =
                     use_is_in_nested_function(&tokens, &matching_close, scope_start, use_at);
                 let allow = if member_or_new {

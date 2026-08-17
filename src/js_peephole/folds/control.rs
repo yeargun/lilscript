@@ -337,7 +337,8 @@ pub(crate) fn fold_trailing_return_this(
                 continue;
             };
             let cond_raw = &source[tokens[open + 3].start..tokens[cond_close].start];
-            let cond = wrap_and_operand(cond_raw, &tokens, open + 3, cond_close, AND_LHS_NEEDS_WRAP);
+            let cond =
+                wrap_and_operand(cond_raw, &tokens, open + 3, cond_close, AND_LHS_NEEDS_WRAP);
             let (body_start, body_end) = if tokens.get(cond_close + 1).map(|token| token.text)
                 == Some("{")
             {
@@ -980,8 +981,7 @@ pub(crate) fn fold_single_use_if_assigns(
     let matching_close = matching_closers(&tokens);
     let mut replacements = Vec::<(usize, usize, String)>::new();
     for if_at in 0..tokens.len() {
-        let Some((_, _, body_open, body_close)) =
-            if_without_else(&tokens, &matching_close, if_at)
+        let Some((_, _, body_open, body_close)) = if_without_else(&tokens, &matching_close, if_at)
         else {
             continue;
         };
@@ -1002,6 +1002,15 @@ pub(crate) fn fold_single_use_if_assigns(
                 continue;
             };
             if !assign_is_statement_level(&tokens, body_open, name_at) {
+                continue;
+            }
+            // A `)`, `else`, or `do` directly before the assignment makes it
+            // the brace-less dependent statement of a control header (e.g.
+            // `if(c)name=rhs;`), so it only executes conditionally and its
+            // value cannot be forwarded into the following use.
+            if after_rhs > body_open + 1
+                && matches!(tokens[after_rhs - 1].text, ")" | "else" | "do")
+            {
                 continue;
             }
             let Some(stop) = top_level_stop(&tokens, rhs_from, &[",", ";", "}"]) else {
@@ -1104,7 +1113,8 @@ pub(crate) fn fold_try_if_return_alternatives(
     let matching_close = matching_closers(&tokens);
     let mut replacements = Vec::<(usize, usize, String)>::new();
     for try_at in 0..tokens.len() {
-        if tokens[try_at].text != "try" || tokens.get(try_at + 1).map(|token| token.text) != Some("{")
+        if tokens[try_at].text != "try"
+            || tokens.get(try_at + 1).map(|token| token.text) != Some("{")
         {
             continue;
         }
@@ -1130,10 +1140,12 @@ pub(crate) fn fold_try_if_return_alternatives(
             continue;
         };
         let mut cursor = outer_cond_close + 2;
-        if !matches!(tokens.get(cursor).map(|token| token.text), Some("var") | Some("let"))
-            || tokens
-                .get(cursor + 1)
-                .is_none_or(|token| token.kind != TokenKind::Identifier)
+        if !matches!(
+            tokens.get(cursor).map(|token| token.text),
+            Some("var") | Some("let")
+        ) || tokens
+            .get(cursor + 1)
+            .is_none_or(|token| token.kind != TokenKind::Identifier)
             || tokens.get(cursor + 2).map(|token| token.text) != Some("=")
         {
             continue;
@@ -1174,8 +1186,7 @@ pub(crate) fn fold_try_if_return_alternatives(
         else {
             continue;
         };
-        let first_then = source
-            [tokens[first_pred_close + 2].start..tokens[first_then_close].start]
+        let first_then = source[tokens[first_pred_close + 2].start..tokens[first_then_close].start]
             .trim()
             .trim_end_matches(';')
             .trim_end_matches("return")

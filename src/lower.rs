@@ -4824,13 +4824,13 @@ mod tests {
             .functions
             .iter()
             .any(|function| function.kind == FunctionKind::Closure && function.capture_count >= 1));
-        assert!(module.functions.iter().any(|function| function
-            .blocks
+        assert!(module
+            .functions
             .iter()
-            .any(|block| block.instructions.iter().any(|instruction| matches!(
-                instruction.op,
-                ControlFlowOp::CaptureLocal(_)
-            )))));
+            .any(|function| function.blocks.iter().any(|block| block
+                .instructions
+                .iter()
+                .any(|instruction| matches!(instruction.op, ControlFlowOp::CaptureLocal(_))))));
     }
 
     #[test]

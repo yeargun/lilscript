@@ -410,7 +410,92 @@ fn optimize_control_flow_inner(
             reports.push(prune_unused_foreign_imports(module));
         }
     }
+    if std::env::var_os("LILSCRIPT_NO_DIRECT_ARRAY").is_none() {
+        reports.push(call_array_methods_directly(module));
+    }
     Ok(reports)
+}
+
+/// `JS.push`/`JS.flat`-style helpers spell `Array.prototype.method.call(x,…)`
+/// because an untyped receiver may be array-like rather than a real array. A
+/// receiver built by an array literal in the same function is a genuine
+/// `Array`, so the direct `x.method(…)` spelling is observably identical and
+/// shorter — unless a string-keyed store could have shadowed the method as an
+/// own property, which disqualifies the receiver.
+fn call_array_methods_directly(module: &mut ControlFlowModule<'_>) -> OptimizationReport {
+    let mut changed = false;
+    for function in &mut module.functions {
+        let mut fresh_arrays = AHashSet::<ValueId>::default();
+        for block in &function.blocks {
+            for instruction in &block.instructions {
+                if let Some(out) = instruction.out {
+                    if matches!(
+                        instruction.op,
+                        ControlFlowOp::Array(_) | ControlFlowOp::ArraySpread(_)
+                    ) {
+                        fresh_arrays.insert(out);
+                    }
+                }
+            }
+        }
+        if fresh_arrays.is_empty() {
+            continue;
+        }
+        let value_types = control_flow_value_types(function);
+        for block in &function.blocks {
+            for instruction in &block.instructions {
+                if let ControlFlowOp::IndexSet { object, index, .. } = &instruction.op {
+                    if fresh_arrays.contains(object)
+                        && !matches!(value_types.get(index), Some(Type::Int | Type::Float))
+                    {
+                        fresh_arrays.remove(object);
+                    }
+                }
+            }
+        }
+        if fresh_arrays.is_empty() {
+            continue;
+        }
+        for block in &mut function.blocks {
+            for instruction in &mut block.instructions {
+                let ControlFlowOp::Intrinsic {
+                    intrinsic,
+                    receiver: Some(receiver),
+                    args,
+                } = &instruction.op
+                else {
+                    continue;
+                };
+                if !fresh_arrays.contains(receiver) {
+                    continue;
+                }
+                let method = match intrinsic {
+                    Intrinsic::JsArrayPush => "push",
+                    Intrinsic::JsArrayPop => "pop",
+                    Intrinsic::JsArraySlice => "slice",
+                    Intrinsic::JsArrayIndexOf => "indexOf",
+                    Intrinsic::JsArraySort => "sort",
+                    Intrinsic::JsArraySplice => "splice",
+                    Intrinsic::JsArrayJoin => "join",
+                    Intrinsic::JsArrayShift => "shift",
+                    Intrinsic::JsArrayUnshift => "unshift",
+                    Intrinsic::JsArrayFlat => "flat",
+                    _ => continue,
+                };
+                instruction.op = ControlFlowOp::HostCall {
+                    receiver: *receiver,
+                    method,
+                    args: args.clone(),
+                    pure: false,
+                };
+                changed = true;
+            }
+        }
+    }
+    OptimizationReport {
+        pass_name: "direct-array-method-calls",
+        changed,
+    }
 }
 
 /// Converge reachability and inlining together.
@@ -11855,10 +11940,12 @@ fn javascript_typeof_name(op: &ControlFlowOp<'_>) -> Option<&'static str> {
         | ControlFlowOp::NewClass { .. } => Some("object"),
         ControlFlowOp::Closure { .. } => Some("function"),
         ControlFlowOp::Intrinsic { intrinsic, .. } => match intrinsic {
+            // `document` is undefined off-browser (Node, workers), so its
+            // typeof is not statically "object" even though the window root
+            // spelling guarantees an object for JsWindow.
             Intrinsic::JsPlainObject
             | Intrinsic::JsNullProtoObject
             | Intrinsic::JsWindow
-            | Intrinsic::JsDocument
             | Intrinsic::JsDomParserNew
             | Intrinsic::JsXMLHttpRequestNew
             | Intrinsic::JsArrayFlat

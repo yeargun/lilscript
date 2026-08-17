@@ -1,7 +1,9 @@
 use crate::js_peephole::rewrite::{
     apply_token_rewrites, identifier_occurs, next_statement_end, top_level_stop,
 };
-use crate::js_peephole::scope::{parse_function_expression, simple_identifier_params};
+use crate::js_peephole::scope::{
+    enclosing_function_span, parse_function_expression, simple_identifier_params,
+};
 use crate::js_peephole::token::{lex, matching_closers, Token, TokenKind};
 use crate::js_peephole::JavaScriptParseError;
 
@@ -51,6 +53,15 @@ pub(crate) fn fold_comma_assign_into_trailing_call_arg(
             continue;
         }
         if identifier_occurs(&tokens, comma + 1, paren_close - 2, name) {
+            cursor += 1;
+            continue;
+        }
+        // Dropping the assignment is only sound when nothing reads the name
+        // after this group.
+        let scope_end = enclosing_function_span(&tokens, &matching_close, cursor)
+            .map(|(_, close)| close)
+            .unwrap_or(tokens.len());
+        if identifier_occurs(&tokens, paren_close + 1, scope_end, name) {
             cursor += 1;
             continue;
         }
@@ -511,7 +522,8 @@ fn body_has_this_or_arguments(
 ) -> bool {
     let mut index = from;
     while index < to {
-        if let Some(close) = crate::js_peephole::scope::nested_function_end(tokens, matching_close, index)
+        if let Some(close) =
+            crate::js_peephole::scope::nested_function_end(tokens, matching_close, index)
         {
             index = close + 1;
             continue;

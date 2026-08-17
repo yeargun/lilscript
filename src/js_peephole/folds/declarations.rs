@@ -1138,9 +1138,9 @@ pub(crate) fn reuse_dead_var_binding(source: &str) -> Result<(String, bool), Jav
             *body > first_var
                 && *body < second_var
                 && *end <= scope_end
-                && tokens[*body..=*end].iter().any(|token| {
-                    token.kind == TokenKind::Identifier && token.text == first_name
-                })
+                && tokens[*body..=*end]
+                    .iter()
+                    .any(|token| token.kind == TokenKind::Identifier && token.text == first_name)
         });
         if captured_before_second {
             continue;

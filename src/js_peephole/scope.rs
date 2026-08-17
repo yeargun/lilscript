@@ -78,19 +78,18 @@ pub(crate) fn parse_function_expression(
             named,
         });
     }
-    let (params_from, params_to, after_params) = if tokens.get(rhs).map(|token| token.text)
-        == Some("(")
-    {
-        let close = matching_close.get(rhs).copied().flatten()?;
-        (rhs + 1, close, close + 1)
-    } else if tokens
-        .get(rhs)
-        .is_some_and(|token| token.kind == TokenKind::Identifier)
-    {
-        (rhs, rhs + 1, rhs + 1)
-    } else {
-        return None;
-    };
+    let (params_from, params_to, after_params) =
+        if tokens.get(rhs).map(|token| token.text) == Some("(") {
+            let close = matching_close.get(rhs).copied().flatten()?;
+            (rhs + 1, close, close + 1)
+        } else if tokens
+            .get(rhs)
+            .is_some_and(|token| token.kind == TokenKind::Identifier)
+        {
+            (rhs, rhs + 1, rhs + 1)
+        } else {
+            return None;
+        };
     if tokens.get(after_params).map(|token| token.text) != Some("=>") {
         return None;
     }

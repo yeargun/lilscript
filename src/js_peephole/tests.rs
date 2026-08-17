@@ -224,10 +224,7 @@ fn negated_equality_requires_proof_that_regex_literals_are_absent() {
     let source = "let a=/!(x==y)/,b=/prefix!(x===y)suffix/;use(a,b)";
     let optimized = optimize_generated_javascript(source).unwrap();
 
-    assert_eq!(
-        optimized.code,
-        "use(/!(x==y)/,/prefix!(x===y)suffix/)"
-    );
+    assert_eq!(optimized.code, "use(/!(x==y)/,/prefix!(x===y)suffix/)");
 }
 
 #[test]
@@ -763,10 +760,7 @@ fn groups_assignment_results_used_as_conditional_tests() {
         "let f=()=>{flag=!flag;if(flag)return 'first';return 'second'};use(f)",
     )
     .unwrap();
-    assert_eq!(
-        optimized.code,
-        "use(()=>(flag=!flag)?'first':'second')"
-    );
+    assert_eq!(optimized.code, "use(()=>(flag=!flag)?'first':'second')");
 }
 
 #[test]
@@ -856,7 +850,9 @@ fn remaps_only_identifier_tokens_for_entropy_probes() {
 #[test]
 fn clear_binding_names_exclude_properties_and_object_keys() {
     assert!(super::single_character_name_is_clear_binding("let O=1;O.fn=O", b'O').unwrap());
-    assert!(super::single_character_name_is_clear_binding("function X(r){return X(r)}", b'X').unwrap());
+    assert!(
+        super::single_character_name_is_clear_binding("function X(r){return X(r)}", b'X').unwrap()
+    );
     assert!(super::single_character_name_is_clear_binding("export{O as jQuery}", b'O').unwrap());
     assert!(!super::single_character_name_is_clear_binding("console.log(x.O)", b'O').unwrap());
     assert!(!super::single_character_name_is_clear_binding("let O={O:1}", b'O').unwrap());

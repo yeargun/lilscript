@@ -1433,6 +1433,64 @@ fn safe_braceless_loop_body(tokens: &[Token<'_>], start: usize, end: usize) -> b
     depth == 0
 }
 
+fn let_for_init_names_escape(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    name_at: usize,
+    semi: usize,
+    header_close: usize,
+) -> bool {
+    let mut declared = vec![tokens[name_at].text];
+    let mut at = name_at + 1;
+    let mut depth = 0i32;
+    while at < semi {
+        match tokens[at].text {
+            "(" | "[" | "{" => depth += 1,
+            ")" | "]" | "}" => depth -= 1,
+            "," if depth == 0 => {
+                if let Some(name) = tokens.get(at + 1).filter(|t| t.kind == TokenKind::Identifier) {
+                    declared.push(name.text);
+                }
+            }
+            _ => {}
+        }
+        at += 1;
+    }
+    let body_start = header_close + 1;
+    let body_end = if tokens.get(body_start).map(|token| token.text) == Some("{") {
+        matching_close.get(body_start).copied().flatten()
+    } else {
+        top_level_stop(tokens, body_start, &[";"])
+    };
+    let Some(body_end) = body_end else {
+        return true;
+    };
+    // The moved binding would die at the loop statement, so any later read in
+    // the enclosing block (including nested functions and blocks, which scan
+    // at non-negative depth) keeps the declaration outside. Leaving the block
+    // exits the binding's original scope and ends the scan.
+    let mut depth = 0i32;
+    for token in &tokens[body_end + 1..] {
+        match token.text {
+            "(" | "[" | "{" => depth += 1,
+            ")" | "]" | "}" => {
+                depth -= 1;
+                if depth < 0 {
+                    return false;
+                }
+            }
+            _ => {
+                if token.kind == TokenKind::Identifier
+                    && declared.iter().any(|name| *name == token.text)
+                {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
 pub(crate) fn fold_prior_assign_into_for_init(
     source: &str,
 ) -> Result<(String, usize), JavaScriptParseError> {
@@ -1544,6 +1602,15 @@ pub(crate) fn fold_prior_assign_into_for_init(
             cursor += 1;
             continue;
         };
+        // A `let` moved into the for-init narrows its scope to the loop
+        // statement, so any read of a declared name after the loop would
+        // become a ReferenceError. `var` stays function-scoped and is safe.
+        if decl.starts_with("let")
+            && let_for_init_names_escape(&tokens, &matching_close, name_at, semi, header_close)
+        {
+            cursor += 1;
+            continue;
+        }
         let rest = &source[tokens[semi + 3].start..tokens[header_close].end];
         let init = &source[tokens[name_at].start..tokens[semi].start];
         replacements.push((

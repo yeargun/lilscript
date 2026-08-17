@@ -1499,15 +1499,7 @@ pub(crate) fn fold_redundant_and_parens(
                     .unwrap_or(";");
                 if !matches!(
                     prev,
-                    "!" | "typeof"
-                        | "void"
-                        | "delete"
-                        | "await"
-                        | "new"
-                        | "++"
-                        | "--"
-                        | "."
-                        | "["
+                    "!" | "typeof" | "void" | "delete" | "await" | "new" | "++" | "--" | "." | "["
                 ) {
                     replacements.push((tokens[cursor].start, tokens[cursor].end, String::new()));
                     replacements.push((tokens[close].start, tokens[close].end, String::new()));
@@ -1912,7 +1904,16 @@ fn ternary_condition_start(tokens: &[Token<'_>], question: usize) -> usize {
     let mut depth = 0i32;
     for index in (0..question).rev() {
         match tokens[index].text {
-            ")" | "]" | "}" => depth += 1,
+            ")" | "]" | "}" => {
+                // Inside one expression a closer is never directly followed
+                // by a token that starts a new primary expression. Such a
+                // pair (e.g. `}name` after an if/else block or `)name` after
+                // a control header) is a statement boundary, not nesting.
+                if depth == 0 && index + 1 < question && token_starts_primary(&tokens[index + 1]) {
+                    return index + 1;
+                }
+                depth += 1;
+            }
             "(" | "[" | "{" => {
                 if depth == 0 {
                     return index + 1;
@@ -1931,6 +1932,16 @@ fn ternary_condition_start(tokens: &[Token<'_>], question: usize) -> usize {
         }
     }
     0
+}
+
+fn token_starts_primary(token: &Token<'_>) -> bool {
+    matches!(
+        token.kind,
+        TokenKind::Identifier | TokenKind::Number | TokenKind::String | TokenKind::Regex
+    ) || matches!(
+        token.text,
+        "!" | "typeof" | "new" | "void" | "this" | "null" | "true" | "false" | "undefined"
+    )
 }
 
 pub(crate) fn fold_same_lvalue_ternary(
@@ -2031,10 +2042,7 @@ pub(crate) fn fold_or_reassign_to_ternary(
             .checked_sub(1)
             .map(|index| tokens[index].text)
             .unwrap_or(";");
-        if !matches!(
-            prev,
-            ";" | "{" | "}" | "," | "var" | "let" | "const"
-        ) {
+        if !matches!(prev, ";" | "{" | "}" | "," | "var" | "let" | "const") {
             cursor += 1;
             continue;
         }
@@ -2080,9 +2088,27 @@ pub(crate) fn fold_or_reassign_to_ternary(
             continue;
         };
         let rhs2_from = after_cond + 4;
+        // The parenthesized group must be exactly `name=rhs2`: a top-level
+        // comma would splice extra guarded expressions into the ternary spot
+        // and run them unconditionally. The ternary also evaluates rhs2
+        // before `name` is written, so any read of `name` inside it would see
+        // the pre-assignment value instead of rhs1.
+        let group_comma =
+            top_level_stop(&tokens, rhs2_from, &[",", ";"]).is_some_and(|stop| stop < paren_close);
+        // In a declarator, everything after the folded initializer up to the
+        // statement end would turn into further declarators, so the group
+        // must already end the statement.
+        let declarator = matches!(prev, "var" | "let" | "const");
+        let statement_ends = matches!(
+            tokens.get(paren_close + 1).map(|token| token.text),
+            Some(";") | Some("}") | None
+        );
         if rhs2_from >= paren_close
+            || group_comma
+            || (declarator && !statement_ends)
             || identifier_occurs(&tokens, cond_from, after_cond, name)
             || identifier_occurs(&tokens, rhs1_from, rhs1_stop, name)
+            || identifier_occurs(&tokens, rhs2_from, paren_close, name)
         {
             cursor += 1;
             continue;
@@ -2197,6 +2223,7 @@ pub(crate) fn fold_ident_ternary_to_or(
             || tokens.get(cursor + 1).map(|token| token.text) != Some("?")
             || tokens.get(cursor + 2).map(|token| token.text) != Some(tokens[cursor].text)
             || tokens.get(cursor + 3).map(|token| token.text) != Some(":")
+            || ternary_condition_start(&tokens, cursor + 1) != cursor
         {
             cursor += 1;
             continue;

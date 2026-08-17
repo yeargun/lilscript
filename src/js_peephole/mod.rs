@@ -579,9 +579,7 @@ pub fn optimize_generated_javascript(source: &str) -> Result<PeepholeResult, Jav
     })
 }
 
-pub fn late_generated_javascript_cleanup(
-    source: &str,
-) -> Result<String, JavaScriptParseError> {
+pub fn late_generated_javascript_cleanup(source: &str) -> Result<String, JavaScriptParseError> {
     let mut session = RewriteSession::new(source.to_string());
     late_generated_javascript_cleanup_into(&mut session)?;
     Ok(session.code)
@@ -618,6 +616,7 @@ impl RewriteSession {
         fold: impl Fn(&str) -> Result<(String, usize), JavaScriptParseError>,
     ) -> Result<(), JavaScriptParseError> {
         let (next, count) = fold(&self.code)?;
+        trace_fold(&fold, &self.code, &next);
         self.code = next;
         self.rewrites += count;
         Ok(())
@@ -628,6 +627,7 @@ impl RewriteSession {
         fold: impl Fn(&str) -> Result<(String, bool), JavaScriptParseError>,
     ) -> Result<(), JavaScriptParseError> {
         let (next, changed) = fold(&self.code)?;
+        trace_fold(&fold, &self.code, &next);
         self.code = next;
         self.rewrites += usize::from(changed);
         Ok(())
@@ -640,6 +640,7 @@ impl RewriteSession {
     ) -> Result<(), JavaScriptParseError> {
         for _ in 0..max_rounds {
             let (next, count) = fold(&self.code)?;
+            trace_fold(&fold, &self.code, &next);
             self.code = next;
             self.rewrites += count;
             if count == 0 {
@@ -647,5 +648,11 @@ impl RewriteSession {
             }
         }
         Ok(())
+    }
+}
+
+fn trace_fold<F: ?Sized>(_fold: &F, before: &str, after: &str) {
+    if before != after && std::env::var_os("LILSCRIPT_PEEPHOLE_TRACE").is_some() {
+        eprintln!("[peephole] {}\n{after}", std::any::type_name::<F>());
     }
 }

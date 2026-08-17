@@ -80,11 +80,14 @@ pub(crate) fn identifier_occurs(
     if start >= end || end > tokens.len() {
         return false;
     }
-    tokens[start..end].iter().enumerate().any(|(offset, token)| {
-        token.kind == TokenKind::Identifier
-            && token.text == name
-            && !is_property_identifier(tokens, start + offset)
-    })
+    tokens[start..end]
+        .iter()
+        .enumerate()
+        .any(|(offset, token)| {
+            token.kind == TokenKind::Identifier
+                && token.text == name
+                && !is_property_identifier(tokens, start + offset)
+        })
 }
 
 pub(crate) fn identifier_is_read(
