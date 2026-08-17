@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 
 function installTestInit(jq) {
+  if (typeof jq.fn.init === "function") {
+    return;
+  }
   function init() {
     return this;
   }
@@ -33,8 +36,13 @@ export async function verify(lil, js) {
   assert.equal($j.fn.constructor, $j);
   assert.equal($l.fn.extend, $l.extend);
   assert.equal($j.fn.extend, $j.extend);
-  assert.equal($l.isReady, true);
-  assert.equal($j.isReady, true);
+  if (!("readyWait" in $l) && !("readyWait" in $j)) {
+    assert.equal($l.isReady, true);
+    assert.equal($j.isReady, true);
+  } else {
+    assert.equal(typeof $l.isReady, "boolean");
+    assert.equal($l.isReady, $j.isReady);
+  }
   assert.equal($l.guid, 1);
   assert.equal($j.guid, 1);
   assert.equal(typeof $l.noop, "function");

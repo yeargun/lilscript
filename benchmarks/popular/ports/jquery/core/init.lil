@@ -2,7 +2,6 @@ import { jQuery, merge, isPlainObject, makeArray, wrap, setJQueryInit } from "..
 import { document } from "../var/document";
 import { isFunction } from "../var/isFunction";
 import { rsingleTag } from "./var/rsingleTag";
-import { parseHTML } from "./parseHTML";
 import {
   isUndefined,
   regexTest,
@@ -35,7 +34,7 @@ JsValue initHtmlMatch(JsValue self, JsValue htmlPart, JsValue contextArg) {
     }
   }
 
-  merge(self, parseHTML(htmlText, parseContext, true));
+  merge(self, JS.call(jQuery["parseHTML"], jQuery, htmlText, parseContext, true));
 
   if (JS.regexTest(rsingleTag, htmlText) && isPlainObject(resolvedContext)) {
     for (string key in resolvedContext) {

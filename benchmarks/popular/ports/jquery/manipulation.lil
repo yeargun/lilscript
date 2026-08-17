@@ -80,19 +80,13 @@ JsValue manipulationTarget(JsValue elem, JsValue content) {
 }
 
 JsValue disableScript(JsValue elem) {
-  bool hasTypeAttr = !JS.isNullish(JS.invoke(elem, "getAttribute", "type"));
-  string boolPart = "false";
-  if (hasTypeAttr) {
-    boolPart = "true";
-  }
-  elem["type"] = boolPart + "/" + JS.string(elem["type"]);
+  elem["type"] = JS.add(JS.add(JS.strictNotEqual(JS.invoke(elem, "getAttribute", "type"), null), "/"), elem["type"]);
   return elem;
 }
 
 JsValue restoreScript(JsValue elem) {
-  string typeStr = JS.string(JS.or(elem["type"], ""));
-  if (JS.stringSlice(typeStr, 0.0, 5.0) == "true/") {
-    elem["type"] = JS.stringSlice(typeStr, 5.0);
+  if (JS.stringSlice(JS.assume(JS.or(elem["type"], "")), 0.0, 5.0) == "true/") {
+    elem["type"] = JS.stringSlice(JS.assume(elem["type"]), 5.0);
   } else {
     JS.invoke(elem, "removeAttribute", "type");
   }
@@ -140,7 +134,7 @@ void fixInput(JsValue src, JsValue dest) {
   }
 }
 
-export JsValue domManip(JsValue collection, JsValue argsIn, JsValue callback, JsValue ignored = null) {
+export JsValue domManip(JsValue collection, JsValue argsIn, func(JsValue, JsValue, JsValue)->JsValue callback, JsValue ignored = null) {
   JsValue args = flat(argsIn);
 
   float l = collection.length;
@@ -148,19 +142,9 @@ export JsValue domManip(JsValue collection, JsValue argsIn, JsValue callback, Js
   JsValue value = args[0];
   bool valueIsFunction = isFunction(value);
 
-  bool needsPerElementRecursion = valueIsFunction;
-  if (!needsPerElementRecursion) {
-    if (l > 1.0) {
-      if (value is string) {
-        string valueStr = value;
-        if (!support["checkClone"].truthy()) {
-          if (JS.regexTest(rchecked, valueStr)) {
-            needsPerElementRecursion = true;
-          }
-        }
-      }
-    }
-  }
+  bool needsPerElementRecursion = valueIsFunction ||
+    (l > 1.0 && value is string && !support["checkClone"].truthy() &&
+      JS.regexTest(rchecked, JS.assume(value)));
 
   if (needsPerElementRecursion) {
     return each(collection, (JsValue index, JsValue elemRaw) => {
@@ -198,7 +182,7 @@ export JsValue domManip(JsValue collection, JsValue argsIn, JsValue callback, Js
             merge(scripts, getAll(node, "script"));
           }
         }
-        JS.call(callback, collection[i], node, i);
+        callback(collection[i], node, i);
       }
 
       if (hasScripts > 0.0) {
@@ -210,35 +194,19 @@ export JsValue domManip(JsValue collection, JsValue argsIn, JsValue callback, Js
         float j = 0.0;
         for (; j < hasScripts; j++) {
           JsValue node = scripts[j];
-          string typeStr = JS.string(JS.or(node["type"], ""));
-          bool alreadyEvaluated = dataPrivAccess(node, "globalEval").truthy();
-          bool contained = containsImpl(doc, node);
+          string typeStr = JS.assume(JS.or(node["type"], ""));
 
-          if (JS.regexTest(rscriptType, typeStr) && !alreadyEvaluated && contained) {
-            JsValue srcRaw = node["src"];
-            bool hasSrc = srcRaw.truthy();
-            bool isModule = typeStr.toLowerCase() == "module";
-
-            if (hasSrc && !isModule) {
+          if (JS.regexTest(rscriptType, typeStr) &&
+              !dataPrivAccess(node, "globalEval").truthy() &&
+              containsImpl(doc, node)) {
+            if (node["src"].truthy() && typeStr.toLowerCase() != "module") {
               JsValue evalUrlFn = jQuery["_evalUrl"];
-              bool noModule = node["noModule"].truthy();
-              if (evalUrlFn.truthy() && !noModule) {
-                NonceOpts nonceOpts = NonceOpts{null};
-                JsValue nonceRaw = node["nonce"];
-                if (!nonceRaw.truthy()) {
-                  nonceRaw = JS.invoke(node, "getAttribute", "nonce");
-                }
-                nonceOpts.nonce = nonceRaw;
-                string srcStr = JS.string(srcRaw);
-                JS.call(evalUrlFn, jQuery, srcStr, nonceOpts, doc);
+              if (evalUrlFn.truthy() && !node["noModule"].truthy()) {
+                NonceOpts nonceOpts = NonceOpts{JS.or(node["nonce"], JS.invoke(node, "getAttribute", "nonce"))};
+                JS.call(evalUrlFn, jQuery, node["src"], nonceOpts, doc);
               }
             } else {
-              JsValue textRaw = node["textContent"];
-              string textStr = "";
-              if (textRaw is string) {
-                textStr = textRaw;
-              }
-              DOMEval(JS.stringReplace(textStr, rcleanScript, ""), node, doc);
+              DOMEval(JS.stringReplace(JS.assume(node["textContent"]), rcleanScript, ""), node, doc);
             }
           }
         }
@@ -461,22 +429,10 @@ JsValue fnEmpty(JsValue self) {
 }
 
 export JsValue fnClone(JsValue self, JsValue args) {
-  JsValue dataAndEventsArg = null;
-  if (args.length > 0.0) {
-    dataAndEventsArg = args[0];
-  }
-  JsValue deepDataAndEventsArg = null;
-  if (args.length > 1.0) {
-    deepDataAndEventsArg = args[1];
-  }
-
-  bool dataAndEvents = false;
-  if (!JS.isNullish(dataAndEventsArg)) {
-    dataAndEvents = dataAndEventsArg.truthy();
-  }
+  bool dataAndEvents = args[0].truthy();
   bool deepDataAndEvents = dataAndEvents;
-  if (!JS.isNullish(deepDataAndEventsArg)) {
-    deepDataAndEvents = deepDataAndEventsArg.truthy();
+  if (!JS.isNullish(args[1])) {
+    deepDataAndEvents = args[1].truthy();
   }
 
   return JS.invoke(self, "map", (JsValue index, JsValue elem) => {
@@ -485,11 +441,8 @@ export JsValue fnClone(JsValue self, JsValue args) {
 }
 
 export JsValue fnHtml(JsValue self, JsValue args) {
-  JsValue value = JS.undefined();
+  JsValue value = args[0];
   bool chainable = args.length > 0.0;
-  if (chainable) {
-    value = args[0];
-  }
 
   return access(self, (JsValue valueArg) => {
     if (JS.isUndefined(valueArg)) {

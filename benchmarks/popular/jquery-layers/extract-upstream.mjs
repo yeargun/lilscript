@@ -46,7 +46,7 @@ function resolveDep(fromFile, spec) {
   return posix.normalize(posix.join(posix.dirname(fromFile), spec)) + ".js";
 }
 
-function emitFactory(source, factory, binding) {
+function emitFactory(source, factory, binding, alreadyBound) {
   if (factory.body.type !== "BlockStatement") {
     throw new Error(`${binding}: expected a block factory`);
   }
@@ -92,6 +92,15 @@ function emitFactory(source, factory, binding) {
     .slice(0, -1)
     .map((statement) => source.slice(statement.start, statement.end))
     .join("\n");
+  if (alreadyBound) {
+    // Modules like core/parseHTML.js mutate the shared binding and return a
+    // convenience sub-api (`return jQuery.parseHTML`). Rebinding would
+    // clobber the shared object with that sub-api.
+    if (!prefix) {
+      throw new Error(`${binding}: rebound factory has no statements to keep`);
+    }
+    return prefix;
+  }
   const expr = source.slice(argument.start, argument.end);
   const assign = `var ${binding} = ${expr};`;
   return prefix ? `${prefix}\n${assign}` : assign;
@@ -130,7 +139,7 @@ export function extractLayerSource(layer, upstreamRoot) {
       }
     }
     chunks.push(`\n// --- jquery/src/${file} ---`);
-    chunks.push(emitFactory(source, factory, binding).trim());
+    chunks.push(emitFactory(source, factory, binding, emitted.has(binding)).trim());
     emitted.add(binding);
     for (const snippet of layer.afterBindings ?? []) {
       if (snippet.after === binding) {
@@ -145,6 +154,18 @@ export function extractLayerSource(layer, upstreamRoot) {
     }
   }
   chunks.push(`\nexport { ${layer.exports.join(", ")} };\n`);
+  const body = chunks.slice(2).join("\n");
+  if (/\bwindow\b/.test(body)) {
+    // jquery.min.js ships its window guard in the UMD wrapper
+    // (`typeof window !== "undefined" ? window : this`). The flattened layer
+    // must carry the same delivery cost instead of silently assuming a bare
+    // browser global that LilScript output refuses to assume.
+    chunks.splice(
+      2,
+      0,
+      `var window = typeof globalThis.window !== "undefined" ? globalThis.window : globalThis;`,
+    );
+  }
   return chunks.join("\n");
 }
 

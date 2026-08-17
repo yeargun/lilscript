@@ -1,0 +1,5 @@
+import { jQuery } from "./attributes";
+import "../event";
+import "../event/trigger";
+
+export { jQuery };

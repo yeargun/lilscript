@@ -73,14 +73,23 @@ async function measureOne(id) {
       sizes: canonicalCodecSizesForFile(path, `jquery-layer ${id} js ${lane}`),
     };
   }
-  const jsBest = pickBest(
-    Object.fromEntries(
-      Object.entries(jsLanes)
-        .filter(([lane]) => lane !== "extracted")
-        .map(([lane, row]) => [lane, row.sizes]),
-    ),
-    "brotli",
-  );
+  if (layer.officialMin) {
+    const officialPath = join(labRoot, layer.officialMin);
+    jsLanes.official = {
+      path: officialPath,
+      sizes: canonicalCodecSizesForFile(officialPath, `jquery-layer ${id} official min`),
+    };
+  }
+  const jsBest = layer.officialMin
+    ? { lane: "official", sizes: jsLanes.official.sizes }
+    : pickBest(
+        Object.fromEntries(
+          Object.entries(jsLanes)
+            .filter(([lane]) => lane !== "extracted" && lane !== "official")
+            .map(([lane, row]) => [lane, row.sizes]),
+        ),
+        "brotli",
+      );
 
   const compiledPath = join(buildRoot, "lilscript.raw.js");
   const layerConfig = join(here, `lilscript.${id}.toml`);
@@ -136,6 +145,7 @@ async function measureOne(id) {
       terser: jsLanes.terser.sizes,
       oxc: jsLanes.oxc.sizes,
       esbuild: jsLanes.esbuild.sizes,
+      ...(jsLanes.official ? { official: jsLanes.official.sizes } : {}),
       selectedBaseline: {
         lane: jsBest.lane,
         sizes: jsBest.sizes,
@@ -146,7 +156,7 @@ async function measureOne(id) {
       lilscript: lilSizes.brotli,
       javascript: jsBest.sizes.brotli,
       delta,
-      pass: delta <= 0,
+      pass: layer.officialMin ? delta < -32 : delta <= 0,
     },
     codecs: canonicalCodecProvenance(`jquery-layer ${id}`),
   };
@@ -169,6 +179,11 @@ function printReport(report) {
   console.log(
     `  JS esbuild   raw=${report.javascript.esbuild.raw} gzip=${report.javascript.esbuild.gzip} brotli=${report.javascript.esbuild.brotli}`,
   );
+  if (report.javascript.official) {
+    console.log(
+      `  JS official  raw=${report.javascript.official.raw} gzip=${report.javascript.official.gzip} brotli=${report.javascript.official.brotli}`,
+    );
+  }
   console.log(
     `  LilScript    raw=${report.lilscript.sizes.raw} gzip=${report.lilscript.sizes.gzip} brotli=${report.lilscript.sizes.brotli}${report.lilscript.bundledHost ? " (host bundled)" : ""}`,
   );

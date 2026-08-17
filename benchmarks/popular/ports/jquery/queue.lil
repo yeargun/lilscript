@@ -91,21 +91,16 @@ export JsValue queueHooks(JsValue elem, JsValue typeValue) {
 }
 
 export JsValue fnQueue(JsValue self, JsValue args) {
+  JsValue typeArg = args[0];
+  JsValue data = args[1];
   string type = "fx";
-  JsValue data = JS.undefined();
   float setter = 2.0;
 
-  if (args.length > 0.0) {
-    JsValue first = args[0];
-    if (first is string) {
-      type = first;
-      if (args.length > 1.0) {
-        data = args[1];
-      }
-    } else {
-      data = first;
-      setter = 1.0;
-    }
+  if (typeArg is string) {
+    type = typeArg;
+  } else {
+    data = typeArg;
+    setter = 1.0;
   }
 
   if (args.length < setter) {
@@ -142,18 +137,10 @@ JsValue fnClearQueue(JsValue self, JsValue type) {
 }
 
 JsValue fnPromise(JsValue self, JsValue args) {
-  JsValue typeValue = JS.undefined();
-  JsValue obj = JS.undefined();
-  if (args.length > 0.0) {
-    JsValue first = args[0];
-    if (first is string) {
-      typeValue = first;
-      if (args.length > 1.0) {
-        obj = args[1];
-      }
-    } else {
-      obj = first;
-    }
+  JsValue typeValue = args[0];
+  JsValue obj = args[1];
+  if (!(typeValue is string)) {
+    obj = typeValue;
   }
 
   string type = "fx";

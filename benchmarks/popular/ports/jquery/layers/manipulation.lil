@@ -1,0 +1,6 @@
+import { jQuery } from "./event";
+import "../core/parseHTML";
+import "../manipulation";
+import "../wrap";
+
+export { jQuery };

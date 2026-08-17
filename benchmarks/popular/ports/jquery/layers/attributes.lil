@@ -1,0 +1,4 @@
+import { jQuery } from "./dom-core";
+import "../attributes";
+
+export { jQuery };

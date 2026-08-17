@@ -8,13 +8,7 @@ import {
 } from "../js-host.lil";
 
 export JsValue getAll(JsValue context, JsValue tagArg = null) {
-  string tag = "*";
-  if (tagArg is string) {
-    string t = tagArg;
-    if (t.length > 0) {
-      tag = t;
-    }
-  }
+  JsValue tag = JS.or(tagArg, "*");
 
   JsValue ret = emptyArray();
   if (context["getElementsByTagName"].truthy()) {
@@ -23,15 +17,7 @@ export JsValue getAll(JsValue context, JsValue tagArg = null) {
     ret = JS.invoke(context, "querySelectorAll", tag);
   }
 
-  bool tagMatches = false;
-  if (tagArg is string) {
-    string t2 = tagArg;
-    if (t2.length > 0) {
-      tagMatches = nodeName(context, t2);
-    }
-  }
-
-  if (JS.isNullish(tagArg) || tagMatches) {
+  if (JS.isNullish(tagArg) || (tagArg.truthy() && nodeName(context, JS.assume(tagArg)))) {
     JsValue[] single = [];
     single.push(context);
     return merge(single, ret);

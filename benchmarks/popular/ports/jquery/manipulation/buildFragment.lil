@@ -31,9 +31,7 @@ export JsValue buildFragment(JsValue elems, JsValue context, JsValue scripts = f
   for (; i < l; i++) {
     JsValue elem = elems[i];
 
-    bool isTruthyOrZero = elem.truthy() || JS.strictEqual(elem, 0.0);
-
-    if (isTruthyOrZero) {
+    if (elem.truthy() || JS.strictEqual(elem, 0.0)) {
       if (toType(elem) == "object") {
         JsValue toMerge = elem;
         if (elem["nodeType"].truthy()) {
@@ -51,15 +49,12 @@ export JsValue buildFragment(JsValue elems, JsValue context, JsValue scripts = f
           );
 
           JsValue tagMatch = JS.or(JS.regexExec(rtagName, elem), ["", ""]);
-          string tagCapture = JS.assume(tagMatch[1]);
-          string tag = tagCapture.toLowerCase();
+          string tag = JS.assume(tagMatch[1]);
 
-          auto wrap = wrapForTag(tag);
+          auto wrap = wrapForTag(tag.toLowerCase());
 
-          string openTag = wrap.open;
-          string closeTag = wrap.close;
           string prefilteredStr = JS.assume(JS.invoke(jQuery, "htmlPrefilter", elem));
-          tmp["innerHTML"] = openTag + prefilteredStr + closeTag;
+          tmp["innerHTML"] = wrap.open + prefilteredStr + wrap.close;
 
           float depth = wrap.depth;
           while (depth > 0.0) {
