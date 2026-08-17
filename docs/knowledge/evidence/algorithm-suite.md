@@ -4,7 +4,7 @@ Parent: [evidence](README.md). Verification contract:
 [algorithm challenges](../verification/algorithm-challenges.md). Executable source:
 [`comparison/algorithms/`](../../../comparison/algorithms/).
 
-This lane is distinct from the 525-case micro catalog. It combines multiple
+This lane is distinct from the generated micro catalog. It combines multiple
 functions, runtime-varying inputs, and interacting optimization opportunities so
 that a high micro-case count cannot be mistaken for whole-program evidence. It is
 invoked by `comparison/run-all.sh` and therefore by the release check. Without an

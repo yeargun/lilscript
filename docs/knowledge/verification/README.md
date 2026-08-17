@@ -36,12 +36,12 @@ ablation/deployment experiment and must be labelled as such.
 
 ## Current known limits
 
-- The micro runner already gates separately compiled raw/gzip/Brotli objective
+- The micro runner gates separately compiled raw/gzip/Brotli objective
   artifacts against matching metric-specific valid Terser/Oxc/esbuild minima and is
-  release-wired. Its current oracle is still stdout
-  produced by the reference JavaScript, and durable cases live in a catalog rather
-  than canonical reviewed folders; see
-  [migration phase 01](../migration/01-paired-runner-contract.md).
+  release-wired. Durable reviewed cases live in
+  [`comparison/cases/canonical/`](../../../comparison/cases/canonical/). The
+  generated catalog remains a parameterized regression net with a checked-in oracle
+  digest. See [migration phase 00](../migration/00-canonical-runner.md).
 - The micro catalog is not structural whole-program evidence. The separate
   [algorithm lane](algorithm-challenges.md) owns multi-function/module interaction,
   runtime vectors, and codec-window scaling.

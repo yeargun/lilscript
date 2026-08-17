@@ -10,8 +10,8 @@ Claims about compression need a corpus, tool versions, codec, and scope. This fo
 
 ## Pages
 
-- [Paired web micro suite](micro-suite.md) — runner contract, catalog and pairing-audit
-  status
+- [Paired web micro suite](micro-suite.md) — generated catalog plus
+  [`canonical/`](../../../comparison/cases/canonical/) folders
 - [Structural algorithm suite](algorithm-suite.md) — audited 11-pair/42-vector
   whole-program corpus; the post-fix canonical full report is 11/11 with strict
   wins in every raw, gzip, and Brotli lane, while the first red run remains a

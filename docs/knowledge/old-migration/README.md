@@ -7,5 +7,6 @@ them describe the checkout or experiment recorded by the page; do not copy them 
 current claims without rerunning the named lane.
 
 - [Compression queue (2026-08)](compression-queue-2026-08.md) — former
-  jQuery-focused steps and implementation log, retained verbatim beneath an archive
-  header
+  jQuery-focused steps and implementation log
+- [Catalog-era phases 00–09](catalog-era-2026-08/README.md) — former
+  freeze → catalog runner → jQuery convergence plan

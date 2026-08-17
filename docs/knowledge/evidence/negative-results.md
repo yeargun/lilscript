@@ -6,7 +6,10 @@ Parent: [evidence](README.md). Triage:
 Negative evidence is part of the compiler specification. Keep it when it identifies a
 non-monotonic transform, missing proof, invalid boundary, or search-budget failure.
 
-Current examples:
+- Record missing-key `??` (`copy.absent ?? -1`) has emitted a free identifier
+  (`m??(g=-1)`) instead of a property read. Canonical `record-json` currently
+  avoids that pattern. Treat a return of that spelling as a compiler bug, not a
+  case rewrite forever.
 
 - jQuery's latest checked-in pre-canonical public row is ineligible and larger than
   npm in all recorded size columns; historical full-mangle/post-minified checkpoints
@@ -24,7 +27,7 @@ Current examples:
   and records are retired: system/Node codec measurements and the former Brotli
   scorer are not interchangeable with the shared canonical scorer. A focused
   `--only` report may still be useful for triage, but it cannot establish a family or
-  525-case result. Capture final canonical family runs and the full catalog before
+  generated-catalog result. Capture canonical family runs and the full catalog before
   quoting current pass counts or byte deltas; no win offsets a remaining per-case
   failure.
 - The record/JSON investigation exposed a block-local proof limit and led to the

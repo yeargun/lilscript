@@ -23,11 +23,10 @@ Build outputs and result JSON belong outside the source folder (for example
 separate directory, but their generator, seed, template ID, and values must appear in
 metadata.
 
-This is the target durable layout. The current micro runner keeps `catalog.mjs` and a
-whole-catalog oracle manifest as source of truth, then materializes ignored
-`generated/<name>/` folders with `main.lil`, `main.js`, `expected.txt`, and
-`case.json`. Migration phase 01 moves from that reproducible bridge to independently
-reviewable canonical case folders without treating generated build output as source.
+This is the target durable layout. Hand-authored cases live under
+`comparison/cases/canonical/<family>/<id>/`. The generated catalog still
+materializes ignored `generated/<name>/` folders from `catalog.mjs`. Both go through
+the same minifier + codec gate.
 
 ## `case.toml` fields
 

@@ -39,10 +39,11 @@ JavaScript artifact in its matching gated size metric.
 
 ## Expansion status
 
-The catalog now contains 525 unique generated cases after adding 125 `edge-*` cases
-covering i32, numbers, short-circuit effects, loop control, closure mutation, arrays,
-records/JSON, Map/Set, nullish/optional access, UTF-16 strings, exceptions/finally,
-generators, and async tasks.
+Hand-authored [`canonical/`](../../../comparison/cases/canonical/) folders are a
+separate reviewed corpus. The latest `--canonical-only` run was 47 cases, all
+strict wins in raw, gzip-9, and Brotli-11 against the metric-specific Terser/Oxc/
+esbuild minimum. That does not replace the generated catalog; it is the
+readable "why" layer.
 
 The pairing audit repaired reference evidence rather than changing compiler results:
 
@@ -57,19 +58,10 @@ The pairing audit repaired reference evidence rather than changing compiler resu
 - Five enum-dispatch pairs now give JavaScript the same numeric-discriminant model
   instead of charging it for a metadata object. Six host-has-own pairs use the
   target's direct `Object.hasOwn`, including its first-class-function form.
-- The reviewed full-catalog oracle is 525 cases with SHA-256
-  `0d1f156cc7863a88b464250f00c0a38831b0565208e81159bf154576aa0ee052`; see
-  [`oracle-manifest.json`](../../../comparison/cases/oracle-manifest.json).
-
-These repairs and the move to the shared canonical `lilscript-codec` scorer supersede
-earlier focused totals. The authoritative full-catalog run has `selectedBy = "all"`,
-`catalogCases = 525`, `cases = 525`, `passedCases = 525`, `failedCases = 0`, and
-`failureEvents = 0`. Its matching-lane strict/tie/loss counts are raw `525/0/0`,
-gzip-9 `522/3/0`, and Brotli-11 `523/2/0`. Ties are passing non-losses for their
-`le` cases; they are not counted as strict wins. The frozen compiler SHA-256 is
-`6962cea23cf08148e2d2fc76b9f1c2a7ca6876c5e488d56da1f1bcb5341de897`, and the
-frozen scorer SHA-256 is
-`975bf256f7c8dfdeb5864a9e96d1a26e43a8a90726dc2227daf1026c2f1d20e7`.
+- The reviewed generated-catalog oracle is 549 cases; see
+[`oracle-manifest.json`](../../../comparison/cases/oracle-manifest.json).
+Do not quote an older digest from this page. The generated `summary.json` is
+authoritative only when `selectedBy` is `all` or `canonical` as appropriate.
 
 The current ignored summary may be overwritten by a narrow `--only` diagnostic run,
 so do not cite it as a full-catalog result unless `selectedBy` is `all`, its schema is
