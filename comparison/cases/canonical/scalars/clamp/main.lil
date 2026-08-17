@@ -1,0 +1,12 @@
+int clamp(int value, int lo, int hi) {
+  if (value < lo) {
+    return lo;
+  }
+  if (value > hi) {
+    return hi;
+  }
+  return value;
+}
+print(clamp(3, 0, 10));
+print(clamp(11, 0, 10));
+print(clamp(-2, 0, 10));

@@ -1,0 +1,8 @@
+int calls = 0;
+int nextIndex() {
+  calls += 1;
+  return 0;
+}
+int[]? values = [8, 9];
+print(values?.[nextIndex()] ?? 4);
+print(calls);

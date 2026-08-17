@@ -1,0 +1,27 @@
+struct Point {
+  int x;
+  int y;
+}
+struct Rectangle {
+  Point origin;
+  int width;
+  int height;
+}
+int area(Rectangle rectangle) {
+  return rectangle.width * rectangle.height;
+}
+class ModelCounter {
+  int value;
+  init(int initial) {
+    this.value = initial;
+  }
+  int add(int amount) {
+    this.value += amount;
+    return this.value;
+  }
+}
+Rectangle rectangle = Rectangle{Point{3, 4}, 6, 7};
+ModelCounter counter = new ModelCounter(rectangle.origin.x + rectangle.origin.y);
+print(area(rectangle));
+print(counter.add(rectangle.width));
+print(counter.add(rectangle.height));

@@ -1,0 +1,4 @@
+extern float mathMax(float a, float b);
+extern float mathMin(float a, float b);
+print(mathMax(3.0, 9.0));
+print(mathMin(3.0, 9.0));

@@ -1,0 +1,8 @@
+int calls = 0;
+bool probe(int value) {
+  calls += value;
+  return value % 2 == 0;
+}
+bool result = probe(1) && probe(2) || probe(4);
+print(result);
+print(calls);

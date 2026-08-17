@@ -1,0 +1,4 @@
+bool flag = 7 > 3;
+print(flag && 7 % 2 == 1);
+print(flag || 7 < 0);
+print(!flag);

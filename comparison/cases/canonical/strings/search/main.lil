@@ -1,0 +1,4 @@
+string word = "payload";
+print(word.indexOf("load"));
+print(word.includes("pay"));
+print(word.startsWith("pay"));

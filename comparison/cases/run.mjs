@@ -3,12 +3,13 @@ import { createHash } from "node:crypto";
 import {
   existsSync,
   mkdirSync,
+  readdirSync,
   rmSync,
   writeFileSync,
   readFileSync,
 } from "node:fs";
 import { createRequire } from "node:module";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   canonicalCodecMeasurementsForFiles,
@@ -96,7 +97,8 @@ const argv = process.argv.slice(2);
 const onlyIndex = argv.indexOf("--only");
 const only = onlyIndex === -1 ? null : argv[onlyIndex + 1];
 const updateOracles = argv.includes("--update-oracles");
-const knownArguments = new Set(["--only", "--update-oracles"]);
+const canonicalOnly = argv.includes("--canonical-only");
+const knownArguments = new Set(["--only", "--update-oracles", "--canonical-only"]);
 for (const [index, argument] of argv.entries()) {
   if (index === onlyIndex + 1) continue;
   if (!knownArguments.has(argument)) {
@@ -105,6 +107,69 @@ for (const [index, argument] of argv.entries()) {
 }
 if (onlyIndex !== -1 && !only) {
   throw new Error("--only requires a non-empty substring");
+}
+
+function artifactStem(name) {
+  return name.replaceAll("/", "--");
+}
+
+function parseCaseToml(text) {
+  const out = { expect: "le" };
+  for (const raw of text.split("\n")) {
+    const line = raw.replace(/#.*$/, "").trim();
+    if (!line) continue;
+    const match = line.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+)$/);
+    if (!match) continue;
+    let value = match[2].trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    out[match[1]] = value;
+  }
+  return out;
+}
+
+function loadCanonicalCases() {
+  const root = join(here, "canonical");
+  if (!existsSync(root)) {
+    return [];
+  }
+  const cases = [];
+  const walk = (dir) => {
+    for (const ent of readdirSync(dir, { withFileTypes: true })) {
+      const path = join(dir, ent.name);
+      if (ent.isDirectory()) {
+        walk(path);
+        continue;
+      }
+      if (ent.name !== "case.toml") continue;
+      const folder = dirname(path);
+      const meta = parseCaseToml(readFileSync(path, "utf8"));
+      const lilPath = existsSync(join(folder, "main.lil"))
+        ? join(folder, "main.lil")
+        : join(folder, "lilscript", "main.lil");
+      const jsPath = existsSync(join(folder, "main.js"))
+        ? join(folder, "main.js")
+        : join(folder, "javascript", "main.js");
+      if (!existsSync(lilPath) || !existsSync(jsPath)) {
+        throw new Error(`canonical case ${folder} needs main.lil and main.js`);
+      }
+      const rel = relative(root, folder).replaceAll("\\", "/");
+      cases.push({
+        name: rel,
+        expect: meta.expect === "lt" ? "lt" : "le",
+        lil: readFileSync(lilPath, "utf8"),
+        js: readFileSync(jsPath, "utf8"),
+        origin: "canonical",
+      });
+    }
+  };
+  walk(root);
+  cases.sort((left, right) => left.name.localeCompare(right.name));
+  return cases;
 }
 
 function sha256(value) {
@@ -290,6 +355,17 @@ function writeCase(entry, expected) {
   return dir;
 }
 
+function rmrf(path) {
+  for (let attempt = 0; attempt < 6; attempt++) {
+    try {
+      rmSync(path, { recursive: true, force: true });
+      return;
+    } catch (error) {
+      if (attempt === 5) throw error;
+    }
+  }
+}
+
 function gate(actual, baseline, expectation) {
   return expectation === "lt" ? actual < baseline : actual <= baseline;
 }
@@ -378,14 +454,24 @@ function evaluateCatalog(entries) {
   };
 }
 
-const allEntries = catalog();
-if (allEntries.length === 0) {
+const catalogEntries = catalog();
+if (catalogEntries.length === 0) {
   throw new Error("catalog is empty");
 }
-const catalogEvaluation = evaluateCatalog(allEntries);
+const canonicalEntries = loadCanonicalCases();
+const catalogNames = new Set(catalogEntries.map((entry) => entry.name));
+for (const entry of canonicalEntries) {
+  if (catalogNames.has(entry.name)) {
+    throw new Error(`canonical case name collides with catalog: ${entry.name}`);
+  }
+}
+const catalogEvaluation = evaluateCatalog(catalogEntries);
 if (updateOracles) {
   if (only) {
     throw new Error("--update-oracles cannot be combined with --only");
+  }
+  if (canonicalOnly) {
+    throw new Error("--update-oracles cannot be combined with --canonical-only");
   }
   writeFileSync(
     oraclePath,
@@ -419,19 +505,36 @@ if (
   );
 }
 
+const allEntries = canonicalOnly
+  ? canonicalEntries
+  : [...catalogEntries, ...canonicalEntries];
+if (canonicalOnly && canonicalEntries.length === 0) {
+  throw new Error("no canonical cases under comparison/cases/canonical");
+}
+
 const selected = allEntries.filter((entry) =>
   only ? entry.name.includes(only) : true,
 );
 if (selected.length === 0) {
   throw new Error(`no cases matched --only ${only}`);
 }
+for (const entry of selected) {
+  if (catalogEvaluation.expectedByName.has(entry.name)) {
+    continue;
+  }
+  try {
+    catalogEvaluation.expectedByName.set(entry.name, execute(entry.js));
+  } catch (error) {
+    throw new Error(`${entry.name}: reference JavaScript failed\n${error.message}`);
+  }
+}
 
 const minifiers = await loadMinifiers();
 const compilerProvenance = prepareCompiler();
 requireCanonicalCodecRuntime("comparison/cases hard gate");
-rmSync(buildRoot, { recursive: true, force: true });
+rmrf(buildRoot);
 mkdirSync(buildRoot, { recursive: true });
-rmSync(generatedRoot, { recursive: true, force: true });
+rmrf(generatedRoot);
 mkdirSync(generatedRoot, { recursive: true });
 
 const failures = [];
@@ -479,7 +582,10 @@ for (const [caseIndex, entry] of selected.entries()) {
   }
 
   for (const candidate of baselines) {
-    const baselineOut = join(buildRoot, `${entry.name}.${candidate.tool}.js`);
+    const baselineOut = join(
+      buildRoot,
+      `${artifactStem(entry.name)}.${candidate.tool}.js`,
+    );
     writeFileSync(baselineOut, candidate.code);
     candidate.artifactPath = baselineOut.slice(repo.length + 1);
     candidate.absoluteArtifactPath = baselineOut;
@@ -548,7 +654,10 @@ for (const [caseIndex, entry] of selected.entries()) {
   const lilscript = {};
   const compiledLanes = [];
   for (const lane of lanes) {
-    const lilOut = join(buildRoot, `${entry.name}.${lane.name}.lil.js`);
+    const lilOut = join(
+      buildRoot,
+      `${artifactStem(entry.name)}.${lane.name}.lil.js`,
+    );
     try {
       const compileStarted = process.hrtime.bigint();
       run(
@@ -639,7 +748,7 @@ for (const [caseIndex, entry] of selected.entries()) {
   rows.push({
     name: entry.name,
     expect: entry.expect,
-    contract: "paired-output",
+    origin: entry.origin ?? "catalog",
     boundary: "closed-world-script",
     target: javascriptTarget,
     passed: caseFailures.length === 0,
@@ -672,10 +781,11 @@ const passedCases = rows.filter((row) => row.passed).length;
 const failedCases = rows.length - passedCases;
 const report = {
   schemaVersion: 5,
-  catalogCases: allEntries.length,
+  catalogCases: catalogEntries.length,
+  canonicalCases: canonicalEntries.length,
   // Keep full reports self-identifying. A JSON null is too easy to mistake for
   // missing provenance when a focused run can overwrite the same build file.
-  selectedBy: only ?? "all",
+  selectedBy: only ?? (canonicalOnly ? "canonical" : "all"),
   cases: rows.length,
   passedCases,
   failedCases,

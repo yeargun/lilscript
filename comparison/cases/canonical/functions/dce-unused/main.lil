@@ -1,0 +1,7 @@
+int used(int value) {
+  return value + 2;
+}
+int unused(int value) {
+  return value * 1000;
+}
+print(used(6));

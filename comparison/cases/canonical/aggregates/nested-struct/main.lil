@@ -1,0 +1,15 @@
+struct Point {
+  int x;
+  int y;
+}
+struct Rect {
+  Point origin;
+  int width;
+  int height;
+}
+int area(Rect rect) {
+  return rect.width * rect.height;
+}
+Rect rect = Rect{Point{1, 2}, 6, 7};
+print(area(rect));
+print(rect.origin.x + rect.origin.y);

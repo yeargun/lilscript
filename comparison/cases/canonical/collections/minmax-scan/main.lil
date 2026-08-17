@@ -1,0 +1,13 @@
+int[] values = [4, 9, 16, 25, 36, 49];
+int lo = values[0];
+int hi = values[0];
+for (int i = 1; i < values.length; i++) {
+  if (values[i] < lo) {
+    lo = values[i];
+  }
+  if (values[i] > hi) {
+    hi = values[i];
+  }
+}
+print(lo);
+print(hi);

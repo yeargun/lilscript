@@ -1,0 +1,9 @@
+int gcd(int left, int right) {
+  while (right != 0) {
+    int next = left % right;
+    left = right;
+    right = next;
+  }
+  return left;
+}
+print(gcd(99, 11));

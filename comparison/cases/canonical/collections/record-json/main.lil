@@ -1,0 +1,7 @@
+Record<int> source = record{left:1, right:2, middle:3};
+Record<int> copy = record{...source, right:11};
+source.left = 21;
+print(copy.left ?? 0);
+print(copy.right ?? 0);
+print(Object.keys(copy).join(","));
+print(JSON.stringify(copy));

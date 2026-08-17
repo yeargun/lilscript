@@ -1,0 +1,11 @@
+int churn(int value, int factor, int offset, int rounds) {
+  for (int i = 0; i < rounds; i++) {
+    value = value * factor + offset;
+  }
+  return value;
+}
+int value = churn(123456789, 1664525, 1013904223, 3);
+print(value);
+print(value / 257);
+print(value % 257);
+print(value >>> 5);

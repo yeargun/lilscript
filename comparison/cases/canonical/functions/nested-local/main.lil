@@ -1,0 +1,7 @@
+int bump(int inner) {
+  return inner + 3;
+}
+int scale(int value) {
+  return bump(value) * 2;
+}
+print(scale(5));

@@ -1,0 +1,4 @@
+int[] values = [1, 2, 3, 4, 5];
+int[] mapped = values.map((int value) => value * 2);
+int[] selected = mapped.filter((int value) => value % 4 == 0);
+print(selected.reduce((int total, int value) => total + value, 0));

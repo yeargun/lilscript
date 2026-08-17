@@ -1,0 +1,16 @@
+enum Kind {
+  Low,
+  Mid,
+  High
+}
+
+int score(Kind kind) {
+  return match(kind) {
+    Kind.Low => 1,
+    Kind.Mid => 2,
+    Kind.High => 4
+  };
+}
+
+print(score(Kind.Mid));
+print(score(Kind.High));

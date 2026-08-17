@@ -1,0 +1,11 @@
+const scores = new Map;
+scores.set("a", 3).set("b", 4);
+console.log(scores.has("a"));
+console.log(scores.has("b"));
+console.log(scores.delete("b"));
+console.log(scores.has("b"));
+const seen = new Set;
+seen.add(3).add(3).add(5);
+console.log(seen.has(3));
+console.log(seen.delete(5));
+console.log(seen.size);

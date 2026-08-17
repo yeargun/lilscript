@@ -1,0 +1,5 @@
+async int resolveValue(int value) {
+  int resolved = await Task.resolve(value + 5);
+  return resolved * 2;
+}
+resolveValue(3).then((int value) => print(value));

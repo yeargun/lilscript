@@ -1,0 +1,13 @@
+generator int range(int start, int stop, int step) {
+  for (int value = start; value < stop; value += step) {
+    yield value;
+  }
+}
+int total = 0;
+int count = 0;
+for (int value of range(1, 7, 2)) {
+  total += value;
+  count++;
+}
+print(total);
+print(count);

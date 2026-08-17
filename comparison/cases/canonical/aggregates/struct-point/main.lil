@@ -1,0 +1,9 @@
+struct Point {
+  int x;
+  int y;
+}
+int score(Point point) {
+  return point.x * 3 + point.y * 5;
+}
+Point point = Point{3, 4};
+print(score(point));

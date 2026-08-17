@@ -1,0 +1,13 @@
+int guarded(int start) {
+  int value = start;
+  try {
+    value += 2;
+    throw value;
+  } catch {
+    value += 3;
+  } finally {
+    value += 4;
+  }
+  return value;
+}
+print(guarded(1));

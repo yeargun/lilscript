@@ -1,0 +1,11 @@
+Map<string,int> scores = new Map<string,int>();
+scores.set("a", 3).set("b", 4);
+print(scores.has("a"));
+print(scores.has("b"));
+print(scores.delete("b"));
+print(scores.has("b"));
+Set<int> seen = new Set<int>();
+seen.add(3).add(3).add(5);
+print(seen.has(3));
+print(seen.delete(5));
+print(seen.size);

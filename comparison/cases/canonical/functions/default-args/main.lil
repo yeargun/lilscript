@@ -1,0 +1,6 @@
+int add(int left, int right = 1, int extra = 0) {
+  return left + right + extra;
+}
+print(add(7));
+print(add(7, 2));
+print(add(7, 2, 3));

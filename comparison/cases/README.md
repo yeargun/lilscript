@@ -1,9 +1,17 @@
 # LilScript vs web minifiers
 
 This is the compression regression gate for small, semantically paired web
-programs. Each catalog entry supplies independent LilScript and ordinary
-JavaScript sources. `run.mjs` materializes a reviewable folder at
-`generated/<name>/` with `main.lil`, `main.js`, `expected.txt`, and `case.json`.
+programs. Hand-authored pairs live in `canonical/<family>/<id>/`. Parameterized
+variants still come from `catalog.mjs` and are materialized under `generated/`.
+
+```sh
+node comparison/cases/run.mjs --canonical-only
+node comparison/cases/run.mjs --only aggregates/
+node comparison/cases/run.mjs
+```
+
+`--canonical-only` still verifies the catalog oracle, then runs only folder cases.
+`--only` matches catalog names and canonical paths. The full command runs both.
 
 ## Hard gate
 
@@ -28,16 +36,16 @@ per metric; LilScript cannot pass by comparing against a convenient but larger
 JavaScript artifact. LilScript output is not post-minified.
 
 ```sh
-node comparison/cases/run.mjs
+node comparison/cases/run.mjs --canonical-only
 node comparison/cases/run.mjs --only struct
+node comparison/cases/run.mjs
 ```
 
 Generated cases, emitted artifacts, and reports are ignored build products.
-`catalog.mjs`, `oracle-manifest.json`, the three files under `configs/`, and this
+`catalog.mjs`, `canonical/`, `oracle-manifest.json`, the three files under `configs/`, and this
 runner are the durable source of truth. The checked-in oracle is one digest for
-the complete catalog, so it fixes the reference JavaScript, its stdout, case
-names, and strictness without checking in one generated directory per case. Every run,
-including `--only`, verifies the complete oracle before selecting cases.
+the complete generated catalog. Canonical folders are reviewed in git. Every run,
+including `--only` and `--canonical-only`, verifies the catalog oracle before selecting cases.
 
 After intentionally reviewing a reference-program or expected-output change,
 update the oracle explicitly:

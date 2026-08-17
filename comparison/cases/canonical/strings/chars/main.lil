@@ -1,0 +1,8 @@
+string word = "lilscript";
+int total = 0;
+for (int i = 0; i < word.length; i++) {
+  total += word.charCodeAt(i);
+}
+print(total);
+print(word.toLowerCase());
+print(word.toUpperCase());
