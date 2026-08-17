@@ -15,7 +15,8 @@
     "publish:motion-lab": "node publish-motion-lab.mjs",
     "verify:exact": "node verify-nanoid.mjs && node verify-mitt.mjs && node verify-clsx.mjs && node verify-gl-matrix.mjs && node verify-motion.mjs",
     "monaco:ide": "node monaco-layers/build-ide.mjs && node monaco-layers/serve-ide.mjs",
-    "monaco:serve": "node monaco-layers/serve-ide.mjs"
+    "monaco:serve": "node monaco-layers/serve-ide.mjs",
+    "monaco:e2e": "node monaco-layers/e2e-ide.mjs"
   },
   "dependencies": {
     "@reduxjs/toolkit": "2.8.2",
@@ -36,6 +37,7 @@
   "devDependencies": {
     "esbuild": "0.28.1",
     "google-closure-compiler": "20260804.0.0",
+    "playwright-core": "^1.55.0",
     "rolldown": "1.2.3",
     "terser": "5.43.1",
     "vite": "8.2.1"

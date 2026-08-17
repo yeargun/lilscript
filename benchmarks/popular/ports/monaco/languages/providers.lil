@@ -71,10 +71,17 @@ export JsValue invokeProvider(JsValue provider, string method, JsValue a, JsValu
 
 export SuggestItem[] suggestItemsFromJs(JsValue result) {
   SuggestItem[] items = [];
-  int n = jsArrayLen(result);
+  if (!result.truthy()) {
+    return items;
+  }
+  JsValue rows = result;
+  if (result["suggestions"].truthy()) {
+    rows = result["suggestions"];
+  }
+  int n = jsArrayLen(rows);
   int i = 0;
   while (i < n) {
-    JsValue row = jsArrayAt(result, i);
+    JsValue row = jsArrayAt(rows, i);
     string label = jsPropString(row, "label", "");
     string insert = jsPropString(row, "insertText", label);
     if (label.length == 0) {

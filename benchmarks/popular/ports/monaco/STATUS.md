@@ -11,12 +11,12 @@ Keep the algorithms: piece tree + red-black metadata, prefix-sum line starts, de
 
 Rewrite representation as LilScript `struct` / `class` / enum. `JsValue` only at the host/DOM facade and `monaco.editor.create(options)` bag.
 
-TypeScript compiler / `ts.worker` is out of scope.
+TypeScript compiler / `ts.worker` is not rewritten yet. The Lil editor tokenizes on the main thread (Monarch + contrib).
 
 Read/implement from `benchmarks/popular/vendor/` (gitignored). Refresh with `node monaco-layers/clone-vendor.mjs`. Measure/oracle against npm `monaco-editor-core@0.56.0` and `monaco-editor@0.56.0`.
 
 Findings page with `lilscript-codec` tables: [`apps/monaco/findings.html`](../../apps/monaco/findings.html).
-Paired demos: [`apps/monaco/lil`](../../apps/monaco/lil) and [`apps/monaco/js`](../../apps/monaco/js) (`node monaco-layers/build-apps.mjs`).
+Paired demos (`node monaco-layers/build-ide.mjs`): [`apps/monaco/js`](../../apps/monaco/js) is npm **monaco-editor 0.56**. [`apps/monaco/lil`](../../apps/monaco/lil) is the compiled LilScript editor (`entry.lil`), not monaco-editor with an alias. Lab smoke (`node monaco-layers/build-apps.mjs`) still uses `demo-entry.lil`.
 
 ## Dual delivery
 
@@ -44,9 +44,13 @@ Measured with `lilscript-codec` (stock zlib 1.3.1 / official Brotli C 1.1.0). Ga
 | remaining-monarch | ok (75 langs) | 12,387 | 597,336 | PASS |
 | json-css-html-ls | ok (no tsc) | 1,748 | 525,981 | PASS |
 
+The piece-tree JS Brotli in this table is the old `PieceTreeTextBufferBuilder` extract (it pulled `model.js` / search). Fair `pieceTreeBase.js` + `rbTreeBase.js` Brotli is on the production landing page (`apps/monaco/index.html` / `sizes.json`).
+
 ## Extract fairness
 
-- **base-lifecycle, core-types, piece-tree, text-model** compare against targeted monaco-editor-core ESM (URI/lifecycle, Position/Range/Selection, `PieceTreeTextBuffer`, interval tree + search). These are the honest algorithm rows.
+- **core-types** compares Position.js + Range.js + Selection.js, minified, vs the Lil compile of those three files.
+- **piece-tree** compares `pieceTreeBase.js` + `rbTreeBase.js` with Position/Range/FindMatch/Searcher left external. It does **not** include `pieceTreeTextBuffer.js`, `pieceTreeTextBufferBuilder.js`, or `model.js`. The old builder extract pulled those in and overstated JS by ~5×.
+- **base-lifecycle / text-model** still use broader extracts (URI+lifecycle+events, buffer+interval tree+search). Treat them as algorithm-area rows, not file pairs.
 - **view-render / input-commands** extract monaco `editor/browser/view.js`, which pulls a large view graph. LilScript is a viewport + textarea + minimap canvas, not GPU/view-zones/white-space rendering.
 - **standalone-api and later contrib/LS rows** extract `editor.api.js` (or language modules that import it for `IndentAction`). That kitchen-sink surface is what npm ships for `monaco.editor.create`; the LilScript side is the functioning subset (create, type, undo, theme, layout, find, fold, brackets, hover, suggest, snippets, comments, goto, Myers diff, Monarch, JSON/CSS/HTML adapters). Size deltas there overstate a full-product replacement.
 - CSS and TTF are not counted. Editor workers are not ported; tokenize on the main thread.
@@ -65,9 +69,9 @@ Measured with `lilscript-codec` (stock zlib 1.3.1 / official Brotli C 1.1.0). Ga
 - `node monaco-layers/build-apps.mjs` — demo log `value=70 matches=2 folds=1 highlights=2 hover=msg diffs=1`.
 - `bindMonaco(entry.lil)` — `editor.create`, type, undo, comment, find, decorations, suggest provider, extra-cursor type, `createDiffEditor` line changes, 83 language ids.
 
-## Non-goals
+## Not yet ported
 
-- Microsoft TypeScript compiler / `ts.worker`
+- Microsoft TypeScript compiler / `ts.worker` (Lil uses Monarch + contrib instead)
 - VS Code workbench
 - TextMate / Oniguruma grammars
-- Full language-service feature parity for JSON/CSS/HTML (adapters only)
+- GPU view-zones / monaco `editor/browser/view.js` (Lil has its own viewport)

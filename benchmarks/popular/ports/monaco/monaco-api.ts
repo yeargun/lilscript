@@ -188,6 +188,51 @@ export function bindMonaco(lil) {
     return lil.Position ? lil.Position(lineNumber, column) : { lineNumber, column }
   }
 
+  function asPosition(pos) {
+    if (!pos) {
+      return { lineNumber: 1, column: 1 }
+    }
+    if (Array.isArray(pos) && pos.length >= 2) {
+      return { lineNumber: Number(pos[0]) || 1, column: Number(pos[1]) || 1 }
+    }
+    const line = Number(pos.lineNumber ?? pos.positionLineNumber ?? 1) || 1
+    const col = Number(pos.column ?? pos.positionColumn ?? 1) || 1
+    return { lineNumber: line, column: col }
+  }
+
+  function lilPos(pos) {
+    const at = asPosition(pos)
+    return lil.Position ? lil.Position(at.lineNumber, at.column) : at
+  }
+
+  function wordAtColumn(text, column) {
+    const idx = Math.max(0, (column | 0) - 1)
+    const re = /[A-Za-z_$][\w$]*/g
+    let match
+    while ((match = re.exec(String(text ?? "")))) {
+      const start = match.index
+      const end = start + match[0].length
+      if (idx >= start && idx < end) {
+        return { word: match[0], startColumn: start + 1, endColumn: end + 1 }
+      }
+    }
+    return null
+  }
+
+  function positionFromOffset(text, offset) {
+    const lines = String(text ?? "").split("\n")
+    let rest = Math.max(0, offset | 0)
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]
+      if (rest <= line.length) {
+        return Position(i + 1, rest + 1)
+      }
+      rest -= line.length + 1
+    }
+    const last = lines[lines.length - 1] ?? ""
+    return Position(lines.length, last.length + 1)
+  }
+
   function Range(startLineNumber, startColumn, endLineNumber, endColumn) {
     return lil.Range
       ? lil.Range(startLineNumber, startColumn, endLineNumber, endColumn)
@@ -265,6 +310,8 @@ export function bindMonaco(lil) {
   const keybindingRules = []
   const linkOpeners = []
   const editorOpeners = []
+  const modelCache = new Map()
+  const editorCache = new Map()
   let colorMap = null
   let editorSeq = 0
 
@@ -298,6 +345,10 @@ export function bindMonaco(lil) {
     }
     if (handle._handle && handle.getValue) {
       return handle
+    }
+    const cached = modelCache.get(handle)
+    if (cached) {
+      return cached
     }
     const uriString = typeof lil.modelUriString === "function" ? lil.modelUriString(handle) : "inmemory://model"
     const uri = {
@@ -336,20 +387,44 @@ export function bindMonaco(lil) {
         return lil.modelGetVersionId ? lil.modelGetVersionId(handle) : 1
       },
       getOffsetAt(pos) {
-        return lil.modelGetOffsetAt ? lil.modelGetOffsetAt(handle, pos) : 0
+        const line = pos?.lineNumber | 0 || 1
+        const col = pos?.column | 0 || 1
+        if (lil.Position && lil.modelGetOffsetAt) {
+          const off = lil.modelGetOffsetAt(handle, lilPos({ lineNumber: line, column: col }))
+          if (off > 0 || (line === 1 && col <= 1)) {
+            return off
+          }
+        }
+        const lines = model.getValue().split("\n")
+        let offset = 0
+        for (let i = 0; i < line - 1 && i < lines.length; i++) {
+          offset += lines[i].length + 1
+        }
+        return offset + Math.max(0, col - 1)
       },
       getPositionAt(offset) {
-        return lil.modelGetPositionAt ? lil.modelGetPositionAt(handle, offset) : Position(1, 1)
+        if (lil.modelGetPositionAt) {
+          const pos = lil.modelGetPositionAt(handle, offset | 0)
+          const line = Number(pos?.lineNumber ?? 0)
+          const col = Number(pos?.column ?? 0)
+          if (line > 1 || col > 1 || (offset | 0) === 0) {
+            return asPosition(pos)
+          }
+        }
+        return positionFromOffset(model.getValue(), offset | 0)
       },
       getValueInRange(range) {
         return lil.modelGetValueInRange ? lil.modelGetValueInRange(handle, range) : ""
       },
       getWordAtPosition(pos) {
-        const row = lil.modelGetWordAtPosition ? lil.modelGetWordAtPosition(handle, pos) : null
-        if (!row || row.length < 3 || !row[2]) {
-          return null
+        const at = asPosition(pos)
+        if (lil.modelGetWordAtPosition) {
+          const row = lil.modelGetWordAtPosition(handle, lilPos(at))
+          if (row && row.length >= 3 && row[2]) {
+            return { word: row[2], startColumn: Number(row[0]), endColumn: Number(row[1]) }
+          }
         }
-        return { word: row[2], startColumn: Number(row[0]), endColumn: Number(row[1]) }
+        return wordAtColumn(model.getLineContent(at.lineNumber), at.column)
       },
       getFullModelRange() {
         const last = model.getLineCount()
@@ -556,10 +631,22 @@ export function bindMonaco(lil) {
         return cb(acc)
       },
     }
+    modelCache.set(handle, model)
     return model
   }
 
   function wrapEditor(handle) {
+    if (!handle) {
+      return null
+    }
+    if (handle._handle && handle.trigger) {
+      return handle
+    }
+    const cached = editorCache.get(handle)
+    if (cached) {
+      return cached
+    }
+    const localActions = new Map()
     const listeners = {
       content: [],
       cursor: [],
@@ -596,10 +683,16 @@ export function bindMonaco(lil) {
         }
       },
       getPosition() {
-        return lil.editorGetPosition(handle)
+        if (typeof lil.editorGetSelectionsPacked === "function") {
+          const packed = lil.editorGetSelectionsPacked(handle)
+          if (packed && packed.length >= 4) {
+            return { lineNumber: packed[2] | 0 || 1, column: packed[3] | 0 || 1 }
+          }
+        }
+        return asPosition(lil.editorGetPosition(handle))
       },
       setPosition(pos) {
-        lil.editorSetPosition(handle, pos)
+        lil.editorSetPosition(handle, lilPos(pos))
       },
       getSelection() {
         return lil.editorGetSelection(handle)
@@ -608,6 +701,10 @@ export function bindMonaco(lil) {
         lil.editorSetSelection(handle, sel)
       },
       trigger(source, handlerId, payload) {
+        const local = localActions.get(handlerId)
+        if (typeof local?.run === "function") {
+          return local.run(wrapped, payload)
+        }
         lil.editorTrigger(handle, source, handlerId, payload ?? {})
       },
       layout(dimension) {
@@ -663,9 +760,12 @@ export function bindMonaco(lil) {
         lil.editorRevealLine(handle, range.startLineNumber)
       },
       addAction(desc) {
-        lil.editorAddAction(handle, desc.id, desc.label ?? desc.id, desc.run)
+        localActions.set(desc.id, desc)
+        lil.editorAddAction?.(handle, desc.id, desc.label ?? desc.id, desc.run)
         return {
-          dispose() {},
+          dispose() {
+            localActions.delete(desc.id)
+          },
         }
       },
       addCommand(_keybinding, handler) {
@@ -677,7 +777,7 @@ export function bindMonaco(lil) {
         return {
           id,
           run() {
-            lil.editorTrigger(handle, "action", id, {})
+            return wrapped.trigger("action", id, {})
           },
         }
       },
@@ -926,16 +1026,14 @@ export function bindMonaco(lil) {
         return null
       },
       getSupportedActions() {
-        return [
+        const ids = new Set([
           "undo",
           "redo",
           "actions.find",
-          "editor.action.commentLine",
-          "editor.action.triggerSuggest",
-          "editor.foldAll",
-          "editor.unfoldAll",
-          "editor.action.formatDocument",
-        ].map((id) => wrapped.getAction(id))
+          "editor.action.startFindReplaceAction",
+          ...localActions.keys(),
+        ])
+        return [...ids].map((id) => wrapped.getAction(id))
       },
       executeCommand(_source, command) {
         if (command && typeof command.getEditOperations === "function") {
@@ -995,6 +1093,7 @@ export function bindMonaco(lil) {
         return "14px"
       },
     }
+    editorCache.set(handle, wrapped)
     if (typeof lil.editorSetModelFacade === "function") {
       lil.editorSetModelFacade(handle, wrapped.getModel())
     }
@@ -1076,7 +1175,9 @@ export function bindMonaco(lil) {
       const handle = lil.create(dom, next)
       const wrapped = wrapEditor(handle)
       if (existing) {
+        const temp = wrapped.getModel()
         wrapped.setModel(wrapModel(existing))
+        temp?.dispose?.()
       }
       return wrapped
     },

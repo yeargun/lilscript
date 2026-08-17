@@ -1,4 +1,4 @@
-import { preventDefault, eventKey, eventCtrlKey, eventShiftKey, eventAltKey, clipboardRead, clipboardWrite, clipboardReadEvent, clipboardWriteEvent, sliceOf, emptyBuf, repeatChar } from "../js-host";
+import { preventDefault, eventKey, eventCtrlKey, eventShiftKey, eventAltKey, clipboardRead, clipboardWrite, clipboardReadEvent, clipboardWriteEvent, sliceOf, emptyBuf, repeatChar, eventIsComposing } from "../js-host";
 import { EditorView, DEFAULT_LINE_HEIGHT } from "./view";
 import { editOp } from "./text-model";
 import { IdentifiedEdit } from "./edit-stack";
@@ -1022,7 +1022,16 @@ export void handleKeydown(EditorView view, JsValue event) {
   }
   if (key == "Enter") {
     preventDefault(event);
-    insertNewline(view);
+    if (ctrl) {
+      triggerCommand(view, "editor.action.insertLineAfter", "");
+    } else {
+      insertNewline(view);
+    }
+    return;
+  }
+  if (ctrl && shift && (key == "k" || key == "K")) {
+    preventDefault(event);
+    triggerCommand(view, "editor.action.deleteLines", "");
     return;
   }
   if (key == "Tab") {
@@ -1093,6 +1102,10 @@ export void handleKeydown(EditorView view, JsValue event) {
       moveDown(view, shift);
     }
     return;
+  }
+  if (!ctrl && !alt && !eventIsComposing(event) && key.length == 1 && key != "Dead") {
+    preventDefault(event);
+    typeText(view, key);
   }
 }
 

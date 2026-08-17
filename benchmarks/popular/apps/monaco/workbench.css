@@ -32,6 +32,45 @@ body {
   padding: 4px 8px;
 }
 .menubar button:hover { background: #505050; }
+.menu { position: relative; }
+.menu-drop {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 240px;
+  max-height: 420px;
+  overflow: auto;
+  background: #252526;
+  border: 1px solid #454545;
+  z-index: 40;
+  box-shadow: 0 8px 24px rgba(0,0,0,.45);
+}
+.menu.open .menu-drop { display: block; }
+.menu-drop button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: #ccc;
+  padding: 6px 12px;
+  cursor: pointer;
+  font: 13px/18px inherit;
+}
+.menu-drop button:hover { background: #04395e; }
+.crumbs {
+  height: 22px;
+  padding: 0 12px;
+  background: #1e1e1e;
+  border-bottom: 1px solid #2b2b2b;
+  color: #9cdcfe;
+  font-size: 12px;
+  line-height: 22px;
+  white-space: nowrap;
+  overflow: hidden;
+  flex-shrink: 0;
+}
 .body {
   display: flex;
   flex: 1;

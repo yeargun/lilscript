@@ -8,7 +8,7 @@ export const FILES = [
 
 Two served editors, same chrome:
 
-- LilScript: compiled Lil editor (piece tree, Monarch, textarea + minimap canvas)
+- LilScript: compiled Lil editor (no monaco-editor JS)
 - JS: npm monaco-editor 0.56 (VS Code editor + JSON/CSS/HTML/TS workers)
 
 Open files from the explorer. Ctrl/Cmd+P quick-opens. Ctrl/Cmd+F finds in the current file.

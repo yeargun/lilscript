@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { build as esbuild } from "esbuild";
 import { layerById, monacoEditorCoreVersion } from "./catalog.mjs";
+import { monacoPath, pairById } from "./file-map.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const labRoot = join(here, "..");
@@ -23,29 +24,27 @@ export { Range } from "${coreRoot}/editor/common/core/range.js";
 export { Selection } from "${coreRoot}/editor/common/core/selection.js";
 `,
   "piece-tree": `
-import { PieceTreeTextBufferBuilder } from "${coreRoot}/editor/common/model/pieceTreeTextBuffer/pieceTreeTextBufferBuilder.js";
+import { PieceTreeBase, StringBuffer, createLineStartsFast } from "${coreRoot}/editor/common/model/pieceTreeTextBuffer/pieceTreeBase.js";
 import { Range } from "${coreRoot}/editor/common/core/range.js";
 
 export function create(value, eol = "\\n") {
-  const builder = new PieceTreeTextBufferBuilder();
-  if (value) builder.acceptChunk(value);
-  const factory = builder.finish(true);
-  return factory.create(eol === "\\r\\n" ? 2 : 1).textBuffer;
+  const text = (value ?? "").replace(/\\r\\n|\\r|\\n/g, eol);
+  return new PieceTreeBase([new StringBuffer(text, createLineStartsFast(text))], eol, true);
 }
-export function getValue(buf) {
-  return buf.getLinesContent().join(buf.getEOL());
+export function getValue(tree) {
+  return tree.getLinesContent().join(tree.getEOL());
 }
-export function getLength(buf) { return buf.getLength(); }
-export function getLineCount(buf) { return buf.getLineCount(); }
-export function getLineContent(buf, lineNumber) { return buf.getLineContent(lineNumber); }
-export function getLineLength(buf, lineNumber) { return buf.getLineLength(lineNumber); }
-export function getOffsetAt(buf, lineNumber, column) { return buf.getOffsetAt(lineNumber, column); }
-export function getPositionAt(buf, offset) { return buf.getPositionAt(offset); }
-export function getValueInRange(buf, sl, sc, el, ec) {
-  return buf.getValueInRange(new Range(sl, sc, el, ec));
+export function getLength(tree) { return tree.getLength(); }
+export function getLineCount(tree) { return tree.getLineCount(); }
+export function getLineContent(tree, lineNumber) { return tree.getLineContent(lineNumber); }
+export function getLineLength(tree, lineNumber) { return tree.getLineLength(lineNumber); }
+export function getOffsetAt(tree, lineNumber, column) { return tree.getOffsetAt(lineNumber, column); }
+export function getPositionAt(tree, offset) { return tree.getPositionAt(offset); }
+export function getValueInRange(tree, sl, sc, el, ec) {
+  return tree.getValueInRange(new Range(sl, sc, el, ec));
 }
-export function insert(buf, offset, value) { buf._pieceTree.insert(offset, value); }
-export function deleteRange(buf, offset, cnt) { buf._pieceTree.delete(offset, cnt); }
+export function insert(tree, offset, value) { tree.insert(offset, value); }
+export function deleteRange(tree, offset, cnt) { tree.delete(offset, cnt); }
 `,
   "text-model": `
 import { PieceTreeTextBufferBuilder } from "${coreRoot}/editor/common/model/pieceTreeTextBuffer/pieceTreeTextBufferBuilder.js";
@@ -145,6 +144,34 @@ export async function extractLayer(id) {
             contents: "export default ''",
             loader: "js",
           }));
+        },
+      },
+    ],
+  });
+  return result.outputFiles[0].text;
+}
+
+export async function extractLayerForSize(id) {
+  if (id !== "piece-tree") {
+    return extractLayer(id);
+  }
+  const pair = pairById("piece-tree");
+  const result = await esbuild({
+    entryPoints: [monacoPath(pair.jsEntry)],
+    bundle: true,
+    format: "esm",
+    platform: "neutral",
+    write: false,
+    logOverride: {
+      "import-is-undefined": "silent",
+    },
+    plugins: [
+      {
+        name: "piece-tree-file-pair",
+        setup(build) {
+          for (const filter of pair.jsExternal) {
+            build.onResolve({ filter }, (args) => ({ path: args.path, external: true }));
+          }
         },
       },
     ],

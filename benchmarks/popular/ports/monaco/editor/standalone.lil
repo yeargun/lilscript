@@ -15,13 +15,16 @@ import {
   eventButton,
   eventDetail,
   hostCall,
-  jsUndefined
+  jsUndefined,
+  eventAltKey,
+  eventIsComposing,
+  inputSetValue
 } from "../js-host";
 import { TextModel, createModel, createModelWithUri, getModels, editOp, deco } from "./text-model";
 import { IdentifiedEdit } from "./edit-stack";
 import { EditorView, createView } from "./view";
 import { triggerCommand, handleKeydown, handlePasteEvent, handleCopyEvent, handleCutEvent, typeText, setPosition, setSel, selectedText } from "./commands";
-import { runEditorAction, acceptSuggest, moveSuggest, hideSuggest, hideHover, showHover, acceptGoto, acceptRename, hideContext, showContext, openFind, findNext, closeFind } from "../contrib/runtime";
+import { runEditorAction, acceptSuggest, moveSuggest, hideSuggest, hideHover, showHover, acceptGoto, acceptRename, hideContext, showContext, openFind, findNext, closeFind, replaceOne, replaceAll } from "../contrib/runtime";
 import { Emitter } from "../base/lifecycle";
 import { Pos } from "../base/position";
 import { Rng, createRange } from "../base/range";
@@ -185,6 +188,11 @@ export class CodeEditor {
         this.trigger("keyboard", "editor.action.marker.next", jsUndefined());
         return;
       }
+      if (eventAltKey(ev) && eventShiftKey(ev) && (eventKey(ev) == "f" || eventKey(ev) == "F")) {
+        preventDefault(ev);
+        this.trigger("keyboard", "editor.action.formatDocument", jsUndefined());
+        return;
+      }
       if (eventKey(ev) == "Escape") {
         hideSuggest(view);
         hideHover(view);
@@ -201,9 +209,13 @@ export class CodeEditor {
       }
     }, false);
     addEventListener(view.textarea, "input", (JsValue ev) => {
+      if (eventIsComposing(ev)) {
+        return;
+      }
       string value = JS.string(ev["target"]["value"]);
       if (value.length > 0) {
         typeText(view, value);
+        inputSetValue(view.textarea, "");
       }
     }, false);
     addEventListener(view.textarea, "paste", (JsValue ev) => {
@@ -233,14 +245,16 @@ export class CodeEditor {
         int lineLen = view.model.getLineLength(clickLine) + 1;
         setSel(view, clickLine, 1, clickLine, lineLen);
       } else if (detail == 2) {
-        this.trigger("keyboard", "cursorWordSelect", jsUndefined());
         setPosition(view, clickLine, clickCol);
-        this.trigger("keyboard", "expandLineSelection", jsUndefined());
+        this.trigger("keyboard", "cursorWordSelect", jsUndefined());
+      } else if (eventAltKey(ev)) {
+        view.extraCursors.push(createSelection(clickLine, clickCol, clickLine, clickCol));
       } else if (eventShiftKey(ev)) {
         int sl = view.selection.selectionStartLineNumber;
         int sc = view.selection.selectionStartColumn;
         setSel(view, sl, sc, clickLine, clickCol);
       } else {
+        view.extraCursors = [];
         setPosition(view, clickLine, clickCol);
       }
       focusElement(view.textarea);
@@ -262,6 +276,22 @@ export class CodeEditor {
         this.trigger("menu", cmd, jsUndefined());
       }
       hideContext(view);
+    }, false);
+    addEventListener(view.findWidget, "mousedown", (JsValue ev) => {
+      JsValue t = ev["target"];
+      string act = JS.string(hostCall(t, "getAttribute", "data-find", jsUndefined(), jsUndefined()));
+      if (act == "next") {
+        findNext(view, false);
+      }
+      if (act == "prev") {
+        findNext(view, true);
+      }
+      if (act == "replace") {
+        replaceOne(view);
+      }
+      if (act == "all") {
+        replaceAll(view);
+      }
     }, false);
     addEventListener(view.findInput, "keydown", (JsValue ev) => {
       if (eventKey(ev) == "Enter") {
@@ -892,6 +922,15 @@ export IdentifiedEdit[] modelApplyEdits(TextModel model, IdentifiedEdit[] edits)
 }
 
 export void modelDispose(TextModel model) {
+  TextModel[] all = getModels();
+  int i = 0;
+  while (i < all.length) {
+    if (all[i] == model) {
+      all.splice(i, 1);
+      break;
+    }
+    i++;
+  }
   model.dispose();
 }
 

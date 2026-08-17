@@ -135,7 +135,7 @@ void takeWord(string word, string prefix, SuggestItem[] items, string[] seen) {
   if (seen.indexOf(word) >= 0) {
     return;
   }
-  if (prefix.length == 0 || (word.indexOf(prefix) == 0 && word != prefix)) {
+  if (prefix.length == 0 || word.indexOf(prefix) == 0) {
     items.push(new SuggestItem(word, word));
     seen.push(word);
   }

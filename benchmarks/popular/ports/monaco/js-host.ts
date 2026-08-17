@@ -1164,3 +1164,11 @@ export function jsUndefined(): any {
 export function throwError(msg: string): never {
   throw new Error(msg)
 }
+
+export {
+  hostPaintEditor,
+  hostCoordsToPosition,
+  hostStyleFindWidget,
+  eventIsComposing,
+  eventDeltaY,
+} from "./js-host-paint.ts"

@@ -75,7 +75,12 @@ import extern {
   concat2,
   beginIdList,
   pushId,
-  takeIdList
+  takeIdList,
+  hostPaintEditor,
+  hostCoordsToPosition,
+  hostStyleFindWidget,
+  eventIsComposing,
+  eventDeltaY
 } from "./js-host.ts";
 
 export extern string stringSlice(string s, float start, float end = 9007199254740991.0);
@@ -155,6 +160,42 @@ export extern string concat2(string a, string b);
 export extern void beginIdList(JsValue holder);
 export extern void pushId(JsValue holder, int id);
 export extern int[] takeIdList(JsValue holder);
+export extern int hostPaintEditor(
+  JsValue linesHost,
+  JsValue margin,
+  JsValue selectionHost,
+  JsValue cursorEl,
+  JsValue minimap,
+  JsValue textarea,
+  string value,
+  string languageId,
+  int lineHeight,
+  int width,
+  int height,
+  int scrollTop,
+  bool showLineNumbers,
+  bool showMinimap,
+  string theme,
+  int selStartLine,
+  int selStartCol,
+  int posLine,
+  int posCol,
+  string findQuery,
+  bool wordWrap,
+  int tabSize
+);
+export extern int[] hostCoordsToPosition(
+  JsValue scrollable,
+  JsValue linesHost,
+  int clientX,
+  int clientY,
+  int lineHeight,
+  int charWidth,
+  int scrollTop
+);
+export extern void hostStyleFindWidget(JsValue findWidget, JsValue findInput, JsValue replaceInput);
+export extern bool eventIsComposing(JsValue event);
+export extern int eventDeltaY(JsValue event);
 
 export pure int imin(int a, int b) {
   if (a < b) {

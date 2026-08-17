@@ -10,7 +10,7 @@ import {
 } from "../../codec-contract.mjs";
 import { minifyJqueryBundle } from "../jquery-measurement-lanes.mjs";
 import { layerById, layers, planned } from "./catalog.mjs";
-import { extractLayer } from "./extract-upstream.mjs";
+import { extractLayer, extractLayerForSize } from "./extract-upstream.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const labRoot = resolve(here, "..");
@@ -99,9 +99,12 @@ async function measureOne(id) {
   const upstreamSource = await extractLayer(id);
   writeFileSync(upstreamPath, upstreamSource);
 
-  const minified = await minifyJqueryBundle(upstreamSource, `${id}.upstream.js`);
+  const sizeSource = await extractLayerForSize(id);
+  const sizePath = join(buildRoot, "upstream.size.js");
+  writeFileSync(sizePath, sizeSource);
+  const minified = await minifyJqueryBundle(sizeSource, `${id}.upstream.js`);
   const jsLanes = {
-    extracted: { path: upstreamPath, sizes: canonicalCodecSizesForFile(upstreamPath, `monaco-layer ${id} js extract`) },
+    extracted: { path: sizePath, sizes: canonicalCodecSizesForFile(sizePath, `monaco-layer ${id} js extract`) },
   };
   for (const [lane, code] of Object.entries(minified)) {
     const path = join(buildRoot, `upstream.${lane}.js`);
@@ -148,7 +151,7 @@ async function measureOne(id) {
         {
           name: "monaco-js-host",
           setup(build) {
-            build.onResolve({ filter: /js-host/ }, () => ({
+            build.onResolve({ filter: /(^|\/)js-host(\.ts)?$/ }, () => ({
               path: join(labRoot, "ports/monaco/js-host.ts"),
             }));
           },

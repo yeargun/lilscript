@@ -83,7 +83,7 @@ async function bundleHost(compiledPath, buildRoot) {
       {
         name: "monaco-js-host",
         setup(build) {
-          build.onResolve({ filter: /js-host/ }, () => ({
+          build.onResolve({ filter: /(^|\/)js-host(\.ts)?$/ }, () => ({
             path: join(labRoot, "ports/monaco/js-host.ts"),
           }));
         },

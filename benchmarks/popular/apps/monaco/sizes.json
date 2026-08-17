@@ -1,0 +1,485 @@
+{
+  "versions": {
+    "monacoEditor": "0.56.0",
+    "monacoEditorCore": "0.56.0",
+    "vscodeCommit": "f487add297079a02eb836810185b165e50cadabc"
+  },
+  "protocol": {
+    "productionJs": "esbuild minify of monaco-editor ESM + workers, then lilscript-codec gzip-9 / brotli-11",
+    "productionLil": "lilscript compile of ports/monaco/entry.lil + js-host + monaco.d.ts facade + workbench, esbuild minify, lilscript-codec",
+    "moduleJs": "listed monaco-editor-core files only; other monaco imports external; best of esbuild/terser minify; lilscript-codec",
+    "moduleLil": "lilscript compiler output (already mangled); js-host tree-shaken when imported; lilscript-codec",
+    "moduleJsMinifiers": "esbuild and terser; best Brotli wins"
+  },
+  "codec": {
+    "implementation": "lilscript-codec",
+    "gzip": "1.3.1",
+    "brotli": "1.1.0"
+  },
+  "coreJsFiles": 994,
+  "plugged": [
+    "entire LilScript editor (entry.lil) — no monaco-editor JS"
+  ],
+  "production": {
+    "js": {
+      "ide": {
+        "raw": 4504178,
+        "gzip": 1163660,
+        "brotli": 904810
+      },
+      "workers": {
+        "raw": 9608472,
+        "gzip": 2217030,
+        "brotli": 1640341
+      },
+      "css": {
+        "raw": 350112,
+        "gzip": 117218,
+        "brotli": 99060
+      }
+    },
+    "lil": {
+      "ide": {
+        "raw": 198245,
+        "gzip": 60843,
+        "brotli": 52663
+      },
+      "workers": {
+        "raw": 0,
+        "gzip": 0,
+        "brotli": 0
+      },
+      "css": {
+        "raw": 1941,
+        "gzip": 749,
+        "brotli": 610
+      }
+    },
+    "workers": {
+      "raw": 9608472,
+      "gzip": 2217030,
+      "brotli": 1640341,
+      "files": [
+        {
+          "name": "editor.worker.js",
+          "sizes": {
+            "raw": 304417,
+            "gzip": 93802,
+            "brotli": 74863
+          }
+        },
+        {
+          "name": "json.worker.js",
+          "sizes": {
+            "raw": 434483,
+            "gzip": 131103,
+            "brotli": 105438
+          }
+        },
+        {
+          "name": "css.worker.js",
+          "sizes": {
+            "raw": 1081695,
+            "gzip": 248558,
+            "brotli": 190154
+          }
+        },
+        {
+          "name": "html.worker.js",
+          "sizes": {
+            "raw": 752533,
+            "gzip": 198434,
+            "brotli": 158535
+          }
+        },
+        {
+          "name": "ts.worker.js",
+          "sizes": {
+            "raw": 7035344,
+            "gzip": 1545133,
+            "brotli": 1111351
+          }
+        }
+      ]
+    },
+    "css": {
+      "raw": 350112,
+      "gzip": 117218,
+      "brotli": 99060
+    }
+  },
+  "pairs": [
+    {
+      "id": "position",
+      "title": "Position",
+      "plugged": false,
+      "monacoFiles": [
+        "editor/common/core/position.js"
+      ],
+      "lilFiles": [
+        "base/position.lil"
+      ],
+      "note": "Single file. Lil class is Pos; monaco statics (equals, lift) are not a plug facade yet.",
+      "lil": {
+        "path": "benchmarks/popular/build/monaco-layers/pairs/position/lil/lilscript.raw.js",
+        "bundledHost": false,
+        "sizes": {
+          "raw": 632,
+          "gzip": 252,
+          "brotli": 204
+        }
+      },
+      "js": {
+        "lane": "terser",
+        "bundledRaw": 3297,
+        "sizes": {
+          "raw": 1118,
+          "gzip": 422,
+          "brotli": 366
+        },
+        "lanes": {
+          "esbuild": {
+            "raw": 1144,
+            "gzip": 436,
+            "brotli": 389
+          },
+          "terser": {
+            "raw": 1118,
+            "gzip": 422,
+            "brotli": 366
+          }
+        }
+      },
+      "delta": {
+        "brotli": -162
+      }
+    },
+    {
+      "id": "range",
+      "title": "Range",
+      "plugged": false,
+      "monacoFiles": [
+        "editor/common/core/range.js"
+      ],
+      "lilFiles": [
+        "base/range.lil"
+      ],
+      "note": "JS keeps Position as an import. Lil inlines Pos."
+    },
+    {
+      "id": "selection",
+      "title": "Selection",
+      "plugged": false,
+      "monacoFiles": [
+        "editor/common/core/selection.js"
+      ],
+      "lilFiles": [
+        "base/selection.lil"
+      ],
+      "note": "monaco Selection extends Range. Lil Sel does not; not plugged."
+    },
+    {
+      "id": "core-types",
+      "title": "Position + Range + Selection",
+      "plugged": false,
+      "monacoFiles": [
+        "editor/common/core/position.js",
+        "editor/common/core/range.js",
+        "editor/common/core/selection.js"
+      ],
+      "lilFiles": [
+        "base/position.lil",
+        "base/range.lil",
+        "base/selection.lil",
+        "layers/core-types.lil"
+      ],
+      "note": "The three files monaco actually ships. One Lil compile of the same three.",
+      "lil": {
+        "path": "benchmarks/popular/build/monaco-layers/pairs/core-types/lil/lilscript.raw.js",
+        "bundledHost": false,
+        "sizes": {
+          "raw": 3689,
+          "gzip": 805,
+          "brotli": 730
+        }
+      },
+      "js": {
+        "lane": "terser",
+        "bundledRaw": 21208,
+        "sizes": {
+          "raw": 8430,
+          "gzip": 1768,
+          "brotli": 1595
+        },
+        "lanes": {
+          "esbuild": {
+            "raw": 8479,
+            "gzip": 1787,
+            "brotli": 1621
+          },
+          "terser": {
+            "raw": 8430,
+            "gzip": 1768,
+            "brotli": 1595
+          }
+        }
+      },
+      "delta": {
+        "brotli": -865
+      }
+    },
+    {
+      "id": "piece-tree",
+      "title": "PieceTreeBase + rbTreeBase",
+      "plugged": true,
+      "monacoFiles": [
+        "editor/common/model/pieceTreeTextBuffer/pieceTreeBase.js",
+        "editor/common/model/pieceTreeTextBuffer/rbTreeBase.js"
+      ],
+      "lilFiles": [
+        "editor/piece-tree.lil",
+        "layers/piece-tree.lil"
+      ],
+      "note": "rbTreeBase is imported by pieceTreeBase, so it stays on the JS side of this pair. Position, Range, FindMatch, and Searcher are other files and are externals. Lil inlines Pos/Rng plus tree-shaken js-host. findMatchesLineByLine still lives in the JS adapter.",
+      "lil": {
+        "path": "benchmarks/popular/build/monaco-layers/pairs/piece-tree/lil/lilscript.bundle.js",
+        "bundledHost": true,
+        "sizes": {
+          "raw": 32081,
+          "gzip": 6907,
+          "brotli": 6301
+        }
+      },
+      "js": {
+        "lane": "terser",
+        "bundledRaw": 60181,
+        "sizes": {
+          "raw": 28195,
+          "gzip": 7213,
+          "brotli": 6581
+        },
+        "lanes": {
+          "esbuild": {
+            "raw": 28343,
+            "gzip": 7306,
+            "brotli": 6685
+          },
+          "terser": {
+            "raw": 28195,
+            "gzip": 7213,
+            "brotli": 6581
+          }
+        }
+      },
+      "delta": {
+        "brotli": -280
+      }
+    },
+    {
+      "id": "uri",
+      "title": "URI",
+      "plugged": false,
+      "monacoFiles": [
+        "base/common/uri.js"
+      ],
+      "lilFiles": [
+        "base/uri.lil"
+      ],
+      "note": "Lil URI is the parse/file/inmemory subset, not win32/posix vscode URI."
+    },
+    {
+      "id": "lifecycle",
+      "title": "Disposable + Emitter",
+      "plugged": false,
+      "monacoFiles": [
+        "base/common/lifecycle.js",
+        "base/common/event.js"
+      ],
+      "lilFiles": [
+        "base/lifecycle.lil"
+      ],
+      "note": "Two monaco files. Emitter lives in event.js. Not the full vscode event service."
+    },
+    {
+      "id": "interval-tree",
+      "title": "Decoration interval tree",
+      "plugged": false,
+      "monacoFiles": [
+        "editor/common/model/intervalTree.js"
+      ],
+      "lilFiles": [
+        "editor/interval-tree.lil"
+      ],
+      "note": "Ported algorithm, not plugged. monaco's file has packed metadata bitfields this port does not; a large ratio here is incomplete API, not a 7× compiler win.",
+      "lil": {
+        "path": "benchmarks/popular/build/monaco-layers/pairs/interval-tree/lil/lilscript.raw.js",
+        "bundledHost": false,
+        "sizes": {
+          "raw": 841,
+          "gzip": 424,
+          "brotli": 356
+        }
+      },
+      "js": {
+        "lane": "esbuild",
+        "bundledRaw": 26217,
+        "sizes": {
+          "raw": 9707,
+          "gzip": 2938,
+          "brotli": 2574
+        },
+        "lanes": {
+          "esbuild": {
+            "raw": 9707,
+            "gzip": 2938,
+            "brotli": 2574
+          },
+          "terser": {
+            "raw": 9464,
+            "gzip": 2970,
+            "brotli": 2613
+          }
+        }
+      },
+      "delta": {
+        "brotli": -2218
+      }
+    },
+    {
+      "id": "myers",
+      "title": "Myers diff",
+      "plugged": false,
+      "monacoFiles": [
+        "editor/common/diff/defaultLinesDiffComputer/algorithms/myersDiffAlgorithm.js"
+      ],
+      "lilFiles": [
+        "editor/myers.lil"
+      ],
+      "note": "Algorithm file only. monaco's defaultLinesDiffComputer graph is not in this pair.",
+      "lil": {
+        "path": "benchmarks/popular/build/monaco-layers/pairs/myers/lil/lilscript.bundle.js",
+        "bundledHost": true,
+        "sizes": {
+          "raw": 7807,
+          "gzip": 2193,
+          "brotli": 2009
+        }
+      },
+      "js": {
+        "lane": "terser",
+        "bundledRaw": 4070,
+        "sizes": {
+          "raw": 1926,
+          "gzip": 831,
+          "brotli": 762
+        },
+        "lanes": {
+          "esbuild": {
+            "raw": 1929,
+            "gzip": 846,
+            "brotli": 774
+          },
+          "terser": {
+            "raw": 1926,
+            "gzip": 831,
+            "brotli": 762
+          }
+        }
+      },
+      "delta": {
+        "brotli": 1247
+      }
+    },
+    {
+      "id": "monarch",
+      "title": "Monarch compile",
+      "plugged": false,
+      "monacoFiles": [
+        "editor/standalone/common/monarch/monarchCompile.js"
+      ],
+      "lilFiles": [
+        "editor/monarch.lil"
+      ],
+      "note": "Compile file only. monarchLexer.js / language definitions stay JS.",
+      "lil": {
+        "path": "benchmarks/popular/build/monaco-layers/pairs/monarch/lil/lilscript.bundle.js",
+        "bundledHost": true,
+        "sizes": {
+          "raw": 4077,
+          "gzip": 1550,
+          "brotli": 1397
+        }
+      },
+      "js": {
+        "lane": "terser",
+        "bundledRaw": 16914,
+        "sizes": {
+          "raw": 8635,
+          "gzip": 3163,
+          "brotli": 2855
+        },
+        "lanes": {
+          "esbuild": {
+            "raw": 8675,
+            "gzip": 3219,
+            "brotli": 2906
+          },
+          "terser": {
+            "raw": 8635,
+            "gzip": 3163,
+            "brotli": 2855
+          }
+        }
+      },
+      "delta": {
+        "brotli": -1458
+      }
+    },
+    {
+      "id": "search",
+      "title": "Text model search",
+      "plugged": false,
+      "monacoFiles": [
+        "editor/common/model/textModelSearch.js"
+      ],
+      "lilFiles": [
+        "editor/search.lil"
+      ],
+      "note": "Ported. Production find still uses monaco's Searcher; piece-tree adapter does line-by-line search in JS."
+    },
+    {
+      "id": "edit-stack",
+      "title": "Undo stack",
+      "plugged": false,
+      "monacoFiles": [
+        "editor/common/model/editStack.js"
+      ],
+      "lilFiles": [
+        "editor/edit-stack.lil"
+      ],
+      "note": "Ported. monaco TextModel still uses the JS edit stack."
+    }
+  ],
+  "notOneToOne": [
+    {
+      "lil": "editor/view.lil",
+      "monaco": "editor/browser/view.js",
+      "reason": "Parallel viewport, not GPU view zones / view parts."
+    },
+    {
+      "lil": "editor/commands.lil",
+      "monaco": "editor/common/cursor/*.js",
+      "reason": "Parallel command set, not vscode cursor controllers."
+    },
+    {
+      "lil": "editor/standalone.lil",
+      "monaco": "editor/editor.api.js",
+      "reason": "Kitchen-sink npm facade vs a subset create() surface."
+    },
+    {
+      "lil": "editor/text-model.lil",
+      "monaco": "editor/common/model.js",
+      "reason": "model.js is the whole text-model module graph, not one algorithm file."
+    }
+  ]
+}

@@ -4,11 +4,13 @@ import { mountIde } from "../workbench.js";
 
 const monaco = bindMonaco(lil);
 globalThis.monaco = monaco;
+globalThis.__lilEditor = true;
 
 mountIde(monaco, {
-  label: "LilScript",
+  label: "LilScript monaco",
   otherHref: "../js/",
   otherLabel: "JS monaco-editor →",
+  languageFeatures: false,
   banner:
-    "LilScript compiled editor: piece-tree model, Monarch highlighting, textarea + canvas minimap. Not VS Code workbench, not tsc/ts.worker.",
+    "This page is the LilScript monaco port (piece tree, model, view, commands, Monarch, contrib). No monaco-editor JavaScript is in the bundle.",
 });

@@ -1,4 +1,5 @@
 import { FILES, WORKSPACE } from "./samples.js";
+import { EDITOR_COMMANDS, MENU_GROUPS } from "./editor-actions.js";
 
 function fileUri(monaco, path) {
   const raw = "file:///" + WORKSPACE + "/" + path;
@@ -40,7 +41,7 @@ function severityLabel(severity) {
 
 export function mountIde(monaco, options) {
   const root = document.getElementById("app");
-  const hasTs = Boolean(monaco.languages?.typescript);
+  const tsApi = monaco.typescript ?? monaco.languages?.typescript;
   root.innerHTML = `
     <div class="quick-open" id="quick-open">
       <input id="quick-input" placeholder="Go to file" autocomplete="off" />
@@ -50,17 +51,21 @@ export function mountIde(monaco, options) {
       <div class="banner" id="banner"></div>
       <div class="menubar">
         <span class="title">${options.label}</span>
-        <button data-act="quick">File</button>
-        <button data-act="undo">Edit</button>
-        <button data-act="find">Selection</button>
-        <button data-act="sidebar">View</button>
-        <button data-act="goto">Go</button>
+        ${MENU_GROUPS.map(([id, label]) => `
+          <div class="menu" data-menu="${id}">
+            <button type="button">${label}</button>
+            <div class="menu-drop">
+              ${EDITOR_COMMANDS.filter((c) => c.group === id).map((c) => `<button type="button" data-cmd="${c.id}">${c.label}</button>`).join("")}
+            </div>
+          </div>
+        `).join("")}
         <a href="${options.otherHref}" style="margin-left:auto;color:#9cdcfe;text-decoration:none">${options.otherLabel}</a>
       </div>
       <div class="body">
         <div class="activity">
           <button class="active" data-panel="files" title="Explorer">☰</button>
           <button data-panel="search" title="Search">⌕</button>
+          <button data-panel="outline" title="Outline">{}</button>
           <button data-panel="problems" title="Problems">⚠</button>
         </div>
         <div class="sidebar" id="sidebar">
@@ -69,6 +74,7 @@ export function mountIde(monaco, options) {
         </div>
         <div class="main">
           <div class="tabs" id="tabs"></div>
+          <div class="crumbs" id="crumbs"></div>
           <div class="editor-wrap" id="editor-wrap"><div id="editor"></div></div>
           <div class="problems hidden" id="problems"></div>
         </div>
@@ -81,18 +87,37 @@ export function mountIde(monaco, options) {
   `;
 
   document.getElementById("banner").textContent = options.banner;
+  const sizeSide = options.otherHref.includes("/js") ? "lil" : "js";
+  fetch("/apps/monaco/sizes.json")
+    .then((res) => (res.ok ? res.json() : null))
+    .then((doc) => {
+      if (!doc?.production) return;
+      const ide = doc.production[sizeSide].ide;
+      const workers = doc.production[sizeSide].workers ?? doc.production.workers;
+      const el = document.getElementById("banner");
+      const workerPart = workers?.brotli
+        ? ` · workers ${workers.brotli.toLocaleString("en-US")}`
+        : "";
+      el.textContent =
+        options.banner +
+        ` ide.js Brotli ${ide.brotli.toLocaleString("en-US")}${workerPart} · sizes on the landing page.`;
+    })
+    .catch(() => {});
 
-  if (hasTs) {
-    const ts = monaco.languages.typescript;
-    ts.typescriptDefaults.setCompilerOptions({
-      target: ts.ScriptTarget.ES2020,
-      module: ts.ModuleKind.ESNext,
-      moduleResolution: ts.ModuleResolutionKind.NodeJs,
+  if (tsApi?.typescriptDefaults) {
+    tsApi.typescriptDefaults.setEagerModelSync?.(true);
+    tsApi.javascriptDefaults.setEagerModelSync?.(true);
+    tsApi.typescriptDefaults.setCompilerOptions({
+      target: tsApi.ScriptTarget?.ES2020 ?? 7,
+      module: tsApi.ModuleKind?.CommonJS ?? 1,
+      moduleResolution: tsApi.ModuleResolutionKind?.NodeJs ?? 2,
       allowNonTsExtensions: true,
+      allowImportingTsExtensions: true,
+      allowJs: true,
       noEmit: true,
       strict: true,
     });
-    ts.javascriptDefaults.setCompilerOptions({
+    tsApi.javascriptDefaults.setCompilerOptions({
       allowNonTsExtensions: true,
       noEmit: true,
       checkJs: true,
@@ -105,6 +130,16 @@ export function mountIde(monaco, options) {
     const existing = monaco.editor.getModel?.(uri);
     const model = existing ?? monaco.editor.createModel(file.value, file.language, uri);
     models.set(file.path, { file, model, dirty: false });
+    if (tsApi?.typescriptDefaults && (file.language === "typescript" || file.language === "javascript")) {
+      const workerName = "/" + WORKSPACE + "/" + file.path;
+      tsApi.typescriptDefaults.addExtraLib(file.value, workerName);
+      tsApi.typescriptDefaults.addExtraLib(file.value, String(uri.toString?.() ?? uri));
+      model.onDidChangeContent?.(() => {
+        const text = model.getValue();
+        tsApi.typescriptDefaults.addExtraLib(text, workerName);
+        tsApi.typescriptDefaults.addExtraLib(text, String(uri.toString?.() ?? uri));
+      });
+    }
   }
 
   const host = document.getElementById("editor");
@@ -135,8 +170,9 @@ export function mountIde(monaco, options) {
   const openTabs = ["src/app.ts", "src/main.ts", "README.md"];
   let activePath = "src/app.ts";
   let sidePanel = "files";
+  let quickMode = "files";
 
-  if (!hasTs) {
+  if (!tsApi?.typescriptDefaults && !options.languageFeatures) {
     monaco.editor.setModelMarkers(first.model, "demo", [
       {
         startLineNumber: 9,
@@ -222,6 +258,24 @@ export function mountIde(monaco, options) {
       });
       return;
     }
+    if (sidePanel === "outline") {
+      body.innerHTML = "";
+      const rows = window.__lilChrome?.symbols?.() ?? [];
+      for (const row of rows) {
+        const btn = document.createElement("button");
+        btn.textContent = `${"  ".repeat(row.depth || 0)}${row.name}`;
+        btn.addEventListener("click", () => {
+          editor.setPosition({ lineNumber: row.line, column: row.column });
+          editor.revealLine?.(row.line);
+          editor.focus();
+        });
+        body.appendChild(btn);
+      }
+      if (!body.childElementCount) {
+        body.textContent = "No symbols in this file.";
+      }
+      return;
+    }
     if (sidePanel === "problems") {
       body.innerHTML = "";
       for (const marker of markerRows(monaco)) {
@@ -301,17 +355,40 @@ export function mountIde(monaco, options) {
   function renderStatus() {
     const pos = readPosition(editor);
     const lang = editor.getModel?.()?.getLanguageId?.() ?? "";
+    const rows = markerRows(monaco);
+    const errors = rows.filter((m) => m.severity >= 8).length;
+    const warns = rows.filter((m) => m.severity >= 4 && m.severity < 8).length;
     document.getElementById("status-left").textContent = `${WORKSPACE}  ${activePath}`;
-    document.getElementById("status-right").textContent = `Ln ${pos.lineNumber}, Col ${pos.column}   ${lang}   UTF-8`;
+    document.getElementById("status-right").textContent =
+      `${errors} errors  ${warns} warnings   Ln ${pos.lineNumber}, Col ${pos.column}   ${lang}   UTF-8`;
+  }
+
+  function renderCrumbs() {
+    const crumbs = document.getElementById("crumbs");
+    if (!crumbs) return;
+    const rows = window.__lilChrome?.symbols?.() ?? [];
+    const pos = readPosition(editor);
+    let best = null;
+    for (const row of rows) {
+      if (row.line <= pos.lineNumber) best = row;
+    }
+    crumbs.textContent = best ? `${activePath} › ${best.name}` : activePath;
   }
 
   function render() {
     document.getElementById("side-title").textContent =
-      sidePanel === "search" ? "Search" : sidePanel === "problems" ? "Problems" : "Explorer";
+      sidePanel === "search"
+        ? "Search"
+        : sidePanel === "problems"
+          ? "Problems"
+          : sidePanel === "outline"
+            ? "Outline"
+            : "Explorer";
     renderFiles();
     renderTabs();
     renderProblems();
     renderStatus();
+    renderCrumbs();
   }
 
   function setPanel(name) {
@@ -325,10 +402,81 @@ export function mountIde(monaco, options) {
     render();
   }
 
-  function toggleQuick(open) {
+  function runEditorAction(id) {
+    if (id === "workbench.action.quickOpen") return runWorkbench("quick");
+    if (id === "workbench.action.showCommands") return runWorkbench("commands");
+    if (id === "workbench.action.toggleSidebar") return runWorkbench("sidebar");
+    if (id === "workbench.action.togglePanel") return runWorkbench("problems");
+    if (id === "workbench.action.closeActiveEditor") return closeTab(activePath);
+    if (window.__lilChrome?.runAction) return window.__lilChrome.runAction(id);
+    editor.trigger("keyboard", id, null);
+  }
+
+  function runWorkbench(id) {
+    if (id === "quick") return toggleQuick(true, "files");
+    if (id === "commands") return toggleQuick(true, "commands");
+    if (id === "symbols") {
+      if (window.__lilChrome?.showSymbols) return window.__lilChrome.showSymbols();
+      return editor.trigger("keyboard", "editor.action.quickOutline", null);
+    }
+    if (id === "find") return editor.trigger("keyboard", "actions.find", null);
+    if (id === "replace") return editor.trigger("keyboard", "editor.action.startFindReplaceAction", null);
+    if (id === "undo") return editor.trigger("menu", "undo", null);
+    if (id === "redo") return editor.trigger("menu", "redo", null);
+    if (id === "comment") return editor.trigger("keyboard", "editor.action.commentLine", null);
+    if (id === "format") {
+      if (window.__lilChrome?.formatDocument) return window.__lilChrome.formatDocument();
+      return editor.trigger("keyboard", "editor.action.formatDocument", null);
+    }
+    if (id === "rename") {
+      if (window.__lilChrome?.showRename) return window.__lilChrome.showRename();
+      return editor.trigger("keyboard", "editor.action.rename", null);
+    }
+    if (id === "def") {
+      if (window.__lilChrome?.goToDef) return window.__lilChrome.goToDef();
+      return gotoDefinition();
+    }
+    if (id === "refs") {
+      if (window.__lilChrome?.showReferences) return window.__lilChrome.showReferences();
+      return editor.trigger("keyboard", "editor.action.goToReferences", null);
+    }
+    if (id === "suggest") {
+      if (window.__lilChrome?.showSuggest) return window.__lilChrome.showSuggest();
+      return editor.trigger("keyboard", "editor.action.triggerSuggest", null);
+    }
+    if (id === "hover") {
+      if (window.__lilChrome?.showHover) return window.__lilChrome.showHover();
+      return editor.trigger("keyboard", "editor.action.showHover", null);
+    }
+    if (id === "goto") {
+      if (window.__lilChrome?.gotoLine) return window.__lilChrome.gotoLine();
+      return editor.trigger("keyboard", "editor.action.gotoLine", null);
+    }
+    if (id === "next-problem") {
+      if (window.__lilChrome?.nextProblem) return window.__lilChrome.nextProblem(1);
+      return editor.trigger("keyboard", "editor.action.marker.next", null);
+    }
+    if (id === "sidebar") {
+      document.getElementById("sidebar").classList.toggle("hidden");
+      layout();
+      return;
+    }
+    if (id === "problems") {
+      document.getElementById("problems").classList.toggle("hidden");
+      layout();
+    }
+  }
+
+  function commandList() {
+    return EDITOR_COMMANDS.map((cmd) => [cmd.label, () => runEditorAction(cmd.id)]);
+  }
+
+  function toggleQuick(open, mode = "files") {
+    quickMode = mode;
     const box = document.getElementById("quick-open");
     const input = document.getElementById("quick-input");
     box.classList.toggle("open", open);
+    input.placeholder = mode === "commands" ? "Run command" : mode === "symbols" ? "Go to symbol" : "Go to file";
     if (open) {
       input.value = "";
       fillQuick("");
@@ -340,17 +488,42 @@ export function mountIde(monaco, options) {
     const hits = document.getElementById("quick-hits");
     const q = query.trim().toLowerCase();
     hits.innerHTML = "";
-    for (const file of FILES) {
-      if (q && !file.path.toLowerCase().includes(q)) {
-        continue;
+    if (quickMode === "commands") {
+      for (const [label, run] of commandList()) {
+        if (q && !label.toLowerCase().includes(q)) continue;
+        const btn = document.createElement("button");
+        btn.textContent = label;
+        btn.addEventListener("click", () => {
+          toggleQuick(false);
+          run();
+        });
+        hits.appendChild(btn);
       }
-      const btn = document.createElement("button");
-      btn.textContent = file.path;
-      btn.addEventListener("click", () => {
-        toggleQuick(false);
-        openFile(file.path);
-      });
-      hits.appendChild(btn);
+    } else if (quickMode === "symbols") {
+      const rows = window.__lilChrome?.symbols?.() ?? [];
+      for (const row of rows) {
+        if (q && !String(row.name).toLowerCase().includes(q)) continue;
+        const btn = document.createElement("button");
+        btn.textContent = `${row.name}  ${row.kind ?? ""}`;
+        btn.addEventListener("click", () => {
+          toggleQuick(false);
+          editor.setPosition({ lineNumber: row.line, column: row.column });
+          editor.revealLine?.(row.line);
+          editor.focus();
+        });
+        hits.appendChild(btn);
+      }
+    } else {
+      for (const file of FILES) {
+        if (q && !file.path.toLowerCase().includes(q)) continue;
+        const btn = document.createElement("button");
+        btn.textContent = file.path;
+        btn.addEventListener("click", () => {
+          toggleQuick(false);
+          openFile(file.path);
+        });
+        hits.appendChild(btn);
+      }
     }
     hits.firstElementChild?.classList.add("active");
   }
@@ -367,13 +540,80 @@ export function mountIde(monaco, options) {
     }
   });
 
+  function pathFromWorkerFile(fileName) {
+    const text = String(fileName ?? "");
+    return [...models.keys()].find((path) => text.endsWith(path) || text.endsWith("/" + path)) ?? null;
+  }
+
+  async function gotoDefinition() {
+    const model = editor.getModel();
+    const pos = readPosition(editor);
+    if (!model || !pos) {
+      return;
+    }
+    const getWorker = tsApi?.getTypeScriptWorker;
+    if (getWorker) {
+      const worker = await getWorker();
+      const client = await worker(model.uri);
+      const defs = await client.getDefinitionAtPosition(model.uri.toString(), model.getOffsetAt(pos));
+      const hit = defs?.[0];
+      if (hit) {
+        const path = pathFromWorkerFile(hit.fileName);
+        const target = (path && models.get(path)?.model) || monaco.editor.getModel(monaco.Uri.parse(hit.fileName));
+        const spanStart = hit.textSpan?.start ?? 0;
+        const nextPos = target?.getPositionAt?.(spanStart) ?? { lineNumber: 1, column: 1 };
+        if (path) {
+          openFile(path, nextPos);
+        } else if (target) {
+          editor.setModel(target);
+          editor.setPosition(nextPos);
+          editor.focus();
+        }
+        return;
+      }
+    }
+    const word = model.getWordAtPosition?.(pos)?.word;
+    if (word) {
+      const patterns = [
+        new RegExp("export\\s+(?:async\\s+)?function\\s+" + word + "\\b"),
+        new RegExp("(?:export\\s+)?function\\s+" + word + "\\b"),
+        new RegExp("export\\s+const\\s+" + word + "\\b"),
+      ];
+      for (const [path, entry] of models) {
+        const text = entry.model.getValue();
+        for (const re of patterns) {
+          const hit = re.exec(text);
+          if (hit) {
+            const nextPos = entry.model.getPositionAt?.(hit.index) ?? { lineNumber: 1, column: 1 };
+            openFile(path, nextPos);
+            return;
+          }
+        }
+      }
+    }
+    editor.trigger("keyboard", "editor.action.revealDefinition", null);
+  }
+
+  window.__ideGotoDef = gotoDefinition;
+
   document.querySelector(".menubar").addEventListener("click", (ev) => {
-    const act = ev.target?.getAttribute?.("data-act");
-    if (act === "quick") toggleQuick(true);
-    if (act === "undo") editor.trigger("menu", "undo", null);
-    if (act === "find") editor.trigger("keyboard", "actions.find", null);
-    if (act === "sidebar") document.getElementById("sidebar").classList.toggle("hidden");
-    if (act === "goto") editor.trigger("keyboard", "editor.action.gotoLine", null);
+    const cmd = ev.target?.getAttribute?.("data-cmd");
+    if (cmd) {
+      document.querySelectorAll(".menu.open").forEach((el) => el.classList.remove("open"));
+      runEditorAction(cmd);
+      return;
+    }
+    const menu = ev.target?.closest?.(".menu");
+    if (menu) {
+      const open = menu.classList.contains("open");
+      document.querySelectorAll(".menu.open").forEach((el) => el.classList.remove("open"));
+      if (!open) menu.classList.add("open");
+    }
+  });
+  document.addEventListener("mousedown", (ev) => {
+    if (!ev.target?.closest?.(".menubar")) {
+      document.querySelectorAll(".menu.open").forEach((el) => el.classList.remove("open"));
+    }
   });
 
   document.querySelector(".activity").addEventListener("click", (ev) => {
@@ -385,19 +625,69 @@ export function mountIde(monaco, options) {
     const cmd = ev.metaKey || ev.ctrlKey;
     if (cmd && ev.key.toLowerCase() === "p") {
       ev.preventDefault();
-      toggleQuick(true);
+      toggleQuick(true, ev.shiftKey ? "commands" : "files");
+    }
+    if (ev.key === "F1") {
+      ev.preventDefault();
+      toggleQuick(true, "commands");
+    }
+    if (cmd && ev.shiftKey && ev.key.toLowerCase() === "o") {
+      ev.preventDefault();
+      toggleQuick(true, "symbols");
+    }
+    if (ev.key === "F2") {
+      ev.preventDefault();
+      runWorkbench("rename");
+    }
+    if (ev.key === "F12" && ev.shiftKey) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      runWorkbench("refs");
+    }
+    if (ev.altKey && ev.shiftKey && ev.key.toLowerCase() === "f") {
+      ev.preventDefault();
+      runWorkbench("format");
+    }
+    if (ev.key === "F8") {
+      ev.preventDefault();
+      runWorkbench("next-problem");
     }
     if (cmd && ev.key.toLowerCase() === "b") {
       ev.preventDefault();
       document.getElementById("sidebar").classList.toggle("hidden");
       layout();
     }
+    if (cmd && ev.key.toLowerCase() === "f") {
+      ev.preventDefault();
+      editor.trigger("keyboard", ev.shiftKey ? "editor.action.startFindReplaceAction" : "actions.find", null);
+    }
+    if (cmd && ev.key.toLowerCase() === "h") {
+      ev.preventDefault();
+      editor.trigger("keyboard", "editor.action.startFindReplaceAction", null);
+    }
+    if (cmd && ev.key === "/") {
+      ev.preventDefault();
+      editor.trigger("keyboard", "editor.action.commentLine", null);
+    }
+    if (cmd && ev.key.toLowerCase() === "g") {
+      ev.preventDefault();
+      editor.trigger("keyboard", "editor.action.gotoLine", null);
+    }
     if (cmd && ev.key.toLowerCase() === "j") {
       ev.preventDefault();
       document.getElementById("problems").classList.toggle("hidden");
       layout();
     }
-  });
+    if (cmd && ev.key === " ") {
+      ev.preventDefault();
+      editor.trigger("keyboard", "editor.action.triggerSuggest", null);
+    }
+    if (ev.key === "F12" && !ev.shiftKey) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      void gotoDefinition();
+    }
+  }, true);
 
   editor.onDidChangeCursorPosition?.(() => renderStatus());
   editor.onDidChangeModelContent?.(() => {

@@ -1,4 +1,54 @@
-<!doctype html>
+function fmt(n) {
+  return Number(n).toLocaleString("en-US");
+}
+
+function ratio(js, lil) {
+  if (!lil) return "—";
+  return `${(js / lil).toFixed(2)}×`;
+}
+
+function sign(n) {
+  return n > 0 ? `+${fmt(n)}` : fmt(n);
+}
+
+function shortName(path) {
+  const bits = path.split("/");
+  return bits.slice(-2).join("/");
+}
+
+function pairRows(pairs) {
+  return pairs
+    .map((row) => {
+      const plugged = row.plugged ? "yes" : "no";
+      const monaco = row.monacoFiles.map((f) => `<code>${shortName(f)}</code>`).join("<br>");
+      const lil = row.lilFiles.map((f) => `<code>${shortName(f)}</code>`).join("<br>");
+      if (!row.js) {
+        return `<tr>
+  <td><code>${row.id}</code></td>
+  <td>${monaco}</td>
+  <td>${lil}</td>
+  <td>${plugged}</td>
+  <td colspan="4" class="note">${row.note}</td>
+</tr>`;
+      }
+      const win = row.delta.brotli <= 0 ? "win" : "loss";
+      return `<tr>
+  <td><code>${row.id}</code></td>
+  <td>${monaco}</td>
+  <td>${lil}</td>
+  <td>${plugged}</td>
+  <td class="num">${fmt(row.js.sizes.brotli)}</td>
+  <td class="num">${fmt(row.lil.sizes.brotli)}</td>
+  <td class="num ${win}">${sign(row.delta.brotli)}</td>
+  <td class="num">${ratio(row.js.sizes.brotli, row.lil.sizes.brotli)}</td>
+</tr>`;
+    })
+    .join("\n");
+}
+
+export function renderLanding(doc) {
+  const p = doc.production;
+  return `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
@@ -47,25 +97,25 @@
   <p class="kicker">Production build · Brotli vs Brotli</p>
   <h1>monaco-editor 0.56: JavaScript vs LilScript</h1>
   <p>
-    Two production editors. The JS page is npm <code>monaco-editor@0.56.0</code>.
+    Two production editors. The JS page is npm <code>monaco-editor@${doc.versions.monacoEditor}</code>.
     The LilScript page is compiled from <code>ports/monaco/entry.lil</code> — the editor is LilScript, not monaco-editor with a few files swapped.
   </p>
   <div class="cards">
     <a href="./lil/">
       <strong>Open LilScript monaco</strong>
-      <span>compiled Lil editor · ide.js Brotli 52,663</span>
+      <span>compiled Lil editor · ide.js Brotli ${fmt(p.lil.ide.brotli)}</span>
     </a>
     <a href="./js/">
       <strong>Open JS monaco-editor</strong>
-      <span>npm monaco-editor · ide.js Brotli 904,810</span>
+      <span>npm monaco-editor · ide.js Brotli ${fmt(p.js.ide.brotli)}</span>
     </a>
   </div>
 
   <h2>How both production builds are made</h2>
   <p>
     JS: esbuild minify of <code>monaco-editor</code> ESM plus its workers, then
-    <code>lilscript-codec</code> Brotli-11 / gzip-9 (stock zlib 1.3.1 /
-    official Brotli C 1.1.0).
+    <code>lilscript-codec</code> Brotli-11 / gzip-9 (stock zlib ${doc.codec.gzip} /
+    official Brotli C ${doc.codec.brotli}).
     Lil: LilScript compiler of the full editor entry, tree-shaken js-host, monaco.d.ts facade, same workbench chrome, esbuild minify, same codec.
     The HTTP server sends Brotli-11. Lil has no editor/json/css/html/ts workers — tokenize and language features run in the Lil bundle.
   </p>
@@ -82,36 +132,36 @@
     <tbody>
       <tr>
         <td><code>ide.js</code></td>
-        <td class="num">4,504,178</td>
-        <td class="num">904,810</td>
-        <td class="num">198,245</td>
-        <td class="num">52,663</td>
+        <td class="num">${fmt(p.js.ide.raw)}</td>
+        <td class="num">${fmt(p.js.ide.brotli)}</td>
+        <td class="num">${fmt(p.lil.ide.raw)}</td>
+        <td class="num">${fmt(p.lil.ide.brotli)}</td>
       </tr>
       <tr>
         <td>Workers (editor, json, css, html, ts)</td>
-        <td class="num">9,608,472</td>
-        <td class="num">1,640,341</td>
+        <td class="num">${fmt(p.js.workers.raw)}</td>
+        <td class="num">${fmt(p.js.workers.brotli)}</td>
         <td class="num">0</td>
         <td class="num">0</td>
       </tr>
       <tr>
         <td>JS + workers / Lil editor</td>
-        <td class="num">14,112,650</td>
-        <td class="num">2,545,151</td>
-        <td class="num">198,245</td>
-        <td class="num">52,663</td>
+        <td class="num">${fmt(p.js.ide.raw + p.js.workers.raw)}</td>
+        <td class="num">${fmt(p.js.ide.brotli + p.js.workers.brotli)}</td>
+        <td class="num">${fmt(p.lil.ide.raw)}</td>
+        <td class="num">${fmt(p.lil.ide.brotli)}</td>
       </tr>
       <tr>
         <td>Editor CSS</td>
-        <td class="num">350,112</td>
-        <td class="num">99,060</td>
-        <td class="num">1,941</td>
-        <td class="num">610</td>
+        <td class="num">${fmt(p.js.css.raw)}</td>
+        <td class="num">${fmt(p.js.css.brotli)}</td>
+        <td class="num">${fmt(p.lil.css.raw)}</td>
+        <td class="num">${fmt(p.lil.css.brotli)}</td>
       </tr>
     </tbody>
   </table>
   <p class="note">
-    monaco-editor-core ships 994 <code>.js</code> files. The Lil page is already a LilScript editor;
+    monaco-editor-core ships ${fmt(doc.coreJsFiles)} <code>.js</code> files. The Lil page is already a LilScript editor;
     the table below is which of those files already have a matching <code>.lil</code> source. Files without a row are still being ported into this editor — not left as JS on the Lil page.
   </p>
 
@@ -138,108 +188,7 @@
       </tr>
     </thead>
     <tbody>
-      <tr>
-  <td><code>position</code></td>
-  <td><code>core/position.js</code></td>
-  <td><code>base/position.lil</code></td>
-  <td>no</td>
-  <td class="num">366</td>
-  <td class="num">204</td>
-  <td class="num win">-162</td>
-  <td class="num">1.79×</td>
-</tr>
-<tr>
-  <td><code>range</code></td>
-  <td><code>core/range.js</code></td>
-  <td><code>base/range.lil</code></td>
-  <td>no</td>
-  <td colspan="4" class="note">JS keeps Position as an import. Lil inlines Pos.</td>
-</tr>
-<tr>
-  <td><code>selection</code></td>
-  <td><code>core/selection.js</code></td>
-  <td><code>base/selection.lil</code></td>
-  <td>no</td>
-  <td colspan="4" class="note">monaco Selection extends Range. Lil Sel does not; not plugged.</td>
-</tr>
-<tr>
-  <td><code>core-types</code></td>
-  <td><code>core/position.js</code><br><code>core/range.js</code><br><code>core/selection.js</code></td>
-  <td><code>base/position.lil</code><br><code>base/range.lil</code><br><code>base/selection.lil</code><br><code>layers/core-types.lil</code></td>
-  <td>no</td>
-  <td class="num">1,595</td>
-  <td class="num">730</td>
-  <td class="num win">-865</td>
-  <td class="num">2.18×</td>
-</tr>
-<tr>
-  <td><code>piece-tree</code></td>
-  <td><code>pieceTreeTextBuffer/pieceTreeBase.js</code><br><code>pieceTreeTextBuffer/rbTreeBase.js</code></td>
-  <td><code>editor/piece-tree.lil</code><br><code>layers/piece-tree.lil</code></td>
-  <td>yes</td>
-  <td class="num">6,581</td>
-  <td class="num">6,301</td>
-  <td class="num win">-280</td>
-  <td class="num">1.04×</td>
-</tr>
-<tr>
-  <td><code>uri</code></td>
-  <td><code>common/uri.js</code></td>
-  <td><code>base/uri.lil</code></td>
-  <td>no</td>
-  <td colspan="4" class="note">Lil URI is the parse/file/inmemory subset, not win32/posix vscode URI.</td>
-</tr>
-<tr>
-  <td><code>lifecycle</code></td>
-  <td><code>common/lifecycle.js</code><br><code>common/event.js</code></td>
-  <td><code>base/lifecycle.lil</code></td>
-  <td>no</td>
-  <td colspan="4" class="note">Two monaco files. Emitter lives in event.js. Not the full vscode event service.</td>
-</tr>
-<tr>
-  <td><code>interval-tree</code></td>
-  <td><code>model/intervalTree.js</code></td>
-  <td><code>editor/interval-tree.lil</code></td>
-  <td>no</td>
-  <td class="num">2,574</td>
-  <td class="num">356</td>
-  <td class="num win">-2,218</td>
-  <td class="num">7.23×</td>
-</tr>
-<tr>
-  <td><code>myers</code></td>
-  <td><code>algorithms/myersDiffAlgorithm.js</code></td>
-  <td><code>editor/myers.lil</code></td>
-  <td>no</td>
-  <td class="num">762</td>
-  <td class="num">2,009</td>
-  <td class="num loss">+1,247</td>
-  <td class="num">0.38×</td>
-</tr>
-<tr>
-  <td><code>monarch</code></td>
-  <td><code>monarch/monarchCompile.js</code></td>
-  <td><code>editor/monarch.lil</code></td>
-  <td>no</td>
-  <td class="num">2,855</td>
-  <td class="num">1,397</td>
-  <td class="num win">-1,458</td>
-  <td class="num">2.04×</td>
-</tr>
-<tr>
-  <td><code>search</code></td>
-  <td><code>model/textModelSearch.js</code></td>
-  <td><code>editor/search.lil</code></td>
-  <td>no</td>
-  <td colspan="4" class="note">Ported. Production find still uses monaco's Searcher; piece-tree adapter does line-by-line search in JS.</td>
-</tr>
-<tr>
-  <td><code>edit-stack</code></td>
-  <td><code>model/editStack.js</code></td>
-  <td><code>editor/edit-stack.lil</code></td>
-  <td>no</td>
-  <td colspan="4" class="note">Ported. monaco TextModel still uses the JS edit stack.</td>
-</tr>
+      ${pairRows(doc.pairs)}
     </tbody>
   </table>
   <p class="note">
@@ -253,26 +202,15 @@
       <tr><th>Lil file</th><th>monaco file</th><th>Gap</th></tr>
     </thead>
     <tbody>
-      <tr>
-  <td><code>editor/view.lil</code></td>
-  <td><code>editor/browser/view.js</code></td>
-  <td class="note">Parallel viewport, not GPU view zones / view parts.</td>
-</tr>
-<tr>
-  <td><code>editor/commands.lil</code></td>
-  <td><code>editor/common/cursor/*.js</code></td>
-  <td class="note">Parallel command set, not vscode cursor controllers.</td>
-</tr>
-<tr>
-  <td><code>editor/standalone.lil</code></td>
-  <td><code>editor/editor.api.js</code></td>
-  <td class="note">Kitchen-sink npm facade vs a subset create() surface.</td>
-</tr>
-<tr>
-  <td><code>editor/text-model.lil</code></td>
-  <td><code>editor/common/model.js</code></td>
-  <td class="note">model.js is the whole text-model module graph, not one algorithm file.</td>
-</tr>
+      ${doc.notOneToOne
+        .map(
+          (row) => `<tr>
+  <td><code>${row.lil}</code></td>
+  <td><code>${row.monaco}</code></td>
+  <td class="note">${row.reason}</td>
+</tr>`,
+        )
+        .join("\n")}
     </tbody>
   </table>
 
@@ -282,9 +220,11 @@
     inside that editor (GPU view parts, full URI, tsc). The JS page stays stock monaco so you can compare behavior and Brotli.
   </p>
   <p class="note">
-    Encoder: lilscript-codec; gzip 1.3.1; Brotli 1.1.0 q11.
+    Encoder: ${doc.codec.implementation}; gzip ${doc.codec.gzip}; Brotli ${doc.codec.brotli} q11.
     Node zlib is not used for these tables. Raw JSON: <a href="./sizes.json">sizes.json</a>.
   </p>
 </main>
 </body>
 </html>
+`;
+}

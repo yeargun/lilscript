@@ -26,7 +26,10 @@ import {
   jsArrayAt,
   jsPropString,
   jsPropInt,
-  emptyBuf
+  emptyBuf,
+  hostPaintEditor,
+  hostCoordsToPosition,
+  hostStyleFindWidget
 } from "../js-host";
 import { TextModel } from "./text-model";
 import { Decoration } from "./interval-tree";
@@ -167,6 +170,7 @@ export class EditorView {
     setClassName(this.root, "monaco-editor " + this.theme);
     setStyle(this.root, "position", "relative");
     setStyle(this.root, "overflow", "hidden");
+    setTabIndex(this.root, 0);
     setStyle(this.root, "font-family", "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace");
     setStyle(this.root, "font-size", this.fontSize.toString() + "px");
     setStyle(this.root, "line-height", this.lineHeight.toString() + "px");
@@ -271,6 +275,7 @@ export class EditorView {
     setAttribute(this.replaceInput, "data-monaco", "replace");
     appendChild(this.findWidget, this.findInput);
     appendChild(this.findWidget, this.replaceInput);
+    hostStyleFindWidget(this.findWidget, this.findInput, this.replaceInput);
     appendChild(this.widgetsHost, this.findWidget);
   }
 
@@ -612,37 +617,33 @@ export class EditorView {
 
   void render() {
     this.applyTheme();
-    this.refreshFolds();
-    int start = this.visibleStartLine();
-    int end = this.visibleEndLine();
-    Language? lang = getLanguage(this.languageId);
-    Lexer? lexer = getLexer(this.languageId);
-    LineState state = initialState();
-    int prep = 1;
-    while (prep < start && lexer != null) {
-      tokenizeLine(lexer, state, this.model.getLineContent(prep));
-      prep++;
+    int cw = hostPaintEditor(
+      this.linesHost,
+      this.margin,
+      this.selectionHost,
+      this.cursorEl,
+      this.minimapCanvas,
+      this.textarea,
+      this.model.getValue(),
+      this.languageId,
+      this.lineHeight,
+      this.width,
+      this.height,
+      this.scrollTop,
+      this.showLineNumbers,
+      this.showMinimap,
+      this.theme,
+      this.selection.selectionStartLineNumber,
+      this.selection.selectionStartColumn,
+      this.selection.positionLineNumber,
+      this.selection.positionColumn,
+      this.findQuery,
+      this.wordWrap,
+      this.tabSize
+    );
+    if (cw > 0) {
+      this.charWidth = cw;
     }
-    string marginHtml = emptyBuf();
-    string linesHtml = emptyBuf();
-    int line = start;
-    while (line <= end) {
-      if (this.isCollapsedLine(line)) {
-        line++;
-        continue;
-      }
-      string content = this.model.getLineContent(line);
-      Token[] tokens = this.tokensForLine(lang, lexer, state, content);
-      marginHtml = marginHtml + this.marginRowHtml(line, this.foldGlyphAt(line));
-      linesHtml = linesHtml + this.lineRowHtml(line, content, tokens);
-      line++;
-    }
-    setInnerHTML(this.margin, marginHtml);
-    setInnerHTML(this.linesHost, linesHtml);
-    setStyle(this.linesHost, "height", this.scrollHeight().toString() + "px");
-    this.renderMinimap();
-    this.renderSelection();
-    this.placeTextarea();
   }
 
   string selectionRowHtml(int line, int sc, int ec) {
@@ -690,11 +691,21 @@ export class EditorView {
   }
 
   Pos coordsToPosition(int clientX, int clientY) {
-    int top = rectTop(this.scrollable);
-    int left = rectLeft(this.scrollable);
-    int y = clientY - top + this.scrollTop;
-    int x = clientX - left;
-    int line = y / this.lineHeight + 1;
+    int[] packed = hostCoordsToPosition(
+      this.scrollable,
+      this.linesHost,
+      clientX,
+      clientY,
+      this.lineHeight,
+      this.charWidth,
+      this.scrollTop
+    );
+    int line = 1;
+    int col = 1;
+    if (packed.length > 1) {
+      line = packed[0];
+      col = packed[1];
+    }
     if (line < 1) {
       line = 1;
     }
@@ -702,8 +713,6 @@ export class EditorView {
     if (line > last) {
       line = last;
     }
-    line = this.nextVisible(line);
-    int col = x / this.charWidth + 1;
     int max = this.model.getLineLength(line) + 1;
     if (col < 1) {
       col = 1;
