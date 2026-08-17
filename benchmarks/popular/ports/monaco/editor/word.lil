@@ -1,0 +1,82 @@
+import { sliceOf } from "../js-host";
+
+export class WordRange {
+  string word;
+  int startColumn;
+  int endColumn;
+
+  init(string word, int startColumn, int endColumn) {
+    this.word = word;
+    this.startColumn = startColumn;
+    this.endColumn = endColumn;
+  }
+}
+
+export bool isWordChar(string ch) {
+  if (ch.length == 0) {
+    return false;
+  }
+  int code = ch.charCodeAt(0);
+  if (code >= 48 && code <= 57) {
+    return true;
+  }
+  if (code >= 65 && code <= 90) {
+    return true;
+  }
+  if (code >= 97 && code <= 122) {
+    return true;
+  }
+  return ch == "_" || ch == "$";
+}
+
+export int leadingIndent(string content) {
+  int n = content.length;
+  int idx = 0;
+  while (idx < n) {
+    string ch = content.charAt(idx);
+    if (ch != " " && ch != "\t") {
+      return idx;
+    }
+    idx++;
+  }
+  return n;
+}
+
+int wordStartIndex(string line, int col) {
+  int eaten = 0;
+  while (col > eaten) {
+    string ch = line.charAt(col - eaten - 1);
+    if (!isWordChar(ch)) {
+      break;
+    }
+    eaten = eaten + 1;
+  }
+  return col - eaten;
+}
+
+int wordEndIndex(string line, int col) {
+  int eaten = 0;
+  int n = line.length;
+  while (col + eaten < n) {
+    string ch = line.charAt(col + eaten);
+    if (!isWordChar(ch)) {
+      break;
+    }
+    eaten = eaten + 1;
+  }
+  return col + eaten;
+}
+
+export WordRange wordAt(string line, int column) {
+  int col = column - 1;
+  if (col < 0) {
+    col = 0;
+  }
+  int n = line.length;
+  if (col > n) {
+    col = n;
+  }
+  int start = wordStartIndex(line, col);
+  int end = wordEndIndex(line, col);
+  return new WordRange(sliceOf(line, start, end), start + 1, end + 1);
+}

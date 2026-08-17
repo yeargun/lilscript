@@ -183,7 +183,7 @@ export JsValue merge(JsValue first, JsValue second) {
   return first;
 }
 
-export JsValue makeArray(JsValue arrValue, JsValue results = null) {
+export JsValue makeArray(JsValue arrValue, JsValue results = JS.undefined()) {
   JsValue ret = JS.or(results, emptyArray());
 
   if (!JS.isNullish(arrValue)) {

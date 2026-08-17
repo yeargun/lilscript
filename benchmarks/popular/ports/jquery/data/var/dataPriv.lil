@@ -1,3 +1,11 @@
-import { Data } from "../Data";
+import {
+  dataPrivExpando as expando,
+  dataPrivCache as cache,
+  dataPrivGet as get,
+  dataPrivSet as set,
+  dataPrivAccess as access,
+  dataPrivRemove as remove,
+  dataPrivHasData as hasData
+} from "../Data";
 
-export Data dataPriv = new Data();
+export { expando, cache, get, set, access, remove, hasData };

@@ -1,0 +1,201 @@
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 13px;
+  color: #cccccc;
+  background: #1e1e1e;
+  overflow: hidden;
+}
+#workbench {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.menubar {
+  height: 30px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 12px;
+  background: #3c3c3c;
+  color: #cccccc;
+  user-select: none;
+  flex-shrink: 0;
+}
+.menubar .title { font-weight: 600; margin-right: 8px; }
+.menubar button {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+.menubar button:hover { background: #505050; }
+.body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+.activity {
+  width: 48px;
+  background: #333333;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 8px;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.activity button {
+  width: 48px;
+  height: 48px;
+  background: none;
+  border: none;
+  border-left: 2px solid transparent;
+  color: #858585;
+  cursor: pointer;
+  font-size: 18px;
+}
+.activity button.active {
+  color: #ffffff;
+  border-left-color: #ffffff;
+}
+.sidebar {
+  width: 240px;
+  background: #252526;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.sidebar.hidden { display: none; }
+.sidebar h2 {
+  margin: 0;
+  padding: 10px 16px 6px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #bbbbbb;
+}
+.file-list { flex: 1; overflow: auto; }
+.file-list button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: #cccccc;
+  padding: 5px 16px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+}
+.file-list button:hover { background: #2a2d2e; }
+.file-list button.active { background: #37373d; }
+.main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: #1e1e1e;
+}
+.tabs {
+  height: 35px;
+  display: flex;
+  background: #252526;
+  border-bottom: 1px solid #1e1e1e;
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+.tabs button {
+  background: #2d2d2d;
+  border: none;
+  border-right: 1px solid #1e1e1e;
+  color: #969696;
+  padding: 0 14px;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: inherit;
+  font-size: 13px;
+}
+.tabs button.active {
+  background: #1e1e1e;
+  color: #ffffff;
+}
+.editor-wrap {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+.editor-wrap > div {
+  position: absolute;
+  inset: 0;
+}
+#editor { width: 100%; height: 100%; }
+.problems {
+  height: 140px;
+  background: #181818;
+  border-top: 1px solid #2b2b2b;
+  overflow: auto;
+  padding: 8px 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  color: #d4d4d4;
+  flex-shrink: 0;
+}
+.problems.hidden { display: none; }
+.status {
+  height: 22px;
+  background: #007acc;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.banner {
+  background: #1a1a1a;
+  color: #9cdcfe;
+  padding: 6px 12px;
+  font-size: 12px;
+  border-bottom: 1px solid #333;
+  flex-shrink: 0;
+}
+.quick-open {
+  display: none;
+  position: absolute;
+  top: 48px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(520px, 90vw);
+  background: #252526;
+  border: 1px solid #454545;
+  z-index: 20;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+}
+.quick-open.open { display: block; }
+.quick-open input {
+  width: 100%;
+  background: #3c3c3c;
+  border: none;
+  color: #ffffff;
+  padding: 10px 12px;
+  font-size: 14px;
+  outline: none;
+}
+.quick-open .hits button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: #cccccc;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+.quick-open .hits button:hover,
+.quick-open .hits button.active { background: #04395e; }
+#app { height: 100%; position: relative; }

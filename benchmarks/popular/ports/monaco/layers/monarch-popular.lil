@@ -1,0 +1,34 @@
+import { tokenizeText, tokenizeLine, createLexer, addRule, tokenTypes, Lexer, Token, initialState } from "../editor/monarch";
+import { javascriptLexer, typescriptLexer, jsonLexer, pythonLexer, htmlLexer, cssLexer, markdownLexer } from "../languages/popular";
+import { registerPopularLanguages, getLexer, languageIds } from "../languages/registry";
+
+export Token[] tokenize(string languageId, string text) {
+  registerPopularLanguages();
+  Lexer? lex = getLexer(languageId);
+  if (lex == null) {
+    Token[] empty = [];
+    return empty;
+  }
+  return tokenizeText(lex, text);
+}
+
+export {
+  tokenizeText,
+  tokenizeLine,
+  createLexer,
+  addRule,
+  tokenTypes,
+  javascriptLexer,
+  typescriptLexer,
+  jsonLexer,
+  pythonLexer,
+  htmlLexer,
+  cssLexer,
+  markdownLexer,
+  registerPopularLanguages,
+  getLexer,
+  languageIds,
+  Lexer,
+  Token,
+  initialState
+};

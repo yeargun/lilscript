@@ -1,0 +1,106 @@
+import { Pos } from "./position";
+import { Rng } from "./range";
+
+export enum SelectionDirection {
+  LTR,
+  RTL
+}
+
+export class Sel {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+  int selectionStartLineNumber;
+  int selectionStartColumn;
+  int positionLineNumber;
+  int positionColumn;
+
+  init(
+    int selectionStartLineNumber,
+    int selectionStartColumn,
+    int positionLineNumber,
+    int positionColumn
+  ) {
+    Rng ordered = new Rng(
+      selectionStartLineNumber,
+      selectionStartColumn,
+      positionLineNumber,
+      positionColumn
+    );
+    this.startLineNumber = ordered.startLineNumber;
+    this.startColumn = ordered.startColumn;
+    this.endLineNumber = ordered.endLineNumber;
+    this.endColumn = ordered.endColumn;
+    this.selectionStartLineNumber = selectionStartLineNumber;
+    this.selectionStartColumn = selectionStartColumn;
+    this.positionLineNumber = positionLineNumber;
+    this.positionColumn = positionColumn;
+  }
+
+  Rng toRange() {
+    return new Rng(this.startLineNumber, this.startColumn, this.endLineNumber, this.endColumn);
+  }
+
+  bool equalsSelection(Sel other) {
+    return this.selectionStartLineNumber == other.selectionStartLineNumber
+      && this.selectionStartColumn == other.selectionStartColumn
+      && this.positionLineNumber == other.positionLineNumber
+      && this.positionColumn == other.positionColumn;
+  }
+
+  SelectionDirection getDirection() {
+    if (
+      this.selectionStartLineNumber == this.startLineNumber
+      && this.selectionStartColumn == this.startColumn
+    ) {
+      return SelectionDirection.LTR;
+    }
+    return SelectionDirection.RTL;
+  }
+
+  Pos getPosition() {
+    return new Pos(this.positionLineNumber, this.positionColumn);
+  }
+
+  Pos getSelectionStart() {
+    return new Pos(this.selectionStartLineNumber, this.selectionStartColumn);
+  }
+
+  string toString() {
+    return "["
+      + this.selectionStartLineNumber.toString()
+      + ","
+      + this.selectionStartColumn.toString()
+      + " -> "
+      + this.positionLineNumber.toString()
+      + ","
+      + this.positionColumn.toString()
+      + "]";
+  }
+}
+
+export Sel createSelection(
+  int selectionStartLineNumber,
+  int selectionStartColumn,
+  int positionLineNumber,
+  int positionColumn
+) {
+  return new Sel(
+    selectionStartLineNumber,
+    selectionStartColumn,
+    positionLineNumber,
+    positionColumn
+  );
+}
+
+export Sel selectionFromPositions(Pos start, Pos end) {
+  return new Sel(start.lineNumber, start.column, end.lineNumber, end.column);
+}
+
+export Sel selectionFromRange(Rng range, SelectionDirection direction) {
+  if (direction == SelectionDirection.LTR) {
+    return new Sel(range.startLineNumber, range.startColumn, range.endLineNumber, range.endColumn);
+  }
+  return new Sel(range.endLineNumber, range.endColumn, range.startLineNumber, range.startColumn);
+}

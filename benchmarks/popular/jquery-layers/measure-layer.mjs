@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { build as esbuild } from "esbuild";
@@ -83,10 +83,11 @@ async function measureOne(id) {
   );
 
   const compiledPath = join(buildRoot, "lilscript.raw.js");
+  const layerConfig = join(here, `lilscript.${id}.toml`);
   run(compiler, [
     join(labRoot, layer.lilEntry),
     "--config",
-    join(here, "lilscript.toml"),
+    existsSync(layerConfig) ? layerConfig : join(here, "lilscript.toml"),
     "--target",
     "js-module",
     "-o",

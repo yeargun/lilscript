@@ -1,0 +1,84 @@
+import { Lexer } from "../editor/monarch";
+import { javascriptLexer, typescriptLexer, jsonLexer, pythonLexer, htmlLexer, cssLexer, markdownLexer } from "./popular";
+import { jsUndefined } from "../js-host";
+
+class Language {
+  string id;
+  Lexer lexer;
+  string lineComment;
+  string blockCommentStart;
+  string blockCommentEnd;
+  JsValue tokensProvider;
+
+  init(string id, Lexer lexer, string lineComment, string blockCommentStart, string blockCommentEnd) {
+    this.id = id;
+    this.lexer = lexer;
+    this.lineComment = lineComment;
+    this.blockCommentStart = blockCommentStart;
+    this.blockCommentEnd = blockCommentEnd;
+    this.tokensProvider = jsUndefined();
+  }
+}
+
+Language[] languages = [];
+bool popularRegistered = false;
+
+export void registerLanguage(Language lang) {
+  int i = 0;
+  while (i < languages.length) {
+    if (languages[i].id == lang.id) {
+      languages[i] = lang;
+      return;
+    }
+    i++;
+  }
+  languages.push(lang);
+}
+
+export void registerPopularLanguages() {
+  if (popularRegistered) {
+    return;
+  }
+  popularRegistered = true;
+  registerLanguage(new Language("javascript", javascriptLexer(), "//", "/*", "*/"));
+  registerLanguage(new Language("typescript", typescriptLexer(), "//", "/*", "*/"));
+  registerLanguage(new Language("json", jsonLexer(), "//", "/*", "*/"));
+  registerLanguage(new Language("python", pythonLexer(), "#", "\"\"\"", "\"\"\""));
+  registerLanguage(new Language("html", htmlLexer(), "", "<!--", "-->"));
+  registerLanguage(new Language("css", cssLexer(), "", "/*", "*/"));
+  registerLanguage(new Language("markdown", markdownLexer(), "", "", ""));
+  registerLanguage(new Language("plaintext", javascriptLexer(), "", "", ""));
+}
+
+export Language? getLanguage(string id) {
+  registerPopularLanguages();
+  int i = 0;
+  while (i < languages.length) {
+    if (languages[i].id == id) {
+      return languages[i];
+    }
+    i++;
+  }
+  return null;
+}
+
+export Lexer? getLexer(string id) {
+  Language? lang = getLanguage(id);
+  if (lang == null) {
+    return null;
+  }
+  return lang.lexer;
+}
+
+export string[] languageIds() {
+  registerPopularLanguages();
+  string[] ids = [];
+  int i = 0;
+  while (i < languages.length) {
+    ids.push(languages[i].id);
+    i++;
+  }
+  return ids;
+}
+
+export { Language };

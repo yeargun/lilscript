@@ -543,7 +543,7 @@ pub(crate) fn js_host_alias_spec(name: &str) -> Option<(&'static str, JsHostAlia
             JsHostAliasConvention::Callee,
         ),
         "isWindowValue" => ("a=>a!=null&&a===a.window", JsHostAliasConvention::Callee),
-        "scheduleTimeout" => ("a=>setTimeout(a,0)", JsHostAliasConvention::Callee),
+        "scheduleTimeout" => ("a=>setTimeout(a)", JsHostAliasConvention::Callee),
         "defineConfigurable" => (
             "(a,b,c)=>Object.defineProperty(a,b,{value:c,configurable:!0})",
             JsHostAliasConvention::Callee,

@@ -1,0 +1,41 @@
+import { setTextContent } from "./js-host";
+import { createPosition } from "./base/position";
+import { CodeEditor, DiffEditor, create, editorGetValue, editorGetPosition, editorSetPosition, editorTrigger, editorLayout, setTheme, createDiffEditor, diffLineChanges } from "./editor/standalone";
+import { FindMatch } from "./editor/search";
+import { findInEditor, computeIndentFolds, toggleLineComment, gotoLine, hoverAt, highlightWord, FoldRange } from "./contrib/popular";
+import { DiffChange } from "./editor/myers";
+import { registerPopularLanguages } from "./languages/registry";
+
+export void runDemo(JsValue editorHost, JsValue diffHost, JsValue logEl) {
+  registerPopularLanguages();
+  JsValue options = record{
+    value: "function hello(name) {\n  const msg = \"hi \" + name;\n  return msg;\n}\n",
+    language: "javascript",
+    theme: "vs-dark",
+    lineNumbers: "on"
+  };
+  CodeEditor editor = create(editorHost, options);
+  editorSetPosition(editor, createPosition(1, 23));
+  editorTrigger(editor, "keyboard", "type", record{ text: "!" });
+  editorTrigger(editor, "keyboard", "undo", record{});
+  setTheme("vs-dark");
+  editorLayout(editor);
+  FindMatch[] found = findInEditor(editor, "msg", false, true, true);
+  FoldRange[] folds = computeIndentFolds(editor);
+  editorSetPosition(editor, createPosition(2, 10));
+  FindMatch[] highlights = highlightWord(editor);
+  string word = hoverAt(editor, editorGetPosition(editor));
+  gotoLine(editor, 2);
+  toggleLineComment(editor);
+  DiffEditor diff = createDiffEditor(diffHost, record{ original: "a\nb\nc\n", modified: "a\nx\nc\n", language: "plaintext" });
+  DiffChange[] changes = diffLineChanges(diff);
+  string log = "value=" + editorGetValue(editor).length.toString();
+  log = log + " matches=" + found.length.toString();
+  log = log + " folds=" + folds.length.toString();
+  log = log + " highlights=" + highlights.length.toString();
+  log = log + " hover=" + word;
+  log = log + " diffs=" + changes.length.toString();
+  setTextContent(logEl, log);
+}
+
+export { create, editorGetValue, setTheme };

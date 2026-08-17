@@ -1,0 +1,975 @@
+import { Pos } from "../base/position";
+import { Rng } from "../base/range";
+import { sliceOf, replaceEol, emptyBuf, concat2 } from "../js-host";
+import extern {
+  pushNewBuffer,
+  rbDeleteTree,
+  nodeAtStash,
+  nodeAt2Stash,
+  stashNode,
+  stashRem,
+  stashStart,
+  hostGetOffsetAt,
+  hostGetPositionAt
+} from "../js-host.ts";
+
+int CR = 13;
+int LF = 10;
+int AverageBufferSize = 65535;
+
+enum NodeColor {
+  Black,
+  Red
+}
+
+struct BufferCursor {
+  int line;
+  int column;
+}
+
+struct Piece {
+  int bufferIndex;
+  BufferCursor start;
+  BufferCursor end;
+  int lineFeedCnt;
+  int length;
+}
+
+class StringBuffer {
+  string buffer;
+  int[] lineStarts;
+
+  init(string buffer, int[] lineStarts) {
+    this.buffer = buffer;
+    this.lineStarts = lineStarts;
+  }
+}
+
+Piece emptyPiece = Piece{0, BufferCursor{0, 0}, BufferCursor{0, 0}, 0, 0};
+
+class TreeNode {
+  TreeNode parent;
+  TreeNode left;
+  TreeNode right;
+  NodeColor color;
+  Piece piece;
+  int size_left;
+  int lf_left;
+  bool alive;
+
+  init(Piece piece, NodeColor color) {
+    this.piece = piece;
+    this.color = color;
+    this.size_left = 0;
+    this.lf_left = 0;
+    this.alive = true;
+    this.parent = this;
+    this.left = this;
+    this.right = this;
+  }
+
+  void detach() {
+    this.alive = false;
+    this.parent = this;
+    this.left = this;
+    this.right = this;
+  }
+}
+
+TreeNode SENTINEL = new TreeNode(emptyPiece, NodeColor.Black);
+
+extern void pushNewBuffer(JsValue tree, string text, int[] lineStarts);
+extern void rbDeleteTree(JsValue tree, TreeNode z, TreeNode sentinel);
+extern void nodeAtStash(JsValue tree, int offset, TreeNode sentinel, int slot);
+extern void nodeAt2Stash(JsValue tree, int lineNumber, int column, TreeNode sentinel, int slot);
+extern TreeNode stashNode(JsValue tree, int slot);
+extern int stashRem(JsValue tree, int slot);
+extern int stashStart(JsValue tree, int slot);
+extern int hostGetOffsetAt(JsValue tree, int lineNumber, int column, TreeNode sentinel);
+extern Pos hostGetPositionAt(JsValue tree, int offset, TreeNode sentinel);
+
+class NodePosition {
+  TreeNode node;
+  int remainder;
+  int nodeStartOffset;
+
+  init(TreeNode node, int remainder, int nodeStartOffset) {
+    this.node = node;
+    this.remainder = remainder;
+    this.nodeStartOffset = nodeStartOffset;
+  }
+}
+
+class IndexOfResult {
+  int index;
+  int remainder;
+
+  init(int index, int remainder) {
+    this.index = index;
+    this.remainder = remainder;
+  }
+}
+
+int[] createLineStartsFast(string str) {
+  int[] r = [0];
+  int len = str.length;
+  for (int i = 0; i < len; i++) {
+    int chr = str.charCodeAt(i);
+    if (chr == CR) {
+      if (i + 1 < len && str.charCodeAt(i + 1) == LF) {
+        r.push(i + 2);
+        i++;
+      } else {
+        r.push(i + 1);
+      }
+    } else if (chr == LF) {
+      r.push(i + 1);
+    }
+  }
+  return r;
+}
+
+TreeNode leftest(TreeNode node) {
+  TreeNode cur = node;
+  while (cur.left != SENTINEL) {
+    cur = cur.left;
+  }
+  return cur;
+}
+
+TreeNode righttest(TreeNode node) {
+  TreeNode cur = node;
+  while (cur.right != SENTINEL) {
+    cur = cur.right;
+  }
+  return cur;
+}
+
+TreeNode nodeNext(TreeNode node) {
+  if (node.right != SENTINEL) {
+    return leftest(node.right);
+  }
+  TreeNode cur = node;
+  int guard = 0;
+  while (cur.parent != SENTINEL && guard < 100000) {
+    guard++;
+    if (cur.parent.left == cur) {
+      break;
+    }
+    cur = cur.parent;
+  }
+  if (cur.parent == SENTINEL || guard >= 100000) {
+    return SENTINEL;
+  }
+  return cur.parent;
+}
+
+TreeNode nodePrev(TreeNode node) {
+  if (node.left != SENTINEL) {
+    return righttest(node.left);
+  }
+  TreeNode cur = node;
+  while (cur.parent != SENTINEL) {
+    if (cur.parent.right == cur) {
+      break;
+    }
+    cur = cur.parent;
+  }
+  if (cur.parent == SENTINEL) {
+    return SENTINEL;
+  }
+  return cur.parent;
+}
+
+int calculateSize(TreeNode node) {
+  if (node == SENTINEL) {
+    return 0;
+  }
+  return node.size_left + node.piece.length + calculateSize(node.right);
+}
+
+int calculateLF(TreeNode node) {
+  if (node == SENTINEL) {
+    return 0;
+  }
+  return node.lf_left + node.piece.lineFeedCnt + calculateLF(node.right);
+}
+
+class PieceTreeBase {
+  TreeNode root;
+  StringBuffer[] buffers;
+  int lineCnt;
+  int length;
+  string eol;
+  int eolLength;
+  bool eolNormalized;
+  BufferCursor lastChangeBufferPos;
+  TreeNode cacheNode;
+  int cacheNodeStartOffset;
+  int cacheNodeStartLineNumber;
+  bool cacheHasLine;
+  bool cacheValid;
+  int lastVisitedLineNumber;
+  string lastVisitedLineValue;
+  TreeNode posNode;
+  int posRemainder;
+  int posStart;
+  int walkLine;
+  int walkCol;
+  StringBuffer tmpBuffer;
+
+  init(StringBuffer[] chunks, string eol, bool eolNormalized) {
+    this.root = SENTINEL;
+    this.buffers = [];
+    this.lineCnt = 1;
+    this.length = 0;
+    this.eol = eol;
+    this.eolLength = eol.length;
+    this.eolNormalized = eolNormalized;
+    this.lastChangeBufferPos = BufferCursor{0, 0};
+    this.cacheNode = SENTINEL;
+    this.cacheNodeStartOffset = 0;
+    this.cacheNodeStartLineNumber = 0;
+    this.cacheHasLine = false;
+    this.cacheValid = false;
+    this.lastVisitedLineNumber = 0;
+    this.lastVisitedLineValue = emptyBuf();
+    this.posNode = SENTINEL;
+    this.posRemainder = 0;
+    this.posStart = 0;
+    this.walkLine = 1;
+    this.walkCol = 1;
+    this.tmpBuffer = new StringBuffer(emptyBuf(), [0]);
+    this.create(chunks, eol, eolNormalized);
+  }
+
+  void create(StringBuffer[] chunks, string eol, bool eolNormalized) {
+    this.buffers = [new StringBuffer(emptyBuf(), [0])];
+    this.lastChangeBufferPos = BufferCursor{0, 0};
+    this.root = SENTINEL;
+    this.lineCnt = 1;
+    this.length = 0;
+    this.eol = eol;
+    this.eolLength = eol.length;
+    this.eolNormalized = eolNormalized;
+    TreeNode lastNode = SENTINEL;
+    for (int i = 0; i < chunks.length; i++) {
+      lastNode = this.appendChunk(lastNode, chunks[i], i + 1);
+    }
+    this.cacheValid = false;
+    this.lastVisitedLineNumber = 0;
+    this.lastVisitedLineValue = emptyBuf();
+    this.computeBufferMetadata();
+  }
+
+  TreeNode appendChunk(TreeNode lastNode, StringBuffer chunk, int bufferIndex) {
+    if (chunk.buffer.length == 0) {
+      return lastNode;
+    }
+    int[] starts = chunk.lineStarts;
+    if (starts.length == 0) {
+      starts = createLineStartsFast(chunk.buffer);
+      chunk.lineStarts = starts;
+    }
+    int lastStart = starts[starts.length - 1];
+    Piece piece = Piece{
+      bufferIndex,
+      BufferCursor{0, 0},
+      BufferCursor{starts.length - 1, chunk.buffer.length - lastStart},
+      starts.length - 1,
+      chunk.buffer.length
+    };
+    this.buffers.push(chunk);
+    if (lastNode == SENTINEL) {
+      return this.rbInsertRight(SENTINEL, piece);
+    }
+    return this.rbInsertRight(lastNode, piece);
+  }
+
+  void attachParent(TreeNode node, TreeNode parent) {
+    if (node != SENTINEL) {
+      node.parent = parent;
+    }
+  }
+
+  void leftRotate(TreeNode x) {
+    TreeNode y = x.right;
+    TreeNode yLeft = y.left;
+    TreeNode xParent = x.parent;
+    y.size_left += x.size_left + x.piece.length;
+    y.lf_left += x.lf_left + x.piece.lineFeedCnt;
+    x.right = yLeft;
+    this.attachParent(yLeft, x);
+    y.parent = xParent;
+    if (xParent == SENTINEL) {
+      this.root = y;
+    } else if (xParent.left == x) {
+      xParent.left = y;
+    } else {
+      xParent.right = y;
+    }
+    y.left = x;
+    x.parent = y;
+  }
+
+  void rightRotate(TreeNode y) {
+    TreeNode x = y.left;
+    TreeNode xRight = x.right;
+    TreeNode yParent = y.parent;
+    y.left = xRight;
+    this.attachParent(xRight, y);
+    x.parent = yParent;
+    y.size_left -= x.size_left + x.piece.length;
+    y.lf_left -= x.lf_left + x.piece.lineFeedCnt;
+    if (yParent == SENTINEL) {
+      this.root = x;
+    } else if (y == yParent.right) {
+      yParent.right = x;
+    } else {
+      yParent.left = x;
+    }
+    x.right = y;
+    y.parent = x;
+  }
+
+  void addSizeIfLeftChild(TreeNode child, int delta, int lfDelta) {
+    TreeNode p = child.parent;
+    if (p.left == child) {
+      p.size_left += delta;
+      p.lf_left += lfDelta;
+    }
+  }
+
+  void updateTreeMetadata(TreeNode start, int delta, int lineFeedCntDelta) {
+    TreeNode x = start;
+    while (x != this.root && x != SENTINEL) {
+      this.addSizeIfLeftChild(x, delta, lineFeedCntDelta);
+      x = x.parent;
+    }
+  }
+
+  void recomputeTreeMetadata(TreeNode start) {
+    TreeNode x = start;
+    if (x == this.root) {
+      return;
+    }
+    while (x != this.root && x == x.parent.right) {
+      x = x.parent;
+    }
+    if (x == this.root) {
+      return;
+    }
+    x = x.parent;
+    int delta = calculateSize(x.left) - x.size_left;
+    int lfDelta = calculateLF(x.left) - x.lf_left;
+    x.size_left += delta;
+    x.lf_left += lfDelta;
+    while (x != this.root && (delta != 0 || lfDelta != 0)) {
+      this.addSizeIfLeftChild(x, delta, lfDelta);
+      x = x.parent;
+    }
+  }
+
+  void fixInsert(TreeNode inserted) {
+    this.recomputeTreeMetadata(inserted);
+    TreeNode x = inserted;
+    while (x != this.root && x.parent.color == NodeColor.Red) {
+      if (x.parent == x.parent.parent.left) {
+        TreeNode y = x.parent.parent.right;
+        if (y.color == NodeColor.Red) {
+          x.parent.color = NodeColor.Black;
+          y.color = NodeColor.Black;
+          x.parent.parent.color = NodeColor.Red;
+          x = x.parent.parent;
+        } else {
+          if (x == x.parent.right) {
+            x = x.parent;
+            this.leftRotate(x);
+          }
+          x.parent.color = NodeColor.Black;
+          x.parent.parent.color = NodeColor.Red;
+          this.rightRotate(x.parent.parent);
+        }
+      } else {
+        TreeNode y = x.parent.parent.left;
+        if (y.color == NodeColor.Red) {
+          x.parent.color = NodeColor.Black;
+          y.color = NodeColor.Black;
+          x.parent.parent.color = NodeColor.Red;
+          x = x.parent.parent;
+        } else {
+          if (x == x.parent.left) {
+            x = x.parent;
+            this.rightRotate(x);
+          }
+          x.parent.color = NodeColor.Black;
+          x.parent.parent.color = NodeColor.Red;
+          this.leftRotate(x.parent.parent);
+        }
+      }
+    }
+    this.root.color = NodeColor.Black;
+  }
+
+  void rbDelete(TreeNode z) {
+    rbDeleteTree(this, z, SENTINEL);
+  }
+
+  TreeNode rbInsertRight(TreeNode node, Piece p) {
+    TreeNode z = new TreeNode(p, NodeColor.Red);
+    z.left = SENTINEL;
+    z.right = SENTINEL;
+    z.parent = SENTINEL;
+    z.size_left = 0;
+    z.lf_left = 0;
+    if (this.root == SENTINEL) {
+      this.root = z;
+      z.color = NodeColor.Black;
+    } else if (node.right == SENTINEL) {
+      node.right = z;
+      z.parent = node;
+    } else {
+      TreeNode nextNode = leftest(node.right);
+      nextNode.left = z;
+      z.parent = nextNode;
+    }
+    this.fixInsert(z);
+    return z;
+  }
+
+  TreeNode rbInsertLeft(TreeNode node, Piece p) {
+    TreeNode z = new TreeNode(p, NodeColor.Red);
+    z.left = SENTINEL;
+    z.right = SENTINEL;
+    z.parent = SENTINEL;
+    z.size_left = 0;
+    z.lf_left = 0;
+    if (this.root == SENTINEL) {
+      this.root = z;
+      z.color = NodeColor.Black;
+    } else if (node.left == SENTINEL) {
+      node.left = z;
+      z.parent = node;
+    } else {
+      TreeNode prevNode = righttest(node.left);
+      prevNode.right = z;
+      z.parent = prevNode;
+    }
+    this.fixInsert(z);
+    return z;
+  }
+
+  void computeBufferMetadata() {
+    TreeNode x = this.root;
+    int lfCnt = 1;
+    int len = 0;
+    while (x != SENTINEL) {
+      lfCnt += x.lf_left + x.piece.lineFeedCnt;
+      len += x.size_left + x.piece.length;
+      x = x.right;
+    }
+    this.lineCnt = lfCnt;
+    this.length = len;
+    this.validateCache(this.length);
+  }
+
+  void validateCache(int offset) {
+    if (this.cacheValid && (this.cacheNode.alive == false || this.cacheNodeStartOffset >= offset)) {
+      this.cacheValid = false;
+    }
+  }
+
+  void setCache(TreeNode node, int nodeStartOffset, int nodeStartLineNumber, bool hasLine) {
+    this.cacheNode = node;
+    this.cacheNodeStartOffset = nodeStartOffset;
+    this.cacheNodeStartLineNumber = nodeStartLineNumber;
+    this.cacheHasLine = hasLine;
+    this.cacheValid = true;
+  }
+
+  int offsetInBuffer(int bufferIndex, BufferCursor cursor) {
+    int[] lineStarts = this.buffers[bufferIndex].lineStarts;
+    return lineStarts[cursor.line] + cursor.column;
+  }
+
+  int getLineFeedCnt(int bufferIndex, BufferCursor start, BufferCursor end) {
+    if (end.column == 0) {
+      return end.line - start.line;
+    }
+    int[] lineStarts = this.buffers[bufferIndex].lineStarts;
+    if (end.line == lineStarts.length - 1) {
+      return end.line - start.line;
+    }
+    int nextLineStartOffset = lineStarts[end.line + 1];
+    int endOffset = lineStarts[end.line] + end.column;
+    if (nextLineStartOffset > endOffset + 1) {
+      return end.line - start.line;
+    }
+    int previousCharOffset = endOffset - 1;
+    if (this.buffers[bufferIndex].buffer.charCodeAt(previousCharOffset) == CR) {
+      return end.line - start.line + 1;
+    }
+    return end.line - start.line;
+  }
+
+  BufferCursor positionInBuffer(TreeNode node, int remainder) {
+    Piece piece = node.piece;
+    int[] lineStarts = this.buffers[piece.bufferIndex].lineStarts;
+    int startOffset = lineStarts[piece.start.line] + piece.start.column + remainder;
+    int low = piece.start.line;
+    int high = piece.end.line;
+    int mid = low;
+    int midStart = 0;
+    int midStop = 0;
+    while (low <= high) {
+      mid = low + ((high - low) / 2);
+      midStart = lineStarts[mid];
+      if (mid == lineStarts.length - 1) {
+        midStop = this.buffers[piece.bufferIndex].buffer.length;
+      } else {
+        midStop = lineStarts[mid + 1];
+      }
+      if (startOffset < midStart) {
+        high = mid - 1;
+      } else if (startOffset >= midStop) {
+        low = mid + 1;
+      } else {
+        break;
+      }
+    }
+    return BufferCursor{mid, startOffset - midStart};
+  }
+
+  int getAccumulatedValue(TreeNode node, int index) {
+    if (index < 0) {
+      return 0;
+    }
+    Piece piece = node.piece;
+    int[] lineStarts = this.buffers[piece.bufferIndex].lineStarts;
+    int expectedLineStartIndex = piece.start.line + index + 1;
+    if (expectedLineStartIndex > piece.end.line) {
+      return lineStarts[piece.end.line] + piece.end.column - lineStarts[piece.start.line] - piece.start.column;
+    }
+    return lineStarts[expectedLineStartIndex] - lineStarts[piece.start.line] - piece.start.column;
+  }
+
+  IndexOfResult getIndexOf(TreeNode node, int accumulatedValue) {
+    Piece piece = node.piece;
+    BufferCursor pos = this.positionInBuffer(node, accumulatedValue);
+    int lineCnt = pos.line - piece.start.line;
+    if (
+      this.offsetInBuffer(piece.bufferIndex, piece.end) - this.offsetInBuffer(piece.bufferIndex, piece.start)
+      == accumulatedValue
+    ) {
+      int realLineCnt = this.getLineFeedCnt(node.piece.bufferIndex, piece.start, pos);
+      if (realLineCnt != lineCnt) {
+        return new IndexOfResult(realLineCnt, 0);
+      }
+    }
+    return new IndexOfResult(lineCnt, pos.column);
+  }
+
+  int offsetOfNode(TreeNode node) {
+    int pos = node.size_left;
+    TreeNode cur = node;
+    while (cur != this.root) {
+      if (cur.parent.right == cur) {
+        pos += cur.parent.size_left + cur.parent.piece.length;
+      }
+      cur = cur.parent;
+    }
+    return pos;
+  }
+
+
+
+  int getOffsetAt(int lineNumber, int column) {
+    return hostGetOffsetAt(this, lineNumber, column, SENTINEL);
+  }
+
+  Pos getPositionAt(int offset) {
+    return hostGetPositionAt(this, offset, SENTINEL);
+  }
+
+  string getNodeContent(TreeNode node) {
+    if (node == SENTINEL) {
+      return emptyBuf();
+    }
+    Piece piece = node.piece;
+    int startOffset = this.offsetInBuffer(piece.bufferIndex, piece.start);
+    int endOffset = this.offsetInBuffer(piece.bufferIndex, piece.end);
+    return sliceOf(this.buffers[piece.bufferIndex].buffer, startOffset, endOffset);
+  }
+
+  string getValueInRangeFromStash() {
+    TreeNode startNode = stashNode(this, 0);
+    TreeNode endNode = stashNode(this, 1);
+    int startRem = stashRem(this, 0);
+    int endRem = stashRem(this, 1);
+    if (startNode == endNode) {
+      int startOffset = this.offsetInBuffer(startNode.piece.bufferIndex, startNode.piece.start);
+      return sliceOf(
+        this.buffers[startNode.piece.bufferIndex].buffer,
+        startOffset + startRem,
+        startOffset + endRem
+      );
+    }
+    TreeNode x = startNode;
+    int startOffset = this.offsetInBuffer(x.piece.bufferIndex, x.piece.start);
+    string ret = sliceOf(
+      this.buffers[x.piece.bufferIndex].buffer,
+      startOffset + startRem,
+      startOffset + x.piece.length
+    );
+    x = nodeNext(x);
+    int guard = 0;
+    while (x != SENTINEL && guard < 100000) {
+      int so = this.offsetInBuffer(x.piece.bufferIndex, x.piece.start);
+      if (x == endNode) {
+        ret = concat2(ret, sliceOf(this.buffers[x.piece.bufferIndex].buffer, so, so + endRem));
+        break;
+      }
+      ret = concat2(ret, sliceOf(this.buffers[x.piece.bufferIndex].buffer, so, so + x.piece.length));
+      x = nodeNext(x);
+      guard = guard + 1;
+    }
+    return ret;
+  }
+
+  string getValueInRange(Rng range) {
+    if (range.startLineNumber == range.endLineNumber && range.startColumn == range.endColumn) {
+      return emptyBuf();
+    }
+    nodeAt2Stash(this, range.startLineNumber, range.startColumn, SENTINEL, 0);
+    nodeAt2Stash(this, range.endLineNumber, range.endColumn, SENTINEL, 1);
+    return this.getValueInRangeFromStash();
+  }
+
+  string getLinesRawContent() {
+    return this.collect(this.root);
+  }
+
+  string collect(TreeNode node) {
+    if (node == SENTINEL) {
+      return emptyBuf();
+    }
+    return concat2(concat2(this.collect(node.left), this.getNodeContent(node)), this.collect(node.right));
+  }
+
+  int getLength() {
+    return this.length;
+  }
+
+  int getLineCount() {
+    return this.lineCnt;
+  }
+
+  string getEOL() {
+    return this.eol;
+  }
+
+  string getLineContent(int lineNumber) {
+    if (this.lastVisitedLineNumber == lineNumber) {
+      return this.lastVisitedLineValue;
+    }
+    this.lastVisitedLineNumber = lineNumber;
+    if (lineNumber == this.lineCnt) {
+      this.lastVisitedLineValue = this.getLineRawContent(lineNumber, 0);
+    } else if (this.eolNormalized) {
+      this.lastVisitedLineValue = this.getLineRawContent(lineNumber, this.eolLength);
+    } else {
+      this.lastVisitedLineValue = replaceEol(this.getLineRawContent(lineNumber, 0), emptyBuf());
+    }
+    return this.lastVisitedLineValue;
+  }
+
+  string getLineRawContent(int lineNumber, int endOffset) {
+    int start = this.getOffsetAt(lineNumber, 1);
+    int end = 0;
+    if (lineNumber == this.lineCnt) {
+      end = this.length;
+    } else {
+      end = this.getOffsetAt(lineNumber + 1, 1) - endOffset;
+    }
+    if (end < start) {
+      end = start;
+    }
+    nodeAtStash(this, start, SENTINEL, 0);
+    nodeAtStash(this, end, SENTINEL, 1);
+    return this.getValueInRangeFromStash();
+  }
+
+  int getLineLength(int lineNumber) {
+    if (lineNumber == this.lineCnt) {
+      return this.length - this.getOffsetAt(lineNumber, 1);
+    }
+    return this.getOffsetAt(lineNumber + 1, 1) - this.getOffsetAt(lineNumber, 1) - this.eolLength;
+  }
+
+  Piece[] createNewPieces(string text) {
+    if (text.length > AverageBufferSize) {
+      Piece[] newPieces = [];
+      string remaining = text;
+      while (remaining.length > AverageBufferSize) {
+        int lastChar = remaining.charCodeAt(AverageBufferSize - 1);
+        string splitText = "";
+        if (lastChar == CR || (lastChar >= 55296 && lastChar <= 56319)) {
+          splitText = sliceOf(remaining, 0, AverageBufferSize - 1);
+          remaining = sliceOf(remaining, AverageBufferSize - 1, remaining.length);
+        } else {
+          splitText = sliceOf(remaining, 0, AverageBufferSize);
+          remaining = sliceOf(remaining, AverageBufferSize, remaining.length);
+        }
+        int[] lineStarts = createLineStartsFast(splitText);
+        newPieces.push(Piece{
+          this.buffers.length,
+          BufferCursor{0, 0},
+          BufferCursor{lineStarts.length - 1, splitText.length - lineStarts[lineStarts.length - 1]},
+          lineStarts.length - 1,
+          splitText.length
+        });
+        pushNewBuffer(this, splitText, lineStarts);
+      }
+      int[] tailStarts = createLineStartsFast(remaining);
+      newPieces.push(Piece{
+        this.buffers.length,
+        BufferCursor{0, 0},
+        BufferCursor{tailStarts.length - 1, remaining.length - tailStarts[tailStarts.length - 1]},
+        tailStarts.length - 1,
+        remaining.length
+      });
+      pushNewBuffer(this, remaining, tailStarts);
+      return newPieces;
+    }
+    int startOffset = this.buffers[0].buffer.length;
+    int[] lineStarts = createLineStartsFast(text);
+    BufferCursor start = this.lastChangeBufferPos;
+    if (startOffset != 0) {
+      for (int i = 0; i < lineStarts.length; i++) {
+        lineStarts[i] += startOffset;
+      }
+    }
+    this.buffers[0].lineStarts = this.buffers[0].lineStarts.concat(lineStarts.slice(1));
+    this.buffers[0].buffer = concat2(this.buffers[0].buffer, text);
+    int endOffset = this.buffers[0].buffer.length;
+    int endIndex = this.buffers[0].lineStarts.length - 1;
+    int endColumn = endOffset - this.buffers[0].lineStarts[endIndex];
+    BufferCursor endPos = BufferCursor{endIndex, endColumn};
+    Piece newPiece = Piece{
+      0,
+      start,
+      endPos,
+      this.getLineFeedCnt(0, start, endPos),
+      endOffset - startOffset
+    };
+    this.lastChangeBufferPos = endPos;
+    return [newPiece];
+  }
+
+  void deleteNodeTail(TreeNode node, BufferCursor pos) {
+    Piece piece = node.piece;
+    int originalLFCnt = piece.lineFeedCnt;
+    int originalEndOffset = this.offsetInBuffer(piece.bufferIndex, piece.end);
+    int newEndOffset = this.offsetInBuffer(piece.bufferIndex, pos);
+    int newLineFeedCnt = this.getLineFeedCnt(piece.bufferIndex, piece.start, pos);
+    int lfDelta = newLineFeedCnt - originalLFCnt;
+    int sizeDelta = newEndOffset - originalEndOffset;
+    node.piece = Piece{piece.bufferIndex, piece.start, pos, newLineFeedCnt, piece.length + sizeDelta};
+    this.updateTreeMetadata(node, sizeDelta, lfDelta);
+  }
+
+  void deleteNodeHead(TreeNode node, BufferCursor pos) {
+    Piece piece = node.piece;
+    int originalLFCnt = piece.lineFeedCnt;
+    int originalStartOffset = this.offsetInBuffer(piece.bufferIndex, piece.start);
+    int newLineFeedCnt = this.getLineFeedCnt(piece.bufferIndex, pos, piece.end);
+    int newStartOffset = this.offsetInBuffer(piece.bufferIndex, pos);
+    int lfDelta = newLineFeedCnt - originalLFCnt;
+    int sizeDelta = originalStartOffset - newStartOffset;
+    node.piece = Piece{piece.bufferIndex, pos, piece.end, newLineFeedCnt, piece.length + sizeDelta};
+    this.updateTreeMetadata(node, sizeDelta, lfDelta);
+  }
+
+  void shrinkNode(TreeNode node, BufferCursor start, BufferCursor end) {
+    Piece piece = node.piece;
+    BufferCursor originalStartPos = piece.start;
+    BufferCursor originalEndPos = piece.end;
+    int oldLength = piece.length;
+    int oldLFCnt = piece.lineFeedCnt;
+    int newLineFeedCnt = this.getLineFeedCnt(piece.bufferIndex, piece.start, start);
+    int newLength = this.offsetInBuffer(piece.bufferIndex, start) - this.offsetInBuffer(piece.bufferIndex, originalStartPos);
+    node.piece = Piece{piece.bufferIndex, piece.start, start, newLineFeedCnt, newLength};
+    this.updateTreeMetadata(node, newLength - oldLength, newLineFeedCnt - oldLFCnt);
+    Piece newPiece = Piece{
+      piece.bufferIndex,
+      end,
+      originalEndPos,
+      this.getLineFeedCnt(piece.bufferIndex, end, originalEndPos),
+      this.offsetInBuffer(piece.bufferIndex, originalEndPos) - this.offsetInBuffer(piece.bufferIndex, end)
+    };
+    this.rbInsertRight(node, newPiece);
+  }
+
+  void deleteNodes(TreeNode[] nodes) {
+    for (int i = 0; i < nodes.length; i++) {
+      this.rbDelete(nodes[i]);
+    }
+  }
+
+  void appendToNode(TreeNode node, string value) {
+    int startOffset = this.buffers[0].buffer.length;
+    this.buffers[0].buffer = concat2(this.buffers[0].buffer, value);
+    int[] lineStarts = createLineStartsFast(value);
+    for (int i = 0; i < lineStarts.length; i++) {
+      lineStarts[i] += startOffset;
+    }
+    this.buffers[0].lineStarts = this.buffers[0].lineStarts.concat(lineStarts.slice(1));
+    int endIndex = this.buffers[0].lineStarts.length - 1;
+    int endColumn = this.buffers[0].buffer.length - this.buffers[0].lineStarts[endIndex];
+    BufferCursor newEnd = BufferCursor{endIndex, endColumn};
+    int newLength = node.piece.length + value.length;
+    int oldLineFeedCnt = node.piece.lineFeedCnt;
+    int newLineFeedCnt = this.getLineFeedCnt(0, node.piece.start, newEnd);
+    node.piece = Piece{node.piece.bufferIndex, node.piece.start, newEnd, newLineFeedCnt, newLength};
+    this.lastChangeBufferPos = newEnd;
+    this.updateTreeMetadata(node, value.length, newLineFeedCnt - oldLineFeedCnt);
+  }
+
+  void insertContentToNodeLeft(string value, TreeNode node) {
+    Piece[] newPieces = this.createNewPieces(value);
+    TreeNode newNode = this.rbInsertLeft(node, newPieces[newPieces.length - 1]);
+    int k = newPieces.length - 2;
+    while (k >= 0) {
+      newNode = this.rbInsertLeft(newNode, newPieces[k]);
+      k--;
+    }
+  }
+
+  void insertContentToNodeRight(string value, TreeNode node) {
+    Piece[] newPieces = this.createNewPieces(value);
+    TreeNode newNode = this.rbInsertRight(node, newPieces[0]);
+    for (int k = 1; k < newPieces.length; k++) {
+      newNode = this.rbInsertRight(newNode, newPieces[k]);
+    }
+  }
+
+  void insert(int offset, string value) {
+    this.lastVisitedLineNumber = 0;
+    this.lastVisitedLineValue = emptyBuf();
+    if (this.root != SENTINEL) {
+      nodeAtStash(this, offset, SENTINEL, 0);
+      TreeNode node = stashNode(this, 0);
+      int rem = stashRem(this, 0);
+      int startOff = stashStart(this, 0);
+      Piece piece = node.piece;
+      if (
+        node.piece.bufferIndex == 0
+        && piece.end.line == this.lastChangeBufferPos.line
+        && piece.end.column == this.lastChangeBufferPos.column
+        && startOff + piece.length == offset
+        && value.length < AverageBufferSize
+      ) {
+        this.appendToNode(node, value);
+        this.computeBufferMetadata();
+        return;
+      }
+      if (startOff == offset) {
+        this.insertContentToNodeLeft(value, node);
+        this.validateCache(offset);
+      } else if (startOff + node.piece.length > offset) {
+        BufferCursor insertPosInBuffer = this.positionInBuffer(node, rem);
+        Piece newRightPiece = Piece{
+          piece.bufferIndex,
+          insertPosInBuffer,
+          piece.end,
+          this.getLineFeedCnt(piece.bufferIndex, insertPosInBuffer, piece.end),
+          this.offsetInBuffer(piece.bufferIndex, piece.end) - this.offsetInBuffer(piece.bufferIndex, insertPosInBuffer)
+        };
+        this.deleteNodeTail(node, insertPosInBuffer);
+        Piece[] newPieces = this.createNewPieces(value);
+        if (newRightPiece.length > 0) {
+          this.rbInsertRight(node, newRightPiece);
+        }
+        TreeNode tmpNode = node;
+        for (int k = 0; k < newPieces.length; k++) {
+          tmpNode = this.rbInsertRight(tmpNode, newPieces[k]);
+        }
+      } else {
+        this.insertContentToNodeRight(value, node);
+      }
+    } else {
+      Piece[] pieces = this.createNewPieces(value);
+      TreeNode node = this.rbInsertLeft(SENTINEL, pieces[0]);
+      for (int k = 1; k < pieces.length; k++) {
+        node = this.rbInsertRight(node, pieces[k]);
+      }
+    }
+    this.computeBufferMetadata();
+  }
+
+  void delete(int offset, int cnt) {
+    this.lastVisitedLineNumber = 0;
+    this.lastVisitedLineValue = emptyBuf();
+    if (cnt <= 0 || this.root == SENTINEL) {
+      return;
+    }
+    nodeAtStash(this, offset, SENTINEL, 0);
+    nodeAtStash(this, offset + cnt, SENTINEL, 1);
+    TreeNode startNode = stashNode(this, 0);
+    TreeNode endNode = stashNode(this, 1);
+    int startRem = stashRem(this, 0);
+    int endRem = stashRem(this, 1);
+    int startOff = stashStart(this, 0);
+    if (startNode == endNode) {
+      BufferCursor startSplitPosInBuffer = this.positionInBuffer(startNode, startRem);
+      BufferCursor endSplitPosInBuffer = this.positionInBuffer(startNode, endRem);
+      if (startOff == offset) {
+        if (cnt == startNode.piece.length) {
+          this.rbDelete(startNode);
+          this.computeBufferMetadata();
+          return;
+        }
+        this.deleteNodeHead(startNode, endSplitPosInBuffer);
+        this.validateCache(offset);
+        this.computeBufferMetadata();
+        return;
+      }
+      if (startOff + startNode.piece.length == offset + cnt) {
+        this.deleteNodeTail(startNode, startSplitPosInBuffer);
+        this.computeBufferMetadata();
+        return;
+      }
+      this.shrinkNode(startNode, startSplitPosInBuffer, endSplitPosInBuffer);
+      this.computeBufferMetadata();
+      return;
+    }
+    TreeNode[] nodesToDel = [];
+    BufferCursor startSplitPosInBuffer = this.positionInBuffer(startNode, startRem);
+    this.deleteNodeTail(startNode, startSplitPosInBuffer);
+    this.validateCache(offset);
+    if (startNode.piece.length == 0) {
+      nodesToDel.push(startNode);
+    }
+    BufferCursor endSplitPosInBuffer = this.positionInBuffer(endNode, endRem);
+    this.deleteNodeHead(endNode, endSplitPosInBuffer);
+    if (endNode.piece.length == 0) {
+      nodesToDel.push(endNode);
+    }
+    TreeNode secondNode = nodeNext(startNode);
+    TreeNode walk = secondNode;
+    while (walk != SENTINEL && walk != endNode) {
+      nodesToDel.push(walk);
+      walk = nodeNext(walk);
+    }
+    this.deleteNodes(nodesToDel);
+    this.computeBufferMetadata();
+  }
+}
+
+export PieceTreeBase createPieceTree(string value, string eol) {
+  string text = replaceEol(value, eol);
+  StringBuffer chunk = new StringBuffer(text, createLineStartsFast(text));
+  return new PieceTreeBase([chunk], eol, true);
+}
+
+export { PieceTreeBase, StringBuffer, createLineStartsFast };

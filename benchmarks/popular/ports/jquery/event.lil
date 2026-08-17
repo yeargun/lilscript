@@ -4,7 +4,12 @@ import { rnothtmlwhite } from "./var/rnothtmlwhite";
 import { rcheckableType } from "./var/rcheckableType";
 import { isFunction } from "./var/isFunction";
 import { acceptData } from "./data/var/acceptData";
-import { dataPriv } from "./data/var/dataPriv";
+import {
+  get as dataPrivGet,
+  set as dataPrivSet,
+  remove as dataPrivRemove,
+  hasData as dataPrivHasData
+} from "./data/var/dataPriv";
 import { nodeName } from "./core/nodeName";
 import { needsContextPattern, findImpl, matchesSelectorImpl } from "./selector";
 import { containsImpl } from "./selector/contains";
@@ -215,10 +220,10 @@ TypeNamespace splitTypeNamespace(string typeText) {
 }
 
 HandleObj[]? typedHandlers(JsValue elem, JsValue type) {
-  if (!dataPriv.hasData(elem)) {
+  if (!dataPrivHasData(elem)) {
     return null;
   }
-  JsValue elemData = dataPriv.get(elem);
+  JsValue elemData = dataPrivGet(elem);
   JsValue events = elemData["events"];
   if (!events.truthy()) {
     return null;
@@ -386,19 +391,19 @@ JsValue fix(JsValue originalEvent) {
 
 void leverageNative(JsValue el, string type, bool isSetup = false) {
   if (!isSetup) {
-    if (JS.isUndefined(dataPriv.get(el, type))) {
+    if (JS.isUndefined(dataPrivGet(el, type))) {
       add(el, type, returnTrue, null, null);
     }
     return;
   }
 
-  dataPriv.set(el, type, false);
+  dataPrivSet(el, type, false);
 
   add(el, type, LeverageHandle{
     false,
     JS.methodRest((JsValue thisArg, JsValue args) => {
     JsValue event = args[0];
-    JsValue saved = dataPriv.get(thisArg, type);
+    JsValue saved = dataPrivGet(thisArg, type);
 
     JsValue isTriggerValue = event["isTrigger"];
     bool isTriggerNative = (JS.number(isTriggerValue).toInt() & 1) != 0;
@@ -406,10 +411,10 @@ void leverageNative(JsValue el, string type, bool isSetup = false) {
     if (isTriggerNative && thisArg[type].truthy()) {
       if (!saved.truthy()) {
         saved = JS.slice(args);
-        dataPriv.set(thisArg, type, saved);
+        dataPrivSet(thisArg, type, saved);
         JS.invoke(thisArg, type);
-        JsValue result = dataPriv.get(thisArg, type);
-        dataPriv.set(thisArg, type, false);
+        JsValue result = dataPrivGet(thisArg, type);
+        dataPrivSet(thisArg, type, false);
         if (saved != result) {
           JS.invoke(event, "stopImmediatePropagation");
           JS.invoke(event, "preventDefault");
@@ -423,7 +428,7 @@ void leverageNative(JsValue el, string type, bool isSetup = false) {
       }
     } else if (saved.truthy()) {
       JsValue savedTail = JS.slice(saved, 1.0);
-      dataPriv.set(thisArg, type, JS.invoke(eventApi, "trigger", saved[0], savedTail, thisArg));
+      dataPrivSet(thisArg, type, JS.invoke(eventApi, "trigger", saved[0], savedTail, thisArg));
       JS.invoke(event, "stopPropagation");
       event["isImmediatePropagationStopped"] = returnTrue;
     }
@@ -458,7 +463,7 @@ export void add(JsValue elem, JsValue typesValue, JsValue handlerValue, JsValue 
     handler["guid"] = nextGuid();
   }
 
-  JsValue elemData = dataPriv.get(elem);
+  JsValue elemData = dataPrivGet(elem);
   JsValue events = elemData["events"];
   if (!events.truthy()) {
     events = createNullProtoObject();
@@ -554,10 +559,10 @@ export void add(JsValue elem, JsValue typesValue, JsValue handlerValue, JsValue 
 }
 
 export void remove(JsValue elem, JsValue typesValue, JsValue handler = null, JsValue selector = null, bool mappedTypes = false) {
-  if (!dataPriv.hasData(elem)) {
+  if (!dataPrivHasData(elem)) {
     return;
   }
-  JsValue elemData = dataPriv.get(elem);
+  JsValue elemData = dataPrivGet(elem);
   JsValue events = JS.and(elemData, elemData["events"]);
   if (!events.truthy()) {
     return;
@@ -633,7 +638,7 @@ export void remove(JsValue elem, JsValue typesValue, JsValue handler = null, JsV
   }
 
   if (isEmptyObject(events)) {
-    dataPriv.remove(elem, "handle events");
+    dataPrivRemove(elem, "handle events");
   }
 }
 
@@ -934,7 +939,7 @@ JsValue clickTriggerImpl(JsValue thisArg) {
 
 JsValue clickDefaultImpl(JsValue event) {
   JsValue target = event["target"];
-  JsValue saved = dataPriv.get(target, "click");
+  JsValue saved = dataPrivGet(target, "click");
   if (JS.regexTest(rcheckableType, target["type"]) && target["click"].truthy() && nodeName(target, "input") && saved.truthy()) {
     return saved;
   }
@@ -992,7 +997,7 @@ void registerFocusBlur(string type, string delegateType) {
     triggerFn,
     teardownFalse,
     (JsValue event) => {
-      return dataPriv.get(event["target"], type);
+      return dataPrivGet(event["target"], type);
     },
     delegateType
   };
@@ -1000,23 +1005,23 @@ void registerFocusBlur(string type, string delegateType) {
 
   JsValue delegateSetup = JS.method0((JsValue thisArg) => {
     JsValue doc = ownerDocOf(thisArg);
-    JsValue attachesValue = dataPriv.get(doc, delegateType);
+    JsValue attachesValue = dataPrivGet(doc, delegateType);
     float attaches = JS.number(attachesValue);
     if (attaches == 0.0) {
       addEventListener(doc, type, focusMappedHandler, true);
     }
-    dataPriv.set(doc, delegateType, attaches + 1.0);
+    dataPrivSet(doc, delegateType, attaches + 1.0);
     return JS.undefined();
   });
   JsValue delegateTeardown = JS.method0((JsValue thisArg) => {
     JsValue doc = ownerDocOf(thisArg);
-    JsValue attachesValue = dataPriv.get(doc, delegateType);
+    JsValue attachesValue = dataPrivGet(doc, delegateType);
     float attaches = JS.number(attachesValue) - 1.0;
     if (attaches <= 0.0) {
       removeEventListener(doc, type, focusMappedHandler, true);
-      dataPriv.remove(doc, delegateType);
+      dataPrivRemove(doc, delegateType);
     } else {
-      dataPriv.set(doc, delegateType, attaches);
+      dataPrivSet(doc, delegateType, attaches);
     }
     return JS.undefined();
   });

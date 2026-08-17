@@ -1,0 +1,68 @@
+import { PieceTreeBase } from "./piece-tree";
+import { Rng, createRange } from "../base/range";
+import { newRegexp, regexExec, emptyBuf } from "../js-host";
+
+export class FindMatch {
+  Rng range;
+  string[] matches;
+
+  init(Rng range, string[] matches) {
+    this.range = range;
+    this.matches = matches;
+  }
+}
+
+export FindMatch[] findMatches(
+  PieceTreeBase tree,
+  string searchString,
+  bool isRegex,
+  bool matchCase,
+  bool wholeWord,
+  int limit
+) {
+  FindMatch[] result = [];
+  if (searchString.length == 0 || limit <= 0) {
+    return result;
+  }
+  string flags = "g";
+  if (!matchCase) {
+    flags = "gi";
+  }
+  string source = searchString;
+  if (!isRegex) {
+    source = emptyBuf();
+    int i = 0;
+    while (i < searchString.length) {
+      string ch = searchString.charAt(i);
+      if (
+        ch == "\\" || ch == "^" || ch == "$" || ch == "." || ch == "|" || ch == "?"
+        || ch == "*" || ch == "+" || ch == "(" || ch == ")" || ch == "[" || ch == "]"
+        || ch == "{" || ch == "}"
+      ) {
+        source = source + "\\" + ch;
+      } else {
+        source = source + ch;
+      }
+      i++;
+    }
+  }
+  if (wholeWord) {
+    source = "\\b(?:" + source + ")\\b";
+  }
+  Regex re = newRegexp(source, flags);
+  int lineCount = tree.getLineCount();
+  int line = 1;
+  while (line <= lineCount && result.length < limit) {
+    string content = tree.getLineContent(line);
+    JsValue found = regexExec(re, content);
+    while (found.truthy() && result.length < limit) {
+      int index = JS.number(found["index"]).toInt();
+      string text = JS.string(found[0]);
+      int endCol = index + text.length + 1;
+      result.push(new FindMatch(createRange(line, index + 1, line, endCol), [text]));
+      found = regexExec(re, content);
+    }
+    line++;
+  }
+  return result;
+}

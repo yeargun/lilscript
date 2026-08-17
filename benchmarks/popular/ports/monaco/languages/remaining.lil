@@ -1,0 +1,240 @@
+import { Lexer, createLexer, addRule, wsRe } from "../editor/monarch";
+import { Language, registerLanguage } from "./registry";
+import { emptyBuf } from "../js-host";
+
+Lexer keywordLexer(string id, string postfix, string[] keywords, string lineComment) {
+  Lexer lex = createLexer(id, postfix, "", keywords);
+  addRule(lex, "root", wsRe(), 0, "", "", false);
+  if (lineComment.length > 0) {
+    string escaped = emptyBuf();
+    int c = 0;
+    while (c < lineComment.length) {
+      string ch = lineComment.charAt(c);
+      if (ch == "/" || ch == "*" || ch == "-" || ch == "+" || ch == "?" || ch == "." || ch == "(" || ch == ")" || ch == "[" || ch == "]" || ch == "{" || ch == "}" || ch == "^" || ch == "$" || ch == "|" || ch == "\\") {
+        escaped = escaped + "\\" + ch;
+      } else {
+        escaped = escaped + ch;
+      }
+      c++;
+    }
+    addRule(lex, "root", escaped + ".*", 0, "comment", "", false);
+  }
+  addRule(lex, "root", "/\\*", 1, "comment", "comment", false);
+  addRule(lex, "root", "\"", 1, "string", "string", false);
+  addRule(lex, "root", "'", 1, "string", "stringS", false);
+  addRule(lex, "root", "\\d+", 0, "number", "", false);
+  addRule(lex, "root", "[a-zA-Z_][\\w]*", 4, "identifier", "", false);
+  addRule(lex, "root", ".", 0, "", "", false);
+  addRule(lex, "comment", "\\*/", 2, "comment", "", false);
+  addRule(lex, "comment", "[^*]+", 0, "comment", "", false);
+  addRule(lex, "comment", "\\*", 0, "comment", "", false);
+  addRule(lex, "string", "\"", 2, "string", "", false);
+  addRule(lex, "string", "[^\\\\\"]+", 0, "string", "", false);
+  addRule(lex, "stringS", "'", 2, "string", "", false);
+  addRule(lex, "stringS", "[^']+", 0, "string", "", false);
+  return lex;
+}
+
+export string[] remainingLanguageIds() {
+  return [
+    "abap",
+    "apex",
+    "azcli",
+    "bat",
+    "bicep",
+    "cameligo",
+    "clojure",
+    "coffee",
+    "cpp",
+    "csharp",
+    "csp",
+    "cypher",
+    "dart",
+    "dockerfile",
+    "ecl",
+    "elixir",
+    "flow9",
+    "freemarker2",
+    "fsharp",
+    "go",
+    "graphql",
+    "handlebars",
+    "hcl",
+    "ini",
+    "java",
+    "julia",
+    "kotlin",
+    "less",
+    "lexon",
+    "liquid",
+    "lua",
+    "m3",
+    "mdx",
+    "mips",
+    "msdax",
+    "mysql",
+    "objective-c",
+    "pascal",
+    "pascaligo",
+    "perl",
+    "pgsql",
+    "php",
+    "pla",
+    "postiats",
+    "powerquery",
+    "powershell",
+    "protobuf",
+    "pug",
+    "qsharp",
+    "r",
+    "razor",
+    "redis",
+    "redshift",
+    "restructuredtext",
+    "ruby",
+    "rust",
+    "sb",
+    "scala",
+    "scheme",
+    "scss",
+    "shell",
+    "solidity",
+    "sophia",
+    "sparql",
+    "sql",
+    "st",
+    "swift",
+    "systemverilog",
+    "tcl",
+    "twig",
+    "typespec",
+    "vb",
+    "wgsl",
+    "xml",
+    "yaml",
+  ];
+}
+
+void registerRemainingGroup0() {
+  registerLanguage(new Language("abap", keywordLexer("abap", ".abap", ["abap-source", "abbreviated", "abstract", "accept", "accepting", "according", "activation", "actual", "add", "add-corresponding", "adjacent", "after", "alias", "aliases", "align", "all", "allocate", "alpha", "analysis", "analyzer", "and", "append", "appendage", "appending", "application", "archive", "area", "arithmetic", "as", "ascending", "aspect", "assert", "assign", "assigned", "assigning", "association", "asynchronous", "at", "attributes", "authority", "authority-check", "avg", "back", "background", "backup", "backward", "badi", "base", "before", "begin", "between", "big", "binary", "bintohex", "bit", "black", "blank", "blanks", "blob", "block", "blocks", "blue", "bound", "boundaries"], "*"), "*", "/*", "*/"));
+  registerLanguage(new Language("apex", keywordLexer("apex", ".apex", [], "//"), "//", "/*", "*/"));
+  registerLanguage(new Language("azcli", keywordLexer("azcli", ".azcli", [], "#"), "#", "/*", "*/"));
+  registerLanguage(new Language("bat", keywordLexer("bat", ".bat", [], "REM"), "REM", "/*", "*/"));
+  registerLanguage(new Language("bicep", keywordLexer("bicep", ".bicep", [], "//"), "//", "/*", "*/"));
+  registerLanguage(new Language("cameligo", keywordLexer("cameligo", ".cameligo", ["abs", "assert", "block", "Bytes", "case", "Crypto", "Current", "else", "failwith", "false", "for", "fun", "if", "in", "let", "let%entry", "let%init", "List", "list", "Map", "map", "match", "match%nat", "mod", "not", "operation", "Operation", "of", "record", "Set", "set", "sender", "skip", "source", "String", "then", "to", "true", "type", "with"], "//"), "//", "/*", "*/"));
+  registerLanguage(new Language("clojure", keywordLexer("clojure", ".clojure", [], ";;"), ";;", "/*", "*/"));
+  registerLanguage(new Language("coffee", keywordLexer("coffee", ".coffee", ["and", "or", "is", "isnt", "not", "on", "yes", "@", "no", "off", "true", "false", "null", "this", "new", "delete", "typeof", "in", "instanceof", "return", "throw", "break", "continue", "debugger", "if", "else", "switch", "for", "while", "do", "try", "catch", "finally", "class", "extends", "super", "undefined", "then", "unless", "until", "loop", "of", "by", "when"], "#"), "#", "/*", "*/"));
+}
+
+void registerRemainingGroup1() {
+  registerLanguage(new Language("cpp", keywordLexer("cpp", ".cpp", ["abstract", "amp", "array", "auto", "bool", "break", "case", "catch", "char", "class", "const", "constexpr", "const_cast", "continue", "cpu", "decltype", "default", "delegate", "delete", "do", "double", "dynamic_cast", "each", "else", "enum", "event", "explicit", "export", "extern", "false", "final", "finally", "float", "for", "friend", "gcnew", "generic", "goto", "if", "in", "initonly", "inline", "int", "interface", "interior_ptr", "internal", "literal", "long", "mutable", "namespace", "new", "noexcept", "nullptr", "__nullptr", "operator", "override", "partial", "pascal", "pin_ptr", "private", "property", "protected", "public", "ref"], "//"), "//", "/*", "*/"));
+  registerLanguage(new Language("csharp", keywordLexer("csharp", ".csharp", ["extern", "alias", "using", "bool", "decimal", "sbyte", "byte", "short", "ushort", "int", "uint", "long", "ulong", "char", "float", "double", "object", "dynamic", "string", "assembly", "is", "as", "ref", "out", "this", "base", "new", "typeof", "void", "checked", "unchecked", "default", "delegate", "var", "const", "if", "else", "switch", "case", "while", "do", "for", "foreach", "in", "break", "continue", "goto", "return", "throw", "try", "catch", "finally", "lock", "yield", "from", "let", "where", "join", "on", "equals", "into", "orderby", "ascending", "descending"], "//"), "//", "/*", "*/"));
+  registerLanguage(new Language("csp", keywordLexer("csp", ".csp", [], ""), "", "/*", "*/"));
+  registerLanguage(new Language("cypher", keywordLexer("cypher", ".cypher", ["ALL", "AND", "AS", "ASC", "ASCENDING", "BY", "CALL", "CASE", "CONTAINS", "CREATE", "DELETE", "DESC", "DESCENDING", "DETACH", "DISTINCT", "ELSE", "END", "ENDS", "EXISTS", "IN", "IS", "LIMIT", "MANDATORY", "MATCH", "MERGE", "NOT", "ON", "ON", "OPTIONAL", "OR", "ORDER", "REMOVE", "RETURN", "SET", "SKIP", "STARTS", "THEN", "UNION", "UNWIND", "WHEN", "WHERE", "WITH", "XOR", "YIELD"], "//"), "//", "/*", "*/"));
+  registerLanguage(new Language("dart", keywordLexer("dart", ".dart", ["abstract", "dynamic", "implements", "show", "as", "else", "import", "static", "assert", "enum", "in", "super", "async", "export", "interface", "switch", "await", "extends", "is", "sync", "break", "external", "library", "this", "case", "factory", "mixin", "throw", "catch", "false", "new", "true", "class", "final", "null", "try", "const", "finally", "on", "typedef", "continue", "for", "operator", "var", "covariant", "Function", "part", "void", "default", "get", "rethrow", "while", "deferred", "hide", "return", "with", "do", "if", "set", "yield"], "//"), "//", "/*", "*/"));
+  registerLanguage(new Language("dockerfile", keywordLexer("dockerfile", ".dockerfile", [], ""), "", "/*", "*/"));
+  registerLanguage(new Language("ecl", keywordLexer("ecl", ".ecl", ["__compressed__", "after", "all", "and", "any", "as", "atmost", "before", "beginc", "best", "between", "case", "cluster", "compressed", "compression", "const", "counter", "csv", "default", "descend", "embed", "encoding", "encrypt", "end", "endc", "endembed", "endmacro", "enum", "escape", "except", "exclusive", "expire", "export", "extend", "fail", "few", "fileposition", "first", "flat", "forward", "from", "full", "function", "functionmacro", "group", "grouped", "heading", "hole", "ifblock", "import", "in", "inner", "interface", "internal", "joined", "keep", "keyed", "last", "left", "limit", "linkcounted", "literal", "little_endian", "load"], "//"), "//", "/*", "*/"));
+  registerLanguage(new Language("elixir", keywordLexer("elixir", ".elixir", [], "#"), "#", "/*", "*/"));
+}
+
+void registerRemainingGroup2() {
+  registerLanguage(new Language("flow9", keywordLexer("flow9", ".flow9", ["import", "require", "export", "forbid", "native", "if", "else", "cast", "unsafe", "switch", "default"], "//"), "//", "/*", "*/"));
+  registerLanguage(new Language("freemarker2", keywordLexer("freemarker2", ".freemarker2", ["false", "true", "in", "as", "using"], ""), "", "/*", "*/"));
+  registerLanguage(new Language("fsharp", keywordLexer("fsharp", ".fsharp", ["abstract", "and", "atomic", "as", "assert", "asr", "base", "begin", "break", "checked", "component", "const", "constraint", "constructor", "continue", "class", "default", "delegate", "do", "done", "downcast", "downto", "elif", "else", "end", "exception", "eager", "event", "external", "extern", "false", "finally", "for", "fun", "function", "fixed", "functor", "global", "if", "in", "include", "inherit", "inline", "interface", "internal", "land", "lor", "lsl", "lsr", "lxor", "lazy", "let", "match", "member", "mod", "module", "mutable", "namespace", "method", "mixin", "new", "not", "null", "of"], "//"), "//", "/*", "*/"));
+  registerLanguage(new Language("go", keywordLexer("go", ".go", ["break", "case", "chan", "const", "continue", "default", "defer", "else", "fallthrough", "for", "func", "go", "goto", "if", "import", "interface", "map", "package", "range", "return", "select", "struct", "switch", "type", "var", "bool", "true", "false", "uint8", "uint16", "uint32", "uint64", "int8", "int16", "int32", "int64", "float32", "float64", "complex64", "complex128", "byte", "rune", "uint", "int", "uintptr", "string", "nil"], "//"), "//", "/*", "*/"));
+  registerLanguage(new Language("graphql", keywordLexer("graphql", ".graphql", ["null", "true", "false", "query", "mutation", "subscription", "extend", "schema", "directive", "scalar", "type", "interface", "union", "enum", "input", "implements", "fragment", "on"], "#"), "#", "/*", "*/"));
+  registerLanguage(new Language("handlebars", keywordLexer("handlebars", ".handlebars", [], ""), "", "/*", "*/"));
+  registerLanguage(new Language("hcl", keywordLexer("hcl", ".hcl", ["var", "local", "path", "for_each", "any", "string", "number", "bool", "true", "false", "null", "if ", "else ", "endif ", "for ", "in", "endfor"], "#"), "#", "/*", "*/"));
+  registerLanguage(new Language("ini", keywordLexer("ini", ".ini", [], "#"), "#", "/*", "*/"));
+}
+
+void registerRemainingGroup3() {
+  registerLanguage(new Language("java", keywordLexer("java", ".java", ["abstract", "continue", "for", "new", "switch", "assert", "default", "goto", "package", "synchronized", "boolean", "do", "if", "private", "this", "break", "double", "implements", "protected", "throw", "byte", "else", "import", "public", "throws", "case", "enum", "instanceof", "return", "transient", "catch", "extends", "int", "short", "try", "char", "final", "interface", "static", "void", "class", "finally", "long", "strictfp", "volatile", "const", "float", "native", "super", "while", "true", "false", "yield", "record", "sealed", "non-sealed", "permits"], "//"), "//", "/*", "*/"));
+  registerLanguage(new Language("julia", keywordLexer("julia", ".julia", ["begin", "while", "if", "for", "try", "return", "break", "continue", "function", "macro", "quote", "let", "local", "global", "const", "do", "struct", "module", "baremodule", "using", "import", "export", "end", "else", "elseif", "catch", "finally", "mutable", "primitive", "abstract", "type", "in", "isa", "where", "new"], ""), "", "/*", "*/"));
+  registerLanguage(new Language("kotlin", keywordLexer("kotlin", ".kotlin", ["as", "as?", "break", "class", "continue", "do", "else", "false", "for", "fun", "if", "in", "!in", "interface", "is", "!is", "null", "object", "package", "return", "super", "this", "throw", "true", "try", "typealias", "val", "var", "when", "while", "by", "catch", "constructor", "delegate", "dynamic", "field", "file", "finally", "get", "import", "init", "param", "property", "receiver", "set", "setparam", "where", "actual", "abstract", "annotation", "companion", "const", "crossinline", "data", "enum", "expect", "external", "final", "infix", "inline", "inner", "internal", "lateinit", "noinline"], "//"), "//", "/*", "*/"));
+  registerLanguage(new Language("less", keywordLexer("less", ".less", [], "//"), "//", "/*", "*/"));
+  registerLanguage(new Language("lexon", keywordLexer("lexon", ".lexon", ["lexon", "lex", "clause", "terms", "contracts", "may", "pay", "pays", "appoints", "into", "to"], "COMMENT"), "COMMENT", "/*", "*/"));
+  registerLanguage(new Language("liquid", keywordLexer("liquid", ".liquid", [], ""), "", "/*", "*/"));
+  registerLanguage(new Language("lua", keywordLexer("lua", ".lua", ["and", "break", "do", "else", "elseif", "end", "false", "for", "function", "goto", "if", "in", "local", "nil", "not", "or", "repeat", "return", "then", "true", "until", "while"], "--"), "--", "/*", "*/"));
+  registerLanguage(new Language("m3", keywordLexer("m3", ".m3", ["AND", "ANY", "ARRAY", "AS", "BEGIN", "BITS", "BRANDED", "BY", "CASE", "CONST", "DIV", "DO", "ELSE", "ELSIF", "END", "EVAL", "EXCEPT", "EXCEPTION", "EXIT", "EXPORTS", "FINALLY", "FOR", "FROM", "GENERIC", "IF", "IMPORT", "IN", "INTERFACE", "LOCK", "LOOP", "METHODS", "MOD", "MODULE", "NOT", "OBJECT", "OF", "OR", "OVERRIDES", "PROCEDURE", "RAISE", "RAISES", "READONLY", "RECORD", "REF", "REPEAT", "RETURN", "REVEAL", "SET", "THEN", "TO", "TRY", "TYPE", "TYPECASE", "UNSAFE", "UNTIL", "UNTRACED", "VALUE", "VAR", "WHILE", "WITH"], ""), "", "/*", "*/"));
+}
+
+void registerRemainingGroup4() {
+  registerLanguage(new Language("mdx", keywordLexer("mdx", ".mdx", [], ""), "", "/*", "*/"));
+  registerLanguage(new Language("mips", keywordLexer("mips", ".mips", [".data", ".text", "syscall", "trap", "add", "addu", "addi", "addiu", "and", "andi", "div", "divu", "mult", "multu", "nor", "or", "ori", "sll", "slv", "sra", "srav", "srl", "srlv", "sub", "subu", "xor", "xori", "lhi", "lho", "lhi", "llo", "slt", "slti", "sltu", "sltiu", "beq", "bgtz", "blez", "bne", "j", "jal", "jalr", "jr", "lb", "lbu", "lh", "lhu", "lw", "li", "la", "sb", "sh", "sw", "mfhi", "mflo", "mthi", "mtlo", "move"], "#"), "#", "/*", "*/"));
+  registerLanguage(new Language("msdax", keywordLexer("msdax", ".msdax", ["VAR", "RETURN", "NOT", "EVALUATE", "DATATABLE", "ORDER", "BY", "START", "AT", "DEFINE", "MEASURE", "ASC", "DESC", "IN", "BOOLEAN", "DOUBLE", "INTEGER", "DATETIME", "CURRENCY", "STRING"], "//"), "//", "/*", "*/"));
+  registerLanguage(new Language("mysql", keywordLexer("mysql", ".mysql", ["ACCESSIBLE", "ADD", "ALL", "ALTER", "ANALYZE", "AND", "AS", "ASC", "ASENSITIVE", "BEFORE", "BETWEEN", "BIGINT", "BINARY", "BLOB", "BOTH", "BY", "CALL", "CASCADE", "CASE", "CHANGE", "CHAR", "CHARACTER", "CHECK", "COLLATE", "COLUMN", "CONDITION", "CONSTRAINT", "CONTINUE", "CONVERT", "CREATE", "CROSS", "CUBE", "CUME_DIST", "CURRENT_DATE", "CURRENT_TIME", "CURRENT_TIMESTAMP", "CURRENT_USER", "CURSOR", "DATABASE", "DATABASES", "DAY_HOUR", "DAY_MICROSECOND", "DAY_MINUTE", "DAY_SECOND", "DEC", "DECIMAL", "DECLARE", "DEFAULT", "DELAYED", "DELETE", "DENSE_RANK", "DESC", "DESCRIBE", "DETERMINISTIC", "DISTINCT", "DISTINCTROW", "DIV", "DOUBLE", "DROP", "DUAL", "EACH", "ELSE", "ELSEIF", "EMPTY"], "--"), "--", "/*", "*/"));
+  registerLanguage(new Language("objective-c", keywordLexer("objective-c", ".objective-c", ["#import", "#include", "#define", "#else", "#endif", "#if", "#ifdef", "#ifndef", "#ident", "#undef", "@class", "@defs", "@dynamic", "@encode", "@end", "@implementation", "@interface", "@package", "@private", "@protected", "@property", "@protocol", "@public", "@selector", "@synthesize", "__declspec", "assign", "auto", "BOOL", "break", "bycopy", "byref", "case", "char", "Class", "const", "copy", "continue", "default", "do", "double", "else", "enum", "extern", "FALSE", "false", "float", "for", "goto", "if", "in", "int", "id", "inout", "IMP", "long", "nil", "nonatomic", "NULL", "oneway", "out", "private", "public", "protected"], "//"), "//", "/*", "*/"));
+  registerLanguage(new Language("pascal", keywordLexer("pascal", ".pascal", ["absolute", "abstract", "all", "and_then", "array", "as", "asm", "attribute", "begin", "bindable", "case", "class", "const", "contains", "default", "div", "else", "end", "except", "exports", "external", "far", "file", "finalization", "finally", "forward", "generic", "goto", "if", "implements", "import", "in", "index", "inherited", "initialization", "interrupt", "is", "label", "library", "mod", "module", "name", "near", "not", "object", "of", "on", "only", "operator", "or_else", "otherwise", "override", "package", "packed", "pow", "private", "program", "protected", "public", "published", "interface", "implementation", "qualified", "read"], "//"), "//", "/*", "*/"));
+  registerLanguage(new Language("pascaligo", keywordLexer("pascaligo", ".pascaligo", ["begin", "block", "case", "const", "else", "end", "fail", "for", "from", "function", "if", "is", "nil", "of", "remove", "return", "skip", "then", "type", "var", "while", "with", "option", "None", "transaction"], "//"), "//", "/*", "*/"));
+  registerLanguage(new Language("perl", keywordLexer("perl", ".perl", ["__DATA__", "else", "lock", "__END__", "elsif", "lt", "__FILE__", "eq", "__LINE__", "exp", "ne", "sub", "__PACKAGE__", "for", "no", "and", "foreach", "or", "unless", "cmp", "ge", "package", "until", "continue", "gt", "while", "CORE", "if", "xor", "do", "le", "__DIE__", "__WARN__"], "#"), "#", "/*", "*/"));
+}
+
+void registerRemainingGroup5() {
+  registerLanguage(new Language("pgsql", keywordLexer("pgsql", ".pgsql", ["ALL", "ANALYSE", "ANALYZE", "AND", "ANY", "ARRAY", "AS", "ASC", "ASYMMETRIC", "AUTHORIZATION", "BINARY", "BOTH", "CASE", "CAST", "CHECK", "COLLATE", "COLLATION", "COLUMN", "CONCURRENTLY", "CONSTRAINT", "CREATE", "CROSS", "CURRENT_CATALOG", "CURRENT_DATE", "CURRENT_ROLE", "CURRENT_SCHEMA", "CURRENT_TIME", "CURRENT_TIMESTAMP", "CURRENT_USER", "DEFAULT", "DEFERRABLE", "DESC", "DISTINCT", "DO", "ELSE", "END", "EXCEPT", "FALSE", "FETCH", "FOR", "FOREIGN", "FREEZE", "FROM", "FULL", "GRANT", "GROUP", "HAVING", "ILIKE", "IN", "INITIALLY", "INNER", "INTERSECT", "INTO", "IS", "ISNULL", "JOIN", "LATERAL", "LEADING", "LEFT", "LIKE", "LIMIT", "LOCALTIME", "LOCALTIMESTAMP", "NATURAL"], "--"), "--", "/*", "*/"));
+  registerLanguage(new Language("php", keywordLexer("php", ".php", [], "//"), "//", "/*", "*/"));
+  registerLanguage(new Language("pla", keywordLexer("pla", ".pla", [".i", ".o", ".mv", ".ilb", ".ob", ".label", ".type", ".phase", ".pair", ".symbolic", ".symbolic-output", ".kiss", ".p", ".e", ".end"], "#"), "#", "/*", "*/"));
+  registerLanguage(new Language("postiats", keywordLexer("postiats", ".postiats", ["abstype", "abst0ype", "absprop", "absview", "absvtype", "absviewtype", "absvt0ype", "absviewt0ype", "as", "and", "assume", "begin", "case", "classdec", "datasort", "datatype", "dataprop", "dataview", "datavtype", "dataviewtype", "do", "end", "extern", "extype", "extvar", "exception", "fn", "fnx", "fun", "prfn", "prfun", "praxi", "castfn", "if", "then", "else", "ifcase", "in", "infix", "infixl", "infixr", "prefix", "postfix", "implmnt", "implement", "primplmnt", "primplement", "import", "lam", "llam", "fix", "let", "local", "macdef", "macrodef", "nonfix", "symelim", "symintr", "overload", "of", "op", "rec", "sif", "scase"], "//"), "//", "/*", "*/"));
+  registerLanguage(new Language("powerquery", keywordLexer("powerquery", ".powerquery", ["as", "each", "else", "error", "false", "if", "in", "is", "let", "meta", "otherwise", "section", "shared", "then", "true", "try", "type"], "//"), "//", "/*", "*/"));
+  registerLanguage(new Language("powershell", keywordLexer("powershell", ".powershell", ["begin", "break", "catch", "class", "continue", "data", "define", "do", "dynamicparam", "else", "elseif", "end", "exit", "filter", "finally", "for", "foreach", "from", "function", "if", "in", "param", "process", "return", "switch", "throw", "trap", "try", "until", "using", "var", "while", "workflow", "parallel", "sequence", "inlinescript", "configuration"], "#"), "#", "/*", "*/"));
+  registerLanguage(new Language("protobuf", keywordLexer("protobuf", ".protobuf", ["syntax", "import", "weak", "public", "package", "option", "repeated", "oneof", "map", "reserved", "to", "max", "enum", "message", "service", "rpc", "stream", "returns", "package", "optional", "true", "false"], "//"), "//", "/*", "*/"));
+  registerLanguage(new Language("pug", keywordLexer("pug", ".pug", ["append", "block", "case", "default", "doctype", "each", "else", "extends", "for", "if", "in", "include", "mixin", "typeof", "unless", "var", "when"], "//"), "//", "/*", "*/"));
+}
+
+void registerRemainingGroup6() {
+  registerLanguage(new Language("qsharp", keywordLexer("qsharp", ".qsharp", ["namespace", "open", "import", "export", "as", "operation", "function", "body", "adjoint", "newtype", "struct", "controlled", "if", "elif", "else", "repeat", "until", "fixup", "for", "in", "while", "return", "fail", "within", "apply", "Adjoint", "Controlled", "Adj", "Ctl", "is", "self", "auto", "distribute", "invert", "intrinsic", "let", "set", "w/", "new", "not", "and", "or", "use", "borrow", "using", "borrowing", "mutable", "internal"], "//"), "//", "/*", "*/"));
+  registerLanguage(new Language("r", keywordLexer("r", ".r", ["break", "next", "return", "if", "else", "for", "in", "repeat", "while", "array", "category", "character", "complex", "double", "function", "integer", "list", "logical", "matrix", "numeric", "vector", "data.frame", "factor", "library", "require", "attach", "detach", "source"], "#"), "#", "/*", "*/"));
+  registerLanguage(new Language("razor", keywordLexer("razor", ".razor", [], ""), "", "/*", "*/"));
+  registerLanguage(new Language("redis", keywordLexer("redis", ".redis", ["APPEND", "AUTH", "BGREWRITEAOF", "BGSAVE", "BITCOUNT", "BITFIELD", "BITOP", "BITPOS", "BLPOP", "BRPOP", "BRPOPLPUSH", "CLIENT", "KILL", "LIST", "GETNAME", "PAUSE", "REPLY", "SETNAME", "CLUSTER", "ADDSLOTS", "COUNT-FAILURE-REPORTS", "COUNTKEYSINSLOT", "DELSLOTS", "FAILOVER", "FORGET", "GETKEYSINSLOT", "INFO", "KEYSLOT", "MEET", "NODES", "REPLICATE", "RESET", "SAVECONFIG", "SET-CONFIG-EPOCH", "SETSLOT", "SLAVES", "SLOTS", "COMMAND", "COUNT", "GETKEYS", "CONFIG", "GET", "REWRITE", "SET", "RESETSTAT", "DBSIZE", "DEBUG", "OBJECT", "SEGFAULT", "DECR", "DECRBY", "DEL", "DISCARD", "DUMP", "ECHO", "EVAL", "EVALSHA", "EXEC", "EXISTS", "EXPIRE", "EXPIREAT", "FLUSHALL", "FLUSHDB", "GEOADD"], ""), "", "/*", "*/"));
+  registerLanguage(new Language("redshift", keywordLexer("redshift", ".redshift", ["AES128", "AES256", "ALL", "ALLOWOVERWRITE", "ANALYSE", "ANALYZE", "AND", "ANY", "ARRAY", "AS", "ASC", "AUTHORIZATION", "AZ64", "BACKUP", "BETWEEN", "BINARY", "BLANKSASNULL", "BOTH", "BYTEDICT", "BZIP2", "CASE", "CAST", "CHECK", "COLLATE", "COLUMN", "CONSTRAINT", "CREATE", "CREDENTIALS", "CROSS", "CURRENT_DATE", "CURRENT_TIME", "CURRENT_TIMESTAMP", "CURRENT_USER", "CURRENT_USER_ID", "DEFAULT", "DEFERRABLE", "DEFLATE", "DEFRAG", "DELTA", "DELTA32K", "DESC", "DISABLE", "DISTINCT", "DO", "ELSE", "EMPTYASNULL", "ENABLE", "ENCODE", "ENCRYPT", "ENCRYPTION", "END", "EXCEPT", "EXPLICIT", "FALSE", "FOR", "FOREIGN", "FREEZE", "FROM", "FULL", "GLOBALDICT256", "GLOBALDICT64K", "GRANT", "GROUP", "GZIP"], "--"), "--", "/*", "*/"));
+  registerLanguage(new Language("restructuredtext", keywordLexer("restructuredtext", ".restructuredtext", [], ""), "", "/*", "*/"));
+  registerLanguage(new Language("ruby", keywordLexer("ruby", ".ruby", ["__LINE__", "__ENCODING__", "__FILE__", "BEGIN", "END", "alias", "and", "begin", "break", "case", "class", "def", "defined?", "do", "else", "elsif", "end", "ensure", "for", "false", "if", "in", "module", "next", "nil", "not", "or", "redo", "rescue", "retry", "return", "self", "super", "then", "true", "undef", "unless", "until", "when", "while", "yield"], "#"), "#", "/*", "*/"));
+  registerLanguage(new Language("rust", keywordLexer("rust", ".rust", ["as", "async", "await", "box", "break", "const", "continue", "crate", "dyn", "else", "enum", "extern", "false", "fn", "for", "if", "impl", "in", "let", "loop", "match", "mod", "move", "mut", "pub", "ref", "return", "self", "static", "struct", "super", "trait", "true", "try", "type", "unsafe", "use", "where", "while", "catch", "default", "union", "static", "abstract", "alignof", "become", "do", "final", "macro", "offsetof", "override", "priv", "proc", "pure", "sizeof", "typeof", "unsized", "virtual", "yield"], "//"), "//", "/*", "*/"));
+}
+
+void registerRemainingGroup7() {
+  registerLanguage(new Language("sb", keywordLexer("sb", ".sb", ["Else", "ElseIf", "EndFor", "EndIf", "EndSub", "EndWhile", "For", "Goto", "If", "Step", "Sub", "Then", "To", "While"], "'"), "'", "/*", "*/"));
+  registerLanguage(new Language("scala", keywordLexer("scala", ".scala", ["asInstanceOf", "catch", "class", "classOf", "def", "do", "else", "extends", "finally", "for", "foreach", "forSome", "if", "import", "isInstanceOf", "macro", "match", "new", "object", "package", "return", "throw", "trait", "try", "type", "until", "val", "var", "while", "with", "yield", "given", "enum", "then"], "//"), "//", "/*", "*/"));
+  registerLanguage(new Language("scheme", keywordLexer("scheme", ".scheme", ["case", "do", "let", "loop", "if", "else", "when", "cons", "car", "cdr", "cond", "lambda", "lambda*", "syntax-rules", "format", "set!", "quote", "eval", "append", "list", "list?", "member?", "load"], ";"), ";", "/*", "*/"));
+  registerLanguage(new Language("scss", keywordLexer("scss", ".scss", [], "//"), "//", "/*", "*/"));
+  registerLanguage(new Language("shell", keywordLexer("shell", ".shell", ["if", "then", "do", "else", "elif", "while", "until", "for", "in", "esac", "fi", "fin", "fil", "done", "exit", "set", "unset", "export", "function"], "#"), "#", "/*", "*/"));
+  registerLanguage(new Language("solidity", keywordLexer("solidity", ".solidity", ["pragma", "solidity", "contract", "library", "using", "struct", "function", "modifier", "constructor", "address", "string", "bool", "Int", "Uint", "Byte", "Fixed", "Ufixed", "int", "int8", "int16", "int24", "int32", "int40", "int48", "int56", "int64", "int72", "int80", "int88", "int96", "int104", "int112", "int120", "int128", "int136", "int144", "int152", "int160", "int168", "int176", "int184", "int192", "int200", "int208", "int216", "int224", "int232", "int240", "int248", "int256", "uint", "uint8", "uint16", "uint24", "uint32", "uint40", "uint48", "uint56", "uint64", "uint72", "uint80", "uint88", "uint96", "uint104"], "//"), "//", "/*", "*/"));
+  registerLanguage(new Language("sophia", keywordLexer("sophia", ".sophia", ["contract", "library", "entrypoint", "function", "stateful", "state", "hash", "signature", "tuple", "list", "address", "string", "bool", "int", "record", "datatype", "type", "option", "oracle", "oracle_query", "Call", "Bits", "Bytes", "Oracle", "String", "Crypto", "Address", "Auth", "Chain", "None", "Some", "bits", "bytes", "event", "let", "map", "private", "public", "true", "false", "var", "if", "else", "throw"], "//"), "//", "/*", "*/"));
+  registerLanguage(new Language("sparql", keywordLexer("sparql", ".sparql", ["add", "as", "asc", "ask", "base", "by", "clear", "construct", "copy", "create", "data", "delete", "desc", "describe", "distinct", "drop", "false", "filter", "from", "graph", "group", "having", "in", "insert", "limit", "load", "minus", "move", "named", "not", "offset", "optional", "order", "prefix", "reduced", "select", "service", "silent", "to", "true", "undef", "union", "using", "values", "where", "with"], "#"), "#", "/*", "*/"));
+}
+
+void registerRemainingGroup8() {
+  registerLanguage(new Language("sql", keywordLexer("sql", ".sql", ["ABORT", "ABSOLUTE", "ACTION", "ADA", "ADD", "AFTER", "ALL", "ALLOCATE", "ALTER", "ALWAYS", "ANALYZE", "AND", "ANY", "ARE", "AS", "ASC", "ASSERTION", "AT", "ATTACH", "AUTHORIZATION", "AUTOINCREMENT", "AVG", "BACKUP", "BEFORE", "BEGIN", "BETWEEN", "BIT", "BIT_LENGTH", "BOTH", "BREAK", "BROWSE", "BULK", "BY", "CASCADE", "CASCADED", "CASE", "CAST", "CATALOG", "CHAR", "CHARACTER", "CHARACTER_LENGTH", "CHAR_LENGTH", "CHECK", "CHECKPOINT", "CLOSE", "CLUSTERED", "COALESCE", "COLLATE", "COLLATION", "COLUMN", "COMMIT", "COMPUTE", "CONFLICT", "CONNECT", "CONNECTION", "CONSTRAINT", "CONSTRAINTS", "CONTAINS", "CONTAINSTABLE", "CONTINUE", "CONVERT", "CORRESPONDING", "COUNT", "CREATE"], "--"), "--", "/*", "*/"));
+  registerLanguage(new Language("st", keywordLexer("st", ".st", ["if", "end_if", "elsif", "else", "case", "of", "to", "__try", "__catch", "__finally", "do", "with", "by", "while", "repeat", "end_while", "end_repeat", "end_case", "for", "end_for", "task", "retain", "non_retain", "constant", "with", "at", "exit", "return", "interval", "priority", "address", "port", "on_channel", "then", "iec", "file", "uses", "version", "packagetype", "displayname", "copyright", "summary", "vendor", "common_source", "from", "extends", "implements"], "//"), "//", "/*", "*/"));
+  registerLanguage(new Language("swift", keywordLexer("swift", ".swift", ["#available", "#colorLiteral", "#column", "#dsohandle", "#else", "#elseif", "#endif", "#error", "#file", "#fileID", "#fileLiteral", "#filePath", "#function", "#if", "#imageLiteral", "#keyPath", "#line", "#selector", "#sourceLocation", "#warning", "Any", "Protocol", "Self", "Type", "actor", "as", "assignment", "associatedtype", "associativity", "async", "await", "break", "case", "catch", "class", "continue", "convenience", "default", "defer", "deinit", "didSet", "do", "dynamic", "dynamicType", "else", "enum", "extension", "fallthrough", "false", "fileprivate", "final", "for", "func", "get", "guard", "higherThan", "if", "import", "in", "indirect", "infix", "init", "inout", "internal"], "//"), "//", "/*", "*/"));
+  registerLanguage(new Language("systemverilog", keywordLexer("systemverilog", ".systemverilog", ["accept_on", "alias", "always", "always_comb", "always_ff", "always_latch", "and", "assert", "assign", "assume", "automatic", "before", "begin", "bind", "bins", "binsof", "bit", "break", "buf", "bufif0", "bufif1", "byte", "case", "casex", "casez", "cell", "chandle", "checker", "class", "clocking", "cmos", "config", "const", "constraint", "context", "continue", "cover", "covergroup", "coverpoint", "cross", "deassign", "default", "defparam", "design", "disable", "dist", "do", "edge", "else", "end", "endcase", "endchecker", "endclass", "endclocking", "endconfig", "endfunction", "endgenerate", "endgroup", "endinterface", "endmodule", "endpackage", "endprimitive", "endprogram", "endproperty"], "//"), "//", "/*", "*/"));
+  registerLanguage(new Language("tcl", keywordLexer("tcl", ".tcl", [], ""), "", "/*", "*/"));
+  registerLanguage(new Language("twig", keywordLexer("twig", ".twig", ["apply", "autoescape", "block", "deprecated", "do", "embed", "extends", "flush", "for", "from", "if", "import", "include", "macro", "sandbox", "set", "use", "verbatim", "with", "endapply", "endautoescape", "endblock", "endembed", "endfor", "endif", "endmacro", "endsandbox", "endset", "endwith", "true", "false"], ""), "", "/*", "*/"));
+  registerLanguage(new Language("typespec", keywordLexer("typespec", ".typespec", [], "//"), "//", "/*", "*/"));
+  registerLanguage(new Language("vb", keywordLexer("vb", ".vb", ["AddHandler", "AddressOf", "Alias", "And", "AndAlso", "As", "Async", "Boolean", "ByRef", "Byte", "ByVal", "Call", "Case", "Catch", "CBool", "CByte", "CChar", "CDate", "CDbl", "CDec", "Char", "CInt", "Class", "CLng", "CObj", "Const", "Continue", "CSByte", "CShort", "CSng", "CStr", "CType", "CUInt", "CULng", "CUShort", "Date", "Decimal", "Declare", "Default", "Delegate", "Dim", "DirectCast", "Do", "Double", "Each", "Else", "ElseIf", "End", "EndIf", "Enum", "Erase", "Error", "Event", "Exit", "False", "Finally", "For", "Friend", "Function", "Get", "GetType", "GetXMLNamespace", "Global", "GoSub"], "'"), "'", "/*", "*/"));
+}
+
+void registerRemainingGroup9() {
+  registerLanguage(new Language("wgsl", keywordLexer("wgsl", ".wgsl", [], "//"), "//", "/*", "*/"));
+  registerLanguage(new Language("xml", keywordLexer("xml", ".xml", [], ""), "", "/*", "*/"));
+  registerLanguage(new Language("yaml", keywordLexer("yaml", ".yaml", ["true", "True", "TRUE", "false", "False", "FALSE", "null", "Null", "Null", "~"], "#"), "#", "/*", "*/"));
+}
+
+bool remainingRegistered = false;
+
+export void registerRemainingLanguages() {
+  if (remainingRegistered) {
+    return;
+  }
+  remainingRegistered = true;
+  registerRemainingGroup0();
+  registerRemainingGroup1();
+  registerRemainingGroup2();
+  registerRemainingGroup3();
+  registerRemainingGroup4();
+  registerRemainingGroup5();
+  registerRemainingGroup6();
+  registerRemainingGroup7();
+  registerRemainingGroup8();
+  registerRemainingGroup9();
+}

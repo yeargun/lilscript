@@ -1,0 +1,80 @@
+import { CodeEditor } from "../editor/standalone";
+import { FindMatch } from "../editor/search";
+import { createRange, Rng } from "../base/range";
+import { Pos } from "../base/position";
+import { setPosition } from "../editor/commands";
+import { expandSnippet as expandSnippetBody } from "./engine";
+import {
+  FoldRange,
+  SuggestItem,
+  findInModel,
+  computeIndentFoldsModel,
+  matchBracketModel,
+  hoverAtModel,
+  suggestAtModel,
+  toggleLineCommentModel,
+  highlightWordModel,
+  detectLinksModel,
+  stickyLinesModel
+} from "./engine";
+
+export FindMatch[] findInEditor(CodeEditor editor, string query, bool isRegex, bool matchCase, bool wholeWord) {
+  return findInModel(editor.getModel(), query, isRegex, matchCase, wholeWord);
+}
+
+export FoldRange[] computeIndentFolds(CodeEditor editor) {
+  return computeIndentFoldsModel(editor.getModel());
+}
+
+export Rng? matchBracket(CodeEditor editor, Pos pos) {
+  return matchBracketModel(editor.getModel(), pos);
+}
+
+export string hoverAt(CodeEditor editor, Pos pos) {
+  return hoverAtModel(editor.getModel(), pos);
+}
+
+export SuggestItem[] suggestAt(CodeEditor editor, Pos pos) {
+  return suggestAtModel(editor.getModel(), pos);
+}
+
+export string expandSnippet(string body) {
+  return expandSnippetBody(body);
+}
+
+export void insertSnippet(CodeEditor editor, string body) {
+  editor.trigger("keyboard", "type", record{ text: expandSnippetBody(body) });
+}
+
+export void toggleLineComment(CodeEditor editor) {
+  toggleLineCommentModel(editor.getModel(), editor.getPosition().lineNumber, editor.view.languageId);
+  editor.view.render();
+}
+
+export void gotoLine(CodeEditor editor, int lineNumber) {
+  int line = lineNumber;
+  int last = editor.getModel().getLineCount();
+  if (line < 1) {
+    line = 1;
+  }
+  if (line > last) {
+    line = last;
+  }
+  setPosition(editor.view, line, 1);
+  editor.view.revealLine(line);
+  editor.view.render();
+}
+
+export string[] stickyLines(CodeEditor editor) {
+  return stickyLinesModel(editor.getModel(), editor.getPosition().lineNumber);
+}
+
+export FindMatch[] highlightWord(CodeEditor editor) {
+  return highlightWordModel(editor.getModel(), editor.getPosition());
+}
+
+export Rng[] detectLinks(CodeEditor editor) {
+  return detectLinksModel(editor.getModel());
+}
+
+export { FoldRange, SuggestItem, createRange };

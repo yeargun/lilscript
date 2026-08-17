@@ -25,8 +25,11 @@ use crate::ir::{ControlFlowModule, FunctionId};
 use crate::ir::{ControlFlowOp, Intrinsic};
 use crate::js_peephole::{
     analyze_generated_javascript, function_leading_declaration_variant,
-    optimize_generated_javascript, remap_single_character_identifiers,
-    single_character_identifiers, JavaScriptSyntaxMetrics,
+    identifier_name_is_clear_binding, late_generated_javascript_cleanup,
+    optimize_generated_javascript, remap_identifier, remap_single_character_identifiers,
+    single_character_identifier_use_counts, single_character_identifiers,
+    single_character_name_is_clear_binding, two_character_identifier_use_counts,
+    JavaScriptSyntaxMetrics,
 };
 use crate::lower::lower_to_control_flow;
 use crate::module::{
@@ -3277,6 +3280,25 @@ fn select_javascript_candidate_global(
         finalists,
         |options| {
             [crate::codegen_ir_js::IrJsOptions {
+                bare_window_root: !options.bare_window_root,
+                ..options
+            }]
+        },
+    )?;
+    let finalists = top_candidate_options(
+        &mut candidates,
+        candidate_beam_width,
+        config.javascript.cost_model,
+    )?;
+    extend_javascript_candidate_beam(
+        ir,
+        module_output,
+        beam_policy,
+        &integer_analysis,
+        &mut candidates,
+        finalists,
+        |options| {
+            [crate::codegen_ir_js::IrJsOptions {
                 alias_array_prototype_methods: !options.alias_array_prototype_methods,
                 ..options
             }]
@@ -5239,6 +5261,8 @@ fn finalize_javascript_candidates_with_parallelism(
             "startup limits rejected every JavaScript candidate",
         )
     })?;
+    let selected = apply_unused_letter_binding_remaps(selected, config)?;
+    let selected = apply_late_javascript_cleanup(selected, config)?;
     Ok(SelectedJavaScriptCandidate {
         plan_identity: selected.plan_identity,
         code: selected.code,
@@ -6181,6 +6205,240 @@ fn search_identifier_alphabet_groups_by<Error>(
         .collect()
 }
 
+const ONE_BYTE_IDENTIFIER_STARTS: &[u8] =
+    b"etnrisouacldhpfmgybvwkxzjqETNRISOUACLDHPFMGYBVWKXZJQ_$";
+const UNUSED_LETTER_REMAP_PASSES: usize = 8;
+
+fn unused_letter_remap_pair_budget(code_len: usize) -> usize {
+    match code_len {
+        0..4_096 => 512,
+        4_096..8_192 => 384,
+        8_192..16_384 => 192,
+        16_384..65_536 => 96,
+        _ => 48,
+    }
+}
+
+fn apply_unused_letter_binding_remaps(
+    mut selected: ScoredJavaScriptCandidate,
+    config: &ProjectConfig,
+) -> Result<ScoredJavaScriptCandidate, CompileError> {
+    if !config.js_options().mangle_identifiers
+        || !config.entropy_aware_mangling_enabled()
+        || matches!(config.javascript.cost_model, CompressionCostModel::Raw)
+    {
+        return Ok(selected);
+    }
+    let mut code = selected.code.clone();
+    let mut transfer_cost = selected.transfer_cost;
+    if let Some((next, cost)) =
+        best_unused_letter_binding_remaps(&code, config.javascript.cost_model)?
+    {
+        code = next;
+        transfer_cost = cost;
+    }
+    if let Some((next, cost)) =
+        best_short_binding_remaps(&code, config.javascript.cost_model)?
+    {
+        code = next;
+        transfer_cost = cost;
+    }
+    if code == selected.code {
+        return Ok(selected);
+    }
+    selected.metrics =
+        analyze_generated_javascript(&code).map_err(generated_javascript_parse_error)?;
+    selected.startup_score = selected.metrics.startup_score(
+        config.javascript.startup.parse_weight,
+        config.javascript.startup.compile_weight,
+        config.javascript.startup.memory_weight,
+    );
+    selected.code = code;
+    selected.transfer_cost = transfer_cost;
+    Ok(selected)
+}
+
+fn apply_late_javascript_cleanup(
+    mut selected: ScoredJavaScriptCandidate,
+    config: &ProjectConfig,
+) -> Result<ScoredJavaScriptCandidate, CompileError> {
+    if matches!(config.javascript.cost_model, CompressionCostModel::Raw) {
+        return Ok(selected);
+    }
+    let Ok(cleaned) = late_generated_javascript_cleanup(&selected.code) else {
+        return Ok(selected);
+    };
+    if cleaned == selected.code {
+        return Ok(selected);
+    }
+    let cost = compressed_size(cleaned.as_bytes(), config.javascript.cost_model).map_err(
+        |message| crate::codegen_js::CodegenError::new(Span::empty(0), message),
+    )?;
+    if cost > selected.transfer_cost
+        || (cost == selected.transfer_cost && cleaned.len() >= selected.code.len())
+    {
+        return Ok(selected);
+    }
+    let Ok(metrics) = analyze_generated_javascript(&cleaned) else {
+        return Ok(selected);
+    };
+    selected.metrics = metrics;
+    selected.startup_score = selected.metrics.startup_score(
+        config.javascript.startup.parse_weight,
+        config.javascript.startup.compile_weight,
+        config.javascript.startup.memory_weight,
+    );
+    selected.code = cleaned;
+    selected.transfer_cost = cost;
+    Ok(selected)
+}
+
+const TWO_BYTE_RESERVED_BINDINGS: &[&str] = &["do", "if", "in"];
+
+fn best_short_binding_remaps(
+    code: &str,
+    model: CompressionCostModel,
+) -> Result<Option<(String, usize)>, CompileError> {
+    let mut current = code.to_string();
+    let mut current_cost = compressed_size(current.as_bytes(), model).map_err(|message| {
+        crate::codegen_js::CodegenError::new(Span::empty(0), message)
+    })?;
+    let mut improved = false;
+    for _ in 0..UNUSED_LETTER_REMAP_PASSES {
+        let Some((next, cost)) = best_one_short_binding_remap(&current, model, current_cost)? else {
+            break;
+        };
+        current = next;
+        current_cost = cost;
+        improved = true;
+    }
+    Ok(improved.then_some((current, current_cost)))
+}
+
+fn best_one_short_binding_remap(
+    code: &str,
+    model: CompressionCostModel,
+    current_cost: usize,
+) -> Result<Option<(String, usize)>, CompileError> {
+    let identifiers =
+        single_character_identifiers(code).map_err(generated_javascript_parse_error)?;
+    let unused = ONE_BYTE_IDENTIFIER_STARTS
+        .iter()
+        .copied()
+        .filter(|byte| !identifiers.contains(byte) && byte.is_ascii_alphabetic())
+        .collect::<Vec<_>>();
+    if unused.is_empty() {
+        return Ok(None);
+    }
+    let mut sources = two_character_identifier_use_counts(code)
+        .map_err(generated_javascript_parse_error)?;
+    sources.retain(|(name, _)| {
+        !TWO_BYTE_RESERVED_BINDINGS.contains(&name.as_str())
+            && identifier_name_is_clear_binding(code, name).unwrap_or(false)
+    });
+    sources.sort_unstable_by(|left, right| {
+        right
+            .1
+            .cmp(&left.1)
+            .then_with(|| left.0.cmp(&right.0))
+    });
+    let budget = unused_letter_remap_pair_budget(code.len());
+    let mut pairs = Vec::new();
+    'pairs: for (source, _) in sources {
+        for replacement in unused.iter().copied() {
+            pairs.push((source.clone(), replacement));
+            if pairs.len() == budget {
+                break 'pairs;
+            }
+        }
+    }
+    let best = pairs
+        .into_par_iter()
+        .filter_map(|(source, replacement)| {
+            let remapped =
+                remap_identifier(code, &source, std::str::from_utf8(&[replacement]).ok()?).ok()?;
+            let cost = compressed_size(remapped.as_bytes(), model).ok()?;
+            (cost < current_cost).then_some((remapped, cost))
+        })
+        .min_by(|left, right| (left.1, left.0.as_str()).cmp(&(right.1, right.0.as_str())));
+    Ok(best)
+}
+
+fn best_unused_letter_binding_remaps(
+    code: &str,
+    model: CompressionCostModel,
+) -> Result<Option<(String, usize)>, CompileError> {
+    let mut current = code.to_string();
+    let mut current_cost = compressed_size(current.as_bytes(), model).map_err(|message| {
+        crate::codegen_js::CodegenError::new(Span::empty(0), message)
+    })?;
+    let mut improved = false;
+    for _ in 0..UNUSED_LETTER_REMAP_PASSES {
+        let Some((next, cost)) =
+            best_one_unused_letter_binding_remap(&current, model, current_cost)?
+        else {
+            break;
+        };
+        current = next;
+        current_cost = cost;
+        improved = true;
+    }
+    Ok(improved.then_some((current, current_cost)))
+}
+
+fn best_one_unused_letter_binding_remap(
+    code: &str,
+    model: CompressionCostModel,
+    current_cost: usize,
+) -> Result<Option<(String, usize)>, CompileError> {
+    let identifiers =
+        single_character_identifiers(code).map_err(generated_javascript_parse_error)?;
+    if identifiers.is_empty() {
+        return Ok(None);
+    }
+    let counts =
+        single_character_identifier_use_counts(code).map_err(generated_javascript_parse_error)?;
+    let unused = ONE_BYTE_IDENTIFIER_STARTS
+        .iter()
+        .copied()
+        .filter(|byte| !identifiers.contains(byte))
+        .collect::<Vec<_>>();
+    if unused.is_empty() {
+        return Ok(None);
+    }
+    let mut sources = identifiers;
+    sources.retain(|byte| {
+        single_character_name_is_clear_binding(code, *byte).unwrap_or(false)
+    });
+    sources.sort_unstable_by(|left, right| {
+        counts[*right as usize]
+            .cmp(&counts[*left as usize])
+            .then_with(|| left.cmp(right))
+    });
+    let budget = unused_letter_remap_pair_budget(code.len());
+    let mut pairs = Vec::new();
+    'pairs: for source in sources {
+        for replacement in unused.iter().copied() {
+            pairs.push((source, replacement));
+            if pairs.len() == budget {
+                break 'pairs;
+            }
+        }
+    }
+    let best = pairs
+        .into_par_iter()
+        .filter_map(|(source, replacement)| {
+            let mut mapping = std::array::from_fn(|index| index as u8);
+            mapping[source as usize] = replacement;
+            mapping[replacement as usize] = source;
+            let remapped = remap_single_character_identifiers(code, &mapping).ok()?;
+            let cost = compressed_size(remapped.as_bytes(), model).ok()?;
+            (cost < current_cost).then_some((remapped, cost))
+        })
+        .min_by(|left, right| (left.1, left.0.as_str()).cmp(&(right.1, right.0.as_str())));
+    Ok(best)
+}
+
 fn search_identifier_alphabets(
     code: &str,
     baseline: crate::codegen_ir_js::IdentifierAlphabet,
@@ -6202,7 +6460,7 @@ fn search_identifier_alphabets(
     // one-byte identifier alphabet first. These textual remaps are used only
     // to rank alphabets: every retained proposal is re-emitted from IR, so the
     // mangler still proves collisions, scopes, exports, and reserved names.
-    const IDENTIFIER_STARTS: &[u8] = b"etnrisouacldhpfmgybvwkxzjqETNRISOUACLDHPFMGYBVWKXZJQ_$";
+    const IDENTIFIER_STARTS: &[u8] = ONE_BYTE_IDENTIFIER_STARTS;
     let swap_budget = if identifiers.len() == 1 {
         trials
     } else {
@@ -10252,6 +10510,37 @@ mod tests {
         assert!(searched.iter().all(|group| !group.is_empty()));
         assert!(searched[0].iter().all(|(context, _)| *context == 10));
         assert!(searched[1].iter().all(|(context, _)| *context == 12));
+    }
+
+    #[test]
+    fn unused_letter_binding_remap_can_leave_the_initial_live_character_set() {
+        let code = "var F=[1,2,3,4,5];console.log(F==F),F.reverse(),console.log(F.join('-'))";
+        let baseline = compressed_size(code.as_bytes(), CompressionCostModel::Brotli).unwrap();
+        let remapped = best_unused_letter_binding_remaps(code, CompressionCostModel::Brotli)
+            .unwrap()
+            .expect("an unused letter should beat F");
+        assert!(
+            remapped.1 < baseline,
+            "baseline={baseline}, remapped={}",
+            remapped.1
+        );
+        assert!(!remapped.0.contains("var F="), "{}", remapped.0);
+        assert!(single_character_name_is_clear_binding(code, b'F').unwrap());
+    }
+
+    #[test]
+    fn short_binding_remap_can_collapse_a_two_character_local() {
+        let code = "var ge=[1,2,3,4,5,6,7,8,9];console.log(ge==ge),ge.reverse(),console.log(ge.join('-'))";
+        let baseline = compressed_size(code.as_bytes(), CompressionCostModel::Brotli).unwrap();
+        let remapped = best_short_binding_remaps(code, CompressionCostModel::Brotli)
+            .unwrap()
+            .expect("an unused letter should beat ge");
+        assert!(
+            remapped.1 < baseline,
+            "baseline={baseline}, remapped={}",
+            remapped.1
+        );
+        assert!(!remapped.0.contains("var ge="), "{}", remapped.0);
     }
 
     #[test]

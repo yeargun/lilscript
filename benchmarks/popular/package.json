@@ -13,7 +13,9 @@
     "performance": "node benchmark-exact.mjs",
     "publish:web": "node publish-web.mjs",
     "publish:motion-lab": "node publish-motion-lab.mjs",
-    "verify:exact": "node verify-nanoid.mjs && node verify-mitt.mjs && node verify-clsx.mjs && node verify-gl-matrix.mjs && node verify-motion.mjs"
+    "verify:exact": "node verify-nanoid.mjs && node verify-mitt.mjs && node verify-clsx.mjs && node verify-gl-matrix.mjs && node verify-motion.mjs",
+    "monaco:ide": "node monaco-layers/build-ide.mjs && node monaco-layers/serve-ide.mjs",
+    "monaco:serve": "node monaco-layers/serve-ide.mjs"
   },
   "dependencies": {
     "@reduxjs/toolkit": "2.8.2",
@@ -24,6 +26,8 @@
     "jquery": "3.7.1",
     "jsdom": "26.1.0",
     "mitt": "3.0.1",
+    "monaco-editor": "0.56.0",
+    "monaco-editor-core": "0.56.0",
     "motion": "^13.0.0",
     "nanoid": "5.1.5",
     "preact": "10.26.9",

@@ -1,36 +1,13 @@
-import { emptyArray } from "./alloc.lil";
 import { jQuery, each, makeArray } from "./core";
-import { dataPriv } from "./data/var/dataPriv";
-import { Deferred } from "./deferred";
-import { newCallbacksOnceMemory } from "./callbacks";
 import {
-  deleteProp,
-  typeOf,
-  isUndefined,
-  arrayIsArray,
-  arrayPush,
-  arrayShift,
-  arrayUnshift,
-  call0,
-  call1,
-  call2,
-  jsUndefined,
-  stringify,
-  createEmptyObject
-} from "./js-host.lil";
+  get as dataPrivGet,
+  access as dataPrivAccess,
+  remove as dataPrivRemove
+} from "./data/var/dataPriv";
+import { Deferred } from "./deferred";
 
 struct QueueHooks {
   JsValue empty;
-}
-
-string typeOrFx(JsValue typeValue) {
-  if (JS.isUndefined(typeValue) || !typeValue.truthy()) {
-    return "fx";
-  }
-  if (typeValue is string) {
-    return typeValue;
-  }
-  return JS.string(typeValue);
 }
 
 export JsValue queueStatic(JsValue elem, JsValue typeValue, JsValue data) {
@@ -38,30 +15,35 @@ export JsValue queueStatic(JsValue elem, JsValue typeValue, JsValue data) {
     return JS.undefined();
   }
 
-  string type = typeOrFx(typeValue);
-  string queueKey = type + "queue";
-  JsValue queue = dataPriv.get(elem, queueKey);
+  string type = "fx";
+  if (typeValue is string) {
+    type = typeValue;
+  }
+  type = type + "queue";
+  JsValue queue = dataPrivGet(elem, type);
 
   if (data.truthy()) {
     if (!queue.truthy() || JS.isArray(data)) {
-      JsValue made = makeArray(data);
-      queue = dataPriv.access(elem, queueKey, made);
+      queue = dataPrivAccess(elem, type, makeArray(data));
     } else {
-      JS.push(queue, data);
+      JS.invoke(queue, "push", data);
     }
   }
 
   if (queue.truthy()) {
     return queue;
   }
-  return emptyArray();
+  return JS.array();
 }
 
 export JsValue dequeueStatic(JsValue elem, JsValue typeValue) {
-  string type = typeOrFx(typeValue);
+  string type = "fx";
+  if (typeValue is string) {
+    type = typeValue;
+  }
   JsValue queue = queueStatic(elem, type, JS.undefined());
   float startLength = queue.length;
-  JsValue fn = JS.shift(queue);
+  JsValue fn = JS.invoke(queue, "shift");
   JsValue hooks = queueHooks(elem, type);
 
   JsValue next = () => {
@@ -70,13 +52,13 @@ export JsValue dequeueStatic(JsValue elem, JsValue typeValue) {
   };
 
   if (fn == "inprogress") {
-    fn = JS.shift(queue);
+    fn = JS.invoke(queue, "shift");
     startLength = startLength - 1.0;
   }
 
   if (fn.truthy()) {
     if (type == "fx") {
-      JS.unshift(queue, "inprogress");
+      JS.invoke(queue, "unshift", "inprogress");
     }
     JS.delete(hooks, "stop");
     JS.call(fn, elem, next, hooks);
@@ -89,40 +71,40 @@ export JsValue dequeueStatic(JsValue elem, JsValue typeValue) {
 }
 
 export JsValue queueHooks(JsValue elem, JsValue typeValue) {
-  string type = typeOrFx(typeValue);
+  string type = "fx";
+  if (typeValue is string) {
+    type = typeValue;
+  }
   string key = type + "queueHooks";
-  JsValue existing = dataPriv.get(elem, key);
+  JsValue existing = dataPrivGet(elem, key);
   if (existing.truthy()) {
     return existing;
   }
 
-  JsValue empty = newCallbacksOnceMemory();
+  JsValue empty = JS.call(jQuery["Callbacks"], JS.undefined(), "once memory");
   JS.invoke(empty, "add", () => {
-    JsValue[] removeKeys = [];
-    removeKeys.push(type + "queue");
-    removeKeys.push(key);
-    dataPriv.remove(elem, removeKeys);
+    dataPrivRemove(elem, [type + "queue", key]);
     return JS.undefined();
   });
 
-  return dataPriv.access(elem, key, QueueHooks{empty});
+  return dataPrivAccess(elem, key, QueueHooks{empty});
 }
 
 export JsValue fnQueue(JsValue self, JsValue args) {
-  JsValue type = "fx";
+  string type = "fx";
   JsValue data = JS.undefined();
   float setter = 2.0;
 
   if (args.length > 0.0) {
-    if (JS.typeOf(args[0]) != "string") {
-      data = args[0];
-      type = "fx";
-      setter = 1.0;
-    } else {
-      type = args[0];
+    JsValue first = args[0];
+    if (first is string) {
+      type = first;
       if (args.length > 1.0) {
         data = args[1];
       }
+    } else {
+      data = first;
+      setter = 1.0;
     }
   }
 
@@ -134,12 +116,11 @@ export JsValue fnQueue(JsValue self, JsValue args) {
     return self;
   }
 
-  string typeKey = typeOrFx(type);
   return each(self, (JsValue _i, JsValue el) => {
-    JsValue queue = queueStatic(el, typeKey, data);
-    queueHooks(el, typeKey);
-    if (typeKey == "fx" && queue[0] != "inprogress") {
-      dequeueStatic(el, typeKey);
+    JsValue queue = queueStatic(el, type, data);
+    queueHooks(el, type);
+    if (type == "fx" && queue[0] != "inprogress") {
+      dequeueStatic(el, type);
     }
     return JS.undefined();
   });
@@ -153,28 +134,32 @@ JsValue fnDequeue(JsValue self, JsValue type) {
 }
 
 JsValue fnClearQueue(JsValue self, JsValue type) {
-  JsValue queueType = type;
-  if (JS.isUndefined(type) || !type.truthy()) {
-    queueType = "fx";
+  string kind = "fx";
+  if (type is string) {
+    kind = type;
   }
-  return JS.invoke(self, "queue", queueType, emptyArray());
+  return JS.invoke(self, "queue", kind, JS.array());
 }
 
 JsValue fnPromise(JsValue self, JsValue args) {
-  JsValue type = JS.undefined();
+  JsValue typeValue = JS.undefined();
   JsValue obj = JS.undefined();
   if (args.length > 0.0) {
-    if (JS.typeOf(args[0]) != "string") {
-      obj = args[0];
-    } else {
-      type = args[0];
+    JsValue first = args[0];
+    if (first is string) {
+      typeValue = first;
       if (args.length > 1.0) {
         obj = args[1];
       }
+    } else {
+      obj = first;
     }
   }
 
-  string typeKey = typeOrFx(type);
+  string type = "fx";
+  if (typeValue is string) {
+    type = typeValue;
+  }
   JsValue defer = Deferred();
   float count = 1.0;
   JsValue elements = self;
@@ -182,9 +167,7 @@ JsValue fnPromise(JsValue self, JsValue args) {
   JsValue resolve = () => {
     count = count - 1.0;
     if (!(count > 0.0)) {
-      JsValue[] resolveArgs = [];
-      resolveArgs.push(elements);
-      JS.invoke(defer, "resolveWith", elements, resolveArgs);
+      JS.invoke(defer, "resolveWith", elements, [elements]);
     }
     return JS.undefined();
   };
@@ -192,23 +175,19 @@ JsValue fnPromise(JsValue self, JsValue args) {
   float i = self.length;
   while (i > 0.0) {
     i = i - 1.0;
-    JsValue tmp = dataPriv.get(self[i], typeKey + "queueHooks");
-    if (tmp.truthy() && tmp["empty"].truthy()) {
+    JsValue hooks = dataPrivGet(self[i], type + "queueHooks");
+    JsValue empty = JS.and(hooks, hooks["empty"]);
+    if (empty.truthy()) {
       count = count + 1.0;
-      JS.invoke(tmp["empty"], "add", resolve);
+      JS.invoke(empty, "add", resolve);
     }
   }
   resolve();
   return JS.invoke(defer, "promise", obj);
 }
 
-jQuery["queue"] = JS.staticRest((JsValue args) => {
-  return queueStatic(args[0], args[1], args[2]);
-});
-
-jQuery["dequeue"] = JS.staticRest((JsValue args) => {
-  return dequeueStatic(args[0], args[1]);
-});
+jQuery["queue"] = queueStatic;
+jQuery["dequeue"] = dequeueStatic;
 
 jQuery["_queueHooks"] = queueHooks;
 

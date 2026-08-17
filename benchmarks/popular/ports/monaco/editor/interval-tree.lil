@@ -1,0 +1,477 @@
+import { Rng } from "../base/range";
+
+export class Decoration {
+  int id;
+  Rng range;
+  string className;
+  string hoverMessage;
+  bool isWholeLine;
+
+  init(int id, Rng range, string className, string hoverMessage, bool isWholeLine) {
+    this.id = id;
+    this.range = range;
+    this.className = className;
+    this.hoverMessage = hoverMessage;
+    this.isWholeLine = isWholeLine;
+  }
+}
+
+class IntervalNode {
+  IntervalNode parent;
+  IntervalNode left;
+  IntervalNode right;
+  int color;
+  Decoration deco;
+  int maxEndLine;
+  int maxEndColumn;
+  bool alive;
+
+  init(Decoration deco) {
+    this.deco = deco;
+    this.color = 0;
+    this.maxEndLine = deco.range.endLineNumber;
+    this.maxEndColumn = deco.range.endColumn;
+    this.alive = true;
+    this.parent = this;
+    this.left = this;
+    this.right = this;
+  }
+}
+
+IntervalNode INTERVAL_NIL = new IntervalNode(new Decoration(0, new Rng(1, 1, 1, 1), "", "", false));
+
+
+bool rangeLess(Rng a, Rng b) {
+  if (a.startLineNumber != b.startLineNumber) {
+    return a.startLineNumber < b.startLineNumber;
+  }
+  if (a.startColumn != b.startColumn) {
+    return a.startColumn < b.startColumn;
+  }
+  if (a.endLineNumber != b.endLineNumber) {
+    return a.endLineNumber < b.endLineNumber;
+  }
+  return a.endColumn < b.endColumn;
+}
+
+bool rangesOverlap(Rng a, Rng b) {
+  if (a.endLineNumber < b.startLineNumber || (a.endLineNumber == b.startLineNumber && a.endColumn < b.startColumn)) {
+    return false;
+  }
+  if (b.endLineNumber < a.startLineNumber || (b.endLineNumber == a.startLineNumber && b.endColumn < a.startColumn)) {
+    return false;
+  }
+  return true;
+}
+
+void attachIntervalParent(IntervalNode node, IntervalNode parent) {
+  if (node != INTERVAL_NIL) {
+    node.parent = parent;
+  }
+}
+
+void intervalRotateLeft(IntervalTree tree, IntervalNode x) {
+  IntervalNode y = x.right;
+  IntervalNode yLeft = y.left;
+  IntervalNode xParent = x.parent;
+  x.right = yLeft;
+  attachIntervalParent(yLeft, x);
+  y.parent = xParent;
+  if (xParent == INTERVAL_NIL) {
+    tree.root = y;
+  } else if (xParent.left == x) {
+    xParent.left = y;
+  } else {
+    xParent.right = y;
+  }
+  y.left = x;
+  x.parent = y;
+  tree.refreshMax(x);
+  tree.refreshMax(y);
+}
+
+void intervalRotateRight(IntervalTree tree, IntervalNode y) {
+  IntervalNode x = y.left;
+  IntervalNode xRight = x.right;
+  IntervalNode yParent = y.parent;
+  y.left = xRight;
+  attachIntervalParent(xRight, y);
+  x.parent = yParent;
+  if (yParent == INTERVAL_NIL) {
+    tree.root = x;
+  } else if (yParent.right == y) {
+    yParent.right = x;
+  } else {
+    yParent.left = x;
+  }
+  x.right = y;
+  y.parent = x;
+  tree.refreshMax(y);
+  tree.refreshMax(x);
+}
+
+IntervalNode intervalInsertFixLeft(IntervalTree tree, IntervalNode k) {
+  IntervalNode uncle = k.parent.parent.right;
+  if (uncle.color == 1) {
+    uncle.color = 0;
+    k.parent.color = 0;
+    k.parent.parent.color = 1;
+    return k.parent.parent;
+  }
+  if (k == k.parent.right) {
+    k = k.parent;
+    intervalRotateLeft(tree, k);
+  }
+  k.parent.color = 0;
+  k.parent.parent.color = 1;
+  intervalRotateRight(tree, k.parent.parent);
+  return k;
+}
+
+IntervalNode intervalInsertFixRight(IntervalTree tree, IntervalNode k) {
+  IntervalNode uncle = k.parent.parent.left;
+  if (uncle.color == 1) {
+    uncle.color = 0;
+    k.parent.color = 0;
+    k.parent.parent.color = 1;
+    return k.parent.parent;
+  }
+  if (k == k.parent.left) {
+    k = k.parent;
+    intervalRotateRight(tree, k);
+  }
+  k.parent.color = 0;
+  k.parent.parent.color = 1;
+  intervalRotateLeft(tree, k.parent.parent);
+  return k;
+}
+
+void intervalInsertFix(IntervalTree tree, IntervalNode k) {
+  IntervalNode cur = k;
+  while (cur.parent.color == 1) {
+    bool parentIsLeft = cur.parent == cur.parent.parent.left;
+    if (parentIsLeft) {
+      cur = intervalInsertFixLeft(tree, cur);
+    } else {
+      cur = intervalInsertFixRight(tree, cur);
+    }
+    if (cur == tree.root) {
+      break;
+    }
+  }
+  tree.root.color = 0;
+}
+
+IntervalNode intervalWalkParent(IntervalNode start, Rng range) {
+  IntervalNode cur = start;
+  IntervalNode parent = INTERVAL_NIL;
+  while (cur != INTERVAL_NIL) {
+    parent = cur;
+    bool goLeft = rangeLess(range, cur.deco.range);
+    if (goLeft) {
+      cur = cur.left;
+    } else {
+      cur = cur.right;
+    }
+  }
+  return parent;
+}
+
+void intervalLinkChild(IntervalNode parent, IntervalNode node, Rng range) {
+  node.parent = parent;
+  bool goLeft = rangeLess(range, parent.deco.range);
+  if (goLeft) {
+    parent.left = node;
+  } else {
+    parent.right = node;
+  }
+}
+
+void intervalRefreshWalk(IntervalTree tree, IntervalNode node) {
+  IntervalNode walk = node;
+  while (walk != INTERVAL_NIL) {
+    tree.refreshMax(walk);
+    walk = walk.parent;
+  }
+}
+
+Decoration intervalInsert(IntervalTree tree, Rng range, string className, string hoverMessage, bool isWholeLine) {
+  int id = tree.nextId;
+  tree.nextId = id + 1;
+  Decoration deco = new Decoration(id, range, className, hoverMessage, isWholeLine);
+  IntervalNode node = new IntervalNode(deco);
+  node.color = 1;
+  node.left = INTERVAL_NIL;
+  node.right = INTERVAL_NIL;
+  node.parent = INTERVAL_NIL;
+  if (tree.root == INTERVAL_NIL) {
+    tree.root = node;
+    node.color = 0;
+    return deco;
+  }
+  IntervalNode parent = intervalWalkParent(tree.root, range);
+  intervalLinkChild(parent, node, range);
+  intervalRefreshWalk(tree, node);
+  intervalInsertFix(tree, node);
+  return deco;
+}
+
+export class IntervalTree {
+  IntervalNode root;
+  int nextId;
+  IntervalNode deleteWasY;
+  IntervalNode deleteWasX;
+  bool deleteWasRed;
+
+  init() {
+    this.root = INTERVAL_NIL;
+    this.nextId = 1;
+    this.deleteWasY = INTERVAL_NIL;
+    this.deleteWasX = INTERVAL_NIL;
+    this.deleteWasRed = false;
+  }
+
+  void refreshMax(IntervalNode node) {
+    int line = node.deco.range.endLineNumber;
+    int col = node.deco.range.endColumn;
+    if (node.left != INTERVAL_NIL) {
+      if (node.left.maxEndLine > line || (node.left.maxEndLine == line && node.left.maxEndColumn > col)) {
+        line = node.left.maxEndLine;
+        col = node.left.maxEndColumn;
+      }
+    }
+    if (node.right != INTERVAL_NIL) {
+      if (node.right.maxEndLine > line || (node.right.maxEndLine == line && node.right.maxEndColumn > col)) {
+        line = node.right.maxEndLine;
+        col = node.right.maxEndColumn;
+      }
+    }
+    node.maxEndLine = line;
+    node.maxEndColumn = col;
+  }
+
+  void rotateLeft(IntervalNode x) {
+    intervalRotateLeft(this, x);
+  }
+
+  void rotateRight(IntervalNode y) {
+    intervalRotateRight(this, y);
+  }
+
+  void insertFix(IntervalNode k) {
+    intervalInsertFix(this, k);
+  }
+
+  Decoration insert(Rng range, string className, string hoverMessage, bool isWholeLine) {
+    return intervalInsert(this, range, className, hoverMessage, isWholeLine);
+  }
+
+  void collectOverlapping(IntervalNode node, Rng range, Decoration[] out) {
+    if (node == INTERVAL_NIL) {
+      return;
+    }
+    bool maxBefore = node.maxEndLine < range.startLineNumber
+      || (node.maxEndLine == range.startLineNumber && node.maxEndColumn < range.startColumn);
+    if (maxBefore) {
+      return;
+    }
+    this.collectOverlapping(node.left, range, out);
+    if (rangesOverlap(node.deco.range, range)) {
+      out.push(node.deco);
+    }
+    if (
+      node.deco.range.startLineNumber < range.endLineNumber
+      || (node.deco.range.startLineNumber == range.endLineNumber && node.deco.range.startColumn <= range.endColumn)
+    ) {
+      this.collectOverlapping(node.right, range, out);
+    }
+  }
+
+  Decoration[] search(Rng range) {
+    Decoration[] out = [];
+    this.collectOverlapping(this.root, range, out);
+    return out;
+  }
+
+  void collectAll(IntervalNode node, Decoration[] out) {
+    if (node == INTERVAL_NIL) {
+      return;
+    }
+    this.collectAll(node.left, out);
+    out.push(node.deco);
+    this.collectAll(node.right, out);
+  }
+
+  Decoration[] all() {
+    Decoration[] out = [];
+    this.collectAll(this.root, out);
+    return out;
+  }
+
+  IntervalNode findById(IntervalNode node, int id) {
+    if (node == INTERVAL_NIL) {
+      return INTERVAL_NIL;
+    }
+    if (node.deco.id == id) {
+      return node;
+    }
+    IntervalNode left = this.findById(node.left, id);
+    if (left != INTERVAL_NIL) {
+      return left;
+    }
+    return this.findById(node.right, id);
+  }
+
+  void transplant(IntervalNode u, IntervalNode v) {
+    IntervalNode p = u.parent;
+    if (p == INTERVAL_NIL) {
+      this.root = v;
+    } else if (p.left == u) {
+      p.left = v;
+    } else {
+      p.right = v;
+    }
+    v.parent = p;
+  }
+
+  IntervalNode minimum(IntervalNode node) {
+    IntervalNode cur = node;
+    while (cur.left != INTERVAL_NIL) {
+      cur = cur.left;
+    }
+    return cur;
+  }
+
+  IntervalNode deleteFixLeft(IntervalNode x) {
+    IntervalNode p = x.parent;
+    IntervalNode w = p.right;
+    if (w.color == 1) {
+      w.color = 0;
+      p.color = 1;
+      this.rotateLeft(p);
+      p = x.parent;
+      w = p.right;
+    }
+    IntervalNode wLeft = w.left;
+    IntervalNode wRight = w.right;
+    if (wLeft.color == 0 && wRight.color == 0) {
+      w.color = 1;
+      return p;
+    }
+    if (wRight.color == 0) {
+      wLeft.color = 0;
+      w.color = 1;
+      this.rotateRight(w);
+      p = x.parent;
+      w = p.right;
+      wRight = w.right;
+    }
+    w.color = p.color;
+    p.color = 0;
+    wRight.color = 0;
+    this.rotateLeft(p);
+    return this.root;
+  }
+
+  IntervalNode deleteFixRight(IntervalNode x) {
+    IntervalNode p = x.parent;
+    IntervalNode w = p.left;
+    if (w.color == 1) {
+      w.color = 0;
+      p.color = 1;
+      this.rotateRight(p);
+      p = x.parent;
+      w = p.left;
+    }
+    IntervalNode wLeft = w.left;
+    IntervalNode wRight = w.right;
+    if (wRight.color == 0 && wLeft.color == 0) {
+      w.color = 1;
+      return p;
+    }
+    if (wLeft.color == 0) {
+      wRight.color = 0;
+      w.color = 1;
+      this.rotateLeft(w);
+      p = x.parent;
+      w = p.left;
+      wLeft = w.left;
+    }
+    w.color = p.color;
+    p.color = 0;
+    wLeft.color = 0;
+    this.rotateRight(p);
+    return this.root;
+  }
+
+  void deleteFix(IntervalNode x) {
+    IntervalNode cur = x;
+    while (cur != this.root && cur.color == 0) {
+      IntervalNode p = cur.parent;
+      bool isLeft = p.left == cur;
+      if (isLeft) {
+        cur = this.deleteFixLeft(cur);
+      } else {
+        cur = this.deleteFixRight(cur);
+      }
+    }
+    cur.color = 0;
+  }
+
+  void deleteNode(IntervalNode z) {
+    this.deleteWasY = z;
+    this.deleteWasX = INTERVAL_NIL;
+    this.deleteWasRed = z.color == 1;
+    if (z.left == INTERVAL_NIL) {
+      IntervalNode xRight = z.right;
+      this.deleteWasX = xRight;
+      this.transplant(z, xRight);
+    } else if (z.right == INTERVAL_NIL) {
+      IntervalNode xLeft = z.left;
+      this.deleteWasX = xLeft;
+      this.transplant(z, xLeft);
+    } else {
+      IntervalNode y = this.minimum(z.right);
+      IntervalNode yRight = y.right;
+      this.deleteWasY = y;
+      this.deleteWasRed = y.color == 1;
+      this.deleteWasX = yRight;
+      this.deleteReplaceTwoChild(z, y);
+    }
+    IntervalNode walkFrom = this.deleteWasX;
+    z.alive = false;
+    intervalRefreshWalk(this, walkFrom.parent);
+    if (!this.deleteWasRed) {
+      this.deleteFix(walkFrom);
+    }
+    INTERVAL_NIL.parent = INTERVAL_NIL;
+    INTERVAL_NIL.left = INTERVAL_NIL;
+    INTERVAL_NIL.right = INTERVAL_NIL;
+  }
+
+  void deleteReplaceTwoChild(IntervalNode z, IntervalNode y) {
+    IntervalNode x = y.right;
+    if (y.parent == z) {
+      x.parent = y;
+    } else {
+      this.transplant(y, y.right);
+      y.right = z.right;
+      attachIntervalParent(y.right, y);
+    }
+    this.transplant(z, y);
+    y.left = z.left;
+    attachIntervalParent(y.left, y);
+    y.color = z.color;
+  }
+
+  void removeId(int id) {
+    IntervalNode node = this.findById(this.root, id);
+    if (node != INTERVAL_NIL) {
+      this.deleteNode(node);
+    }
+  }
+}
+
+export IntervalTree createIntervalTree() {
+  return new IntervalTree();
+}

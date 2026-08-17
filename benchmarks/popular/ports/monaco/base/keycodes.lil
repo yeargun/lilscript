@@ -1,0 +1,130 @@
+export enum KeyCode {
+  Unknown,
+  Backspace,
+  Tab,
+  Enter,
+  Shift,
+  Ctrl,
+  Alt,
+  PauseBreak,
+  CapsLock,
+  Escape,
+  Space,
+  PageUp,
+  PageDown,
+  End,
+  Home,
+  LeftArrow,
+  UpArrow,
+  RightArrow,
+  DownArrow,
+  Insert,
+  Delete,
+  Digit0,
+  Digit1,
+  Digit2,
+  Digit3,
+  Digit4,
+  Digit5,
+  Digit6,
+  Digit7,
+  Digit8,
+  Digit9,
+  KeyA,
+  KeyB,
+  KeyC,
+  KeyD,
+  KeyE,
+  KeyF,
+  KeyG,
+  KeyH,
+  KeyI,
+  KeyJ,
+  KeyK,
+  KeyL,
+  KeyM,
+  KeyN,
+  KeyO,
+  KeyP,
+  KeyQ,
+  KeyR,
+  KeyS,
+  KeyT,
+  KeyU,
+  KeyV,
+  KeyW,
+  KeyX,
+  KeyY,
+  KeyZ,
+  Meta,
+  F1,
+  F2,
+  F3,
+  F4,
+  F5,
+  F6,
+  F7,
+  F8,
+  F9,
+  F10,
+  F11,
+  F12
+}
+
+export int KeyModCtrl = 2048;
+export int KeyModShift = 1024;
+export int KeyModAlt = 512;
+export int KeyModWinCtrl = 256;
+
+export int chord(int first, int second) {
+  return first | second;
+}
+
+export KeyCode keyCodeFromKey(string key) {
+  if (key == "Backspace") {
+    return KeyCode.Backspace;
+  }
+  if (key == "Tab") {
+    return KeyCode.Tab;
+  }
+  if (key == "Enter") {
+    return KeyCode.Enter;
+  }
+  if (key == "Escape") {
+    return KeyCode.Escape;
+  }
+  if (key == " ") {
+    return KeyCode.Space;
+  }
+  if (key == "ArrowLeft") {
+    return KeyCode.LeftArrow;
+  }
+  if (key == "ArrowUp") {
+    return KeyCode.UpArrow;
+  }
+  if (key == "ArrowRight") {
+    return KeyCode.RightArrow;
+  }
+  if (key == "ArrowDown") {
+    return KeyCode.DownArrow;
+  }
+  if (key == "Home") {
+    return KeyCode.Home;
+  }
+  if (key == "End") {
+    return KeyCode.End;
+  }
+  if (key == "PageUp") {
+    return KeyCode.PageUp;
+  }
+  if (key == "PageDown") {
+    return KeyCode.PageDown;
+  }
+  if (key == "Delete") {
+    return KeyCode.Delete;
+  }
+  if (key == "Insert") {
+    return KeyCode.Insert;
+  }
+  return KeyCode.Unknown;
+}

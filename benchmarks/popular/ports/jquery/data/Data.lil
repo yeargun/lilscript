@@ -1,164 +1,152 @@
 import { jQuery, isEmptyObject } from "../core";
 import { camelCase } from "../core/camelCase";
 import { rnothtmlwhite } from "../var/rnothtmlwhite";
-import { acceptData } from "./var/acceptData";
-import {
-  jsUndefined,
-  createEmptyObject,
-  deleteProp,
-  hasProp,
-  typeOf,
-  isUndefined,
-  arrayIsArray,
-  defineConfigurable,
-  stringMatch,
-  stringify
-} from "../js-host.lil";
+import { defineConfigurable } from "../js-host.lil";
 
-float dataUid = 1.0;
+export string dataPrivExpando = JS.string(jQuery["expando"]) + "1";
+export string dataUserExpando = JS.string(jQuery["expando"]) + "2";
 
-string asCamel(JsValue key) {
+string camelKey(JsValue key) {
+  if (key is string) {
+    return camelCase(key);
+  }
   return camelCase(JS.string(key));
 }
 
-export class Data {
-  JsValue expando;
-
-  init() {
-    float uid = dataUid;
-    dataUid = uid + 1.0;
-    this.expando = JS.add(jQuery["expando"], uid);
-  }
-
-  JsValue cache(JsValue owner) {
-    JsValue key = this.expando;
-    JsValue value = owner[key];
-
-    if (!value.truthy()) {
-      value = JS.object();
-      if (acceptData(owner)) {
-        JsValue nodeType = JS.and(owner, owner["nodeType"]);
-        if (nodeType.truthy()) {
-          owner[key] = value;
-        } else {
-          defineConfigurable(owner, key, value);
-        }
-      }
-    }
+JsValue cacheAt(string expando, JsValue owner) {
+  JsValue value = owner[expando];
+  if (value.truthy()) {
     return value;
   }
+  value = JS.object();
+  JsValue nodeType = owner["nodeType"];
+  if (nodeType == 1.0) {
+    owner[expando] = value;
+    return value;
+  }
+  if (nodeType == 9.0) {
+    owner[expando] = value;
+    return value;
+  }
+  if (!nodeType.truthy()) {
+    defineConfigurable(owner, expando, value);
+  }
+  return value;
+}
 
-  JsValue set(JsValue owner, JsValue data, JsValue? valueArg = null) {
-    JsValue cache = this.cache(owner);
-    JsValue value = JS.undefined();
-    if (valueArg != null) {
-      value = valueArg;
+JsValue setAt(string expando, JsValue owner, JsValue data, JsValue value) {
+  JsValue store = cacheAt(expando, owner);
+  if (data is string) {
+    store[camelCase(data)] = value;
+  } else {
+    for (string prop in data) {
+      store[camelCase(prop)] = data[prop];
     }
+  }
+  return store;
+}
 
-    if (data is string) {
-      cache[asCamel(data)] = value;
+JsValue getAt(string expando, JsValue owner, JsValue key) {
+  if (JS.isUndefined(key)) {
+    return cacheAt(expando, owner);
+  }
+  return JS.and(owner[expando], owner[expando][camelKey(key)]);
+}
+
+JsValue accessAt(string expando, JsValue owner, JsValue key, JsValue value) {
+  if (JS.isUndefined(key) || (key.truthy() && key is string && JS.isUndefined(value))) {
+    return getAt(expando, owner, key);
+  }
+  setAt(expando, owner, key, value);
+  if (!JS.isUndefined(value)) {
+    return value;
+  }
+  return key;
+}
+
+void removeAt(string expando, JsValue owner, JsValue key) {
+  JsValue store = owner[expando];
+  if (JS.isUndefined(store)) {
+    return;
+  }
+
+  if (!JS.isUndefined(key)) {
+    if (JS.isArray(key)) {
+      key = JS.invoke(key, "map", camelKey);
     } else {
-      for (string prop in data) {
-        cache[camelCase(prop)] = data[prop];
-      }
-    }
-    return cache;
-  }
-
-  JsValue get(JsValue owner, JsValue? keyArg = null) {
-    if (keyArg == null) {
-      return this.cache(owner);
-    }
-    JsValue key = keyArg;
-    if (JS.isUndefined(key)) {
-      return this.cache(owner);
-    }
-
-    JsValue store = owner[this.expando];
-    if (!store.truthy()) {
-      return JS.undefined();
-    }
-    return store[asCamel(key)];
-  }
-
-  JsValue access(JsValue owner, JsValue? keyArg = null, JsValue? valueArg = null) {
-    JsValue key = keyArg;
-    JsValue value = JS.undefined();
-    if (valueArg != null) {
-      value = valueArg;
-    }
-
-    if (JS.isUndefined(key) || key == null) {
-      return this.get(owner);
-    }
-
-    if ((key is string) && JS.isUndefined(value)) {
-      return this.get(owner, key);
-    }
-
-    this.set(owner, key, value);
-
-    if (!JS.isUndefined(value)) {
-      return value;
-    }
-    return key;
-  }
-
-  void remove(JsValue owner, JsValue? keyArg = null) {
-    JsValue expando = this.expando;
-    JsValue cache = owner[expando];
-    if (JS.isUndefined(cache)) {
-      return;
-    }
-
-    if (keyArg != null && !JS.isUndefined(keyArg)) {
-      JsValue key = keyArg;
-      string[] keys = [];
-      if (JS.isArray(key)) {
-        float i = 0.0;
-        float len = key.length;
-        for (; i < len; i++) {
-          keys.push(asCamel(key[i]));
-        }
+      string camel = camelKey(key);
+      if (JS.in(camel, store)) {
+        key = [camel];
       } else {
-        string camelKey = asCamel(key);
-        if (JS.in(camelKey, cache)) {
-          keys.push(camelKey);
-        } else {
-          JsValue matched = JS.stringMatch(camelKey, rnothtmlwhite);
-          if (matched.truthy()) {
-            float i = 0.0;
-            float len = matched.length;
-            for (; i < len; i++) {
-              JsValue name = matched[i];
-              keys.push(JS.string(name));
-            }
-          }
-        }
-      }
-
-      int i = keys.length;
-      while (i > 0) {
-        i = i - 1;
-        JS.delete(cache, keys[i]);
+        key = JS.or(JS.stringMatch(camel, rnothtmlwhite), JS.array());
       }
     }
 
-    if (keyArg == null || JS.isUndefined(keyArg) || isEmptyObject(cache)) {
-      JsValue nodeType = JS.and(owner, owner["nodeType"]);
-      if (nodeType.truthy()) {
-        owner[expando] = JS.undefined();
-      } else {
-        JS.delete(owner, expando);
-      }
+    float i = key.length;
+    while (i > 0.0) {
+      i = i - 1.0;
+      JS.delete(store, key[i]);
     }
   }
 
-  bool hasData(JsValue owner) {
-    JsValue cache = owner[this.expando];
-    if (JS.isUndefined(cache)) {
-      return false;
+  if (JS.isUndefined(key) || isEmptyObject(store)) {
+    if (owner["nodeType"].truthy()) {
+      owner[expando] = JS.undefined();
+    } else {
+      JS.delete(owner, expando);
     }
-    return !isEmptyObject(cache);
   }
+}
+
+bool hasDataAt(string expando, JsValue owner) {
+  JsValue store = owner[expando];
+  return !JS.isUndefined(store) && !isEmptyObject(store);
+}
+
+export JsValue dataPrivCache(JsValue owner) {
+  return cacheAt(dataPrivExpando, owner);
+}
+
+export JsValue dataPrivGet(JsValue owner, JsValue key = JS.undefined()) {
+  return getAt(dataPrivExpando, owner, key);
+}
+
+export JsValue dataPrivSet(JsValue owner, JsValue data, JsValue value = JS.undefined()) {
+  return setAt(dataPrivExpando, owner, data, value);
+}
+
+export JsValue dataPrivAccess(JsValue owner, JsValue key = JS.undefined(), JsValue value = JS.undefined()) {
+  return accessAt(dataPrivExpando, owner, key, value);
+}
+
+export void dataPrivRemove(JsValue owner, JsValue key = JS.undefined()) {
+  removeAt(dataPrivExpando, owner, key);
+}
+
+export bool dataPrivHasData(JsValue owner) {
+  return hasDataAt(dataPrivExpando, owner);
+}
+
+export JsValue dataUserCache(JsValue owner) {
+  return cacheAt(dataUserExpando, owner);
+}
+
+export JsValue dataUserGet(JsValue owner, JsValue key = JS.undefined()) {
+  return getAt(dataUserExpando, owner, key);
+}
+
+export JsValue dataUserSet(JsValue owner, JsValue data, JsValue value = JS.undefined()) {
+  return setAt(dataUserExpando, owner, data, value);
+}
+
+export JsValue dataUserAccess(JsValue owner, JsValue key = JS.undefined(), JsValue value = JS.undefined()) {
+  return accessAt(dataUserExpando, owner, key, value);
+}
+
+export void dataUserRemove(JsValue owner, JsValue key = JS.undefined()) {
+  removeAt(dataUserExpando, owner, key);
+}
+
+export bool dataUserHasData(JsValue owner) {
+  return hasDataAt(dataUserExpando, owner);
 }

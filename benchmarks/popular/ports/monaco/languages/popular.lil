@@ -1,0 +1,185 @@
+import { Lexer, createLexer, addRule, addState, wsRe, tokDelim, tokBracket } from "../editor/monarch";
+
+export Lexer javascriptLexer() {
+  string[] keywords = [
+    "break", "case", "catch", "class", "continue", "const", "constructor", "debugger",
+    "default", "delete", "do", "else", "export", "extends", "false", "finally", "for",
+    "from", "function", "get", "if", "import", "in", "instanceof", "let", "new", "null",
+    "return", "set", "static", "super", "switch", "symbol", "this", "throw", "true",
+    "try", "typeof", "undefined", "var", "void", "while", "with", "yield", "async",
+    "await", "of", "type", "interface", "enum", "implements", "package", "private",
+    "protected", "public", "readonly", "namespace", "abstract", "as", "asserts",
+    "keyof", "infer", "never", "unknown", "any", "boolean", "number", "string", "unique"
+  ];
+  Lexer lex = createLexer("javascript", ".js", "source", keywords);
+  addCLike(lex);
+  return lex;
+}
+
+export Lexer typescriptLexer() {
+  Lexer lex = javascriptLexer();
+  lex.languageId = "typescript";
+  lex.tokenPostfix = ".ts";
+  return lex;
+}
+
+void addCLike(Lexer lex) {
+  addRule(lex, "root", wsRe(), 0, "", "", false);
+  addRule(lex, "root", "//.*", 0, "comment", "", false);
+  addRule(lex, "root", "/\\*", 1, "comment", "comment", false);
+  addRule(lex, "root", "\\\"", 1, "string", "string", false);
+  addRule(lex, "root", "'", 1, "string", "stringS", false);
+  addRule(lex, "root", "`", 1, "string", "stringT", false);
+  addRule(lex, "root", "0[xX][0-9a-fA-F]+", 0, "number", "", false);
+  addRule(lex, "root", "\\d+\\.\\d+([eE][+\\-]?\\d+)?", 0, "number", "", false);
+  addRule(lex, "root", "\\d+", 0, "number", "", false);
+  addRule(lex, "root", "[a-zA-Z_$][\\w$]*", 4, "identifier", "", false);
+  addRule(lex, "root", "[{}()\\[\\]]", 0, tokBracket(), "", false);
+  addRule(lex, "root", "[;,.]", 0, tokDelim(), "", false);
+  addRule(lex, "root", "[+\\-*/%&|^~<>=!?:]+", 0, tokDelim(), "", false);
+  addState(lex, "comment");
+  addRule(lex, "comment", "\\*/", 2, "comment", "", false);
+  addRule(lex, "comment", "[^*]+", 0, "comment", "", false);
+  addRule(lex, "comment", "\\*", 0, "comment", "", false);
+  addState(lex, "string");
+  addRule(lex, "string", "\\\\.", 0, "string.escape", "", false);
+  addRule(lex, "string", "\\\"", 2, "string", "", false);
+  addRule(lex, "string", "[^\\\\\"]+", 0, "string", "", false);
+  addState(lex, "stringS");
+  addRule(lex, "stringS", "\\\\.", 0, "string.escape", "", false);
+  addRule(lex, "stringS", "'", 2, "string", "", false);
+  addRule(lex, "stringS", "[^\\\\']+", 0, "string", "", false);
+  addState(lex, "stringT");
+  addRule(lex, "stringT", "\\\\.", 0, "string.escape", "", false);
+  addRule(lex, "stringT", "`", 2, "string", "", false);
+  addRule(lex, "stringT", "[^\\\\`]+", 0, "string", "", false);
+}
+
+export Lexer jsonLexer() {
+  string[] keywords = ["true", "false", "null"];
+  Lexer lex = createLexer("json", ".json", "", keywords);
+  addRule(lex, "root", wsRe(), 0, "", "", false);
+  addRule(lex, "root", "[{}\\[\\]]", 0, tokBracket(), "", false);
+  addRule(lex, "root", "[:,]", 0, tokDelim(), "", false);
+  addRule(lex, "root", "true|false|null", 4, "keyword", "", false);
+  addRule(lex, "root", "-?\\d+(\\.\\d+)?([eE][+\\-]?\\d+)?", 0, "number", "", false);
+  addRule(lex, "root", "\\\"", 1, "string", "string", false);
+  addState(lex, "string");
+  addRule(lex, "string", "\\\\.", 0, "string.escape", "", false);
+  addRule(lex, "string", "\\\"", 2, "string", "", false);
+  addRule(lex, "string", "[^\\\\\"]+", 0, "string", "", false);
+  return lex;
+}
+
+export Lexer pythonLexer() {
+  string[] keywords = [
+    "False", "None", "True", "and", "as", "assert", "async", "await", "break",
+    "class", "continue", "def", "del", "elif", "else", "except", "finally", "for",
+    "from", "global", "if", "import", "in", "is", "lambda", "nonlocal", "not",
+    "or", "pass", "raise", "return", "try", "while", "with", "yield", "match", "case"
+  ];
+  Lexer lex = createLexer("python", ".python", "", keywords);
+  addRule(lex, "root", wsRe(), 0, "", "", false);
+  addRule(lex, "root", "#.*", 0, "comment", "", false);
+  addRule(lex, "root", "\\\"\\\"\\\"", 1, "string", "tstring", false);
+  addRule(lex, "root", "'''", 1, "string", "tstringS", false);
+  addRule(lex, "root", "\\\"", 1, "string", "string", false);
+  addRule(lex, "root", "'", 1, "string", "stringS", false);
+  addRule(lex, "root", "\\d+\\.\\d+", 0, "number", "", false);
+  addRule(lex, "root", "\\d+", 0, "number", "", false);
+  addRule(lex, "root", "[a-zA-Z_][\\w]*", 4, "identifier", "", false);
+  addRule(lex, "root", "[{}()\\[\\]]", 0, tokBracket(), "", false);
+  addRule(lex, "root", "[:;,.=+\\-*/%<>!&|^~]+", 0, tokDelim(), "", false);
+  addState(lex, "string");
+  addRule(lex, "string", "\\\\.", 0, "string.escape", "", false);
+  addRule(lex, "string", "\\\"", 2, "string", "", false);
+  addRule(lex, "string", "[^\\\\\"]+", 0, "string", "", false);
+  addState(lex, "stringS");
+  addRule(lex, "stringS", "\\\\.", 0, "string.escape", "", false);
+  addRule(lex, "stringS", "'", 2, "string", "", false);
+  addRule(lex, "stringS", "[^\\\\']+", 0, "string", "", false);
+  addState(lex, "tstring");
+  addRule(lex, "tstring", "\\\"\\\"\\\"", 2, "string", "", false);
+  addRule(lex, "tstring", "[^\"]+", 0, "string", "", false);
+  addRule(lex, "tstring", "\\\"", 0, "string", "", false);
+  addState(lex, "tstringS");
+  addRule(lex, "tstringS", "'''", 2, "string", "", false);
+  addRule(lex, "tstringS", "[^']+", 0, "string", "", false);
+  addRule(lex, "tstringS", "'", 0, "string", "", false);
+  return lex;
+}
+
+export Lexer htmlLexer() {
+  string[] keywords = [
+    "html", "head", "body", "div", "span", "script", "style", "link", "meta", "title",
+    "p", "a", "ul", "ol", "li", "table", "tr", "td", "th", "form", "input", "button",
+    "img", "h1", "h2", "h3", "h4", "h5", "h6", "section", "article", "nav", "footer",
+    "header", "main", "pre", "code", "textarea", "select", "option"
+  ];
+  Lexer lex = createLexer("html", ".html", "", keywords);
+  addRule(lex, "root", wsRe(), 0, "", "", false);
+  addRule(lex, "root", "<!--", 1, "comment", "comment", false);
+  addRule(lex, "root", "</?[a-zA-Z][\\w:-]*", 1, "tag", "tag", false);
+  addRule(lex, "root", "[^<]+", 0, "", "", false);
+  addState(lex, "comment");
+  addRule(lex, "comment", "-->", 2, "comment", "", false);
+  addRule(lex, "comment", "[^-]+", 0, "comment", "", false);
+  addRule(lex, "comment", "-", 0, "comment", "", false);
+  addState(lex, "tag");
+  addRule(lex, "tag", "/?>", 2, "tag", "", false);
+  addRule(lex, "tag", wsRe(), 0, "", "", false);
+  addRule(lex, "tag", "[a-zA-Z_:][\\w:.-]*", 0, "attribute.name", "", false);
+  addRule(lex, "tag", "=", 0, tokDelim(), "", false);
+  addRule(lex, "tag", "\\\"", 1, "attribute.value", "attr", false);
+  addRule(lex, "tag", "'", 1, "attribute.value", "attrS", false);
+  addState(lex, "attr");
+  addRule(lex, "attr", "\\\"", 2, "attribute.value", "", false);
+  addRule(lex, "attr", "[^\\\"]+", 0, "attribute.value", "", false);
+  addState(lex, "attrS");
+  addRule(lex, "attrS", "'", 2, "attribute.value", "", false);
+  addRule(lex, "attrS", "[^']+", 0, "attribute.value", "", false);
+  return lex;
+}
+
+export Lexer cssLexer() {
+  string[] keywords = [
+    "important", "color", "background", "margin", "padding", "border", "display",
+    "flex", "grid", "position", "top", "left", "right", "bottom", "width", "height",
+    "font", "text", "align", "justify", "content", "absolute", "relative", "fixed",
+    "block", "inline", "none", "auto", "inherit", "initial"
+  ];
+  Lexer lex = createLexer("css", ".css", "", keywords);
+  addRule(lex, "root", wsRe(), 0, "", "", false);
+  addRule(lex, "root", "/\\*", 1, "comment", "comment", false);
+  addRule(lex, "root", "\\\"", 1, "string", "string", false);
+  addRule(lex, "root", "#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})\\b", 0, "number.hex", "", false);
+  addRule(lex, "root", "-?\\d+(\\.\\d+)?(px|em|rem|%|vh|vw|pt|ex)?", 0, "number", "", false);
+  addRule(lex, "root", "[a-zA-Z_-][\\w-]*", 4, "identifier", "", false);
+  addRule(lex, "root", "[{}();:]", 0, tokDelim(), "", false);
+  addRule(lex, "root", "[.,#>\\[\\]+~*]", 0, tokDelim(), "", false);
+  addState(lex, "comment");
+  addRule(lex, "comment", "\\*/", 2, "comment", "", false);
+  addRule(lex, "comment", "[^*]+", 0, "comment", "", false);
+  addRule(lex, "comment", "\\*", 0, "comment", "", false);
+  addState(lex, "string");
+  addRule(lex, "string", "\\\"", 2, "string", "", false);
+  addRule(lex, "string", "[^\\\"]+", 0, "string", "", false);
+  return lex;
+}
+
+export Lexer markdownLexer() {
+  string[] keywords = [];
+  Lexer lex = createLexer("markdown", ".md", "", keywords);
+  addRule(lex, "root", "^#{1,6}[ \\t].*$", 0, "keyword", "", true);
+  addRule(lex, "root", "^\\s*[-*+]\\s+", 0, "keyword", "", true);
+  addRule(lex, "root", "`+", 1, "string", "code", false);
+  addRule(lex, "root", "\\*\\*[^*]+\\*\\*", 0, "strong", "", false);
+  addRule(lex, "root", "\\*[^*]+\\*", 0, "emphasis", "", false);
+  addRule(lex, "root", "\\[[^\\]]+\\]\\([^\\)]+\\)", 0, "string.link", "", false);
+  addRule(lex, "root", "[^`*\\[#]+", 0, "", "", false);
+  addRule(lex, "root", ".", 0, "", "", false);
+  addState(lex, "code");
+  addRule(lex, "code", "`+", 2, "string", "", false);
+  addRule(lex, "code", "[^`]+", 0, "string", "", false);
+  return lex;
+}

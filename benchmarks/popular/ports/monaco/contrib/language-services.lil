@@ -1,0 +1,79 @@
+import { CodeEditor } from "../editor/standalone";
+import { SuggestItem } from "./popular";
+import { Pos } from "../base/position";
+import { hoverAt } from "./popular";
+import { emptyBuf } from "../js-host";
+
+string[] jsonKeys(string value) {
+  string[] keys = [];
+  int i = 0;
+  while (i < value.length) {
+    if (value.charAt(i) == "\"") {
+      int j = i + 1;
+      string key = emptyBuf();
+      while (j < value.length && value.charAt(j) != "\"") {
+        key = key + value.charAt(j);
+        j++;
+      }
+      int k = j + 1;
+      while (k < value.length && (value.charAt(k) == " " || value.charAt(k) == "\t")) {
+        k++;
+      }
+      if (k < value.length && value.charAt(k) == ":") {
+        if (keys.indexOf(key) < 0) {
+          keys.push(key);
+        }
+      }
+      i = j;
+    }
+    i++;
+  }
+  return keys;
+}
+
+export string[] jsonDocumentSymbols(CodeEditor editor) {
+  return jsonKeys(editor.getValue());
+}
+
+export string jsonHover(CodeEditor editor, Pos pos) {
+  return hoverAt(editor, pos);
+}
+
+string[] cssProperties = [
+  "color", "background", "margin", "padding", "border", "display", "flex",
+  "grid", "position", "width", "height", "font-size", "font-family", "line-height",
+  "text-align", "justify-content", "align-items", "overflow", "opacity", "z-index"
+];
+
+export SuggestItem[] cssCompletions(string prefix) {
+  SuggestItem[] items = [];
+  int i = 0;
+  while (i < cssProperties.length) {
+    if (prefix.length == 0 || cssProperties[i].indexOf(prefix) == 0) {
+      items.push(new SuggestItem(cssProperties[i], cssProperties[i] + ": "));
+    }
+    i++;
+  }
+  return items;
+}
+
+string[] htmlTags = [
+  "div", "span", "p", "a", "ul", "ol", "li", "table", "tr", "td", "section",
+  "article", "header", "footer", "nav", "main", "button", "input", "form", "img"
+];
+
+export SuggestItem[] htmlCompletions(string prefix) {
+  SuggestItem[] items = [];
+  int i = 0;
+  while (i < htmlTags.length) {
+    if (prefix.length == 0 || htmlTags[i].indexOf(prefix) == 0) {
+      items.push(new SuggestItem(htmlTags[i], "<" + htmlTags[i] + "></" + htmlTags[i] + ">"));
+    }
+    i++;
+  }
+  return items;
+}
+
+export bool languageServicesWithoutTsc() {
+  return true;
+}

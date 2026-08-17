@@ -1,0 +1,706 @@
+import {
+  setDisplay,
+  setInnerHTML,
+  setTextContent,
+  inputSetValue,
+  inputGetValue,
+  focusElement,
+  setStyle,
+  preventDefault,
+  jsUndefined,
+  jsArrayLen,
+  jsArrayAt,
+  jsPropString,
+  emptyBuf
+} from "../js-host";
+import { EditorView } from "../editor/view";
+import { Pos } from "../base/position";
+import { createRange, Rng } from "../base/range";
+import { FindMatch } from "../editor/search";
+import { editOp } from "../editor/text-model";
+import { setPosition, setSel, typeText, selectedText } from "../editor/commands";
+import {
+  SuggestItem,
+  FoldRange,
+  findInModel,
+  hoverAtModel,
+  suggestAtModel,
+  expandSnippet,
+  toggleLineCommentModel,
+  toggleBlockCommentModel,
+  matchBracketModel,
+  highlightWordModel,
+  detectLinksModel,
+  stickyLinesModel,
+  formatValue,
+  transformCase
+} from "./engine";
+import { wordAt, WordRange } from "../editor/word";
+import { invokeProvider, providersFor, suggestItemsFromJs, hoverFromJs, rangeFromJs } from "../languages/providers";
+import { Marker, markersForModel } from "../editor/markers";
+
+export void openFind(EditorView view, bool replace) {
+  view.findOpen = true;
+  setDisplay(view.findWidget, "block");
+  if (selectedText(view).length > 0) {
+    view.findQuery = selectedText(view);
+    inputSetValue(view.findInput, view.findQuery);
+  }
+  focusElement(view.findInput);
+}
+
+export void closeFind(EditorView view) {
+  view.findOpen = false;
+  setDisplay(view.findWidget, "none");
+  focusElement(view.textarea);
+}
+
+export FindMatch[] currentFinds(EditorView view) {
+  view.findQuery = inputGetValue(view.findInput);
+  if (view.findQuery.length == 0) {
+    FindMatch[] empty = [];
+    return empty;
+  }
+  return findInModel(view.model, view.findQuery, false, true, false);
+}
+
+export void findNext(EditorView view, bool reverse) {
+  FindMatch[] found = currentFinds(view);
+  if (found.length == 0) {
+    return;
+  }
+  if (reverse) {
+    view.findIndex = view.findIndex - 1;
+    if (view.findIndex < 0) {
+      view.findIndex = found.length - 1;
+    }
+  } else {
+    view.findIndex = view.findIndex + 1;
+    if (view.findIndex >= found.length) {
+      view.findIndex = 0;
+    }
+  }
+  FindMatch hit = found[view.findIndex];
+  setSel(view, hit.range.startLineNumber, hit.range.startColumn, hit.range.endLineNumber, hit.range.endColumn);
+  view.render();
+}
+
+export void replaceOne(EditorView view) {
+  view.replaceQuery = inputGetValue(view.replaceInput);
+  FindMatch[] found = currentFinds(view);
+  if (found.length == 0) {
+    return;
+  }
+  if (view.findIndex >= found.length) {
+    view.findIndex = 0;
+  }
+  FindMatch hit = found[view.findIndex];
+  view.model.applyEdits([editOp(hit.range.startLineNumber, hit.range.startColumn, hit.range.endLineNumber, hit.range.endColumn, view.replaceQuery)], true);
+  view.render();
+  findNext(view, false);
+}
+
+export void replaceAll(EditorView view) {
+  view.replaceQuery = inputGetValue(view.replaceInput);
+  FindMatch[] found = currentFinds(view);
+  int i = found.length - 1;
+  while (i >= 0) {
+    FindMatch hit = found[i];
+    view.model.applyEdits([editOp(hit.range.startLineNumber, hit.range.startColumn, hit.range.endLineNumber, hit.range.endColumn, view.replaceQuery)], true);
+    i--;
+  }
+  view.render();
+}
+
+export void showSuggest(EditorView view) {
+  SuggestItem[] items = suggestAtModel(view.model, new Pos(view.selection.positionLineNumber, view.selection.positionColumn));
+  JsValue[] extra = providersFor("completion", view.languageId);
+  int p = 0;
+  while (p < extra.length) {
+    JsValue raw = invokeProvider(extra[p], "provideCompletionItems", view.modelFacade, record{
+      lineNumber: view.selection.positionLineNumber,
+      column: view.selection.positionColumn
+    }, jsUndefined());
+    SuggestItem[] more = suggestItemsFromJs(raw);
+    int m = 0;
+    while (m < more.length) {
+      items.push(more[m]);
+      m++;
+    }
+    p++;
+  }
+  view.suggestItems = items;
+  view.suggestIndex = 0;
+  view.suggestOpen = items.length > 0;
+  if (!view.suggestOpen) {
+    setDisplay(view.suggestWidget, "none");
+    return;
+  }
+  string html = emptyBuf();
+  int i = 0;
+  while (i < items.length && i < 12) {
+    string mark = "";
+    if (i == view.suggestIndex) {
+      mark = " background:#04395e;";
+    }
+    html = html + "<div data-suggest=\"" + i.toString() + "\" style=\"padding:2px 6px;" + mark + "\">" + items[i].label + "</div>";
+    i++;
+  }
+  setInnerHTML(view.suggestWidget, html);
+  int top = (view.selection.positionLineNumber) * view.lineHeight;
+  int left = (view.selection.positionColumn - 1) * view.charWidth + 56;
+  setStyle(view.suggestWidget, "top", top.toString() + "px");
+  setStyle(view.suggestWidget, "left", left.toString() + "px");
+  setDisplay(view.suggestWidget, "block");
+}
+
+export void hideSuggest(EditorView view) {
+  view.suggestOpen = false;
+  setDisplay(view.suggestWidget, "none");
+}
+
+export void acceptSuggest(EditorView view) {
+  if (!view.suggestOpen || view.suggestItems.length == 0) {
+    return;
+  }
+  SuggestItem item = view.suggestItems[view.suggestIndex];
+  WordRange word = wordAt(view.model.getLineContent(view.selection.positionLineNumber), view.selection.positionColumn);
+  view.model.applyEdits([editOp(
+    view.selection.positionLineNumber,
+    word.startColumn,
+    view.selection.positionLineNumber,
+    word.endColumn,
+    expandSnippet(item.insertText)
+  )], true);
+  hideSuggest(view);
+  view.render();
+}
+
+export void moveSuggest(EditorView view, int dir) {
+  if (!view.suggestOpen) {
+    return;
+  }
+  view.suggestIndex = view.suggestIndex + dir;
+  if (view.suggestIndex < 0) {
+    view.suggestIndex = view.suggestItems.length - 1;
+  }
+  if (view.suggestIndex >= view.suggestItems.length) {
+    view.suggestIndex = 0;
+  }
+  showSuggest(view);
+}
+
+export void showHover(EditorView view) {
+  Pos pos = new Pos(view.selection.positionLineNumber, view.selection.positionColumn);
+  string text = hoverAtModel(view.model, pos);
+  JsValue[] extra = providersFor("hover", view.languageId);
+  int p = 0;
+  while (p < extra.length) {
+    JsValue raw = invokeProvider(extra[p], "provideHover", view.modelFacade, record{
+      lineNumber: pos.lineNumber,
+      column: pos.column
+    }, jsUndefined());
+    string more = hoverFromJs(raw);
+    if (more.length > 0) {
+      if (text.length > 0) {
+        text = text + "\n";
+      }
+      text = text + more;
+    }
+    p++;
+  }
+  Marker[] marks = markersForModel(view.model);
+  int m = 0;
+  while (m < marks.length) {
+    if (marks[m].startLineNumber == pos.lineNumber) {
+      if (text.length > 0) {
+        text = text + "\n";
+      }
+      text = text + marks[m].message;
+    }
+    m++;
+  }
+  view.hoverOpen = text.length > 0;
+  if (!view.hoverOpen) {
+    setDisplay(view.hoverWidget, "none");
+    return;
+  }
+  setTextContent(view.hoverWidget, text);
+  setStyle(view.hoverWidget, "top", ((pos.lineNumber) * view.lineHeight).toString() + "px");
+  setStyle(view.hoverWidget, "left", ((pos.column - 1) * view.charWidth + 56).toString() + "px");
+  setDisplay(view.hoverWidget, "block");
+}
+
+export void hideHover(EditorView view) {
+  view.hoverOpen = false;
+  setDisplay(view.hoverWidget, "none");
+}
+
+export void showGoto(EditorView view) {
+  view.gotoOpen = true;
+  setDisplay(view.gotoWidget, "block");
+  focusElement(view.gotoInput);
+}
+
+export void acceptGoto(EditorView view) {
+  string raw = inputGetValue(view.gotoInput);
+  int line = 1;
+  if (raw.length > 0) {
+    line = JS.number(raw).toInt();
+  }
+  int last = view.model.getLineCount();
+  if (line < 1) {
+    line = 1;
+  }
+  if (line > last) {
+    line = last;
+  }
+  setPosition(view, line, 1);
+  view.gotoOpen = false;
+  setDisplay(view.gotoWidget, "none");
+  view.render();
+  focusElement(view.textarea);
+}
+
+export void showRename(EditorView view) {
+  WordRange word = wordAt(view.model.getLineContent(view.selection.positionLineNumber), view.selection.positionColumn);
+  view.renameWord = word.word;
+  view.renameOpen = true;
+  inputSetValue(view.renameInput, word.word);
+  setDisplay(view.renameWidget, "block");
+  focusElement(view.renameInput);
+}
+
+export void acceptRename(EditorView view) {
+  string next = inputGetValue(view.renameInput);
+  if (view.renameWord.length > 0 && next.length > 0) {
+    FindMatch[] found = findInModel(view.model, view.renameWord, false, true, true);
+    int i = found.length - 1;
+    while (i >= 0) {
+      FindMatch hit = found[i];
+      view.model.applyEdits([editOp(hit.range.startLineNumber, hit.range.startColumn, hit.range.endLineNumber, hit.range.endColumn, next)], true);
+      i--;
+    }
+  }
+  view.renameOpen = false;
+  setDisplay(view.renameWidget, "none");
+  view.render();
+  focusElement(view.textarea);
+}
+
+export void showContext(EditorView view, int x, int y) {
+  view.contextOpen = true;
+  string html = "<div data-cmd=\"editor.action.clipboardCutAction\">Cut</div>";
+  html = html + "<div data-cmd=\"editor.action.clipboardCopyAction\">Copy</div>";
+  html = html + "<div data-cmd=\"editor.action.clipboardPasteAction\">Paste</div>";
+  html = html + "<div data-cmd=\"editor.action.commentLine\">Toggle Line Comment</div>";
+  html = html + "<div data-cmd=\"editor.action.formatDocument\">Format Document</div>";
+  html = html + "<div data-cmd=\"editor.action.rename\">Rename Symbol</div>";
+  html = html + "<div data-cmd=\"editor.action.goToDefinition\">Go to Definition</div>";
+  html = html + "<div data-cmd=\"editor.action.peekDefinition\">Peek References</div>";
+  setInnerHTML(view.contextWidget, html);
+  setStyle(view.contextWidget, "top", y.toString() + "px");
+  setStyle(view.contextWidget, "left", x.toString() + "px");
+  setDisplay(view.contextWidget, "block");
+}
+
+export void hideContext(EditorView view) {
+  view.contextOpen = false;
+  setDisplay(view.contextWidget, "none");
+}
+
+export void showParameterHints(EditorView view) {
+  string word = hoverAtModel(view.model, new Pos(view.selection.positionLineNumber, view.selection.positionColumn));
+  string text = word + "(value, options)";
+  JsValue[] extra = providersFor("signatureHelp", view.languageId);
+  if (extra.length > 0) {
+    JsValue raw = invokeProvider(extra[0], "provideSignatureHelp", view.modelFacade, record{
+      lineNumber: view.selection.positionLineNumber,
+      column: view.selection.positionColumn
+    }, jsUndefined());
+    string more = hoverFromJs(raw);
+    if (more.length > 0) {
+      text = more;
+    }
+  }
+  setTextContent(view.paramWidget, text);
+  setDisplay(view.paramWidget, "block");
+}
+
+export void hideParameterHints(EditorView view) {
+  setDisplay(view.paramWidget, "none");
+}
+
+export void goToDefinition(EditorView view) {
+  JsValue[] extra = providersFor("definition", view.languageId);
+  if (extra.length > 0) {
+    JsValue raw = invokeProvider(extra[0], "provideDefinition", view.modelFacade, record{
+      lineNumber: view.selection.positionLineNumber,
+      column: view.selection.positionColumn
+    }, jsUndefined());
+    if (raw.truthy()) {
+      JsValue loc = raw;
+    if (raw[0].truthy()) {
+      loc = raw[0];
+    }
+    Rng r = rangeFromJs(loc);
+      setPosition(view, r.startLineNumber, r.startColumn);
+      view.render();
+      return;
+    }
+  }
+  WordRange word = wordAt(view.model.getLineContent(view.selection.positionLineNumber), view.selection.positionColumn);
+  FindMatch[] found = findInModel(view.model, word.word, false, true, true);
+  if (found.length > 0) {
+    setPosition(view, found[0].range.startLineNumber, found[0].range.startColumn);
+    view.render();
+  }
+}
+
+export void peekReferences(EditorView view) {
+  WordRange word = wordAt(view.model.getLineContent(view.selection.positionLineNumber), view.selection.positionColumn);
+  FindMatch[] found = findInModel(view.model, word.word, false, true, true);
+  string html = emptyBuf();
+  int i = 0;
+  while (i < found.length && i < 20) {
+    html = html + "<div data-line=\"" + found[i].range.startLineNumber.toString() + "\">" + found[i].range.startLineNumber.toString() + ": " + found[i].matches[0] + "</div>";
+    i++;
+  }
+  setInnerHTML(view.hoverWidget, html);
+  setDisplay(view.hoverWidget, "block");
+  view.hoverOpen = true;
+}
+
+export void formatDocument(EditorView view) {
+  JsValue[] extra = providersFor("documentFormatting", view.languageId);
+  if (extra.length > 0) {
+    JsValue raw = invokeProvider(extra[0], "provideDocumentFormattingEdits", view.modelFacade, jsUndefined(), jsUndefined());
+    int n = 0;
+    if (raw.truthy()) {
+      n = 1;
+    }
+    if (n > 0 && raw[0].truthy()) {
+      string text = emptyBuf();
+      if (raw[0]["text"].truthy()) {
+        text = JS.string(raw[0]["text"]);
+      }
+      if (text.length > 0) {
+        int last = view.model.getLineCount();
+        view.model.applyEdits([editOp(1, 1, last, view.model.getLineLength(last) + 1, text)], true);
+        view.render();
+        return;
+      }
+    }
+  }
+  view.model.setValue(formatValue(view.model.getValue()));
+  view.render();
+}
+
+export void addNextFindMatch(EditorView view) {
+  WordRange word = wordAt(view.model.getLineContent(view.selection.positionLineNumber), view.selection.positionColumn);
+  string query = selectedText(view);
+  if (query.length == 0) {
+    query = word.word;
+    setSel(view, view.selection.positionLineNumber, word.startColumn, view.selection.positionLineNumber, word.endColumn);
+  }
+  FindMatch[] found = findInModel(view.model, query, false, true, true);
+  int i = 0;
+  while (i < found.length) {
+    FindMatch hit = found[i];
+    bool same = hit.range.startLineNumber == view.selection.startLineNumber && hit.range.startColumn == view.selection.startColumn;
+    if (!same) {
+      view.extraCursors.push(view.selection);
+      setSel(view, hit.range.startLineNumber, hit.range.startColumn, hit.range.endLineNumber, hit.range.endColumn);
+      view.render();
+      return;
+    }
+    i++;
+  }
+}
+
+export bool runEditorAction(EditorView view, string id, string text) {
+  if (id == "actions.find" || id == "editor.action.startFindAction") {
+    openFind(view, false);
+    return true;
+  }
+  if (id == "editor.action.startFindReplaceAction") {
+    openFind(view, true);
+    return true;
+  }
+  if (id == "editor.action.nextMatchFindAction") {
+    findNext(view, false);
+    return true;
+  }
+  if (id == "editor.action.previousMatchFindAction") {
+    findNext(view, true);
+    return true;
+  }
+  if (id == "editor.action.replaceOne") {
+    replaceOne(view);
+    return true;
+  }
+  if (id == "editor.action.replaceAll") {
+    replaceAll(view);
+    return true;
+  }
+  if (id == "closeFindWidget") {
+    closeFind(view);
+    return true;
+  }
+  if (id == "editor.action.triggerSuggest") {
+    showSuggest(view);
+    return true;
+  }
+  if (id == "acceptSelectedSuggestion") {
+    acceptSuggest(view);
+    return true;
+  }
+  if (id == "hideSuggestWidget") {
+    hideSuggest(view);
+    return true;
+  }
+  if (id == "editor.action.showHover") {
+    showHover(view);
+    return true;
+  }
+  if (id == "editor.action.gotoLine") {
+    showGoto(view);
+    return true;
+  }
+  if (id == "editor.action.rename") {
+    showRename(view);
+    return true;
+  }
+  if (id == "editor.action.triggerParameterHints") {
+    showParameterHints(view);
+    return true;
+  }
+  if (id == "closeParameterHints") {
+    hideParameterHints(view);
+    return true;
+  }
+  if (id == "editor.action.commentLine") {
+    toggleLineCommentModel(view.model, view.selection.positionLineNumber, view.languageId);
+    view.render();
+    return true;
+  }
+  if (id == "editor.action.blockComment") {
+    toggleBlockCommentModel(view.model, createRange(
+      view.selection.startLineNumber,
+      view.selection.startColumn,
+      view.selection.endLineNumber,
+      view.selection.endColumn
+    ), view.languageId);
+    view.render();
+    return true;
+  }
+  if (id == "editor.action.jumpToBracket") {
+    Rng? br = matchBracketModel(view.model, new Pos(view.selection.positionLineNumber, view.selection.positionColumn));
+    if (br != null) {
+      setPosition(view, br.endLineNumber, br.endColumn);
+      view.render();
+    }
+    return true;
+  }
+  if (id == "editor.action.selectToBracket") {
+    Rng? br2 = matchBracketModel(view.model, new Pos(view.selection.positionLineNumber, view.selection.positionColumn));
+    if (br2 != null) {
+      setSel(view, br2.startLineNumber, br2.startColumn, br2.endLineNumber, br2.endColumn);
+      view.render();
+    }
+    return true;
+  }
+  if (id == "editor.fold") {
+    view.toggleFoldAt(view.selection.positionLineNumber);
+    return true;
+  }
+  if (id == "editor.unfold") {
+    view.toggleFoldAt(view.selection.positionLineNumber);
+    return true;
+  }
+  if (id == "editor.foldAll") {
+    view.setAllFolds(true);
+    return true;
+  }
+  if (id == "editor.unfoldAll") {
+    view.setAllFolds(false);
+    return true;
+  }
+  if (id == "editor.action.formatDocument") {
+    formatDocument(view);
+    return true;
+  }
+  if (id == "editor.action.goToDefinition" || id == "editor.action.revealDefinition" || id == "editor.action.goToDeclaration") {
+    goToDefinition(view);
+    return true;
+  }
+  if (id == "editor.action.goToReferences" || id == "editor.action.referenceSearch.trigger" || id == "editor.action.peekDefinition") {
+    peekReferences(view);
+    return true;
+  }
+  if (id == "editor.action.addSelectionToNextFindMatch") {
+    addNextFindMatch(view);
+    return true;
+  }
+  if (id == "editor.action.selectHighlights" || id == "editor.action.changeAll") {
+    WordRange word = wordAt(view.model.getLineContent(view.selection.positionLineNumber), view.selection.positionColumn);
+    FindMatch[] found = findInModel(view.model, word.word, false, true, true);
+    if (found.length > 0) {
+      setSel(view, found[0].range.startLineNumber, found[0].range.startColumn, found[found.length - 1].range.endLineNumber, found[found.length - 1].range.endColumn);
+      view.render();
+    }
+    return true;
+  }
+  if (id == "editor.action.wordHighlight.trigger") {
+    highlightWordModel(view.model, new Pos(view.selection.positionLineNumber, view.selection.positionColumn));
+    return true;
+  }
+  if (id == "editor.action.openLink") {
+    detectLinksModel(view.model);
+    return true;
+  }
+  if (id == "editor.action.transformToUppercase") {
+    string sel = selectedText(view);
+    if (sel.length > 0) {
+      view.model.applyEdits([editOp(
+        view.selection.startLineNumber,
+        view.selection.startColumn,
+        view.selection.endLineNumber,
+        view.selection.endColumn,
+        transformCase(sel, true)
+      )], true);
+      view.render();
+    }
+    return true;
+  }
+  if (id == "editor.action.transformToLowercase") {
+    string sel = selectedText(view);
+    if (sel.length > 0) {
+      view.model.applyEdits([editOp(
+        view.selection.startLineNumber,
+        view.selection.startColumn,
+        view.selection.endLineNumber,
+        view.selection.endColumn,
+        transformCase(sel, false)
+      )], true);
+      view.render();
+    }
+    return true;
+  }
+  if (id == "editor.action.insertSnippet") {
+    typeText(view, expandSnippet(text));
+    return true;
+  }
+  if (id == "editor.action.quickOutline" || id == "editor.action.gotoSymbol") {
+    peekReferences(view);
+    return true;
+  }
+  if (id == "editor.action.marker.next" || id == "editor.action.gotoErrorNext" || id == "editor.action.marker.nextInFiles") {
+    gotoNextMarker(view, false);
+    return true;
+  }
+  if (id == "editor.action.marker.prev" || id == "editor.action.gotoErrorPrev") {
+    gotoNextMarker(view, true);
+    return true;
+  }
+  if (id == "editor.action.quickFix" || id == "editor.action.codeAction") {
+    showCodeActions(view);
+    return true;
+  }
+  if (id == "editor.action.smartSelect.expand") {
+    Rng? br = matchBracketModel(view.model, new Pos(view.selection.positionLineNumber, view.selection.positionColumn));
+    if (br != null) {
+      setSel(view, br.startLineNumber, br.startColumn, br.endLineNumber, br.endColumn);
+      view.render();
+    } else {
+      WordRange word = wordAt(view.model.getLineContent(view.selection.positionLineNumber), view.selection.positionColumn);
+      setSel(view, view.selection.positionLineNumber, word.startColumn, view.selection.positionLineNumber, word.endColumn);
+      view.render();
+    }
+    return true;
+  }
+  if (id == "editor.action.smartSelect.shrink") {
+    setPosition(view, view.selection.positionLineNumber, view.selection.positionColumn);
+    view.render();
+    return true;
+  }
+  if (id == "editor.toggleFold" || id == "editor.foldRecursively" || id == "editor.unfoldRecursively") {
+    view.toggleFoldAt(view.selection.positionLineNumber);
+    return true;
+  }
+  if (id == "editor.action.showContextMenu") {
+    showContext(view, 80, (view.selection.positionLineNumber) * view.lineHeight);
+    return true;
+  }
+  if (id == "editor.action.inlayHints.toggle") {
+    string[] sticky = stickyLinesModel(view.model, view.selection.positionLineNumber);
+    string html = emptyBuf();
+    int s = 0;
+    while (s < sticky.length) {
+      html = html + sticky[s] + "\n";
+      s++;
+    }
+    setTextContent(view.stickyWidget, html);
+    setDisplay(view.stickyWidget, "block");
+    return true;
+  }
+  return false;
+}
+
+void gotoNextMarker(EditorView view, bool reverse) {
+  Marker[] marks = markersForModel(view.model);
+  if (marks.length == 0) {
+    return;
+  }
+  int line = view.selection.positionLineNumber;
+  int bestLine = marks[0].startLineNumber;
+  int i = 0;
+  while (i < marks.length) {
+    int ml = marks[i].startLineNumber;
+    if (!reverse && ml > line) {
+      bestLine = ml;
+      break;
+    }
+    if (reverse && ml < line) {
+      bestLine = ml;
+    }
+    i++;
+  }
+  if (!reverse && bestLine <= line) {
+    bestLine = marks[0].startLineNumber;
+  }
+  setPosition(view, bestLine, 1);
+  showHover(view);
+  view.render();
+}
+
+void showCodeActions(EditorView view) {
+  JsValue[] extra = providersFor("codeAction", view.languageId);
+  string html = emptyBuf();
+  int p = 0;
+  while (p < extra.length) {
+    JsValue raw = invokeProvider(extra[p], "provideCodeActions", view.modelFacade, record{
+      startLineNumber: view.selection.startLineNumber,
+      startColumn: view.selection.startColumn,
+      endLineNumber: view.selection.endLineNumber,
+      endColumn: view.selection.endColumn
+    }, jsUndefined());
+    int n = jsArrayLen(raw);
+    if (raw.truthy() && raw["actions"].truthy()) {
+      n = jsArrayLen(raw["actions"]);
+      raw = raw["actions"];
+    }
+    int i = 0;
+    while (i < n) {
+      html = html + "<div>" + jsPropString(jsArrayAt(raw, i), "title", jsPropString(jsArrayAt(raw, i), "label", "fix")) + "</div>";
+      i++;
+    }
+    p++;
+  }
+  if (html.length == 0) {
+    html = "<div>No code actions</div>";
+  }
+  setInnerHTML(view.hoverWidget, html);
+  setDisplay(view.hoverWidget, "block");
+  view.hoverOpen = true;
+}

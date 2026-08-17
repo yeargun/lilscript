@@ -2,7 +2,7 @@ import { jQuery, each, wrap } from "../core";
 import { stripAndCollapse } from "../core/stripAndCollapse";
 import { isFunction } from "../var/isFunction";
 import { rnothtmlwhite } from "../var/rnothtmlwhite";
-import { dataPriv } from "../data/var/dataPriv";
+import { get as dataPrivGet, set as dataPrivSet } from "../data/var/dataPriv";
 import {
   jsUndefined,
   arrayIsArray,
@@ -131,12 +131,12 @@ JsValue removeClassImpl(JsValue self, JsValue value, float argCount) {
 JsValue toggleClassOne(JsValue el, JsValue value, JsValue stateVal) {
   string className = getClass(el);
   if (className != "") {
-    dataPriv.set(el, "__className__", className);
+    dataPrivSet(el, "__className__", className);
   }
   if (el["setAttribute"].truthy()) {
     string toSet = "";
     if (!(className != "" || JS.isFalse(value))) {
-      toSet = JS.string(JS.or(dataPriv.get(el, "__className__"), ""));
+      toSet = JS.string(JS.or(dataPrivGet(el, "__className__"), ""));
     }
     JS.invoke(el, "setAttribute", "class", toSet);
   }

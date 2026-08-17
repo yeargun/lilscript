@@ -1,0 +1,149 @@
+import { hostCall, jsUndefined, jsArrayLen, jsArrayAt, jsPropString, jsPropInt, emptyBuf } from "../js-host";
+import { Pos } from "../base/position";
+import { createRange, Rng } from "../base/range";
+import { SuggestItem } from "../contrib/engine";
+
+export class ProviderEntry {
+  string kind;
+  string languageId;
+  JsValue provider;
+
+  init(string kind, string languageId, JsValue provider) {
+    this.kind = kind;
+    this.languageId = languageId;
+    this.provider = provider;
+  }
+}
+
+ProviderEntry[] providers = [];
+
+string selectorLanguage(JsValue selector) {
+  if (!selector.truthy()) {
+    return "*";
+  }
+  string t = JS.string(selector);
+  if (t.length > 0 && t != "[object Object]") {
+    return t;
+  }
+  if (selector["language"].truthy()) {
+    return JS.string(selector["language"]);
+  }
+  if (selector[0].truthy()) {
+    return selectorLanguage(selector[0]);
+  }
+  return "*";
+}
+
+export func()->void registerProvider(string kind, JsValue selector, JsValue provider) {
+  ProviderEntry entry = new ProviderEntry(kind, selectorLanguage(selector), provider);
+  providers.push(entry);
+  return () => {
+    int i = 0;
+    while (i < providers.length) {
+      if (providers[i] == entry) {
+        providers.splice(i, 1);
+        return;
+      }
+      i++;
+    }
+  };
+}
+
+bool languageMatches(string want, string have) {
+  return want == "*" || want == have || want.length == 0;
+}
+
+export JsValue[] providersFor(string kind, string languageId) {
+  JsValue[] out = [];
+  int i = 0;
+  while (i < providers.length) {
+    if (providers[i].kind == kind && languageMatches(providers[i].languageId, languageId)) {
+      out.push(providers[i].provider);
+    }
+    i++;
+  }
+  return out;
+}
+
+export JsValue invokeProvider(JsValue provider, string method, JsValue a, JsValue b, JsValue c) {
+  return hostCall(provider, method, a, b, c);
+}
+
+export SuggestItem[] suggestItemsFromJs(JsValue result) {
+  SuggestItem[] items = [];
+  int n = jsArrayLen(result);
+  int i = 0;
+  while (i < n) {
+    JsValue row = jsArrayAt(result, i);
+    string label = jsPropString(row, "label", "");
+    string insert = jsPropString(row, "insertText", label);
+    if (label.length == 0) {
+      label = jsPropString(row, "insertText", "");
+    }
+    if (label.length > 0) {
+      SuggestItem item = new SuggestItem(label, insert);
+      item.kind = jsPropInt(row, "kind", 18);
+      items.push(item);
+    }
+    i++;
+  }
+  return items;
+}
+
+export string hoverFromJs(JsValue result) {
+  if (!result.truthy()) {
+    return emptyBuf();
+  }
+  string value = jsPropString(result, "value", "");
+  if (value.length > 0) {
+    return value;
+  }
+  JsValue contents = result["contents"];
+  int n = jsArrayLen(contents);
+  if (n == 0) {
+    n = jsArrayLen(result);
+    if (n > 0) {
+      return jsPropString(jsArrayAt(result, 0), "value", jsPropString(jsArrayAt(result, 0), "label", ""));
+    }
+    return JS.string(result);
+  }
+  string out = emptyBuf();
+  int i = 0;
+  while (i < n) {
+    JsValue part = jsArrayAt(contents, i);
+    string piece = jsPropString(part, "value", JS.string(part));
+    if (out.length > 0) {
+      out = out + "\n";
+    }
+    out = out + piece;
+    i++;
+  }
+  return out;
+}
+
+export Rng rangeFromJs(JsValue value) {
+  int sl = 1;
+  int sc = 1;
+  int el = 1;
+  int ec = 1;
+  if (value.truthy()) {
+    if (value["range"].truthy()) {
+      return rangeFromJs(value["range"]);
+    }
+    if (value["startLineNumber"].truthy()) {
+      sl = JS.number(value["startLineNumber"]).toInt();
+    }
+    if (value["startColumn"].truthy()) {
+      sc = JS.number(value["startColumn"]).toInt();
+    }
+    if (value["endLineNumber"].truthy()) {
+      el = JS.number(value["endLineNumber"]).toInt();
+    }
+    if (value["endColumn"].truthy()) {
+      ec = JS.number(value["endColumn"]).toInt();
+    }
+  }
+  return createRange(sl, sc, el, ec);
+}
+
+export { jsUndefined };

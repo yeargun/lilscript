@@ -8,7 +8,11 @@ import { rnothtmlwhite } from "./var/rnothtmlwhite";
 import { cssExpand } from "./css/var/cssExpand";
 import { isHiddenWithinTree } from "./css/var/isHiddenWithinTree";
 import { adjustCSS } from "./css/adjustCSS";
-import { dataPriv } from "./data/var/dataPriv";
+import {
+  get as dataPrivGet,
+  access as dataPrivAccess,
+  remove as dataPrivRemove
+} from "./data/var/dataPriv";
 import { showHide } from "./css/showHide";
 import { css, style } from "./css";
 import { createTween, tweenRun } from "./effects/Tween";
@@ -223,7 +227,7 @@ JsValue defaultPrefilter(JsValue elem, JsValue props, JsValue opts) {
   JsValue orig = JS.object();
   JsValue styleDecl = elem["style"];
   bool hidden = JS.and(elem, elem["nodeType"]).truthy() && isHiddenWithinTree(elem);
-  JsValue dataShow = dataPriv.get(elem, "fxshow");
+  JsValue dataShow = dataPrivGet(elem, "fxshow");
   bool toggle = false;
 
   if (!opts["queue"].truthy()) {
@@ -288,7 +292,7 @@ JsValue defaultPrefilter(JsValue elem, JsValue props, JsValue opts) {
 
     restoreDisplay = JS.and(dataShow, dataShow["display"]);
     if (JS.isNullish(restoreDisplay)) {
-      restoreDisplay = dataPriv.get(elem, "display");
+      restoreDisplay = dataPrivGet(elem, "display");
     }
 
     JsValue display = css(elem, "display");
@@ -344,7 +348,7 @@ JsValue defaultPrefilter(JsValue elem, JsValue props, JsValue opts) {
         }
       } else {
         JsValue fxshowInit = FxShowInit{restoreDisplay};
-        dataShow = dataPriv.access(elem, "fxshow", fxshowInit);
+        dataShow = dataPrivAccess(elem, "fxshow", fxshowInit);
       }
 
       if (toggle) {
@@ -359,7 +363,7 @@ JsValue defaultPrefilter(JsValue elem, JsValue props, JsValue opts) {
         if (!hidden) {
           showHide([elem], false);
         }
-        dataPriv.remove(elem, "fxshow");
+        dataPrivRemove(elem, "fxshow");
         for (string p3 in orig) {
           style(elem, p3, orig[p3]);
         }
@@ -646,7 +650,7 @@ JsValue fnAnimate(JsValue self, JsValue args) {
 
     JsValue anim = AnimationWithOpts(self2, propCopy, optall);
 
-    if (empty || dataPriv.get(self2, "finish").truthy()) {
+    if (empty || dataPrivGet(self2, "finish").truthy()) {
       JS.invoke(anim, "stop", true);
     }
     return JS.undefined();
@@ -696,7 +700,7 @@ JsValue fnStop(JsValue self, JsValue args) {
       hasIndex = true;
     }
 
-    JsValue data = dataPriv.get(el);
+    JsValue data = dataPrivGet(el);
 
     if (hasIndex) {
       if (data[indexKey].truthy() && data[indexKey]["stop"].truthy()) {
@@ -742,7 +746,7 @@ JsValue fnFinish(JsValue self, JsValue typeArg) {
   }
 
   return each(self, JS.method0((JsValue el) => {
-    JsValue data = dataPriv.get(el);
+    JsValue data = dataPrivGet(el);
     JsValue queue = data[type + "queue"];
     JsValue hooks = data[type + "queueHooks"];
     float length = 0.0;

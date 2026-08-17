@@ -54,6 +54,62 @@ export async function verify(lil, js) {
   await tick();
   assert.deepEqual(thenL, thenJ, "then chain");
 
+  const hookL = [];
+  const hookJ = [];
+  const prevHookL = $l.Deferred.getErrorHook;
+  const prevHookJ = $j.Deferred.getErrorHook;
+  const prevExL = $l.Deferred.exceptionHook;
+  const prevExJ = $j.Deferred.exceptionHook;
+  $l.Deferred.getErrorHook = () => "stack";
+  $j.Deferred.getErrorHook = () => "stack";
+  $l.Deferred.exceptionHook = (error, stack) => {
+    hookL.push([String(error && error.message), stack]);
+  };
+  $j.Deferred.exceptionHook = (error, stack) => {
+    hookJ.push([String(error && error.message), stack]);
+  };
+  $l.Deferred().resolve(1).then(() => {
+    throw new Error("boom");
+  });
+  $j.Deferred().resolve(1).then(() => {
+    throw new Error("boom");
+  });
+  await tick();
+  await tick();
+  $l.Deferred.getErrorHook = prevHookL;
+  $j.Deferred.getErrorHook = prevHookJ;
+  $l.Deferred.exceptionHook = prevExL;
+  $j.Deferred.exceptionHook = prevExJ;
+  assert.deepEqual(hookL, hookJ, "then throw getErrorHook");
+  assert.deepEqual(hookL, [["boom", "stack"]], "then throw message");
+
+  const stackL = [];
+  const stackJ = [];
+  $l.Deferred.getErrorHook = undefined;
+  $j.Deferred.getErrorHook = undefined;
+  $l.Deferred.getStackHook = () => "trace";
+  $j.Deferred.getStackHook = () => "trace";
+  $l.Deferred.exceptionHook = (error, stack) => {
+    stackL.push([String(error && error.message), stack]);
+  };
+  $j.Deferred.exceptionHook = (error, stack) => {
+    stackJ.push([String(error && error.message), stack]);
+  };
+  $l.Deferred().resolve(1).then(() => {
+    throw new Error("boom2");
+  });
+  $j.Deferred().resolve(1).then(() => {
+    throw new Error("boom2");
+  });
+  await tick();
+  await tick();
+  $l.Deferred.getStackHook = undefined;
+  $j.Deferred.getStackHook = undefined;
+  $l.Deferred.exceptionHook = prevExL;
+  $j.Deferred.exceptionHook = prevExJ;
+  assert.deepEqual(stackL, stackJ, "then throw getStackHook");
+  assert.deepEqual(stackL, [["boom2", "trace"]], "then throw stack");
+
   const catchL = [];
   const catchJ = [];
   $l.Deferred().reject("x").catch((v) => catchL.push(v));

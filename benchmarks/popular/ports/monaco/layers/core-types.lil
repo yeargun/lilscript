@@ -1,0 +1,64 @@
+import { Pos, createPosition, positionEquals, positionIsBefore, positionIsBeforeOrEqual, positionCompare } from "../base/position";
+import {
+  Rng,
+  createRange,
+  rangeFromPositions,
+  rangeIsEmpty,
+  rangeContainsPosition,
+  rangeEquals,
+  rangesIntersectingOrTouching,
+  rangesIntersecting,
+  rangeSpansMultipleLines
+} from "../base/range";
+import {
+  Sel,
+  SelectionDirection,
+  createSelection,
+  selectionFromPositions,
+  selectionFromRange
+} from "../base/selection";
+
+export Pos Position(int lineNumber, int column) {
+  return createPosition(lineNumber, column);
+}
+
+export Rng Range(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+  return createRange(startLineNumber, startColumn, endLineNumber, endColumn);
+}
+
+export Sel Selection(
+  int selectionStartLineNumber,
+  int selectionStartColumn,
+  int positionLineNumber,
+  int positionColumn
+) {
+  return createSelection(
+    selectionStartLineNumber,
+    selectionStartColumn,
+    positionLineNumber,
+    positionColumn
+  );
+}
+
+export {
+  Pos,
+  Rng,
+  Sel,
+  SelectionDirection,
+  createPosition,
+  createRange,
+  createSelection,
+  positionEquals,
+  positionIsBefore,
+  positionIsBeforeOrEqual,
+  positionCompare,
+  rangeFromPositions,
+  rangeIsEmpty,
+  rangeContainsPosition,
+  rangeEquals,
+  rangesIntersectingOrTouching,
+  rangesIntersecting,
+  rangeSpansMultipleLines,
+  selectionFromPositions,
+  selectionFromRange
+};

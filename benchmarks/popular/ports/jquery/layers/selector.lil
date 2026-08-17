@@ -1,0 +1,8 @@
+import { jQuery } from "../deferred/exceptionHook";
+import "../data";
+import "../queue";
+import "../selector/contains";
+import "../selector/escapeSelector";
+import "../selector";
+
+export { jQuery };

@@ -1,0 +1,164 @@
+import { TextModel } from "./text-model";
+
+export int MarkerSeverityHint = 1;
+export int MarkerSeverityInfo = 2;
+export int MarkerSeverityWarning = 4;
+export int MarkerSeverityError = 8;
+
+export class Marker {
+  string owner;
+  string message;
+  int severity;
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+  string resource;
+
+  init(
+    string owner,
+    string message,
+    int severity,
+    int startLineNumber,
+    int startColumn,
+    int endLineNumber,
+    int endColumn,
+    string resource
+  ) {
+    this.owner = owner;
+    this.message = message;
+    this.severity = severity;
+    this.startLineNumber = startLineNumber;
+    this.startColumn = startColumn;
+    this.endLineNumber = endLineNumber;
+    this.endColumn = endColumn;
+    this.resource = resource;
+  }
+}
+
+Marker[] allMarkers = [];
+
+string modelKey(TextModel model) {
+  return model.uri.toString();
+}
+
+Marker[] markersExcept(string owner, string key) {
+  Marker[] kept = [];
+  int i = 0;
+  while (i < allMarkers.length) {
+    Marker m = allMarkers[i];
+    bool drop = m.owner == owner && m.resource == key;
+    if (!drop) {
+      kept.push(m);
+    }
+    i = i + 1;
+  }
+  return kept;
+}
+
+Marker[] stampMarkers(Marker[] next, string owner, string key) {
+  Marker[] out = [];
+  int j = 0;
+  while (j < next.length) {
+    Marker n = next[j];
+    n.owner = owner;
+    n.resource = key;
+    out.push(n);
+    j = j + 1;
+  }
+  return out;
+}
+
+Marker[] concatMarkers(Marker[] left, Marker[] right) {
+  Marker[] out = [];
+  int i = 0;
+  while (i < left.length) {
+    out.push(left[i]);
+    i = i + 1;
+  }
+  int j = 0;
+  while (j < right.length) {
+    out.push(right[j]);
+    j = j + 1;
+  }
+  return out;
+}
+
+export void setModelMarkers(TextModel model, string owner, Marker[] next) {
+  string key = modelKey(model);
+  allMarkers = concatMarkers(markersExcept(owner, key), stampMarkers(next, owner, key));
+}
+
+export void removeAllMarkers(string owner) {
+  Marker[] kept = [];
+  int i = 0;
+  while (i < allMarkers.length) {
+    if (allMarkers[i].owner != owner) {
+      kept.push(allMarkers[i]);
+    }
+    i = i + 1;
+  }
+  allMarkers = kept;
+}
+
+export Marker[] getModelMarkers(string owner, string resource, int take) {
+  Marker[] out = [];
+  int i = 0;
+  while (i < allMarkers.length && (take <= 0 || out.length < take)) {
+    Marker m = allMarkers[i];
+    bool ownerOk = owner.length == 0 || m.owner == owner;
+    bool resOk = resource.length == 0 || m.resource == resource;
+    if (ownerOk && resOk) {
+      out.push(m);
+    }
+    i++;
+  }
+  return out;
+}
+
+export Marker[] markersForModel(TextModel model) {
+  return getModelMarkers("", modelKey(model), 0);
+}
+
+export string markerClass(int severity) {
+  if (severity >= MarkerSeverityError) {
+    return "squiggly-error";
+  }
+  if (severity >= MarkerSeverityWarning) {
+    return "squiggly-warning";
+  }
+  if (severity >= MarkerSeverityInfo) {
+    return "squiggly-info";
+  }
+  return "squiggly-hint";
+}
+
+export Marker markerFromJs(JsValue data, string owner, string resource) {
+  int sl = 1;
+  int sc = 1;
+  int el = 1;
+  int ec = 1;
+  int sev = MarkerSeverityError;
+  string msg = "";
+  if (data.truthy()) {
+    if (data["startLineNumber"].truthy()) {
+      sl = JS.number(data["startLineNumber"]).toInt();
+    }
+    if (data["startColumn"].truthy()) {
+      sc = JS.number(data["startColumn"]).toInt();
+    }
+    if (data["endLineNumber"].truthy()) {
+      el = JS.number(data["endLineNumber"]).toInt();
+    }
+    if (data["endColumn"].truthy()) {
+      ec = JS.number(data["endColumn"]).toInt();
+    }
+    if (data["severity"].truthy()) {
+      sev = JS.number(data["severity"]).toInt();
+    }
+    if (data["message"].truthy()) {
+      msg = JS.string(data["message"]);
+    }
+  }
+  return new Marker(owner, msg, sev, sl, sc, el, ec, resource);
+}

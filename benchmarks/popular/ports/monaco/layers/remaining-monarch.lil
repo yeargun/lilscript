@@ -1,0 +1,35 @@
+import { registerRemainingLanguages, remainingLanguageIds } from "../languages/remaining";
+import { registerPopularLanguages, languageIds, getLexer } from "../languages/registry";
+import { tokenizeText, Token, Lexer } from "../editor/monarch";
+
+export string[] allLanguageIds() {
+  registerPopularLanguages();
+  registerRemainingLanguages();
+  string[] popular = languageIds();
+  string[] rest = remainingLanguageIds();
+  string[] all = [];
+  int i = 0;
+  while (i < popular.length) {
+    all.push(popular[i]);
+    i++;
+  }
+  int j = 0;
+  while (j < rest.length) {
+    all.push(rest[j]);
+    j++;
+  }
+  return all;
+}
+
+export Token[] tokenizeRemaining(string languageId, string text) {
+  registerPopularLanguages();
+  registerRemainingLanguages();
+  Lexer? lex = getLexer(languageId);
+  if (lex == null) {
+    Token[] empty = [];
+    return empty;
+  }
+  return tokenizeText(lex, text);
+}
+
+export { registerRemainingLanguages, remainingLanguageIds };

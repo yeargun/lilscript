@@ -1,6 +1,6 @@
 import { emptyArray } from "../alloc.lil";
 import { jQuery, each, wrap } from "../core";
-import { dataPriv } from "../data/var/dataPriv";
+import { get as dataPrivGet, set as dataPrivSet } from "../data/var/dataPriv";
 import { css } from "../css";
 import { isHiddenWithinTree } from "./var/isHiddenWithinTree";
 import {
@@ -54,7 +54,7 @@ JsValue showHide(JsValue elements, bool show) {
 
     if (show) {
       if (display == "none") {
-        JsValue stored = dataPriv.get(elem, "display");
+        JsValue stored = dataPrivGet(elem, "display");
         if (!stored.truthy()) {
           stored = null;
         }
@@ -69,7 +69,7 @@ JsValue showHide(JsValue elements, bool show) {
       }
     } else if (display != "none") {
       values[index] = "none";
-      dataPriv.set(elem, "display", display);
+      dataPrivSet(elem, "display", display);
     }
   }
 

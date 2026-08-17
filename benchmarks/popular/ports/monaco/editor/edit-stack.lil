@@ -1,0 +1,79 @@
+import { Rng } from "../base/range";
+
+export class IdentifiedEdit {
+  Rng range;
+  string text;
+  int identifier;
+
+  init(Rng range, string text, int identifier) {
+    this.range = range;
+    this.text = text;
+    this.identifier = identifier;
+  }
+}
+
+export class EditStack {
+  IdentifiedEdit[][] past;
+  IdentifiedEdit[][] future;
+  int versionId;
+
+  init() {
+    this.past = [];
+    this.future = [];
+    this.versionId = 1;
+  }
+
+  void push(IdentifiedEdit[] inverse) {
+    this.past.push(inverse);
+    this.future = [];
+    this.versionId = this.versionId + 1;
+  }
+
+  IdentifiedEdit[]? popPast() {
+    if (this.past.length == 0) {
+      return null;
+    }
+    IdentifiedEdit[] op = this.past[this.past.length - 1];
+    this.past.splice(this.past.length - 1, 1);
+    this.versionId = this.versionId + 1;
+    return op;
+  }
+
+  IdentifiedEdit[]? popFuture() {
+    if (this.future.length == 0) {
+      return null;
+    }
+    IdentifiedEdit[] op = this.future[this.future.length - 1];
+    this.future.splice(this.future.length - 1, 1);
+    this.versionId = this.versionId + 1;
+    return op;
+  }
+
+  void rememberRedo(IdentifiedEdit[] forward) {
+    this.future.push(forward);
+  }
+
+  void rememberUndo(IdentifiedEdit[] inverse) {
+    this.past.push(inverse);
+  }
+
+  IdentifiedEdit[]? undo() {
+    return this.popPast();
+  }
+
+  IdentifiedEdit[]? redo() {
+    return this.popFuture();
+  }
+
+  bool canUndo() {
+    return this.past.length > 0;
+  }
+
+  bool canRedo() {
+    return this.future.length > 0;
+  }
+}
+
+export EditStack createEditStack() {
+  return new EditStack();
+}

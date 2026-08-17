@@ -1,0 +1,204 @@
+import extern {
+  stringSlice,
+  stringReplace,
+  stringSplit,
+  stringFromCharCode1,
+  newRegexp,
+  regexTest,
+  regexExec,
+  dateNow,
+  mathRandom,
+  scheduleTimeoutMs,
+  clearTimeoutId,
+  requestAnimationFrameOrNull,
+  domCreateElement,
+  createTextNode,
+  appendChild,
+  removeChild,
+  setTextContent,
+  getTextContent,
+  setInnerHTML,
+  getInnerHTML,
+  setClassName,
+  setStyle,
+  setAttribute,
+  addEventListener,
+  removeEventListener,
+  focusElement,
+  getClientWidth,
+  getClientHeight,
+  getScrollTop,
+  setScrollTop,
+  getScrollHeight,
+  preventDefault,
+  stopPropagation,
+  eventKey,
+  eventCode,
+  eventKeyCode,
+  eventCtrlKey,
+  eventShiftKey,
+  eventAltKey,
+  eventInputValue,
+  inputSetValue,
+  inputGetValue,
+  canvasGetContext2d,
+  canvasSetSize,
+  canvasFillRect,
+  clearChildren,
+  setTabIndex,
+  jsUndefined,
+  throwError,
+  clipboardRead,
+  clipboardWrite,
+  clipboardReadEvent,
+  clipboardWriteEvent,
+  eventClientX,
+  eventClientY,
+  eventButton,
+  eventDetail,
+  rectLeft,
+  rectTop,
+  getScrollLeft,
+  setScrollLeft,
+  blurElement,
+  setPlaceholder,
+  setDisplay,
+  classListAdd,
+  classListRemove,
+  hostCall,
+  hostThen,
+  jsArrayLen,
+  jsArrayAt,
+  jsPropString,
+  jsPropInt,
+  emptyBuf,
+  concat2,
+  beginIdList,
+  pushId,
+  takeIdList
+} from "./js-host.ts";
+
+export extern string stringSlice(string s, float start, float end = 9007199254740991.0);
+export extern string stringReplace(string s, Regex pattern, string replacement);
+export extern string[] stringSplit(string s, string sep);
+export extern string stringFromCharCode1(float a);
+export extern Regex newRegexp(string pattern, string flags = "");
+export extern bool regexTest(Regex re, string s);
+export extern JsValue regexExec(Regex re, string s);
+export extern float dateNow();
+export extern float mathRandom();
+export extern JsValue scheduleTimeoutMs(JsValue fn, float ms);
+export extern void clearTimeoutId(JsValue id);
+export extern JsValue requestAnimationFrameOrNull(JsValue fn);
+export extern JsValue domCreateElement(string tag);
+export extern JsValue createTextNode(string text);
+export extern JsValue appendChild(JsValue parent, JsValue child);
+export extern JsValue removeChild(JsValue parent, JsValue child);
+export extern void setTextContent(JsValue el, string text);
+export extern string getTextContent(JsValue el);
+export extern void setInnerHTML(JsValue el, string html);
+export extern string getInnerHTML(JsValue el);
+export extern void setClassName(JsValue el, string name);
+export extern void setStyle(JsValue el, string prop, string value);
+export extern void setAttribute(JsValue el, string name, string value);
+export extern void addEventListener(JsValue target, string eventName, JsValue handler, bool capture = false);
+export extern void removeEventListener(JsValue target, string eventName, JsValue handler, bool capture = false);
+export extern void focusElement(JsValue el);
+export extern int getClientWidth(JsValue el);
+export extern int getClientHeight(JsValue el);
+export extern int getScrollTop(JsValue el);
+export extern void setScrollTop(JsValue el, int value);
+export extern int getScrollHeight(JsValue el);
+export extern void preventDefault(JsValue event);
+export extern void stopPropagation(JsValue event);
+export extern string eventKey(JsValue event);
+export extern string eventCode(JsValue event);
+export extern int eventKeyCode(JsValue event);
+export extern bool eventCtrlKey(JsValue event);
+export extern bool eventShiftKey(JsValue event);
+export extern bool eventAltKey(JsValue event);
+export extern string eventInputValue(JsValue event);
+export extern void inputSetValue(JsValue el, string value);
+export extern string inputGetValue(JsValue el);
+export extern JsValue canvasGetContext2d(JsValue canvas);
+export extern void canvasSetSize(JsValue canvas, int width, int height);
+export extern void canvasFillRect(JsValue ctx, float x, float y, float w, float h, string color);
+export extern void clearChildren(JsValue el);
+export extern void setTabIndex(JsValue el, int value);
+export extern JsValue jsUndefined();
+export extern void throwError(string msg);
+export extern string clipboardRead();
+export extern void clipboardWrite(string text);
+export extern string clipboardReadEvent(JsValue event);
+export extern void clipboardWriteEvent(JsValue event, string text);
+export extern int eventClientX(JsValue event);
+export extern int eventClientY(JsValue event);
+export extern int eventButton(JsValue event);
+export extern int eventDetail(JsValue event);
+export extern int rectLeft(JsValue el);
+export extern int rectTop(JsValue el);
+export extern int getScrollLeft(JsValue el);
+export extern void setScrollLeft(JsValue el, int value);
+export extern void blurElement(JsValue el);
+export extern void setPlaceholder(JsValue el, string value);
+export extern void setDisplay(JsValue el, string value);
+export extern void classListAdd(JsValue el, string name);
+export extern void classListRemove(JsValue el, string name);
+export extern JsValue hostCall(JsValue obj, string name, JsValue a, JsValue b, JsValue c);
+export extern void hostThen(JsValue value, JsValue cb);
+export extern int jsArrayLen(JsValue value);
+export extern JsValue jsArrayAt(JsValue value, int index);
+export extern string jsPropString(JsValue value, string key, string fallback = "");
+export extern int jsPropInt(JsValue value, string key, int fallback = 0);
+export extern string emptyBuf();
+export extern string concat2(string a, string b);
+export extern void beginIdList(JsValue holder);
+export extern void pushId(JsValue holder, int id);
+export extern int[] takeIdList(JsValue holder);
+
+export pure int imin(int a, int b) {
+  if (a < b) {
+    return a;
+  }
+  return b;
+}
+
+export pure int imax(int a, int b) {
+  if (a > b) {
+    return a;
+  }
+  return b;
+}
+
+export string sliceOf(string s, int start, int end) {
+  int from = start;
+  int to = end;
+  if (from < 0) {
+    from = 0;
+  }
+  if (to > s.length) {
+    to = s.length;
+  }
+  if (from >= to) {
+    return emptyBuf();
+  }
+  return stringSlice(s, from, to);
+}
+
+export string sliceFrom(string s, int start) {
+  return sliceOf(s, start, s.length);
+}
+
+export string replaceEol(string text, string eol) {
+  return stringReplace(text, newRegexp("\\r\\n|\\r|\\n", "g"), eol);
+}
+
+export string repeatChar(string ch, int n) {
+  string out = emptyBuf();
+  int i = 0;
+  while (i < n) {
+    out = out + ch;
+    i = i + 1;
+  }
+  return out;
+}

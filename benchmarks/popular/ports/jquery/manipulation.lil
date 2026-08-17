@@ -17,8 +17,19 @@ import { setGlobalEval } from "./manipulation/setGlobalEval";
 import { buildFragment } from "./manipulation/buildFragment";
 import { support } from "./manipulation/support";
 import { arr } from "./var/arr";
-import { dataPriv } from "./data/var/dataPriv";
-import { dataUser } from "./data/var/dataUser";
+import {
+  get as dataPrivGet,
+  access as dataPrivAccess,
+  remove as dataPrivRemove,
+  hasData as dataPrivHasData,
+  expando as dataPrivExpando
+} from "./data/var/dataPriv";
+import {
+  access as dataUserAccess,
+  set as dataUserSet,
+  hasData as dataUserHasData,
+  expando as dataUserExpando
+} from "./data/var/dataUser";
 import { acceptData } from "./data/var/acceptData";
 import {
   createEmptyObject,
@@ -93,11 +104,11 @@ void cloneCopyEvent(JsValue src, JsValue dest) {
     return;
   }
 
-  if (dataPriv.hasData(src)) {
-    JsValue pdataOld = dataPriv.get(src);
+  if (dataPrivHasData(src)) {
+    JsValue pdataOld = dataPrivGet(src);
     JsValue events = pdataOld["events"];
     if (events.truthy()) {
-      dataPriv.remove(dest, "handle events");
+      dataPrivRemove(dest, "handle events");
       for (string type in events) {
         JsValue handlers = events[type];
         if (!handlers.truthy()) {
@@ -111,10 +122,10 @@ void cloneCopyEvent(JsValue src, JsValue dest) {
     }
   }
 
-  if (dataUser.hasData(src)) {
-    JsValue udataOld = dataUser.access(src);
+  if (dataUserHasData(src)) {
+    JsValue udataOld = dataUserAccess(src);
     JsValue udataCur = mergeObject(JS.object(), udataOld, false);
-    dataUser.set(dest, udataCur);
+    dataUserSet(dest, udataCur);
   }
 }
 
@@ -200,7 +211,7 @@ export JsValue domManip(JsValue collection, JsValue argsIn, JsValue callback, Js
         for (; j < hasScripts; j++) {
           JsValue node = scripts[j];
           string typeStr = JS.string(JS.or(node["type"], ""));
-          bool alreadyEvaluated = dataPriv.access(node, "globalEval").truthy();
+          bool alreadyEvaluated = dataPrivAccess(node, "globalEval").truthy();
           bool contained = containsImpl(doc, node);
 
           if (JS.regexTest(rscriptType, typeStr) && !alreadyEvaluated && contained) {
@@ -326,8 +337,8 @@ export JsValue clone(JsValue elem, JsValue dataAndEventsArg = false, JsValue dee
 
 export void cleanData(JsValue elems) {
   JsValue special = jQuery["event"]["special"];
-  JsValue expandoPriv = dataPriv.expando;
-  JsValue expandoUser = dataUser.expando;
+  JsValue expandoPriv = dataPrivExpando;
+  JsValue expandoUser = dataUserExpando;
 
   int i = 0;
   while (true) {

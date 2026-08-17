@@ -1,0 +1,233 @@
+import { PieceTreeBase, createPieceTree } from "./piece-tree";
+import { Pos } from "../base/position";
+import { Rng, createRange } from "../base/range";
+import { Uri, inmemoryUri } from "../base/uri";
+import { Emitter } from "../base/lifecycle";
+import { IntervalTree, Decoration, createIntervalTree } from "./interval-tree";
+import { EditStack, IdentifiedEdit, createEditStack } from "./edit-stack";
+import { FindMatch, findMatches } from "./search";
+import { wordAt, WordRange } from "./word";
+import { sliceOf, emptyBuf, concat2, beginIdList, pushId, takeIdList } from "../js-host";
+
+export class TextModel {
+  PieceTreeBase buffer;
+  Uri uri;
+  string languageId;
+  EditStack stack;
+  IntervalTree decorations;
+  Emitter onDidChangeContent;
+  int versionId;
+  int decoScratchIdx;
+
+  init(string value, string languageId, Uri uri) {
+    this.buffer = createPieceTree(value, "\n");
+    this.languageId = languageId;
+    this.uri = uri;
+    this.stack = createEditStack();
+    this.decorations = createIntervalTree();
+    this.onDidChangeContent = new Emitter();
+    this.versionId = 1;
+    this.decoScratchIdx = 0;
+  }
+
+  string getValue() {
+    return this.buffer.getLinesRawContent();
+  }
+
+  void setValue(string value) {
+    this.buffer = createPieceTree(value, "\n");
+    this.versionId = this.versionId + 1;
+    this.onDidChangeContent.fire();
+  }
+
+  int getLineCount() {
+    return this.buffer.getLineCount();
+  }
+
+  int getValueLength() {
+    return this.buffer.getLength();
+  }
+
+  string getLineContent(int lineNumber) {
+    return this.buffer.getLineContent(lineNumber);
+  }
+
+  int getLineLength(int lineNumber) {
+    return this.buffer.getLineLength(lineNumber);
+  }
+
+  int getOffsetAt(Pos position) {
+    return this.buffer.getOffsetAt(position.lineNumber, position.column);
+  }
+
+  int offsetAt(int line, int col) {
+    return this.buffer.getOffsetAt(line, col);
+  }
+
+  Pos getPositionAt(int offset) {
+    return this.buffer.getPositionAt(offset);
+  }
+
+  string getValueInRange(Rng range) {
+    return this.buffer.getValueInRange(range);
+  }
+
+  string getEOL() {
+    return this.buffer.getEOL();
+  }
+
+  Rng getFullModelRange() {
+    int lines = this.getLineCount();
+    return createRange(1, 1, lines, this.getLineLength(lines) + 1);
+  }
+
+  IdentifiedEdit[] applyEdits(IdentifiedEdit[] edits, bool pushUndo) {
+    IdentifiedEdit[] ordered = [];
+    for (int copy = 0; copy < edits.length; copy++) {
+      ordered.push(edits[copy]);
+    }
+    int a = 0;
+    while (a < ordered.length) {
+      int b = a + 1;
+      while (b < ordered.length) {
+        IdentifiedEdit left = ordered[a];
+        IdentifiedEdit right = ordered[b];
+        int lLine = left.range.startLineNumber;
+        int lCol = left.range.startColumn;
+        int rLine = right.range.startLineNumber;
+        int rCol = right.range.startColumn;
+        bool rightFirst = rLine > lLine || (rLine == lLine && rCol > lCol);
+        if (rightFirst) {
+          ordered[a] = right;
+          ordered[b] = left;
+        }
+        b++;
+      }
+      a++;
+    }
+    IdentifiedEdit[] inverse = [];
+    int i = 0;
+    while (i < ordered.length) {
+      IdentifiedEdit edit = ordered[i];
+      Rng range = edit.range;
+      string insertText = concat2(emptyBuf(), edit.text);
+      int start = this.buffer.getOffsetAt(range.startLineNumber, range.startColumn);
+      int end = this.buffer.getOffsetAt(range.endLineNumber, range.endColumn);
+      string oldText = sliceOf(this.buffer.getLinesRawContent(), start, end);
+      if (end > start) {
+        this.buffer.delete(start, end - start);
+      }
+      if (insertText.length > 0) {
+        this.buffer.insert(start, insertText);
+      }
+      Pos newEnd = this.buffer.getPositionAt(start + insertText.length);
+      inverse.push(new IdentifiedEdit(createRange(range.startLineNumber, range.startColumn, newEnd.lineNumber, newEnd.column), concat2(emptyBuf(), oldText), edit.identifier));
+      i = i + 1;
+    }
+    this.versionId = this.versionId + 1;
+    if (pushUndo) {
+      this.stack.push(inverse);
+    }
+    this.onDidChangeContent.fire();
+    return inverse;
+  }
+
+  bool undo() {
+    IdentifiedEdit[]? op = this.stack.popPast();
+    if (op == null) {
+      return false;
+    }
+    IdentifiedEdit[] forward = this.applyEdits(op, false);
+    this.stack.rememberRedo(forward);
+    return true;
+  }
+
+  bool redo() {
+    IdentifiedEdit[]? op = this.stack.popFuture();
+    if (op == null) {
+      return false;
+    }
+    IdentifiedEdit[] inverse = this.applyEdits(op, false);
+    this.stack.rememberUndo(inverse);
+    return true;
+  }
+
+  void removeDecorationIds(int[] oldIds) {
+    int oldIdx = 0;
+    while (oldIdx < oldIds.length) {
+      this.decorations.removeId(oldIds[oldIdx]);
+      oldIdx++;
+    }
+  }
+
+  int[] insertDecorationList(Decoration[] next) {
+    beginIdList(this);
+    this.decoScratchIdx = 0;
+    while (this.decoScratchIdx < next.length) {
+      Decoration item = next[this.decoScratchIdx];
+      Decoration deco = this.decorations.insert(item.range, item.className, item.hoverMessage, item.isWholeLine);
+      pushId(this, deco.id);
+      this.decoScratchIdx = this.decoScratchIdx + 1;
+    }
+    return takeIdList(this);
+  }
+
+  int[] deltaDecorations(int[] oldIds, Decoration[] next) {
+    this.removeDecorationIds(oldIds);
+    return this.insertDecorationList(next);
+  }
+
+  Decoration[] getDecorationsInRange(Rng range) {
+    return this.decorations.search(range);
+  }
+
+  FindMatch[] findMatches(string searchString, bool isRegex, bool matchCase, bool wholeWord, int limit) {
+    return findMatches(this.buffer, searchString, isRegex, matchCase, wholeWord, limit);
+  }
+
+  WordRange getWordAtPosition(Pos position) {
+    return wordAt(this.getLineContent(position.lineNumber), position.column);
+  }
+
+  string getLanguageId() {
+    return this.languageId;
+  }
+
+  int getVersionId() {
+    return this.versionId;
+  }
+
+  void setLanguage(string languageId) {
+    this.languageId = languageId;
+  }
+
+  void dispose() {
+    this.onDidChangeContent.dispose();
+  }
+}
+
+TextModel[] allModels = [];
+
+export TextModel createModel(string value, string languageId = "plaintext") {
+  TextModel model = new TextModel(value, languageId, inmemoryUri());
+  allModels.push(model);
+  return model;
+}
+
+export TextModel createModelWithUri(string value, string languageId, Uri uri) {
+  TextModel model = new TextModel(value, languageId, uri);
+  allModels.push(model);
+  return model;
+}
+
+export TextModel[] getModels() {
+  return allModels;
+}
+
+export IdentifiedEdit editOp(int sl, int sc, int el, int ec, string text) {
+  return new IdentifiedEdit(createRange(sl, sc, el, ec), concat2(emptyBuf(), text), 0);
+}
+
+export Decoration deco(int sl, int sc, int el, int ec, string className) {
+  return new Decoration(0, createRange(sl, sc, el, ec), className, "", false);
+}

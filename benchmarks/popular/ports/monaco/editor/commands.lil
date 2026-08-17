@@ -1,0 +1,1116 @@
+import { preventDefault, eventKey, eventCtrlKey, eventShiftKey, eventAltKey, clipboardRead, clipboardWrite, clipboardReadEvent, clipboardWriteEvent, sliceOf, emptyBuf, repeatChar } from "../js-host";
+import { EditorView, DEFAULT_LINE_HEIGHT } from "./view";
+import { editOp } from "./text-model";
+import { IdentifiedEdit } from "./edit-stack";
+import { createSelection, Sel } from "../base/selection";
+import { createRange, Rng } from "../base/range";
+import { Pos } from "../base/position";
+import { wordAt, WordRange, leadingIndent } from "./word";
+
+void clamp(EditorView view) {
+  int lines = view.model.getLineCount();
+  int line = view.selection.positionLineNumber;
+  if (line < 1) {
+    line = 1;
+  }
+  if (line > lines) {
+    line = lines;
+  }
+  int maxCol = view.model.getLineLength(line) + 1;
+  int col = view.selection.positionColumn;
+  if (col < 1) {
+    col = 1;
+  }
+  if (col > maxCol) {
+    col = maxCol;
+  }
+  int sl = view.selection.selectionStartLineNumber;
+  int sc = view.selection.selectionStartColumn;
+  if (sl < 1) {
+    sl = 1;
+  }
+  if (sl > lines) {
+    sl = lines;
+  }
+  int sMax = view.model.getLineLength(sl) + 1;
+  if (sc < 1) {
+    sc = 1;
+  }
+  if (sc > sMax) {
+    sc = sMax;
+  }
+  view.selection = createSelection(sl, sc, line, col);
+}
+
+export void setPosition(EditorView view, int line, int column) {
+  view.selection = createSelection(line, column, line, column);
+  clamp(view);
+  view.revealLine(view.selection.positionLineNumber);
+  view.placeTextarea();
+}
+
+export void setSel(EditorView view, int sl, int sc, int pl, int pc) {
+  view.selection = createSelection(sl, sc, pl, pc);
+  clamp(view);
+  view.revealLine(view.selection.positionLineNumber);
+  view.placeTextarea();
+}
+
+void replaceSelection(EditorView view, string text) {
+  Sel sel = view.selection;
+  int sl = sel.startLineNumber;
+  int sc = sel.startColumn;
+  int el = sel.endLineNumber;
+  int ec = sel.endColumn;
+  IdentifiedEdit[] edits = [editOp(sl, sc, el, ec, text)];
+  view.model.applyEdits(edits, true);
+  int start = view.model.offsetAt(sl, sc);
+  Pos end = view.model.getPositionAt(start + text.length);
+  setPosition(view, end.lineNumber, end.column);
+}
+
+string joinLineTexts(string[] lines) {
+  string block = emptyBuf();
+  int i = 0;
+  while (i < lines.length) {
+    if (i != 0) {
+      block = block + "\n";
+    }
+    block = block + lines[i];
+    i = i + 1;
+  }
+  return block;
+}
+
+string pairFor(string ch) {
+  if (ch == "(") {
+    return ")";
+  }
+  if (ch == "[") {
+    return "]";
+  }
+  if (ch == "{") {
+    return "}";
+  }
+  if (ch == "\"" || ch == "'") {
+    return ch;
+  }
+  return "";
+}
+
+export void typeText(EditorView view, string text) {
+  if (view.readOnly || text.length == 0) {
+    return;
+  }
+  if (text.length == 1) {
+    string close = pairFor(text);
+    if (close.length > 0) {
+      replaceSelection(view, text + close);
+      replaceExtraCursors(view, text + close);
+      moveLeft(view, false);
+      view.render();
+      return;
+    }
+  }
+  replaceSelection(view, text);
+  replaceExtraCursors(view, text);
+  view.render();
+}
+
+void replaceExtraCursors(EditorView view, string text) {
+  int n = view.extraCursors.length;
+  if (n == 0) {
+    return;
+  }
+  int i = n - 1;
+  while (i >= 0) {
+    Sel extra = view.extraCursors[i];
+    int sl = extra.startLineNumber;
+    int sc = extra.startColumn;
+    int el = extra.endLineNumber;
+    int ec = extra.endColumn;
+    view.model.applyEdits([editOp(sl, sc, el, ec, text)], true);
+    int start = view.model.offsetAt(sl, sc);
+    Pos end = view.model.getPositionAt(start + text.length);
+    int eln = end.lineNumber;
+    int ecol = end.column;
+    view.extraCursors[i] = createSelection(eln, ecol, eln, ecol);
+    i = i - 1;
+  }
+}
+
+export void deleteLeft(EditorView view) {
+  if (view.readOnly) {
+    return;
+  }
+  Sel sel = view.selection;
+  if (sel.startLineNumber != sel.endLineNumber || sel.startColumn != sel.endColumn) {
+    replaceSelection(view, "");
+    replaceExtraCursors(view, "");
+    view.render();
+    return;
+  }
+  if (sel.positionLineNumber == 1 && sel.positionColumn == 1) {
+    return;
+  }
+  int endLine = sel.positionLineNumber;
+  int endCol = sel.positionColumn;
+  int end = view.model.offsetAt(endLine, endCol);
+  Pos start = view.model.getPositionAt(end - 1);
+  int startLine = start.lineNumber;
+  int startCol = start.column;
+  view.model.applyEdits([editOp(startLine, startCol, endLine, endCol, "")], true);
+  setPosition(view, startLine, startCol);
+  deleteExtraCursorsLeft(view);
+  view.render();
+}
+
+void deleteExtraCursorsLeft(EditorView view) {
+  int n = view.extraCursors.length;
+  if (n == 0) {
+    return;
+  }
+  int i = n - 1;
+  while (i >= 0) {
+    Sel extra = view.extraCursors[i];
+    int el = extra.positionLineNumber;
+    int ec = extra.positionColumn;
+    if (el == 1 && ec == 1) {
+      i = i - 1;
+      continue;
+    }
+    int end = view.model.offsetAt(el, ec);
+    Pos start = view.model.getPositionAt(end - 1);
+    int sl = start.lineNumber;
+    int sc = start.column;
+    view.model.applyEdits([editOp(sl, sc, el, ec, "")], true);
+    view.extraCursors[i] = createSelection(sl, sc, sl, sc);
+    i = i - 1;
+  }
+}
+
+export void deleteRight(EditorView view) {
+  if (view.readOnly) {
+    return;
+  }
+  Sel sel = view.selection;
+  if (sel.startLineNumber != sel.endLineNumber || sel.startColumn != sel.endColumn) {
+    replaceSelection(view, "");
+    replaceExtraCursors(view, "");
+    view.render();
+    return;
+  }
+  int startLine = sel.positionLineNumber;
+  int startCol = sel.positionColumn;
+  int start = view.model.offsetAt(startLine, startCol);
+  if (start >= view.model.getValueLength()) {
+    return;
+  }
+  Pos end = view.model.getPositionAt(start + 1);
+  int endLine = end.lineNumber;
+  int endCol = end.column;
+  view.model.applyEdits([editOp(startLine, startCol, endLine, endCol, "")], true);
+  deleteExtraCursorsRight(view);
+  view.render();
+}
+
+void deleteExtraCursorsRight(EditorView view) {
+  int n = view.extraCursors.length;
+  if (n == 0) {
+    return;
+  }
+  int i = n - 1;
+  while (i >= 0) {
+    Sel extra = view.extraCursors[i];
+    int sl = extra.positionLineNumber;
+    int sc = extra.positionColumn;
+    int start = view.model.offsetAt(sl, sc);
+    if (start >= view.model.getValueLength()) {
+      i = i - 1;
+      continue;
+    }
+    Pos end = view.model.getPositionAt(start + 1);
+    int el = end.lineNumber;
+    int ec = end.column;
+    view.model.applyEdits([editOp(sl, sc, el, ec, "")], true);
+    view.extraCursors[i] = createSelection(sl, sc, sl, sc);
+    i = i - 1;
+  }
+}
+
+export void moveLeft(EditorView view, bool select) {
+  int offset = view.model.offsetAt(view.selection.positionLineNumber, view.selection.positionColumn);
+  if (offset > 0) {
+    offset = offset - 1;
+  }
+  Pos pos = view.model.getPositionAt(offset);
+  if (select) {
+    setSel(view, view.selection.selectionStartLineNumber, view.selection.selectionStartColumn, pos.lineNumber, pos.column);
+  } else {
+    setPosition(view, pos.lineNumber, pos.column);
+  }
+}
+
+export void moveRight(EditorView view, bool select) {
+  int offset = view.model.offsetAt(view.selection.positionLineNumber, view.selection.positionColumn);
+  if (offset < view.model.getValueLength()) {
+    offset = offset + 1;
+  }
+  Pos pos = view.model.getPositionAt(offset);
+  if (select) {
+    setSel(view, view.selection.selectionStartLineNumber, view.selection.selectionStartColumn, pos.lineNumber, pos.column);
+  } else {
+    setPosition(view, pos.lineNumber, pos.column);
+  }
+}
+
+export void moveUp(EditorView view, bool select) {
+  int line = view.selection.positionLineNumber - 1;
+  if (line < 1) {
+    line = 1;
+  }
+  line = view.nextVisible(line);
+  int col = view.selection.positionColumn;
+  int max = view.model.getLineLength(line) + 1;
+  if (col > max) {
+    col = max;
+  }
+  if (select) {
+    setSel(view, view.selection.selectionStartLineNumber, view.selection.selectionStartColumn, line, col);
+  } else {
+    setPosition(view, line, col);
+  }
+}
+
+export void moveDown(EditorView view, bool select) {
+  int line = view.selection.positionLineNumber + 1;
+  int last = view.model.getLineCount();
+  if (line > last) {
+    line = last;
+  }
+  line = view.nextVisible(line);
+  int col = view.selection.positionColumn;
+  int max = view.model.getLineLength(line) + 1;
+  if (col > max) {
+    col = max;
+  }
+  if (select) {
+    setSel(view, view.selection.selectionStartLineNumber, view.selection.selectionStartColumn, line, col);
+  } else {
+    setPosition(view, line, col);
+  }
+}
+
+export void moveHome(EditorView view, bool select) {
+  int line = view.selection.positionLineNumber;
+  string content = view.model.getLineContent(line);
+  int indent = leadingIndent(content);
+  int col = 1;
+  if (view.selection.positionColumn != indent + 1 && indent < content.length) {
+    col = indent + 1;
+  }
+  if (select) {
+    setSel(view, view.selection.selectionStartLineNumber, view.selection.selectionStartColumn, line, col);
+  } else {
+    setPosition(view, line, col);
+  }
+}
+
+export void moveEnd(EditorView view, bool select) {
+  int line = view.selection.positionLineNumber;
+  int col = view.model.getLineLength(line) + 1;
+  if (select) {
+    setSel(view, view.selection.selectionStartLineNumber, view.selection.selectionStartColumn, line, col);
+  } else {
+    setPosition(view, line, col);
+  }
+}
+
+export void moveTop(EditorView view, bool select) {
+  if (select) {
+    setSel(view, view.selection.selectionStartLineNumber, view.selection.selectionStartColumn, 1, 1);
+  } else {
+    setPosition(view, 1, 1);
+  }
+}
+
+export void moveBottom(EditorView view, bool select) {
+  int last = view.model.getLineCount();
+  int col = view.model.getLineLength(last) + 1;
+  if (select) {
+    setSel(view, view.selection.selectionStartLineNumber, view.selection.selectionStartColumn, last, col);
+  } else {
+    setPosition(view, last, col);
+  }
+}
+
+export void pageUp(EditorView view, bool select) {
+  int delta = view.height / view.lineHeight;
+  if (delta < 1) {
+    delta = 1;
+  }
+  int line = view.selection.positionLineNumber - delta;
+  if (line < 1) {
+    line = 1;
+  }
+  if (select) {
+    setSel(view, view.selection.selectionStartLineNumber, view.selection.selectionStartColumn, line, view.selection.positionColumn);
+  } else {
+    setPosition(view, line, view.selection.positionColumn);
+  }
+}
+
+export void pageDown(EditorView view, bool select) {
+  int delta = view.height / view.lineHeight;
+  if (delta < 1) {
+    delta = 1;
+  }
+  int line = view.selection.positionLineNumber + delta;
+  int last = view.model.getLineCount();
+  if (line > last) {
+    line = last;
+  }
+  if (select) {
+    setSel(view, view.selection.selectionStartLineNumber, view.selection.selectionStartColumn, line, view.selection.positionColumn);
+  } else {
+    setPosition(view, line, view.selection.positionColumn);
+  }
+}
+
+export void moveWordLeft(EditorView view, bool select) {
+  int offset = view.model.offsetAt(view.selection.positionLineNumber, view.selection.positionColumn);
+  if (offset > 0) {
+    offset = offset - 1;
+  }
+  Pos pos = view.model.getPositionAt(offset);
+  WordRange word = wordAt(view.model.getLineContent(pos.lineNumber), pos.column);
+  if (select) {
+    setSel(view, view.selection.selectionStartLineNumber, view.selection.selectionStartColumn, pos.lineNumber, word.startColumn);
+  } else {
+    setPosition(view, pos.lineNumber, word.startColumn);
+  }
+}
+
+export void moveWordRight(EditorView view, bool select) {
+  WordRange word = wordAt(view.model.getLineContent(view.selection.positionLineNumber), view.selection.positionColumn);
+  int col = word.endColumn;
+  if (col == view.selection.positionColumn) {
+    int offset = view.model.offsetAt(view.selection.positionLineNumber, view.selection.positionColumn);
+    if (offset < view.model.getValueLength()) {
+      Pos next = view.model.getPositionAt(offset + 1);
+      word = wordAt(view.model.getLineContent(next.lineNumber), next.column);
+      col = word.endColumn;
+    }
+  }
+  if (select) {
+    setSel(view, view.selection.selectionStartLineNumber, view.selection.selectionStartColumn, view.selection.positionLineNumber, col);
+  } else {
+    setPosition(view, view.selection.positionLineNumber, col);
+  }
+}
+
+export void deleteWordLeft(EditorView view) {
+  if (view.readOnly) {
+    return;
+  }
+  Sel sel = view.selection;
+  if (sel.startLineNumber != sel.endLineNumber || sel.startColumn != sel.endColumn) {
+    replaceSelection(view, "");
+    replaceExtraCursors(view, "");
+    view.render();
+    return;
+  }
+  WordRange word = wordAt(view.model.getLineContent(sel.positionLineNumber), sel.positionColumn);
+  int startCol = word.startColumn;
+  if (startCol == sel.positionColumn && sel.positionColumn > 1) {
+    startCol = sel.positionColumn - 1;
+  }
+  view.model.applyEdits([editOp(sel.positionLineNumber, startCol, sel.positionLineNumber, sel.positionColumn, "")], true);
+  setPosition(view, sel.positionLineNumber, startCol);
+  view.render();
+}
+
+export void deleteWordRight(EditorView view) {
+  if (view.readOnly) {
+    return;
+  }
+  Sel sel = view.selection;
+  if (sel.startLineNumber != sel.endLineNumber || sel.startColumn != sel.endColumn) {
+    replaceSelection(view, "");
+    replaceExtraCursors(view, "");
+    view.render();
+    return;
+  }
+  WordRange word = wordAt(view.model.getLineContent(sel.positionLineNumber), sel.positionColumn);
+  int endCol = word.endColumn;
+  if (endCol == sel.positionColumn) {
+    endCol = sel.positionColumn + 1;
+    int max = view.model.getLineLength(sel.positionLineNumber) + 1;
+    if (endCol > max) {
+      endCol = max;
+    }
+  }
+  view.model.applyEdits([editOp(sel.positionLineNumber, sel.positionColumn, sel.positionLineNumber, endCol, "")], true);
+  view.render();
+}
+
+export void undoEdit(EditorView view) {
+  view.model.undo();
+  clamp(view);
+  view.render();
+}
+
+export void redoEdit(EditorView view) {
+  view.model.redo();
+  clamp(view);
+  view.render();
+}
+
+export void selectAll(EditorView view) {
+  int last = view.model.getLineCount();
+  int col = view.model.getLineLength(last) + 1;
+  setSel(view, 1, 1, last, col);
+}
+
+export void expandLineSelection(EditorView view) {
+  int last = view.model.getLineCount();
+  int endLine = view.selection.endLineNumber;
+  if (endLine < last) {
+    endLine = endLine + 1;
+  }
+  int col = 1;
+  if (endLine == view.selection.endLineNumber) {
+    col = view.model.getLineLength(endLine) + 1;
+  }
+  setSel(view, view.selection.startLineNumber, 1, endLine, col);
+}
+
+export string selectedText(EditorView view) {
+  Sel sel = view.selection;
+  int sl = sel.startLineNumber;
+  int sc = sel.startColumn;
+  int el = sel.endLineNumber;
+  int ec = sel.endColumn;
+  return view.model.getValueInRange(createRange(sl, sc, el, ec));
+}
+
+export void copySelection(EditorView view) {
+  string text = selectedText(view);
+  if (text.length == 0) {
+    text = view.model.getLineContent(view.selection.positionLineNumber) + "\n";
+  }
+  clipboardWrite(text);
+}
+
+export void cutSelection(EditorView view) {
+  copySelection(view);
+  if (view.readOnly) {
+    return;
+  }
+  if (view.selection.startLineNumber == view.selection.endLineNumber && view.selection.startColumn == view.selection.endColumn) {
+    int line = view.selection.positionLineNumber;
+    int last = view.model.getLineCount();
+    if (line < last) {
+      view.model.applyEdits([editOp(line, 1, line + 1, 1, "")], true);
+    } else {
+      view.model.applyEdits([editOp(line, 1, line, view.model.getLineLength(line) + 1, "")], true);
+    }
+    setPosition(view, line, 1);
+  } else {
+    replaceSelection(view, "");
+  }
+  view.render();
+}
+
+export void pasteText(EditorView view, string text) {
+  if (view.readOnly) {
+    return;
+  }
+  string clip = text;
+  if (clip.length == 0) {
+    clip = clipboardRead();
+  }
+  if (clip.length == 0) {
+    return;
+  }
+  replaceSelection(view, clip);
+  replaceExtraCursors(view, clip);
+  view.render();
+}
+
+export void tabOrIndent(EditorView view, bool outdent) {
+  if (view.readOnly) {
+    return;
+  }
+  string pad = "\t";
+  if (view.insertSpaces) {
+    pad = repeatChar(" ", view.tabSize);
+  }
+  Sel sel = view.selection;
+  if (sel.startLineNumber != sel.endLineNumber || outdent) {
+    int line = sel.startLineNumber;
+    while (line <= sel.endLineNumber) {
+      string content = view.model.getLineContent(line);
+      if (outdent) {
+        int skip = 0;
+        if (content.length > 0 && content.charAt(0) == "\t") {
+          skip = 1;
+        } else {
+          while (skip < view.tabSize && skip < content.length && content.charAt(skip) == " ") {
+            skip++;
+          }
+        }
+        if (skip > 0) {
+          view.model.applyEdits([editOp(line, 1, line, skip + 1, "")], true);
+        }
+      } else {
+        view.model.applyEdits([editOp(line, 1, line, 1, pad)], true);
+      }
+      line++;
+    }
+    view.render();
+    return;
+  }
+  typeText(view, pad);
+}
+
+export void insertNewline(EditorView view) {
+  if (view.readOnly) {
+    return;
+  }
+  int line = view.selection.positionLineNumber;
+  string content = view.model.getLineContent(line);
+  int indent = leadingIndent(content);
+  string pad = sliceOf(content, 0, indent);
+  string before = emptyBuf();
+  if (view.selection.positionColumn > 1) {
+    before = sliceOf(content, view.selection.positionColumn - 2, view.selection.positionColumn - 1);
+  }
+  if (before == "{") {
+    pad = pad + "  ";
+  }
+  replaceSelection(view, "\n" + pad);
+  replaceExtraCursors(view, "\n" + pad);
+  view.render();
+}
+
+export void deleteLines(EditorView view) {
+  if (view.readOnly) {
+    return;
+  }
+  int start = view.selection.startLineNumber;
+  int end = view.selection.endLineNumber;
+  int last = view.model.getLineCount();
+  if (end < last) {
+    view.model.applyEdits([editOp(start, 1, end + 1, 1, "")], true);
+  } else if (start > 1) {
+    int prevLen = view.model.getLineLength(start - 1) + 1;
+    view.model.applyEdits([editOp(start - 1, prevLen, end, view.model.getLineLength(end) + 1, "")], true);
+  } else {
+    view.model.applyEdits([editOp(1, 1, end, view.model.getLineLength(end) + 1, "")], true);
+  }
+  setPosition(view, start, 1);
+  view.render();
+}
+
+export void moveLines(EditorView view, int dir) {
+  if (view.readOnly) {
+    return;
+  }
+  int start = view.selection.startLineNumber;
+  int end = view.selection.endLineNumber;
+  int dest = start + dir;
+  int last = view.model.getLineCount();
+  if (dest < 1 || end + dir > last) {
+    return;
+  }
+  string[] lines = [];
+  int line = start;
+  while (line <= end) {
+    lines.push(view.model.getLineContent(line));
+    line++;
+  }
+  string block = joinLineTexts(lines);
+  if (dir < 0) {
+    string above = view.model.getLineContent(start - 1);
+    view.model.applyEdits([editOp(start - 1, 1, end, view.model.getLineLength(end) + 1, block + "\n" + above)], true);
+    setSel(view, start - 1, 1, end - 1, view.model.getLineLength(end - 1) + 1);
+  } else {
+    string below = view.model.getLineContent(end + 1);
+    view.model.applyEdits([editOp(start, 1, end + 1, view.model.getLineLength(end + 1) + 1, below + "\n" + block)], true);
+    setSel(view, start + 1, 1, end + 1, view.model.getLineLength(end + 1) + 1);
+  }
+  view.render();
+}
+
+export void copyLines(EditorView view, int dir) {
+  if (view.readOnly) {
+    return;
+  }
+  int start = view.selection.startLineNumber;
+  int end = view.selection.endLineNumber;
+  string[] lines = [];
+  int line = start;
+  while (line <= end) {
+    lines.push(view.model.getLineContent(line));
+    line = line + 1;
+  }
+  string block = joinLineTexts(lines);
+  if (dir < 0) {
+    view.model.applyEdits([editOp(start, 1, start, 1, block + "\n")], true);
+  } else {
+    int col = view.model.getLineLength(end) + 1;
+    view.model.applyEdits([editOp(end, col, end, col, "\n" + block)], true);
+    int delta = end - start + 1;
+    setSel(view, start + delta, 1, end + delta, view.model.getLineLength(end + delta) + 1);
+  }
+  view.render();
+}
+
+export void insertCursor(EditorView view, int dir) {
+  Sel cur = view.selection;
+  int line = cur.positionLineNumber + dir;
+  if (line < 1 || line > view.model.getLineCount()) {
+    return;
+  }
+  int col = cur.positionColumn;
+  int max = view.model.getLineLength(line) + 1;
+  if (col > max) {
+    col = max;
+  }
+  view.extraCursors.push(createSelection(line, col, line, col));
+}
+
+export void trimTrailingWhitespace(EditorView view) {
+  if (view.readOnly) {
+    return;
+  }
+  int line = 1;
+  int last = view.model.getLineCount();
+  while (line <= last) {
+    string content = view.model.getLineContent(line);
+    int end = content.length;
+    while (end > 0) {
+      string ch = content.charAt(end - 1);
+      if (ch != " " && ch != "\t") {
+        break;
+      }
+      end--;
+    }
+    if (end < content.length) {
+      view.model.applyEdits([editOp(line, end + 1, line, content.length + 1, "")], true);
+    }
+    line++;
+  }
+  view.render();
+}
+
+export void insertLineAfter(EditorView view) {
+  if (view.readOnly) {
+    return;
+  }
+  int line = view.selection.endLineNumber;
+  int col = view.model.getLineLength(line) + 1;
+  view.model.applyEdits([editOp(line, col, line, col, "\n")], true);
+  setPosition(view, line + 1, 1);
+  view.render();
+}
+
+export void insertLineBefore(EditorView view) {
+  if (view.readOnly) {
+    return;
+  }
+  int line = view.selection.startLineNumber;
+  view.model.applyEdits([editOp(line, 1, line, 1, "\n")], true);
+  setPosition(view, line, 1);
+  view.render();
+}
+
+export void joinLines(EditorView view) {
+  if (view.readOnly) {
+    return;
+  }
+  int line = view.selection.startLineNumber;
+  int last = view.model.getLineCount();
+  if (line >= last) {
+    return;
+  }
+  string a = view.model.getLineContent(line);
+  string b = view.model.getLineContent(line + 1);
+  int indent = leadingIndent(b);
+  string rest = sliceOf(b, indent, b.length);
+  string joined = a;
+  if (a.length > 0 && rest.length > 0) {
+    joined = a + " " + rest;
+  } else {
+    joined = a + rest;
+  }
+  view.model.applyEdits([editOp(line, 1, line + 1, b.length + 1, joined)], true);
+  setPosition(view, line, a.length + 1);
+  view.render();
+}
+
+export void selectWord(EditorView view) {
+  WordRange word = wordAt(view.model.getLineContent(view.selection.positionLineNumber), view.selection.positionColumn);
+  setSel(view, view.selection.positionLineNumber, word.startColumn, view.selection.positionLineNumber, word.endColumn);
+}
+
+export bool triggerCommand(EditorView view, string handlerId, string text) {
+  if (handlerId == "type" || handlerId == "compositionType") {
+    typeText(view, text);
+    return true;
+  }
+  if (handlerId == "paste" || handlerId == "editor.action.clipboardPasteAction") {
+    pasteText(view, text);
+    return true;
+  }
+  if (handlerId == "cut" || handlerId == "editor.action.clipboardCutAction") {
+    cutSelection(view);
+    return true;
+  }
+  if (handlerId == "copy" || handlerId == "editor.action.clipboardCopyAction") {
+    copySelection(view);
+    return true;
+  }
+  if (handlerId == "deleteLeft" || handlerId == "deleteLeft") {
+    deleteLeft(view);
+    return true;
+  }
+  if (handlerId == "deleteRight") {
+    deleteRight(view);
+    return true;
+  }
+  if (handlerId == "deleteWordLeft" || handlerId == "deleteWordStartLeft") {
+    deleteWordLeft(view);
+    return true;
+  }
+  if (handlerId == "deleteWordRight" || handlerId == "deleteWordEndRight") {
+    deleteWordRight(view);
+    return true;
+  }
+  if (handlerId == "undo") {
+    undoEdit(view);
+    return true;
+  }
+  if (handlerId == "redo") {
+    redoEdit(view);
+    return true;
+  }
+  if (handlerId == "tab" || handlerId == "editor.action.indentLines") {
+    tabOrIndent(view, false);
+    return true;
+  }
+  if (handlerId == "outdent" || handlerId == "editor.action.outdentLines") {
+    tabOrIndent(view, true);
+    return true;
+  }
+  if (handlerId == "cursorLeft") {
+    moveLeft(view, false);
+    return true;
+  }
+  if (handlerId == "cursorRight") {
+    moveRight(view, false);
+    return true;
+  }
+  if (handlerId == "cursorUp") {
+    moveUp(view, false);
+    return true;
+  }
+  if (handlerId == "cursorDown") {
+    moveDown(view, false);
+    return true;
+  }
+  if (handlerId == "cursorHome" || handlerId == "cursorLineStart") {
+    moveHome(view, false);
+    return true;
+  }
+  if (handlerId == "cursorEnd" || handlerId == "cursorLineEnd") {
+    moveEnd(view, false);
+    return true;
+  }
+  if (handlerId == "cursorTop") {
+    moveTop(view, false);
+    return true;
+  }
+  if (handlerId == "cursorBottom") {
+    moveBottom(view, false);
+    return true;
+  }
+  if (handlerId == "cursorPageUp") {
+    pageUp(view, false);
+    return true;
+  }
+  if (handlerId == "cursorPageDown") {
+    pageDown(view, false);
+    return true;
+  }
+  if (handlerId == "cursorWordLeft" || handlerId == "cursorWordStartLeft") {
+    moveWordLeft(view, false);
+    return true;
+  }
+  if (handlerId == "cursorWordRight" || handlerId == "cursorWordEndRight") {
+    moveWordRight(view, false);
+    return true;
+  }
+  if (handlerId == "cursorLeftSelect") {
+    moveLeft(view, true);
+    return true;
+  }
+  if (handlerId == "cursorRightSelect") {
+    moveRight(view, true);
+    return true;
+  }
+  if (handlerId == "cursorUpSelect") {
+    moveUp(view, true);
+    return true;
+  }
+  if (handlerId == "cursorDownSelect") {
+    moveDown(view, true);
+    return true;
+  }
+  if (handlerId == "cursorHomeSelect") {
+    moveHome(view, true);
+    return true;
+  }
+  if (handlerId == "cursorEndSelect") {
+    moveEnd(view, true);
+    return true;
+  }
+  if (handlerId == "cursorWordLeftSelect") {
+    moveWordLeft(view, true);
+    return true;
+  }
+  if (handlerId == "cursorWordRightSelect") {
+    moveWordRight(view, true);
+    return true;
+  }
+  if (handlerId == "selectAll") {
+    selectAll(view);
+    return true;
+  }
+  if (handlerId == "expandLineSelection") {
+    expandLineSelection(view);
+    return true;
+  }
+  if (handlerId == "enter") {
+    insertNewline(view);
+    return true;
+  }
+  if (handlerId == "editor.action.deleteLines") {
+    deleteLines(view);
+    return true;
+  }
+  if (handlerId == "editor.action.moveLinesUpAction") {
+    moveLines(view, -1);
+    return true;
+  }
+  if (handlerId == "editor.action.moveLinesDownAction") {
+    moveLines(view, 1);
+    return true;
+  }
+  if (handlerId == "editor.action.copyLinesUpAction") {
+    copyLines(view, -1);
+    return true;
+  }
+  if (handlerId == "editor.action.copyLinesDownAction") {
+    copyLines(view, 1);
+    return true;
+  }
+  if (handlerId == "editor.action.insertCursorAbove") {
+    insertCursor(view, -1);
+    return true;
+  }
+  if (handlerId == "editor.action.insertCursorBelow") {
+    insertCursor(view, 1);
+    return true;
+  }
+  if (handlerId == "editor.action.trimTrailingWhitespace") {
+    trimTrailingWhitespace(view);
+    return true;
+  }
+  if (handlerId == "editor.action.insertLineAfter") {
+    insertLineAfter(view);
+    return true;
+  }
+  if (handlerId == "editor.action.insertLineBefore") {
+    insertLineBefore(view);
+    return true;
+  }
+  if (handlerId == "editor.action.joinLines") {
+    joinLines(view);
+    return true;
+  }
+  if (handlerId == "cursorWordSelect") {
+    selectWord(view);
+    return true;
+  }
+  if (handlerId == "editor.action.fontZoomIn") {
+    view.fontSize = view.fontSize + 1;
+    view.lineHeight = view.fontSize + 5;
+    view.render();
+    return true;
+  }
+  if (handlerId == "editor.action.fontZoomOut") {
+    if (view.fontSize > 8) {
+      view.fontSize = view.fontSize - 1;
+      view.lineHeight = view.fontSize + 5;
+      view.render();
+    }
+    return true;
+  }
+  if (handlerId == "editor.action.fontZoomReset") {
+    view.fontSize = 14;
+    view.lineHeight = DEFAULT_LINE_HEIGHT;
+    view.render();
+    return true;
+  }
+  return false;
+}
+
+export void handleKeydown(EditorView view, JsValue event) {
+  string key = eventKey(event);
+  bool ctrl = eventCtrlKey(event);
+  bool shift = eventShiftKey(event);
+  bool alt = eventAltKey(event);
+  if (ctrl && !shift && (key == "z" || key == "Z")) {
+    preventDefault(event);
+    undoEdit(view);
+    return;
+  }
+  if (ctrl && (key == "y" || key == "Y" || (shift && (key == "z" || key == "Z")))) {
+    preventDefault(event);
+    redoEdit(view);
+    return;
+  }
+  if (ctrl && (key == "a" || key == "A")) {
+    preventDefault(event);
+    selectAll(view);
+    return;
+  }
+  if (ctrl && (key == "c" || key == "C")) {
+    preventDefault(event);
+    copySelection(view);
+    return;
+  }
+  if (ctrl && (key == "x" || key == "X")) {
+    preventDefault(event);
+    cutSelection(view);
+    return;
+  }
+  if (ctrl && (key == "v" || key == "V")) {
+    preventDefault(event);
+    pasteText(view, "");
+    return;
+  }
+  if (key == "Backspace") {
+    preventDefault(event);
+    if (ctrl) {
+      deleteWordLeft(view);
+    } else {
+      deleteLeft(view);
+    }
+    return;
+  }
+  if (key == "Delete") {
+    preventDefault(event);
+    if (ctrl) {
+      deleteWordRight(view);
+    } else {
+      deleteRight(view);
+    }
+    return;
+  }
+  if (key == "Enter") {
+    preventDefault(event);
+    insertNewline(view);
+    return;
+  }
+  if (key == "Tab") {
+    preventDefault(event);
+    tabOrIndent(view, shift);
+    return;
+  }
+  if (key == "Home") {
+    preventDefault(event);
+    if (ctrl) {
+      moveTop(view, shift);
+    } else {
+      moveHome(view, shift);
+    }
+    return;
+  }
+  if (key == "End") {
+    preventDefault(event);
+    if (ctrl) {
+      moveBottom(view, shift);
+    } else {
+      moveEnd(view, shift);
+    }
+    return;
+  }
+  if (key == "PageUp") {
+    preventDefault(event);
+    pageUp(view, shift);
+    return;
+  }
+  if (key == "PageDown") {
+    preventDefault(event);
+    pageDown(view, shift);
+    return;
+  }
+  if (key == "ArrowLeft") {
+    preventDefault(event);
+    if (ctrl) {
+      moveWordLeft(view, shift);
+    } else {
+      moveLeft(view, shift);
+    }
+    return;
+  }
+  if (key == "ArrowRight") {
+    preventDefault(event);
+    if (ctrl) {
+      moveWordRight(view, shift);
+    } else {
+      moveRight(view, shift);
+    }
+    return;
+  }
+  if (key == "ArrowUp") {
+    preventDefault(event);
+    if (alt) {
+      moveLines(view, -1);
+    } else {
+      moveUp(view, shift);
+    }
+    return;
+  }
+  if (key == "ArrowDown") {
+    preventDefault(event);
+    if (alt) {
+      moveLines(view, 1);
+    } else {
+      moveDown(view, shift);
+    }
+    return;
+  }
+}
+
+export void handlePasteEvent(EditorView view, JsValue event) {
+  preventDefault(event);
+  pasteText(view, clipboardReadEvent(event));
+}
+
+export void handleCopyEvent(EditorView view, JsValue event) {
+  preventDefault(event);
+  string text = selectedText(view);
+  clipboardWriteEvent(event, text);
+  clipboardWrite(text);
+}
+
+export void handleCutEvent(EditorView view, JsValue event) {
+  handleCopyEvent(view, event);
+  cutSelection(view);
+}
+
+export { createRange };

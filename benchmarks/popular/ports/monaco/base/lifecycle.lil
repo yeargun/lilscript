@@ -1,0 +1,129 @@
+class DisposableStore {
+  (func()->void)[] fns;
+  bool disposed;
+
+  init() {
+    this.fns = [];
+    this.disposed = false;
+  }
+
+  void add(func()->void fn) {
+    if (this.disposed) {
+      fn();
+      return;
+    }
+    this.fns.push(fn);
+  }
+
+  void dispose() {
+    if (this.disposed) {
+      return;
+    }
+    this.disposed = true;
+    int i = this.fns.length - 1;
+    while (i >= 0) {
+      this.fns[i]();
+      i--;
+    }
+    this.fns = [];
+  }
+}
+
+class Emitter {
+  (func()->void)[] listeners;
+  bool disposed;
+
+  init() {
+    this.listeners = [];
+    this.disposed = false;
+  }
+
+  func()->void event(func()->void listener) {
+    this.listeners.push(listener);
+    Emitter owner = this;
+    return () => {
+      removeEmitterListener(owner, listener);
+    };
+  }
+
+  void fire() {
+    (func()->void)[] snapshot = this.listeners.slice();
+    int i = 0;
+    while (i < snapshot.length) {
+      snapshot[i]();
+      i++;
+    }
+  }
+
+  void dispose() {
+    this.disposed = true;
+    this.listeners = [];
+  }
+}
+
+void removeEmitterListener(Emitter emitter, func()->void listener) {
+  int index = emitter.listeners.indexOf(listener);
+  if (index >= 0) {
+    emitter.listeners.splice(index, 1);
+  }
+}
+
+class Emitter1<T> {
+  (func(T)->void)[] listeners;
+  bool disposed;
+
+  init() {
+    this.listeners = [];
+    this.disposed = false;
+  }
+
+  func()->void event(func(T)->void listener) {
+    this.listeners.push(listener);
+    return () => {
+      int index = this.listeners.indexOf(listener);
+      if (index >= 0) {
+        this.listeners.splice(index, 1);
+      }
+    };
+  }
+
+  void fire(T value) {
+    (func(T)->void)[] snapshot = this.listeners.slice();
+    int i = 0;
+    while (i < snapshot.length) {
+      snapshot[i](value);
+      i++;
+    }
+  }
+
+  void dispose() {
+    this.disposed = true;
+    this.listeners = [];
+  }
+}
+
+export DisposableStore createDisposableStore() {
+  return new DisposableStore();
+}
+
+export Emitter createEmitter() {
+  return new Emitter();
+}
+
+export void storeAdd(DisposableStore store, func()->void fn) {
+  store.add(fn);
+}
+
+export void storeDispose(DisposableStore store) {
+  store.dispose();
+}
+
+export func()->void emitterEvent(Emitter emitter, func()->void listener) {
+  return emitter.event(listener);
+}
+
+export void emitterFire(Emitter emitter) {
+  emitter.fire();
+}
+
+export { DisposableStore, Emitter, Emitter1 };

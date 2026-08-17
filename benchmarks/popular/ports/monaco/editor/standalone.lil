@@ -1,0 +1,1044 @@
+import {
+  addEventListener,
+  domCreateElement,
+  appendChild,
+  setStyle,
+  setClassName,
+  setInnerHTML,
+  focusElement,
+  preventDefault,
+  eventKey,
+  eventCtrlKey,
+  eventShiftKey,
+  eventClientX,
+  eventClientY,
+  eventButton,
+  eventDetail,
+  hostCall,
+  jsUndefined
+} from "../js-host";
+import { TextModel, createModel, createModelWithUri, getModels, editOp, deco } from "./text-model";
+import { IdentifiedEdit } from "./edit-stack";
+import { EditorView, createView } from "./view";
+import { triggerCommand, handleKeydown, handlePasteEvent, handleCopyEvent, handleCutEvent, typeText, setPosition, setSel, selectedText } from "./commands";
+import { runEditorAction, acceptSuggest, moveSuggest, hideSuggest, hideHover, showHover, acceptGoto, acceptRename, hideContext, showContext, openFind, findNext, closeFind } from "../contrib/runtime";
+import { Emitter } from "../base/lifecycle";
+import { Pos } from "../base/position";
+import { Rng, createRange } from "../base/range";
+import { Sel, createSelection } from "../base/selection";
+import { Uri } from "../base/uri";
+import { registerPopularLanguages, getLanguage, getLexer, languageIds, registerLanguage, Language } from "../languages/registry";
+import { DiffChange, computeLineDiff } from "./myers";
+import { Decoration } from "./interval-tree";
+import { FindMatch } from "./search";
+import { WordRange } from "./word";
+import { Marker, setModelMarkers as storeMarkers, getModelMarkers as loadMarkers, removeAllMarkers as clearMarkers, markerFromJs } from "./markers";
+import { registerProvider } from "../languages/providers";
+
+string currentTheme = "vs";
+
+class EditorAction {
+  string id;
+  string label;
+  JsValue run;
+
+  init(string id, string label, JsValue run) {
+    this.id = id;
+    this.label = label;
+    this.run = run;
+  }
+}
+
+string optString(JsValue options, string key, string fallback) {
+  if (!options.truthy()) {
+    return fallback;
+  }
+  JsValue v = options[key];
+  if (!v.truthy()) {
+    return fallback;
+  }
+  return JS.string(v);
+}
+
+bool optBool(JsValue options, string key, bool fallback) {
+  if (!options.truthy()) {
+    return fallback;
+  }
+  JsValue v = options[key];
+  if (!v.truthy()) {
+    return fallback;
+  }
+  if (JS.string(v) == "false") {
+    return false;
+  }
+  if (JS.string(v) == "off") {
+    return false;
+  }
+  return true;
+}
+
+int optInt(JsValue options, string key, int fallback) {
+  if (!options.truthy()) {
+    return fallback;
+  }
+  JsValue v = options[key];
+  if (!v.truthy()) {
+    return fallback;
+  }
+  return JS.number(v).toInt();
+}
+
+export class CodeEditor {
+  EditorView view;
+  Emitter contentEmitter;
+  Emitter cursorEmitter;
+  bool disposed;
+  EditorAction[] actions;
+  JsValue modelFacade;
+
+  init(EditorView view) {
+    this.view = view;
+    this.contentEmitter = new Emitter();
+    this.cursorEmitter = new Emitter();
+    this.disposed = false;
+    this.actions = [];
+    this.modelFacade = jsUndefined();
+    TextModel model = view.model;
+    model.onDidChangeContent.event(() => {
+      this.contentEmitter.fire();
+    });
+    this.bindInput();
+  }
+
+  void bindInput() {
+    EditorView view = this.view;
+    addEventListener(view.textarea, "keydown", (JsValue ev) => {
+      if (view.suggestOpen) {
+        string key = eventKey(ev);
+        if (key == "ArrowDown") {
+          preventDefault(ev);
+          moveSuggest(view, 1);
+          return;
+        }
+        if (key == "ArrowUp") {
+          preventDefault(ev);
+          moveSuggest(view, -1);
+          return;
+        }
+        if (key == "Enter" || key == "Tab") {
+          preventDefault(ev);
+          acceptSuggest(view);
+          return;
+        }
+        if (key == "Escape") {
+          preventDefault(ev);
+          hideSuggest(view);
+          return;
+        }
+      }
+      if (eventCtrlKey(ev) && eventKey(ev) == "f") {
+        preventDefault(ev);
+        openFind(view, false);
+        return;
+      }
+      if (eventCtrlKey(ev) && eventKey(ev) == "h") {
+        preventDefault(ev);
+        openFind(view, true);
+        return;
+      }
+      if (eventCtrlKey(ev) && eventKey(ev) == "g") {
+        preventDefault(ev);
+        this.trigger("keyboard", "editor.action.gotoLine", jsUndefined());
+        return;
+      }
+      if (eventCtrlKey(ev) && eventKey(ev) == " ") {
+        preventDefault(ev);
+        this.trigger("keyboard", "editor.action.triggerSuggest", jsUndefined());
+        return;
+      }
+      if (eventCtrlKey(ev) && eventKey(ev) == "/") {
+        preventDefault(ev);
+        this.trigger("keyboard", "editor.action.commentLine", jsUndefined());
+        return;
+      }
+      if (eventCtrlKey(ev) && (eventKey(ev) == "d" || eventKey(ev) == "D")) {
+        preventDefault(ev);
+        this.trigger("keyboard", "editor.action.addSelectionToNextFindMatch", jsUndefined());
+        return;
+      }
+      if (eventKey(ev) == "F2") {
+        preventDefault(ev);
+        this.trigger("keyboard", "editor.action.rename", jsUndefined());
+        return;
+      }
+      if (eventKey(ev) == "F12") {
+        preventDefault(ev);
+        if (eventShiftKey(ev)) {
+          this.trigger("keyboard", "editor.action.goToReferences", jsUndefined());
+        } else {
+          this.trigger("keyboard", "editor.action.goToDefinition", jsUndefined());
+        }
+        return;
+      }
+      if (eventKey(ev) == "F8") {
+        preventDefault(ev);
+        this.trigger("keyboard", "editor.action.marker.next", jsUndefined());
+        return;
+      }
+      if (eventKey(ev) == "Escape") {
+        hideSuggest(view);
+        hideHover(view);
+        hideContext(view);
+        closeFind(view);
+      }
+      handleKeydown(view, ev);
+      this.cursorEmitter.fire();
+    }, false);
+    addEventListener(view.textarea, "compositionend", (JsValue ev) => {
+      string composed = JS.string(ev["data"]);
+      if (composed.length > 0) {
+        typeText(view, composed);
+      }
+    }, false);
+    addEventListener(view.textarea, "input", (JsValue ev) => {
+      string value = JS.string(ev["target"]["value"]);
+      if (value.length > 0) {
+        typeText(view, value);
+      }
+    }, false);
+    addEventListener(view.textarea, "paste", (JsValue ev) => {
+      handlePasteEvent(view, ev);
+    }, false);
+    addEventListener(view.textarea, "copy", (JsValue ev) => {
+      handleCopyEvent(view, ev);
+    }, false);
+    addEventListener(view.textarea, "cut", (JsValue ev) => {
+      handleCutEvent(view, ev);
+    }, false);
+    addEventListener(view.scrollable, "scroll", (JsValue ev) => {
+      view.scrollTop = JS.number(view.scrollable["scrollTop"]).toInt();
+      view.render();
+    }, false);
+    addEventListener(view.scrollable, "mousedown", (JsValue ev) => {
+      hideContext(view);
+      hideHover(view);
+      Pos pos = view.coordsToPosition(eventClientX(ev), eventClientY(ev));
+      int clickLine = pos.lineNumber;
+      int clickCol = pos.column;
+      int detail = eventDetail(ev);
+      view.mouseSelecting = true;
+      view.mouseAnchorLine = clickLine;
+      view.mouseAnchorColumn = clickCol;
+      if (detail >= 3) {
+        int lineLen = view.model.getLineLength(clickLine) + 1;
+        setSel(view, clickLine, 1, clickLine, lineLen);
+      } else if (detail == 2) {
+        this.trigger("keyboard", "cursorWordSelect", jsUndefined());
+        setPosition(view, clickLine, clickCol);
+        this.trigger("keyboard", "expandLineSelection", jsUndefined());
+      } else if (eventShiftKey(ev)) {
+        int sl = view.selection.selectionStartLineNumber;
+        int sc = view.selection.selectionStartColumn;
+        setSel(view, sl, sc, clickLine, clickCol);
+      } else {
+        setPosition(view, clickLine, clickCol);
+      }
+      focusElement(view.textarea);
+      view.render();
+      this.cursorEmitter.fire();
+    }, false);
+    addEventListener(view.margin, "mousedown", (JsValue ev) => {
+      Pos pos = view.coordsToPosition(eventClientX(ev), eventClientY(ev));
+      view.toggleFoldAt(pos.lineNumber);
+    }, false);
+    addEventListener(view.root, "contextmenu", (JsValue ev) => {
+      preventDefault(ev);
+      showContext(view, eventClientX(ev), eventClientY(ev));
+    }, false);
+    addEventListener(view.contextWidget, "mousedown", (JsValue ev) => {
+      JsValue t = ev["target"];
+      string cmd = JS.string(hostCall(t, "getAttribute", "data-cmd", jsUndefined(), jsUndefined()));
+      if (cmd.length > 0 && cmd != "undefined") {
+        this.trigger("menu", cmd, jsUndefined());
+      }
+      hideContext(view);
+    }, false);
+    addEventListener(view.findInput, "keydown", (JsValue ev) => {
+      if (eventKey(ev) == "Enter") {
+        preventDefault(ev);
+        findNext(view, eventCtrlKey(ev));
+      }
+      if (eventKey(ev) == "Escape") {
+        preventDefault(ev);
+        closeFind(view);
+      }
+    }, false);
+    addEventListener(view.gotoInput, "keydown", (JsValue ev) => {
+      if (eventKey(ev) == "Enter") {
+        preventDefault(ev);
+        acceptGoto(view);
+      }
+    }, false);
+    addEventListener(view.renameInput, "keydown", (JsValue ev) => {
+      if (eventKey(ev) == "Enter") {
+        preventDefault(ev);
+        acceptRename(view);
+      }
+    }, false);
+    addEventListener(view.scrollable, "mousemove", (JsValue ev) => {
+      if (view.mouseSelecting) {
+        Pos pos = view.coordsToPosition(eventClientX(ev), eventClientY(ev));
+        int anchorLine = view.mouseAnchorLine;
+        int anchorCol = view.mouseAnchorColumn;
+        setSel(view, anchorLine, anchorCol, pos.lineNumber, pos.column);
+        view.render();
+        this.cursorEmitter.fire();
+        return;
+      }
+      if (eventCtrlKey(ev)) {
+        Pos pos = view.coordsToPosition(eventClientX(ev), eventClientY(ev));
+        setPosition(view, pos.lineNumber, pos.column);
+        showHover(view);
+      }
+    }, false);
+    addEventListener(view.scrollable, "mouseup", (JsValue ev) => {
+      view.mouseSelecting = false;
+    }, false);
+    addEventListener(view.root, "mouseleave", (JsValue ev) => {
+      view.mouseSelecting = false;
+    }, false);
+  }
+
+  string getValue() {
+    return this.view.model.getValue();
+  }
+
+  void setValue(string value) {
+    this.view.model.setValue(value);
+    setPosition(this.view, 1, 1);
+    this.view.render();
+  }
+
+  TextModel getModel() {
+    return this.view.model;
+  }
+
+  void setModel(TextModel model) {
+    this.view.model = model;
+    this.view.languageId = model.languageId;
+    setPosition(this.view, 1, 1);
+    this.view.render();
+  }
+
+  Pos getPosition() {
+    return new Pos(this.view.selection.positionLineNumber, this.view.selection.positionColumn);
+  }
+
+  Sel getSelection() {
+    return this.view.selection;
+  }
+
+  void setPosition(Pos pos) {
+    setPosition(this.view, pos.lineNumber, pos.column);
+    this.view.render();
+  }
+
+  void setSelection(Sel sel) {
+    setSel(this.view, sel.selectionStartLineNumber, sel.selectionStartColumn, sel.positionLineNumber, sel.positionColumn);
+    this.view.render();
+  }
+
+  void focus() {
+    focusElement(this.view.textarea);
+  }
+
+  bool hasTextFocus() {
+    return true;
+  }
+
+  void layout() {
+    int w = JS.number(this.view.root["clientWidth"]).toInt();
+    int h = JS.number(this.view.root["clientHeight"]).toInt();
+    if (w < 1) {
+      w = this.view.width;
+    }
+    if (h < 1) {
+      h = this.view.height;
+    }
+    this.view.layout(w, h);
+  }
+
+  void trigger(string source, string handlerId, JsValue payload) {
+    string text = "";
+    if (payload.truthy() && payload["text"].truthy()) {
+      text = JS.string(payload["text"]);
+    }
+    if (payload.truthy() && payload["lineNumber"].truthy()) {
+      int line = JS.number(payload["lineNumber"]).toInt();
+      int col = 1;
+      if (payload["column"].truthy()) {
+        col = JS.number(payload["column"]).toInt();
+      }
+      setPosition(this.view, line, col);
+      this.view.render();
+    }
+    if (triggerCommand(this.view, handlerId, text)) {
+      this.cursorEmitter.fire();
+      return;
+    }
+    if (runEditorAction(this.view, handlerId, text)) {
+      this.cursorEmitter.fire();
+      return;
+    }
+    int a = 0;
+    while (a < this.actions.length) {
+      if (this.actions[a].id == handlerId) {
+        this.actions[a].run(this);
+        return;
+      }
+      a++;
+    }
+  }
+
+  func()->void onDidChangeModelContent(func()->void listener) {
+    return this.contentEmitter.event(listener);
+  }
+
+  func()->void onDidChangeCursorPosition(func()->void listener) {
+    return this.cursorEmitter.event(listener);
+  }
+
+  void updateOptions(JsValue options) {
+    string theme = optString(options, "theme", this.view.theme);
+    this.view.showLineNumbers = optBool(options, "lineNumbers", this.view.showLineNumbers);
+    this.view.readOnly = optBool(options, "readOnly", this.view.readOnly);
+    this.view.tabSize = optInt(options, "tabSize", this.view.tabSize);
+    this.view.insertSpaces = optBool(options, "insertSpaces", this.view.insertSpaces);
+    this.view.fontSize = optInt(options, "fontSize", this.view.fontSize);
+    this.view.wordWrap = optBool(options, "wordWrap", this.view.wordWrap);
+    if (options.truthy() && options["minimap"].truthy()) {
+      JsValue mini = options["minimap"];
+      this.view.showMinimap = optBool(mini, "enabled", this.view.showMinimap);
+    }
+    if (theme != this.view.theme) {
+      this.view.setTheme(theme);
+    } else {
+      this.view.render();
+    }
+  }
+
+  int[] deltaDecorations(int[] oldIds, Decoration[] next) {
+    int[] ids = this.view.model.deltaDecorations(oldIds, next);
+    this.view.render();
+    return ids;
+  }
+
+  FindMatch[] findMatches(string searchString, bool isRegex, bool matchCase, bool wholeWord, int limit) {
+    return this.view.model.findMatches(searchString, isRegex, matchCase, wholeWord, limit);
+  }
+
+  IdentifiedEdit[] executeEdits(IdentifiedEdit[] edits) {
+    IdentifiedEdit[] inv = this.view.model.applyEdits(edits, true);
+    this.view.render();
+    return inv;
+  }
+
+  void revealLine(int lineNumber) {
+    this.view.revealLine(lineNumber);
+    this.view.render();
+  }
+
+  void revealPosition(Pos pos) {
+    setPosition(this.view, pos.lineNumber, pos.column);
+    this.view.render();
+  }
+
+  void addAction(string id, string label, JsValue run) {
+    this.actions.push(new EditorAction(id, label, run));
+  }
+
+  EditorAction? getAction(string id) {
+    int i = 0;
+    while (i < this.actions.length) {
+      if (this.actions[i].id == id) {
+        return this.actions[i];
+      }
+      i++;
+    }
+    return null;
+  }
+
+  void dispose() {
+    if (this.disposed) {
+      return;
+    }
+    this.disposed = true;
+    this.contentEmitter.dispose();
+    this.cursorEmitter.dispose();
+  }
+}
+
+export class DiffEditor {
+  JsValue root;
+  CodeEditor original;
+  CodeEditor modified;
+  DiffChange[] changes;
+
+  init(JsValue root, CodeEditor original, CodeEditor modified) {
+    this.root = root;
+    this.original = original;
+    this.modified = modified;
+    this.changes = [];
+    this.refresh();
+  }
+
+  void refresh() {
+  }
+
+  CodeEditor getOriginalEditor() {
+    return this.original;
+  }
+
+  CodeEditor getModifiedEditor() {
+    return this.modified;
+  }
+
+  DiffChange[] getLineChanges() {
+    return computeLineDiff(this.original.getValue(), this.modified.getValue());
+  }
+
+  void layout() {
+    this.original.layout();
+    this.modified.layout();
+  }
+
+  void dispose() {
+    this.original.dispose();
+    this.modified.dispose();
+  }
+}
+
+CodeEditor[] editors = [];
+DiffEditor[] diffEditors = [];
+Emitter createEmitter = new Emitter();
+Emitter createDiffEmitter = new Emitter();
+
+export CodeEditor createConfigured(JsValue dom, string value, string language, string theme) {
+  registerPopularLanguages();
+  TextModel model = createModel(value, language);
+  EditorView view = createView(dom, model);
+  view.theme = theme;
+  view.languageId = language;
+  view.applyTheme();
+  view.render();
+  CodeEditor editor = new CodeEditor(view);
+  editors.push(editor);
+  createEmitter.fire();
+  return editor;
+}
+
+export CodeEditor create(JsValue dom, JsValue options) {
+  string value = optString(options, "value", "");
+  string language = optString(options, "language", "plaintext");
+  string theme = optString(options, "theme", currentTheme);
+  CodeEditor editor = createConfigured(dom, value, language, theme);
+  editor.updateOptions(options);
+  if (options.truthy() && options["model"].truthy()) {
+  }
+  editor.view.render();
+  return editor;
+}
+
+export DiffEditor createDiffEditor(JsValue dom, JsValue options) {
+  JsValue left = domCreateElement("div");
+  JsValue right = domCreateElement("div");
+  setStyle(dom, "display", "flex");
+  setStyle(left, "flex", "1 1 50%");
+  setStyle(right, "flex", "1 1 50%");
+  appendChild(dom, left);
+  appendChild(dom, right);
+  string original = optString(options, "original", "");
+  string modified = optString(options, "modified", "");
+  string language = optString(options, "language", "plaintext");
+  CodeEditor origEd = createConfigured(left, original, language, currentTheme);
+  CodeEditor modEd = createConfigured(right, modified, language, currentTheme);
+  DiffEditor diff = new DiffEditor(dom, origEd, modEd);
+  diffEditors.push(diff);
+  createDiffEmitter.fire();
+  return diff;
+}
+
+export CodeEditor[] getEditors() {
+  return editors;
+}
+
+export DiffEditor[] getDiffEditors() {
+  return diffEditors;
+}
+
+export void defineTheme(string name, JsValue data) {
+  currentTheme = name;
+}
+
+export void setTheme(string name) {
+  currentTheme = name;
+  int i = 0;
+  while (i < editors.length) {
+    editors[i].view.setTheme(name);
+    i++;
+  }
+}
+
+export void setModelLanguage(TextModel model, string languageId) {
+  model.setLanguage(languageId);
+}
+
+export void setModelMarkers(TextModel model, string owner, JsValue markers) {
+  Marker[] next = [];
+  if (markers.truthy()) {
+    int i = 0;
+    while (markers[i].truthy()) {
+      next.push(markerFromJs(markers[i], owner, model.uri.toString()));
+      i++;
+    }
+  }
+  storeMarkers(model, owner, next);
+}
+
+export Marker[] getModelMarkers(string owner, string resource, int take) {
+  return loadMarkers(owner, resource, take);
+}
+
+export void removeAllMarkers(string owner) {
+  clearMarkers(owner);
+}
+
+export func()->void languagesRegisterCompletion(JsValue selector, JsValue provider) {
+  return registerProvider("completion", selector, provider);
+}
+
+export func()->void languagesRegisterHover(JsValue selector, JsValue provider) {
+  return registerProvider("hover", selector, provider);
+}
+
+export func()->void languagesRegisterDefinition(JsValue selector, JsValue provider) {
+  return registerProvider("definition", selector, provider);
+}
+
+export func()->void languagesRegisterReference(JsValue selector, JsValue provider) {
+  return registerProvider("reference", selector, provider);
+}
+
+export func()->void languagesRegisterDocumentSymbol(JsValue selector, JsValue provider) {
+  return registerProvider("documentSymbol", selector, provider);
+}
+
+export func()->void languagesRegisterFormatting(JsValue selector, JsValue provider) {
+  return registerProvider("documentFormatting", selector, provider);
+}
+
+export func()->void languagesRegisterRename(JsValue selector, JsValue provider) {
+  return registerProvider("rename", selector, provider);
+}
+
+export func()->void languagesRegisterSignatureHelp(JsValue selector, JsValue provider) {
+  return registerProvider("signatureHelp", selector, provider);
+}
+
+export func()->void languagesRegisterFolding(JsValue selector, JsValue provider) {
+  return registerProvider("folding", selector, provider);
+}
+
+export func()->void languagesRegisterLink(JsValue selector, JsValue provider) {
+  return registerProvider("link", selector, provider);
+}
+
+export func()->void languagesRegisterCodeAction(JsValue selector, JsValue provider) {
+  return registerProvider("codeAction", selector, provider);
+}
+
+export func()->void languagesRegisterCodeLens(JsValue selector, JsValue provider) {
+  return registerProvider("codeLens", selector, provider);
+}
+
+export func()->void languagesRegisterColor(JsValue selector, JsValue provider) {
+  return registerProvider("color", selector, provider);
+}
+
+export func()->void languagesRegisterHighlight(JsValue selector, JsValue provider) {
+  return registerProvider("documentHighlight", selector, provider);
+}
+
+export func()->void languagesRegisterInlayHints(JsValue selector, JsValue provider) {
+  return registerProvider("inlayHints", selector, provider);
+}
+
+export func()->void languagesRegisterInlineCompletions(JsValue selector, JsValue provider) {
+  return registerProvider("inlineCompletions", selector, provider);
+}
+
+export func()->void languagesRegisterKind(string kind, JsValue selector, JsValue provider) {
+  return registerProvider(kind, selector, provider);
+}
+
+export { createModelWithUri, getModels, editOp, deco, TextModel, Decoration, FindMatch, createRange, Uri, getLanguage, getLexer, languageIds, DiffChange, computeLineDiff, createModel };
+
+export string editorGetValue(CodeEditor editor) {
+  return editor.getValue();
+}
+
+export void editorSetValue(CodeEditor editor, string value) {
+  editor.setValue(value);
+}
+
+export TextModel editorGetModel(CodeEditor editor) {
+  return editor.getModel();
+}
+
+export void editorSetModel(CodeEditor editor, TextModel model) {
+  editor.setModel(model);
+}
+
+export int editorLineCount(CodeEditor editor) {
+  return editor.getModel().getLineCount();
+}
+
+export Pos editorGetPosition(CodeEditor editor) {
+  return editor.getPosition();
+}
+
+export void editorSetPosition(CodeEditor editor, Pos pos) {
+  editor.setPosition(pos);
+}
+
+export Sel editorGetSelection(CodeEditor editor) {
+  return editor.getSelection();
+}
+
+export void editorSetSelection(CodeEditor editor, Sel sel) {
+  editor.setSelection(sel);
+}
+
+export void editorTrigger(CodeEditor editor, string source, string handlerId, JsValue payload) {
+  editor.trigger(source, handlerId, payload);
+}
+
+export void editorLayout(CodeEditor editor) {
+  editor.layout();
+}
+
+export void editorLayoutSize(CodeEditor editor, int width, int height) {
+  editor.view.layout(width, height);
+}
+
+export void editorDispose(CodeEditor editor) {
+  editor.dispose();
+}
+
+export void editorFocus(CodeEditor editor) {
+  editor.focus();
+}
+
+export IdentifiedEdit[] editorExecuteEdits(CodeEditor editor, IdentifiedEdit[] edits) {
+  return editor.executeEdits(edits);
+}
+
+export int[] editorDeltaDecorations(CodeEditor editor, int[] oldIds, Decoration[] next) {
+  return editor.deltaDecorations(oldIds, next);
+}
+
+export void editorRevealLine(CodeEditor editor, int lineNumber) {
+  editor.revealLine(lineNumber);
+}
+
+export void editorAddAction(CodeEditor editor, string id, string label, JsValue run) {
+  editor.addAction(id, label, run);
+}
+
+export void editorSetModelFacade(CodeEditor editor, JsValue facade) {
+  editor.modelFacade = facade;
+  editor.view.modelFacade = facade;
+}
+
+export func()->void editorOnDidChangeModelContent(CodeEditor editor, func()->void listener) {
+  return editor.onDidChangeModelContent(listener);
+}
+
+export func()->void editorOnDidChangeCursorPosition(CodeEditor editor, func()->void listener) {
+  return editor.onDidChangeCursorPosition(listener);
+}
+
+export func()->void onDidCreateEditor(func()->void listener) {
+  return createEmitter.event(listener);
+}
+
+export void registerLanguageId(string id) {
+  registerPopularLanguages();
+  Language? existing = getLanguage(id);
+  if (existing != null) {
+    return;
+  }
+  Language? plain = getLanguage("plaintext");
+  if (plain != null) {
+    registerLanguage(new Language(id, plain.lexer, "", "", ""));
+  }
+}
+
+export void setLanguageConfigurationJs(string id, JsValue config) {
+  Language? lang = getLanguage(id);
+  if (lang == null || !config.truthy()) {
+    return;
+  }
+  JsValue comments = config["comments"];
+  if (comments.truthy()) {
+    if (comments["lineComment"].truthy()) {
+      lang.lineComment = JS.string(comments["lineComment"]);
+    }
+    if (comments["blockComment"].truthy()) {
+      JsValue block = comments["blockComment"];
+      if (block[0].truthy()) {
+        lang.blockCommentStart = JS.string(block[0]);
+      }
+      if (block[1].truthy()) {
+        lang.blockCommentEnd = JS.string(block[1]);
+      }
+    }
+  }
+}
+
+export void setTokensProviderJs(string id, JsValue provider) {
+  registerLanguageId(id);
+  Language? lang = getLanguage(id);
+  if (lang != null) {
+    lang.tokensProvider = provider;
+  }
+}
+
+export void editorUpdateOptions(CodeEditor editor, JsValue options) {
+  editor.updateOptions(options);
+}
+
+export int[] modelDeltaDecorations(TextModel model, int[] oldIds, Decoration[] next) {
+  return model.deltaDecorations(oldIds, next);
+}
+
+export bool modelUndo(TextModel model) {
+  return model.undo();
+}
+
+export bool modelRedo(TextModel model) {
+  return model.redo();
+}
+
+export func()->void modelOnDidChangeContent(TextModel model, func()->void listener) {
+  return model.onDidChangeContent.event(listener);
+}
+
+export string modelGetValueInRange(TextModel model, Rng range) {
+  return model.getValueInRange(range);
+}
+
+export string[] modelGetWordAtPosition(TextModel model, Pos pos) {
+  WordRange w = model.getWordAtPosition(pos);
+  string[] row = [];
+  row.push(w.startColumn.toString());
+  row.push(w.endColumn.toString());
+  row.push(w.word);
+  return row;
+}
+
+export string modelGetValue(TextModel model) {
+  return model.getValue();
+}
+
+export void modelSetValue(TextModel model, string value) {
+  model.setValue(value);
+}
+
+export int modelGetLineCount(TextModel model) {
+  return model.getLineCount();
+}
+
+export string modelGetLineContent(TextModel model, int lineNumber) {
+  return model.getLineContent(lineNumber);
+}
+
+export int modelGetOffsetAt(TextModel model, Pos pos) {
+  return model.getOffsetAt(pos);
+}
+
+export Pos modelGetPositionAt(TextModel model, int offset) {
+  return model.getPositionAt(offset);
+}
+
+export string modelGetLanguageId(TextModel model) {
+  return model.getLanguageId();
+}
+
+export int modelGetVersionId(TextModel model) {
+  return model.getVersionId();
+}
+
+export string modelUriString(TextModel model) {
+  return model.uri.toString();
+}
+
+export FindMatch[] modelFindMatches(TextModel model, string query, bool isRegex, bool matchCase, bool wholeWord, int limit) {
+  return model.findMatches(query, isRegex, matchCase, wholeWord, limit);
+}
+
+export IdentifiedEdit[] modelApplyEdits(TextModel model, IdentifiedEdit[] edits) {
+  return model.applyEdits(edits, true);
+}
+
+export void modelDispose(TextModel model) {
+  model.dispose();
+}
+
+export DiffChange[] diffLineChanges(DiffEditor editor) {
+  return editor.getLineChanges();
+}
+
+export void diffDispose(DiffEditor editor) {
+  editor.dispose();
+}
+
+export CodeEditor diffGetOriginal(DiffEditor editor) {
+  return editor.getOriginalEditor();
+}
+
+export CodeEditor diffGetModified(DiffEditor editor) {
+  return editor.getModifiedEditor();
+}
+
+export void diffLayout(DiffEditor editor) {
+  editor.layout();
+}
+
+export func()->void onDidCreateDiffEditor(func()->void listener) {
+  return createDiffEmitter.event(listener);
+}
+
+export JsValue editorGetDomNode(CodeEditor editor) {
+  return editor.view.root;
+}
+
+export JsValue editorGetOverflowWidgetsDomNode(CodeEditor editor) {
+  return editor.view.widgetsHost;
+}
+
+export int editorGetScrollTop(CodeEditor editor) {
+  return editor.view.scrollTop;
+}
+
+export void editorSetScrollTop(CodeEditor editor, int value) {
+  int next = value;
+  if (next < 0) {
+    next = 0;
+  }
+  editor.view.scrollTop = next;
+  editor.view.render();
+}
+
+export int editorGetScrollLeft(CodeEditor editor) {
+  return 0;
+}
+
+export void editorSetScrollLeft(CodeEditor editor, int value) {
+}
+
+export int editorGetContentHeight(CodeEditor editor) {
+  return editor.view.scrollHeight();
+}
+
+export int editorGetContentWidth(CodeEditor editor) {
+  return editor.view.width;
+}
+
+export int[] editorGetVisibleRangePacked(CodeEditor editor) {
+  int start = editor.view.visibleStartLine();
+  int endLine = editor.view.visibleEndLine();
+  int endCol = editor.view.model.getLineLength(endLine) + 1;
+  int[] out = [];
+  out.push(start);
+  out.push(1);
+  out.push(endLine);
+  out.push(endCol);
+  return out;
+}
+
+export int[] editorGetSelectionsPacked(CodeEditor editor) {
+  int[] out = [];
+  Sel sel = editor.view.selection;
+  out.push(sel.selectionStartLineNumber);
+  out.push(sel.selectionStartColumn);
+  out.push(sel.positionLineNumber);
+  out.push(sel.positionColumn);
+  int i = 0;
+  while (i < editor.view.extraCursors.length) {
+    Sel extra = editor.view.extraCursors[i];
+    out.push(extra.selectionStartLineNumber);
+    out.push(extra.selectionStartColumn);
+    out.push(extra.positionLineNumber);
+    out.push(extra.positionColumn);
+    i = i + 1;
+  }
+  return out;
+}
+
+export void editorSetSelectionsPacked(CodeEditor editor, int[] packed) {
+  if (packed.length < 4) {
+    return;
+  }
+  editor.setSelection(createSelection(packed[0], packed[1], packed[2], packed[3]));
+  Sel[] extra = [];
+  int i = 4;
+  while (i + 3 < packed.length) {
+    extra.push(createSelection(packed[i], packed[i + 1], packed[i + 2], packed[i + 3]));
+    i = i + 4;
+  }
+  editor.view.extraCursors = extra;
+}
+
+export string[] modelGetLinesContent(TextModel model) {
+  string[] lines = [];
+  int i = 1;
+  int n = model.getLineCount();
+  while (i <= n) {
+    lines.push(model.getLineContent(i));
+    i = i + 1;
+  }
+  return lines;
+}
+
+export int modelGetValueLength(TextModel model) {
+  return model.getValueLength();
+}
+
+export void modelPushStackElement(TextModel model) {
+}
+
+export int[] modelFindNextMatchPacked(TextModel model, string query, int line, int column, bool isRegex, bool matchCase, bool wholeWord) {
+  FindMatch[] all = model.findMatches(query, isRegex, matchCase, wholeWord, 1000);
+  int[] out = [];
+  int i = 0;
+  while (i < all.length) {
+    FindMatch hit = all[i];
+    if (hit.range.startLineNumber > line || (hit.range.startLineNumber == line && hit.range.startColumn >= column)) {
+      out.push(hit.range.startLineNumber);
+      out.push(hit.range.startColumn);
+      out.push(hit.range.endLineNumber);
+      out.push(hit.range.endColumn);
+      return out;
+    }
+    i = i + 1;
+  }
+  if (all.length > 0) {
+    FindMatch first = all[0];
+    out.push(first.range.startLineNumber);
+    out.push(first.range.startColumn);
+    out.push(first.range.endLineNumber);
+    out.push(first.range.endColumn);
+  }
+  return out;
+}

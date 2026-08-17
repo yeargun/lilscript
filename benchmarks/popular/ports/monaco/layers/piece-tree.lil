@@ -1,0 +1,49 @@
+import { PieceTreeBase, createPieceTree } from "../editor/piece-tree";
+import { Rng, createRange } from "../base/range";
+import { Pos } from "../base/position";
+
+export PieceTreeBase create(string value, string eol = "\n") {
+  return createPieceTree(value, eol);
+}
+
+export string getValue(PieceTreeBase tree) {
+  return tree.getLinesRawContent();
+}
+
+export int getLength(PieceTreeBase tree) {
+  return tree.getLength();
+}
+
+export int getLineCount(PieceTreeBase tree) {
+  return tree.getLineCount();
+}
+
+export string getLineContent(PieceTreeBase tree, int lineNumber) {
+  return tree.getLineContent(lineNumber);
+}
+
+export int getLineLength(PieceTreeBase tree, int lineNumber) {
+  return tree.getLineLength(lineNumber);
+}
+
+export int getOffsetAt(PieceTreeBase tree, int lineNumber, int column) {
+  return tree.getOffsetAt(lineNumber, column);
+}
+
+export Pos getPositionAt(PieceTreeBase tree, int offset) {
+  return tree.getPositionAt(offset);
+}
+
+export string getValueInRange(PieceTreeBase tree, int sl, int sc, int el, int ec) {
+  return tree.getValueInRange(createRange(sl, sc, el, ec));
+}
+
+export void insert(PieceTreeBase tree, int offset, string value) {
+  tree.insert(offset, value);
+}
+
+export void deleteRange(PieceTreeBase tree, int offset, int cnt) {
+  tree.delete(offset, cnt);
+}
+
+export { PieceTreeBase, Rng, Pos };

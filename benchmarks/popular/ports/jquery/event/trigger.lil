@@ -1,7 +1,7 @@
 import { emptyArray } from "../alloc.lil";
 import { jQuery, each, makeArray } from "../core";
 import { document } from "../var/document";
-import { dataPriv } from "../data/var/dataPriv";
+import { get as dataPrivGet } from "../data/var/dataPriv";
 import { acceptData } from "../data/var/acceptData";
 import { isFunction } from "../var/isFunction";
 import { isWindow } from "../var/isWindow";
@@ -142,10 +142,10 @@ export JsValue trigger(JsValue eventArg, JsValue dataArg = null, JsValue elemArg
       event["type"] = JS.or(specialForType["bindType"], type);
     }
 
-    JsValue events = dataPriv.get(cur, "events");
+    JsValue events = dataPrivGet(cur, "events");
     JsValue handle = JS.undefined();
     if (events.truthy() && events[event["type"]].truthy()) {
-      handle = dataPriv.get(cur, "handle");
+      handle = dataPrivGet(cur, "handle");
     }
     if (handle.truthy()) {
       JS.apply(handle, cur, data);

@@ -1,0 +1,61 @@
+import { DisposableStore, Emitter, createDisposableStore, createEmitter } from "../base/lifecycle";
+import { Uri, parseUri, fileUri, inmemoryUri } from "../base/uri";
+import { KeyCode, KeyModCtrl, KeyModShift, KeyModAlt, KeyModWinCtrl, chord, keyCodeFromKey } from "../base/keycodes";
+import { EditorView, createView } from "../editor/view";
+import { TextModel, createModel } from "../editor/text-model";
+
+export EditorView mountView(JsValue root, string value) {
+  TextModel model = createModel(value, "plaintext");
+  EditorView view = createView(root, model);
+  view.render();
+  return view;
+}
+
+export {
+  DisposableStore,
+  Emitter,
+  createDisposableStore,
+  createEmitter,
+  Uri,
+  parseUri,
+  fileUri,
+  inmemoryUri,
+  KeyCode,
+  KeyModCtrl,
+  KeyModShift,
+  KeyModAlt,
+  KeyModWinCtrl,
+  chord,
+  keyCodeFromKey,
+  EditorView,
+  createView,
+  createModel
+};
+
+export int viewLineCount(EditorView view) {
+  return view.model.getLineCount();
+}
+
+export int viewScrollHeight(EditorView view) {
+  return view.scrollHeight();
+}
+
+export int viewVisibleStart(EditorView view) {
+  return view.visibleStartLine();
+}
+
+export void viewLayout(EditorView view, int width, int height) {
+  view.layout(width, height);
+}
+
+export string viewSnapshot(EditorView view) {
+  return view.snapshot();
+}
+
+export void viewSetTheme(EditorView view, string theme) {
+  view.setTheme(theme);
+}
+
+export string viewThemeClass(EditorView view) {
+  return JS.string(view.root["className"]);
+}

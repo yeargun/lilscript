@@ -1,0 +1,42 @@
+import {
+  findInEditor,
+  computeIndentFolds,
+  matchBracket,
+  hoverAt,
+  suggestAt,
+  expandSnippet,
+  insertSnippet,
+  toggleLineComment,
+  gotoLine,
+  stickyLines,
+  highlightWord,
+  detectLinks,
+  FoldRange,
+  SuggestItem
+} from "../contrib/popular";
+import { create, createDiffEditor, computeLineDiff, CodeEditor, editorGetValue, editorGetPosition, editorSetPosition, editorTrigger } from "../editor/standalone";
+
+export {
+  findInEditor,
+  computeIndentFolds,
+  matchBracket,
+  hoverAt,
+  suggestAt,
+  expandSnippet,
+  insertSnippet,
+  toggleLineComment,
+  gotoLine,
+  stickyLines,
+  highlightWord,
+  detectLinks,
+  FoldRange,
+  SuggestItem,
+  create,
+  createDiffEditor,
+  computeLineDiff,
+  CodeEditor,
+  editorGetValue,
+  editorGetPosition,
+  editorSetPosition,
+  editorTrigger
+};

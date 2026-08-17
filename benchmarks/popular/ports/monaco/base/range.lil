@@ -1,0 +1,215 @@
+import { Pos } from "./position";
+
+pure int iMin(int a, int b) {
+  if (a < b) {
+    return a;
+  }
+  return b;
+}
+
+pure int iMax(int a, int b) {
+  if (a > b) {
+    return a;
+  }
+  return b;
+}
+
+export class Rng {
+  int startLineNumber;
+  int startColumn;
+  int endLineNumber;
+  int endColumn;
+
+  init(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+    if (startLineNumber > endLineNumber || (startLineNumber == endLineNumber && startColumn > endColumn)) {
+      this.startLineNumber = endLineNumber;
+      this.startColumn = endColumn;
+      this.endLineNumber = startLineNumber;
+      this.endColumn = startColumn;
+    } else {
+      this.startLineNumber = startLineNumber;
+      this.startColumn = startColumn;
+      this.endLineNumber = endLineNumber;
+      this.endColumn = endColumn;
+    }
+  }
+
+  bool isEmpty() {
+    return this.startLineNumber == this.endLineNumber && this.startColumn == this.endColumn;
+  }
+
+  bool containsPosition(Pos position) {
+    if (position.lineNumber < this.startLineNumber || position.lineNumber > this.endLineNumber) {
+      return false;
+    }
+    if (position.lineNumber == this.startLineNumber && position.column < this.startColumn) {
+      return false;
+    }
+    if (position.lineNumber == this.endLineNumber && position.column > this.endColumn) {
+      return false;
+    }
+    return true;
+  }
+
+  bool containsRange(Rng other) {
+    if (other.startLineNumber < this.startLineNumber || other.endLineNumber < this.startLineNumber) {
+      return false;
+    }
+    if (other.startLineNumber > this.endLineNumber || other.endLineNumber > this.endLineNumber) {
+      return false;
+    }
+    if (other.startLineNumber == this.startLineNumber && other.startColumn < this.startColumn) {
+      return false;
+    }
+    if (other.endLineNumber == this.endLineNumber && other.endColumn > this.endColumn) {
+      return false;
+    }
+    return true;
+  }
+
+  Rng plusRange(Rng other) {
+    int startLineNumber = this.startLineNumber;
+    int startColumn = this.startColumn;
+    int endLineNumber = this.endLineNumber;
+    int endColumn = this.endColumn;
+    if (other.startLineNumber < startLineNumber) {
+      startLineNumber = other.startLineNumber;
+      startColumn = other.startColumn;
+    } else if (other.startLineNumber == startLineNumber) {
+      startColumn = iMin(other.startColumn, startColumn);
+    }
+    if (other.endLineNumber > endLineNumber) {
+      endLineNumber = other.endLineNumber;
+      endColumn = other.endColumn;
+    } else if (other.endLineNumber == endLineNumber) {
+      endColumn = iMax(other.endColumn, endColumn);
+    }
+    return new Rng(startLineNumber, startColumn, endLineNumber, endColumn);
+  }
+
+  Rng? intersectRanges(Rng other) {
+    int resultStartLineNumber = this.startLineNumber;
+    int resultStartColumn = this.startColumn;
+    int resultEndLineNumber = this.endLineNumber;
+    int resultEndColumn = this.endColumn;
+    if (resultStartLineNumber < other.startLineNumber) {
+      resultStartLineNumber = other.startLineNumber;
+      resultStartColumn = other.startColumn;
+    } else if (resultStartLineNumber == other.startLineNumber) {
+      resultStartColumn = iMax(resultStartColumn, other.startColumn);
+    }
+    if (resultEndLineNumber > other.endLineNumber) {
+      resultEndLineNumber = other.endLineNumber;
+      resultEndColumn = other.endColumn;
+    } else if (resultEndLineNumber == other.endLineNumber) {
+      resultEndColumn = iMin(resultEndColumn, other.endColumn);
+    }
+    if (resultStartLineNumber > resultEndLineNumber) {
+      return null;
+    }
+    if (resultStartLineNumber == resultEndLineNumber && resultStartColumn > resultEndColumn) {
+      return null;
+    }
+    return new Rng(resultStartLineNumber, resultStartColumn, resultEndLineNumber, resultEndColumn);
+  }
+
+  bool equalsRange(Rng other) {
+    return this.startLineNumber == other.startLineNumber
+      && this.startColumn == other.startColumn
+      && this.endLineNumber == other.endLineNumber
+      && this.endColumn == other.endColumn;
+  }
+
+  Pos getStartPosition() {
+    return new Pos(this.startLineNumber, this.startColumn);
+  }
+
+  Pos getEndPosition() {
+    return new Pos(this.endLineNumber, this.endColumn);
+  }
+
+  Rng setEndPosition(int endLineNumber, int endColumn) {
+    return new Rng(this.startLineNumber, this.startColumn, endLineNumber, endColumn);
+  }
+
+  Rng setStartPosition(int startLineNumber, int startColumn) {
+    return new Rng(startLineNumber, startColumn, this.endLineNumber, this.endColumn);
+  }
+
+  Rng collapseToStart() {
+    return new Rng(this.startLineNumber, this.startColumn, this.startLineNumber, this.startColumn);
+  }
+
+  Rng collapseToEnd() {
+    return new Rng(this.endLineNumber, this.endColumn, this.endLineNumber, this.endColumn);
+  }
+
+  Rng delta(int lineCount) {
+    return new Rng(
+      this.startLineNumber + lineCount,
+      this.startColumn,
+      this.endLineNumber + lineCount,
+      this.endColumn
+    );
+  }
+
+  bool isSingleLine() {
+    return this.startLineNumber == this.endLineNumber;
+  }
+
+  string toString() {
+    return "["
+      + this.startLineNumber.toString()
+      + ","
+      + this.startColumn.toString()
+      + " -> "
+      + this.endLineNumber.toString()
+      + ","
+      + this.endColumn.toString()
+      + "]";
+  }
+}
+
+export Rng createRange(int startLineNumber, int startColumn, int endLineNumber, int endColumn) {
+  return new Rng(startLineNumber, startColumn, endLineNumber, endColumn);
+}
+
+export Rng rangeFromPositions(Pos start, Pos end) {
+  return new Rng(start.lineNumber, start.column, end.lineNumber, end.column);
+}
+
+export bool rangeIsEmpty(Rng range) {
+  return range.isEmpty();
+}
+
+export bool rangeContainsPosition(Rng range, Pos position) {
+  return range.containsPosition(position);
+}
+
+export bool rangeEquals(Rng a, Rng b) {
+  return a.equalsRange(b);
+}
+
+export bool rangesIntersectingOrTouching(Rng a, Rng b) {
+  if (a.endLineNumber < b.startLineNumber || (a.endLineNumber == b.startLineNumber && a.endColumn < b.startColumn)) {
+    return false;
+  }
+  if (b.endLineNumber < a.startLineNumber || (b.endLineNumber == a.startLineNumber && b.endColumn < a.startColumn)) {
+    return false;
+  }
+  return true;
+}
+
+export bool rangesIntersecting(Rng a, Rng b) {
+  if (a.endLineNumber < b.startLineNumber || (a.endLineNumber == b.startLineNumber && a.endColumn <= b.startColumn)) {
+    return false;
+  }
+  if (b.endLineNumber < a.startLineNumber || (b.endLineNumber == a.startLineNumber && b.endColumn <= a.startColumn)) {
+    return false;
+  }
+  return true;
+}
+
+export bool rangeSpansMultipleLines(Rng range) {
+  return range.endLineNumber > range.startLineNumber;
+}

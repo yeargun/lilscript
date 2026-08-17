@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Monaco Editor LilScript port — findings</title>
+  <style>
+    :root {
+      --ink: #1b1712;
+      --paper: #f4efe4;
+      --rule: #d7cbb6;
+      --muted: #6d6254;
+      --win: #1f6b3a;
+      --loss: #9b2c2c;
+      --accent: #b5471b;
+    }
+    * { box-sizing: border-box; }
+    html { background: var(--paper); color: var(--ink); }
+    body {
+      margin: 0 auto;
+      max-width: 1100px;
+      padding: 2.5rem 1.25rem 4rem;
+      font: 17px/1.5 "Iowan Old Style", "Palatino Linotype", Palatino, serif;
+    }
+    h1, h2, h3 { font-family: "Trebuchet MS", "Gill Sans", sans-serif; letter-spacing: -0.02em; }
+    h1 { font-size: 2.1rem; margin: 0 0 0.4rem; }
+    .kicker { color: var(--accent); font: 700 0.78rem/1 "Trebuchet MS", sans-serif; text-transform: uppercase; letter-spacing: 0.14em; }
+    p { max-width: 70ch; }
+    code, .num { font-family: "IBM Plex Mono", "ui-monospace", Menlo, monospace; font-size: 0.86em; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin: 1.2rem 0 2rem; }
+    th, td { border-bottom: 1px solid var(--rule); padding: 0.45rem 0.4rem; text-align: left; vertical-align: top; }
+    th { font-family: "Trebuchet MS", sans-serif; font-weight: 700; color: var(--muted); }
+    .num { text-align: right; white-space: nowrap; }
+    .win { color: var(--win); }
+    .loss { color: var(--loss); }
+    ul { max-width: 75ch; }
+    .note { color: var(--muted); }
+    footer { margin-top: 3rem; color: var(--muted); font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <p class="kicker">Popular-lab findings</p>
+  <h1>Monaco Editor 0.56 in LilScript</h1>
+  <p>
+    This is a popular-lab experiment, not a product rewrite of VS Code.
+    Public <code>monaco.d.ts</code> names and the real algorithms stay;
+    internals are structs, classes, and explicit services so the compiler can mangle and dissolve them.
+    Numbers are from <code>lilscript-codec</code> (stock zlib 1.3.1 /
+    official Brotli C 1.1.0), never Node <code>zlib</code>.
+  </p>
+
+  <h2>What was ported</h2>
+  <ul>
+    <li>Pins: monaco-editor 0.56.0, monaco-editor-core 0.56.0, vscode <code>f487add</code>.</li>
+    <li>Algorithms kept: piece tree + red-black metadata, prefix-sum line starts, decoration interval tree, Monarch lexer, Myers diff.</li>
+    <li>Public surface: <code>create</code>, <code>createModel</code>, <code>applyEdits</code>, undo/redo, <code>deltaDecorations</code>, <code>findMatches</code>, <code>defineTheme</code>/<code>setTheme</code>, layout, dispose, diff editor.</li>
+    <li>Popular languages: JS/TS/JSON/HTML/CSS/Python/Markdown, then 75 remaining Monarch ids.</li>
+    <li>Popular contrib: find, indent folding, brackets, hover, suggest, snippets, comments, goto, sticky, word highlight, links, Myers diff.</li>
+    <li>JSON/CSS/HTML adapters without rewriting <code>tsc</code>.</li>
+  </ul>
+  <p>Layer ladder: <code>base-lifecycle → core-types → piece-tree → text-model → view-render → input-commands → standalone-api → monarch-popular → popular-contrib → remaining-contrib → remaining-monarch → json-css-html-ls</code></p>
+
+  <h2>Per-layer JS size</h2>
+  <p>
+    Gate is Brotli-11 of the LilScript compiler output versus the best eligible JS minifier
+    (esbuild / Terser / Oxc) of that layer’s monaco-editor-core extract.
+    Raw and gzip are diagnostics. CSS/TTF are excluded.
+  </p>
+  <table>
+    <thead>
+      <tr>
+        <th>Layer</th>
+        <th>JS extract fairness</th>
+        <th>Lil raw</th>
+        <th>Lil gzip</th>
+        <th>Lil Brotli</th>
+        <th>JS extract raw</th>
+        <th>JS min raw</th>
+        <th>JS gzip</th>
+        <th>JS Brotli</th>
+        <th>JS lane</th>
+        <th>Brotli Δ</th>
+        <th>Gate</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+      <td><code>base-lifecycle</code></td>
+      <td>matching extract</td>
+      <td class="num">2,007</td>
+      <td class="num">905</td>
+      <td class="num">807</td>
+      <td class="num">152,110</td>
+      <td class="num">63,984</td>
+      <td class="num">20,926</td>
+      <td class="num">17,736</td>
+      <td>oxc</td>
+      <td class="num win">-16,929</td>
+      <td>PASS</td>
+    </tr>
+<tr>
+      <td><code>core-types</code></td>
+      <td>matching extract</td>
+      <td class="num">3,734</td>
+      <td class="num">823</td>
+      <td class="num">748</td>
+      <td class="num">21,208</td>
+      <td class="num">8,411</td>
+      <td class="num">1,764</td>
+      <td class="num">1,587</td>
+      <td>oxc</td>
+      <td class="num win">-839</td>
+      <td>PASS</td>
+    </tr>
+<tr>
+      <td><code>piece-tree</code></td>
+      <td>matching extract</td>
+      <td class="num">16,402</td>
+      <td class="num">4,480</td>
+      <td class="num">4,047</td>
+      <td class="num">223,182</td>
+      <td class="num">126,058</td>
+      <td class="num">39,197</td>
+      <td class="num">29,445</td>
+      <td>terser</td>
+      <td class="num win">-25,398</td>
+      <td>PASS</td>
+    </tr>
+<tr>
+      <td><code>text-model</code></td>
+      <td>matching extract</td>
+      <td class="num">24,578</td>
+      <td class="num">6,667</td>
+      <td class="num">5,964</td>
+      <td class="num">248,851</td>
+      <td class="num">134,772</td>
+      <td class="num">41,734</td>
+      <td class="num">31,374</td>
+      <td>oxc</td>
+      <td class="num win">-25,410</td>
+      <td>PASS</td>
+    </tr>
+<tr>
+      <td><code>view-render</code></td>
+      <td>view graph extract</td>
+      <td class="num">31,857</td>
+      <td class="num">8,955</td>
+      <td class="num">7,934</td>
+      <td class="num">2,038,497</td>
+      <td class="num">1,045,412</td>
+      <td class="num">266,960</td>
+      <td class="num">212,866</td>
+      <td>terser</td>
+      <td class="num win">-204,932</td>
+      <td>PASS</td>
+    </tr>
+<tr>
+      <td><code>input-commands</code></td>
+      <td>view graph extract</td>
+      <td class="num">55,790</td>
+      <td class="num">12,930</td>
+      <td class="num">11,340</td>
+      <td class="num">2,038,509</td>
+      <td class="num">1,045,427</td>
+      <td class="num">266,966</td>
+      <td class="num">213,030</td>
+      <td>terser</td>
+      <td class="num win">-201,690</td>
+      <td>PASS</td>
+    </tr>
+<tr>
+      <td><code>standalone-api</code></td>
+      <td>editor.api kitchen-sink</td>
+      <td class="num">65,986</td>
+      <td class="num">15,180</td>
+      <td class="num">13,224</td>
+      <td class="num">5,230,429</td>
+      <td class="num">2,624,191</td>
+      <td class="num">661,643</td>
+      <td class="num">526,056</td>
+      <td>oxc</td>
+      <td class="num win">-512,832</td>
+      <td>PASS</td>
+    </tr>
+<tr>
+      <td><code>monarch-popular</code></td>
+      <td>editor.api kitchen-sink</td>
+      <td class="num">8,497</td>
+      <td class="num">3,366</td>
+      <td class="num">2,906</td>
+      <td class="num">5,299,705</td>
+      <td class="num">2,700,161</td>
+      <td class="num">686,914</td>
+      <td class="num">529,604</td>
+      <td>oxc</td>
+      <td class="num win">-526,698</td>
+      <td>PASS</td>
+    </tr>
+<tr>
+      <td><code>popular-contrib</code></td>
+      <td>editor.api kitchen-sink</td>
+      <td class="num">72,292</td>
+      <td class="num">16,528</td>
+      <td class="num">14,402</td>
+      <td class="num">5,230,387</td>
+      <td class="num">2,624,151</td>
+      <td class="num">661,608</td>
+      <td class="num">525,999</td>
+      <td>oxc</td>
+      <td class="num win">-511,597</td>
+      <td>PASS</td>
+    </tr>
+<tr>
+      <td><code>remaining-contrib</code></td>
+      <td>editor.api kitchen-sink</td>
+      <td class="num">28,220</td>
+      <td class="num">7,924</td>
+      <td class="num">6,976</td>
+      <td class="num">5,230,343</td>
+      <td class="num">2,624,110</td>
+      <td class="num">661,592</td>
+      <td class="num">526,079</td>
+      <td>oxc</td>
+      <td class="num win">-519,103</td>
+      <td>PASS</td>
+    </tr>
+<tr>
+      <td><code>remaining-monarch</code></td>
+      <td>editor.api kitchen-sink</td>
+      <td class="num">35,992</td>
+      <td class="num">14,242</td>
+      <td class="num">12,387</td>
+      <td class="num">5,819,657</td>
+      <td class="num">2,984,728</td>
+      <td class="num">756,639</td>
+      <td class="num">597,336</td>
+      <td>oxc</td>
+      <td class="num win">-584,949</td>
+      <td>PASS</td>
+    </tr>
+<tr>
+      <td><code>json-css-html-ls</code></td>
+      <td>editor.api kitchen-sink</td>
+      <td class="num">5,088</td>
+      <td class="num">1,974</td>
+      <td class="num">1,748</td>
+      <td class="num">5,230,346</td>
+      <td class="num">2,624,109</td>
+      <td class="num">661,590</td>
+      <td class="num">525,981</td>
+      <td>oxc</td>
+      <td class="num win">-524,233</td>
+      <td>PASS</td>
+    </tr>
+    </tbody>
+  </table>
+
+  <h2>Integrated demo artifacts</h2>
+<p>Closed-app compile of the paired demo (<code>demo-entry.lil</code> + host bundle) versus the monaco-editor-core <code>editor.api</code> bundle used by the JS page. CSS and TTF are not in these JS totals.</p>
+<table>
+  <thead>
+    <tr>
+      <th>Artifact</th>
+      <th>Raw</th>
+      <th>Gzip-9</th>
+      <th>Brotli-11</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>LilScript demo (app mangle, host bundled)</td>
+      <td class="num">132,941</td>
+      <td class="num">29,850</td>
+      <td class="num">25,911</td>
+    </tr>
+    <tr>
+      <td>monaco-editor-core editor.api (esbuild minify)</td>
+      <td class="num">2,654,806</td>
+      <td class="num">682,399</td>
+      <td class="num">544,746</td>
+    </tr>
+  </tbody>
+</table>
+
+  <h2>Where LilScript won</h2>
+  <ul>
+    <li><strong>core-types / piece-tree / text-model</strong> are the honest rows. Fixed <code>Pos</code>/<code>Rng</code>/<code>Sel</code> layout and a closed-world piece tree beat TS-erased objects plus the VS Code buffer graph.</li>
+    <li>No instantiation service or decorator DI: services are typed fields, so property mangling and scalar replacement can fire.</li>
+    <li><code>JsValue</code> stays at the <code>create(options)</code> bag and DOM host. Methods are exported as functions because <code>mangle.properties = true</code>.</li>
+  </ul>
+
+  <h2>Where the comparison overstates, or LilScript lost ground</h2>
+  <ul>
+    <li><strong>view-render / input-commands</strong> extract monaco’s <code>editor/browser/view.js</code> graph (GPU view zones, whitespace, cursors). The port is a viewport, textarea, and minimap canvas. The Brotli gap is real for this subset, not proof that every view part was ported.</li>
+    <li><strong>standalone-api and later</strong> extracts often pull <code>editor.api.js</code> because language <code>conf</code> imports <code>IndentAction</code>. That is the npm kitchen-sink for <code>monaco.editor.create</code>, while LilScript is the functioning subset. Size deltas there overstate a full-product replacement.</li>
+    <li>Host facade and known-host lowering still cost bytes. <code>createElement</code> had to be spelled <code>domCreateElement</code> after known-host lowering emitted an unbound call.</li>
+    <li>CSS and editor fonts are side artifacts. Workers are not ported; tokenize on the main thread.</li>
+    <li>Remaining Monarch languages are keyword lexers generated from monaco-editor definitions, not a line-by-line Monarch dump of every upstream tokenizer.</li>
+  </ul>
+
+  <h2>Non-goals</h2>
+  <ul>
+    <li>Microsoft TypeScript compiler / <code>ts.worker</code></li>
+    <li>VS Code workbench</li>
+    <li>TextMate / Oniguruma grammars</li>
+  </ul>
+
+  <p>
+    Paired demos: <a href="./lil/index.html">LilScript editor</a> ·
+    <a href="./js/index.html">monaco-editor-core editor</a>.
+    Port notes: <a href="../../ports/monaco/STATUS.md">STATUS.md</a>.
+  </p>
+  <footer>
+    Encoder: lilscript-codec;
+    gzip upstream-stock-zlib-c 1.3.1;
+    Brotli official-google-brotli-c 1.1.0 q11 lgwin22.
+    Node compressors are diagnostic only.
+  </footer>
+</body>
+</html>

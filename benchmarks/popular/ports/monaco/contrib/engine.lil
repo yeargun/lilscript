@@ -1,0 +1,378 @@
+import { FindMatch } from "../editor/search";
+import { createRange, Rng } from "../base/range";
+import { Pos } from "../base/position";
+import { TextModel, editOp } from "../editor/text-model";
+import { Language, getLanguage } from "../languages/registry";
+import { sliceOf, stringFromCharCode1, emptyBuf } from "../js-host";
+import { wordAt, WordRange, leadingIndent, isWordChar } from "../editor/word";
+import { computeLineDiff, DiffChange } from "../editor/myers";
+
+export class FoldRange {
+  int startLine;
+  int endLine;
+  bool collapsed;
+
+  init(int startLine, int endLine, bool collapsed) {
+    this.startLine = startLine;
+    this.endLine = endLine;
+    this.collapsed = collapsed;
+  }
+}
+
+export class SuggestItem {
+  string label;
+  string insertText;
+  int kind;
+  string detail;
+
+  init(string label, string insertText) {
+    this.label = label;
+    this.insertText = insertText;
+    this.kind = 18;
+    this.detail = emptyBuf();
+  }
+}
+
+export FindMatch[] findInModel(TextModel model, string query, bool isRegex, bool matchCase, bool wholeWord) {
+  return model.findMatches(query, isRegex, matchCase, wholeWord, 1000);
+}
+
+export FoldRange[] computeIndentFoldsModel(TextModel model) {
+  FoldRange[] folds = [];
+  int lineCount = model.getLineCount();
+  int line = 1;
+  while (line <= lineCount) {
+    string content = model.getLineContent(line);
+    int indent = leadingIndent(content);
+    if (indent == content.length) {
+      line++;
+      continue;
+    }
+    int end = line;
+    int look = line + 1;
+    while (look <= lineCount) {
+      string next = model.getLineContent(look);
+      int nextIndent = leadingIndent(next);
+      if (nextIndent == next.length) {
+        look++;
+        continue;
+      }
+      if (nextIndent > indent) {
+        end = look;
+        look++;
+        continue;
+      }
+      break;
+    }
+    if (end > line) {
+      folds.push(new FoldRange(line, end, false));
+    }
+    line++;
+  }
+  return folds;
+}
+
+export Rng? matchBracketModel(TextModel model, Pos pos) {
+  string text = model.getValue();
+  int offset = model.getOffsetAt(pos);
+  if (offset >= text.length) {
+    return null;
+  }
+  string ch = text.charAt(offset);
+  string open = "([{";
+  string close = ")]}";
+  int kind = open.indexOf(ch);
+  if (kind >= 0) {
+    int depth = 1;
+    int i = offset + 1;
+    while (i < text.length) {
+      string cur = text.charAt(i);
+      if (cur == open.charAt(kind)) {
+        depth++;
+      } else if (cur == close.charAt(kind)) {
+        depth--;
+        if (depth == 0) {
+          Pos other = model.getPositionAt(i);
+          return createRange(pos.lineNumber, pos.column, other.lineNumber, other.column + 1);
+        }
+      }
+      i++;
+    }
+    return null;
+  }
+  kind = close.indexOf(ch);
+  if (kind >= 0) {
+    int depth = 1;
+    int i = offset - 1;
+    while (i >= 0) {
+      string cur = text.charAt(i);
+      if (cur == close.charAt(kind)) {
+        depth++;
+      } else if (cur == open.charAt(kind)) {
+        depth--;
+        if (depth == 0) {
+          Pos other = model.getPositionAt(i);
+          return createRange(other.lineNumber, other.column, pos.lineNumber, pos.column + 1);
+        }
+      }
+      i--;
+    }
+  }
+  return null;
+}
+
+export string hoverAtModel(TextModel model, Pos pos) {
+  return wordAt(model.getLineContent(pos.lineNumber), pos.column).word;
+}
+
+void takeWord(string word, string prefix, SuggestItem[] items, string[] seen) {
+  if (word.length == 0) {
+    return;
+  }
+  if (items.length >= 200) {
+    return;
+  }
+  if (seen.indexOf(word) >= 0) {
+    return;
+  }
+  if (prefix.length == 0 || (word.indexOf(prefix) == 0 && word != prefix)) {
+    items.push(new SuggestItem(word, word));
+    seen.push(word);
+  }
+}
+
+void collectLineWords(string line, string prefix, SuggestItem[] items, string[] seen) {
+  string word = emptyBuf();
+  int i = 0;
+  int n = line.length;
+  while (i <= n) {
+    bool inWord = false;
+    string ch = emptyBuf();
+    if (i < n) {
+      ch = line.charAt(i);
+      inWord = isWordChar(ch);
+    }
+    if (inWord) {
+      word = word + ch;
+    } else {
+      takeWord(word, prefix, items, seen);
+      word = emptyBuf();
+    }
+    i = i + 1;
+  }
+}
+
+export SuggestItem[] suggestAtModel(TextModel model, Pos pos) {
+  string prefix = hoverAtModel(model, pos);
+  SuggestItem[] items = [];
+  string[] seen = [];
+  int line = 1;
+  int last = model.getLineCount();
+  while (line <= last && items.length < 200) {
+    collectLineWords(model.getLineContent(line), prefix, items, seen);
+    line = line + 1;
+  }
+  Language? lang = getLanguage(model.languageId);
+  if (lang != null) {
+    int k = 0;
+    while (k < lang.lexer.keywords.length) {
+      string kw = lang.lexer.keywords[k];
+      takeWord(kw, prefix, items, seen);
+      k = k + 1;
+    }
+  }
+  return items;
+}
+
+export string expandSnippet(string body) {
+  string out = emptyBuf();
+  int i = 0;
+  while (i < body.length) {
+    if (body.charAt(i) == "$" && i + 1 < body.length) {
+      string next = body.charAt(i + 1);
+      if (next == "0" || next == "1" || next == "2" || next == "3") {
+        i = i + 2;
+        continue;
+      }
+      if (next == "{") {
+        int j = i + 2;
+        while (j < body.length && body.charAt(j) != "}") {
+          j++;
+        }
+        i = j + 1;
+        continue;
+      }
+    }
+    out = out + body.charAt(i);
+    i++;
+  }
+  return out;
+}
+
+export void toggleLineCommentModel(TextModel model, int lineNumber, string languageId) {
+  Language? lang = getLanguage(languageId);
+  string marker = "//";
+  if (lang != null && lang.lineComment.length > 0) {
+    marker = lang.lineComment;
+  }
+  string content = model.getLineContent(lineNumber);
+  int indent = leadingIndent(content);
+  string rest = sliceOf(content, indent, content.length);
+  if (rest.indexOf(marker) == 0) {
+    int skip = marker.length;
+    if (rest.length > skip && rest.charAt(skip) == " ") {
+      skip = skip + 1;
+    }
+    string next = sliceOf(content, 0, indent) + sliceOf(rest, skip, rest.length);
+    model.applyEdits([editOp(lineNumber, 1, lineNumber, content.length + 1, next)], true);
+  } else {
+    string next = sliceOf(content, 0, indent) + marker + " " + rest;
+    model.applyEdits([editOp(lineNumber, 1, lineNumber, content.length + 1, next)], true);
+  }
+}
+
+export void toggleBlockCommentModel(TextModel model, Rng range, string languageId) {
+  Language? lang = getLanguage(languageId);
+  string start = "/*";
+  string end = "*/";
+  if (lang != null && lang.blockCommentStart.length > 0) {
+    start = lang.blockCommentStart;
+    end = lang.blockCommentEnd;
+  }
+  string text = model.getValueInRange(range);
+  if (text.indexOf(start) == 0 && text.length >= start.length + end.length) {
+    string inner = sliceOf(text, start.length, text.length - end.length);
+    model.applyEdits([editOp(range.startLineNumber, range.startColumn, range.endLineNumber, range.endColumn, inner)], true);
+  } else {
+    model.applyEdits([editOp(range.startLineNumber, range.startColumn, range.endLineNumber, range.endColumn, start + text + end)], true);
+  }
+}
+
+export FindMatch[] highlightWordModel(TextModel model, Pos pos) {
+  string word = hoverAtModel(model, pos);
+  if (word.length == 0) {
+    FindMatch[] empty = [];
+    return empty;
+  }
+  return model.findMatches(word, false, true, true, 200);
+}
+
+export Rng[] detectLinksModel(TextModel model) {
+  Rng[] links = [];
+  int lineCount = model.getLineCount();
+  int line = 1;
+  while (line <= lineCount) {
+    string content = model.getLineContent(line);
+    int idx = content.indexOf("http://");
+    if (idx < 0) {
+      idx = content.indexOf("https://");
+    }
+    if (idx >= 0) {
+      int eaten = 0;
+      int n = content.length;
+      while (idx + eaten < n) {
+        string ch = content.charAt(idx + eaten);
+        if (ch == " " || ch == "\t" || ch == ")" || ch == "\"") {
+          break;
+        }
+        eaten = eaten + 1;
+      }
+      int end = idx + eaten;
+      links.push(createRange(line, idx + 1, line, end + 1));
+    }
+    line++;
+  }
+  return links;
+}
+
+export string[] stickyLinesModel(TextModel model, int current) {
+  string[] out = [];
+  int indent = leadingIndent(model.getLineContent(current));
+  int line = 1;
+  while (line < current) {
+    string content = model.getLineContent(line);
+    int ind = leadingIndent(content);
+    if (ind < indent && ind != content.length) {
+      out.push(content);
+      indent = ind;
+    }
+    line++;
+  }
+  return out;
+}
+
+export string formatValue(string value) {
+  string out = emptyBuf();
+  int indent = 0;
+  int i = 0;
+  while (i < value.length) {
+    string ch = value.charAt(i);
+    if (ch == "{") {
+      out = out + ch + "\n";
+      indent++;
+      int s = 0;
+      while (s < indent) {
+        out = out + "  ";
+        s++;
+      }
+    } else if (ch == "}") {
+      if (indent > 0) {
+        indent--;
+      }
+      out = out + "\n";
+      int s = 0;
+      while (s < indent) {
+        out = out + "  ";
+        s++;
+      }
+      out = out + ch;
+    } else {
+      out = out + ch;
+    }
+    i++;
+  }
+  return out;
+}
+
+export string transformCase(string text, bool upper) {
+  if (upper) {
+    return stringReplaceUpper(text);
+  }
+  return stringReplaceLower(text);
+}
+
+string stringReplaceUpper(string text) {
+  string out = emptyBuf();
+  int i = 0;
+  while (i < text.length) {
+    int code = text.charCodeAt(i);
+    if (code >= 97 && code <= 122) {
+      out = out + stringFromCode(code - 32);
+    } else {
+      out = out + text.charAt(i);
+    }
+    i++;
+  }
+  return out;
+}
+
+string stringReplaceLower(string text) {
+  string out = emptyBuf();
+  int i = 0;
+  while (i < text.length) {
+    int code = text.charCodeAt(i);
+    if (code >= 65 && code <= 90) {
+      out = out + stringFromCode(code + 32);
+    } else {
+      out = out + text.charAt(i);
+    }
+    i++;
+  }
+  return out;
+}
+
+string stringFromCode(int code) {
+  return stringFromCharCode1(code * 1.0);
+}
+
+export { wordAt, leadingIndent, WordRange, computeLineDiff, DiffChange };

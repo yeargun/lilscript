@@ -1,0 +1,265 @@
+import { emptyBuf } from "../js-host";
+import extern { hostComputeLineDiff } from "../js-host.ts";
+
+export class DiffChange {
+  int originalStart;
+  int originalEnd;
+  int modifiedStart;
+  int modifiedEnd;
+
+  init(int originalStart, int originalEnd, int modifiedStart, int modifiedEnd) {
+    this.originalStart = originalStart;
+    this.originalEnd = originalEnd;
+    this.modifiedStart = modifiedStart;
+    this.modifiedEnd = modifiedEnd;
+  }
+}
+
+extern DiffChange[] hostComputeLineDiff(string original, string modified);
+
+class SnakePath {
+  SnakePath? prev;
+  int x;
+  int y;
+  int length;
+
+  init(SnakePath? prev, int x, int y, int length) {
+    this.prev = prev;
+    this.x = x;
+    this.y = y;
+    this.length = length;
+  }
+}
+
+class FastInts {
+  int[] pos;
+  int[] neg;
+
+  init() {
+    this.pos = [0, 0, 0, 0, 0, 0, 0, 0];
+    this.neg = [0, 0, 0, 0, 0, 0, 0, 0];
+  }
+
+  int get(int idx) {
+    if (idx < 0) {
+      int i = -idx - 1;
+      if (i >= this.neg.length) {
+        return 0;
+      }
+      return this.neg[i];
+    }
+    if (idx >= this.pos.length) {
+      return 0;
+    }
+    return this.pos[idx];
+  }
+
+  void set(int idx, int value) {
+    if (idx < 0) {
+      int i = -idx - 1;
+      while (this.neg.length <= i) {
+        this.neg.push(0);
+      }
+      this.neg[i] = value;
+    } else {
+      while (this.pos.length <= idx) {
+        this.pos.push(0);
+      }
+      this.pos[idx] = value;
+    }
+  }
+}
+
+class FastPaths {
+  SnakePath?[] pos;
+  SnakePath?[] neg;
+
+  init() {
+    this.pos = [];
+    this.neg = [];
+  }
+
+  SnakePath? get(int idx) {
+    if (idx < 0) {
+      int i = -idx - 1;
+      if (i >= this.neg.length) {
+        return null;
+      }
+      return this.neg[i];
+    }
+    if (idx >= this.pos.length) {
+      return null;
+    }
+    return this.pos[idx];
+  }
+
+  void set(int idx, SnakePath? value) {
+    if (idx < 0) {
+      int i = -idx - 1;
+      while (this.neg.length <= i) {
+        this.neg.push(null);
+      }
+      this.neg[i] = value;
+    } else {
+      while (this.pos.length <= idx) {
+        this.pos.push(null);
+      }
+      this.pos[idx] = value;
+    }
+  }
+}
+
+int snake(string[] seqX, string[] seqY, int x, int y) {
+  while (x < seqX.length && y < seqY.length && seqX[x] == seqY[y]) {
+    x++;
+    y++;
+  }
+  return x;
+}
+
+int iabs(int v) {
+  if (v < 0) {
+    return -v;
+  }
+  return v;
+}
+
+int imin2(int a, int b) {
+  if (a < b) {
+    return a;
+  }
+  return b;
+}
+
+int imax2(int a, int b) {
+  if (a > b) {
+    return a;
+  }
+  return b;
+}
+
+export DiffChange[] computeMyers(string[] seqX, string[] seqY) {
+  DiffChange[] result = [];
+  if (seqX.length == 0 && seqY.length == 0) {
+    return result;
+  }
+  if (seqX.length == 0) {
+    result.push(new DiffChange(0, 0, 0, seqY.length));
+    return result;
+  }
+  if (seqY.length == 0) {
+    result.push(new DiffChange(0, seqX.length, 0, 0));
+    return result;
+  }
+  FastInts V = new FastInts();
+  FastPaths paths = new FastPaths();
+  int first = snake(seqX, seqY, 0, 0);
+  V.set(0, first);
+  if (first == 0) {
+    paths.set(0, null);
+  } else {
+    paths.set(0, new SnakePath(null, 0, 0, first));
+  }
+  int d = 0;
+  int foundK = 0;
+  bool done = false;
+  while (!done) {
+    d++;
+    int lowerBound = -imin2(d, seqY.length + (d % 2));
+    int upperBound = imin2(d, seqX.length + (d % 2));
+    int k = lowerBound;
+    while (k <= upperBound) {
+      int maxXofDLineTop = -1;
+      if (k != upperBound) {
+        maxXofDLineTop = V.get(k + 1);
+      }
+      int maxXofDLineLeft = -1;
+      if (k != lowerBound) {
+        maxXofDLineLeft = V.get(k - 1) + 1;
+      }
+      int x = imin2(imax2(maxXofDLineTop, maxXofDLineLeft), seqX.length);
+      int y = x - k;
+      if (x <= seqX.length && y <= seqY.length) {
+        int newMaxX = snake(seqX, seqY, x, y);
+        V.set(k, newMaxX);
+        SnakePath? lastPath = null;
+        if (x == maxXofDLineTop) {
+          lastPath = paths.get(k + 1);
+        } else {
+          lastPath = paths.get(k - 1);
+        }
+        if (newMaxX != x) {
+          paths.set(k, new SnakePath(lastPath, x, y, newMaxX - x));
+        } else {
+          paths.set(k, lastPath);
+        }
+        if (V.get(k) == seqX.length && V.get(k) - k == seqY.length) {
+          foundK = k;
+          done = true;
+          break;
+        }
+      }
+      k = k + 2;
+    }
+    if (d > seqX.length + seqY.length + 2) {
+      break;
+    }
+  }
+  SnakePath? path = paths.get(foundK);
+  int lastAligningPosS1 = seqX.length;
+  int lastAligningPosS2 = seqY.length;
+  while (true) {
+    int endX = 0;
+    int endY = 0;
+    int nextX = 0;
+    int nextY = 0;
+    SnakePath? next = null;
+    bool hasPath = false;
+    if (path != null) {
+      hasPath = true;
+      endX = path.x + path.length;
+      endY = path.y + path.length;
+      nextX = path.x;
+      nextY = path.y;
+      next = path.prev;
+    }
+    if (endX != lastAligningPosS1 || endY != lastAligningPosS2) {
+      result.push(new DiffChange(endX, lastAligningPosS1, endY, lastAligningPosS2));
+    }
+    if (!hasPath) {
+      break;
+    }
+    lastAligningPosS1 = nextX;
+    lastAligningPosS2 = nextY;
+    path = next;
+  }
+  DiffChange[] reversed = [];
+  int r = result.length - 1;
+  while (r >= 0) {
+    reversed.push(result[r]);
+    r--;
+  }
+  return reversed;
+}
+
+export DiffChange[] computeLineDiff(string original, string modified) {
+  return hostComputeLineDiff(original, modified);
+}
+
+string[] splitLines(string text) {
+  string[] lines = [];
+  string cur = emptyBuf();
+  int i = 0;
+  while (i < text.length) {
+    string ch = text.charAt(i);
+    if (ch == "\n") {
+      lines.push(cur);
+      cur = emptyBuf();
+    } else if (ch != "\r") {
+      cur = cur + ch;
+    }
+    i++;
+  }
+  lines.push(cur);
+  return lines;
+}

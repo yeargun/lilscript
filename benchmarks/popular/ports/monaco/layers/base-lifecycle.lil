@@ -1,0 +1,25 @@
+import { DisposableStore, Emitter, createDisposableStore, createEmitter, storeAdd, storeDispose, emitterEvent, emitterFire } from "../base/lifecycle";
+import { Uri, parseUri, fileUri, inmemoryUri } from "../base/uri";
+import { KeyCode, KeyModCtrl, KeyModShift, KeyModAlt, KeyModWinCtrl, chord, keyCodeFromKey } from "../base/keycodes";
+
+export {
+  DisposableStore,
+  Emitter,
+  createDisposableStore,
+  createEmitter,
+  storeAdd,
+  storeDispose,
+  emitterEvent,
+  emitterFire,
+  Uri,
+  parseUri,
+  fileUri,
+  inmemoryUri,
+  KeyCode,
+  KeyModCtrl,
+  KeyModShift,
+  KeyModAlt,
+  KeyModWinCtrl,
+  chord,
+  keyCodeFromKey
+};

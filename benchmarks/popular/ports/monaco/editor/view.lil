@@ -1,0 +1,746 @@
+import {
+  domCreateElement,
+  appendChild,
+  setClassName,
+  setStyle,
+  setAttribute,
+  setTextContent,
+  setInnerHTML,
+  getInnerHTML,
+  clearChildren,
+  setTabIndex,
+  inputSetValue,
+  inputGetValue,
+  canvasGetContext2d,
+  canvasSetSize,
+  canvasFillRect,
+  setDisplay,
+  setPlaceholder,
+  focusElement,
+  rectTop,
+  rectLeft,
+  jsUndefined,
+  sliceOf,
+  hostCall,
+  jsArrayLen,
+  jsArrayAt,
+  jsPropString,
+  jsPropInt,
+  emptyBuf
+} from "../js-host";
+import { TextModel } from "./text-model";
+import { Decoration } from "./interval-tree";
+import { Sel, createSelection } from "../base/selection";
+import { Pos } from "../base/position";
+import { Rng, createRange } from "../base/range";
+import { Lexer, Token, tokenizeLine, initialState, LineState } from "./monarch";
+import { getLexer, getLanguage, Language } from "../languages/registry";
+import { FoldRange, SuggestItem, computeIndentFoldsModel } from "../contrib/engine";
+import { markersForModel, markerClass } from "./markers";
+import { Marker } from "./markers";
+
+export int DEFAULT_LINE_HEIGHT = 19;
+export int DEFAULT_CHAR_WIDTH = 8;
+export int MARGIN_WIDTH = 56;
+
+export class EditorView {
+  JsValue root;
+  JsValue overflow;
+  JsValue margin;
+  JsValue scrollable;
+  JsValue linesHost;
+  JsValue textarea;
+  JsValue minimapCanvas;
+  JsValue widgetsHost;
+  JsValue cursorEl;
+  JsValue selectionHost;
+  JsValue findWidget;
+  JsValue findInput;
+  JsValue replaceInput;
+  JsValue suggestWidget;
+  JsValue hoverWidget;
+  JsValue contextWidget;
+  JsValue gotoWidget;
+  JsValue gotoInput;
+  JsValue renameWidget;
+  JsValue renameInput;
+  JsValue paramWidget;
+  JsValue stickyWidget;
+  TextModel model;
+  Sel selection;
+  Sel[] extraCursors;
+  int scrollTop;
+  int lineHeight;
+  int charWidth;
+  int width;
+  int height;
+  bool showLineNumbers;
+  bool showMinimap;
+  string theme;
+  string languageId;
+  bool readOnly;
+  int fontSize;
+  int tabSize;
+  bool insertSpaces;
+  bool wordWrap;
+  bool mouseSelecting;
+  int mouseAnchorLine;
+  int mouseAnchorColumn;
+  FoldRange[] folds;
+  int[] collapsed;
+  bool findOpen;
+  string findQuery;
+  string replaceQuery;
+  int findIndex;
+  bool suggestOpen;
+  SuggestItem[] suggestItems;
+  int suggestIndex;
+  bool hoverOpen;
+  bool contextOpen;
+  bool gotoOpen;
+  bool renameOpen;
+  string renameWord;
+  JsValue modelFacade;
+
+  init(JsValue root, TextModel model) {
+    this.root = root;
+    this.model = model;
+    this.selection = createSelection(1, 1, 1, 1);
+    this.extraCursors = [];
+    this.scrollTop = 0;
+    this.lineHeight = DEFAULT_LINE_HEIGHT;
+    this.charWidth = DEFAULT_CHAR_WIDTH;
+    this.width = 800;
+    this.height = 400;
+    this.showLineNumbers = true;
+    this.showMinimap = true;
+    this.theme = "vs";
+    this.languageId = model.languageId;
+    this.readOnly = false;
+    this.fontSize = 14;
+    this.tabSize = 4;
+    this.insertSpaces = true;
+    this.wordWrap = false;
+    this.mouseSelecting = false;
+    this.mouseAnchorLine = 1;
+    this.mouseAnchorColumn = 1;
+    this.folds = [];
+    this.collapsed = [];
+    this.findOpen = false;
+    this.findQuery = "";
+    this.replaceQuery = "";
+    this.findIndex = 0;
+    this.suggestOpen = false;
+    this.suggestItems = [];
+    this.suggestIndex = 0;
+    this.hoverOpen = false;
+    this.contextOpen = false;
+    this.gotoOpen = false;
+    this.renameOpen = false;
+    this.renameWord = "";
+    this.modelFacade = jsUndefined();
+    this.overflow = domCreateElement("div");
+    this.margin = domCreateElement("div");
+    this.scrollable = domCreateElement("div");
+    this.linesHost = domCreateElement("div");
+    this.textarea = domCreateElement("textarea");
+    this.minimapCanvas = domCreateElement("canvas");
+    this.widgetsHost = domCreateElement("div");
+    this.cursorEl = domCreateElement("div");
+    this.selectionHost = domCreateElement("div");
+    this.findWidget = domCreateElement("div");
+    this.findInput = domCreateElement("input");
+    this.replaceInput = domCreateElement("input");
+    this.suggestWidget = domCreateElement("div");
+    this.hoverWidget = domCreateElement("div");
+    this.contextWidget = domCreateElement("div");
+    this.gotoWidget = domCreateElement("div");
+    this.gotoInput = domCreateElement("input");
+    this.renameWidget = domCreateElement("div");
+    this.renameInput = domCreateElement("input");
+    this.paramWidget = domCreateElement("div");
+    this.stickyWidget = domCreateElement("div");
+    this.mount();
+  }
+
+  void mount() {
+    setClassName(this.root, "monaco-editor " + this.theme);
+    setStyle(this.root, "position", "relative");
+    setStyle(this.root, "overflow", "hidden");
+    setStyle(this.root, "font-family", "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace");
+    setStyle(this.root, "font-size", this.fontSize.toString() + "px");
+    setStyle(this.root, "line-height", this.lineHeight.toString() + "px");
+    setClassName(this.overflow, "overflow-guard");
+    setStyle(this.overflow, "display", "flex");
+    setStyle(this.overflow, "height", "100%");
+    setClassName(this.margin, "margin");
+    setStyle(this.margin, "width", MARGIN_WIDTH.toString() + "px");
+    setStyle(this.margin, "flex", "0 0 " + MARGIN_WIDTH.toString() + "px");
+    setStyle(this.margin, "user-select", "none");
+    setClassName(this.scrollable, "monaco-scrollable-element");
+    setStyle(this.scrollable, "flex", "1 1 auto");
+    setStyle(this.scrollable, "overflow", "auto");
+    setStyle(this.scrollable, "position", "relative");
+    setClassName(this.linesHost, "view-lines");
+    if (this.wordWrap) {
+      setStyle(this.linesHost, "white-space", "pre-wrap");
+      setAttribute(this.textarea, "wrap", "soft");
+    } else {
+      setStyle(this.linesHost, "white-space", "pre");
+      setAttribute(this.textarea, "wrap", "off");
+    }
+    setStyle(this.selectionHost, "position", "absolute");
+    setStyle(this.selectionHost, "inset", "0");
+    setStyle(this.selectionHost, "pointer-events", "none");
+    setClassName(this.cursorEl, "cursor");
+    setStyle(this.cursorEl, "position", "absolute");
+    setStyle(this.cursorEl, "width", "2px");
+    setStyle(this.cursorEl, "height", this.lineHeight.toString() + "px");
+    setStyle(this.cursorEl, "background", "#aeafad");
+    setStyle(this.cursorEl, "pointer-events", "none");
+    setAttribute(this.textarea, "class", "inputarea");
+    setAttribute(this.textarea, "wrap", "off");
+    setAttribute(this.textarea, "autocorrect", "off");
+    setAttribute(this.textarea, "autocapitalize", "off");
+    setAttribute(this.textarea, "spellcheck", "false");
+    setTabIndex(this.textarea, 0);
+    setStyle(this.textarea, "position", "absolute");
+    setStyle(this.textarea, "width", "1px");
+    setStyle(this.textarea, "height", "1px");
+    setStyle(this.textarea, "opacity", "0");
+    setClassName(this.minimapCanvas, "minimap");
+    setStyle(this.minimapCanvas, "width", "64px");
+    setStyle(this.minimapCanvas, "flex", "0 0 64px");
+    setClassName(this.widgetsHost, "overflowingContentWidgets");
+    setStyle(this.widgetsHost, "position", "absolute");
+    setStyle(this.widgetsHost, "inset", "0");
+    setStyle(this.widgetsHost, "pointer-events", "none");
+    this.mountFind();
+    this.mountBox(this.suggestWidget, "suggest-widget");
+    this.mountBox(this.hoverWidget, "monaco-hover");
+    this.mountBox(this.contextWidget, "context-view");
+    this.mountGoto();
+    this.mountRename();
+    this.mountBox(this.paramWidget, "parameter-hints-widget");
+    this.mountBox(this.stickyWidget, "sticky-widget");
+    appendChild(this.scrollable, this.selectionHost);
+    appendChild(this.scrollable, this.linesHost);
+    appendChild(this.scrollable, this.cursorEl);
+    appendChild(this.overflow, this.margin);
+    appendChild(this.overflow, this.scrollable);
+    appendChild(this.overflow, this.minimapCanvas);
+    appendChild(this.root, this.overflow);
+    appendChild(this.root, this.textarea);
+    appendChild(this.root, this.widgetsHost);
+    this.applyTheme();
+    this.hideWidgets();
+    JsValue style = domCreateElement("style");
+    setTextContent(style, ".mtk-keyword{color:#569cd6}.mtk-string{color:#ce9178}.mtk-comment{color:#6a9955}.mtk-number{color:#b5cea8}.mtk-tag{color:#569cd6}.mtk-attr{color:#9cdcfe}.squiggly-error{text-decoration:underline wavy #f14c4c}.squiggly-warning{text-decoration:underline wavy #cca700}.squiggly-info{text-decoration:underline wavy #3794ff}.squiggly-hint{text-decoration:underline dotted #eeeeee}.folding{cursor:pointer;display:inline-block;width:12px}");
+    appendChild(this.root, style);
+  }
+
+  void mountBox(JsValue el, string className) {
+    setClassName(el, className);
+    setStyle(el, "position", "absolute");
+    setStyle(el, "pointer-events", "auto");
+    setStyle(el, "z-index", "40");
+    setStyle(el, "display", "none");
+    setStyle(el, "max-width", "420px");
+    setStyle(el, "padding", "6px 8px");
+    setStyle(el, "border", "1px solid #454545");
+    setStyle(el, "background", "#252526");
+    setStyle(el, "color", "#cccccc");
+    setStyle(el, "font-size", "12px");
+    appendChild(this.widgetsHost, el);
+  }
+
+  void mountFind() {
+    setClassName(this.findWidget, "editor-widget find-widget");
+    setStyle(this.findWidget, "position", "absolute");
+    setStyle(this.findWidget, "top", "8px");
+    setStyle(this.findWidget, "right", "72px");
+    setStyle(this.findWidget, "z-index", "50");
+    setStyle(this.findWidget, "pointer-events", "auto");
+    setStyle(this.findWidget, "display", "none");
+    setStyle(this.findWidget, "background", "#252526");
+    setStyle(this.findWidget, "border", "1px solid #454545");
+    setStyle(this.findWidget, "padding", "8px");
+    setPlaceholder(this.findInput, "Find");
+    setPlaceholder(this.replaceInput, "Replace");
+    setAttribute(this.findInput, "data-monaco", "find");
+    setAttribute(this.replaceInput, "data-monaco", "replace");
+    appendChild(this.findWidget, this.findInput);
+    appendChild(this.findWidget, this.replaceInput);
+    appendChild(this.widgetsHost, this.findWidget);
+  }
+
+  void mountGoto() {
+    this.mountBox(this.gotoWidget, "goto-line-widget");
+    setPlaceholder(this.gotoInput, "Go to line");
+    appendChild(this.gotoWidget, this.gotoInput);
+  }
+
+  void mountRename() {
+    this.mountBox(this.renameWidget, "rename-box");
+    appendChild(this.renameWidget, this.renameInput);
+  }
+
+  void hideWidgets() {
+    setDisplay(this.findWidget, "none");
+    setDisplay(this.suggestWidget, "none");
+    setDisplay(this.hoverWidget, "none");
+    setDisplay(this.contextWidget, "none");
+    setDisplay(this.gotoWidget, "none");
+    setDisplay(this.renameWidget, "none");
+    setDisplay(this.paramWidget, "none");
+  }
+
+  void applyTheme() {
+    setClassName(this.root, "monaco-editor " + this.theme);
+    setStyle(this.root, "font-size", this.fontSize.toString() + "px");
+    if (this.theme == "vs-dark" || this.theme == "hc-black") {
+      setStyle(this.root, "background", "#1e1e1e");
+      setStyle(this.root, "color", "#d4d4d4");
+      setStyle(this.cursorEl, "background", "#aeafad");
+    } else {
+      setStyle(this.root, "background", "#fffffe");
+      setStyle(this.root, "color", "#000000");
+      setStyle(this.cursorEl, "background", "#000000");
+    }
+    if (this.wordWrap) {
+      setStyle(this.linesHost, "white-space", "pre-wrap");
+      setAttribute(this.textarea, "wrap", "soft");
+    } else {
+      setStyle(this.linesHost, "white-space", "pre");
+      setAttribute(this.textarea, "wrap", "off");
+    }
+  }
+
+  void setTheme(string theme) {
+    this.theme = theme;
+    this.applyTheme();
+    this.render();
+  }
+
+  void layout(int width, int height) {
+    this.width = width;
+    this.height = height;
+    setStyle(this.root, "width", width.toString() + "px");
+    setStyle(this.root, "height", height.toString() + "px");
+    this.render();
+  }
+
+  int visibleStartLine() {
+    int line = this.scrollTop / this.lineHeight + 1;
+    if (line < 1) {
+      return 1;
+    }
+    return this.nextVisible(line);
+  }
+
+  int visibleEndLine() {
+    int last = this.visibleStartLine() + this.height / this.lineHeight + 8;
+    int max = this.model.getLineCount();
+    if (last > max) {
+      return max;
+    }
+    return last;
+  }
+
+  int scrollHeight() {
+    return this.visibleLineCount() * this.lineHeight + this.height / 2;
+  }
+
+  int visibleLineCount() {
+    int n = 0;
+    int line = 1;
+    int last = this.model.getLineCount();
+    while (line <= last) {
+      if (!this.isCollapsedLine(line)) {
+        n++;
+      }
+      line++;
+    }
+    return n;
+  }
+
+  bool isCollapsedLine(int line) {
+    int i = 0;
+    while (i < this.folds.length) {
+      FoldRange fold = this.folds[i];
+      if (fold.collapsed && line > fold.startLine && line <= fold.endLine) {
+        return true;
+      }
+      i++;
+    }
+    return false;
+  }
+
+  int nextVisible(int line) {
+    int cur = line;
+    int last = this.model.getLineCount();
+    while (cur <= last && this.isCollapsedLine(cur)) {
+      cur++;
+    }
+    if (cur > last) {
+      return last;
+    }
+    return cur;
+  }
+
+  FoldRange? foldAt(int line) {
+    int i = 0;
+    while (i < this.folds.length) {
+      if (this.folds[i].startLine == line) {
+        return this.folds[i];
+      }
+      i++;
+    }
+    return null;
+  }
+
+  void refreshFolds() {
+    FoldRange[] next = computeIndentFoldsModel(this.model);
+    int i = 0;
+    while (i < next.length) {
+      FoldRange? old = this.foldAt(next[i].startLine);
+      if (old != null) {
+        next[i].collapsed = old.collapsed;
+      }
+      i++;
+    }
+    this.folds = next;
+  }
+
+  void toggleFoldAt(int line) {
+    FoldRange? fold = this.foldAt(line);
+    if (fold == null) {
+      this.refreshFolds();
+      fold = this.foldAt(line);
+    }
+    if (fold == null) {
+      return;
+    }
+    fold.collapsed = !fold.collapsed;
+    this.render();
+  }
+
+  void setAllFolds(bool collapsed) {
+    this.refreshFolds();
+    int i = 0;
+    while (i < this.folds.length) {
+      this.folds[i].collapsed = collapsed;
+      i++;
+    }
+    this.render();
+  }
+
+  string tokenClass(string type) {
+    if (type.indexOf("comment") >= 0) {
+      return "mtk-comment";
+    }
+    if (type.indexOf("string") >= 0) {
+      return "mtk-string";
+    }
+    if (type.indexOf("keyword") >= 0) {
+      return "mtk-keyword";
+    }
+    if (type.indexOf("number") >= 0) {
+      return "mtk-number";
+    }
+    if (type.indexOf("tag") >= 0) {
+      return "mtk-tag";
+    }
+    if (type.indexOf("attribute") >= 0) {
+      return "mtk-attr";
+    }
+    return "mtk";
+  }
+
+  string escapeHtml(string s) {
+    string out = emptyBuf();
+    int i = 0;
+    while (i < s.length) {
+      string ch = s.charAt(i);
+      if (ch == "<") {
+        out = out + "&lt;";
+      } else if (ch == ">") {
+        out = out + "&gt;";
+      } else if (ch == "&") {
+        out = out + "&amp;";
+      } else {
+        out = out + ch;
+      }
+      i++;
+    }
+    return out;
+  }
+
+  string renderLineHtml(int lineNumber, string content, Token[] tokens) {
+    if (tokens.length == 0) {
+      if (content.length == 0) {
+        return "<span>&nbsp;</span>";
+      }
+      return "<span class=\"mtk\">" + this.escapeHtml(content) + "</span>";
+    }
+    string html = emptyBuf();
+    int i = 0;
+    while (i < tokens.length) {
+      int start = tokens[i].offset;
+      int end = content.length;
+      if (i + 1 < tokens.length) {
+        end = tokens[i + 1].offset;
+      }
+      string piece = sliceOf(content, start, end);
+      html = html + "<span class=\"" + this.tokenClass(tokens[i].type) + "\">" + this.escapeHtml(piece) + "</span>";
+      i++;
+    }
+    return html;
+  }
+
+  void renderMinimap() {
+    if (!this.showMinimap) {
+      setStyle(this.minimapCanvas, "display", "none");
+      return;
+    }
+    setStyle(this.minimapCanvas, "display", "block");
+    int w = 64;
+    int h = this.height;
+    if (h < 1) {
+      h = 1;
+    }
+    canvasSetSize(this.minimapCanvas, w, h);
+    JsValue ctx = canvasGetContext2d(this.minimapCanvas);
+    string bg = "#f3f3f3";
+    string fg = "#6e6e6e";
+    if (this.theme == "vs-dark" || this.theme == "hc-black") {
+      bg = "#1e1e1e";
+      fg = "#5a5a5a";
+    }
+    canvasFillRect(ctx, 0.0, 0.0, w * 1.0, h * 1.0, bg);
+    int lines = this.model.getLineCount();
+    if (lines < 1) {
+      return;
+    }
+    float row = (h * 1.0) / (lines * 1.0);
+    if (row < 1.0) {
+      row = 1.0;
+    }
+    int i = 1;
+    while (i <= lines) {
+      int len = this.model.getLineLength(i);
+      if (len > 0 && !this.isCollapsedLine(i)) {
+        float y = (i - 1) * 1.0 * row;
+        float bar = imin(len, 60) * 1.0;
+        canvasFillRect(ctx, 2.0, y, bar, row, fg);
+      }
+      i++;
+    }
+  }
+
+  string decoClasses(int line, int column, int endColumn) {
+    string extra = emptyBuf();
+    Decoration[] decos = this.model.getDecorationsInRange(createRange(line, column, line, endColumn));
+    int i = 0;
+    while (i < decos.length) {
+      extra = extra + " " + decos[i].className;
+      i++;
+    }
+    Marker[] marks = markersForModel(this.model);
+    int m = 0;
+    while (m < marks.length) {
+      Marker mark = marks[m];
+      if (mark.startLineNumber == line) {
+        extra = extra + " " + markerClass(mark.severity);
+      }
+      m++;
+    }
+    return extra;
+  }
+
+  Token[] tokensFromProvider(JsValue provider, string content) {
+    Token[] tokens = [];
+    JsValue raw = hostCall(provider, "tokenize", content, jsUndefined(), jsUndefined());
+    JsValue rows = raw;
+    if (raw.truthy() && raw["tokens"].truthy()) {
+      rows = raw["tokens"];
+    }
+    int n = jsArrayLen(rows);
+    int i = 0;
+    while (i < n) {
+      JsValue row = jsArrayAt(rows, i);
+      int offset = jsPropInt(row, "offset", 0);
+      string type = jsPropString(row, "type", jsPropString(row, "scopes", "mtk"));
+      tokens.push(new Token(offset, type));
+      i++;
+    }
+    return tokens;
+  }
+
+  string marginRowHtml(int line, string glyph) {
+    if (!this.showLineNumbers) {
+      return emptyBuf();
+    }
+    return "<div class=\"line-number\" data-line=\"" + line.toString() + "\" style=\"height:" + this.lineHeight.toString() + "px\"><span class=\"folding\" data-fold=\"" + line.toString() + "\">" + glyph + "</span> " + line.toString() + "</div>";
+  }
+
+  string lineRowHtml(int line, string content, Token[] tokens) {
+    return "<div class=\"view-line" + this.decoClasses(line, 1, content.length + 1) + "\" data-line=\"" + line.toString() + "\" style=\"height:" + this.lineHeight.toString() + "px\">" + this.renderLineHtml(line, content, tokens) + "</div>";
+  }
+
+  string foldGlyphAt(int line) {
+    FoldRange? fold = this.foldAt(line);
+    if (fold == null) {
+      return emptyBuf();
+    }
+    if (fold.collapsed) {
+      return "▶";
+    }
+    return "▼";
+  }
+
+  Token[] tokensForLine(Language? lang, Lexer? lexer, LineState state, string content) {
+    Token[] tokens = [];
+    if (lang != null && lang.tokensProvider.truthy()) {
+      return this.tokensFromProvider(lang.tokensProvider, content);
+    }
+    if (lexer != null) {
+      return tokenizeLine(lexer, state, content);
+    }
+    return tokens;
+  }
+
+  void render() {
+    this.applyTheme();
+    this.refreshFolds();
+    int start = this.visibleStartLine();
+    int end = this.visibleEndLine();
+    Language? lang = getLanguage(this.languageId);
+    Lexer? lexer = getLexer(this.languageId);
+    LineState state = initialState();
+    int prep = 1;
+    while (prep < start && lexer != null) {
+      tokenizeLine(lexer, state, this.model.getLineContent(prep));
+      prep++;
+    }
+    string marginHtml = emptyBuf();
+    string linesHtml = emptyBuf();
+    int line = start;
+    while (line <= end) {
+      if (this.isCollapsedLine(line)) {
+        line++;
+        continue;
+      }
+      string content = this.model.getLineContent(line);
+      Token[] tokens = this.tokensForLine(lang, lexer, state, content);
+      marginHtml = marginHtml + this.marginRowHtml(line, this.foldGlyphAt(line));
+      linesHtml = linesHtml + this.lineRowHtml(line, content, tokens);
+      line++;
+    }
+    setInnerHTML(this.margin, marginHtml);
+    setInnerHTML(this.linesHost, linesHtml);
+    setStyle(this.linesHost, "height", this.scrollHeight().toString() + "px");
+    this.renderMinimap();
+    this.renderSelection();
+    this.placeTextarea();
+  }
+
+  string selectionRowHtml(int line, int sc, int ec) {
+    int top = (line - 1) * this.lineHeight;
+    int left = (sc - 1) * this.charWidth;
+    int width = imax(1, (ec - sc) * this.charWidth);
+    return "<div class=\"selected-text\" style=\"position:absolute;top:" + top.toString() + "px;left:" + left.toString() + "px;width:" + width.toString() + "px;height:" + this.lineHeight.toString() + "px;background:rgba(38,79,120,0.45)\"></div>";
+  }
+
+  void renderSelection() {
+    Sel sel = this.selection;
+    string html = emptyBuf();
+    if (sel.startLineNumber != sel.endLineNumber || sel.startColumn != sel.endColumn) {
+      int line = sel.startLineNumber;
+      while (line <= sel.endLineNumber) {
+        int sc = 1;
+        int ec = this.model.getLineLength(line) + 1;
+        if (line == sel.startLineNumber) {
+          sc = sel.startColumn;
+        }
+        if (line == sel.endLineNumber) {
+          ec = sel.endColumn;
+        }
+        html = html + this.selectionRowHtml(line, sc, ec);
+        line++;
+      }
+    }
+    int c = 0;
+    while (c < this.extraCursors.length) {
+      Sel extra = this.extraCursors[c];
+      html = html + this.selectionRowHtml(extra.startLineNumber, extra.startColumn, extra.endColumn);
+      c = c + 1;
+    }
+    setInnerHTML(this.selectionHost, html);
+  }
+
+  void placeTextarea() {
+    int top = (this.selection.positionLineNumber - 1) * this.lineHeight;
+    int left = (this.selection.positionColumn - 1) * this.charWidth;
+    setStyle(this.textarea, "top", top.toString() + "px");
+    setStyle(this.textarea, "left", (left + MARGIN_WIDTH).toString() + "px");
+    setStyle(this.cursorEl, "top", top.toString() + "px");
+    setStyle(this.cursorEl, "left", left.toString() + "px");
+    inputSetValue(this.textarea, "");
+  }
+
+  Pos coordsToPosition(int clientX, int clientY) {
+    int top = rectTop(this.scrollable);
+    int left = rectLeft(this.scrollable);
+    int y = clientY - top + this.scrollTop;
+    int x = clientX - left;
+    int line = y / this.lineHeight + 1;
+    if (line < 1) {
+      line = 1;
+    }
+    int last = this.model.getLineCount();
+    if (line > last) {
+      line = last;
+    }
+    line = this.nextVisible(line);
+    int col = x / this.charWidth + 1;
+    int max = this.model.getLineLength(line) + 1;
+    if (col < 1) {
+      col = 1;
+    }
+    if (col > max) {
+      col = max;
+    }
+    return new Pos(line, col);
+  }
+
+  void revealLine(int lineNumber) {
+    int top = (lineNumber - 1) * this.lineHeight;
+    int viewEnd = this.scrollTop + this.height;
+    if (top < this.scrollTop || top + this.lineHeight > viewEnd) {
+      this.scrollTop = imax(0, top - this.height / 3);
+    }
+  }
+
+  string snapshot() {
+    return getInnerHTML(this.linesHost);
+  }
+}
+
+pure int imin(int a, int b) {
+  if (a < b) {
+    return a;
+  }
+  return b;
+}
+
+pure int imax(int a, int b) {
+  if (a > b) {
+    return a;
+  }
+  return b;
+}
+
+export EditorView createView(JsValue root, TextModel model) {
+  return new EditorView(root, model);
+}

@@ -337,6 +337,8 @@ impl ProjectConfig {
                 .optimization_enabled(JavaScriptOptimization::PhiEdgeValueForwardingVariants, None)
                 && !matches!(self.javascript.cost_model, CompressionCostModel::Brotli),
             operand_order_fusion: self.javascript.operand_order_fusion,
+            aggregate_operand_order_fusion: self.javascript.aggregate_operand_order_fusion,
+            sink_entry_function_declarations: self.javascript.sink_entry_function_declarations,
             comma_expressions: false,
             update_loop_layout: true,
             cross_scope_name_reuse: self
@@ -365,6 +367,7 @@ impl ProjectConfig {
             identifier_alphabet: IdentifierAlphabet::canonical(),
             string_quote: StringQuote::Double,
             pool_window_roots: true,
+            bare_window_root: false,
             alias_array_prototype_methods: !matches!(
                 self.javascript.cost_model,
                 CompressionCostModel::Brotli
@@ -997,6 +1000,12 @@ pub struct JavaScriptConfig {
     /// one consumer that reads them in production order. Off only for oracles
     /// that need the three-address spelling their fixture was written against.
     pub operand_order_fusion: bool,
+    /// Nest single-use calls into array/record literals across inert literals.
+    /// Off by default; projects that repeat that shape can opt in.
+    pub aggregate_operand_order_fusion: bool,
+    /// Declare a defaulted function at its only entry Closure instead of in
+    /// the hoisted function group. Off by default.
+    pub sink_entry_function_declarations: bool,
     pub function_spelling: Option<FunctionSpelling>,
     pub public_aggregate_abi: PublicAggregateAbi,
     pub aggregate_layout: AggregateLayout,
@@ -1035,6 +1044,8 @@ impl Default for JavaScriptConfig {
             iife_private_callee_clusters: true,
             nested_once_run_helpers: true,
             operand_order_fusion: true,
+            aggregate_operand_order_fusion: false,
+            sink_entry_function_declarations: false,
             function_spelling: None,
             public_aggregate_abi: PublicAggregateAbi::Named,
             aggregate_layout: AggregateLayout::default(),

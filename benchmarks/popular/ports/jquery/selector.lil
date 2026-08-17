@@ -326,16 +326,17 @@ bool pseudoFocus(JsValue elem) {
 }
 
 string stripQuotes(string s) {
-  if (s.length >= 2) {
-    string first = s.charAt(0);
-    string lastCh = s.charAt(s.length - 1);
-    bool doubleQuoted = first == "\"" && lastCh == "\"";
-    bool singleQuoted = first == "'" && lastCh == "'";
-    if (doubleQuoted || singleQuoted) {
-      return JS.stringSlice(s, 1, s.length - 1);
-    }
+  if (s.length < 2) {
+    return s;
   }
-  return s;
+  string first = s.charAt(0);
+  if (first != "\"" && first != "'") {
+    return s;
+  }
+  if (s.charAt(s.length - 1) != first) {
+    return s;
+  }
+  return JS.stringSlice(s, 1, s.length - 1);
 }
 
 bool pseudoContains(JsValue elem, string arg) {
@@ -557,8 +558,7 @@ JsValue applyPseudo(JsValue elems, string name, string arg) {
 JsValue applyPseudoChain(JsValue elemsIn, Pseudo[] pseudoList) {
   JsValue elems = elemsIn;
   int i = 0;
-  int len = pseudoList.length;
-  for (; i < len; i++) {
+  for (; i < pseudoList.length; i = i + 1) {
     Pseudo entry = pseudoList[i];
     elems = applyPseudo(elems, entry.name, entry.arg);
   }
@@ -566,47 +566,28 @@ JsValue applyPseudoChain(JsValue elemsIn, Pseudo[] pseudoList) {
 }
 
 bool isCustomPseudoName(string name) {
-  if (name == "not" || name == "has" || name == "contains" || name == "lang") {
-    return true;
-  }
-  if (name == "target" || name == "root" || name == "focus") {
-    return true;
-  }
-  if (name == "enabled" || name == "disabled" || name == "checked" || name == "selected") {
-    return true;
-  }
-  if (name == "empty" || name == "parent" || name == "header" || name == "input" || name == "button") {
-    return true;
-  }
-  if (name == "text" || name == "radio" || name == "checkbox" || name == "file" || name == "password" || name == "image") {
-    return true;
-  }
-  if (name == "submit" || name == "reset") {
-    return true;
-  }
-  if (name == "first" || name == "last" || name == "even" || name == "odd") {
-    return true;
-  }
-  if (name == "eq" || name == "nth" || name == "lt" || name == "gt") {
-    return true;
-  }
-  if (name == "visible" || name == "hidden" || name == "animated") {
-    return true;
-  }
-  return pseudosMap[name].truthy();
+  return name == "not" || name == "has" || name == "contains" || name == "lang"
+    || name == "target" || name == "root" || name == "focus"
+    || name == "enabled" || name == "disabled" || name == "checked" || name == "selected"
+    || name == "empty" || name == "parent" || name == "header" || name == "input" || name == "button"
+    || name == "text" || name == "radio" || name == "checkbox" || name == "file"
+    || name == "password" || name == "image" || name == "submit" || name == "reset"
+    || name == "first" || name == "last" || name == "even" || name == "odd"
+    || name == "eq" || name == "nth" || name == "lt" || name == "gt"
+    || name == "visible" || name == "hidden" || name == "animated"
+    || pseudosMap[name].truthy();
 }
 
 /* ---- selector-string scanning (comma groups, trailing pseudo chain) ---- */
 
 JsValue splitTopLevelCommas(string s) {
   JsValue[] groups = [];
-  int len = s.length;
   int i = 0;
   int start = 0;
   int parenDepth = 0;
   int bracketDepth = 0;
   string quoteChar = "";
-  for (; i < len; i++) {
+  for (; i < s.length; i = i + 1) {
     string c = s.charAt(i);
     if (quoteChar != "") {
       if (c == quoteChar) {
@@ -639,18 +620,17 @@ JsValue splitTopLevelCommas(string s) {
       start = i + 1;
     }
   }
-  groups.push(JS.stringReplace(JS.stringSlice(s, start, len), rtrimCSS, "$1"));
+  groups.push(JS.stringReplace(JS.stringSlice(s, start, s.length), rtrimCSS, "$1"));
   return groups;
 }
 
 int findLastTopLevelCombinatorIndex(string s) {
-  int len = s.length;
   int i = 0;
   int parenDepth = 0;
   int bracketDepth = 0;
   string quoteChar = "";
   int lastIndex = -1;
-  for (; i < len; i++) {
+  for (; i < s.length; i = i + 1) {
     string c = s.charAt(i);
     if (quoteChar != "") {
       if (c == quoteChar) {
@@ -689,91 +669,82 @@ int findLastTopLevelCombinatorIndex(string s) {
   return lastIndex;
 }
 
+Regex pseudoNamePattern = new Regex("^[A-Za-z][\\w-]*");
+
+int skipPseudoArg(string compound, int openAt) {
+  int depth = 1;
+  int at = openAt + 1;
+  for (; at < compound.length && depth > 0; at = at + 1) {
+    string ac = compound.charAt(at);
+    if (ac == "(") {
+      depth = depth + 1;
+    }
+    if (ac == ")") {
+      depth = depth - 1;
+      if (depth == 0) {
+        return at + 1;
+      }
+    }
+  }
+  return at;
+}
+
 CompoundParts extractPseudos(string compound) {
-  int len = compound.length;
   int i = 0;
   int bracketDepth = 0;
   string quoteChar = "";
   string base = "";
   Pseudo[] pseudos = [];
 
-  while (i < len) {
+  for (; i < compound.length; i = i + 1) {
     string c = compound.charAt(i);
     if (quoteChar != "") {
       base = base + c;
       if (c == quoteChar) {
         quoteChar = "";
       }
-      i = i + 1;
       continue;
     }
     if (c == "\"" || c == "'") {
       quoteChar = c;
       base = base + c;
-      i = i + 1;
       continue;
     }
     if (c == "[") {
       bracketDepth = bracketDepth + 1;
       base = base + c;
-      i = i + 1;
       continue;
     }
     if (c == "]") {
       bracketDepth = bracketDepth - 1;
       base = base + c;
-      i = i + 1;
       continue;
     }
-    if (c == ":" && bracketDepth == 0) {
-      int nameStart = i + 1;
-      int j = nameStart;
-      while (j < len) {
-        string nc = compound.charAt(j);
-        bool boundary = nc == "(" || nc == ":" || nc == "." || nc == "#" || nc == "[" || nc == " ";
-        if (boundary) {
-          break;
-        }
-        j = j + 1;
-      }
-      string name = JS.stringSlice(compound, nameStart, j);
-      if (name.length == 0) {
-        base = base + ":";
-        i = i + 1;
-        continue;
-      }
-      string arg = "";
-      if (j < len && compound.charAt(j) == "(") {
-        int depth = 1;
-        int argStart = j + 1;
-        j = argStart;
-        while (j < len && depth > 0) {
-          string ac = compound.charAt(j);
-          if (ac == "(") {
-            depth = depth + 1;
-          }
-          if (ac == ")") {
-            depth = depth - 1;
-            if (depth == 0) {
-              break;
-            }
-          }
-          j = j + 1;
-        }
-        arg = JS.stringSlice(compound, argStart, j);
-        j = j + 1;
-      }
-      string lowered = name.toLowerCase();
-      if (isCustomPseudoName(lowered)) {
-        pseudos.push(Pseudo{lowered, arg});
-      } else {
-        base = base + JS.stringSlice(compound, i, j);
-      }
-      i = j;
+    if (c != ":" || bracketDepth != 0) {
+      base = base + c;
       continue;
     }
-    base = base + c;
-    i = i + 1;
+    string rest = JS.stringSlice(compound, i + 1, compound.length);
+    JsValue matched = JS.stringMatch(rest, pseudoNamePattern);
+    if (!matched.truthy()) {
+      base = base + ":";
+      continue;
+    }
+    string name = JS.assume(matched[0]);
+    int j = i + 1 + name.length;
+    string arg = "";
+    if (j < compound.length && compound.charAt(j) == "(") {
+      int closeAt = skipPseudoArg(compound, j);
+      arg = JS.stringSlice(compound, j + 1, closeAt - 1);
+      j = closeAt;
+    }
+    string lowered = name.toLowerCase();
+    if (isCustomPseudoName(lowered)) {
+      pseudos.push(Pseudo{lowered, arg});
+    } else {
+      base = base + JS.stringSlice(compound, i, j);
+    }
+    i = j - 1;
   }
 
   return CompoundParts{base, pseudos};
@@ -815,116 +786,153 @@ JsValue tryResolveDirect(string selectorText, JsValue context, JsValue seed) {
   }
 }
 
+JsValue querySelectorAllAt(JsValue root, string selectorText) {
+  try {
+    JsValue result = emptyArray();
+    merge(result, JS.invoke(root, "querySelectorAll", selectorText));
+    return result;
+  } catch {
+    return null;
+  }
+}
+
+void restoreScopedId(JsValue context, bool wroteId) {
+  if (wroteId) {
+    JS.invoke(context, "removeAttribute", "id");
+  }
+}
+
 JsValue queryScoped(JsValue context, string selectorText) {
   string sel = selectorText;
   Regex leading = new Regex("^[\\x20\\t\\r\\n\\f]*[>+~]");
-  if (JS.regexTest(leading, sel)) {
-    JsValue nodeTypeValue = context["nodeType"];
-    if (nodeTypeValue == 1.0) {
-      string nid = "";
-      JsValue existingId = JS.invoke(context, "getAttribute", "id");
-      bool wroteId = false;
-      if (existingId is string && existingId.length > 0) {
-        nid = escapeSelectorImpl(existingId);
-      } else {
-        string rawId = JS.string(jQuery["expando"]);
-        JS.invoke(context, "setAttribute", "id", rawId);
-        wroteId = true;
-        nid = escapeSelectorImpl(rawId);
-      }
-      string scoped = "#" + nid + " " + sel;
-      JsValue root = context["ownerDocument"];
-      if (!root.truthy()) {
-        root = context;
-      }
-      try {
-        JsValue result = emptyArray();
-        merge(result, JS.invoke(root, "querySelectorAll", scoped));
-        if (wroteId) {
-          JS.invoke(context, "removeAttribute", "id");
-        }
-        return result;
-      } catch {
-        if (wroteId) {
-          JS.invoke(context, "removeAttribute", "id");
-        }
-        return null;
-      }
+  if (!JS.regexTest(leading, sel)) {
+    return tryResolveDirect(sel, context, null);
+  }
+  if (context["nodeType"] != 1.0) {
+    return tryResolveDirect(sel, context, null);
+  }
+  JsValue existingId = JS.invoke(context, "getAttribute", "id");
+  bool wroteId = false;
+  string nid = "";
+  if (existingId is string && existingId.length > 0) {
+    nid = escapeSelectorImpl(existingId);
+  } else {
+    string rawId = JS.string(jQuery["expando"]);
+    JS.invoke(context, "setAttribute", "id", rawId);
+    wroteId = true;
+    nid = escapeSelectorImpl(rawId);
+  }
+  JsValue root = context["ownerDocument"];
+  if (!root.truthy()) {
+    root = context;
+  }
+  JsValue result = querySelectorAllAt(root, "#" + nid + " " + sel);
+  restoreScopedId(context, wroteId);
+  return result;
+}
+
+bool isCombinatorChar(string c) {
+  return c == ">" || c == "+" || c == "~" || c == " " || c == "\t" ||
+    c == "\n" || c == "\r" || c == "\f";
+}
+
+int skipCombinators(string group, int start) {
+  int at = start;
+  for (; at < group.length; at = at + 1) {
+    if (!isCombinatorChar(group.charAt(at))) {
+      return at;
     }
   }
-  return tryResolveDirect(sel, context, null);
+  return group.length;
+}
+
+int firstCombinatorAt(string group, int start) {
+  int at = start;
+  int parenDepth = 0;
+  int bracketDepth = 0;
+  string quoteChar = "";
+  for (; at < group.length; at = at + 1) {
+    string c = group.charAt(at);
+    if (quoteChar != "") {
+      if (c == quoteChar) {
+        quoteChar = "";
+      }
+      continue;
+    }
+    if (c == "\"" || c == "'") {
+      quoteChar = c;
+      continue;
+    }
+    if (c == "(") {
+      parenDepth = parenDepth + 1;
+      continue;
+    }
+    if (c == ")") {
+      parenDepth = parenDepth - 1;
+      continue;
+    }
+    if (c == "[") {
+      bracketDepth = bracketDepth + 1;
+      continue;
+    }
+    if (c == "]") {
+      bracketDepth = bracketDepth - 1;
+      continue;
+    }
+    if (parenDepth == 0 && bracketDepth == 0 && isCombinatorChar(c)) {
+      return at;
+    }
+  }
+  return group.length;
 }
 
 int findFirstCustomPseudoCompound(string group) {
-  int len = group.length;
   int i = 0;
   int parenDepth = 0;
   int bracketDepth = 0;
   string quoteChar = "";
   int compoundStart = 0;
 
-  while (i < len) {
+  for (; i < group.length; i = i + 1) {
     string c = group.charAt(i);
     if (quoteChar != "") {
       if (c == quoteChar) {
         quoteChar = "";
       }
-      i = i + 1;
       continue;
     }
     if (c == "\"" || c == "'") {
       quoteChar = c;
-      i = i + 1;
       continue;
     }
     if (c == "(") {
       parenDepth = parenDepth + 1;
-      i = i + 1;
       continue;
     }
     if (c == ")") {
       parenDepth = parenDepth - 1;
-      i = i + 1;
       continue;
     }
     if (c == "[") {
       bracketDepth = bracketDepth + 1;
-      i = i + 1;
       continue;
     }
     if (c == "]") {
       bracketDepth = bracketDepth - 1;
-      i = i + 1;
       continue;
     }
-    if (parenDepth == 0 && bracketDepth == 0) {
-      bool isCombinatorChar = c == ">" || c == "+" || c == "~" || c == " " || c == "\t" ||
-        c == "\n" || c == "\r" || c == "\f";
-      if (isCombinatorChar) {
-        int j = i;
-        while (j < len) {
-          string jc = group.charAt(j);
-          bool still = jc == ">" || jc == "+" || jc == "~" || jc == " " || jc == "\t" ||
-            jc == "\n" || jc == "\r" || jc == "\f";
-          if (!still) {
-            break;
-          }
-          j = j + 1;
-        }
-        string compound = JS.stringSlice(group, compoundStart, i);
-        CompoundParts parts = extractPseudos(compound);
-        if (parts.pseudos.length > 0) {
-          return compoundStart;
-        }
-        compoundStart = j;
-        i = j;
-        continue;
+    if (parenDepth == 0 && bracketDepth == 0 && isCombinatorChar(c)) {
+      string compound = JS.stringSlice(group, compoundStart, i);
+      CompoundParts parts = extractPseudos(compound);
+      if (parts.pseudos.length > 0) {
+        return compoundStart;
       }
+      compoundStart = skipCombinators(group, i);
+      i = compoundStart - 1;
     }
-    i = i + 1;
   }
 
-  string lastCompound = JS.stringSlice(group, compoundStart, len);
+  string lastCompound = JS.stringSlice(group, compoundStart, group.length);
   CompoundParts lastParts = extractPseudos(lastCompound);
   if (lastParts.pseudos.length > 0) {
     return compoundStart;
@@ -938,53 +946,11 @@ JsValue resolveGroupViaPseudoFallback(string group, JsValue context, JsValue see
     return emptyArray();
   }
 
-  int len = group.length;
-  int compoundEnd = len;
-  int i = splitAt;
-  int parenDepth = 0;
-  int bracketDepth = 0;
-  string quoteChar = "";
-  for (; i < len; i++) {
-    string c = group.charAt(i);
-    if (quoteChar != "") {
-      if (c == quoteChar) {
-        quoteChar = "";
-      }
-      continue;
-    }
-    if (c == "\"" || c == "'") {
-      quoteChar = c;
-      continue;
-    }
-    if (c == "(") {
-      parenDepth = parenDepth + 1;
-      continue;
-    }
-    if (c == ")") {
-      parenDepth = parenDepth - 1;
-      continue;
-    }
-    if (c == "[") {
-      bracketDepth = bracketDepth + 1;
-      continue;
-    }
-    if (c == "]") {
-      bracketDepth = bracketDepth - 1;
-      continue;
-    }
-    if (parenDepth == 0 && bracketDepth == 0) {
-      bool isCombinatorChar = c == ">" || c == "+" || c == "~" || c == " " || c == "\t" ||
-        c == "\n" || c == "\r" || c == "\f";
-      if (isCombinatorChar) {
-        compoundEnd = i;
-        break;
-      }
-    }
-  }
+  int compoundEnd = firstCombinatorAt(group, splitAt);
 
   string head = JS.stringSlice(group, 0, splitAt);
   string compound = JS.stringSlice(group, splitAt, compoundEnd);
-  string suffix = JS.stringSlice(group, compoundEnd, len);
+  string suffix = JS.stringSlice(group, compoundEnd, group.length);
   CompoundParts extracted = extractPseudos(compound);
 
   if (extracted.pseudos.length == 0) {
@@ -1136,6 +1102,12 @@ JsValue fnUniqueSort() {
 
 jQuery["find"] = find;
 jQuery["expr"] = expr;
+expr["pseudos"] = pseudosMap;
+expr[":"] = pseudosMap;
+JsValue matchPublic = JS.object();
+matchPublic["bool"] = boolAttrPattern;
+matchPublic["needsContext"] = needsContextPattern;
+expr["match"] = matchPublic;
 jQuery["uniqueSort"] = uniqueSortImpl;
 jQuery["unique"] = uniqueSortImpl;
 jQuery["fn"]["uniqueSort"] = fnUniqueSort;

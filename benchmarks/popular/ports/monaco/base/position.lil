@@ -1,0 +1,82 @@
+pure int posMax1(int value) {
+  if (value < 1) {
+    return 1;
+  }
+  return value;
+}
+
+export class Pos {
+  int lineNumber;
+  int column;
+
+  init(int lineNumber, int column) {
+    this.lineNumber = lineNumber;
+    this.column = column;
+  }
+
+  Pos with(int newLineNumber, int newColumn) {
+    if (newLineNumber == this.lineNumber && newColumn == this.column) {
+      return this;
+    }
+    return new Pos(newLineNumber, newColumn);
+  }
+
+  Pos delta(int deltaLineNumber, int deltaColumn) {
+    return this.with(posMax1(this.lineNumber + deltaLineNumber), posMax1(this.column + deltaColumn));
+  }
+
+  bool equals(Pos other) {
+    return this.lineNumber == other.lineNumber && this.column == other.column;
+  }
+
+  bool isBefore(Pos other) {
+    if (this.lineNumber < other.lineNumber) {
+      return true;
+    }
+    if (other.lineNumber < this.lineNumber) {
+      return false;
+    }
+    return this.column < other.column;
+  }
+
+  bool isBeforeOrEqual(Pos other) {
+    if (this.lineNumber < other.lineNumber) {
+      return true;
+    }
+    if (other.lineNumber < this.lineNumber) {
+      return false;
+    }
+    return this.column <= other.column;
+  }
+
+  Pos clone() {
+    return new Pos(this.lineNumber, this.column);
+  }
+
+  string toString() {
+    return "(" + this.lineNumber.toString() + "," + this.column.toString() + ")";
+  }
+}
+
+export Pos createPosition(int lineNumber, int column) {
+  return new Pos(lineNumber, column);
+}
+
+export bool positionEquals(Pos a, Pos b) {
+  return a.lineNumber == b.lineNumber && a.column == b.column;
+}
+
+export bool positionIsBefore(Pos a, Pos b) {
+  return a.isBefore(b);
+}
+
+export bool positionIsBeforeOrEqual(Pos a, Pos b) {
+  return a.isBeforeOrEqual(b);
+}
+
+export int positionCompare(Pos a, Pos b) {
+  if (a.lineNumber == b.lineNumber) {
+    return a.column - b.column;
+  }
+  return a.lineNumber - b.lineNumber;
+}

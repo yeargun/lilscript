@@ -1,0 +1,58 @@
+import { TextModel, createModel, getModels, editOp, deco } from "../editor/text-model";
+import { IdentifiedEdit } from "../editor/edit-stack";
+import { Decoration } from "../editor/interval-tree";
+import { FindMatch } from "../editor/search";
+import { Rng, createRange } from "../base/range";
+import { Pos } from "../base/position";
+import { Uri } from "../base/uri";
+
+export {
+  TextModel,
+  createModel,
+  getModels,
+  editOp,
+  deco,
+  IdentifiedEdit,
+  Decoration,
+  FindMatch,
+  Rng,
+  Pos,
+  Uri,
+  createRange
+};
+
+export string modelGetValue(TextModel model) {
+  return model.getValue();
+}
+
+export void modelSetValue(TextModel model, string value) {
+  model.setValue(value);
+}
+
+export int modelLineCount(TextModel model) {
+  return model.getLineCount();
+}
+
+export IdentifiedEdit[] modelApplyEdits(TextModel model, IdentifiedEdit[] edits, bool pushUndo) {
+  return model.applyEdits(edits, pushUndo);
+}
+
+export bool modelUndo(TextModel model) {
+  return model.undo();
+}
+
+export bool modelRedo(TextModel model) {
+  return model.redo();
+}
+
+export int[] modelDeltaDecorations(TextModel model, int[] oldIds, Decoration[] next) {
+  return model.deltaDecorations(oldIds, next);
+}
+
+export Decoration[] modelDecorationsInRange(TextModel model, Rng range) {
+  return model.getDecorationsInRange(range);
+}
+
+export FindMatch[] modelFindMatches(TextModel model, string searchString, bool isRegex, bool matchCase, bool wholeWord, int limit) {
+  return model.findMatches(searchString, isRegex, matchCase, wholeWord, limit);
+}

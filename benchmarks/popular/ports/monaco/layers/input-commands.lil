@@ -1,0 +1,36 @@
+import { createModel } from "../editor/text-model";
+import { createView, EditorView } from "../editor/view";
+import {
+  typeText,
+  deleteLeft,
+  deleteRight,
+  undoEdit,
+  redoEdit,
+  triggerCommand,
+  handleKeydown,
+  setPosition,
+  selectAll
+} from "../editor/commands";
+
+export EditorView mountCommands(JsValue root, string value) {
+  EditorView view = createView(root, createModel(value, "plaintext"));
+  view.render();
+  return view;
+}
+
+export {
+  typeText,
+  deleteLeft,
+  deleteRight,
+  undoEdit,
+  redoEdit,
+  triggerCommand,
+  handleKeydown,
+  setPosition,
+  selectAll,
+  EditorView
+};
+
+export string commandValue(EditorView view) {
+  return view.model.getValue();
+}

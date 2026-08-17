@@ -1,0 +1,96 @@
+import { sliceOf } from "../js-host";
+
+export class Uri {
+  string scheme;
+  string authority;
+  string path;
+  string query;
+  string fragment;
+
+  init(string scheme, string authority, string path, string query, string fragment) {
+    this.scheme = scheme;
+    this.authority = authority;
+    this.path = path;
+    this.query = query;
+    this.fragment = fragment;
+  }
+
+  string toString() {
+    string out = this.scheme + ":";
+    if (this.authority.length > 0 || this.scheme == "file" || this.scheme == "inmemory") {
+      out = out + "//" + this.authority;
+    }
+    out = out + this.path;
+    if (this.query.length > 0) {
+      out = out + "?" + this.query;
+    }
+    if (this.fragment.length > 0) {
+      out = out + "#" + this.fragment;
+    }
+    return out;
+  }
+
+  Uri withPath(string path) {
+    return new Uri(this.scheme, this.authority, path, this.query, this.fragment);
+  }
+}
+
+int uriSeq = 1;
+
+string[] splitAuthority(string rest) {
+  string[] out = ["", rest];
+  if (!rest.startsWith("//")) {
+    return out;
+  }
+  string after = sliceOf(rest, 2, rest.length);
+  int slash = after.indexOf("/");
+  if (slash < 0) {
+    out[0] = after;
+    out[1] = "";
+    return out;
+  }
+  out[0] = sliceOf(after, 0, slash);
+  out[1] = sliceOf(after, slash, after.length);
+  return out;
+}
+
+string[] splitHashQuery(string path) {
+  string fragment = "";
+  string query = "";
+  string next = path;
+  int hash = next.indexOf("#");
+  if (hash >= 0) {
+    fragment = sliceOf(next, hash + 1, next.length);
+    next = sliceOf(next, 0, hash);
+  }
+  int q = next.indexOf("?");
+  if (q >= 0) {
+    query = sliceOf(next, q + 1, next.length);
+    next = sliceOf(next, 0, q);
+  }
+  string[] out = [next, query, fragment];
+  return out;
+}
+
+export Uri parseUri(string value) {
+  int schemeEnd = value.indexOf(":");
+  string scheme = "file";
+  string rest = value;
+  if (schemeEnd >= 0) {
+    scheme = sliceOf(value, 0, schemeEnd);
+    rest = sliceOf(value, schemeEnd + 1, value.length);
+  }
+  string[] auth = splitAuthority(rest);
+  string[] parts = splitHashQuery(auth[1]);
+  return new Uri(scheme, auth[0], parts[0], parts[1], parts[2]);
+}
+
+export Uri fileUri(string path) {
+  return new Uri("file", "", path, "", "");
+}
+
+export Uri inmemoryUri() {
+  int id = uriSeq;
+  uriSeq = uriSeq + 1;
+  return new Uri("inmemory", "", "/model/" + id.toString(), "", "");
+}

@@ -1,0 +1,82 @@
+import { CodeEditor } from "../editor/standalone";
+import { Pos } from "../base/position";
+import { createRange, Rng } from "../base/range";
+import { formatValue } from "./engine";
+
+export string formatDocument(CodeEditor editor) {
+  string out = formatValue(editor.getValue());
+  editor.setValue(out);
+  return out;
+}
+
+export Rng? renameSymbol(CodeEditor editor, string nextName) {
+  Pos pos = editor.getPosition();
+  string line = editor.getModel().getLineContent(pos.lineNumber);
+  return createRange(pos.lineNumber, 1, pos.lineNumber, line.length + 1);
+}
+
+export string[] parameterHints(CodeEditor editor) {
+  string[] hints = ["value", "options"];
+  return hints;
+}
+
+export int[] unusualLineTerminators(CodeEditor editor) {
+  int[] offsets = [];
+  string value = editor.getValue();
+  int i = 0;
+  while (i < value.length) {
+    int code = value.charCodeAt(i);
+    if (code == 8232 || code == 8233) {
+      offsets.push(i);
+    }
+    i++;
+  }
+  return offsets;
+}
+
+export bool inlayHintEnabled() {
+  return true;
+}
+
+export bool unicodeHighlightEnabled() {
+  return true;
+}
+
+export string[] remainingContribIds() {
+  return [
+    "format",
+    "rename",
+    "parameterHints",
+    "inlayHints",
+    "unicodeHighlighter",
+    "unusualLineTerminators",
+    "codelens",
+    "colorPicker",
+    "linkedEditing",
+    "inlineCompletions",
+    "referenceSearch",
+    "gotoSymbol",
+    "quickOutline",
+    "indentation",
+    "links",
+    "wordHighlighter",
+    "stickyScroll",
+    "snippets",
+    "comment",
+    "find",
+    "folding",
+    "bracketMatching",
+    "hover",
+    "suggest",
+    "gotoLine",
+    "diffEditor",
+    "clipboard",
+    "contextmenu",
+    "multicursor",
+    "linesOperations",
+    "wordOperations",
+    "smartSelect",
+    "codeAction",
+    "gotoError"
+  ];
+}
