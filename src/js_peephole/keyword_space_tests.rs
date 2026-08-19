@@ -1,4 +1,7 @@
-use super::optimize_generated_javascript;
+use super::{
+    late_generated_javascript_cleanup, late_generated_javascript_cleanup_pass,
+    optimize_generated_javascript, LateJavaScriptCleanupPass,
+};
 
 #[test]
 fn drops_separators_a_keyword_does_not_need() {
@@ -29,6 +32,65 @@ fn keeps_separators_that_a_keyword_still_needs() {
             "must not fuse: {source}"
         );
     }
+}
+
+fn asserts_parses(code: &str) {
+    let out = std::process::Command::new("node")
+        .args(["-e", "new Function(process.argv[1])", code])
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "invalid JS: {}\n{}",
+        code,
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
+
+#[test]
+fn keeps_return_separated_from_a_nullish_ternary() {
+    let optimized = optimize_generated_javascript("function f(e){return e==null?!1:1}").unwrap();
+    assert!(
+        optimized.code.contains("return e") && !optimized.code.contains("returne"),
+        "{}",
+        optimized.code
+    );
+    asserts_parses(&optimized.code);
+}
+
+#[test]
+fn keeps_return_separated_from_a_logical_ternary() {
+    let optimized = optimize_generated_javascript(
+        r#"function f(s,i,c){var a,t;arguments.length>1&&(a=i);arguments.length>2&&(t=c);return a&&typeof a.kind=="string"?1:0}"#,
+    )
+    .unwrap();
+    assert!(
+        optimized.code.contains("return a") && !optimized.code.contains("returna"),
+        "{}",
+        optimized.code
+    );
+    asserts_parses(&optimized.code);
+}
+
+#[test]
+fn splits_an_already_fused_return_identifier() {
+    let optimized = optimize_generated_javascript("function f(e){returne==null?!1:1}").unwrap();
+    assert!(
+        optimized.code.contains("return e") && !optimized.code.contains("returne"),
+        "{}",
+        optimized.code
+    );
+    asserts_parses(&optimized.code);
+}
+
+#[test]
+fn does_not_split_returned_as_a_function_name() {
+    let optimized = optimize_generated_javascript("function returned(e){return e}").unwrap();
+    assert!(
+        optimized.code.contains("function returned"),
+        "{}",
+        optimized.code
+    );
 }
 
 #[test]
@@ -73,6 +135,11 @@ fn folds_index_assigns_into_postfix_updates() {
     let folded = optimize_generated_javascript(original).unwrap();
     assert_eq!(run_node(&folded.code).trim(), run_node(original).trim());
     assert_eq!(run_node(&folded.code).trim(), "[1,2,3]");
+
+    let empty = "function m(a,b){var i=a.length,j=0;for(;j<b.length;j++)a[i]=b[j],i++;a.length=i;return a}console.log(JSON.stringify(m([],[]))+JSON.stringify(m([1],[])))";
+    let folded_empty = optimize_generated_javascript(empty).unwrap();
+    assert_eq!(run_node(&folded_empty.code).trim(), run_node(empty).trim());
+    assert_eq!(run_node(&folded_empty.code).trim(), "[][1]");
 }
 
 #[test]
@@ -147,6 +214,135 @@ fn folds_coalesced_or_into_a_returned_disjunction() {
     let folded = optimize_generated_javascript(original).unwrap();
     assert_eq!(run_node(&folded.code).trim(), run_node(original).trim());
     assert_eq!(run_node(&folded.code).trim(), "c");
+}
+
+#[test]
+fn cached_member_reads_do_not_drop_this_on_calls() {
+    let optimized = optimize_generated_javascript(
+        "function prepare(b){var a=this.enhancer_,d=this.value_;return this.enhancer_(b,d,this.name_)}",
+    )
+    .unwrap();
+    assert!(
+        optimized.code.contains(".enhancer_("),
+        "cached method values must not become bare callees:\n{}",
+        optimized.code
+    );
+
+    let original = "function run(){var r=this.dispose;this.dispose();return this.x}console.log(run.call({x:1,dispose(){this.x=2}}))";
+    let folded = optimize_generated_javascript(original).unwrap();
+    assert!(
+        folded.code.contains(".dispose("),
+        "dispose must stay a member call:\n{}",
+        folded.code
+    );
+    assert_eq!(run_node(&folded.code).trim(), run_node(original).trim());
+    assert_eq!(run_node(&folded.code).trim(), "2");
+}
+
+#[test]
+fn drops_unread_pure_member_assigns_after_rematerialized_calls() {
+    let optimized = optimize_generated_javascript(
+        "function prepare(a){var t=this.enhancer_,r=this.value_;a=this.enhancer_(a,r,this.name_),t=this.equals_;return this.equals_(r,a)}",
+    )
+    .unwrap();
+    assert!(
+        optimized.code.contains(".enhancer_(") && optimized.code.contains(".equals_("),
+        "{}",
+        optimized.code
+    );
+    assert!(
+        !optimized.code.contains("t=this.enhancer_") && !optimized.code.contains("t=this.equals_"),
+        "dead member temps should be dropped:\n{}",
+        optimized.code
+    );
+}
+
+#[test]
+fn does_not_strip_member_reads_that_are_not_the_whole_assignment() {
+    let optimized = optimize_generated_javascript(
+        "function name(a){if(a.name){var t=a.name+\"\";return t}return \"x\"}",
+    )
+    .unwrap();
+    assert!(
+        optimized.code.contains("name") && !optimized.code.contains("var+\""),
+        "{}",
+        optimized.code
+    );
+    assert_eq!(
+        run_node(&format!(
+            "{};console.log(name({{name:\"ok\"}}))",
+            optimized.code
+        ))
+        .trim(),
+        "ok"
+    );
+}
+
+#[test]
+fn keeps_member_temps_read_by_the_next_assignment_rhs() {
+    let optimized = optimize_generated_javascript(
+        "var t=function(){return \"spy\"};function get(a){var t=this.target_;t=g?!Ne.call(t,a):!1;if(t)this.has_(a);return this.target_[a]}",
+    )
+    .unwrap();
+    asserts_parses(&optimized.code);
+    assert!(
+        optimized.code.contains("target_") && optimized.code.contains("Ne.call("),
+        "{}",
+        optimized.code
+    );
+    let result = run_node(&format!(
+        "{};var g=true,Ne={{call:function(o,k){{return Object.prototype.hasOwnProperty.call(o,k)}}}};var o={{target_:{{a:1}},has_:function(){{}},get:get}};o.get(\"a\");console.log(typeof t+\",\"+o.get(\"a\"))",
+        optimized.code
+    ));
+    assert_eq!(result.trim(), "function,1", "{result}\n{}", optimized.code);
+}
+
+#[test]
+fn keeps_var_when_a_dead_member_temp_is_reassigned_and_returned() {
+    let optimized =
+        optimize_generated_javascript("function f(){var t=this.x;t=this.y;return t}").unwrap();
+    asserts_parses(&optimized.code);
+    let result = run_node(&format!(
+        "var t=\"outer\";{};console.log(f.call({{x:1,y:2}})+\",\"+t)",
+        optimized.code
+    ));
+    assert_eq!(result.trim(), "2,outer", "{result}\n{}", optimized.code);
+}
+
+#[test]
+fn keeps_member_assignments_that_carry_state_across_loop_backedges() {
+    let source = "function siblings(e){var n=[],k=0;while(e&&k++<4){n.push(e.value);e=e.nextSibling}return n.join(\",\")}";
+    let optimized = optimize_generated_javascript(source).unwrap();
+    asserts_parses(&optimized.code);
+    assert!(
+        optimized.code.contains("nextSibling"),
+        "loop-carried update was dropped: {}",
+        optimized.code
+    );
+    let result = run_node(&format!(
+        "{};var b={{value:\"b\",nextSibling:null}},a={{value:\"a\",nextSibling:b}};console.log(siblings(a))",
+        optimized.code
+    ));
+    assert_eq!(result.trim(), "a,b", "{result}\n{}", optimized.code);
+
+    let unbraced = optimize_generated_javascript(
+        "function walk(e){var k=0;while(e&&k++<4)e=e.nextSibling;return k}",
+    )
+    .unwrap();
+    assert!(
+        unbraced.code.contains("nextSibling"),
+        "unbraced loop-carried update was dropped: {}",
+        unbraced.code
+    );
+}
+
+#[test]
+fn keeps_a_statement_after_unbraced_if_when_dropping_a_dead_assign() {
+    let optimized =
+        optimize_generated_javascript("function f(a){if(a){var t=a.x;if(t)i=t.value}return 1}")
+            .unwrap();
+    asserts_parses(&optimized.code);
+    assert!(!optimized.code.contains("if(t)}"), "{}", optimized.code);
 }
 
 #[test]
@@ -230,6 +426,25 @@ fn folds_truthy_index_walks_into_for_header_assigns() {
 }
 
 #[test]
+fn keeps_multi_statement_index_walk_bodies_inside_the_loop() {
+    let original = "function walk(s,l,n){var t=0,e;for(;!0;){e=s[t++];if(!e)break;if(n){if(e===n)continue}l.appendChild(e)}return l}";
+    let folded = optimize_generated_javascript(original).unwrap();
+    assert!(
+        folded.code.contains("e=s[t++]")
+            && folded.code.contains("){if(n)")
+            && folded.code.contains("l.appendChild(e)}return"),
+        "{}",
+        folded.code
+    );
+    assert!(!folded.code.contains("e=s[t++];)if"), "{}", folded.code);
+    let runtime = "let frag={nodes:[],appendChild(child){this.nodes.push(child);return child}};walk([{id:1},{id:2}],frag,null);console.log(frag.nodes.map(n=>n.id).join(','))";
+    let original_run = format!("{original};{runtime}");
+    let folded_run = format!("{};{runtime}", folded.code);
+    assert_eq!(run_node(&folded_run).trim(), run_node(&original_run).trim());
+    assert_eq!(run_node(&folded_run).trim(), "1,2");
+}
+
+#[test]
 fn folds_self_minus_one_into_decrement() {
     let optimized = optimize_generated_javascript("function f(i){i=i-1;return i}").unwrap();
     assert!(optimized.code.contains("i--"), "{}", optimized.code);
@@ -310,6 +525,19 @@ fn does_not_comma_join_continue_into_an_expression() {
 }
 
 #[test]
+fn does_not_comma_join_continue_into_a_switch_case() {
+    let source =
+        "function f(a){for(;;)switch(a){case 0:a=1;continue;case 1:return 2}}console.log(f(0))";
+    let optimized = optimize_generated_javascript(source).unwrap();
+    assert!(
+        !optimized.code.contains("continue,") && !optimized.code.contains("return 2,case"),
+        "{}",
+        optimized.code
+    );
+    assert_eq!(run_node(&optimized.code).trim(), "2");
+}
+
+#[test]
 fn does_not_lift_trailing_increment_when_continue_already_increments() {
     let original = "function f(a){var n=0,s=0;for(;n<a.length;){if(a[n]==null){n++;continue}s+=a[n];n++;}return s}console.log(f([1,null,2]))";
     let optimized = optimize_generated_javascript(original).unwrap();
@@ -376,6 +604,223 @@ fn copies_reads_before_a_later_reassignment() {
     assert!(
         optimized.code.contains("constructor:j") && optimized.code.contains("c.call(j)"),
         "{}",
+        optimized.code
+    );
+}
+
+#[test]
+fn keeps_identifier_copies_across_nested_function_source_writes() {
+    let source = "function f(){var value=1;return function(){var oldValue=value;g(function(){value=2});return[value,oldValue]}}";
+    let optimized = optimize_generated_javascript(source).unwrap();
+    let script = format!(
+        "function g(fn){{fn()}}\n{}\nconsole.log(JSON.stringify(f()()));",
+        optimized.code
+    );
+    let original = format!("function g(fn){{fn()}}\n{source}\nconsole.log(JSON.stringify(f()()));");
+    assert_eq!(run_node(&script).trim(), run_node(&original).trim());
+    assert_eq!(run_node(&script).trim(), "[2,1]");
+}
+
+#[test]
+fn keeps_identifier_copies_across_sibling_closure_calls() {
+    let source = "function f(){var n=1;var t=function(){n=2};var c=function(fn){fn()};var o=n;c(t);return[n,o]}";
+    let optimized = optimize_generated_javascript(source).unwrap();
+    let script = format!("{}\nconsole.log(JSON.stringify(f()));", optimized.code);
+    let original = format!("{source}\nconsole.log(JSON.stringify(f()));");
+    assert_eq!(run_node(&script).trim(), run_node(&original).trim());
+    assert_eq!(run_node(&script).trim(), "[2,1]");
+    assert!(
+        optimized.code.contains("o=") || optimized.code.contains("var o"),
+        "snapshot copy must survive a sibling closure call: {}",
+        optimized.code
+    );
+
+    let nested = "(function(){var n=1;let t=(0,function(){n=2}),c=(0,function(fn){fn()});(0,function(){var o=n;c(t);consume(o,n)})()})()";
+    let nested_opt = optimize_generated_javascript(nested).unwrap();
+    let nested_script = format!(
+        "function consume(a,b){{console.log(JSON.stringify([a,b]))}}\n{}",
+        nested_opt.code
+    );
+    assert_eq!(run_node(&nested_script).trim(), "[1,2]");
+}
+
+#[test]
+fn still_copies_unmutated_locals_across_calls() {
+    let optimized =
+        optimize_generated_javascript("function f(){var n=1;var o=n;g();return o}").unwrap();
+    assert!(
+        !optimized.code.contains("var o") && !optimized.code.contains("o="),
+        "unmutated local copies may fold across calls: {}",
+        optimized.code
+    );
+}
+
+#[test]
+fn still_copies_unassigned_module_function_aliases_across_calls() {
+    let source = "function action(n,fn){return fn}function run(gen,val){var C=action;return next(C.call(void 0,\"s\",gen.next),gen,val)}";
+    let optimized = optimize_generated_javascript(source).unwrap();
+    assert!(
+        !optimized.code.contains("var C") && !optimized.code.contains("C=action"),
+        "module function aliases may fold across calls: {}",
+        optimized.code
+    );
+}
+
+#[test]
+fn keeps_call_temps_across_reassignment_of_a_callee_in_the_rhs() {
+    let source = "function Q(n,s,a){return n.call(s,a)}function F(){}function action(n,fn){return fn}function run(W,i,o){var C=\"s\",V=action;var ret=Q(V.call(F(),C,i.next),i,o);V=W;return Q(V,F(),ret)}";
+    let optimized = optimize_generated_javascript(source).unwrap();
+    let script = format!(
+        "{}\nfunction nextStep(ret){{return ret.value}}\nconst gen={{next:function(x){{return {{value:x,done:true}}}}}}\nconsole.log(run(nextStep,gen,7));",
+        optimized.code
+    );
+    let original = format!(
+        "{source}\nfunction nextStep(ret){{return ret.value}}\nconst gen={{next:function(x){{return {{value:x,done:true}}}}}}\nconsole.log(run(nextStep,gen,7));"
+    );
+    assert_eq!(run_node(&script).trim(), run_node(&original).trim());
+    assert_eq!(run_node(&script).trim(), "7");
+}
+
+#[test]
+fn keeps_captured_identifier_assign_from_a_nested_function() {
+    let source = "function f(){var rejector;function inner(rejector2){rejector=rejector2}function outer(){return rejector}return[inner,outer]}";
+    let optimized = optimize_generated_javascript(source).unwrap();
+    let script = format!(
+        "{}\nconst p=f();p[0](7);console.log(p[1]());",
+        optimized.code
+    );
+    let original = format!("{source}\nconst p=f();p[0](7);console.log(p[1]());");
+    assert_eq!(run_node(&script).trim(), run_node(&original).trim());
+    assert_eq!(run_node(&script).trim(), "7");
+}
+
+#[test]
+fn keeps_member_copies_across_intervening_calls() {
+    let source = "function f(){this.x=1;this.mutate=function(){this.x=2};var was=this.x;this.mutate();return was}";
+    let optimized = optimize_generated_javascript(source).unwrap();
+    let script = format!("{}\nconsole.log(f.call({{}}));", optimized.code);
+    let original = format!("{source}\nconsole.log(f.call({{}}));");
+    assert_eq!(run_node(&script).trim(), run_node(&original).trim());
+    assert_eq!(run_node(&script).trim(), "1");
+    assert!(
+        optimized.code.contains("was=") || optimized.code.contains("var was"),
+        "member copy must survive an intervening call: {}",
+        optimized.code
+    );
+
+    let helper = optimize_generated_javascript(
+        "function f(){this.x=1;this.compute=function(){this.x=2;return 3};var was=this.x;var m=this.compute;call1(m,this,true);return was}",
+    )
+    .unwrap();
+    let helper_script = format!(
+        "function call1(fn,self){{return fn.call(self)}}\n{}\nconsole.log(f.call({{}}));",
+        helper.code
+    );
+    assert_eq!(run_node(&helper_script).trim(), "1");
+}
+
+#[test]
+fn keeps_call_argument_member_copies_across_intervening_calls() {
+    let source = "function f(){this.x=1;this.compute=function(){this.x=2;return 3};var v9=this.x;var v12=this.compute;var v15=call1(v12,this,true);if(toInt(v9)==1)return 1;return 0}";
+    let optimized = optimize_generated_javascript(source).unwrap();
+    let script = format!(
+        "function call1(fn,self){{return fn.call(self)}}function toInt(v){{return v|0}}\n{}\nconsole.log(f.call({{}}));",
+        optimized.code
+    );
+    assert_eq!(run_node(&script).trim(), "1");
+    assert!(
+        optimized.code.contains("v9=") || optimized.code.contains("var v9"),
+        "call-argument member copy must survive an intervening call: {}",
+        optimized.code
+    );
+}
+
+#[test]
+fn keeps_call_argument_member_copies_after_the_receiver_is_rebound() {
+    let source = "function f(b,a,i){var d=b.href;b=b.title;var e=a[0]+\"\";return i(a,d,b,e)}";
+    let optimized = optimize_generated_javascript(source).unwrap();
+    let script = format!(
+        "{}\nconsole.log(f({{href:\"/url\",title:\"title\"}},[\"x\"],(cap,href,title)=>href+\"|\"+title));",
+        optimized.code
+    );
+    let original = format!(
+        "{source}\nconsole.log(f({{href:\"/url\",title:\"title\"}},[\"x\"],(cap,href,title)=>href+\"|\"+title));"
+    );
+    assert_eq!(run_node(&script).trim(), run_node(&original).trim());
+    assert_eq!(run_node(&script).trim(), "/url|title");
+    assert!(
+        !optimized.code.contains("b.href")
+            || optimized.code.find("b=b.title").is_none_or(|assign| optimized
+                .code
+                .find("b.href")
+                .is_some_and(|href| href < assign)),
+        "must not rematerialize obj.href after obj was rebound:\n{}",
+        optimized.code
+    );
+}
+
+#[test]
+fn rematerializes_stable_receiver_call_argument_members() {
+    let source = "function f(b,i){var d=b.href;return i(d,b.title)}";
+    let optimized = optimize_generated_javascript(source).unwrap();
+    assert!(
+        optimized.code.contains("b.href") && optimized.code.contains("b.title"),
+        "a stable receiver should keep direct JS members:\n{}",
+        optimized.code
+    );
+    let script = format!(
+        "{}\nconsole.log(f({{href:\"/url\",title:\"title\"}},(href,title)=>href+\"|\"+title));",
+        optimized.code
+    );
+    assert_eq!(run_node(&script).trim(), "/url|title");
+}
+
+#[test]
+fn keeps_self_based_member_assignments_as_value_updates() {
+    let source = "function f(e,g){var c=e[0];c=c[2];c=c.disable;return g(c)}";
+    let optimized = optimize_generated_javascript(source).unwrap();
+    let original =
+        format!("{source}\nconsole.log(f([[0,0,{{disable:function ok(){{}}}}]],x=>x.name));");
+    let script = format!(
+        "{}\nconsole.log(f([[0,0,{{disable:function ok(){{}}}}]],x=>x.name));",
+        optimized.code
+    );
+    assert_eq!(run_node(&script).trim(), run_node(&original).trim());
+    assert_eq!(run_node(&script).trim(), "ok");
+    assert!(
+        !optimized.code.contains("disable.disable"),
+        "self-based member copies must not recursively expand: {}",
+        optimized.code
+    );
+}
+
+#[test]
+fn single_use_function_inlining_does_not_capture_a_free_helper() {
+    let source =
+        "function build(S,D){let r=(r,t)=>t[r],t=t=>r(D,t),n=t=>r(S,t);return r=>n(r)||t(r)}";
+    let optimized = optimize_generated_javascript(source).unwrap();
+    let original = format!("{source}\nconsole.log(build('user','priv')({{user:1,priv:2}}));");
+    let script = format!(
+        "{}\nconsole.log(build('user','priv')({{user:1,priv:2}}));",
+        optimized.code
+    );
+    assert_eq!(run_node(&script).trim(), run_node(&original).trim());
+    assert_eq!(run_node(&script).trim(), "1");
+}
+
+#[test]
+fn keeps_object_literal_across_intervening_calls() {
+    let source = "function f(){this.x=1;this.mutate=function(){this.x=2};var snapshot={wasSuspended:this.x==1};this.mutate();if(snapshot.wasSuspended)return 1;return 0}";
+    let optimized = optimize_generated_javascript(source).unwrap();
+    let script = format!("{}\nconsole.log(f.call({{}}));", optimized.code);
+    let original = format!("{source}\nconsole.log(f.call({{}}));");
+    assert_eq!(run_node(&script).trim(), run_node(&original).trim());
+    assert_eq!(run_node(&script).trim(), "1");
+    assert!(
+        optimized.code.contains("snapshot=")
+            && !optimized.code.contains("return{wasSuspended")
+            && !optimized.code.contains("if({wasSuspended"),
+        "object initializer must stay assigned before mutate: {}",
         optimized.code
     );
 }
@@ -590,6 +1035,53 @@ fn drops_void_undefined_before_an_immediate_reassign() {
 }
 
 #[test]
+fn keeps_void_reset_read_by_the_reassign_rhs() {
+    let direct = optimize_generated_javascript(
+        "function f(c){var x={bad:1};x=void 0;x=c?function(){return 1}:x;return x===void 0}",
+    )
+    .unwrap();
+    assert_eq!(
+        run_node(&format!("{};console.log(f(!1))", direct.code)),
+        "true\n",
+        "{}",
+        direct.code
+    );
+
+    // A `var` declarator inside a loop is also an executable reset on every
+    // iteration; reducing it to `var x` would retain the preceding value.
+    let loop_reset = optimize_generated_javascript(
+        "function f(c){var x=1;for(var i=0;i<2;i++){var x=void 0;x=c[i]?2:x;if(i==1)return x===void 0}}",
+    )
+    .unwrap();
+    assert_eq!(
+        run_node(&format!("{};console.log(f([!0,!1]))", loop_reset.code)),
+        "true\n",
+        "{}",
+        loop_reset.code
+    );
+}
+
+#[test]
+fn keeps_member_factory_copy_before_self_reassign_call() {
+    let source = concat!(
+        "let O={Callbacks:x=>({value:x,add(fn){fn()}})};",
+        "function f(F,t,n,se,M,le){var e='fx';'string'==typeof n&&(e=n);",
+        "n=e+'queueHooks';var r=F(t,n);if(r)return r;",
+        "r=O.Callbacks,r=r('once memory'),",
+        "r.add(()=>{se(M,t,[e+'queue',n])});return le(M,t,n,{empty:r})}",
+        "console.log(f(()=>null,0,0,()=>{},0,(M,t,n,x)=>x.empty).value)"
+    );
+    let optimized = optimize_generated_javascript(source).unwrap();
+
+    assert_eq!(
+        run_node(&optimized.code).trim(),
+        "once memory",
+        "{}",
+        optimized.code
+    );
+}
+
+#[test]
 fn drops_unused_void_undefined_declarators() {
     let unused = optimize_generated_javascript(
         "function when(n){var r=n[0];var w=void 0;if(c(r&&r.then))return n.then();return n}",
@@ -753,13 +1245,18 @@ fn rematerializes_nested_single_use_literals_and_expression_calls() {
 
     let ty = optimize_generated_javascript("let M=e=>e+1;function f(i){return M(i)}").unwrap();
     assert!(
-        ty.code.contains("(e=>e+1)(i)") && !ty.code.contains("M="),
+        (ty.code.contains("(e=>e+1)(i)") || ty.code.contains("return i+1"))
+            && !ty.code.contains("M="),
         "{}",
         ty.code
     );
 
     let factory = optimize_generated_javascript("let G=e=>{var t=e+1;return t};use(G(2))").unwrap();
-    assert!(factory.code.contains("G="), "{}", factory.code);
+    assert!(
+        factory.code.contains("use((e=>{") && !factory.code.contains("G="),
+        "{}",
+        factory.code
+    );
 
     let procedure = optimize_generated_javascript(
         "let P=(e,t,n)=>{n.head.appendChild(e)};function globalEval(e,t,n){P(e,t,n)}",
@@ -1189,6 +1686,266 @@ fn folds_ident_ternary_to_or_and_length_not_gt_zero() {
 }
 
 #[test]
+fn does_not_fold_ident_ternary_into_an_unparenthesized_or_assignment() {
+    let optimized = optimize_generated_javascript(
+        "function nameOf(m){var a=isObj(m)?!0:isMap(m);a?a:a=isSet(m)?adm(m):atom(m);return a}",
+    )
+    .unwrap();
+    assert!(
+        !optimized.code.contains("||a=") && !optimized.code.contains("||a ="),
+        "{}",
+        optimized.code
+    );
+    let parsed = std::process::Command::new("node")
+        .arg("-e")
+        .arg("Function(process.argv[1])")
+        .arg("--")
+        .arg(&optimized.code)
+        .output()
+        .expect("Node.js is required");
+    assert!(
+        parsed.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&parsed.stderr),
+        optimized.code
+    );
+}
+
+#[test]
+fn parenthesizes_or_followed_by_an_assignment() {
+    let optimized = optimize_generated_javascript(
+        "function nameOf(m){var a=isObj(m)?!0:isMap(m);a||a=isSet(m)?adm(m):atom(m);return a}",
+    )
+    .unwrap();
+    assert!(
+        !optimized.code.contains("||a=") && optimized.code.contains("||("),
+        "{}",
+        optimized.code
+    );
+    let parsed = std::process::Command::new("node")
+        .arg("-e")
+        .arg("Function(process.argv[1])")
+        .arg("--")
+        .arg(&optimized.code)
+        .output()
+        .expect("Node.js is required");
+    assert!(
+        parsed.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&parsed.stderr),
+        optimized.code
+    );
+}
+
+#[test]
+fn parenthesizes_and_followed_by_an_assignment() {
+    let optimized = optimize_generated_javascript(
+        "function nameOf(e,a,r){var i;if(!e||a){i=r.name_}observe(i);return i}",
+    )
+    .unwrap();
+    assert!(
+        !optimized.code.contains("&&i=") && !optimized.code.contains("&&i ="),
+        "{}",
+        optimized.code
+    );
+    let parsed = std::process::Command::new("node")
+        .arg("-e")
+        .arg("Function(process.argv[1])")
+        .arg("--")
+        .arg(&optimized.code)
+        .output()
+        .expect("Node.js is required");
+    assert!(
+        parsed.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&parsed.stderr),
+        optimized.code
+    );
+
+    let already_and = late_generated_javascript_cleanup(
+        "function nameOf(e,a,r){var i;(!e||a)&&i=r.name_,observe(i);return i}",
+    )
+    .unwrap();
+    assert!(
+        !already_and.contains("&&i=") && already_and.contains("&&("),
+        "{already_and}"
+    );
+    let parsed_and = std::process::Command::new("node")
+        .arg("-e")
+        .arg("Function(process.argv[1])")
+        .arg("--")
+        .arg(&already_and)
+        .output()
+        .expect("Node.js is required");
+    assert!(
+        parsed_and.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&parsed_and.stderr),
+        already_and
+    );
+
+    let member_or = late_generated_javascript_cleanup(
+        "function asObject(e){var m=e[U];m.proxy_||m.proxy_=new Proxy(e,h);return m.proxy_}",
+    )
+    .unwrap();
+    assert!(
+        !member_or.contains("||m.proxy_=") && member_or.contains("||("),
+        "{member_or}"
+    );
+    let parsed_member = std::process::Command::new("node")
+        .arg("-e")
+        .arg("Function(process.argv[1])")
+        .arg("--")
+        .arg(&member_or)
+        .output()
+        .expect("Node.js is required");
+    assert!(
+        parsed_member.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&parsed_member.stderr),
+        member_or
+    );
+}
+
+#[test]
+fn declares_an_unbound_name_moved_into_for_init() {
+    let optimized = optimize_generated_javascript(
+        "function walk(a){r=a.target;for(;;){if(!r)break;r=r.proto}return r}",
+    )
+    .unwrap();
+    assert!(
+        optimized.code.contains("for(var r=")
+            || optimized.code.contains("var r=")
+            || optimized.code.contains("var r;"),
+        "{}",
+        optimized.code
+    );
+    let script = format!(
+        "\"use strict\";{}\nconsole.log(walk({{target:null}}));",
+        optimized.code
+    );
+    assert_eq!(run_node(&script).trim(), "null");
+}
+
+#[test]
+fn does_not_var_shadow_outer_bindings_folded_into_for_init() {
+    let source = "function factory(ls){var os,ns,ss,ts,es=[],rs=[],is=-1;var us=()=>{ts=ts||ls.once;ss=os=!0;for(;rs.length;is=-1){ns=rs.shift();for(;++is<es.length;)es[is].apply(ns[0],ns[1])}os=!1};return {add(fn){es.push(fn);return this},fireWith(ctx,args){ts||(rs.push([ctx,args]),os||us());return this},fired:()=>!!ss}}var c=factory({});c.add(function(a,b){});c.fireWith({ok:1},[1,2]);console.log([c.fired()].join())";
+    let optimized = optimize_generated_javascript(source).unwrap();
+    assert!(
+        !optimized.code.contains("for(var ts=")
+            && !optimized.code.contains("for(var ss=")
+            && !optimized.code.contains("for(var ns="),
+        "{}",
+        optimized.code
+    );
+    assert_eq!(run_node(source).trim(), "true");
+    assert_eq!(run_node(&optimized.code).trim(), "true");
+}
+
+#[test]
+fn declares_implicit_loop_temps_in_strict_mode() {
+    let optimized = optimize_generated_javascript(
+        "function walk(a){for(r=a.target;;){k=r&&r.proto;if(!k)break;r=k}return r}",
+    )
+    .unwrap();
+    assert!(
+        optimized.code.contains("for(var r=")
+            || optimized.code.contains("var r=")
+            || optimized.code.contains("var r;"),
+        "{}",
+        optimized.code
+    );
+    assert!(
+        optimized.code.contains("var k=")
+            || optimized.code.contains("var k,")
+            || optimized.code.contains("var k;"),
+        "{}",
+        optimized.code
+    );
+    let script = format!(
+        "\"use strict\";{}\nconsole.log(walk({{target:null}}));",
+        optimized.code
+    );
+    assert_eq!(run_node(&script).trim(), "null");
+}
+
+#[test]
+fn does_not_var_shadow_module_bindings() {
+    let source = "var pred;function set(name,value){if(name==\"x\"){pred=value;return}pred=null}set(\"x\",function(){return 1});console.log(pred())";
+    let optimized = optimize_generated_javascript(source).unwrap();
+    assert_eq!(run_node(&optimized.code).trim(), "1");
+    assert!(
+        !optimized.code.contains("var pred=value") && !optimized.code.contains("var pred;pred="),
+        "{}",
+        optimized.code
+    );
+}
+
+#[test]
+fn shadows_module_function_helpers_used_as_inner_temps() {
+    let source = "function k(a,b,c){return a.call(b,c)}function step(flag){k=!!flag;return k}console.log(step(true));console.log(typeof k)";
+    let optimized = optimize_generated_javascript(source).unwrap();
+    let script = format!("\"use strict\";{}", optimized.code);
+    assert_eq!(run_node(&script).trim(), "true\nfunction");
+}
+
+#[test]
+fn shadows_module_function_helpers_used_as_comma_sequence_temps() {
+    let source = "function K(){return 7}function step(Pk,Jk,ck){function nested(){var P;P=arguments,K=Pk[0],Jk[K+ck](this,P,K)}nested(3)}var seen;step(['done'],{done(self,args,key){seen=args[0]+':'+key}},'');console.log(seen);console.log(K())";
+    let optimized = optimize_generated_javascript(source).unwrap();
+    let script = format!("\"use strict\";{}", optimized.code);
+    assert_eq!(run_node(&script).trim(), "3:done\n7", "{}", optimized.code);
+    assert!(
+        optimized.code.contains("var K;") || optimized.code.contains("var K,"),
+        "{}",
+        optimized.code
+    );
+}
+
+#[test]
+fn declares_implicit_temps_after_a_switch_case() {
+    let source = "function k(a,b,c){return a.call(b,c)}function step(flag){for(;;){switch(0){case 0:k=!!flag;return k}}}console.log(step(true));console.log(typeof k)";
+    let optimized = optimize_generated_javascript(source).unwrap();
+    let script = format!("\"use strict\";{}", optimized.code);
+    assert_eq!(run_node(&script).trim(), "true\nfunction");
+}
+
+#[test]
+fn declares_implicit_temps_in_chained_assignment() {
+    let source = "function k(a,b,c){return a.call(b,c)}function step(flag){for(;;){switch(0){case 0:flag=k=!!flag;return k}}}console.log(step(true));console.log(typeof k)";
+    let optimized = optimize_generated_javascript(source).unwrap();
+    let script = format!("\"use strict\";{}", optimized.code);
+    assert_eq!(run_node(&script).trim(), "true\nfunction");
+}
+
+#[test]
+fn chained_assignment_temps_do_not_clobber_module_vars() {
+    let source = "var l=function(){return 1};function step(n2){for(;;){switch(0){case 0:n2=l=!!n2[2];return n2}}}console.log(step([0,0,true]));console.log(typeof l)";
+    let optimized = optimize_generated_javascript(source).unwrap();
+    let script = format!("\"use strict\";{}", optimized.code);
+    assert_eq!(
+        run_node(&script).trim(),
+        "true\nfunction",
+        "{}",
+        optimized.code
+    );
+}
+
+#[test]
+fn chained_assignments_reuse_captured_enclosing_function_bindings() {
+    let source =
+        "function transport(){var b,a=null;return{send(){prop({src:url});a=b=function(){return 1};return b()}}}var url=\"x\";function prop(){};console.log(transport().send())";
+    let optimized = optimize_generated_javascript(source).unwrap();
+    let script = format!("\"use strict\";{}", optimized.code);
+    assert_eq!(run_node(&script).trim(), "1", "{}", optimized.code);
+    assert!(
+        !optimized.code.contains("src:url}var b;"),
+        "{}",
+        optimized.code
+    );
+}
+
+#[test]
 fn keeps_a_narrowed_value_distinct_from_its_guard_condition() {
     let optimized = optimize_generated_javascript(
         "function fallback(current){if(null!=current)return current;return 0}",
@@ -1218,6 +1975,160 @@ fn folds_if_return_chains_when_regex_literals_are_present() {
         "{}",
         isolated.code
     );
+}
+
+#[test]
+fn inverts_bare_return_guards_over_the_remaining_function_body() {
+    let source = "function visit(a,b,out){out.push('head');if(a==null)return;if(!a&&b){return;}out.push('tail')}var left=[],right=[],done=[];visit(null,!1,left);visit(!1,!0,right);visit(1,!1,done);console.log(left.join(','));console.log(right.join(','));console.log(done.join(','))";
+    let optimized =
+        late_generated_javascript_cleanup_pass(source, LateJavaScriptCleanupPass::EarlyExitGuards)
+            .unwrap();
+
+    assert_eq!(run_node(source), run_node(&optimized), "{optimized}");
+    assert!(!optimized.contains("return;"), "{optimized}");
+    assert!(optimized.contains("a!=null"), "{optimized}");
+    assert!(optimized.contains("!(!a&&b)"), "{optimized}");
+    assert!(optimized.matches("if(").count() >= 2, "{optimized}");
+}
+
+#[test]
+fn inverts_continue_guards_over_the_remaining_loop_body() {
+    let source = "function scan(){var out=[];for(var i=0;i<5;i++){if(i%2){continue;}out.push(i);out.push(i+10)}return out.join(',')}console.log(scan())";
+    let optimized =
+        late_generated_javascript_cleanup_pass(source, LateJavaScriptCleanupPass::EarlyExitGuards)
+            .unwrap();
+
+    assert_eq!(run_node(source), run_node(&optimized), "{optimized}");
+    assert!(!optimized.contains("continue"), "{optimized}");
+    assert!(optimized.contains("if(!(i%2))"), "{optimized}");
+}
+
+#[test]
+fn folds_side_effecting_continue_guards_into_loop_tail_else_chains() {
+    let source = "function scan(){var out=[];for(var i=0;i<5;i++){if(i<2){out.push('low'+i);continue}if(i==3){out.push('three');continue}out.push('tail'+i)}return out.join(',')}console.log(scan())";
+    let optimized = late_generated_javascript_cleanup_pass(
+        source,
+        LateJavaScriptCleanupPass::ContinueTailGuards,
+    )
+    .unwrap();
+
+    assert_eq!(run_node(source), run_node(&optimized), "{optimized}");
+    assert!(!optimized.contains("continue"), "{optimized}");
+    assert_eq!(optimized.matches("else{").count(), 2, "{optimized}");
+    assert!(optimized.len() < source.len(), "{optimized}");
+}
+
+#[test]
+fn inverts_side_effecting_continue_guards_as_an_independent_spelling() {
+    let source = "function scan(){var out=[];for(var i=0;i<5;i++){if(i<2){out.push('low'+i);continue}if(i==3){out.push('three');continue}out.push('tail'+i)}return out.join(',')}console.log(scan())";
+    let optimized = late_generated_javascript_cleanup_pass(
+        source,
+        LateJavaScriptCleanupPass::InvertedContinueTailGuards,
+    )
+    .unwrap();
+
+    assert_eq!(run_node(source), run_node(&optimized), "{optimized}");
+    assert!(!optimized.contains("continue"), "{optimized}");
+    assert_eq!(optimized.matches("else{").count(), 2, "{optimized}");
+    assert!(optimized.contains("i!=3"), "{optimized}");
+}
+
+#[test]
+fn side_effecting_continue_folding_preserves_scope_and_loop_boundaries() {
+    for source in [
+        "function f(a){for(;;){if(a){use(a);continue;}let value=1;use(value)}}",
+        "function f(a,b){for(;;){if(a){if(b){use(b);continue;}use(a)}use(b)}}",
+        "function f(a,b){for(;;){if(a){if(b)continue}use(a)}}",
+        "function f(a){for(;;){if(a){continue;}use(a)}}",
+        "function f(a){for(;;){if(a){use(a);continue;}else use(a);use(a)}}",
+        "function f(a){for(;;){if(a){use(a);continue outer;}use(a)}}",
+    ] {
+        let optimized = late_generated_javascript_cleanup_pass(
+            source,
+            LateJavaScriptCleanupPass::ContinueTailGuards,
+        )
+        .unwrap();
+        assert_eq!(optimized, source, "{source} -> {optimized}");
+    }
+}
+
+#[test]
+fn elides_single_simple_control_body_braces() {
+    let source = "function run(a){var out=[];if(a){out.push(1)}else{out.push(2);}for(var i=0;i<2;i++){out.push(i)}while(a){break}return out.join(',')}console.log(run(!1));console.log(run(!0))";
+    let optimized = late_generated_javascript_cleanup_pass(
+        source,
+        LateJavaScriptCleanupPass::SingleStatementControlBraces,
+    )
+    .unwrap();
+
+    assert_eq!(run_node(source), run_node(&optimized), "{optimized}");
+    assert!(!optimized.contains("{out.push"), "{optimized}");
+    assert!(!optimized.contains("{break}"), "{optimized}");
+    assert!(optimized.len() < source.len(), "{optimized}");
+}
+
+#[test]
+fn recursively_elides_single_control_statement_braces() {
+    let source = "function run(a,b){var out=[];if(a){for(;b>0;b--){out.push(b)}}else{while(b>0){out.push(b--)}}if(a){if(b){out.push(7)}else{out.push(8)}}else{out.push(9)}return out.join(',')}console.log(run(!0,2));console.log(run(!1,2))";
+    let optimized = late_generated_javascript_cleanup_pass(
+        source,
+        LateJavaScriptCleanupPass::SingleStatementControlBraces,
+    )
+    .unwrap();
+
+    assert_eq!(run_node(source), run_node(&optimized), "{optimized}");
+    assert!(!optimized.contains("{for("), "{optimized}");
+    assert!(!optimized.contains("{while("), "{optimized}");
+    assert!(optimized.contains("if(a)if(b)"), "{optimized}");
+    assert!(optimized.len() < source.len(), "{optimized}");
+}
+
+#[test]
+fn control_body_brace_elision_keeps_scope_and_dangling_else_boundaries() {
+    for source in [
+        "function f(a){if(a){let value=1}}",
+        "function f(a){for(;;){const value=1}}",
+        "function f(a){if(a){function value(){}}}",
+        "function f(a){if(a){class Value{}}}",
+        "function f(a,b){if(a){if(b)use(b)}else use(a)}",
+        "function f(a){while(a){use(a);use(a)}}",
+        "function f(a){if(a){use(a)\nuse(a)}}",
+    ] {
+        let optimized = late_generated_javascript_cleanup_pass(
+            source,
+            LateJavaScriptCleanupPass::SingleStatementControlBraces,
+        )
+        .unwrap();
+        assert_eq!(optimized, source, "{source} -> {optimized}");
+    }
+
+    let nested_dangling = "function f(a,b,c){if(a){while(b){if(c){use(c)}}}else use(a)}";
+    let optimized = late_generated_javascript_cleanup_pass(
+        nested_dangling,
+        LateJavaScriptCleanupPass::SingleStatementControlBraces,
+    )
+    .unwrap();
+    assert!(optimized.contains("if(a){while(b)if(c)"), "{optimized}");
+    assert!(optimized.contains("}else use(a)"), "{optimized}");
+}
+
+#[test]
+fn early_exit_inversion_preserves_scope_and_control_boundaries() {
+    for source in [
+        "function f(a){if(a)return;let value=1;use(value)}",
+        "function f(a){if(a)return;const value=1;use(value)}",
+        "function f(a){if(a)return;function value(){}use(value)}",
+        "function f(a,b){if(a)if(b)return;use(a)}",
+        "function f(a){if(a)return 1;use(a)}",
+        "function f(a){for(;;){if(a)continue outer;use(a)}}",
+    ] {
+        let optimized = late_generated_javascript_cleanup_pass(
+            source,
+            LateJavaScriptCleanupPass::EarlyExitGuards,
+        )
+        .unwrap();
+        assert_eq!(optimized, source, "{source} -> {optimized}");
+    }
 }
 
 #[test]
@@ -1713,7 +2624,11 @@ fn rematerializes_single_use_function_values_and_object_methods() {
     );
 
     let called = optimize_generated_javascript("let G=e=>{var t=e+1;return t};use(G(2))").unwrap();
-    assert!(called.code.contains("G="), "{}", called.code);
+    assert!(
+        called.code.contains("use((e=>{") && !called.code.contains("G="),
+        "{}",
+        called.code
+    );
 
     let then_wrapper = optimize_generated_javascript(
         "function then(s,d){var J=d;s||(J=()=>{try{d()}catch(P){hook(P)}});return J}",
@@ -1746,6 +2661,69 @@ fn rematerializes_single_use_function_values_and_object_methods() {
             && !shadowed_inner.code.contains("let F="),
         "{}",
         shadowed_inner.code
+    );
+}
+
+#[test]
+fn keeps_object_function_properties_constructible() {
+    let source = "function mitt(){return{on:function(t,e){return t},off:function(t,e){return t}}};var e=mitt();console.log(typeof new e.on('x',0))";
+    let optimized = optimize_generated_javascript(source).unwrap();
+    assert!(
+        optimized.code.contains("on:function(") && !optimized.code.contains("{on(t,e){"),
+        "{}",
+        optimized.code
+    );
+    assert_eq!(run_node(&optimized.code).trim(), "object");
+}
+
+#[test]
+fn keeps_loop_carried_call_results_before_array_stores() {
+    let source = "function a(x,g){return x+g}function b(){for(var g=0,j=0,i=[];j<3;j++){g=a(1,g);i[j]=g}return g+i[0]}";
+    let optimized = optimize_generated_javascript(source).unwrap();
+    assert!(
+        optimized.code.contains("g=a(") && !optimized.code.contains("i[j]=a("),
+        "{}",
+        optimized.code
+    );
+    let script = format!("{}\nconsole.log(b());", optimized.code);
+    assert_eq!(
+        run_node(&script).trim(),
+        run_node(&format!("{source}\nconsole.log(b());")).trim()
+    );
+}
+
+#[test]
+fn keeps_exported_bindings_out_of_export_clauses() {
+    let aliased = optimize_generated_javascript(
+        "let cubicBezier=(a,c,t,l)=>a+c+t+l;export{cubicBezier as cubicBezier}",
+    )
+    .unwrap();
+    assert!(
+        aliased.code.contains("export{cubicBezier") && !aliased.code.contains("export{("),
+        "{}",
+        aliased.code
+    );
+
+    let named =
+        optimize_generated_javascript("let clamp=(a,b,c)=>a<b?b:a>c?c:a;export{clamp}").unwrap();
+    assert!(
+        named.code.contains("export{clamp") && !named.code.contains("export{("),
+        "{}",
+        named.code
+    );
+
+    let literal = optimize_generated_javascript("let version=1;export{version}").unwrap();
+    assert!(
+        literal.code.contains("export{version") && !literal.code.contains("export{1"),
+        "{}",
+        literal.code
+    );
+
+    let called = optimize_generated_javascript("let G=e=>{var t=e+1;return t};use(G(2))").unwrap();
+    assert!(
+        called.code.contains("use((e=>{") && !called.code.contains("G="),
+        "{}",
+        called.code
     );
 }
 
@@ -1859,10 +2837,10 @@ fn inlines_single_use_if_assigns_into_the_call() {
         "function each(C,s,i,o,t){if(s[5]){var P=i[3-C][2].disable;C=i[3-C][3].disable,u=i[0][2].lock,o.add(()=>{t=s[5]},P,C,u,i[0][3].lock)}o.add(s[3].fire);return o}",
     )
     .unwrap();
+    // P's initializer reads C, and C is reassigned before the call: the
+    // binding must survive so the call still sees the pre-reassignment value.
     assert!(
-        optimized.code.contains("s[5]&&o.add(")
-            && optimized.code.contains("i[3-C][2].disable")
-            && !optimized.code.contains("var P="),
+        optimized.code.contains("var P=i[3-C][2].disable") && optimized.code.contains("P,C,u"),
         "{}",
         optimized.code
     );
@@ -1880,6 +2858,50 @@ fn inlines_single_use_if_assigns_into_the_call() {
         !text.code.contains("for(var r,t=\"\",n=0;)"),
         "{}",
         text.code
+    );
+}
+
+#[test]
+fn chained_index_temp_folding_keeps_materialized_receivers_bound() {
+    let source = concat!(
+        "function deferredThen(e,a,W,t,d,f,Q,q){let outer=q.Deferred;return outer(function(X){",
+        "var h,ia,Y,g=W,ka=t(f)?f:g;",
+        "g=e[0],g=g[3],h=a,g.add(h(0,X,ka,X.notifyWith)),",
+        "ka=W,ia=t(d)?d:ka,ka=e[1],ka=ka[3],ka.add(a(0,X,ia)),",
+        "Y=e[2],Y=Y[3],Y.add(a(0,X,t(f)?f:Q))",
+        "}).promise()}",
+        "let hits=[];let rows=[[0,0,0,{add(v){hits.push(v)}}],[0,0,0,{add(v){hits.push(v)}}],[0,0,0,{add(v){hits.push(v)}}]];",
+        "let q={Deferred(cb){cb({notifyWith:0});return{promise(){return hits}}}};",
+        "console.log(deferredThen(rows,(depth,next,handler)=>handler,null,v=>v!=null,2,3,4,q).join(','))"
+    );
+    let optimized = optimize_generated_javascript(source).unwrap();
+
+    assert_eq!(
+        run_node(&optimized.code).trim(),
+        "3,2,3",
+        "{}",
+        optimized.code
+    );
+}
+
+#[test]
+fn overlapping_index_temp_chains_remain_bound() {
+    let source = concat!(
+        "function f(e,q){return q(M=>{",
+        "var k=e[0],h=k[3];h.add(1);",
+        "var o=e[1],g=o[3];g.add(2);",
+        "var S=e[2][3];S.add(3)",
+        "})}",
+        "let hits=[],rows=[[0,0,0,{add(v){hits.push(v)}}],[0,0,0,{add(v){hits.push(v)}}],[0,0,0,{add(v){hits.push(v)}}]];",
+        "console.log(f(rows,cb=>{cb({});return hits}).join(','))"
+    );
+    let optimized = optimize_generated_javascript(source).unwrap();
+
+    assert_eq!(
+        run_node(&optimized.code).trim(),
+        "1,2,3",
+        "{}",
+        optimized.code
     );
 }
 

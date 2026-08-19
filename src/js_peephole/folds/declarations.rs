@@ -1,11 +1,16 @@
+use super::copies::assignment_span_to_remove;
 use crate::js_peephole::rewrite::{
-    apply_token_rewrites, identifier_is_read, identifier_occurs, is_statement_boundary,
-    top_level_stop,
+    apply_token_rewrites, assign_is_in_declaration, identifier_is_read, identifier_occurs,
+    is_property_identifier, is_statement_boundary, replacement_overlaps, top_level_stop,
 };
 use crate::js_peephole::scope::{
-    enclosing_block_end, function_scope_declares, name_is_used_in_scope,
+    collect_same_scope_name_uses, enclosing_block_end, enclosing_function_span,
+    function_scope_declares, name_is_declared_in_any_enclosing_function_scope,
+    name_is_declared_in_any_enclosing_scope, name_is_used_in_scope,
 };
-use crate::js_peephole::token::{lex, lex_certainly, matching_closers, Token, TokenKind};
+use crate::js_peephole::token::{
+    lex, lex_certainly, matching_closers, matching_openers, Token, TokenKind,
+};
 use crate::js_peephole::JavaScriptParseError;
 
 /// Move declaration-only function-local `var` bindings before the initialized
@@ -365,13 +370,10 @@ pub(crate) fn strip_unused_simple_declarators(
             name_at = stop + 1;
         }
         if any_removed {
-            let Some(semi) = tokens
-                .iter()
-                .enumerate()
-                .skip(cursor)
-                .find(|(_, token)| token.text == ";")
-                .map(|(index, _)| index)
-            else {
+            // The statement must end in a same-depth semicolon: a declaration
+            // closed by `}` through ASI has no `;` of its own, and scanning
+            // past the brace would splice the next statement into the rewrite.
+            let Some(semi) = top_level_stop(&tokens, cursor + 1, &[";"]) else {
                 cursor += 1;
                 continue;
             };
@@ -395,6 +397,199 @@ pub(crate) fn strip_unused_simple_declarators(
     }
     let (output, count) = apply_token_rewrites(source, replacements);
     Ok((output, count))
+}
+
+fn pure_member_rhs_end(tokens: &[Token<'_>], rhs: usize) -> Option<usize> {
+    let base = tokens.get(rhs)?;
+    if base.kind != TokenKind::Identifier && base.text != "this" {
+        return None;
+    }
+    if tokens.get(rhs + 1).map(|token| token.text) != Some(".") {
+        return None;
+    }
+    if tokens
+        .get(rhs + 2)
+        .is_none_or(|token| token.kind != TokenKind::Identifier)
+    {
+        return None;
+    }
+    match tokens.get(rhs + 3).map(|token| token.text) {
+        Some(",") | Some(";") | Some("}") => Some(rhs + 2),
+        None => Some(rhs + 2),
+        _ => None,
+    }
+}
+
+fn simple_assign_name_at(tokens: &[Token<'_>], index: usize) -> Option<usize> {
+    let name_at = if matches!(
+        tokens.get(index).map(|token| token.text),
+        Some("var") | Some("let")
+    ) && tokens
+        .get(index + 1)
+        .is_some_and(|token| token.kind == TokenKind::Identifier)
+    {
+        index + 1
+    } else if tokens
+        .get(index)
+        .is_some_and(|token| token.kind == TokenKind::Identifier)
+        && !is_property_identifier(tokens, index)
+    {
+        index
+    } else {
+        return None;
+    };
+    if tokens.get(name_at + 1).map(|token| token.text) != Some("=")
+        || tokens.get(name_at + 2).map(|token| token.text) == Some("=")
+    {
+        return None;
+    }
+    Some(name_at)
+}
+
+fn assignment_is_inside_loop(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    assignment: usize,
+) -> bool {
+    for loop_at in 0..assignment {
+        match tokens[loop_at].text {
+            "for" | "while" if tokens.get(loop_at + 1).map(|token| token.text) == Some("(") => {
+                let Some(header_close) = matching_close[loop_at + 1] else {
+                    continue;
+                };
+                if assignment < header_close {
+                    return true;
+                }
+                let body = header_close + 1;
+                if tokens.get(body).map(|token| token.text) == Some("{") {
+                    if matching_close[body].is_some_and(|body_close| assignment < body_close) {
+                        return true;
+                    }
+                } else if body <= assignment
+                    && top_level_stop(tokens, body, &[";"])
+                        .is_some_and(|body_end| assignment <= body_end)
+                {
+                    return true;
+                }
+            }
+            "do" => {
+                let body = loop_at + 1;
+                if tokens.get(body).map(|token| token.text) == Some("{") {
+                    if matching_close[body].is_some_and(|body_close| assignment < body_close) {
+                        return true;
+                    }
+                } else if body <= assignment
+                    && top_level_stop(tokens, body, &[";"])
+                        .is_some_and(|body_end| assignment <= body_end)
+                {
+                    return true;
+                }
+            }
+            _ => {}
+        }
+    }
+    false
+}
+
+pub(crate) fn fold_dead_pure_member_assigns(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let matching_open = matching_openers(&matching_close);
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut cursor = 0usize;
+    while cursor < tokens.len() {
+        let Some(name_at) = simple_assign_name_at(&tokens, cursor) else {
+            cursor += 1;
+            continue;
+        };
+        let Some(rhs_end) = pure_member_rhs_end(&tokens, name_at + 2) else {
+            cursor += 1;
+            continue;
+        };
+        // Linear token order is not a liveness proof across a loop backedge.
+        // The assigned value can feed the next condition or the next trip
+        // through the body even when there is no textual read after it. Keep
+        // all loop-local candidates; generated loops are normally braced, and
+        // the unbraced fallback covers the simple statement form as well.
+        if assignment_is_inside_loop(&tokens, &matching_close, name_at) {
+            cursor = rhs_end + 1;
+            continue;
+        }
+        let name = tokens[name_at].text;
+        let after = rhs_end + 1;
+        let Some((body, scope_end)) = enclosing_function_span(&tokens, &matching_close, name_at)
+        else {
+            cursor = after;
+            continue;
+        };
+        if !function_scope_declares(&tokens, &matching_open, body, scope_end, name) {
+            cursor = after;
+            continue;
+        }
+        let scope_start = body + 1;
+        let (_, nested_use) = collect_same_scope_name_uses(
+            &tokens,
+            &matching_close,
+            name,
+            scope_start,
+            scope_end,
+            name_at,
+        );
+        if nested_use {
+            cursor = after;
+            continue;
+        }
+        let (uses, _) =
+            collect_same_scope_name_uses(&tokens, &matching_close, name, after, scope_end, name_at);
+        let next_assign = uses
+            .iter()
+            .copied()
+            .find(|&use_at| simple_assign_name_at(&tokens, use_at) == Some(use_at));
+        let next_rhs_reads_old = next_assign.is_some_and(|assign_at| {
+            top_level_stop(&tokens, assign_at + 2, &[",", ";", ")", "]", "}"])
+                .is_some_and(|rhs_stop| identifier_occurs(&tokens, assign_at + 2, rhs_stop, name))
+        });
+        let region_end = next_assign.unwrap_or(scope_end);
+        let has_read = next_rhs_reads_old
+            || uses.iter().any(|&use_at| {
+                use_at < region_end && simple_assign_name_at(&tokens, use_at) != Some(use_at)
+            });
+        if has_read {
+            cursor = after;
+            continue;
+        }
+        let later_read = uses
+            .iter()
+            .any(|&use_at| simple_assign_name_at(&tokens, use_at) != Some(use_at));
+        let prev = name_at
+            .checked_sub(1)
+            .map(|index| tokens[index].text)
+            .unwrap_or(";");
+        let (from, to, replacement) = if later_read && matches!(prev, "var" | "let") {
+            (
+                tokens[name_at + 1].start,
+                tokens[rhs_end].end,
+                String::new(),
+            )
+        } else {
+            let (from, to) = assignment_span_to_remove(&tokens, name_at, rhs_end);
+            let replacement = if matches!(prev, ")" | "else") {
+                ";".to_string()
+            } else {
+                String::new()
+            };
+            (from, to, replacement)
+        };
+        if replacement_overlaps(&replacements, from, to) {
+            cursor = after;
+            continue;
+        }
+        replacements.push((from, to, replacement));
+        cursor = after;
+    }
+    Ok(apply_token_rewrites(source, replacements))
 }
 
 pub(crate) fn strip_unused_for_init_vars(
@@ -520,6 +715,16 @@ pub(crate) fn strip_void_initializer_before_write(
         if tokens.get(use_at + 1).map(|token| token.text) != Some("=")
             || tokens.get(use_at + 2).map(|token| token.text) == Some("=")
         {
+            continue;
+        }
+        let Some(rhs_end) = top_level_stop(&tokens, use_at + 2, &[",", ";", "}"]) else {
+            continue;
+        };
+        // A syntactic assignment is not necessarily a write-before-read. In
+        // `var x=void 0;x=condition?value:x`, the initializer is the reset
+        // observed by the false arm. This matters in loops because `var x`
+        // alone only initializes the binding once, on function entry.
+        if identifier_occurs(&tokens, use_at + 2, rhs_end, name) {
             continue;
         }
         replacements.push((
@@ -661,6 +866,18 @@ pub(crate) fn fold_void_then_reassign(
             || tokens.get(cursor + 6).map(|token| token.text) != Some("=")
         {
             cursor += 1;
+            continue;
+        }
+        let Some(rhs_end) = top_level_stop(&tokens, cursor + 7, &[",", ";", "}"]) else {
+            cursor += 1;
+            continue;
+        };
+        let name = tokens[cursor].text;
+        // Keep the undefined reset when the replacement assignment can read
+        // the binding before producing its new value. The jQuery event walk
+        // has exactly this shape: `handle=void 0;handle=events?read():handle`.
+        if identifier_occurs(&tokens, cursor + 7, rhs_end, name) {
+            cursor = rhs_end + 1;
             continue;
         }
         replacements.push((
@@ -1232,4 +1449,260 @@ fn var_declaration_has_multiple_declarators(
         }
     }
     true
+}
+
+pub(crate) fn declare_implicit_assignment_bindings(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut declared = Vec::<(usize, &str)>::new();
+    for at in 0..tokens.len() {
+        if tokens[at].kind != TokenKind::Identifier
+            || tokens.get(at + 1).map(|token| token.text) != Some("=")
+            || tokens.get(at + 2).map(|token| token.text) == Some("=")
+        {
+            continue;
+        }
+        if at
+            .checked_sub(1)
+            .is_some_and(|previous| matches!(tokens[previous].text, "var" | "let" | "const"))
+        {
+            continue;
+        }
+        let comma_sequence_assignment = is_comma_sequence_assignment_target(&tokens, at);
+        if !is_statement_boundary(&tokens, at)
+            && !is_bare_for_init_assignment(&tokens, at)
+            && !is_chained_assignment_target(&tokens, at)
+            && !comma_sequence_assignment
+        {
+            continue;
+        }
+        let name = tokens[at].text;
+        let Some(function_span) = enclosing_function_span(&tokens, &matching_close, at) else {
+            continue;
+        };
+        let function_body = function_span.0;
+        if declared
+            .iter()
+            .any(|(body, declared_name)| *body == function_body && *declared_name == name)
+        {
+            continue;
+        }
+        if is_chained_assignment_target(&tokens, at) {
+            // Chained assignments inside a nested function may intentionally
+            // write a captured local from an enclosing function. Module
+            // bindings remain excluded here: generated inner temporaries must
+            // shadow those instead of clobbering a top-level helper.
+            if name_is_declared_in_any_enclosing_function_scope(&tokens, &matching_close, at, name)
+            {
+                continue;
+            }
+        } else if name_is_declared_in_any_enclosing_scope(&tokens, &matching_close, at, name) {
+            continue;
+        }
+        let insert_at = if is_bare_for_init_assignment(&tokens, at) {
+            tokens[at - 2].start
+        } else if is_chained_assignment_target(&tokens, at) || comma_sequence_assignment {
+            statement_start(&tokens, at)
+        } else {
+            tokens[at].start
+        };
+        replacements.push((insert_at, insert_at, format!("var {name};")));
+        declared.push((function_body, name));
+    }
+    Ok(apply_token_rewrites(source, replacements))
+}
+
+fn is_bare_for_init_assignment(tokens: &[Token<'_>], at: usize) -> bool {
+    at >= 2 && tokens[at - 2].text == "for" && tokens[at - 1].text == "("
+}
+
+fn is_chained_assignment_target(tokens: &[Token<'_>], at: usize) -> bool {
+    at >= 1
+        && tokens[at].kind == TokenKind::Identifier
+        && tokens[at - 1].text == "="
+        && tokens.get(at + 1).map(|token| token.text) == Some("=")
+        && tokens.get(at + 2).map(|token| token.text) != Some("=")
+}
+
+fn is_comma_sequence_assignment_target(tokens: &[Token<'_>], at: usize) -> bool {
+    at >= 1
+        && tokens[at].kind == TokenKind::Identifier
+        && tokens[at - 1].text == ","
+        && tokens.get(at + 1).map(|token| token.text) == Some("=")
+        && tokens.get(at + 2).map(|token| token.text) != Some("=")
+}
+
+fn statement_start(tokens: &[Token<'_>], at: usize) -> usize {
+    let mut index = at;
+    while index > 0 && !is_statement_boundary(tokens, index) {
+        index -= 1;
+    }
+    tokens[index].start
+}
+
+fn simple_pure_rhs_end(tokens: &[Token<'_>], at: usize) -> Option<usize> {
+    if matches!(tokens.get(at).map(|token| token.kind), Some(TokenKind::Number | TokenKind::String))
+        || matches!(
+            tokens.get(at).map(|token| token.text),
+            Some("true" | "false" | "null" | "undefined")
+        )
+    {
+        return Some(at);
+    }
+    if !tokens
+        .get(at)
+        .is_some_and(|token| token.kind == TokenKind::Identifier || token.text == "this")
+    {
+        return None;
+    }
+    let mut end = at;
+    while tokens.get(end + 1).map(|token| token.text) == Some(".")
+        && tokens
+            .get(end + 2)
+            .is_some_and(|token| matches!(token.kind, TokenKind::Identifier | TokenKind::Keyword))
+    {
+        end += 2;
+    }
+    Some(end)
+}
+
+pub(crate) fn fold_dead_pure_identifier_assigns(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut cursor = 0usize;
+    while cursor + 2 < tokens.len() {
+        if tokens[cursor].kind != TokenKind::Identifier
+            || is_property_identifier(&tokens, cursor)
+            || assign_is_in_declaration(&tokens, cursor)
+            || tokens.get(cursor + 1).map(|token| token.text) != Some("=")
+        {
+            cursor += 1;
+            continue;
+        }
+        let Some(rhs_end) = simple_pure_rhs_end(&tokens, cursor + 2) else {
+            cursor += 1;
+            continue;
+        };
+        let name = tokens[cursor].text;
+        let first_after = rhs_end + 1;
+        let mut after = first_after;
+        if !matches!(tokens.get(after).map(|token| token.text), Some("," | ";")) {
+            cursor += 1;
+            continue;
+        }
+        let mut survivor = None;
+        let mut scan = after + 1;
+        let mut depth = 0i32;
+        let mut crossed_other = false;
+        while scan < tokens.len() {
+            match tokens[scan].text {
+                "(" | "[" | "{" => depth += 1,
+                ")" | "]" | "}" => {
+                    depth -= 1;
+                    if depth < 0 {
+                        break;
+                    }
+                }
+                _ => {}
+            }
+            if depth != 0 {
+                scan += 1;
+                continue;
+            }
+            if tokens[scan].text == name
+                && !is_property_identifier(&tokens, scan)
+                && tokens.get(scan + 1).map(|token| token.text) == Some("=")
+                && !assign_is_in_declaration(&tokens, scan)
+            {
+                if identifier_is_read(&tokens, after + 1, scan, name) {
+                    break;
+                }
+                let Some(next_rhs) = simple_pure_rhs_end(&tokens, scan + 2) else {
+                    break;
+                };
+                let next_after = next_rhs + 1;
+                if !matches!(tokens.get(next_after).map(|token| token.text), Some("," | ";"))
+                {
+                    break;
+                }
+                survivor = Some(scan);
+                after = next_after;
+                scan = next_after + 1;
+                continue;
+            }
+            if matches!(
+                tokens[scan].text,
+                "if" | "else"
+                    | "for"
+                    | "while"
+                    | "do"
+                    | "switch"
+                    | "try"
+                    | "catch"
+                    | "finally"
+                    | "return"
+                    | "throw"
+                    | "break"
+                    | "continue"
+                    | "function"
+                    | "class"
+                    | "?"
+            ) {
+                break;
+            }
+            if !matches!(tokens[scan].text, "," | ";") {
+                if survivor.is_some() {
+                    break;
+                }
+                crossed_other = true;
+            }
+            scan += 1;
+        }
+        let Some(write_at) = survivor else {
+            cursor += 1;
+            continue;
+        };
+        if !crossed_other {
+            replacements.push((tokens[cursor].start, tokens[write_at].start, String::new()));
+        } else if cursor > 0 && tokens[cursor - 1].text == "," {
+            if tokens[first_after].text == ";" {
+                replacements.push((
+                    tokens[cursor - 1].start,
+                    tokens[first_after].end,
+                    ";".to_string(),
+                ));
+            } else {
+                replacements.push((
+                    tokens[cursor - 1].start,
+                    tokens[first_after].start,
+                    String::new(),
+                ));
+            }
+        } else if tokens[first_after].text == "," {
+            replacements.push((
+                tokens[cursor].start,
+                tokens[first_after].end,
+                String::new(),
+            ));
+        } else if tokens.get(first_after + 1).map(|token| token.text) == Some(",") {
+            replacements.push((
+                tokens[cursor].start,
+                tokens[first_after + 1].end,
+                String::new(),
+            ));
+        } else {
+            replacements.push((
+                tokens[cursor].start,
+                tokens[first_after].end,
+                String::new(),
+            ));
+        }
+        cursor = write_at;
+    }
+    Ok(apply_token_rewrites(source, replacements))
 }

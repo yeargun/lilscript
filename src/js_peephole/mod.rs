@@ -1,6 +1,7 @@
 use serde::Serialize;
 
 use crate::js_peephole::folds::*;
+pub(crate) use crate::js_peephole::folds::fold_constructor_prototype_tables_to_classes;
 use crate::js_peephole::parse::{
     compound_assignment_rewrite, parse_expression_regions, syntax_metrics,
 };
@@ -245,8 +246,111 @@ pub fn analyze_generated_javascript(
 ) -> Result<JavaScriptSyntaxMetrics, JavaScriptParseError> {
     let tokens = lex(source)?;
     let delimiter_nesting = validate_delimiters(&tokens)?;
+    validate_unique_top_level_bindings(&tokens)?;
     let parsed = parse_expression_regions(&tokens);
     Ok(syntax_metrics(source, &tokens, &parsed, delimiter_nesting))
+}
+
+/// Reject duplicate bindings in the generated module scope.
+///
+/// The emitter intentionally gives every module-scope function, global, and
+/// entry local a unique spelling. Treating that invariant as a candidate
+/// admission check is useful because the aggressive cross-scope mangler and
+/// post-emission spelling search are optional proposals: a broken proposal
+/// must lose to the conservative pinned candidate before JavaScript reaches a
+/// runtime. This is deliberately narrower than a general JavaScript parser;
+/// it recognizes the simple declarations emitted by LilScript and leaves
+/// nested lexical scopes alone.
+fn validate_unique_top_level_bindings(tokens: &[Token<'_>]) -> Result<(), JavaScriptParseError> {
+    fn insert<'src>(
+        declared: &mut std::collections::BTreeMap<&'src str, usize>,
+        token: Token<'src>,
+    ) -> Result<(), JavaScriptParseError> {
+        if declared.insert(token.text, token.start).is_some() {
+            return Err(JavaScriptParseError {
+                offset: token.start,
+                message: "duplicate generated top-level binding",
+            });
+        }
+        Ok(())
+    }
+
+    let mut declared = std::collections::BTreeMap::<&str, usize>::new();
+    let mut brace_depth = 0usize;
+    let mut index = 0usize;
+    while index < tokens.len() {
+        let token = tokens[index];
+        if brace_depth == 0 {
+            match token.text {
+                "let" | "const" | "var" => {
+                    let mut scan = index + 1;
+                    let mut paren_depth = 0usize;
+                    let mut bracket_depth = 0usize;
+                    let mut initializer_brace_depth = 0usize;
+                    let mut expects_name = true;
+                    while scan < tokens.len() {
+                        let current = tokens[scan];
+                        let at_declarator_level =
+                            paren_depth == 0 && bracket_depth == 0 && initializer_brace_depth == 0;
+                        if at_declarator_level && matches!(current.text, ";" | "of" | "in" | ")") {
+                            break;
+                        }
+                        if at_declarator_level
+                            && expects_name
+                            && current.kind == TokenKind::Identifier
+                        {
+                            insert(&mut declared, current)?;
+                            expects_name = false;
+                        }
+                        match current.text {
+                            "(" => paren_depth += 1,
+                            ")" => paren_depth = paren_depth.saturating_sub(1),
+                            "[" => bracket_depth += 1,
+                            "]" => bracket_depth = bracket_depth.saturating_sub(1),
+                            "{" => initializer_brace_depth += 1,
+                            "}" => {
+                                initializer_brace_depth = initializer_brace_depth.saturating_sub(1)
+                            }
+                            "," if at_declarator_level => expects_name = true,
+                            "=" if at_declarator_level => expects_name = false,
+                            _ => {}
+                        }
+                        scan += 1;
+                    }
+                }
+                "function" => {
+                    let mut name = index + 1;
+                    if tokens.get(name).map(|token| token.text) == Some("*") {
+                        name += 1;
+                    }
+                    if let Some(name) = tokens
+                        .get(name)
+                        .copied()
+                        .filter(|name| name.kind == TokenKind::Identifier)
+                    {
+                        insert(&mut declared, name)?;
+                    }
+                }
+                "class" => {
+                    if let Some(name) = tokens
+                        .get(index + 1)
+                        .copied()
+                        .filter(|name| name.kind == TokenKind::Identifier)
+                    {
+                        insert(&mut declared, name)?;
+                    }
+                }
+                _ => {}
+            }
+        }
+        match token.text {
+            "{" => brace_depth += 1,
+            "}" => brace_depth = brace_depth.saturating_sub(1),
+            _ => {}
+        }
+        index += 1;
+    }
+    Ok(())
 }
 
 fn visit_single_character_identifiers(tokens: &[Token<'_>], mut visit: impl FnMut(u8)) {
@@ -284,6 +388,138 @@ pub fn single_character_identifier_use_counts(
     visit_single_character_identifiers(&tokens, |byte| {
         counts[byte as usize] += 1;
     });
+    Ok(counts)
+}
+
+fn collect_parameter_binding_names<'src>(
+    tokens: &[Token<'src>],
+    from: usize,
+    to: usize,
+    declared: &mut std::collections::BTreeSet<&'src str>,
+) {
+    let mut depth = 0usize;
+    let mut expects_name = true;
+    for token in &tokens[from..to] {
+        if depth == 0 && expects_name && token.kind == TokenKind::Identifier {
+            declared.insert(token.text);
+            expects_name = false;
+        }
+        match token.text {
+            "(" | "[" | "{" => depth += 1,
+            ")" | "]" | "}" => depth = depth.saturating_sub(1),
+            "," if depth == 0 => expects_name = true,
+            "=" if depth == 0 => expects_name = false,
+            _ => {}
+        }
+    }
+}
+
+/// Count the ASCII characters contributed by identifier tokens whose names
+/// are declared somewhere in the generated artifact. The entropy mangler uses
+/// this to remove incumbent binding spellings from its character-frequency
+/// seed while retaining keywords, property names, string contents, and host
+/// globals as compression context.
+pub fn declared_identifier_character_use_counts(
+    source: &str,
+) -> Result<[usize; 128], JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let matching_open = crate::js_peephole::token::matching_openers(&matching_close);
+    let mut declared = std::collections::BTreeSet::<&str>::new();
+
+    for (index, token) in tokens.iter().enumerate() {
+        match token.text {
+            "let" | "var" | "const" => {
+                let mut scan = index + 1;
+                let mut depth = 0usize;
+                let mut expects_name = true;
+                while scan < tokens.len() {
+                    let current = tokens[scan];
+                    if depth == 0
+                        && (current.text == ";"
+                            || current.text == "of"
+                            || current.text == "in"
+                            || current.text == ")")
+                    {
+                        break;
+                    }
+                    if depth == 0 && expects_name && current.kind == TokenKind::Identifier {
+                        declared.insert(current.text);
+                        expects_name = false;
+                    }
+                    match current.text {
+                        "(" | "[" | "{" => depth += 1,
+                        ")" | "]" | "}" => depth = depth.saturating_sub(1),
+                        "," if depth == 0 => expects_name = true,
+                        "=" if depth == 0 => expects_name = false,
+                        _ => {}
+                    }
+                    scan += 1;
+                }
+            }
+            "function" => {
+                let mut scan = index + 1;
+                if tokens
+                    .get(scan)
+                    .is_some_and(|candidate| candidate.kind == TokenKind::Identifier)
+                {
+                    declared.insert(tokens[scan].text);
+                    scan += 1;
+                }
+                if tokens.get(scan).map(|candidate| candidate.text) == Some("(") {
+                    if let Some(close) = matching_close.get(scan).copied().flatten() {
+                        collect_parameter_binding_names(&tokens, scan + 1, close, &mut declared);
+                    }
+                }
+            }
+            "class" => {
+                if let Some(name) = tokens
+                    .get(index + 1)
+                    .filter(|candidate| candidate.kind == TokenKind::Identifier)
+                {
+                    declared.insert(name.text);
+                }
+            }
+            "catch" => {
+                let open = index + 1;
+                if tokens.get(open).map(|candidate| candidate.text) == Some("(") {
+                    if let Some(close) = matching_close.get(open).copied().flatten() {
+                        collect_parameter_binding_names(&tokens, open + 1, close, &mut declared);
+                    }
+                }
+            }
+            "=>" => {
+                if let Some(previous) = index.checked_sub(1) {
+                    if tokens[previous].kind == TokenKind::Identifier {
+                        declared.insert(tokens[previous].text);
+                    } else if tokens[previous].text == ")" {
+                        if let Some(open) = matching_open.get(previous).copied().flatten() {
+                            collect_parameter_binding_names(
+                                &tokens,
+                                open + 1,
+                                previous,
+                                &mut declared,
+                            );
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let mut counts = [0usize; 128];
+    for (index, token) in tokens.iter().enumerate() {
+        if token.kind != TokenKind::Identifier
+            || !declared.contains(token.text)
+            || crate::js_peephole::rewrite::is_property_identifier(&tokens, index)
+        {
+            continue;
+        }
+        for byte in token.text.bytes().filter(|byte| byte.is_ascii()) {
+            counts[byte as usize] += 1;
+        }
+    }
     Ok(counts)
 }
 
@@ -457,6 +693,13 @@ pub fn optimize_generated_javascript(source: &str) -> Result<PeepholeResult, Jav
 
     let mut session = RewriteSession::new(apply_rewrites(source, &compound));
     session.rewrites += compound.len();
+    session.run(fold_object_assign_literal_to_writes)?;
+    session.run(fold_grouped_zero_function_expressions)?;
+    session.run(fold_constructor_prototype_tables_to_classes)?;
+    session.run(fold_indexed_arguments_to_formals)?;
+    session.run(fold_undefined_defaults_into_formals)?;
+    session.run(fold_arguments_length_formal_copies)?;
+    session.run(fold_arguments_slice_to_rest)?;
     session.run(rotate_proven_initial_true_loops)?;
     session.run_flag(reuse_dead_var_binding)?;
     session.run(remove_unused_standalone_vars)?;
@@ -465,8 +708,13 @@ pub fn optimize_generated_javascript(source: &str) -> Result<PeepholeResult, Jav
     session.run(fold_guarded_assign_into_call_predicate)?;
     session.run(fold_index_postfix_updates)?;
     session.run(fold_conditional_singleton_arrays)?;
+    session.run(fold_consecutive_array_pushes)?;
+    session.run(fold_push_built_arrays)?;
+    session.run(fold_push_only_init_function)?;
+    session.run(fold_while_push_to_map)?;
     session.run(fold_guarded_and_addends)?;
     session.run(fold_unit_counter_updates)?;
+    session.run(fold_int32_coercions)?;
     session.repeat(fold_identifier_copies, 8)?;
     session.run(fold_cached_length_conditions)?;
     session.run(fold_cached_member_reads)?;
@@ -495,9 +743,10 @@ pub fn optimize_generated_javascript(source: &str) -> Result<PeepholeResult, Jav
     session.run(fold_prefix_increment_for_bounds)?;
     session.run(fold_increment_infinite_for_bounds)?;
     session.run(fold_dead_initializer_reassigns)?;
+    session.run(fold_dead_pure_member_assigns)?;
     session.run(fold_void_then_reassign)?;
     session.run(strip_void_initializer_before_write)?;
-    session.run(fold_single_use_index_temps)?;
+    session.repeat(fold_single_use_index_temps, 4)?;
     session.run(remove_unused_standalone_vars)?;
     session.run(fold_assigned_index_for_conditions)?;
     session.run(fold_index_scan_for_headers)?;
@@ -516,6 +765,7 @@ pub fn optimize_generated_javascript(source: &str) -> Result<PeepholeResult, Jav
     session.run(fold_single_use_call_argument_members)?;
     session.run(fold_comma_assign_into_trailing_call_arg)?;
     session.run(fold_identity_arrow_iife)?;
+    session.run(fold_same_receiver_method_call)?;
     session.run(fold_empty_ternary_then_comma)?;
     session.repeat(fold_single_use_if_assigns, 6)?;
     session.run(fold_if_expression_to_and)?;
@@ -532,7 +782,22 @@ pub fn optimize_generated_javascript(source: &str) -> Result<PeepholeResult, Jav
     session.run(fold_single_use_object_values)?;
     session.run(fold_object_property_functions_to_methods)?;
     session.run(fold_copied_receiver_method_reassign)?;
+    session.run(fold_copied_method_call)?;
     session.run(fold_single_use_regex_bindings)?;
+    session.run(fold_grouped_zero_function_expressions)?;
+    session.run(fold_constructor_prototype_tables_to_classes)?;
+    session.run(fold_indexed_arguments_to_formals)?;
+    session.run(fold_undefined_defaults_into_formals)?;
+    session.run(fold_arguments_length_formal_copies)?;
+    session.run(fold_arguments_slice_to_rest)?;
+    session.run(fold_empty_object_method_assigns)?;
+    session.run(fold_consecutive_array_pushes)?;
+    session.run(fold_push_built_arrays)?;
+    session.run(fold_push_only_init_function)?;
+    session.run(fold_while_push_to_map)?;
+    session.run(fold_dead_pure_identifier_assigns)?;
+    session.run(fold_copied_method_call)?;
+    session.run(fold_same_receiver_method_call)?;
     session.run(fold_outer_copy_property_assign)?;
     session.run(fold_conditional_assigned_false_phi)?;
     session.run(remove_unused_standalone_vars)?;
@@ -559,10 +824,20 @@ pub fn optimize_generated_javascript(source: &str) -> Result<PeepholeResult, Jav
     session.run(fold_redundant_null_undefined_or)?;
     session.run(reorder_uninitialized_var_declarators)?;
     session.run(fold_single_use_function_values)?;
+    session.run(fold_int32_coercions)?;
     session.run(canonicalize_leaf_syntax)?;
     session.run(elide_separating_keyword_spaces)?;
 
     late_generated_javascript_cleanup_into(&mut session)?;
+    session.run(fold_unit_counter_updates)?;
+    session.run(fold_int32_coercions)?;
+    session.run(fold_adjacent_binding_into_leading_call_arg)?;
+    session.run(fold_top_level_adjacent_expression_statements)?;
+    session.run(fold_or_assignment_parens)?;
+    session.run(declare_implicit_assignment_bindings)?;
+    session.run(split_fused_keyword_identifiers)?;
+    session.run(strip_stale_set_prototype_of)?;
+    session.run(terminate_bare_prototype_before_statement)?;
 
     let final_tokens = if session.rewrites == 0 {
         tokens
@@ -570,6 +845,7 @@ pub fn optimize_generated_javascript(source: &str) -> Result<PeepholeResult, Jav
         lex(&session.code)?
     };
     let final_nesting = validate_delimiters(&final_tokens)?;
+    validate_unique_top_level_bindings(&final_tokens)?;
     let final_parsed = parse_expression_regions(&final_tokens);
     let metrics = syntax_metrics(&session.code, &final_tokens, &final_parsed, final_nesting);
     Ok(PeepholeResult {
@@ -579,25 +855,113 @@ pub fn optimize_generated_javascript(source: &str) -> Result<PeepholeResult, Jav
     })
 }
 
+pub fn repair_fused_keyword_identifiers(source: &str) -> Result<String, JavaScriptParseError> {
+    split_fused_keyword_identifiers(source).map(|(code, _)| code)
+}
+
 pub fn late_generated_javascript_cleanup(source: &str) -> Result<String, JavaScriptParseError> {
     let mut session = RewriteSession::new(source.to_string());
     late_generated_javascript_cleanup_into(&mut session)?;
     Ok(session.code)
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum LateJavaScriptCleanupPass {
+    ConditionalReturnTails,
+    EarlyExitGuards,
+    ContinueTailGuards,
+    InvertedContinueTailGuards,
+    SingleStatementControlBraces,
+    NegatedEqualities,
+    RedundantNullUndefinedOr,
+    IdentTernaryToOr,
+    OrAssignmentParens,
+    NotGtZeroLength,
+    IdentityArrowIife,
+    EmptyTernaryThenComma,
+    UnusedStandaloneVars,
+    ArgumentsLengthCountdownFor,
+    CanonicalLeafSyntax,
+}
+
+impl LateJavaScriptCleanupPass {
+    pub(crate) const ALL: [Self; 15] = [
+        Self::ConditionalReturnTails,
+        Self::EarlyExitGuards,
+        Self::ContinueTailGuards,
+        Self::InvertedContinueTailGuards,
+        Self::SingleStatementControlBraces,
+        Self::NegatedEqualities,
+        Self::RedundantNullUndefinedOr,
+        Self::IdentTernaryToOr,
+        Self::OrAssignmentParens,
+        Self::NotGtZeroLength,
+        Self::IdentityArrowIife,
+        Self::EmptyTernaryThenComma,
+        Self::UnusedStandaloneVars,
+        Self::ArgumentsLengthCountdownFor,
+        Self::CanonicalLeafSyntax,
+    ];
+}
+
+/// Apply one late syntax proposal and close any implicit-assignment bindings
+/// it exposes. The compiler uses these independently so raw, gzip, and Brotli
+/// can retain different subsets under their exact whole-artifact objective.
+pub(crate) fn late_generated_javascript_cleanup_pass(
+    source: &str,
+    pass: LateJavaScriptCleanupPass,
+) -> Result<String, JavaScriptParseError> {
+    let mut session = RewriteSession::new(source.to_string());
+    late_generated_javascript_cleanup_pass_into(&mut session, pass)?;
+    session.run(declare_implicit_assignment_bindings)?;
+    Ok(session.code)
+}
+
+fn late_generated_javascript_cleanup_pass_into(
+    session: &mut RewriteSession,
+    pass: LateJavaScriptCleanupPass,
+) -> Result<(), JavaScriptParseError> {
+    match pass {
+        LateJavaScriptCleanupPass::ConditionalReturnTails => {
+            session.run(fold_conditional_return_tails)?
+        }
+        LateJavaScriptCleanupPass::EarlyExitGuards => session.run(fold_early_exit_guards)?,
+        LateJavaScriptCleanupPass::ContinueTailGuards => session.run(fold_continue_tail_guards)?,
+        LateJavaScriptCleanupPass::InvertedContinueTailGuards => {
+            session.run(fold_inverted_continue_tail_guards)?
+        }
+        LateJavaScriptCleanupPass::SingleStatementControlBraces => {
+            session.run(fold_single_statement_control_braces)?
+        }
+        LateJavaScriptCleanupPass::NegatedEqualities => session.run(fold_negated_equalities)?,
+        LateJavaScriptCleanupPass::RedundantNullUndefinedOr => {
+            session.run(fold_redundant_null_undefined_or)?
+        }
+        LateJavaScriptCleanupPass::IdentTernaryToOr => session.run(fold_ident_ternary_to_or)?,
+        LateJavaScriptCleanupPass::OrAssignmentParens => session.run(fold_or_assignment_parens)?,
+        LateJavaScriptCleanupPass::NotGtZeroLength => session.run(fold_not_gt_zero_length)?,
+        LateJavaScriptCleanupPass::IdentityArrowIife => session.run(fold_identity_arrow_iife)?,
+        LateJavaScriptCleanupPass::EmptyTernaryThenComma => {
+            session.run(fold_empty_ternary_then_comma)?
+        }
+        LateJavaScriptCleanupPass::UnusedStandaloneVars => {
+            session.run(remove_unused_standalone_vars)?
+        }
+        LateJavaScriptCleanupPass::ArgumentsLengthCountdownFor => {
+            session.run(fold_arguments_length_countdown_for)?
+        }
+        LateJavaScriptCleanupPass::CanonicalLeafSyntax => session.run(canonicalize_leaf_syntax)?,
+    }
+    Ok(())
+}
+
 fn late_generated_javascript_cleanup_into(
     session: &mut RewriteSession,
 ) -> Result<(), JavaScriptParseError> {
-    session.run(fold_conditional_return_tails)?;
-    session.run(fold_negated_equalities)?;
-    session.run(fold_redundant_null_undefined_or)?;
-    session.run(fold_ident_ternary_to_or)?;
-    session.run(fold_not_gt_zero_length)?;
-    session.run(fold_identity_arrow_iife)?;
-    session.run(fold_empty_ternary_then_comma)?;
-    session.run(remove_unused_standalone_vars)?;
-    session.run(fold_arguments_length_countdown_for)?;
-    session.run(canonicalize_leaf_syntax)?;
+    for pass in LateJavaScriptCleanupPass::ALL {
+        late_generated_javascript_cleanup_pass_into(session, pass)?;
+    }
+    session.run(declare_implicit_assignment_bindings)?;
     Ok(())
 }
 

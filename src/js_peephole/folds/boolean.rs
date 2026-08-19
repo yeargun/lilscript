@@ -1499,7 +1499,17 @@ pub(crate) fn fold_redundant_and_parens(
                     .unwrap_or(";");
                 if !matches!(
                     prev,
-                    "!" | "typeof" | "void" | "delete" | "await" | "new" | "++" | "--" | "." | "["
+                    "!" | "typeof"
+                        | "void"
+                        | "delete"
+                        | "await"
+                        | "new"
+                        | "return"
+                        | "throw"
+                        | "++"
+                        | "--"
+                        | "."
+                        | "["
                 ) {
                     replacements.push((tokens[cursor].start, tokens[cursor].end, String::new()));
                     replacements.push((tokens[close].start, tokens[close].end, String::new()));
@@ -2252,15 +2262,97 @@ fn simple_or_arm(tokens: &[Token<'_>], from: usize) -> bool {
         Some("[]" | "null" | "true" | "false" | "undefined")
     ) || (tokens.get(from).map(|token| token.text) == Some("[")
         && tokens.get(from + 1).map(|token| token.text) == Some("]"))
-        || tokens
+        || (tokens
             .get(from)
             .is_some_and(|token| token.kind == TokenKind::Identifier)
+            && !matches!(
+                tokens.get(from + 1).map(|token| token.text),
+                Some("=")
+                    | Some("+=")
+                    | Some("-=")
+                    | Some("*=")
+                    | Some("/=")
+                    | Some("%=")
+                    | Some("<<=")
+                    | Some(">>=")
+                    | Some(">>>=")
+                    | Some("&=")
+                    | Some("|=")
+                    | Some("^=")
+                    | Some("&&=")
+                    | Some("||=")
+                    | Some("??=")
+            ))
         || tokens
             .get(from)
             .is_some_and(|token| token.kind == TokenKind::Number)
         || tokens
             .get(from)
             .is_some_and(|token| token.kind == TokenKind::String)
+}
+
+pub(crate) fn fold_or_assignment_parens(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut cursor = 0usize;
+    while cursor + 3 < tokens.len() {
+        if !matches!(tokens[cursor].text, "||" | "&&") {
+            cursor += 1;
+            continue;
+        }
+        let Some((assign_from, eq_at)) = assignment_lvalue_eq(&tokens, &matching_close, cursor + 1)
+        else {
+            cursor += 1;
+            continue;
+        };
+        let Some(stop) = top_level_stop(&tokens, eq_at + 1, &[",", ";", ")", "]", "}"]) else {
+            cursor += 1;
+            continue;
+        };
+        if stop <= eq_at + 1 {
+            cursor += 1;
+            continue;
+        }
+        let from = tokens[assign_from].start;
+        let to = tokens[stop - 1].end;
+        replacements.push((from, to, format!("({})", &source[from..to])));
+        cursor = stop;
+    }
+    Ok(apply_token_rewrites(source, replacements))
+}
+
+fn assignment_lvalue_eq(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    start: usize,
+) -> Option<(usize, usize)> {
+    let first = tokens.get(start)?;
+    if first.kind != TokenKind::Identifier && first.text != "this" {
+        return None;
+    }
+    let mut index = start + 1;
+    loop {
+        match tokens.get(index).map(|token| token.text) {
+            Some(".") => {
+                if tokens.get(index + 1)?.kind != TokenKind::Identifier {
+                    return None;
+                }
+                index += 2;
+            }
+            Some("[") => {
+                let close = matching_close.get(index).copied().flatten()?;
+                if close <= index {
+                    return None;
+                }
+                index = close + 1;
+            }
+            Some("=") => return Some((start, index)),
+            _ => return None,
+        }
+    }
 }
 
 fn simple_or_arm_width(tokens: &[Token<'_>], from: usize) -> usize {

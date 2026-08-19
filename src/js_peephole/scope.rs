@@ -37,6 +37,33 @@ pub(crate) fn nested_function_end(
     None
 }
 
+/// An arrow's parameter list precedes the `=>` token, so scans that skip
+/// arrow bodies at `=>` still walk the parameters as ordinary identifiers.
+/// A parameter is a fresh binding, never a read of an outer name.
+pub(crate) fn identifier_is_arrow_parameter(tokens: &[Token<'_>], at: usize) -> bool {
+    if tokens.get(at + 1).map(|token| token.text) == Some("=>") {
+        return true;
+    }
+    let mut depth = 0i32;
+    for index in at + 1..tokens.len() {
+        match tokens[index].text {
+            "(" | "[" | "{" => depth += 1,
+            ")" if depth == 0 => {
+                return tokens.get(index + 1).map(|token| token.text) == Some("=>");
+            }
+            ")" | "]" | "}" => {
+                depth -= 1;
+                if depth < 0 {
+                    return false;
+                }
+            }
+            ";" if depth == 0 => return false,
+            _ => {}
+        }
+    }
+    false
+}
+
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct FunctionExpression {
     pub end: usize,
@@ -228,6 +255,11 @@ pub(crate) fn enclosing_block_start(matching_close: &[Option<usize>], at: usize)
         .max()
 }
 
+/// `var` declarations hoist to the enclosing function (or module), and the
+/// emitter's name pool reuses hoisted bindings far outside the declaring
+/// block, so the use scan must cover the whole function span: a declarator
+/// with no reads in its own block may still be the sole declaration for a
+/// name assigned and read elsewhere.
 pub(crate) fn name_is_used_in_scope(
     tokens: &[Token<'_>],
     matching_close: &[Option<usize>],
@@ -235,10 +267,9 @@ pub(crate) fn name_is_used_in_scope(
     after: usize,
     name: &str,
 ) -> bool {
-    let scope_start = enclosing_block_start(matching_close, name_at)
-        .map(|open| open + 1)
-        .unwrap_or(0);
-    let scope_end = enclosing_block_end(matching_close, name_at).unwrap_or(tokens.len());
+    let (scope_start, scope_end) = enclosing_function_span(tokens, matching_close, name_at)
+        .map(|(body, end)| (body + 1, end))
+        .unwrap_or((0, tokens.len()));
     identifier_occurs(tokens, scope_start, name_at, name)
         || identifier_occurs(tokens, after, scope_end, name)
 }
@@ -428,6 +459,182 @@ pub(crate) fn use_is_in_nested_function(
     false
 }
 
+/// Whether moving an expression from `from` to `use_at` would place a free
+/// reference named `name` underneath a function binding that did not enclose
+/// its original position. This is the capture check required by literal
+/// rematerialization: `let n=x=>h(S,x);return h=>n(h)` must not become
+/// `return h=>(x=>h(S,x))(h)`.
+pub(crate) fn name_is_bound_in_nested_function_between(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    from: usize,
+    use_at: usize,
+    name: &str,
+) -> bool {
+    let matching_open = matching_openers(matching_close);
+    let mut scan = from;
+    while scan < use_at {
+        if let Some(close) = nested_function_end(tokens, matching_close, scan) {
+            if use_at <= close {
+                if nested_function_binds_name(
+                    tokens,
+                    matching_close,
+                    &matching_open,
+                    scan,
+                    close,
+                    name,
+                ) {
+                    return true;
+                }
+                // The use can be inside a still deeper function.
+                scan += 1;
+                continue;
+            }
+            scan = close + 1;
+            continue;
+        }
+        if tokens[scan].text == "=>" && tokens.get(scan + 1).map(|token| token.text) != Some("{") {
+            let body_end =
+                top_level_stop(tokens, scan + 1, &[",", ";", ")", "]", "}"]).unwrap_or(use_at + 1);
+            if use_at < body_end {
+                if expression_arrow_binds_name(tokens, &matching_open, scan, name) {
+                    return true;
+                }
+                scan += 1;
+                continue;
+            }
+            scan = body_end;
+            continue;
+        }
+        scan += 1;
+    }
+    false
+}
+
+pub(crate) fn name_is_declared_in_any_enclosing_scope(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    at: usize,
+    name: &str,
+) -> bool {
+    name_is_declared_in_any_enclosing_function_scope(tokens, matching_close, at, name)
+        || name_is_declared_at_module_scope(tokens, matching_close, name)
+}
+
+pub(crate) fn name_is_declared_in_any_enclosing_function_scope(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    at: usize,
+    name: &str,
+) -> bool {
+    if name_is_declared_in_visible_scope(tokens, matching_close, at, name) {
+        return true;
+    }
+    let matching_open = matching_openers(matching_close);
+    let mut cursor = enclosing_function_span(tokens, matching_close, at).map(|(body, _)| body);
+    while let Some(body) = cursor {
+        let Some(outer) = enclosing_function_span(tokens, matching_close, body) else {
+            break;
+        };
+        if function_binds_name(
+            tokens,
+            matching_close,
+            &matching_open,
+            outer.0,
+            outer.1,
+            name,
+        ) {
+            return true;
+        }
+        if outer.0 >= body {
+            break;
+        }
+        cursor = Some(outer.0);
+    }
+    false
+}
+
+fn name_is_declared_at_module_scope(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    name: &str,
+) -> bool {
+    let mut scan = 0usize;
+    while scan < tokens.len() {
+        if let Some(close) = nested_function_end(tokens, matching_close, scan) {
+            if tokens[scan].text == "function" {
+                let mut index = scan + 1;
+                if tokens.get(index).map(|token| token.text) == Some("*") {
+                    index += 1;
+                }
+                if tokens
+                    .get(index)
+                    .is_some_and(|token| token.kind == TokenKind::Identifier)
+                    && tokens[index].text == name
+                {
+                    return true;
+                }
+            }
+            scan = close + 1;
+            continue;
+        }
+        if tokens[scan].text == "class" {
+            let mut body = scan + 1;
+            if tokens
+                .get(body)
+                .is_some_and(|token| token.kind == TokenKind::Identifier)
+            {
+                if tokens[body].text == name {
+                    return true;
+                }
+                body += 1;
+            }
+            if tokens.get(body).map(|token| token.text) == Some("extends") {
+                body += 2;
+            }
+            if tokens.get(body).map(|token| token.text) == Some("{") {
+                if let Some(close) = matching_close.get(body).copied().flatten() {
+                    scan = close + 1;
+                    continue;
+                }
+            }
+        }
+        if matches!(tokens[scan].text, "let" | "var" | "const") {
+            let mut index = scan + 1;
+            let mut delimiter_depth = 0usize;
+            let mut expects_name = true;
+            while index < tokens.len() {
+                let token = tokens[index];
+                if delimiter_depth == 0 && token.text == ";" {
+                    break;
+                }
+                if let Some(close) = nested_function_end(tokens, matching_close, index) {
+                    index = close + 1;
+                    expects_name = false;
+                    continue;
+                }
+                if expects_name && token.kind == TokenKind::Identifier {
+                    if token.text == name {
+                        return true;
+                    }
+                    expects_name = false;
+                }
+                match token.text {
+                    "(" | "[" | "{" => delimiter_depth += 1,
+                    ")" | "]" | "}" => delimiter_depth = delimiter_depth.saturating_sub(1),
+                    "," if delimiter_depth == 0 => expects_name = true,
+                    _ => {}
+                }
+                index += 1;
+            }
+            scan = index;
+            continue;
+        }
+        scan += 1;
+    }
+    false
+}
+
 pub(crate) fn name_is_declared_in_visible_scope(
     tokens: &[Token<'_>],
     matching_close: &[Option<usize>],
@@ -441,14 +648,45 @@ pub(crate) fn name_is_declared_in_visible_scope(
     let mut scan = 0usize;
     while scan < at {
         if let Some(close) = nested_function_end(tokens, matching_close, scan) {
+            if tokens[scan].text == "function" {
+                let mut index = scan + 1;
+                if tokens.get(index).map(|token| token.text) == Some("*") {
+                    index += 1;
+                }
+                if tokens
+                    .get(index)
+                    .is_some_and(|token| token.kind == TokenKind::Identifier)
+                    && tokens[index].text == name
+                {
+                    return true;
+                }
+            }
             scan = close + 1;
             continue;
         }
-        if matches!(tokens[scan].text, "let" | "var" | "const" | "function") {
-            let mut index = scan + 1;
-            if tokens.get(index).map(|token| token.text) == Some("*") {
-                index += 1;
+        if tokens[scan].text == "class" {
+            let mut body = scan + 1;
+            if tokens
+                .get(body)
+                .is_some_and(|token| token.kind == TokenKind::Identifier)
+            {
+                if tokens[body].text == name {
+                    return true;
+                }
+                body += 1;
             }
+            if tokens.get(body).map(|token| token.text) == Some("extends") {
+                body += 2;
+            }
+            if tokens.get(body).map(|token| token.text) == Some("{") {
+                if let Some(close) = matching_close.get(body).copied().flatten() {
+                    scan = close + 1;
+                    continue;
+                }
+            }
+        }
+        if matches!(tokens[scan].text, "let" | "var" | "const") {
+            let index = scan + 1;
             if tokens
                 .get(index)
                 .is_some_and(|token| token.kind == TokenKind::Identifier)
@@ -555,13 +793,44 @@ pub(crate) fn enclosing_function_span(
     let mut open = enclosing_block_start(matching_close, at)?;
     loop {
         let close = matching_close.get(open).copied().flatten()?;
-        if open
-            .checked_sub(1)
-            .is_some_and(|before| matches!(tokens[before].text, "=>" | ")"))
-        {
-            return Some((open, close));
+        if let Some(before) = open.checked_sub(1) {
+            if tokens[before].text == "=>" {
+                return Some((open, close));
+            }
+            // `){` opens a function body only when the parenthesis is a
+            // parameter list: a control header (`while(…){`, `if(…){`, …)
+            // has the same shape but its block is not a scope for `var`.
+            if tokens[before].text == ")" && !paren_close_is_control_header(tokens, before) {
+                return Some((open, close));
+            }
         }
         open = enclosing_block_start(matching_close, open)?;
+    }
+}
+
+fn paren_close_is_control_header(tokens: &[Token<'_>], close: usize) -> bool {
+    let mut depth = 0i32;
+    let mut index = close;
+    loop {
+        match tokens[index].text {
+            ")" | "]" | "}" => depth += 1,
+            "(" | "[" | "{" => {
+                depth -= 1;
+                if depth == 0 {
+                    return index.checked_sub(1).is_some_and(|before| {
+                        matches!(
+                            tokens[before].text,
+                            "while" | "for" | "if" | "switch" | "catch" | "with"
+                        )
+                    });
+                }
+            }
+            _ => {}
+        }
+        let Some(previous) = index.checked_sub(1) else {
+            return false;
+        };
+        index = previous;
     }
 }
 

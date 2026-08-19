@@ -1,8 +1,9 @@
 use crate::js_peephole::rewrite::{
-    apply_token_rewrites, parenthesized_expression_has_postfix_continuation,
+    apply_token_rewrites, is_property_identifier, parenthesized_expression_has_postfix_continuation,
 };
 use crate::js_peephole::token::{
-    ascii_identifier_name_string, lex, lex_certainly, matching_closers, Token, TokenKind,
+    ascii_identifier_name_string, is_identifier_start, lex, lex_certainly, matching_closers, Token,
+    TokenKind,
 };
 use crate::js_peephole::JavaScriptParseError;
 
@@ -169,4 +170,47 @@ pub(crate) fn elide_separating_keyword_spaces(
     }
     output.push_str(&source[cursor..]);
     Ok((output, cuts.len()))
+}
+
+const FUSED_OPERAND_KEYWORDS: &[&str] = &["return", "throw"];
+
+/// `returna&&x` lexes as one identifier, not `return` plus `a`. A rewrite that
+/// dropped the separator after a statement keyword leaves a ReferenceError.
+/// Split only those fused names, and only in expression position: property
+/// keys and `function returned()` bindings stay intact.
+pub(crate) fn split_fused_keyword_identifiers(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    for (index, token) in tokens.iter().enumerate() {
+        if token.kind != TokenKind::Identifier || is_property_identifier(&tokens, index) {
+            continue;
+        }
+        if index.checked_sub(1).is_some_and(|previous| {
+            matches!(
+                tokens[previous].text,
+                "function" | "class" | "const" | "let" | "var" | "import" | "export"
+            )
+        }) {
+            continue;
+        }
+        let Some(keyword) = FUSED_OPERAND_KEYWORDS.iter().copied().find(|keyword| {
+            token.text.len() > keyword.len()
+                && token.text.starts_with(keyword)
+                && token
+                    .text
+                    .as_bytes()
+                    .get(keyword.len())
+                    .is_some_and(|byte| is_identifier_start(*byte) || byte.is_ascii_digit())
+        }) else {
+            continue;
+        };
+        let rest = &token.text[keyword.len()..];
+        if rest.len() != 1 {
+            continue;
+        }
+        replacements.push((token.start, token.end, format!("{keyword} {rest}")));
+    }
+    Ok(apply_token_rewrites(source, replacements))
 }

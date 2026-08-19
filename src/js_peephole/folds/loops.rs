@@ -3,7 +3,8 @@ use crate::js_peephole::rewrite::{
     paren_depth_at, parse_bare_assign, rewrite_identifier_span, top_level_stop,
 };
 use crate::js_peephole::scope::{
-    enclosing_block_start, name_is_arguments_length_copy, name_is_nonnegative_length_copy,
+    enclosing_block_start, name_is_arguments_length_copy, name_is_declared_in_any_enclosing_scope,
+    name_is_declared_in_visible_scope, name_is_nonnegative_length_copy,
     skip_nested_loop_or_function,
 };
 use crate::js_peephole::token::{lex, matching_closers, Token, TokenKind};
@@ -238,10 +239,101 @@ pub(crate) fn fold_unit_counter_updates(
             cursor += 5;
             continue;
         }
+        let int32_self_update = tokens[cursor].kind == TokenKind::Identifier
+            && matches!(
+                cursor
+                    .checked_sub(1)
+                    .map(|index| tokens[index].text)
+                    .unwrap_or(";"),
+                ";" | "{" | "}" | ")" | ","
+            )
+            && tokens.get(cursor + 1).map(|token| token.text) == Some("=")
+            && tokens.get(cursor + 2).map(|token| token.text) == Some(tokens[cursor].text)
+            && matches!(
+                tokens.get(cursor + 3).map(|token| token.text),
+                Some("+") | Some("-")
+            )
+            && tokens.get(cursor + 4).map(|token| token.text) == Some("1")
+            && tokens.get(cursor + 5).map(|token| token.text) == Some("|")
+            && tokens.get(cursor + 6).map(|token| token.text) == Some("0")
+            && matches!(
+                tokens.get(cursor + 7).map(|token| token.text),
+                Some(";") | Some("}") | Some(")") | Some(",") | None
+            );
+        if int32_self_update {
+            let op = if tokens[cursor + 3].text == "+" {
+                "++"
+            } else {
+                "--"
+            };
+            replacements.push((
+                tokens[cursor].start,
+                tokens[cursor + 6].end,
+                format!("{}{op}", tokens[cursor].text),
+            ));
+            cursor += 7;
+            continue;
+        }
+        if let Some((end, rewritten)) = member_unit_int32_update(&tokens, cursor) {
+            replacements.push((tokens[cursor].start, tokens[end].end, rewritten));
+            cursor = end + 1;
+            continue;
+        }
         cursor += 1;
     }
     let (output, count) = apply_token_rewrites(source, replacements);
     Ok((output, count))
+}
+
+fn member_unit_int32_update(tokens: &[Token<'_>], cursor: usize) -> Option<(usize, String)> {
+    if !matches!(
+        cursor
+            .checked_sub(1)
+            .map(|index| tokens[index].text)
+            .unwrap_or(";"),
+        ";" | "{" | "}" | ")" | ","
+    ) {
+        return None;
+    }
+    let object = tokens.get(cursor)?;
+    if object.text != "this" && object.kind != TokenKind::Identifier {
+        return None;
+    }
+    if tokens.get(cursor + 1).map(|token| token.text) != Some(".")
+        || !tokens.get(cursor + 2).is_some_and(|token| {
+            matches!(token.kind, TokenKind::Identifier | TokenKind::Keyword)
+        })
+        || tokens.get(cursor + 3).map(|token| token.text) != Some("=")
+        || tokens.get(cursor + 4).map(|token| token.text) != Some(object.text)
+        || tokens.get(cursor + 5).map(|token| token.text) != Some(".")
+        || tokens.get(cursor + 6).map(|token| token.text) != Some(tokens[cursor + 2].text)
+        || !matches!(
+            tokens.get(cursor + 7).map(|token| token.text),
+            Some("+") | Some("-")
+        )
+        || tokens.get(cursor + 8).map(|token| token.text) != Some("1")
+    {
+        return None;
+    }
+    if tokens.get(cursor + 9).map(|token| token.text) != Some("|")
+        || tokens.get(cursor + 10).map(|token| token.text) != Some("0")
+        || !matches!(
+            tokens.get(cursor + 11).map(|token| token.text),
+            Some(";") | Some("}") | Some(")") | Some(",") | None
+        )
+    {
+        return None;
+    }
+    let end = cursor + 10;
+    let op = if tokens[cursor + 7].text == "+" {
+        "++"
+    } else {
+        "--"
+    };
+    Some((
+        end,
+        format!("{}.{}{op}", object.text, tokens[cursor + 2].text),
+    ))
 }
 
 pub(crate) fn fold_for_false_breaks(source: &str) -> Result<(String, usize), JavaScriptParseError> {
@@ -500,7 +592,18 @@ fn fold_postfix_index_walk(
         return None;
     }
     let body = source[tokens[body_start].start..tokens[body_close].start].trim_end_matches(';');
-    Some(format!("for(;{node}={array}[{index}++];){body};"))
+    Some(format!(
+        "for(;{node}={array}[{index}++];){}",
+        braced_loop_body(body)
+    ))
+}
+
+fn braced_loop_body(body: &str) -> String {
+    let body = body.trim();
+    if body.is_empty() {
+        return "{}".to_string();
+    }
+    format!("{{{body}}}")
 }
 
 fn fold_temp_index_walk(
@@ -566,12 +669,18 @@ fn fold_temp_index_walk(
         let body = rewrite_identifier_span(source, tokens, body_start, restore_at, node, temp)
             .trim_end_matches(';')
             .to_string();
-        Some(format!("for(;{temp}={array}[{index}++];){body};"))
+        Some(format!(
+            "for(;{temp}={array}[{index}++];){}",
+            braced_loop_body(&body)
+        ))
     } else if identifier_occurs(tokens, body_start, restore_at, index) {
         None
     } else {
         let body = source[tokens[body_start].start..tokens[restore_at].start].trim_end_matches(';');
-        Some(format!("for(;{node}={array}[{index}++];){body};"))
+        Some(format!(
+            "for(;{node}={array}[{index}++];){}",
+            braced_loop_body(body)
+        ))
     }
 }
 
@@ -1448,7 +1557,10 @@ fn let_for_init_names_escape(
             "(" | "[" | "{" => depth += 1,
             ")" | "]" | "}" => depth -= 1,
             "," if depth == 0 => {
-                if let Some(name) = tokens.get(at + 1).filter(|t| t.kind == TokenKind::Identifier) {
+                if let Some(name) = tokens
+                    .get(at + 1)
+                    .filter(|t| t.kind == TokenKind::Identifier)
+                {
                     declared.push(name.text);
                 }
             }
@@ -1523,7 +1635,16 @@ pub(crate) fn fold_prior_assign_into_for_init(
                     replacements.push((
                         tokens[assigns[0].0].start,
                         tokens[header_close].end,
-                        format!("for({}{rest}", init_parts.join(",")),
+                        format!(
+                            "for({}{}{rest}",
+                            for_init_var_prefix(
+                                &tokens,
+                                &matching_close,
+                                assigns[0].0,
+                                assigns.iter().map(|(_, name, _, _)| *name),
+                            ),
+                            init_parts.join(",")
+                        ),
                     ));
                     cursor = header_close + 1;
                     continue;
@@ -1558,7 +1679,16 @@ pub(crate) fn fold_prior_assign_into_for_init(
                                 replacements.push((
                                     tokens[assigns[0].0].start,
                                     tokens[header_close].end,
-                                    format!("for({}{rest}", init_parts.join(",")),
+                                    format!(
+                                        "for({}{}{rest}",
+                                        for_init_var_prefix(
+                                            &tokens,
+                                            &matching_close,
+                                            assigns[0].0,
+                                            assigns.iter().map(|(_, name, _, _)| *name),
+                                        ),
+                                        init_parts.join(",")
+                                    ),
                                 ));
                                 cursor = header_close + 1;
                                 continue;
@@ -1622,6 +1752,34 @@ pub(crate) fn fold_prior_assign_into_for_init(
     }
     let (output, count) = apply_token_rewrites(source, replacements);
     Ok((output, count))
+}
+
+fn for_init_var_prefix<'a>(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    at: usize,
+    names: impl IntoIterator<Item = &'a str>,
+) -> &'static str {
+    let names = names.into_iter().collect::<Vec<_>>();
+    let mut undeclared = false;
+    let mut outer_capture = false;
+    for name in names {
+        let visible = name_is_declared_in_visible_scope(tokens, matching_close, at, name);
+        let enclosing = name_is_declared_in_any_enclosing_scope(tokens, matching_close, at, name);
+        if !enclosing {
+            undeclared = true;
+        } else if !visible {
+            outer_capture = true;
+        }
+    }
+    // `var` in a nested for-init is a fresh function-local binding. Captures
+    // from an outer function are already declared; prefixing `var` shadows
+    // them so later readers (`fired:()=>!!ss`) keep the uninitialized outer.
+    if undeclared && !outer_capture {
+        "var "
+    } else {
+        ""
+    }
 }
 
 /// Rotates the generated SSA spelling `flag=true;while(flag){...;flag=next}`

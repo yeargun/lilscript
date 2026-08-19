@@ -1,12 +1,16 @@
 use crate::js_peephole::rewrite::{
-    apply_token_rewrites, assign_is_in_declaration, identifier_is_read, identifier_occurs,
-    is_property_identifier, parse_bare_assign, replacement_overlaps, top_level_stop,
+    apply_token_rewrites, assign_is_in_declaration, identifier_is_expression_slot,
+    identifier_is_read, identifier_occurs, is_property_identifier, parse_bare_assign,
+    replacement_overlaps, substituted_expression_needs_grouping, top_level_stop,
+    wrap_substituted_expression,
 };
 use crate::js_peephole::scope::{
     collect_same_scope_name_uses, collect_unbound_name_uses, enclosing_block_end,
-    enclosing_block_start, enclosing_function_span, function_scope_declares,
-    identifier_assigned_before, name_is_declared_in_visible_scope, name_use_is_mutated,
-    nested_function_end, parse_function_expression, use_is_in_nested_function,
+    enclosing_block_start, enclosing_function_span, function_binds_name,
+    identifier_assigned_before, identifier_is_arrow_parameter,
+    name_is_bound_in_nested_function_between, name_is_declared_in_visible_scope,
+    name_use_is_mutated, nested_function_end, parse_function_expression, use_is_in_nested_function,
+    FunctionExpression,
 };
 use crate::js_peephole::token::{lex, matching_closers, Token, TokenKind};
 use crate::js_peephole::JavaScriptParseError;
@@ -16,6 +20,12 @@ pub(crate) fn fold_identifier_copies(
 ) -> Result<(String, usize), JavaScriptParseError> {
     let tokens = lex(source)?;
     let matching_close = matching_closers(&tokens);
+    let mut matching_open = vec![None; tokens.len()];
+    for (open, close) in matching_close.iter().enumerate() {
+        if let Some(close) = *close {
+            matching_open[close] = Some(open);
+        }
+    }
     let mut replacements = Vec::<(usize, usize, String)>::new();
     let mut cursor = 0usize;
     while cursor + 3 < tokens.len() {
@@ -57,11 +67,42 @@ pub(crate) fn fold_identifier_copies(
             cursor += 1;
             continue;
         };
-        if rhs == name {
+        // The value of `name` after `name=name.member` is the member value,
+        // not another read through the old base object. Substituting a later
+        // use would produce `name.member` and repeated cleanup rounds would
+        // compound it into `name.member.member...`.
+        if tokens[cursor + 2].text == name {
             cursor += 1;
             continue;
         }
+        // Reads are only replaceable inside the enclosing block: the copy may
+        // execute conditionally, so a use beyond the block cannot take the
+        // source expression. But `var` hoists past the block, so any use out
+        // there still needs the binding — it forbids the fold entirely.
         let scope_end = enclosing_block_end(&matching_close, cursor).unwrap_or(tokens.len());
+        let function_end = enclosing_function_span(&tokens, &matching_close, cursor)
+            .map(|(_, end)| end)
+            .unwrap_or(tokens.len());
+        if identifier_occurs(&tokens, scope_end, function_end, name) {
+            cursor += 1;
+            continue;
+        }
+        // An assignment whose name is not bound in this function writes an
+        // outer slot. Replacing inner reads and deleting that store would
+        // leave the captured binding unchanged.
+        if let Some((fn_body, fn_end)) = enclosing_function_span(&tokens, &matching_close, cursor) {
+            if !function_binds_name(
+                &tokens,
+                &matching_close,
+                &matching_open,
+                fn_body,
+                fn_end,
+                name,
+            ) {
+                cursor += 1;
+                continue;
+            }
+        }
         let mut reads = Vec::new();
         let mut scan = rhs_end + 1;
         if tokens.get(scan).map(|token| token.text) == Some(";")
@@ -69,8 +110,36 @@ pub(crate) fn fold_identifier_copies(
         {
             scan += 1;
         }
+        // A later write to the copy (or a shadowing arrow parameter) does not
+        // merely end the read scan: reads collected before it may re-execute
+        // after the write inside a loop, and removing the copy assignment
+        // would orphan the surviving uses. The whole fold must be abandoned.
+        let mut name_rebound = false;
+        let mut stopped_at = None;
         while scan < scope_end {
             if let Some(close) = nested_function_end(&tokens, &matching_close, scan) {
+                if nested_function_assigns_captured_name(
+                    &tokens,
+                    &matching_close,
+                    &matching_open,
+                    scan,
+                    close,
+                    name,
+                ) {
+                    name_rebound = true;
+                    break;
+                }
+                if nested_function_assigns_captured_name(
+                    &tokens,
+                    &matching_close,
+                    &matching_open,
+                    scan,
+                    close,
+                    tokens[cursor + 2].text,
+                ) {
+                    stopped_at = Some(scan);
+                    break;
+                }
                 scan = close + 1;
                 continue;
             }
@@ -78,9 +147,17 @@ pub(crate) fn fold_identifier_copies(
                 && tokens[scan].text == name
                 && !is_property_identifier(&tokens, scan)
             {
-                if tokens.get(scan + 1).map(|token| token.text) == Some("=")
-                    && tokens.get(scan + 2).map(|token| token.text) != Some("=")
-                {
+                if identifier_is_arrow_parameter(&tokens, scan) {
+                    name_rebound = true;
+                    break;
+                }
+                // Compound assignments are writes to the copy, not reads:
+                // rewriting `b+=x` to the source would mutate the source.
+                if tokens.get(scan + 1).is_some_and(|token| {
+                    token.text.ends_with('=')
+                        && !matches!(token.text, "==" | "===" | "!=" | "!==" | "<=" | ">=" | "=>")
+                }) {
+                    name_rebound = true;
                     break;
                 }
                 if matches!(
@@ -88,21 +165,87 @@ pub(crate) fn fold_identifier_copies(
                     Some("++") | Some("--")
                 ) || matches!(
                     tokens.get(scan.wrapping_sub(1)).map(|token| token.text),
-                    Some("++") | Some("--") | Some("[")
+                    Some("++") | Some("--")
                 ) {
+                    name_rebound = true;
+                    break;
+                }
+                if tokens.get(scan.wrapping_sub(1)).map(|token| token.text) == Some("[") {
+                    stopped_at = Some(scan);
                     break;
                 }
                 reads.push(scan);
             }
-            if rhs_end == cursor + 2
-                && tokens[scan].kind == TokenKind::Identifier
+            // Any mutation of the copied source invalidates the remaining
+            // reads: rebinding the base identifier, writing through a
+            // computed index, or storing to the borrowed member itself.
+            if tokens[scan].kind == TokenKind::Identifier
                 && tokens[scan].text == tokens[cursor + 2].text
-                && tokens.get(scan + 1).map(|token| token.text) == Some("=")
-                && tokens.get(scan + 2).map(|token| token.text) != Some("=")
+                && !is_property_identifier(&tokens, scan)
             {
-                break;
+                let next = tokens.get(scan + 1).map(|token| token.text);
+                let assigning = |text: &str| {
+                    text.ends_with('=')
+                        && !matches!(text, "==" | "===" | "!=" | "!==" | "<=" | ">=" | "=>")
+                };
+                if next.is_some_and(assigning)
+                    || matches!(next, Some("++") | Some("--"))
+                    || matches!(
+                        tokens.get(scan.wrapping_sub(1)).map(|token| token.text),
+                        Some("++") | Some("--")
+                    )
+                {
+                    stopped_at = Some(scan);
+                    break;
+                }
+                if rhs_end == cursor + 4 {
+                    if next == Some("[") {
+                        stopped_at = Some(scan);
+                        break;
+                    }
+                    if next == Some(".")
+                        && tokens.get(scan + 2).map(|token| token.text)
+                            == Some(tokens[cursor + 4].text)
+                        && tokens
+                            .get(scan + 3)
+                            .map(|token| token.text)
+                            .is_some_and(assigning)
+                    {
+                        stopped_at = Some(scan);
+                        break;
+                    }
+                }
             }
             scan += 1;
+        }
+        // A source mutation ends the replaceable region, but any use of the
+        // copy at or past that point still needs the copy's value: deleting
+        // the assignment would leave those reads bound to a stale earlier
+        // definition (or nothing at all), so the fold must back off entirely.
+        if let Some(stop) = stopped_at {
+            let mut probe = stop;
+            while probe < scope_end {
+                if tokens[probe].kind == TokenKind::Identifier
+                    && tokens[probe].text == name
+                    && !is_property_identifier(&tokens, probe)
+                {
+                    name_rebound = true;
+                    break;
+                }
+                probe += 1;
+            }
+        }
+        if name_rebound {
+            cursor += 1;
+            continue;
+        }
+        if rhs_end != cursor + 2
+            && reads
+                .iter()
+                .any(|&read| !identifier_is_expression_slot(&tokens, read))
+        {
+            cursor += 1;
+            continue;
         }
         if reads.is_empty() {
             let scope_start = enclosing_block_start(&matching_close, cursor)
@@ -156,6 +299,38 @@ pub(crate) fn fold_identifier_copies(
             cursor += 1;
             continue;
         }
+        if rhs_end == cursor + 4
+            && reads.iter().any(|&read| {
+                source_object_invoked_between(
+                    &tokens,
+                    &matching_close,
+                    rhs_end + 1,
+                    read,
+                    tokens[cursor + 2].text,
+                )
+            })
+        {
+            cursor += 1;
+            continue;
+        }
+        // A captured cell can change through a sibling closure invoked by a
+        // call that does not spell that assignment in this window. Folding
+        // `oldValue=current` across `track(fn)` would re-read the cell.
+        if rhs_end == cursor + 2
+            && source_may_change_across_calls(
+                &tokens,
+                &matching_close,
+                &matching_open,
+                cursor,
+                tokens[cursor + 2].text,
+            )
+            && reads
+                .iter()
+                .any(|&read| call_occurs_between(&tokens, &matching_close, rhs_end + 1, read))
+        {
+            cursor += 1;
+            continue;
+        }
         let prev = cursor
             .checked_sub(1)
             .map(|index| tokens[index].text)
@@ -177,7 +352,162 @@ pub(crate) fn fold_identifier_copies(
     Ok((output, count / 2 + count % 2))
 }
 
-fn assignment_span_to_remove(
+fn source_may_change_across_calls(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    matching_open: &[Option<usize>],
+    cursor: usize,
+    source: &str,
+) -> bool {
+    if let Some((fn_body, fn_end)) = enclosing_function_span(tokens, matching_close, cursor) {
+        if function_binds_name(
+            tokens,
+            matching_close,
+            matching_open,
+            fn_body,
+            fn_end,
+            source,
+        ) {
+            return name_assigned_in_nested_function(
+                tokens,
+                matching_close,
+                matching_open,
+                fn_body,
+                fn_end,
+                source,
+            );
+        }
+    }
+    name_assigned_in_nested_function(
+        tokens,
+        matching_close,
+        matching_open,
+        0,
+        tokens.len(),
+        source,
+    )
+}
+
+fn name_assigned_in_nested_function(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    matching_open: &[Option<usize>],
+    start: usize,
+    end: usize,
+    name: &str,
+) -> bool {
+    let mut index = start;
+    while index < end {
+        if let Some(close) = nested_function_end(tokens, matching_close, index) {
+            if nested_function_assigns_captured_name(
+                tokens,
+                matching_close,
+                matching_open,
+                index,
+                close,
+                name,
+            ) {
+                return true;
+            }
+            index = close + 1;
+            continue;
+        }
+        index += 1;
+    }
+    false
+}
+
+fn call_occurs_between(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    from: usize,
+    to: usize,
+) -> bool {
+    let mut index = from;
+    while index < to {
+        if let Some(close) = nested_function_end(tokens, matching_close, index) {
+            if close >= to {
+                return false;
+            }
+            index = close + 1;
+            continue;
+        }
+        if tokens[index].text == "new" {
+            return true;
+        }
+        if tokens[index].text == "(" {
+            if let Some(prev) = index.checked_sub(1).and_then(|prev| tokens.get(prev)) {
+                if prev.kind == TokenKind::Identifier || matches!(prev.text, ")" | "]") {
+                    return true;
+                }
+            }
+        }
+        index += 1;
+    }
+    false
+}
+
+fn nested_function_assigns_captured_name(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    matching_open: &[Option<usize>],
+    _scan: usize,
+    close: usize,
+    name: &str,
+) -> bool {
+    let Some(body) = matching_open.get(close).copied().flatten() else {
+        return false;
+    };
+    let shadowed = function_binds_name(tokens, matching_close, matching_open, body, close, name);
+    let assigning = |text: &str| {
+        text.ends_with('=') && !matches!(text, "==" | "===" | "!=" | "!==" | "<=" | ">=" | "=>")
+    };
+    let mut index = body + 1;
+    while index < close {
+        if let Some(inner_close) = nested_function_end(tokens, matching_close, index) {
+            if nested_function_assigns_captured_name(
+                tokens,
+                matching_close,
+                matching_open,
+                index,
+                inner_close,
+                name,
+            ) {
+                return true;
+            }
+            index = inner_close + 1;
+            continue;
+        }
+        if shadowed {
+            index += 1;
+            continue;
+        }
+        if tokens[index].kind == TokenKind::Identifier
+            && tokens[index].text == name
+            && !is_property_identifier(tokens, index)
+        {
+            if tokens
+                .get(index + 1)
+                .map(|token| token.text)
+                .is_some_and(assigning)
+                || matches!(
+                    tokens.get(index + 1).map(|token| token.text),
+                    Some("++") | Some("--")
+                )
+                || matches!(
+                    tokens.get(index.wrapping_sub(1)).map(|token| token.text),
+                    Some("++") | Some("--")
+                )
+            {
+                return true;
+            }
+        }
+        index += 1;
+    }
+    false
+}
+
+pub(crate) fn assignment_span_to_remove(
     tokens: &[Token<'_>],
     name_at: usize,
     rhs_end: usize,
@@ -195,7 +525,12 @@ fn assignment_span_to_remove(
     if prev == Some(",") {
         return (tokens[name_at - 1].start, tokens[rhs_end].end);
     }
-    let end = if tokens.get(after).map(|token| token.text) == Some(";") {
+    // A comma sequence opening a block (`{X,rest}`) terminates the removed
+    // assignment with `,` instead of `;`; leaving it would orphan the comma.
+    let end = if matches!(
+        tokens.get(after).map(|token| token.text),
+        Some(";") | Some(",")
+    ) {
         tokens[after].end
     } else {
         tokens[rhs_end].end
@@ -336,6 +671,197 @@ fn span_is_effectful(tokens: &[Token<'_>], from: usize, end: usize) -> bool {
     false
 }
 
+fn span_has_eager_member_read(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    from: usize,
+    end: usize,
+) -> bool {
+    let mut index = from;
+    while index < end {
+        if let Some(close) = nested_function_end(tokens, matching_close, index) {
+            if close >= end {
+                return false;
+            }
+            index = close + 1;
+            continue;
+        }
+        if matches!(tokens[index].text, "." | "[") {
+            return true;
+        }
+        index += 1;
+    }
+    false
+}
+
+fn span_contains_call(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    from: usize,
+    end: usize,
+) -> bool {
+    let mut index = from;
+    while index < end {
+        if let Some(close) = nested_function_end(tokens, matching_close, index) {
+            if close >= end {
+                return false;
+            }
+            index = close + 1;
+            continue;
+        }
+        if tokens[index].text == "("
+            && index > from
+            && (tokens[index - 1].kind == TokenKind::Identifier
+                || matches!(tokens[index - 1].text, ")" | "]" | "}" | "."))
+        {
+            return true;
+        }
+        index += 1;
+    }
+    false
+}
+
+fn source_object_invoked_between(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    from: usize,
+    to: usize,
+    base: &str,
+) -> bool {
+    let mut index = from;
+    while index < to {
+        if let Some(close) = nested_function_end(tokens, matching_close, index) {
+            if close >= to {
+                return false;
+            }
+            index = close + 1;
+            continue;
+        }
+        if tokens[index].kind == TokenKind::Identifier
+            && tokens[index].text == base
+            && !is_property_identifier(tokens, index)
+        {
+            let next = tokens.get(index + 1).map(|token| token.text);
+            if next == Some("(") {
+                return true;
+            }
+            if next == Some(".") {
+                let mut cursor = index + 2;
+                while cursor + 1 < to
+                    && tokens[cursor].kind == TokenKind::Identifier
+                    && tokens.get(cursor + 1).map(|token| token.text) == Some(".")
+                {
+                    cursor += 2;
+                }
+                if cursor < to
+                    && tokens[cursor].kind == TokenKind::Identifier
+                    && tokens.get(cursor + 1).map(|token| token.text) == Some("(")
+                {
+                    return true;
+                }
+            }
+            let prev = tokens.get(index.wrapping_sub(1)).map(|token| token.text);
+            if matches!(prev, Some("(") | Some(",")) && matches!(next, Some(")") | Some(",")) {
+                return true;
+            }
+        }
+        index += 1;
+    }
+    false
+}
+
+fn assigning_operator(text: &str) -> bool {
+    text.ends_with('=') && !matches!(text, "==" | "===" | "!=" | "!==" | "<=" | ">=" | "=>")
+}
+
+/// `obj.prop` names whatever `obj` currently refers to. Rematerializing a
+/// copied member after `obj` is rebound (or that property is written) would
+/// read a different JavaScript value — including every `extern class` / DOM
+/// field spelled the same way.
+fn source_receiver_overwritten_between(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    from: usize,
+    to: usize,
+    base: &str,
+    prop: Option<&str>,
+) -> bool {
+    let mut index = from;
+    while index < to {
+        if let Some(close) = nested_function_end(tokens, matching_close, index) {
+            if close >= to {
+                return false;
+            }
+            index = close + 1;
+            continue;
+        }
+        if tokens[index].kind == TokenKind::Identifier
+            && tokens[index].text == base
+            && !is_property_identifier(tokens, index)
+        {
+            let next = tokens.get(index + 1).map(|token| token.text);
+            let prev = index
+                .checked_sub(1)
+                .map(|prev| tokens[prev].text)
+                .unwrap_or(";");
+            if prev == "delete"
+                || next == Some("[")
+                || next.is_some_and(assigning_operator)
+                || matches!(next, Some("++") | Some("--"))
+                || matches!(
+                    tokens.get(index.wrapping_sub(1)).map(|token| token.text),
+                    Some("++") | Some("--")
+                )
+            {
+                return true;
+            }
+            if let Some(prop) = prop {
+                if next == Some(".") && tokens.get(index + 2).map(|token| token.text) == Some(prop) {
+                    let after = tokens.get(index + 3).map(|token| token.text);
+                    if after.is_some_and(|text| {
+                        matches!(text, "++" | "--") || assigning_operator(text)
+                    }) {
+                        return true;
+                    }
+                }
+            }
+        }
+        index += 1;
+    }
+    false
+}
+
+fn source_object_passed_as_argument_between(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    from: usize,
+    to: usize,
+    base: &str,
+) -> bool {
+    let mut index = from;
+    while index < to {
+        if let Some(close) = nested_function_end(tokens, matching_close, index) {
+            if close >= to {
+                return false;
+            }
+            index = close + 1;
+            continue;
+        }
+        if tokens[index].kind == TokenKind::Identifier
+            && tokens[index].text == base
+            && !is_property_identifier(tokens, index)
+        {
+            let next = tokens.get(index + 1).map(|token| token.text);
+            let prev = tokens.get(index.wrapping_sub(1)).map(|token| token.text);
+            if matches!(prev, Some("(") | Some(",")) && matches!(next, Some(")") | Some(",")) {
+                return true;
+            }
+        }
+        index += 1;
+    }
+    false
+}
+
 fn collect_binding_uses(
     tokens: &[Token<'_>],
     matching_close: &[Option<usize>],
@@ -345,20 +871,15 @@ fn collect_binding_uses(
     scope_start: usize,
     scope_end: usize,
 ) -> Option<Vec<usize>> {
-    let prior = collect_unbound_name_uses(
-        tokens,
-        matching_close,
-        name,
-        scope_start,
-        name_at,
-        name_at,
-    )
-    .into_iter()
-    .filter(|&use_at| identifier_is_read(tokens, use_at, use_at + 1, name))
-    .collect::<Vec<_>>();
-    if prior.iter().any(|&use_at| {
-        !use_is_in_nested_function(tokens, matching_close, scope_start, use_at)
-    }) {
+    let prior =
+        collect_unbound_name_uses(tokens, matching_close, name, scope_start, name_at, name_at)
+            .into_iter()
+            .filter(|&use_at| identifier_is_read(tokens, use_at, use_at + 1, name))
+            .collect::<Vec<_>>();
+    if prior
+        .iter()
+        .any(|&use_at| !use_is_in_nested_function(tokens, matching_close, scope_start, use_at))
+    {
         return None;
     }
     let mut uses = prior;
@@ -373,6 +894,167 @@ fn collect_binding_uses(
     Some(uses)
 }
 
+/// `var V=EXPR;callee(V…)` where the binding's only use opens the argument
+/// list of the immediately following call collapses to `callee(EXPR…)`: the
+/// callee chain is a plain member read, so evaluation order of `EXPR` and any
+/// later arguments is unchanged, and the binding disappears entirely.
+pub(crate) fn fold_adjacent_binding_into_leading_call_arg(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut cursor = 0usize;
+    while cursor + 6 < tokens.len() {
+        if !matches!(tokens[cursor].text, "var" | "let")
+            || !matches!(
+                cursor
+                    .checked_sub(1)
+                    .map(|index| tokens[index].text)
+                    .unwrap_or(";"),
+                ";" | "{" | "}"
+            )
+        {
+            cursor += 1;
+            continue;
+        }
+        let name_at = cursor + 1;
+        if tokens
+            .get(name_at)
+            .is_none_or(|token| token.kind != TokenKind::Identifier)
+            || tokens.get(name_at + 1).map(|token| token.text) != Some("=")
+        {
+            cursor += 1;
+            continue;
+        }
+        let name = tokens[name_at].text;
+        let rhs_start = name_at + 2;
+        let Some(stop) = top_level_stop(&tokens, rhs_start, &[";", ","]) else {
+            cursor += 1;
+            continue;
+        };
+        if tokens[stop].text != ";" || stop == rhs_start {
+            cursor += 1;
+            continue;
+        }
+        let mut chain = stop + 1;
+        if tokens
+            .get(chain)
+            .is_none_or(|token| token.kind != TokenKind::Identifier)
+            || tokens[chain].text == name
+        {
+            cursor += 1;
+            continue;
+        }
+        while tokens.get(chain + 1).map(|token| token.text) == Some(".")
+            && tokens
+                .get(chain + 2)
+                .is_some_and(|token| token.kind == TokenKind::Identifier)
+        {
+            chain += 2;
+        }
+        let use_at = chain + 2;
+        // A use that is not a whole argument (something follows it before the
+        // `,` or `)`) splices the inlined expression into a larger expression,
+        // which is only precedence-safe for a primary chain: `arrow([...])`
+        // is a syntax error and `b||c+1` rebinds. Such uses require the
+        // expression to be a member/call chain rooted in a single atom.
+        if tokens.get(chain + 1).map(|token| token.text) != Some("(")
+            || tokens
+                .get(use_at)
+                .is_none_or(|token| token.kind != TokenKind::Identifier || token.text != name)
+            || name_use_is_mutated(&tokens, use_at)
+        {
+            cursor += 1;
+            continue;
+        }
+        if !matches!(
+            tokens.get(use_at + 1).map(|token| token.text),
+            Some(",") | Some(")")
+        ) && !expression_is_primary_chain(&tokens, &matching_close, rhs_start, stop)
+        {
+            cursor += 1;
+            continue;
+        }
+        let scope_start = enclosing_block_start(&matching_close, name_at)
+            .map(|open| open + 1)
+            .unwrap_or(0);
+        let scope_end = enclosing_block_end(&matching_close, name_at).unwrap_or(tokens.len());
+        let uses = collect_binding_uses(
+            &tokens,
+            &matching_close,
+            name,
+            name_at,
+            stop + 1,
+            scope_start,
+            scope_end,
+        );
+        if uses != Some(vec![use_at]) {
+            cursor += 1;
+            continue;
+        }
+        let expression = &source[tokens[rhs_start].start..tokens[stop - 1].end];
+        if !replacement_overlaps(&replacements, tokens[cursor].start, tokens[use_at].end) {
+            replacements.push((tokens[cursor].start, tokens[stop].end, String::new()));
+            replacements.push((
+                tokens[use_at].start,
+                tokens[use_at].end,
+                wrap_substituted_expression(&tokens, use_at, expression),
+            ));
+        }
+        cursor = use_at + 1;
+    }
+    let (output, count) = apply_token_rewrites(source, replacements);
+    Ok((output, count / 2))
+}
+
+/// A member/call chain rooted in one atom (`x`, `x.y[0](a).z`, `"s".big()`)
+/// keeps its meaning when pasted into any expression slot: it parses as a
+/// single CallExpression/MemberExpression with maximal binding power. Any
+/// top-level operator, arrow, or keyword breaks that guarantee.
+fn expression_is_primary_chain(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    from: usize,
+    to: usize,
+) -> bool {
+    let Some(first) = tokens.get(from) else {
+        return false;
+    };
+    if !matches!(
+        first.kind,
+        TokenKind::Identifier | TokenKind::Number | TokenKind::String
+    ) {
+        return false;
+    }
+    let mut index = from + 1;
+    while index < to {
+        match tokens[index].text {
+            "." => {
+                // Contextual keywords (`get`, `set`, ...) lex as Keyword but
+                // are ordinary property names after a dot.
+                if tokens.get(index + 1).is_none_or(|token| {
+                    !matches!(token.kind, TokenKind::Identifier | TokenKind::Keyword)
+                }) {
+                    return false;
+                }
+                index += 2;
+            }
+            "(" | "[" => {
+                let Some(close) = matching_close.get(index).copied().flatten() else {
+                    return false;
+                };
+                if close >= to {
+                    return false;
+                }
+                index = close + 1;
+            }
+            _ => return false,
+        }
+    }
+    true
+}
+
 fn can_rematerialize_literal(
     tokens: &[Token<'_>],
     matching_close: &[Option<usize>],
@@ -381,6 +1063,9 @@ fn can_rematerialize_literal(
     rhs_kind: TokenKind,
     effectful: bool,
     guarded: bool,
+    rhs_from: usize,
+    rhs_end: usize,
+    after_init: usize,
 ) -> bool {
     let nested = use_is_in_nested_function(tokens, matching_close, from, use_at);
     if effectful && (guarded || nested) {
@@ -389,10 +1074,7 @@ fn can_rematerialize_literal(
     if nested && rhs_kind != TokenKind::Regex {
         return false;
     }
-    if tokens
-        .get(use_at.wrapping_sub(1))
-        .map(|token| token.text)
-        == Some("=")
+    if tokens.get(use_at.wrapping_sub(1)).map(|token| token.text) == Some("=")
         && tokens
             .get(use_at.wrapping_sub(2))
             .is_some_and(|token| token.kind == TokenKind::Identifier)
@@ -403,23 +1085,86 @@ fn can_rematerialize_literal(
     {
         return false;
     }
+    if effectful
+        && rhs_identifier_assigned_between(
+            tokens,
+            matching_close,
+            rhs_from,
+            rhs_end,
+            after_init,
+            use_at,
+        )
+    {
+        return false;
+    }
     true
 }
 
-fn use_is_guarded(
+fn rhs_identifier_assigned_between(
     tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    rhs_from: usize,
+    rhs_end: usize,
     from: usize,
     use_at: usize,
 ) -> bool {
+    let assigning = |text: &str| {
+        text.ends_with('=') && !matches!(text, "==" | "===" | "!=" | "!==" | "<=" | ">=" | "=>")
+    };
+    let mut names = Vec::new();
+    let mut index = rhs_from;
+    while index <= rhs_end {
+        if let Some(close) = nested_function_end(tokens, matching_close, index) {
+            index = close + 1;
+            continue;
+        }
+        if tokens[index].kind == TokenKind::Identifier && !is_property_identifier(tokens, index) {
+            let name = tokens[index].text;
+            if !names.iter().any(|existing| *existing == name) {
+                names.push(name);
+            }
+        }
+        index += 1;
+    }
+    if names.is_empty() {
+        return false;
+    }
+    let mut index = from;
+    while index < use_at {
+        if let Some(close) = nested_function_end(tokens, matching_close, index) {
+            index = close + 1;
+            continue;
+        }
+        if tokens[index].kind == TokenKind::Identifier
+            && names.iter().any(|name| *name == tokens[index].text)
+            && !is_property_identifier(tokens, index)
+            && (tokens
+                .get(index + 1)
+                .is_some_and(|token| assigning(token.text))
+                || matches!(
+                    tokens.get(index + 1).map(|token| token.text),
+                    Some("++") | Some("--")
+                )
+                || matches!(
+                    tokens.get(index.wrapping_sub(1)).map(|token| token.text),
+                    Some("++") | Some("--")
+                ))
+        {
+            return true;
+        }
+        index += 1;
+    }
+    false
+}
+
+fn use_is_guarded(tokens: &[Token<'_>], from: usize, use_at: usize) -> bool {
     let mut depth = 0i32;
     let mut index = from;
     while index < use_at {
         match tokens[index].text {
             "(" | "[" | "{" => depth += 1,
             ")" | "]" | "}" => depth = depth.saturating_sub(1),
-            "if" | "for" | "while" | "do" | "?" | "&&" | "||" | "??"
-                if depth == 0 =>
-            {
+            "if" | "for" | "while" | "do" | "?" | "&&" | "||" | "??" if depth == 0 => {
                 return true;
             }
             _ => {}
@@ -438,34 +1183,7 @@ fn rematerialized_literal_needs_grouping(
     if kind == TokenKind::Regex {
         return false;
     }
-    let previous = use_at
-        .checked_sub(1)
-        .map(|index| tokens[index].text)
-        .unwrap_or(";");
-    if literal.contains('?') {
-        return !matches!(
-            previous,
-            "(" | "[" | "{" | "," | ";" | ":" | "=" | "return" | "throw"
-        );
-    }
-    !matches!(
-        previous,
-        "(" | "["
-            | "{"
-            | ","
-            | ";"
-            | ":"
-            | "="
-            | "return"
-            | "throw"
-            | "void"
-            | "typeof"
-            | "delete"
-            | "await"
-            | "yield"
-            | "!"
-            | "~"
-    )
+    substituted_expression_needs_grouping(tokens, use_at, literal)
 }
 
 fn assignment_crosses_loop_boundary(
@@ -609,7 +1327,9 @@ fn fold_single_use_literals(
                 continue;
             };
             if uses.len() == 1
+                && identifier_is_expression_slot(&tokens, uses[0])
                 && !name_use_is_mutated(&tokens, uses[0])
+                && !identifier_occurs(&tokens, name_at + 2, literal_end + 1, name)
                 && !assignment_crosses_loop_boundary(
                     &tokens,
                     &matching_close,
@@ -625,6 +1345,9 @@ fn fold_single_use_literals(
                     tokens[name_at + 2].kind,
                     span_is_effectful(&tokens, name_at + 2, literal_end + 1),
                     use_is_guarded(&tokens, stop + 1, uses[0]),
+                    name_at + 2,
+                    literal_end,
+                    stop + 1,
                 )
             {
                 let use_at = uses[0];
@@ -707,7 +1430,9 @@ fn fold_single_use_literals(
             continue;
         };
         if uses.len() == 1
+            && identifier_is_expression_slot(&tokens, uses[0])
             && !name_use_is_mutated(&tokens, uses[0])
+            && !identifier_occurs(&tokens, cursor + 2, literal_end + 1, name)
             && !assignment_crosses_loop_boundary(
                 &tokens,
                 &matching_close,
@@ -723,6 +1448,9 @@ fn fold_single_use_literals(
                 tokens[cursor + 2].kind,
                 span_is_effectful(&tokens, cursor + 2, literal_end + 1),
                 use_is_guarded(&tokens, literal_end + 1, uses[0]),
+                cursor + 2,
+                literal_end,
+                literal_end + 1,
             )
         {
             let use_at = uses[0];
@@ -944,6 +1672,7 @@ fn is_simple_declarator_rhs(tokens: &[Token<'_>], call_at: usize) -> bool {
 
 pub(crate) fn fold_temp_index_keys(source: &str) -> Result<(String, usize), JavaScriptParseError> {
     let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
     let mut replacements = Vec::<(usize, usize, String)>::new();
     let mut cursor = 0usize;
     while cursor + 8 < tokens.len() {
@@ -960,10 +1689,16 @@ pub(crate) fn fold_temp_index_keys(source: &str) -> Result<(String, usize), Java
             cursor += 1;
             continue;
         }
-        let Some(semi) = top_level_stop(&tokens, name_at + 2, &[";"]) else {
+        // A top-level comma would make the span a following declarator (or a
+        // comma expression), so the key must run unbroken to the semicolon.
+        let Some(semi) = top_level_stop(&tokens, name_at + 2, &[";", ","]) else {
             cursor += 1;
             continue;
         };
+        if tokens[semi].text != ";" {
+            cursor += 1;
+            continue;
+        }
         let name = tokens[name_at].text;
         if tokens
             .get(semi + 1)
@@ -980,9 +1715,15 @@ pub(crate) fn fold_temp_index_keys(source: &str) -> Result<(String, usize), Java
             cursor += 1;
             continue;
         };
-        let scope_end =
-            enclosing_block_end(&matching_closers(&tokens), name_at).unwrap_or(tokens.len());
-        if identifier_occurs(&tokens, name_at + 2, semi, name)
+        // A `var` declarator (and a bare assignment to a pooled name) is
+        // function-scoped: the emitter reuses hoisted names far outside the
+        // enclosing block, so the no-other-use scan must cover the whole
+        // enclosing function span on both sides of the fold site.
+        let (scope_start, scope_end) = enclosing_function_span(&tokens, &matching_close, name_at)
+            .map(|(body, end)| (body + 1, end))
+            .unwrap_or((0, tokens.len()));
+        if identifier_occurs(&tokens, scope_start, cursor, name)
+            || identifier_occurs(&tokens, name_at + 2, semi, name)
             || identifier_occurs(&tokens, semi + 6, assign_end, name)
             || identifier_occurs(&tokens, assign_end + 1, scope_end, name)
         {
@@ -992,20 +1733,26 @@ pub(crate) fn fold_temp_index_keys(source: &str) -> Result<(String, usize), Java
         let key = &source[tokens[name_at + 2].start..tokens[semi].start];
         let object = tokens[semi + 1].text;
         let value = &source[tokens[semi + 6].start..tokens[assign_end].start];
-        let from = if name_at
+        // Dropping a trailing declarator consumes the declaration's own
+        // semicolon, so the replacement must re-terminate the declaration.
+        let (from, prefix) = if name_at
             .checked_sub(1)
             .is_some_and(|index| tokens[index].text == ",")
         {
-            tokens[name_at - 1].start
+            (tokens[name_at - 1].start, ";")
         } else {
-            tokens[cursor].start
+            (tokens[cursor].start, "")
         };
         let replace_end = if tokens[assign_end].text == "}" {
             tokens[assign_end].start
         } else {
             tokens[assign_end].end
         };
-        replacements.push((from, replace_end, format!("{object}[{key}]={value};")));
+        replacements.push((
+            from,
+            replace_end,
+            format!("{prefix}{object}[{key}]={value};"),
+        ));
         cursor = assign_end + 1;
     }
     let (output, count) = apply_token_rewrites(source, replacements);
@@ -1115,7 +1862,24 @@ pub(crate) fn fold_single_use_index_temps(
             cursor += 1;
             continue;
         }
+        // Reads are only replaceable inside the enclosing block (the temp may
+        // be assigned conditionally), but a use beyond the block still sees
+        // the assigned value — and when the binding is a `var` declarator it
+        // hoists function-wide, so even uses before it need the declaration.
         let scope_end = enclosing_block_end(&matching_close, cursor).unwrap_or(tokens.len());
+        let (function_start, function_end) =
+            enclosing_function_span(&tokens, &matching_close, cursor)
+                .map(|(body, end)| (body + 1, end))
+                .unwrap_or((0, tokens.len()));
+        let declared = cursor
+            .checked_sub(1)
+            .is_some_and(|index| matches!(tokens[index].text, "var" | "let" | "const"));
+        if (declared && identifier_occurs(&tokens, function_start, cursor, name))
+            || identifier_occurs(&tokens, scope_end, function_end, name)
+        {
+            cursor += 1;
+            continue;
+        }
         let mut reads = Vec::new();
         let mut scan = rhs_end + 1;
         if matches!(
@@ -1135,6 +1899,12 @@ pub(crate) fn fold_single_use_index_temps(
                 && tokens[scan].text == name
                 && !is_property_identifier(&tokens, scan)
             {
+                // An arrow parameter of the same name is a fresh binding, and
+                // later same-name tokens may read it rather than the temp.
+                if identifier_is_arrow_parameter(&tokens, scan) {
+                    safe = false;
+                    break;
+                }
                 if tokens.get(scan + 1).map(|token| token.text) == Some("=")
                     && tokens.get(scan + 2).map(|token| token.text) != Some("=")
                     || matches!(
@@ -1145,8 +1915,7 @@ pub(crate) fn fold_single_use_index_temps(
                         tokens.get(scan.wrapping_sub(1)).map(|token| token.text),
                         Some("++") | Some("--")
                     )
-                    || (tokens.get(scan.wrapping_sub(1)).map(|token| token.text)
-                        == Some("[")
+                    || (tokens.get(scan.wrapping_sub(1)).map(|token| token.text) == Some("[")
                         && tokens.get(scan + 1).map(|token| token.text) != Some("]"))
                 {
                     safe = false;
@@ -1186,7 +1955,29 @@ pub(crate) fn fold_single_use_index_temps(
             cursor += 1;
             continue;
         }
+        let chain_base = tokens[cursor + 2].text;
+        if reads.iter().any(|&read| {
+            source_object_invoked_between(&tokens, &matching_close, rhs_end + 1, read, chain_base)
+        }) {
+            cursor += 1;
+            continue;
+        }
         let (from, to) = assignment_span_to_remove(&tokens, cursor, rhs_end);
+        // A chain such as `k=e[0],h=k[3];h.add()` exposes two otherwise-valid
+        // candidates in the same token stream. Applying both groups at once
+        // makes `h`'s deletion overlap the substitution inside its initializer;
+        // the generic rewrite filter would retain the deletion but discard the
+        // substitution, leaving `k[3]` after `k` itself was removed. Keep every
+        // delete+substitute group atomic. The optimizer repeats this fold, so
+        // the remaining link is rematerialized safely in the following round.
+        if replacement_overlaps(&replacements, from, to)
+            || reads.iter().any(|read| {
+                replacement_overlaps(&replacements, tokens[*read].start, tokens[*read].end)
+            })
+        {
+            cursor += 1;
+            continue;
+        }
         replacements.push((from, to, String::new()));
         for &read in &reads {
             replacements.push((tokens[read].start, tokens[read].end, rhs.clone()));
@@ -1250,6 +2041,23 @@ pub(crate) fn fold_single_use_call_argument_members(
             continue;
         }
         let use_at = uses[0];
+        if source_receiver_overwritten_between(
+            &tokens,
+            &matching_close,
+            stop + 1,
+            use_at,
+            tokens[cursor + 3].text,
+            Some(tokens[cursor + 5].text),
+        ) || source_object_passed_as_argument_between(
+            &tokens,
+            &matching_close,
+            stop + 1,
+            use_at,
+            tokens[cursor + 3].text,
+        ) {
+            cursor += 1;
+            continue;
+        }
         let prev = use_at
             .checked_sub(1)
             .map(|index| tokens[index].text)
@@ -1356,12 +2164,22 @@ pub(crate) fn fold_outer_copy_property_assign(
             cursor += 1;
             continue;
         }
+        // A declaration head means this is the binding itself, not a
+        // reassignment of an outer name: rewriting would orphan the keyword
+        // (`let e=a;e.x=` must not become `let a.x=`).
+        if cursor
+            .checked_sub(1)
+            .is_some_and(|index| matches!(tokens[index].text, "var" | "let" | "const"))
+        {
+            cursor += 1;
+            continue;
+        }
         let name = tokens[cursor].text;
         let Some((body, end)) = enclosing_function_span(&tokens, &matching_close, cursor) else {
             cursor += 1;
             continue;
         };
-        if function_scope_declares(&tokens, &matching_open, body, end, name) {
+        if function_binds_name(&tokens, &matching_close, &matching_open, body, end, name) {
             cursor += 1;
             continue;
         }
@@ -1379,10 +2197,60 @@ fn name_use_is_invoke(tokens: &[Token<'_>], use_at: usize) -> bool {
     matches!(
         tokens.get(use_at + 1).map(|token| token.text),
         Some("(") | Some(".") | Some("[")
-    ) || tokens
-        .get(use_at.wrapping_sub(1))
-        .map(|token| token.text)
-        == Some("new")
+    ) || tokens.get(use_at.wrapping_sub(1)).map(|token| token.text) == Some("new")
+}
+
+fn function_literal_move_changes_capture(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    matching_open: &[Option<usize>],
+    literal_start: usize,
+    function: FunctionExpression,
+    scope_start: usize,
+    use_at: usize,
+) -> bool {
+    let own_name = function
+        .named
+        .then(|| tokens.get(literal_start + 1))
+        .flatten()
+        .filter(|token| token.kind == TokenKind::Identifier)
+        .map(|token| token.text);
+    for at in literal_start..=function.end {
+        if tokens[at].kind != TokenKind::Identifier || is_property_identifier(tokens, at) {
+            continue;
+        }
+        let name = tokens[at].text;
+        if own_name == Some(name) {
+            continue;
+        }
+        let bound_by_literal = if let Some(body) = function.block_open {
+            function_binds_name(
+                tokens,
+                matching_close,
+                matching_open,
+                body,
+                function.end,
+                name,
+            )
+        } else {
+            tokens[function.params_from..function.params_to]
+                .iter()
+                .any(|parameter| parameter.kind == TokenKind::Identifier && parameter.text == name)
+        };
+        if bound_by_literal {
+            continue;
+        }
+        if name_is_bound_in_nested_function_between(
+            tokens,
+            matching_close,
+            scope_start,
+            use_at,
+            name,
+        ) {
+            return true;
+        }
+    }
+    false
 }
 
 pub(crate) fn fold_single_use_function_values(
@@ -1390,6 +2258,12 @@ pub(crate) fn fold_single_use_function_values(
 ) -> Result<(String, usize), JavaScriptParseError> {
     let tokens = lex(source)?;
     let matching_close = matching_closers(&tokens);
+    let mut matching_open = vec![None; tokens.len()];
+    for (open, close) in matching_close.iter().enumerate() {
+        if let Some(close) = *close {
+            matching_open[close] = Some(open);
+        }
+    }
     let mut replacements = Vec::<(usize, usize, String)>::new();
     let mut cursor = 0usize;
     while cursor < tokens.len() {
@@ -1406,8 +2280,7 @@ pub(crate) fn fold_single_use_function_values(
             {
                 break;
             }
-            let Some(function) =
-                parse_function_expression(&tokens, &matching_close, name_at + 2)
+            let Some(function) = parse_function_expression(&tokens, &matching_close, name_at + 2)
             else {
                 let Some(stop) = top_level_stop(&tokens, name_at, &[",", ";"]) else {
                     break;
@@ -1459,15 +2332,16 @@ pub(crate) fn fold_single_use_function_values(
                 name_at = stop + 1;
                 continue;
             };
-            if uses.len() == 1 && !name_use_is_mutated(&tokens, uses[0]) {
+            if uses.len() == 1
+                && identifier_is_expression_slot(&tokens, uses[0])
+                && !name_use_is_mutated(&tokens, uses[0])
+            {
                 let use_at = uses[0];
                 let called = tokens.get(use_at + 1).map(|token| token.text) == Some("(");
                 let member_or_new = matches!(
                     tokens.get(use_at + 1).map(|token| token.text),
                     Some(".") | Some("[")
-                ) || tokens
-                    .get(use_at.wrapping_sub(1))
-                    .map(|token| token.text)
+                ) || tokens.get(use_at.wrapping_sub(1)).map(|token| token.text)
                     == Some("new");
                 let expression_arrow = function.is_arrow && function.block_open.is_none();
                 // A single called use keeps identical semantics as an IIFE
@@ -1476,17 +2350,30 @@ pub(crate) fn fold_single_use_function_values(
                 let procedure_iife = called && function.block_open.is_some();
                 let nested =
                     use_is_in_nested_function(&tokens, &matching_close, scope_start, use_at);
+                let capture_changes = nested
+                    && function_literal_move_changes_capture(
+                        &tokens,
+                        &matching_close,
+                        &matching_open,
+                        name_at + 2,
+                        function,
+                        scope_start,
+                        use_at,
+                    );
                 let allow = if member_or_new {
                     false
                 } else if called {
-                    expression_arrow || procedure_iife
+                    (expression_arrow || procedure_iife) && !capture_changes
                 } else {
                     !nested
                 };
                 if allow {
                     let (from, to) = assignment_span_to_remove(&tokens, name_at, function.end);
-                    if !replacement_overlaps(&replacements, tokens[use_at].start, tokens[use_at].end)
-                        && !replacement_overlaps(&replacements, from, to)
+                    if !replacement_overlaps(
+                        &replacements,
+                        tokens[use_at].start,
+                        tokens[use_at].end,
+                    ) && !replacement_overlaps(&replacements, from, to)
                     {
                         let literal = &source[tokens[name_at + 2].start..tokens[function.end].end];
                         let rendered = if expression_arrow
@@ -1593,7 +2480,11 @@ pub(crate) fn fold_typeof_identifier_caches(
             scope_end,
             name_at,
         );
-        if nested_use || uses.is_empty() || uses.iter().any(|&use_at| name_use_is_mutated(&tokens, use_at))
+        if nested_use
+            || uses.is_empty()
+            || uses
+                .iter()
+                .any(|&use_at| name_use_is_mutated(&tokens, use_at))
         {
             cursor += 1;
             continue;
@@ -1738,6 +2629,11 @@ pub(crate) fn fold_copied_object_index_writes(
             continue;
         }
         let name = tokens[scan].text;
+        let base = tokens[cursor].text;
+        let property = tokens[cursor + 2].text;
+        let assigning = |text: &str| {
+            text.ends_with('=') && !matches!(text, "==" | "===" | "!=" | "!==" | "<=" | ">=" | "=>")
+        };
         let scope_end = enclosing_block_end(&matching_close, cursor).unwrap_or(tokens.len());
         let mut index = scan + 2;
         while index + 1 < scope_end {
@@ -1747,9 +2643,32 @@ pub(crate) fn fold_copied_object_index_writes(
             }
             if tokens[index].kind == TokenKind::Identifier
                 && tokens[index].text == name
-                && tokens.get(index + 1).map(|token| token.text) == Some("=")
+                && tokens
+                    .get(index + 1)
+                    .map(|token| token.text)
+                    .is_some_and(assigning)
             {
                 break;
+            }
+            // Rebinding the alias base (or rewriting the aliased property)
+            // detaches `base.property` from the copied object: later reads
+            // must keep using the original name.
+            if tokens[index].kind == TokenKind::Identifier
+                && tokens[index].text == base
+                && !is_property_identifier(&tokens, index)
+            {
+                let next = tokens.get(index + 1).map(|token| token.text);
+                if next.is_some_and(assigning)
+                    || matches!(next, Some("++") | Some("--") | Some("["))
+                    || (next == Some(".")
+                        && tokens.get(index + 2).map(|token| token.text) == Some(property)
+                        && tokens
+                            .get(index + 3)
+                            .map(|token| token.text)
+                            .is_some_and(assigning))
+                {
+                    break;
+                }
             }
             if tokens[index].kind == TokenKind::Identifier
                 && tokens[index].text == name
@@ -1841,9 +2760,21 @@ pub(crate) fn fold_single_use_object_values(
                 name_at = stop + 1;
                 continue;
             };
+            // The use scan is bounded by the enclosing block, but a `var`
+            // binding hoists function-wide: occurrences outside the block
+            // still need the declaration, so they forbid deleting it.
+            let (function_start, function_end) =
+                enclosing_function_span(&tokens, &matching_close, name_at)
+                    .map(|(body, end)| (body + 1, end))
+                    .unwrap_or((0, tokens.len()));
             if uses.len() == 1
+                && identifier_is_expression_slot(&tokens, uses[0])
                 && !name_use_is_mutated(&tokens, uses[0])
                 && !name_use_is_invoke(&tokens, uses[0])
+                && !identifier_occurs(&tokens, function_start, scope_start, name)
+                && !identifier_occurs(&tokens, scope_end, function_end, name)
+                && !(span_has_eager_member_read(&tokens, &matching_close, name_at + 2, object_end)
+                    && span_contains_call(&tokens, &matching_close, object_end + 1, uses[0]))
             {
                 let use_at = uses[0];
                 let (from, to) = assignment_span_to_remove(&tokens, name_at, object_end);
@@ -1851,7 +2782,11 @@ pub(crate) fn fold_single_use_object_values(
                     && !replacement_overlaps(&replacements, from, to)
                 {
                     let literal = &source[tokens[name_at + 2].start..tokens[object_end].end];
-                    replacements.push((tokens[use_at].start, tokens[use_at].end, literal.to_string()));
+                    replacements.push((
+                        tokens[use_at].start,
+                        tokens[use_at].end,
+                        literal.to_string(),
+                    ));
                     replacements.push((from, to, String::new()));
                 }
             }
@@ -1861,6 +2796,150 @@ pub(crate) fn fold_single_use_object_values(
             name_at = stop + 1;
         }
         cursor += 1;
+    }
+    Ok(apply_token_rewrites(source, replacements))
+}
+
+fn member_index_end(tokens: &[Token<'_>], open: usize) -> Option<usize> {
+    if tokens.get(open).map(|token| token.text) != Some("[") {
+        return None;
+    }
+    let mut depth = 1i32;
+    let mut index = open + 1;
+    while index < tokens.len() {
+        match tokens[index].text {
+            "[" => depth += 1,
+            "]" => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(index);
+                }
+            }
+            _ => {}
+        }
+        index += 1;
+    }
+    None
+}
+
+fn copied_method_parts(tokens: &[Token<'_>], at: usize) -> Option<(usize, usize)> {
+    if !tokens
+        .get(at)
+        .is_some_and(|token| token.kind == TokenKind::Identifier || token.text == "this")
+    {
+        return None;
+    }
+    let mut recv_end = at;
+    let mut index = at + 1;
+    loop {
+        if tokens.get(index).map(|token| token.text) == Some(".")
+            && tokens
+                .get(index + 1)
+                .is_some_and(|token| matches!(token.kind, TokenKind::Identifier | TokenKind::Keyword))
+        {
+            let method_at = index + 1;
+            let after = method_at + 1;
+            if matches!(tokens.get(after).map(|token| token.text), Some("," | ";")) {
+                return Some((recv_end, method_at));
+            }
+            recv_end = method_at;
+            index = after;
+            continue;
+        }
+        if tokens.get(index).map(|token| token.text) == Some("[") {
+            let close = member_index_end(tokens, index)?;
+            recv_end = close;
+            index = close + 1;
+            continue;
+        }
+        return None;
+    }
+}
+
+pub(crate) fn fold_copied_method_call(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut cursor = 0usize;
+    while cursor + 8 < tokens.len() {
+        let name_at = if matches!(tokens[cursor].text, "var" | "let" | "const") {
+            cursor + 1
+        } else {
+            cursor
+        };
+        if tokens
+            .get(name_at)
+            .is_none_or(|token| token.kind != TokenKind::Identifier)
+            || is_property_identifier(&tokens, name_at)
+            || tokens.get(name_at + 1).map(|token| token.text) != Some("=")
+        {
+            cursor += 1;
+            continue;
+        }
+        let Some((recv_end, method_at)) = copied_method_parts(&tokens, name_at + 2) else {
+            cursor += 1;
+            continue;
+        };
+        let name = tokens[name_at].text;
+        let recv = &source[tokens[name_at + 2].start..tokens[recv_end].end];
+        let method = tokens[method_at].text;
+        let mut call_at = method_at + 2;
+        let saw_return = tokens.get(call_at).map(|token| token.text) == Some("return");
+        if saw_return {
+            call_at += 1;
+        }
+        let assign_result = tokens.get(call_at).map(|token| token.text) == Some(name)
+            && tokens.get(call_at + 1).map(|token| token.text) == Some("=");
+        if assign_result {
+            call_at += 2;
+        }
+        if tokens.get(call_at).map(|token| token.text) != Some(name)
+            || tokens.get(call_at + 1).map(|token| token.text) != Some(".")
+            || tokens.get(call_at + 2).map(|token| token.text) != Some("call")
+            || tokens.get(call_at + 3).map(|token| token.text) != Some("(")
+        {
+            cursor += 1;
+            continue;
+        }
+        let Some(close) = matching_close.get(call_at + 3).copied().flatten() else {
+            cursor += 1;
+            continue;
+        };
+        let recv_end_in_call = call_at + 4 + (recv_end - name_at - 2);
+        if recv_end_in_call >= close
+            || source[tokens[call_at + 4].start..tokens[recv_end_in_call].end] != *recv
+        {
+            cursor += 1;
+            continue;
+        }
+        let after_recv = recv_end_in_call + 1;
+        if tokens.get(after_recv).map(|token| token.text) != Some(",") && after_recv != close {
+            cursor += 1;
+            continue;
+        }
+        if identifier_occurs(&tokens, method_at + 2, call_at, name)
+            || identifier_occurs(&tokens, call_at + 4, close, name)
+        {
+            cursor += 1;
+            continue;
+        }
+        let args = if after_recv == close {
+            String::new()
+        } else {
+            source[tokens[after_recv + 1].start..tokens[close].start].to_string()
+        };
+        let call = format!("{recv}.{method}({args})");
+        let replacement = if assign_result {
+            format!("{name}={call}")
+        } else if saw_return {
+            format!("return {call}")
+        } else {
+            call
+        };
+        replacements.push((tokens[cursor].start, tokens[close].end, replacement));
+        cursor = close + 1;
     }
     Ok(apply_token_rewrites(source, replacements))
 }

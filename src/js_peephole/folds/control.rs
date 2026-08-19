@@ -1,11 +1,13 @@
 use crate::js_peephole::rewrite::{
     apply_token_rewrites, conditional_test_needs_grouping, expression_has_top_level_token,
-    identifier_occurs, non_overlapping_ranges, single_console_log_argument, top_level_stop,
+    identifier_occurs, is_property_identifier, non_overlapping_ranges, single_console_log_argument,
+    top_level_stop, wrap_substituted_expression,
 };
 use crate::js_peephole::scope::{
-    collect_same_scope_name_uses, enclosing_function_span, name_use_is_mutated,
+    collect_same_scope_name_uses, enclosing_block_start, enclosing_function_span,
+    name_use_is_mutated,
 };
-use crate::js_peephole::token::{lex, matching_closers, Token, TokenKind};
+use crate::js_peephole::token::{lex, matching_closers, matching_openers, Token, TokenKind};
 use crate::js_peephole::JavaScriptParseError;
 
 fn is_console_log_open(tokens: &[Token<'_>], index: usize) -> bool {
@@ -666,6 +668,722 @@ fn spans_line_terminator(source: &str) -> bool {
     source.contains(['\n', '\r', '\u{2028}', '\u{2029}'])
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum EarlyExitKind {
+    Return,
+    Continue,
+}
+
+/// Invert a function- or loop-body guard whose only arm exits that body, then
+/// place the remaining suffix under the inverted condition.
+///
+/// `if(C)return;S` becomes `if(!C){S}` at function-body level, and
+/// `if(C)continue;S` receives the same spelling at loop-body level. The
+/// original completion skips exactly `S`; the replacement executes exactly
+/// `S` when the guard is false. This is the broad structural family behind a
+/// large part of Terser's `if_return` win on generated jQuery.
+///
+/// Moving a lexical declaration into the new block can change its TDZ and
+/// visibility before the guard. Generated `var` declarations are unaffected,
+/// but `let`, `const`, class, and function declarations make the proposal
+/// ineligible. Non-body-level guards and labelled exits are likewise refused.
+pub(crate) fn fold_early_exit_guards(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    let mut output = source.to_string();
+    let mut folded = 0usize;
+    loop {
+        let tokens = lex(&output)?;
+        let matching_close = matching_closers(&tokens);
+        let matching_open = matching_openers(&matching_close);
+        let mut replacements = Vec::<(usize, usize, String)>::new();
+
+        for guard in 0..tokens.len() {
+            if tokens[guard].text != "if"
+                || tokens.get(guard + 1).map(|token| token.text) != Some("(")
+                || guard
+                    .checked_sub(1)
+                    .is_some_and(|previous| !matches!(tokens[previous].text, "{" | "}" | ";"))
+            {
+                continue;
+            }
+            let condition_open = guard + 1;
+            let Some(condition_close) = matching_close[condition_open] else {
+                continue;
+            };
+            let Some(container_open) = enclosing_block_start(&matching_close, guard) else {
+                continue;
+            };
+            let Some(container_close) = matching_close[container_open] else {
+                continue;
+            };
+
+            let arm_start = condition_close + 1;
+            let (exit, after_guard) = if tokens.get(arm_start).map(|token| token.text) == Some("{")
+            {
+                let Some(arm_close) = matching_close[arm_start] else {
+                    continue;
+                };
+                let Some(exit) = bare_early_exit(&tokens, arm_start + 1, Some(arm_close)) else {
+                    continue;
+                };
+                (exit, arm_close + 1)
+            } else {
+                let Some(exit) = bare_early_exit(&tokens, arm_start, None) else {
+                    continue;
+                };
+                (exit, arm_start + 2)
+            };
+            if tokens.get(after_guard).map(|token| token.text) == Some("else")
+                || after_guard >= container_close
+            {
+                continue;
+            }
+
+            let function_body = enclosing_function_span(&tokens, &matching_close, guard);
+            let valid_container = match exit {
+                EarlyExitKind::Return => function_body.is_some_and(|(body, close)| {
+                    body == container_open && close == container_close
+                }),
+                EarlyExitKind::Continue => {
+                    block_is_loop_body(&tokens, &matching_open, container_open)
+                }
+            };
+            if !valid_container
+                || suffix_has_scope_changing_declaration(&tokens, after_guard, container_close)
+            {
+                continue;
+            }
+
+            let condition = negate_early_exit_condition(
+                &output,
+                &tokens,
+                &matching_close,
+                condition_open + 1,
+                condition_close,
+            );
+            let suffix = &output[tokens[after_guard].start..tokens[container_close].start];
+            replacements.push((
+                tokens[guard].start,
+                tokens[container_close].start,
+                format!("if({condition}){{{suffix}}}"),
+            ));
+        }
+
+        if replacements.is_empty() {
+            return Ok((output, folded));
+        }
+        // Guards in one body all extend to the same closing brace. Rewrite
+        // the rightmost one first; the next round can then invert its parent
+        // without overlapping byte ranges or changing enumeration order.
+        replacements.sort_unstable_by_key(|(start, end, _)| (*start, *end));
+        let mut retained = Vec::<(usize, usize, String)>::new();
+        for replacement in replacements.into_iter().rev() {
+            if retained
+                .last()
+                .is_none_or(|(start, _, _)| replacement.1 <= *start)
+            {
+                retained.push(replacement);
+            }
+        }
+        folded += retained.len();
+        for (start, end, replacement) in retained {
+            output.replace_range(start..end, &replacement);
+        }
+    }
+}
+
+/// Turn a loop-body guard whose braced arm finishes with `continue` into an
+/// `if`/`else` that reaches the loop backedge by ordinary fallthrough.
+///
+/// `if(C){E;continue}S` becomes `if(C){E}else{S}`. On the true path `E`
+/// completes at the end of the loop body instead of executing an explicit
+/// continue; on the false path the old suffix remains the only work. This is
+/// three raw bytes smaller per guard and repeated scanner-style guard ladders
+/// become nested `else` chains one level per round.
+///
+/// Only direct statements of a braced loop body are eligible. Moving a
+/// top-level lexical declaration from the loop body into the new `else` block
+/// could change TDZ or visibility, so the same conservative declaration gate
+/// used by bare early-exit inversion applies to the suffix.
+pub(crate) fn fold_continue_tail_guards(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    fold_continue_tail_guards_with_orientation(source, false)
+}
+
+/// The same loop-tail proof as [`fold_continue_tail_guards`], with the
+/// continuation suffix in the first arm: `if(!C){S}else{E}`. It is often
+/// raw-larger when `C` needs grouping, but scanner ladders and transfer-codec
+/// dictionaries can strongly prefer this orientation, so it remains an
+/// independent whole-artifact proposal.
+pub(crate) fn fold_inverted_continue_tail_guards(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    fold_continue_tail_guards_with_orientation(source, true)
+}
+
+fn fold_continue_tail_guards_with_orientation(
+    source: &str,
+    inverted: bool,
+) -> Result<(String, usize), JavaScriptParseError> {
+    let mut output = source.to_string();
+    let mut folded = 0usize;
+    loop {
+        let tokens = lex(&output)?;
+        let matching_close = matching_closers(&tokens);
+        let matching_open = matching_openers(&matching_close);
+        let mut replacements = Vec::<(usize, usize, String)>::new();
+
+        for guard in 0..tokens.len() {
+            if tokens[guard].text != "if"
+                || tokens.get(guard + 1).map(|token| token.text) != Some("(")
+                || guard
+                    .checked_sub(1)
+                    .is_some_and(|previous| !matches!(tokens[previous].text, "{" | "}" | ";"))
+            {
+                continue;
+            }
+            let condition_open = guard + 1;
+            let Some(condition_close) = matching_close[condition_open] else {
+                continue;
+            };
+            let arm_open = condition_close + 1;
+            if tokens.get(arm_open).map(|token| token.text) != Some("{") {
+                continue;
+            }
+            let Some(arm_close) = matching_close[arm_open] else {
+                continue;
+            };
+            let Some(last_in_arm) = arm_close.checked_sub(1) else {
+                continue;
+            };
+            let continue_index = if tokens[last_in_arm].text == "continue" {
+                last_in_arm
+            } else if tokens[last_in_arm].text == ";"
+                && last_in_arm
+                    .checked_sub(1)
+                    .is_some_and(|previous| tokens[previous].text == "continue")
+            {
+                last_in_arm - 1
+            } else {
+                continue;
+            };
+            // The final token can still be controlled by an unbraced nested
+            // statement (`if(B)continue`). Removing that token would erase
+            // the nested condition, not merely replace the arm's terminal
+            // backedge. A direct statement starts at the arm boundary or
+            // after another complete statement/block.
+            if continue_index.checked_sub(1).is_some_and(|previous| {
+                previous != arm_open && !matches!(tokens[previous].text, ";" | "}")
+            }) {
+                continue;
+            }
+            if continue_index <= arm_open + 1
+                || tokens.get(arm_close + 1).map(|token| token.text) == Some("else")
+            {
+                continue;
+            }
+
+            let Some(container_open) = enclosing_block_start(&matching_close, guard) else {
+                continue;
+            };
+            let Some(container_close) = matching_close[container_open] else {
+                continue;
+            };
+            let after_guard = arm_close + 1;
+            if after_guard >= container_close
+                || !block_is_loop_body(&tokens, &matching_open, container_open)
+                || suffix_has_scope_changing_declaration(&tokens, after_guard, container_close)
+            {
+                continue;
+            }
+
+            let condition = if inverted {
+                negate_early_exit_condition(
+                    &output,
+                    &tokens,
+                    &matching_close,
+                    condition_open + 1,
+                    condition_close,
+                )
+            } else {
+                output[tokens[condition_open].end..tokens[condition_close].start].to_string()
+            };
+            let prefix = &output[tokens[arm_open].end..tokens[continue_index].start];
+            let suffix = &output[tokens[after_guard].start..tokens[container_close].start];
+            let replacement = if inverted {
+                format!("if({condition}){{{suffix}}}else{{{prefix}}}")
+            } else {
+                format!("if({condition}){{{prefix}}}else{{{suffix}}}")
+            };
+            if inverted || replacement.len() < tokens[container_close].start - tokens[guard].start {
+                replacements.push((
+                    tokens[guard].start,
+                    tokens[container_close].start,
+                    replacement,
+                ));
+            }
+        }
+
+        if replacements.is_empty() {
+            return Ok((output, folded));
+        }
+        // Every candidate in one loop extends through the same body suffix.
+        // Rewrite the rightmost guard first, then let the next round wrap the
+        // resulting `if`/`else` as the suffix of the preceding guard.
+        replacements.sort_unstable_by_key(|(start, end, _)| (*start, *end));
+        let mut retained = Vec::<(usize, usize, String)>::new();
+        for replacement in replacements.into_iter().rev() {
+            if retained
+                .last()
+                .is_none_or(|(start, _, _)| replacement.1 <= *start)
+            {
+                retained.push(replacement);
+            }
+        }
+        folded += retained.len();
+        for (start, end, replacement) in retained {
+            output.replace_range(start..end, &replacement);
+        }
+    }
+}
+
+/// Elide braces around one statement used as an `if`, `else`, or loop body.
+///
+/// Expression-like statements and `var`/exit statements are direct leaves;
+/// nested control statements are followed recursively so an outer wrapper can
+/// disappear too. Lexical declarations stay braced, and an `if` consequence
+/// stays braced whenever its nested statement could capture the outer
+/// `else`. A missing trailing semicolon is restored when the closing brace was
+/// its ASI boundary.
+pub(crate) fn fold_single_statement_control_braces(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    let mut output = source.to_string();
+    let mut folded = 0usize;
+    loop {
+        let tokens = lex(&output)?;
+        let matching_close = matching_closers(&tokens);
+        let matching_open = matching_openers(&matching_close);
+        let mut replacements = Vec::<(usize, usize, String)>::new();
+
+        for block_open in 0..tokens.len() {
+            if tokens[block_open].text != "{"
+                || !is_simple_control_body_block(&tokens, &matching_open, block_open)
+            {
+                continue;
+            }
+            let Some(block_close) = matching_close[block_open] else {
+                continue;
+            };
+            let statement_start = block_open + 1;
+            let Some(can_absorb_else) = block_single_statement_can_absorb_else(
+                &output,
+                &tokens,
+                &matching_close,
+                statement_start,
+                block_close,
+            ) else {
+                continue;
+            };
+            if can_absorb_else
+                && control_body_block_has_following_else(
+                    &tokens,
+                    &matching_open,
+                    block_open,
+                    block_close,
+                )
+            {
+                continue;
+            }
+
+            let mut replacement = output[tokens[block_open].end..tokens[block_close].start]
+                .trim()
+                .to_string();
+            if block_open
+                .checked_sub(1)
+                .is_some_and(|previous| matches!(tokens[previous].text, "else" | "do"))
+            {
+                replacement.insert(0, ' ');
+            }
+            let has_terminator = tokens
+                .get(block_close.wrapping_sub(1))
+                .map(|token| token.text)
+                == Some(";");
+            let statement_ends_without_semicolon = tokens
+                .get(block_close.wrapping_sub(1))
+                .is_some_and(|token| token.text == "}")
+                || (tokens[statement_start].text == "do"
+                    && tokens
+                        .get(block_close.wrapping_sub(1))
+                        .is_some_and(|token| token.text == ")"));
+            let next_terminates_by_grammar = tokens
+                .get(block_close + 1)
+                .is_none_or(|token| matches!(token.text, "}" | ";"));
+            if !has_terminator && !statement_ends_without_semicolon && !next_terminates_by_grammar {
+                replacement.push(';');
+            }
+            let start = tokens[block_open].start;
+            let end = tokens[block_close].end;
+            if replacement.len() < end - start {
+                replacements.push((start, end, replacement));
+            }
+        }
+
+        if replacements.is_empty() {
+            return Ok((output, folded));
+        }
+        let retained = non_overlapping_ranges(replacements);
+        folded += retained.len();
+        for (start, end, replacement) in retained.into_iter().rev() {
+            output.replace_range(start..end, &replacement);
+        }
+    }
+}
+
+fn is_simple_control_body_block(
+    tokens: &[Token<'_>],
+    matching_open: &[Option<usize>],
+    block_open: usize,
+) -> bool {
+    let Some(previous) = block_open.checked_sub(1) else {
+        return false;
+    };
+    if matches!(tokens[previous].text, "else" | "do") {
+        return true;
+    }
+    if tokens[previous].text != ")" {
+        return false;
+    }
+    let Some(header_open) = matching_open[previous] else {
+        return false;
+    };
+    header_open
+        .checked_sub(1)
+        .is_some_and(|keyword| matches!(tokens[keyword].text, "if" | "for" | "while"))
+}
+
+fn block_single_statement_can_absorb_else(
+    source: &str,
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    start: usize,
+    end: usize,
+) -> Option<bool> {
+    if start >= end || spans_line_terminator(&source[tokens[start].start..tokens[end].start]) {
+        return None;
+    }
+    let statement = statement_extent(tokens, matching_close, start, end)?;
+    (statement.end == end).then_some(statement.can_absorb_else_after_elision)
+}
+
+#[derive(Clone, Copy)]
+struct StatementExtent {
+    end: usize,
+    can_absorb_else: bool,
+    can_absorb_else_after_elision: bool,
+}
+
+fn statement_extent(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    start: usize,
+    limit: usize,
+) -> Option<StatementExtent> {
+    if start >= limit {
+        return None;
+    }
+    match tokens[start].text {
+        "{" => {
+            let close = matching_close[start]?;
+            if close >= limit {
+                return None;
+            }
+            let can_absorb_else_after_elision =
+                statement_extent(tokens, matching_close, start + 1, close).is_some_and(
+                    |statement| statement.end == close && statement.can_absorb_else_after_elision,
+                );
+            Some(StatementExtent {
+                end: close + 1,
+                can_absorb_else: false,
+                can_absorb_else_after_elision,
+            })
+        }
+        "if" => {
+            let condition_open = start + 1;
+            if tokens.get(condition_open).map(|token| token.text) != Some("(") {
+                return None;
+            }
+            let condition_close = matching_close[condition_open]?;
+            let consequent = statement_extent(tokens, matching_close, condition_close + 1, limit)?;
+            if tokens.get(consequent.end).map(|token| token.text) != Some("else") {
+                return Some(StatementExtent {
+                    end: consequent.end,
+                    can_absorb_else: true,
+                    can_absorb_else_after_elision: true,
+                });
+            }
+            let alternative = statement_extent(tokens, matching_close, consequent.end + 1, limit)?;
+            Some(StatementExtent {
+                end: alternative.end,
+                can_absorb_else: alternative.can_absorb_else,
+                can_absorb_else_after_elision: alternative.can_absorb_else_after_elision,
+            })
+        }
+        "for" | "while" | "with" => {
+            let mut header_open = start + 1;
+            if tokens[start].text == "for"
+                && tokens.get(header_open).map(|token| token.text) == Some("await")
+            {
+                header_open += 1;
+            }
+            if tokens.get(header_open).map(|token| token.text) != Some("(") {
+                return None;
+            }
+            let header_close = matching_close[header_open]?;
+            statement_extent(tokens, matching_close, header_close + 1, limit)
+        }
+        "do" => {
+            let body = statement_extent(tokens, matching_close, start + 1, limit)?;
+            if tokens.get(body.end).map(|token| token.text) != Some("while")
+                || tokens.get(body.end + 1).map(|token| token.text) != Some("(")
+            {
+                return None;
+            }
+            let condition_close = matching_close[body.end + 1]?;
+            let end = condition_close
+                + 1
+                + usize::from(tokens.get(condition_close + 1).map(|token| token.text) == Some(";"));
+            (end <= limit).then_some(StatementExtent {
+                end,
+                can_absorb_else: false,
+                can_absorb_else_after_elision: false,
+            })
+        }
+        "switch" => {
+            if tokens.get(start + 1).map(|token| token.text) != Some("(") {
+                return None;
+            }
+            let condition_close = matching_close[start + 1]?;
+            let body_open = condition_close + 1;
+            if tokens.get(body_open).map(|token| token.text) != Some("{") {
+                return None;
+            }
+            let body_close = matching_close[body_open]?;
+            (body_close < limit).then_some(StatementExtent {
+                end: body_close + 1,
+                can_absorb_else: false,
+                can_absorb_else_after_elision: false,
+            })
+        }
+        "try" => try_statement_extent(tokens, matching_close, start, limit),
+        "let" | "const" | "class" | "function" | "async" | "import" | "export" => None,
+        _ => simple_statement_extent(tokens, matching_close, start, limit),
+    }
+}
+
+fn try_statement_extent(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    start: usize,
+    limit: usize,
+) -> Option<StatementExtent> {
+    let body_open = start + 1;
+    if tokens.get(body_open).map(|token| token.text) != Some("{") {
+        return None;
+    }
+    let mut cursor = matching_close[body_open]? + 1;
+    let mut handled = false;
+    if tokens.get(cursor).map(|token| token.text) == Some("catch") {
+        handled = true;
+        cursor += 1;
+        if tokens.get(cursor).map(|token| token.text) == Some("(") {
+            cursor = matching_close[cursor]? + 1;
+        }
+        if tokens.get(cursor).map(|token| token.text) != Some("{") {
+            return None;
+        }
+        cursor = matching_close[cursor]? + 1;
+    }
+    if tokens.get(cursor).map(|token| token.text) == Some("finally") {
+        handled = true;
+        cursor += 1;
+        if tokens.get(cursor).map(|token| token.text) != Some("{") {
+            return None;
+        }
+        cursor = matching_close[cursor]? + 1;
+    }
+    (handled && cursor <= limit).then_some(StatementExtent {
+        end: cursor,
+        can_absorb_else: false,
+        can_absorb_else_after_elision: false,
+    })
+}
+
+fn simple_statement_extent(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    start: usize,
+    limit: usize,
+) -> Option<StatementExtent> {
+    let mut index = start;
+    while index < limit {
+        match tokens[index].text {
+            "(" | "[" | "{" => {
+                let close = matching_close[index]?;
+                if close >= limit {
+                    return None;
+                }
+                index = close + 1;
+            }
+            ";" => {
+                return Some(StatementExtent {
+                    end: index + 1,
+                    can_absorb_else: false,
+                    can_absorb_else_after_elision: false,
+                });
+            }
+            _ => index += 1,
+        }
+    }
+    Some(StatementExtent {
+        end: limit,
+        can_absorb_else: false,
+        can_absorb_else_after_elision: false,
+    })
+}
+
+fn control_body_block_has_following_else(
+    tokens: &[Token<'_>],
+    matching_open: &[Option<usize>],
+    block_open: usize,
+    block_close: usize,
+) -> bool {
+    if tokens.get(block_close + 1).map(|token| token.text) != Some("else") {
+        return false;
+    }
+    let Some(header_close) = block_open.checked_sub(1) else {
+        return false;
+    };
+    if tokens.get(header_close).map(|token| token.text) != Some(")") {
+        return false;
+    }
+    let Some(header_open) = matching_open[header_close] else {
+        return false;
+    };
+    header_open
+        .checked_sub(1)
+        .is_some_and(|keyword| tokens[keyword].text == "if")
+}
+
+fn bare_early_exit(
+    tokens: &[Token<'_>],
+    start: usize,
+    exact_end: Option<usize>,
+) -> Option<EarlyExitKind> {
+    let exit = match tokens.get(start)?.text {
+        "return" => EarlyExitKind::Return,
+        "continue" => EarlyExitKind::Continue,
+        _ => return None,
+    };
+    // Requiring the explicit terminator excludes return values, continue
+    // labels, ASI sensitivity, and every multi-statement braced arm.
+    (tokens.get(start + 1)?.text == ";" && exact_end.is_none_or(|exact_end| start + 2 == exact_end))
+        .then_some(exit)
+}
+
+fn block_is_loop_body(
+    tokens: &[Token<'_>],
+    matching_open: &[Option<usize>],
+    block_open: usize,
+) -> bool {
+    let Some(previous) = block_open.checked_sub(1) else {
+        return false;
+    };
+    if tokens[previous].text == "do" {
+        return true;
+    }
+    if tokens[previous].text != ")" {
+        return false;
+    }
+    let Some(header_open) = matching_open[previous] else {
+        return false;
+    };
+    header_open
+        .checked_sub(1)
+        .is_some_and(|keyword| matches!(tokens[keyword].text, "for" | "while"))
+}
+
+fn suffix_has_scope_changing_declaration(tokens: &[Token<'_>], start: usize, end: usize) -> bool {
+    let mut brace_depth = 0i32;
+    for token in &tokens[start..end] {
+        match token.text {
+            "{" => brace_depth += 1,
+            "}" => brace_depth -= 1,
+            "let" | "const" | "class" | "function" if brace_depth == 0 => return true,
+            _ => {}
+        }
+    }
+    false
+}
+
+fn negate_early_exit_condition(
+    source: &str,
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    start: usize,
+    end: usize,
+) -> String {
+    let raw = &source[tokens[start].start..tokens[end].start];
+    let leading_not_covers_condition = tokens.get(start).map(|token| token.text) == Some("!")
+        && (end == start + 2
+            || (tokens.get(start + 1).map(|token| token.text) == Some("(")
+                && matching_close.get(start + 1).copied().flatten() == end.checked_sub(1)));
+    if leading_not_covers_condition {
+        return source[tokens[start].end..tokens[end].start].to_string();
+    }
+
+    let mut depth = 0i32;
+    let mut equality = None;
+    let mut ambiguous = false;
+    for index in start..end {
+        match tokens[index].text {
+            "(" | "[" | "{" => depth += 1,
+            ")" | "]" | "}" => depth -= 1,
+            "==" | "!=" | "===" | "!==" if depth == 0 => {
+                if equality.replace(index).is_some() {
+                    ambiguous = true;
+                }
+            }
+            "&&" | "||" | "??" | "?" | ":" | "," if depth == 0 => ambiguous = true,
+            _ => {}
+        }
+    }
+    if !ambiguous {
+        if let Some(operator) = equality {
+            let flipped = match tokens[operator].text {
+                "==" => "!=",
+                "!=" => "==",
+                "===" => "!==",
+                "!==" => "===",
+                _ => unreachable!(),
+            };
+            return format!(
+                "{}{}{}",
+                &source[tokens[start].start..tokens[operator].start],
+                flipped,
+                &source[tokens[operator].end..tokens[end].start],
+            );
+        }
+    }
+    if end == start + 1 || tokens.get(start).map(|token| token.text) == Some("(") {
+        format!("!{raw}")
+    } else {
+        format!("!({raw})")
+    }
+}
+
 /// Collapse a guarded return and the return that follows it into a single
 /// conditional return.
 ///
@@ -901,11 +1619,21 @@ fn wrap_and_operand(
     end: usize,
     needles: &[&str],
 ) -> String {
-    if top_level_token_in(tokens, start, end, needles) {
+    if top_level_token_in(tokens, start, end, needles)
+        || leading_bare_assignment(tokens, start, end)
+    {
         format!("({expr})")
     } else {
         expr.to_string()
     }
+}
+
+fn leading_bare_assignment(tokens: &[Token<'_>], start: usize, end: usize) -> bool {
+    let mut index = start;
+    while index < end && tokens[index].text == "(" {
+        index += 1;
+    }
+    index + 1 < end && tokens[index].kind == TokenKind::Identifier && tokens[index + 1].text == "="
 }
 
 fn top_level_token_in(tokens: &[Token<'_>], start: usize, end: usize, needles: &[&str]) -> bool {
@@ -938,6 +1666,46 @@ fn single_expression_statement(tokens: &[Token<'_>], start: usize, end: usize) -
         }
     }
     depth == 0
+}
+
+/// Forwarding `name=rhs` into a later use replays the rhs at the use site, so
+/// every value the rhs reads must be provably unchanged across the gap. A
+/// bare identifier or literal only needs its identifiers unassigned; a rhs
+/// with member reads or calls can be invalidated through aliases (e.g.
+/// `m=t.length` before a `t.splice(...)`), so any reappearance of its
+/// identifiers or any call in the gap forfeits the fold.
+fn rhs_holds_between(tokens: &[Token<'_>], rhs_from: usize, stop: usize, use_at: usize) -> bool {
+    let impure = tokens[rhs_from..stop]
+        .iter()
+        .any(|token| matches!(token.text, "." | "[" | "("));
+    for gap in stop + 1..use_at {
+        if impure && tokens[gap].text == "(" {
+            return false;
+        }
+        if tokens[gap].kind != TokenKind::Identifier || is_property_identifier(tokens, gap) {
+            continue;
+        }
+        let named_in_rhs = tokens[rhs_from..stop]
+            .iter()
+            .any(|token| token.kind == TokenKind::Identifier && token.text == tokens[gap].text);
+        if !named_in_rhs {
+            continue;
+        }
+        if impure {
+            return false;
+        }
+        let next = tokens.get(gap + 1).map(|token| token.text);
+        let prev = gap.checked_sub(1).map(|index| tokens[index].text);
+        if next.is_some_and(|text| {
+            matches!(text, "++" | "--")
+                || text.ends_with('=')
+                    && !matches!(text, "==" | "===" | "!=" | "!==" | "<=" | ">=" | "=>")
+        }) || matches!(prev, Some("++") | Some("--"))
+        {
+            return false;
+        }
+    }
+    true
 }
 
 fn assign_is_statement_level(tokens: &[Token<'_>], body_open: usize, name_at: usize) -> bool {
@@ -1004,13 +1772,11 @@ pub(crate) fn fold_single_use_if_assigns(
             if !assign_is_statement_level(&tokens, body_open, name_at) {
                 continue;
             }
-            // A `)`, `else`, or `do` directly before the assignment makes it
-            // the brace-less dependent statement of a control header (e.g.
-            // `if(c)name=rhs;`), so it only executes conditionally and its
-            // value cannot be forwarded into the following use.
-            if after_rhs > body_open + 1
-                && matches!(tokens[after_rhs - 1].text, ")" | "else" | "do")
-            {
+            // Only a statement-opening assignment can be deleted whole: a
+            // chained `s=name=rhs` would leave `s=` dangling, a comma
+            // sequence would leave a trailing comma, and a brace-less
+            // control body (`if(c)name=rhs;`) only executes conditionally.
+            if !matches!(tokens[after_rhs - 1].text, ";" | "{" | "}") {
                 continue;
             }
             let Some(stop) = top_level_stop(&tokens, rhs_from, &[",", ";", "}"]) else {
@@ -1040,6 +1806,9 @@ pub(crate) fn fold_single_use_if_assigns(
             }
             let rhs = &source[tokens[rhs_from].start..tokens[stop].start];
             let use_at = uses[0];
+            if !rhs_holds_between(&tokens, rhs_from, stop, use_at) {
+                continue;
+            }
             let assign_from = if matches!(tokens[after_rhs].text, "var" | "let") {
                 tokens[after_rhs].start
             } else {
@@ -1052,7 +1821,11 @@ pub(crate) fn fold_single_use_if_assigns(
             } else {
                 tokens[stop].start
             };
-            replacements.push((tokens[use_at].start, tokens[use_at].end, rhs.to_string()));
+            replacements.push((
+                tokens[use_at].start,
+                tokens[use_at].end,
+                wrap_substituted_expression(&tokens, use_at, rhs),
+            ));
             replacements.push((assign_from, assign_to, String::new()));
             break;
         }

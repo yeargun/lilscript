@@ -1,4 +1,4 @@
-use crate::js_peephole::token::{Token, TokenKind};
+use crate::js_peephole::token::{lex, Token, TokenKind};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct Rewrite {
@@ -69,6 +69,80 @@ pub(crate) fn is_property_identifier(tokens: &[Token<'_>], index: usize) -> bool
         return true;
     }
     tokens.get(index + 1).map(|token| token.text) == Some(":") && matches!(previous, "{" | ",")
+}
+
+pub(crate) fn identifier_is_expression_slot(tokens: &[Token<'_>], index: usize) -> bool {
+    if is_property_identifier(tokens, index) {
+        return false;
+    }
+    let previous = index
+        .checked_sub(1)
+        .map(|prev| tokens[prev].text)
+        .unwrap_or(";");
+    let next = tokens.get(index + 1).map(|token| token.text).unwrap_or(";");
+    if previous == "as" {
+        return false;
+    }
+    let Some(open) = enclosing_list_open(tokens, index) else {
+        return true;
+    };
+    if matches!(
+        open.checked_sub(1).map(|prev| tokens[prev].text),
+        Some("export") | Some("import")
+    ) {
+        return false;
+    }
+    if tokens[open].text != "{" {
+        return true;
+    }
+    if matches!(previous, "{" | ",") && matches!(next, "}" | ",") {
+        return false;
+    }
+    if matches!(previous, "{" | ",")
+        && next == "("
+        && matching_paren_close(tokens, index + 1)
+            .is_some_and(|close| tokens.get(close + 1).map(|token| token.text) == Some("{"))
+    {
+        return false;
+    }
+    true
+}
+
+fn matching_paren_close(tokens: &[Token<'_>], open: usize) -> Option<usize> {
+    if tokens.get(open).map(|token| token.text) != Some("(") {
+        return None;
+    }
+    let mut depth = 0i32;
+    for (index, token) in tokens.iter().enumerate().skip(open) {
+        match token.text {
+            "(" => depth += 1,
+            ")" => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(index);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+fn enclosing_list_open(tokens: &[Token<'_>], index: usize) -> Option<usize> {
+    let mut depth = 0i32;
+    for i in (0..index).rev() {
+        match tokens[i].text {
+            "}" | ")" | "]" => depth += 1,
+            "{" | "(" | "[" => {
+                if depth == 0 {
+                    return Some(i);
+                }
+                depth -= 1;
+            }
+            _ => {}
+        }
+    }
+    None
 }
 
 pub(crate) fn identifier_occurs(
@@ -207,13 +281,42 @@ pub(crate) fn rewrite_identifier_span(
 }
 
 pub(crate) fn is_statement_boundary(tokens: &[Token<'_>], index: usize) -> bool {
-    matches!(
-        index
-            .checked_sub(1)
-            .map(|prev| tokens[prev].text)
-            .unwrap_or(";"),
-        ";" | "{" | "}"
-    )
+    let prev = index
+        .checked_sub(1)
+        .map(|prev| tokens[prev].text)
+        .unwrap_or(";");
+    if matches!(prev, ";" | "{" | "}") {
+        return true;
+    }
+    prev == ":" && colon_starts_a_statement(tokens, index - 1)
+}
+
+fn colon_starts_a_statement(tokens: &[Token<'_>], colon: usize) -> bool {
+    if colon >= 1 && tokens[colon - 1].kind == TokenKind::Identifier {
+        let label_at = colon - 1;
+        if label_at == 0 || matches!(tokens[label_at - 1].text, ";" | "{" | "}") {
+            return true;
+        }
+    }
+    let mut depth = 0i32;
+    let mut index = colon;
+    while index > 0 {
+        index -= 1;
+        match tokens[index].text {
+            ")" | "]" | "}" => depth += 1,
+            "(" | "[" | "{" => {
+                if depth == 0 {
+                    return false;
+                }
+                depth -= 1;
+            }
+            "?" if depth == 0 => return false,
+            "case" | "default" if depth == 0 => return true,
+            ";" if depth == 0 => return false,
+            _ => {}
+        }
+    }
+    false
 }
 
 pub(crate) fn parse_bare_assign<'src>(
@@ -274,6 +377,136 @@ pub(crate) fn next_statement_end(tokens: &[Token<'_>], start: usize) -> usize {
         }
     }
     tokens.len()
+}
+
+const PRIMARY_EXPRESSION_TIGHTNESS: u8 = 100;
+
+fn binary_operator_tightness(operator: &str) -> Option<u8> {
+    Some(match operator {
+        "," => 0,
+        "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "&=" | "|=" | "^=" | "<<=" | ">>=" | ">>>="
+        | "&&=" | "||=" | "??=" => 1,
+        "?" => 2,
+        "??" | "||" => 3,
+        "&&" => 4,
+        "|" => 5,
+        "^" => 6,
+        "&" => 7,
+        "==" | "===" | "!=" | "!==" => 8,
+        "<" | ">" | "<=" | ">=" | "in" | "instanceof" => 9,
+        "<<" | ">>" | ">>>" => 10,
+        "+" | "-" => 11,
+        "*" | "/" | "%" => 12,
+        "**" => 13,
+        _ => return None,
+    })
+}
+
+fn postfix_operator_tightness(operator: &str) -> Option<u8> {
+    matches!(operator, "." | "?." | "[" | "(" | "++" | "--" | "**").then_some(15)
+}
+
+fn prefix_operator_tightness(operator: &str) -> Option<u8> {
+    matches!(
+        operator,
+        "!" | "~"
+            | "+"
+            | "-"
+            | "++"
+            | "--"
+            | "typeof"
+            | "void"
+            | "delete"
+            | "await"
+            | "new"
+            | "yield"
+    )
+    .then_some(14)
+}
+
+fn fragment_loosest_tightness(expression: &str) -> u8 {
+    let Ok(tokens) = lex(expression) else {
+        return 0;
+    };
+    let mut depth = 0usize;
+    let mut loosest = PRIMARY_EXPRESSION_TIGHTNESS;
+    for token in &tokens {
+        match token.text {
+            "(" | "[" | "{" => depth += 1,
+            ")" | "]" | "}" => depth = depth.saturating_sub(1),
+            operator if depth == 0 => {
+                if let Some(tightness) = binary_operator_tightness(operator) {
+                    loosest = loosest.min(tightness);
+                }
+            }
+            _ => {}
+        }
+    }
+    loosest
+}
+
+fn previous_token_is_operand(tokens: &[Token<'_>], operator_at: usize) -> bool {
+    let Some(previous) = operator_at
+        .checked_sub(1)
+        .map(|index| tokens[index].text)
+    else {
+        return false;
+    };
+    matches!(
+        previous,
+        ")" | "]"
+            | "}"
+            | "this"
+            | "true"
+            | "false"
+            | "null"
+            | "undefined"
+            | "++"
+            | "--"
+    ) || tokens
+        .get(operator_at - 1)
+        .is_some_and(|token| matches!(token.kind, TokenKind::Identifier | TokenKind::Number | TokenKind::String | TokenKind::Regex | TokenKind::Template))
+}
+
+pub(crate) fn substituted_expression_needs_grouping(
+    tokens: &[Token<'_>],
+    use_at: usize,
+    expression: &str,
+) -> bool {
+    // An identifier is a JS Primary. Pasting any looser expression into that
+    // slot must follow neighboring operators, not a special case for `|0`.
+    let tightness = fragment_loosest_tightness(expression);
+    if tightness >= PRIMARY_EXPRESSION_TIGHTNESS {
+        return false;
+    }
+    if let Some(next) = tokens.get(use_at + 1).map(|token| token.text) {
+        if postfix_operator_tightness(next).is_some_and(|next| next > tightness)
+            || binary_operator_tightness(next).is_some_and(|next| next > tightness)
+        {
+            return true;
+        }
+    }
+    let Some(previous_at) = use_at.checked_sub(1) else {
+        return false;
+    };
+    let previous = tokens[previous_at].text;
+    if prefix_operator_tightness(previous).is_some() && !previous_token_is_operand(tokens, previous_at)
+    {
+        return true;
+    }
+    binary_operator_tightness(previous).is_some_and(|previous| previous >= tightness)
+}
+
+pub(crate) fn wrap_substituted_expression(
+    tokens: &[Token<'_>],
+    use_at: usize,
+    expression: &str,
+) -> String {
+    if substituted_expression_needs_grouping(tokens, use_at, expression) {
+        format!("({expression})")
+    } else {
+        expression.to_string()
+    }
 }
 
 pub(crate) fn conditional_test_needs_grouping(tokens: &[Token<'_>]) -> bool {

@@ -1,5 +1,6 @@
 use crate::js_peephole::rewrite::{
-    apply_token_rewrites, identifier_occurs, next_statement_end, top_level_stop,
+    apply_token_rewrites, identifier_occurs, is_property_identifier, next_statement_end,
+    top_level_stop,
 };
 use crate::js_peephole::scope::{
     enclosing_function_span, parse_function_expression, simple_identifier_params,
@@ -202,6 +203,23 @@ fn last_param_is_only_slice_start(
 pub(crate) fn fold_adjacent_expression_statements(
     source: &str,
 ) -> Result<(String, usize), JavaScriptParseError> {
+    fold_adjacent_expression_statements_at(source, false)
+}
+
+/// Top-level sequencing runs once at the very end of the pipeline: joining
+/// module-level statements earlier would hide statement-shaped patterns from
+/// the other folds, and the comma spelling is byte-neutral raw while
+/// compressing measurably better under Brotli and gzip.
+pub(crate) fn fold_top_level_adjacent_expression_statements(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    fold_adjacent_expression_statements_at(source, true)
+}
+
+fn fold_adjacent_expression_statements_at(
+    source: &str,
+    top_level: bool,
+) -> Result<(String, usize), JavaScriptParseError> {
     let tokens = lex(source)?;
     let mut replacements = Vec::<(usize, usize, String)>::new();
     let mut depth_paren = 0i32;
@@ -227,7 +245,12 @@ pub(crate) fn fold_adjacent_expression_statements(
             }
             "{" => depth_brace += 1,
             "}" => depth_brace -= 1,
-            ";" if depth_brace > 0 && (for_header_depth == 0 || depth_paren < for_header_depth) => {
+            ";" if (if top_level {
+                depth_brace == 0
+            } else {
+                depth_brace > 0
+            }) && (for_header_depth == 0 || depth_paren < for_header_depth) =>
+            {
                 if matches!(
                     tokens.get(index + 1).map(|token| token.text),
                     Some("if")
@@ -248,11 +271,24 @@ pub(crate) fn fold_adjacent_expression_statements(
                         | Some("continue")
                         | Some("class")
                         | Some("debugger")
+                        | Some("import")
+                        | Some("export")
+                        | Some("case")
+                        | Some("default")
                 ) {
                     continue;
                 }
                 let left_start = previous_statement_start(&tokens, index);
                 let right_end = next_statement_end(&tokens, index + 1);
+                // A string literal opening the left statement may be a
+                // directive prologue entry ("use strict"); sequencing it
+                // would demote the directive to a plain expression.
+                if tokens
+                    .get(left_start)
+                    .is_some_and(|token| token.kind == TokenKind::String)
+                {
+                    continue;
+                }
                 if is_expression_statement_span(&tokens, left_start, index)
                     && is_expression_statement_span(&tokens, index + 1, right_end)
                 {
@@ -596,5 +632,62 @@ fn is_expression_statement_span(tokens: &[Token<'_>], start: usize, end: usize) 
             | "break"
             | "continue"
             | "debugger"
+            | "case"
+            | "default"
     )
+}
+
+pub(crate) fn fold_same_receiver_method_call(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut cursor = 0usize;
+    while cursor + 6 < tokens.len() {
+        if (tokens[cursor].kind != TokenKind::Identifier && tokens[cursor].text != "this")
+            || is_property_identifier(&tokens, cursor)
+        {
+            cursor += 1;
+            continue;
+        }
+        if tokens.get(cursor + 1).map(|token| token.text) != Some(".")
+            || !tokens
+                .get(cursor + 2)
+                .is_some_and(|token| matches!(token.kind, TokenKind::Identifier | TokenKind::Keyword))
+            || tokens.get(cursor + 3).map(|token| token.text) != Some(".")
+            || tokens.get(cursor + 4).map(|token| token.text) != Some("call")
+            || tokens.get(cursor + 5).map(|token| token.text) != Some("(")
+        {
+            cursor += 1;
+            continue;
+        }
+        let open = cursor + 5;
+        let Some(close) = matching_close.get(open).copied().flatten() else {
+            cursor += 1;
+            continue;
+        };
+        if tokens.get(open + 1).map(|token| token.text) != Some(tokens[cursor].text) {
+            cursor += 1;
+            continue;
+        }
+        if tokens.get(open + 2).map(|token| token.text) != Some(",")
+            && open + 2 != close
+        {
+            cursor += 1;
+            continue;
+        }
+        let args = if open + 2 == close {
+            String::new()
+        } else {
+            source[tokens[open + 3].start..tokens[close].start].to_string()
+        };
+        replacements.push((
+            tokens[cursor].start,
+            tokens[close].end,
+            format!("{}.{}({args})", tokens[cursor].text, tokens[cursor + 2].text),
+        ));
+        cursor = close + 1;
+    }
+    Ok(apply_token_rewrites(source, replacements))
 }
