@@ -65,6 +65,8 @@ pub enum BuiltinCall {
     JsApply,
     JsMethod0,
     JsMethod1,
+    JsMethod2,
+    JsMethod3,
     JsMethodRest,
     JsStaticRest,
     JsGet,
@@ -91,6 +93,8 @@ pub enum BuiltinCall {
     JsStringSplit,
     JsRegexTest,
     JsRegexExec,
+    JsEncodeURI,
+    JsEncodeURIComponent,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -3432,10 +3436,37 @@ impl<'src> Analyzer<'src> {
                     defaults: vec![None],
                     return_type: Box::new(Type::String),
                 })),
-                "toUpperCase" | "toLowerCase" => Ok(Type::Function(FunctionType {
+                "toUpperCase" | "toLowerCase" | "trim" | "trimStart" | "trimEnd" => {
+                    Ok(Type::Function(FunctionType {
+                        params: Vec::new(),
+                        defaults: Vec::new(),
+                        return_type: Box::new(Type::String),
+                    }))
+                }
+                "search" => Ok(Type::Function(FunctionType {
+                    params: vec![Type::Regex],
+                    defaults: vec![None],
+                    return_type: Box::new(Type::Int),
+                })),
+                "slice" => Ok(Type::Function(FunctionType {
+                    params: vec![Type::Int, Type::Int],
+                    defaults: vec![None, Some(DefaultValue::Int(i32::MAX as i64))],
+                    return_type: Box::new(Type::String),
+                })),
+                "replace" => Ok(Type::Function(FunctionType {
+                    params: vec![Type::Regex, Type::String],
+                    defaults: vec![None, None],
+                    return_type: Box::new(Type::String),
+                })),
+                "split" => Ok(Type::Function(FunctionType {
+                    params: vec![Type::String],
+                    defaults: vec![None],
+                    return_type: Box::new(Type::Array(Box::new(Type::String))),
+                })),
+                "codePointLength" => Ok(Type::Function(FunctionType {
                     params: Vec::new(),
                     defaults: Vec::new(),
-                    return_type: Box::new(Type::String),
+                    return_type: Box::new(Type::Int),
                 })),
                 "truthy" => Ok(Type::Function(FunctionType {
                     params: Vec::new(),
@@ -3453,7 +3484,13 @@ impl<'src> Analyzer<'src> {
                     defaults: vec![None],
                     return_type: Box::new(Type::Bool),
                 })),
+                "exec" => Ok(Type::Function(FunctionType {
+                    params: vec![Type::String],
+                    defaults: vec![None],
+                    return_type: Box::new(Type::TypeParameter("$js")),
+                })),
                 "source" | "flags" => Ok(Type::String),
+                "lastIndex" => Ok(Type::Float),
                 "global" | "ignoreCase" | "multiline" | "dotAll" | "sticky" | "unicode" => {
                     Ok(Type::Bool)
                 }
@@ -3980,8 +4017,24 @@ impl<'src> Analyzer<'src> {
         let (builtin, result, expected_args): (BuiltinCall, Type<'src>, Vec<Type<'src>>) =
             match method {
                 "object" => {
-                    require_arity(0..=0)?;
-                    (BuiltinCall::JsObject, js.clone(), Vec::new())
+                    if args.len() % 2 != 0 {
+                        return Err(SemanticError::new(
+                            span,
+                            format!(
+                                "`JS.object` expects an even number of key/value arguments, found {}",
+                                args.len()
+                            ),
+                        ));
+                    }
+                    let mut expected_args = Vec::with_capacity(args.len());
+                    for index in 0..args.len() {
+                        if index % 2 == 0 {
+                            expected_args.push(Type::String);
+                        } else {
+                            expected_args.push(js.clone());
+                        }
+                    }
+                    (BuiltinCall::JsObject, js.clone(), expected_args)
                 }
                 "array" => {
                     require_arity(0..=0)?;
@@ -4121,11 +4174,13 @@ impl<'src> Analyzer<'src> {
                     require_arity(3..=3)?;
                     (BuiltinCall::JsApply, js.clone(), vec![js.clone(); 3])
                 }
-                "method0" | "method1" | "methodRest" | "staticRest" => {
+                "method0" | "method1" | "method2" | "method3" | "methodRest" | "staticRest" => {
                     require_arity(1..=1)?;
                     let parameter_count = match method {
                         "method0" | "staticRest" => 1,
                         "method1" | "methodRest" => 2,
+                        "method2" => 3,
+                        "method3" => 4,
                         _ => unreachable!(),
                     };
                     let callback = Type::Function(FunctionType {
@@ -4137,6 +4192,8 @@ impl<'src> Analyzer<'src> {
                         match method {
                             "method0" => BuiltinCall::JsMethod0,
                             "method1" => BuiltinCall::JsMethod1,
+                            "method2" => BuiltinCall::JsMethod2,
+                            "method3" => BuiltinCall::JsMethod3,
                             "methodRest" => BuiltinCall::JsMethodRest,
                             "staticRest" => BuiltinCall::JsStaticRest,
                             _ => unreachable!(),
@@ -4316,6 +4373,18 @@ impl<'src> Analyzer<'src> {
                         BuiltinCall::JsRegexExec,
                         js.clone(),
                         vec![Type::Regex, js.clone()],
+                    )
+                }
+                "encodeURI" => {
+                    require_arity(1..=1)?;
+                    (BuiltinCall::JsEncodeURI, Type::String, vec![Type::String])
+                }
+                "encodeURIComponent" => {
+                    require_arity(1..=1)?;
+                    (
+                        BuiltinCall::JsEncodeURIComponent,
+                        Type::String,
+                        vec![Type::String],
                     )
                 }
                 _ => return Ok(None),
@@ -7684,7 +7753,7 @@ mod tests {
     #[test]
     fn checks_typed_javascript_adapter_callback_conventions() {
         check(
-            "JsValue method0=JS.method0((JsValue self)=>self);JsValue method1=JS.method1((JsValue self,JsValue value)=>value);JsValue methodRest=JS.methodRest((JsValue self,JsValue args)=>args);JsValue staticRest=JS.staticRest((JsValue args)=>args);JsValue constructed=JS.construct(method0);",
+            "JsValue method0=JS.method0((JsValue self)=>self);JsValue method1=JS.method1((JsValue self,JsValue value)=>value);JsValue method2=JS.method2((JsValue self,JsValue a,JsValue b)=>a);JsValue method3=JS.method3((JsValue self,JsValue a,JsValue b,JsValue c)=>a);JsValue methodRest=JS.methodRest((JsValue self,JsValue args)=>args);JsValue staticRest=JS.staticRest((JsValue args)=>args);JsValue constructed=JS.construct(method0);",
         )
         .unwrap();
 
@@ -7692,6 +7761,15 @@ mod tests {
         assert!(
             arity.message.contains("expects 1 parameters, found 2"),
             "{arity}"
+        );
+
+        let method3_arity =
+            check("JS.method3((JsValue self,JsValue a,JsValue b)=>a);").unwrap_err();
+        assert!(
+            method3_arity
+                .message
+                .contains("expects 4 parameters, found 3"),
+            "{method3_arity}"
         );
 
         let parameter_type = check("JS.method1((int self,JsValue value)=>value);").unwrap_err();

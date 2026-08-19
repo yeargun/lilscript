@@ -588,6 +588,14 @@ pub(crate) fn js_host_alias_spec(name: &str) -> Option<(&'static str, JsHostAlia
         "parseIntRadix" => ("parseInt", JsHostAliasConvention::Callee),
         "isFiniteValue" => ("isFinite", JsHostAliasConvention::Callee),
         "encodeURIComponentValue" => ("encodeURIComponent", JsHostAliasConvention::Callee),
+        "encodeURIValue" => ("encodeURI", JsHostAliasConvention::Callee),
+        "codePointCount" => ("a=>[...a].length", JsHostAliasConvention::Callee),
+        "firstCodePointSize" => (
+            "a=>{let b=[...a][0];return b==null?0:b.length}",
+            JsHostAliasConvention::Callee,
+        ),
+        "pickRegex" => ("(a,b,c)=>a?b:c", JsHostAliasConvention::Callee),
+        "pickRegex3" => ("(a,b,c,d,e)=>a?b:c?d:e", JsHostAliasConvention::Callee),
         "getPrototypeOf" => ("Object.getPrototypeOf", JsHostAliasConvention::Callee),
         "objectCreate" => ("Object.create", JsHostAliasConvention::Callee),
         "objectKeys" => ("Object.keys", JsHostAliasConvention::Callee),
@@ -848,11 +856,40 @@ fn js_host_inline_op(
             Some(*regex),
             vec![*value],
         )),
-        ("regexExec", [regex, value]) => Some(js_intrinsic(
+        ("regexExec", [regex, value]) | ("runRegexExec", [regex, value]) => Some(js_intrinsic(
             Intrinsic::JsRegexExec,
             Some(*regex),
             vec![*value],
         )),
+        ("stringTrim", [value]) => Some(HostInline::Op(ControlFlowOp::HostCall {
+            receiver: *value,
+            method: "trim",
+            args: Vec::new(),
+            pure: true,
+        })),
+        ("stringTrimEnd", [value]) => Some(HostInline::Op(ControlFlowOp::HostCall {
+            receiver: *value,
+            method: "trimEnd",
+            args: Vec::new(),
+            pure: true,
+        })),
+        ("stringTrimStart", [value]) => Some(HostInline::Op(ControlFlowOp::HostCall {
+            receiver: *value,
+            method: "trimStart",
+            args: Vec::new(),
+            pure: true,
+        })),
+        ("stringSearch", [value, pattern]) => Some(HostInline::Op(ControlFlowOp::HostCall {
+            receiver: *value,
+            method: "search",
+            args: vec![*pattern],
+            pure: false,
+        })),
+        ("regexSetLastIndex", [regex, value]) => Some(HostInline::Op(ControlFlowOp::HostFieldSet {
+            object: *regex,
+            property: "lastIndex",
+            value: *value,
+        })),
         ("arrayPush", [arr, item]) => Some(js_intrinsic(
             Intrinsic::JsArrayPush,
             Some(*arr),
@@ -1145,6 +1182,12 @@ fn js_host_always_inline(name: &str) -> bool {
             | "getNodeValue"
             | "regexTest"
             | "regexExec"
+            | "runRegexExec"
+            | "stringTrim"
+            | "stringTrimEnd"
+            | "stringTrimStart"
+            | "stringSearch"
+            | "regexSetLastIndex"
             | "stringSlice"
             | "stringIndexOf"
             | "stringReplace"
@@ -1218,7 +1261,17 @@ fn bound_js_host_alias_spec(
 }
 
 fn js_host_always_alias(name: &str) -> bool {
-    matches!(name, "throwError" | "throwTypeError" | "mathRandom")
+    matches!(
+        name,
+        "throwError"
+            | "throwTypeError"
+            | "mathRandom"
+            | "encodeURIValue"
+            | "codePointCount"
+            | "firstCodePointSize"
+            | "pickRegex"
+            | "pickRegex3"
+    )
 }
 
 fn js_imported_dom_always_alias(name: &str) -> bool {
@@ -2153,6 +2206,14 @@ fn stringify_elision_intrinsic_receiver(intrinsic: Intrinsic) -> bool {
             | Intrinsic::StringEndsWith
             | Intrinsic::StringToUpperCase
             | Intrinsic::StringToLowerCase
+            | Intrinsic::StringTrim
+            | Intrinsic::StringTrimStart
+            | Intrinsic::StringTrimEnd
+            | Intrinsic::StringSearch
+            | Intrinsic::StringSlice
+            | Intrinsic::StringReplace
+            | Intrinsic::StringSplit
+            | Intrinsic::StringCodePointLength
     )
 }
 
@@ -2185,7 +2246,10 @@ fn elide_stringify_in_op(
             .is_some_and(|needle| rewrite_stringify_slot(needle, stringify, consumed)),
         ControlFlowOp::Intrinsic {
             intrinsic:
-                Intrinsic::JsParseFloat | Intrinsic::JsParseInt | Intrinsic::JsEncodeURIComponent,
+                Intrinsic::JsParseFloat
+                    | Intrinsic::JsParseInt
+                    | Intrinsic::JsEncodeURI
+                    | Intrinsic::JsEncodeURIComponent,
             args,
             ..
         } => args
@@ -4347,6 +4411,12 @@ fn fold_and_propagate_control_flow(
                                 | Intrinsic::StringEndsWith
                                 | Intrinsic::StringToUpperCase
                                 | Intrinsic::StringToLowerCase
+                                | Intrinsic::StringTrim
+                                | Intrinsic::StringTrimStart
+                                | Intrinsic::StringTrimEnd
+                                | Intrinsic::StringSlice
+                                | Intrinsic::StringSplit
+                                | Intrinsic::StringCodePointLength
                         ) =>
                         {
                             let folded = constants.get(receiver).and_then(|receiver| {
@@ -5180,6 +5250,57 @@ fn remap_terminator_blocks(terminator: &mut Terminator, mapping: &[Option<BlockI
     }
 }
 
+fn is_trivial_js_host_passthrough(function: &ControlFlowFunction<'_>) -> bool {
+    if function.blocks.len() != 1 {
+        return false;
+    }
+    let block = &function.blocks[0];
+    if block.instructions.is_empty() || block.instructions.len() > 8 {
+        return false;
+    }
+    let mut saw_host = false;
+    for instruction in &block.instructions {
+        match &instruction.op {
+            ControlFlowOp::Const(_) | ControlFlowOp::LoadLocal(_) | ControlFlowOp::Unary { .. } => {}
+            ControlFlowOp::IndexGet { .. }
+            | ControlFlowOp::HostFieldGet { .. }
+            | ControlFlowOp::RecordFieldGet { .. } => {
+                saw_host = true;
+            }
+            ControlFlowOp::Binary { op, .. }
+                if matches!(op, IrBinaryOp::Eq | IrBinaryOp::NotEq) =>
+            {
+                saw_host = true;
+            }
+            ControlFlowOp::Intrinsic {
+                intrinsic:
+                    Intrinsic::JsStringify
+                        | Intrinsic::JsNumber
+                        | Intrinsic::JsTypeOf
+                        | Intrinsic::JsIsNullish
+                        | Intrinsic::JsIsUndefined
+                        | Intrinsic::JsIsFalse
+                        | Intrinsic::JsStrictEqual
+                        | Intrinsic::JsGetProperty
+                        | Intrinsic::FloatToInt,
+                ..
+            } => {
+                saw_host = true;
+            }
+            ControlFlowOp::Intrinsic {
+                intrinsic:
+                    Intrinsic::JsInvoke
+                    | Intrinsic::JsCall
+                    | Intrinsic::JsApply
+                    | Intrinsic::JsConstruct,
+                ..
+            } => saw_host = true,
+            _ => return false,
+        }
+    }
+    saw_host
+}
+
 fn inline_small_functions(
     module: &mut ControlFlowModule<'_>,
     options: &OptimizationOptions,
@@ -5232,19 +5353,20 @@ fn inline_small_functions(
                         .instructions
                         .iter()
                         .any(|instruction| matches!(instruction.op, ControlFlowOp::Closure { .. })))
-                && function.blocks[0].instructions.len() <= options.inline_instruction_limit
-                && options.inline_growth_limit.is_none_or(|limit| {
-                    let instructions = function.blocks[0].instructions.len();
-                    let calls = call_counts.get(&function.id).copied().unwrap_or(0);
-                    let retained_instructions = if address_taken.contains(&function.id) {
-                        instructions
-                    } else {
-                        0
-                    };
-                    let before = instructions + calls;
-                    let after = retained_instructions + instructions.saturating_mul(calls);
-                    after.saturating_sub(before) <= limit
-                })
+                && (is_trivial_js_host_passthrough(function)
+                    || (function.blocks[0].instructions.len() <= options.inline_instruction_limit
+                        && options.inline_growth_limit.is_none_or(|limit| {
+                            let instructions = function.blocks[0].instructions.len();
+                            let calls = call_counts.get(&function.id).copied().unwrap_or(0);
+                            let retained_instructions = if address_taken.contains(&function.id) {
+                                instructions
+                            } else {
+                                0
+                            };
+                            let before = instructions + calls;
+                            let after = retained_instructions + instructions.saturating_mul(calls);
+                            after.saturating_sub(before) <= limit
+                        })))
                 && matches!(function.blocks[0].terminator, Some(Terminator::Return(_)))
         })
         .map(|function| (function.id, function.clone()))
@@ -5498,6 +5620,7 @@ fn direct_constructor_summaries<'src>(
             let mut next_layout_position = 0;
             let mut next_parameter_position = 0;
             let mut used_parameters = AHashSet::default();
+            let mut used_constants = AHashSet::default();
             for instruction in &block.instructions {
                 match (&instruction.op, instruction.out, instruction.ty.as_ref()) {
                     (ControlFlowOp::Const(value), Some(out), Some(ty)) => {
@@ -5534,7 +5657,9 @@ fn direct_constructor_summaries<'src>(
                             used_parameters.insert(position);
                             DirectConstructorInitializer::Parameter(position)
                         } else {
-                            let (value, ty, span) = constants.remove(value)?;
+                            let constant_id = *value;
+                            let (value, ty, span) = constants.get(&constant_id)?.clone();
+                            used_constants.insert(constant_id);
                             DirectConstructorInitializer::Constant { value, ty, span }
                         };
                         fields.push(DirectConstructorField {
@@ -5549,7 +5674,7 @@ fn direct_constructor_summaries<'src>(
                 }
             }
             if fields.is_empty()
-                || !constants.is_empty()
+                || used_constants.len() != constants.len()
                 || used_parameters.len() != function.params.len().saturating_sub(1)
             {
                 return None;
@@ -5788,6 +5913,7 @@ fn function_has_type_parameters(function: &ControlFlowFunction<'_>) -> bool {
 
 fn type_has_type_parameter(ty: &Type<'_>) -> bool {
     match ty {
+        Type::TypeParameter("$js") => false,
         Type::TypeParameter(_) => true,
         Type::Array(element)
         | Type::Record(element)
@@ -7466,6 +7592,7 @@ fn intrinsic_uses_untyped_javascript_values(intrinsic: Intrinsic) -> bool {
             | Intrinsic::JsParseFloat
             | Intrinsic::JsParseInt
             | Intrinsic::JsIsFinite
+            | Intrinsic::JsEncodeURI
             | Intrinsic::JsEncodeURIComponent
             | Intrinsic::JsObjectCreate
             | Intrinsic::JsGetPrototypeOf
@@ -7493,6 +7620,8 @@ fn intrinsic_uses_untyped_javascript_values(intrinsic: Intrinsic) -> bool {
             | Intrinsic::JsApply
             | Intrinsic::JsMethod0
             | Intrinsic::JsMethod1
+            | Intrinsic::JsMethod2
+            | Intrinsic::JsMethod3
             | Intrinsic::JsMethodRest
             | Intrinsic::JsStaticRest
             | Intrinsic::JsGetProperty
@@ -7579,6 +7708,8 @@ fn add_container_retention_flows(
         intrinsic,
         Intrinsic::JsMethod0
             | Intrinsic::JsMethod1
+            | Intrinsic::JsMethod2
+            | Intrinsic::JsMethod3
             | Intrinsic::JsMethodRest
             | Intrinsic::JsStaticRest
     ) {
@@ -9213,6 +9344,8 @@ fn mutation_receiver(op: &ControlFlowOp<'_>) -> Option<ValueId> {
                 | Intrinsic::SetClear
                 | Intrinsic::RegexTest
                 | Intrinsic::JsRegexExec
+                | Intrinsic::StringSearch
+                | Intrinsic::StringReplace
                 | Intrinsic::JsDeleteProperty
                 | Intrinsic::JsArrayPush
                 | Intrinsic::JsArrayPop
@@ -10904,7 +11037,7 @@ pub(crate) fn instruction_has_dynamic_observable_evaluation(
             .copied()
             .any(|value| dynamic_value_can_run_user_code(types, value)),
         ControlFlowOp::Intrinsic {
-            intrinsic: Intrinsic::JsEncodeURIComponent,
+            intrinsic: Intrinsic::JsEncodeURI | Intrinsic::JsEncodeURIComponent,
             ..
         } => true,
         ControlFlowOp::Intrinsic {
@@ -11153,6 +11286,8 @@ fn summarize_function_effects(
                     | Intrinsic::SetClear
                     | Intrinsic::RegexTest
                     | Intrinsic::JsRegexExec
+                    | Intrinsic::StringSearch
+                    | Intrinsic::StringReplace
                     | Intrinsic::JsDeleteProperty
                     | Intrinsic::JsArrayPush
                     | Intrinsic::JsArrayPop
@@ -11464,6 +11599,8 @@ fn control_flow_op_has_side_effects(
                 | Intrinsic::JsStringReplace
                 | Intrinsic::JsStringMatch
                 | Intrinsic::JsRegexExec
+                | Intrinsic::StringSearch
+                | Intrinsic::StringReplace
                 | Intrinsic::JsCall
                 | Intrinsic::JsConstruct
                 | Intrinsic::JsInvoke
@@ -11954,6 +12091,8 @@ fn javascript_typeof_name(op: &ControlFlowOp<'_>) -> Option<&'static str> {
             Intrinsic::JsObjectConstructor
             | Intrinsic::JsMethod0
             | Intrinsic::JsMethod1
+            | Intrinsic::JsMethod2
+            | Intrinsic::JsMethod3
             | Intrinsic::JsMethodRest
             | Intrinsic::JsStaticRest => Some("function"),
             Intrinsic::JsTypeOf => Some("string"),

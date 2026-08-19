@@ -254,7 +254,13 @@ fn allocation_units(operation: &ControlFlowOp<'_>) -> Option<u64> {
                 | Intrinsic::SharedArrayBufferNew
                 | Intrinsic::BufferSlice
                 | Intrinsic::StringToUpperCase
-                | Intrinsic::StringToLowerCase,
+                | Intrinsic::StringToLowerCase
+                | Intrinsic::StringTrim
+                | Intrinsic::StringTrimStart
+                | Intrinsic::StringTrimEnd
+                | Intrinsic::StringSlice
+                | Intrinsic::StringSplit
+                | Intrinsic::StringCodePointLength,
             ..
         } => Some(2),
         ControlFlowOp::Intrinsic { intrinsic, .. }

@@ -903,6 +903,12 @@ fn region_is_outline_safe(
                     | Intrinsic::JsStringSlice
                     | Intrinsic::JsStringIndexOf
                     | Intrinsic::JsStringSplit
+                    | Intrinsic::StringSlice
+                    | Intrinsic::StringSplit
+                    | Intrinsic::StringTrim
+                    | Intrinsic::StringTrimStart
+                    | Intrinsic::StringTrimEnd
+                    | Intrinsic::StringCodePointLength
                     | Intrinsic::JsBox,
                 ..
             } => true,

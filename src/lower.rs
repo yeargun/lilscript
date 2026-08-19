@@ -2249,6 +2249,16 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                 span,
             ),
             Type::Regex => {
+                if property.name == "lastIndex" {
+                    return self.emit_value(
+                        ControlFlowOp::HostFieldGet {
+                            object: object_value,
+                            property: property.name,
+                        },
+                        ty,
+                        span,
+                    );
+                }
                 let intrinsic = match property.name {
                     "source" => Intrinsic::RegexSource,
                     "flags" => Intrinsic::RegexFlags,
@@ -2737,11 +2747,16 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
         use BuiltinCall::*;
 
         if builtin == JsObject {
+            let args = if args.is_empty() {
+                Vec::new()
+            } else {
+                self.lower_args(args)?
+            };
             return self.emit_value(
                 ControlFlowOp::Intrinsic {
                     intrinsic: Intrinsic::JsPlainObject,
                     receiver: None,
-                    args: Vec::new(),
+                    args,
                 },
                 ty,
                 span,
@@ -2778,6 +2793,8 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
             TaskResolve => Some(Intrinsic::TaskResolve),
             TaskReject => Some(Intrinsic::TaskReject),
             TaskAll => Some(Intrinsic::TaskAll),
+            JsEncodeURI => Some(Intrinsic::JsEncodeURI),
+            JsEncodeURIComponent => Some(Intrinsic::JsEncodeURIComponent),
             _ => None,
         };
         if let Some(intrinsic) = static_intrinsic {
@@ -2878,21 +2895,24 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                 ty,
                 span,
             ),
-            JsMethod0 | JsMethod1 | JsMethodRest | JsStaticRest => self.emit_value(
-                ControlFlowOp::Intrinsic {
-                    intrinsic: match builtin {
-                        JsMethod0 => Intrinsic::JsMethod0,
-                        JsMethod1 => Intrinsic::JsMethod1,
-                        JsMethodRest => Intrinsic::JsMethodRest,
-                        JsStaticRest => Intrinsic::JsStaticRest,
-                        _ => unreachable!(),
+            JsMethod0 | JsMethod1 | JsMethod2 | JsMethod3 | JsMethodRest | JsStaticRest => self
+                .emit_value(
+                    ControlFlowOp::Intrinsic {
+                        intrinsic: match builtin {
+                            JsMethod0 => Intrinsic::JsMethod0,
+                            JsMethod1 => Intrinsic::JsMethod1,
+                            JsMethod2 => Intrinsic::JsMethod2,
+                            JsMethod3 => Intrinsic::JsMethod3,
+                            JsMethodRest => Intrinsic::JsMethodRest,
+                            JsStaticRest => Intrinsic::JsStaticRest,
+                            _ => unreachable!(),
+                        },
+                        receiver: None,
+                        args: values,
                     },
-                    receiver: None,
-                    args: values,
-                },
-                ty,
-                span,
-            ),
+                    ty,
+                    span,
+                ),
             JsGet => self.emit_value(
                 ControlFlowOp::Intrinsic {
                     intrinsic: Intrinsic::JsGetProperty,
@@ -3699,6 +3719,13 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                         ty,
                     });
                 }
+                if matches!(object_type, Type::Regex) && property.name == "lastIndex" {
+                    return Ok(Place::HostField {
+                        object: object_value,
+                        property: property.name,
+                        ty,
+                    });
+                }
                 let (owner, index) = match object_type {
                     Type::Struct(owner) | Type::StructInstance { name: owner, .. } => {
                         let index = self
@@ -4285,8 +4312,17 @@ fn member_intrinsic(receiver: &Type<'_>, property: &str) -> Option<Intrinsic> {
         (Type::String, "endsWith") => Some(Intrinsic::StringEndsWith),
         (Type::String, "toUpperCase") => Some(Intrinsic::StringToUpperCase),
         (Type::String, "toLowerCase") => Some(Intrinsic::StringToLowerCase),
+        (Type::String, "trim") => Some(Intrinsic::StringTrim),
+        (Type::String, "trimStart") => Some(Intrinsic::StringTrimStart),
+        (Type::String, "trimEnd") => Some(Intrinsic::StringTrimEnd),
+        (Type::String, "search") => Some(Intrinsic::StringSearch),
+        (Type::String, "slice") => Some(Intrinsic::StringSlice),
+        (Type::String, "replace") => Some(Intrinsic::StringReplace),
+        (Type::String, "split") => Some(Intrinsic::StringSplit),
+        (Type::String, "codePointLength") => Some(Intrinsic::StringCodePointLength),
         (Type::String, "truthy") => Some(Intrinsic::JsTruthy),
         (Type::Regex, "test") => Some(Intrinsic::RegexTest),
+        (Type::Regex, "exec") => Some(Intrinsic::JsRegexExec),
         _ => None,
     }
 }

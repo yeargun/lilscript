@@ -15,8 +15,8 @@ scheduler, generator runtime, or regex engine.
   native promises. Rejections remain arbitrary non-`void` JS values.
 - `generator T f()` returns `Generator<T>` and may `yield T` or `yield*` a compatible
   array, typed array, or generator. Async generators are not in the core.
-- `Regex` preserves ECMAScript construction errors, flags, source metadata, and
-  stateful `global`/`sticky` testing.
+- `Regex` preserves ECMAScript construction errors, flags, source metadata,
+  stateful `global`/`sticky` testing, `exec`, and mutable `lastIndex`.
 
 JavaScript emission uses native `async`/`await`, `Promise`, `function*`/`yield`, and
 `RegExp`. C/native rejects all three feature families rather than approximating them.

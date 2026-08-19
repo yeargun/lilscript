@@ -488,6 +488,7 @@ static inline LilScriptString lilscript_json_record(LilScriptMap m){LilScriptJso
                                 | Intrinsic::JsParseFloat
                                 | Intrinsic::JsParseInt
                                 | Intrinsic::JsIsFinite
+                                | Intrinsic::JsEncodeURI
                                 | Intrinsic::JsEncodeURIComponent
                                 | Intrinsic::JsObjectCreate
                                 | Intrinsic::JsGetPrototypeOf
@@ -520,6 +521,8 @@ static inline LilScriptString lilscript_json_record(LilScriptMap m){LilScriptJso
                                 | Intrinsic::JsApply
                                 | Intrinsic::JsMethod0
                                 | Intrinsic::JsMethod1
+                                | Intrinsic::JsMethod2
+                                | Intrinsic::JsMethod3
                                 | Intrinsic::JsMethodRest
                                 | Intrinsic::JsStaticRest
                                 | Intrinsic::JsDeleteProperty
@@ -549,6 +552,14 @@ static inline LilScriptString lilscript_json_record(LilScriptMap m){LilScriptJso
                                 | Intrinsic::JsStringReplace
                                 | Intrinsic::JsStringMatch
                                 | Intrinsic::JsStringSplit
+                                | Intrinsic::StringSlice
+                                | Intrinsic::StringReplace
+                                | Intrinsic::StringSplit
+                                | Intrinsic::StringTrim
+                                | Intrinsic::StringTrimStart
+                                | Intrinsic::StringTrimEnd
+                                | Intrinsic::StringSearch
+                                | Intrinsic::StringCodePointLength
                                 | Intrinsic::JsRegexExec,
                             ..
                         }

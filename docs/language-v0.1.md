@@ -365,28 +365,32 @@ dispatch. Its implemented operations are deliberately explicit:
 - `value is string`, `value is float`, and `value is bool` are sound narrowing guards. JavaScript numbers must use `float`; array and function signatures cannot be proven by `typeof` and are rejected as narrowing targets.
 - `JS.construct(ctor, ...args)` evaluates `new ctor(...args)`. The callee is required; up to six further `JsValue` arguments are constructor arguments. C/native targets reject it.
 
-Four typed JavaScript adapter primitives create ordinary host-callable
+Six typed JavaScript adapter primitives create ordinary host-callable
 functions without weakening the callback's static signature:
 
 - `JS.method0(func(JsValue) -> JsValue)` passes the wrapper's `this` and no
   call arguments;
 - `JS.method1(func(JsValue, JsValue) -> JsValue)` passes `this` and the first
   call argument;
+- `JS.method2(func(JsValue, JsValue, JsValue) -> JsValue)` passes `this` and
+  the first two call arguments;
+- `JS.method3(func(JsValue, JsValue, JsValue, JsValue) -> JsValue)` passes
+  `this` and the first three call arguments;
 - `JS.methodRest(func(JsValue, JsValue) -> JsValue)` passes `this` and the
   wrapper's real JavaScript `arguments` object;
 - `JS.staticRest(func(JsValue) -> JsValue)` passes only that `arguments`
   object.
 
 Each evaluation returns a fresh anonymous, constructible ordinary function.
-Their JavaScript `length` values are respectively `0`, `1`, `0`, and `0`, and
-their callback is invoked as a plain function. Semantic analysis resolves these
-operations by builtin identity and checks the exact callback arity and types; an
-unrelated extern with the same spelling has no special behavior. The JavaScript
-backend may fuse a private callback with its wrapper only after proving its
-identity and lexical bindings do not escape; where JavaScript would infer a
-function name, the fused spelling explicitly preserves the wrapper's anonymous
-reflection. Otherwise it emits a compiler-private shared factory. C/native
-targets reject all four adapters.
+Their JavaScript `length` values are respectively `0`, `1`, `2`, `3`, `0`, and
+`0`, and their callback is invoked as a plain function. Semantic analysis
+resolves these operations by builtin identity and checks the exact callback
+arity and types; an unrelated extern with the same spelling has no special
+behavior. The JavaScript backend may fuse a private callback with its wrapper
+only after proving its identity and lexical bindings do not escape; where
+JavaScript would infer a function name, the fused spelling explicitly
+preserves the wrapper's anonymous reflection. Otherwise it emits a
+compiler-private shared factory. C/native targets reject all six adapters.
 
 String concatenation may consume a guarded `JsValue` and uses JavaScript's
 ordinary coercion. An unguarded Symbol therefore throws exactly as it would in
@@ -490,9 +494,10 @@ when the binary64 product is exact but can differ for large operands.
 
 Integer division truncates toward zero; division or remainder by zero produces
 `0` on every backend. These are language guarantees shared by JavaScript and
-native output. JavaScript may omit an i32 coercion when range analysis proves it
-redundant, while performance-first retains eager normalization for numeric hot
-paths. Float arithmetic follows IEEE-754 binary64 behavior.
+native output. JavaScript drops proven-redundant signed-i32 `|0` for
+`size-first` and `balanced` because `|0` never helps gzip/Brotli. `performance-first`,
+`realistic-performance-first`, and `javascript.integer_coercions = true` keep `|0`.
+Overflow-capable operations still wrap. Float arithmetic follows IEEE-754 binary64 behavior.
 
 ## Declarations
 
@@ -836,11 +841,16 @@ and returns an array of the removed elements. `fill(value)`, `copyWithin`, and
 `reverse` mutate in place and return the receiver. `concat` produces a new
 same-element-type array. Strings provide UTF-16 code-unit `length`,
 `charCodeAt`, and `charAt`, plus `includes`, `startsWith`, `endsWith`,
-`indexOf`, `lastIndexOf`, `repeat`, `toUpperCase`, and `toLowerCase`. This
+`indexOf`, `lastIndexOf`, `repeat`, `toUpperCase`, `toLowerCase`, `trim`,
+`trimStart`, `trimEnd`, `search(regex)`, `slice(start, end?)`,
+`replace(regex, replacement)`, `split(separator)`, and `codePointLength()`
+(Unicode scalar count; JavaScript emits `[...s].length`). This
 matches JavaScript string indexing while native storage uses UTF-8 plus WTF-8
 for lone surrogate code units produced by `charAt`.
 `charCodeAt` returns `0` for an out-of-range index. `charAt` returns an empty
-string out of range, otherwise a one-code-unit string. Calls are statically checked
+string out of range, otherwise a one-code-unit string.
+`Regex` provides `test`, `exec`, readable flag/source metadata, and mutable
+`lastIndex`. Calls are statically checked
 and are intrinsic optimization candidates; they are not untyped JavaScript
 dispatch.
 

@@ -2511,6 +2511,44 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
             }
             "toUpperCase" => Ok(Value::String(receiver.to_uppercase())),
             "toLowerCase" => Ok(Value::String(receiver.to_lowercase())),
+            "trim" => Ok(Value::String(
+                receiver.trim_matches(is_js_trim_char).to_string(),
+            )),
+            "trimStart" => Ok(Value::String(
+                receiver.trim_start_matches(is_js_trim_char).to_string(),
+            )),
+            "trimEnd" => Ok(Value::String(
+                receiver.trim_end_matches(is_js_trim_char).to_string(),
+            )),
+            "slice" => {
+                let Some(Value::Int(start)) = arguments.first() else {
+                    return Err(InterpretError::new(span, "slice requires an int start"));
+                };
+                let end = match arguments.get(1) {
+                    None => None,
+                    Some(Value::Int(value)) => Some(*value),
+                    Some(_) => {
+                        return Err(InterpretError::new(span, "slice end must be int"));
+                    }
+                };
+                Ok(Value::String(utf16_string_slice(receiver, *start, end)))
+            }
+            "split" => {
+                let Some(Value::String(separator)) = arguments.first() else {
+                    return Err(InterpretError::new(span, "split requires a string separator"));
+                };
+                Ok(Value::Array(Rc::new(RefCell::new(
+                    js_string_split(receiver, separator)
+                        .into_iter()
+                        .map(Value::String)
+                        .collect(),
+                ))))
+            }
+            "codePointLength" => Ok(Value::Int(
+                i32::try_from(receiver.chars().count()).map_err(|_| {
+                    InterpretError::new(span, "code point length exceeds the i32 range")
+                })?,
+            )),
             "length" => Ok(Value::Int(
                 i32::try_from(receiver.encode_utf16().count()).map_err(|_| {
                     InterpretError::new(span, "string length exceeds the i32 range")
@@ -2522,6 +2560,52 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
             )),
         }
     }
+}
+
+fn is_js_trim_char(ch: char) -> bool {
+    ch.is_whitespace() || ch == '\u{feff}'
+}
+
+fn utf16_string_slice(receiver: &str, start: i32, end: Option<i32>) -> String {
+    let units = receiver.encode_utf16().collect::<Vec<_>>();
+    let len = units.len() as i32;
+    let start = if start < 0 {
+        (len + start).max(0)
+    } else {
+        start.min(len)
+    };
+    let start = start as usize;
+    let end = match end {
+        None => units.len(),
+        Some(end) => {
+            let end = if end < 0 {
+                (len + end).max(0)
+            } else {
+                end.min(len)
+            };
+            end as usize
+        }
+    };
+    let end = end.max(start);
+    char::decode_utf16(units[start..end].iter().copied())
+        .map(|unit| unit.unwrap_or(char::REPLACEMENT_CHARACTER))
+        .collect()
+}
+
+fn js_string_split(receiver: &str, separator: &str) -> Vec<String> {
+    if separator.is_empty() {
+        return receiver
+            .encode_utf16()
+            .map(|unit| {
+                char::decode_utf16([unit])
+                    .next()
+                    .and_then(Result::ok)
+                    .map(|value| value.to_string())
+                    .unwrap_or_default()
+            })
+            .collect();
+    }
+    receiver.split(separator).map(str::to_string).collect()
 }
 
 fn utf16_string_index(receiver: &str, needle: &str, position: i32, last: bool) -> i32 {

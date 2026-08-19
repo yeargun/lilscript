@@ -11,7 +11,7 @@ anchors: intrinsic selection in `src/lower.rs::member_intrinsic`, IR operations 
 | `Record<T>` | open string keys, homogeneous values, observable key order | null-prototype object when materialized; keys never mangled |
 | `Map<K,V>` / `Set<T>` | insertion order; SameValueZero scalar keys, identity references | native `Map` / `Set` |
 | buffers/views | fixed bytes and typed coercion; `slice` copies, `subarray` aliases | native buffers and typed arrays |
-| string methods | UTF-16-compatible indexing and declared conversions | direct strings/known built-ins |
+| string methods | UTF-16-compatible indexing, JS `trim`/`search`/`slice`/`replace`/`split`, Unicode `codePointLength` | direct strings/known built-ins |
 
 Array/record spread and destructuring are shallow, left-to-right, and evaluate the
 source once. Missing array or record elements become nullable results. `for...of`
