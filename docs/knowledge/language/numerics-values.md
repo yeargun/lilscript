@@ -9,7 +9,7 @@ distinction supplies optimization proofs.
 
 | Surface type | Required semantics | Compression consequence |
 |---|---|---|
-| `int` | signed i32; wrapping add/sub/negation/bitwise, shifts mask by 31 | range analysis may remove redundant `|0`, but never changes the result |
+| `int` | signed i32; wrapping add/sub/negation/bitwise, shifts mask by 31 | size-first/balanced drop proven `|0` (`|0` never helps gzip/Brotli); performance-first and `integer_coercions = true` keep it |
 | `number` / `float` | IEEE-754 binary64 | avoids artificial i32 normalization on ordinary web numerics |
 | `bool` | exactly `true`/`false` | branch and finite-value propagation can erase tags |
 | `string` | JS-compatible string operations; UTF-16-oriented indexing contract | literals, templates, pooling, quote style, and repeated contexts are searchable |
@@ -32,9 +32,9 @@ inventing reflection.
 
 ## What config may change
 
-`safe-integer-coercion-elision`, compact booleans, numeric pooling, and expression
-search may change spelling only after legality is proved. `priority` can retain more
-eager normalization for runtime shape, but it cannot change overflow, `NaN`, `-0`,
+Size-first and balanced drop proven `|0`; `|0` never helps gzip/Brotli.
+`performance-first` and `javascript.integer_coercions = true` keep it. Compact booleans, numeric pooling, and expression
+search may change spelling only after legality is proved. `priority` cannot change overflow, `NaN`, `-0`,
 evaluation order, or conversion semantics.
 
 ## Evidence expectations

@@ -21,6 +21,10 @@ Aliases: `realisticperf-first`, `realistic-perf-first` → `realistic-performanc
 
 `export-mangling` is **never** implied by priority. Opt in via compression list or `[mangle].exports`.
 
+`|0` is not a compression tactic. Size-first and balanced drop proven-redundant `|0`.
+`performance-first` and `realistic-performance-first` keep it. Set
+`javascript.integer_coercions = true` to keep it on size-first or balanced.
+
 ## Numeric overrides
 
 ```toml
@@ -43,6 +47,7 @@ These are IR instruction budgets, not output-byte caps. jQuery’s inline TOMLs 
 | `public_aggregate_abi` | `named` (default) vs `positional` opaque handles |
 | `aggregate_layout` | instance backing; default `positional` |
 | `pool_numeric_literals` | default true |
+| `integer_coercions` | omit = drop proven `|0` on size-first/balanced, keep on performance-first and realistic-performance-first; `true` keeps `|0` |
 | `local_name_reserve` | 0–256; production search also tries 0/8/16/32 |
 | `stable_local_names` | default true |
 | `function_layout_exact_limit` | Held-Karp cutoff 0–18, default 13 |

@@ -35,7 +35,6 @@ compression = [
   "quote-style-selection",
   "string-pooling",
   "size-aware-inlining",
-  "safe-integer-coercion-elision",
   "compact-boolean-literals",
   "standard-grammar-elision",
   "structured-closure-inlining",

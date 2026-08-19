@@ -42,6 +42,7 @@ priority = "size-first"
 optimization_level = 15 # 0..15 compiler-effort budget
 cost_model = "brotli" # raw | gzip | brotli
 pool_numeric_literals = true # alias repeated profitable numeric literals
+# integer_coercions = true # keep `|0` on size-first/balanced; performance-first keeps it by default
 candidate_search = "production" # off | production | always
 candidate_limit = 1536
 candidate_byte_budget = 1048576 # aggregate whole-artifact search-work budget
@@ -61,7 +62,6 @@ compression = [
   "quote-style-selection",
   "string-pooling",
   "size-aware-inlining",
-  "safe-integer-coercion-elision",
   "compact-boolean-literals",
   "standard-grammar-elision",
   "structured-closure-inlining",
@@ -214,20 +214,21 @@ feature is enabled.
 checks, mandatory IR normalization, DCE correctness, or host-boundary rules:
 
 - `performance-first` uses straight-line/control-flow limits of `24`/`60`, has
-  no inline-growth cap, disables automatic string pooling, and retains eager
-  signed-i32 normalization for numeric hot paths.
+  no inline-growth cap, disables automatic string pooling, and keeps signed-i32
+  `|0` normalization on ordinary `int` math.
 - `realistic-performance-first` uses limits of `18`/`45`,
   allows up to `16` estimated additional IR instructions from repeated-call
-  inlining, enables profitable string pooling, and removes coercions only when
-  range analysis proves the result remains a signed i32.
+  inlining, and enables profitable string pooling. It keeps `|0`.
 - `balanced` uses limits of `12`/`30`, permits up to `4` estimated additional
-  instructions, and enables profitable string pooling.
+  instructions, and enables profitable string pooling. Proven-redundant `|0` is
+  dropped; `|0` does not help gzip/Brotli.
 - `size-first` is the default. It uses limits of `12`/`30`, permits up to `16`
   temporary IR instructions of inline growth so the following fold/DCE fixed
   point can expose a net byte win, enables profitable string pooling, enables
   owned-property mangling while leaving public export names stable, and
   considers delimiter-packed string literal tables. Packing adds startup work,
-  so the performance-oriented profiles leave it disabled.
+  so the performance-oriented profiles leave it disabled. Proven-redundant `|0`
+  is dropped. Set `integer_coercions = true` to keep it.
 
 `javascript.strip_console` defaults to `true` so production JavaScript does not
 ship `print()` as `console.log`. Language tests and the root `lilscript.toml`
@@ -255,7 +256,9 @@ construct those handles as objects in that mode.
 
 `javascript.compression` is an optional exact allowlist of contested JavaScript
 size tactics. If omitted, the selected profile supplies the list. If present,
-only listed tactics are enabled; `compression = []` disables all of them:
+only listed tactics are enabled; `compression = []` disables all of them.
+Proven `|0` is not in that bargain: size-first and balanced still drop it
+unless `integer_coercions = true`.
 
 - `identifier-mangling` assigns short names by whole-program use frequency.
 - `entropy-aware-mangling` compares the canonical identifier alphabet with an
@@ -289,9 +292,12 @@ only listed tactics are enabled; `compression = []` disables all of them:
   model predicts a reduction.
 - `size-aware-inlining` applies the profile's positive-growth limit to repeated
   straight-line calls.
-- `safe-integer-coercion-elision` removes signed-i32 normalization from ordinary
-  arithmetic only when inferred ranges prove that the result is already in
-  range. Unknown or overflow-capable operations remain normalized.
+- `safe-integer-coercion-elision` is not a transfer tactic. `|0` never helps
+  gzip/Brotli of served code, so size-first and balanced drop proven-redundant
+  coercions even when this name is omitted from an exact allowlist.
+  `performance-first` and `realistic-performance-first` keep `|0`. Set
+  `javascript.integer_coercions = true` to keep it on size-first or balanced.
+  Overflow-capable operations still wrap.
 - `compact-boolean-literals` compares `!0`/`!1` with `true`/`false` for
   surviving boolean constants and typed default fields.
 - `standard-grammar-elision` permits three independent, standards-valid
@@ -623,7 +629,7 @@ optimizer/emission and finalization; an independently configured parsed peephole
 compete with the untouched form, and configured profile/startup/performance features
 remain active. The current
 search space compares profitable string pooling, literal-table packing,
-proven-safe integer coercion elision, numeric-literal pooling, boolean literals,
+numeric-literal pooling, boolean literals,
 conservatively proven regular-expression literals,
 structured closures, identifier alphabets, adaptive local-name reservations,
 quote styles, and equivalent top-level declaration,

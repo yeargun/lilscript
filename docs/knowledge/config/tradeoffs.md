@@ -22,9 +22,9 @@ Use this when picking knobs. “Win” means typical direction, not a guarantee 
 | `priority = size-first` | primary | shape is tie-break only; packing/outlining can cost parse |
 | `balanced` | mixed | more weight on deopt/alloc/indirect calls |
 | `realistic-performance-first` | bucketed transfer objective | over-limit candidates are penalized in ranking, not rejected |
-| `performance-first` | secondary | eager `|0`, no pooling/packing, no IR search variants |
+| `performance-first` | secondary | keeps `|0`, no pooling/packing, no IR search variants |
 | `string-array-packing` | often smaller | extra split work at startup |
-| `safe-integer-coercion-elision` | smaller | can be **faster** on proven ints |
+| `integer_coercions = true` | worse transfer | keep `|0` for engines; size-first/balanced drop proven `|0` by default |
 | `aggregate_layout = named` | often larger JS | sometimes cheaper V8 instances |
 | `public_aggregate_abi = positional` | smaller if opaque | breaks named-field JS consumers |
 | Startup overhead percents | reject “tiny but unparsable” | hard ceiling |

@@ -9,7 +9,6 @@ compression = [
   "quote-style-selection",
   "string-pooling",
   "size-aware-inlining",
-  "safe-integer-coercion-elision",
   "compact-boolean-literals",
   "structured-closure-inlining",
   "pure-helper-inlining",

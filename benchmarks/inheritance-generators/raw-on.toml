@@ -8,7 +8,6 @@ compression = [
   "identifier-mangling",
   "entropy-aware-mangling",
   "quote-style-selection",
-  "safe-integer-coercion-elision",
   "compact-boolean-literals",
   "standard-grammar-elision",
   "compact-generator-star",

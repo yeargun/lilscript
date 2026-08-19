@@ -19,7 +19,7 @@ Set in `js_options()` from config. Notable defaults / cost-model interactions:
 | `mangle_exports` | off | reusable ABI |
 | `pool_strings` | on except performance-first | `[mangle].pool_strings` overrides |
 | `pool_numeric_literals` | `javascript.pool_numeric_literals` (default true) | |
-| `elide_safe_integer_coercions` | on except performance-first | range-proven only |
+| `elide_safe_integer_coercions` | on (size-first/balanced) | not searched; `|0` never helps transfer. Off for performance-first. `integer_coercions = true` keeps `|0` |
 | `compact_boolean_literals` | on except performance-first | `!0`/`!1` vs `true`/`false` |
 | `standard-grammar-elision` trio | on | ASI `;`, `new` parens, call-chain parens — still searched |
 | `pack_string_arrays` | size-first only | `.split` tables vs arrays |
@@ -73,7 +73,7 @@ probes stay practical.
 
 ## Spelling families the beam may try
 
-Pooling (string/number), packing, coercion elision, boolean literals, grammar elision (independently — comment: raw punctuation deletion can lose codec), structured closures, proof-gated single-use function expressions, pure-helper substitution, dense string-return tables, host-alias spelling, regex literals, unused catch binding, generator star spacing, callee default arguments, SSA destruction (scalar vs tuple phi, affinity modes), control flow (structured vs state machine), loops (`while` vs `for(;cond;)` vs `do`), mutation (`=`, prefix, postfix, compound), conditionals/commas, `var` vs `let` top-level, function arrow vs `function`, quote style, identifier alphabet, local-name reserve, declaration order.
+Pooling (string/number), packing, boolean literals, grammar elision (independently — comment: raw punctuation deletion can lose codec), structured closures, proof-gated single-use function expressions, pure-helper substitution, dense string-return tables, host-alias spelling, regex literals, unused catch binding, generator star spacing, callee default arguments, SSA destruction (scalar vs tuple phi, affinity modes), control flow (structured vs state machine), loops (`while` vs `for(;cond;)` vs `do`), mutation (`=`, prefix, postfix, compound), conditionals/commas, `var` vs `let` top-level, function arrow vs `function`, quote style, identifier alphabet, local-name reserve, declaration order.
 
 Phi-affinity exploration retains Grouped, Direct, and Conservative modes. Liveness
 interference includes local-phi expression incoming dependencies for the result's

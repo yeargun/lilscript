@@ -5,7 +5,8 @@ Parent: [Config](README.md). Emission: [JavaScript emission](../compilation/java
 Exact allowlist of **contested representations**. Omitted → `priority` defaults.
 Present → only listed names for the canonical JS/IR options. `[]` → none, except
 explicit `[mangle]` overrides for identifier/property/export mangling and string
-pooling.
+pooling. Proven `|0` elision is not an allowlist item: size-first and balanced
+always drop it unless `javascript.integer_coercions = true`.
 
 Duplicates are config errors. Names are kebab-case (`CompressionDecision::name`).
 
@@ -20,7 +21,8 @@ Duplicates are config errors. Names are kebab-case (`CompressionDecision::name`)
 | `export-mangling` | Public ESM names (+ public fields) | never by priority |
 | `string-pooling` | Alias repeated strings if raw model agrees | not performance-first |
 | `size-aware-inlining` | Apply positive inline-growth cap | not performance-first |
-| `safe-integer-coercion-elision` | Drop `|0` when range-proven | not performance-first |
+| `safe-integer-coercion-elision` | Drop proven `|0` | size-first, balanced (not searched; `|0` never helps transfer). Off for performance-first. Override with `integer_coercions` |
+| `length-to-number-elision` | Emit `JS.number(x.length)` as `x.length` instead of `+x.length` | size-first (still searched; `.length` is not always a number) |
 | `compact-boolean-literals` | `!0`/`!1` vs keywords | not performance-first |
 | `standard-grammar-elision` | ASI `;`, `new` parens, call-chain parens | all (still searched) |
 | `structured-closure-inlining` | Nested structured closures vs helpers; with candidate search, proof-gated private single-use function expressions | not performance-first |

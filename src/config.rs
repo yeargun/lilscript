@@ -241,12 +241,13 @@ impl ProjectConfig {
                 self.javascript
                     .compression_enabled(CompressionDecision::StringPooling)
             }),
+            string_pool_minimum_savings: 1,
             pool_numeric_literals: self.javascript.pool_numeric_literals,
             ordinary_record_literals: false,
-            elide_safe_integer_coercions: self
+            elide_safe_integer_coercions: !self.javascript.keep_integer_coercions(),
+            elide_length_tonumber: self
                 .javascript
-                .compression_enabled(CompressionDecision::SafeIntegerCoercionElision),
-            elide_length_tonumber: false,
+                .compression_enabled(CompressionDecision::LengthToNumberElision),
             compact_boolean_literals: self
                 .javascript
                 .compression_enabled(CompressionDecision::CompactBooleanLiterals),
@@ -286,6 +287,7 @@ impl ProjectConfig {
             iife_private_callee_clusters: self.javascript.iife_private_callee_clusters,
             nested_once_run_helpers: self.javascript.nested_once_run_helpers,
             batch_property_assigns: true,
+            batch_property_assign_minimum: 2,
             // Fresh-literal factory substitution changes complete-artifact
             // repetition history, so candidate search scores it separately.
             inline_fresh_empty_array_factories: false,
@@ -344,8 +346,18 @@ impl ProjectConfig {
             cross_scope_name_reuse: self
                 .javascript
                 .optimization_enabled(JavaScriptOptimization::EntropyCrossScopeReuse, None),
+            // Keep the mandatory emission conservative. Production search
+            // scores exact transitive nested-function shadowing separately.
+            transitive_nested_shadowing: false,
+            // The precise regime is an aggressive scored proposal. Keep the
+            // configured/pinned emission conservative so an incomplete
+            // transitive-reference proof can be rejected without making the
+            // compiler's mandatory fallback invalid.
+            precise_cross_scope_shadowing: false,
+            reserved_local_name_prefix: false,
             local_name_reserve: self.javascript.local_name_reserve,
             stable_local_names: self.javascript.stable_local_names,
+            frequency_order_local_names: false,
             entropy_property_names: self
                 .javascript
                 .optimization_enabled(JavaScriptOptimization::EntropyPropertyAssignment, None),
@@ -817,6 +829,13 @@ impl JavaScriptPriority {
         }
     }
 
+    const fn keeps_integer_coercions(self) -> bool {
+        matches!(
+            self,
+            Self::PerformanceFirst | Self::RealisticPerformanceFirst
+        )
+    }
+
     const fn enables_compression(self, decision: CompressionDecision) -> bool {
         match decision {
             CompressionDecision::IdentifierMangling => true,
@@ -824,9 +843,12 @@ impl JavaScriptPriority {
             CompressionDecision::QuoteStyleSelection => !matches!(self, Self::PerformanceFirst),
             CompressionDecision::StringPooling => !matches!(self, Self::PerformanceFirst),
             CompressionDecision::SizeAwareInlining => !matches!(self, Self::PerformanceFirst),
-            CompressionDecision::SafeIntegerCoercionElision => {
-                !matches!(self, Self::PerformanceFirst)
-            }
+            // `|0` never helps gzip/Brotli. Size-first and balanced drop
+            // proven-redundant coercions. Emission still follows
+            // `javascript.integer_coercions` / performance-first, not this
+            // allowlist: exact `compression = []` must not reintroduce `|0`.
+            CompressionDecision::SafeIntegerCoercionElision => !self.keeps_integer_coercions(),
+            CompressionDecision::LengthToNumberElision => matches!(self, Self::SizeFirst),
             CompressionDecision::CompactBooleanLiterals => !matches!(self, Self::PerformanceFirst),
             CompressionDecision::StandardGrammarElision => true,
             CompressionDecision::StructuredClosureInlining => {
@@ -899,6 +921,7 @@ pub enum CompressionDecision {
     StringPooling,
     SizeAwareInlining,
     SafeIntegerCoercionElision,
+    LengthToNumberElision,
     CompactBooleanLiterals,
     StandardGrammarElision,
     StructuredClosureInlining,
@@ -938,6 +961,7 @@ impl CompressionDecision {
             Self::StringPooling => "string-pooling",
             Self::SizeAwareInlining => "size-aware-inlining",
             Self::SafeIntegerCoercionElision => "safe-integer-coercion-elision",
+            Self::LengthToNumberElision => "length-to-number-elision",
             Self::CompactBooleanLiterals => "compact-boolean-literals",
             Self::StandardGrammarElision => "standard-grammar-elision",
             Self::StructuredClosureInlining => "structured-closure-inlining",
@@ -976,6 +1000,10 @@ pub struct JavaScriptConfig {
     pub optimizations: Option<Vec<JavaScriptOptimization>>,
     pub compression: Option<Vec<CompressionDecision>>,
     pub pool_numeric_literals: bool,
+    /// Keep signed-i32 `|0` even when range analysis proves it redundant.
+    /// Omitted: size-first and balanced drop proven `|0` (`|0` does not help
+    /// gzip/Brotli); performance-first and realistic-performance-first keep it.
+    pub integer_coercions: Option<bool>,
     pub inline_instruction_limit: Option<usize>,
     pub inline_control_flow_limit: Option<usize>,
     pub max_inline_growth: Option<usize>,
@@ -1029,6 +1057,7 @@ impl Default for JavaScriptConfig {
             optimizations: None,
             compression: None,
             pool_numeric_literals: true,
+            integer_coercions: None,
             inline_instruction_limit: None,
             inline_control_flow_limit: None,
             max_inline_growth: None,
@@ -1356,6 +1385,11 @@ impl Default for FormatConfig {
 }
 
 impl JavaScriptConfig {
+    fn keep_integer_coercions(&self) -> bool {
+        self.integer_coercions
+            .unwrap_or_else(|| self.priority.keeps_integer_coercions())
+    }
+
     fn compression_enabled(&self, decision: CompressionDecision) -> bool {
         self.compression.as_ref().map_or_else(
             || self.priority.enables_compression(decision),
@@ -1784,6 +1818,12 @@ shared_min_imports = 3
         assert_eq!(performance_optimizer.inline_growth_limit, None);
         assert!(!performance.js_options().pool_strings);
         assert!(!performance.js_options().elide_safe_integer_coercions);
+        assert!(!performance.js_options().elide_length_tonumber);
+        assert!(
+            ProjectConfig::default()
+                .js_options()
+                .elide_safe_integer_coercions
+        );
 
         let realistic: ProjectConfig =
             toml::from_str("[javascript]\npriority='realistic-performance-first'\n").unwrap();
@@ -1798,7 +1838,7 @@ shared_min_imports = 3
         assert!(realistic.js_options().mangle_identifiers);
         assert!(realistic.entropy_aware_mangling_enabled());
         assert!(realistic.js_options().pool_strings);
-        assert!(realistic.js_options().elide_safe_integer_coercions);
+        assert!(!realistic.js_options().elide_safe_integer_coercions);
         assert!(realistic.js_options().compact_boolean_literals);
         assert!(!realistic.js_options().pack_string_arrays);
         assert_eq!(realistic.javascript.candidate_limit, 1536);
@@ -1821,12 +1861,15 @@ shared_min_imports = 3
         assert_eq!(balanced_optimizer.inline_control_flow_limit, 30);
         assert_eq!(balanced_optimizer.inline_growth_limit, Some(4));
         assert!(balanced.js_options().pool_strings);
+        assert!(balanced.js_options().elide_safe_integer_coercions);
         assert!(!balanced.js_options().pack_string_arrays);
 
         let size: ProjectConfig = toml::from_str("[javascript]\npriority='size-first'\n").unwrap();
         assert_eq!(size.js_optimizer_options().inline_growth_limit, Some(16));
         assert!(size.js_options().pool_strings);
         assert!(size.js_options().elide_safe_integer_coercions);
+        assert!(size.js_options().elide_length_tonumber);
+        assert!(!balanced.js_options().elide_length_tonumber);
         assert!(size.js_options().inline_structured_closures);
         assert!(size.js_options().pack_string_arrays);
         assert!(size.js_options().scalar_phi_copies);
@@ -1898,6 +1941,24 @@ shared_min_imports = 3
         )
         .unwrap();
         assert!(explicit_pooling.js_options().pool_strings);
+
+        let keep_coercions: ProjectConfig =
+            toml::from_str("[javascript]\npriority='size-first'\ninteger_coercions=true\n")
+                .unwrap();
+        assert!(!keep_coercions.js_options().elide_safe_integer_coercions);
+
+        let keep_balanced: ProjectConfig =
+            toml::from_str("[javascript]\npriority='balanced'\ninteger_coercions=true\n").unwrap();
+        assert!(!keep_balanced.js_options().elide_safe_integer_coercions);
+
+        let drop_on_performance: ProjectConfig =
+            toml::from_str("[javascript]\npriority='performance-first'\ninteger_coercions=false\n")
+                .unwrap();
+        assert!(
+            drop_on_performance
+                .js_options()
+                .elide_safe_integer_coercions
+        );
     }
 
     #[test]
@@ -1946,7 +2007,7 @@ max_inline_growth = 3
         assert!(!none_codegen.mangle_properties);
         assert!(!none_codegen.mangle_exports);
         assert!(!none_codegen.pool_strings);
-        assert!(!none_codegen.elide_safe_integer_coercions);
+        assert!(none_codegen.elide_safe_integer_coercions);
         assert!(!none_codegen.compact_boolean_literals);
         assert!(!none_codegen.elide_block_terminal_semicolons);
         assert!(!none_codegen.elide_new_parentheses);

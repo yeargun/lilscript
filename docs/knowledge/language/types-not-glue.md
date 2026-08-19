@@ -41,7 +41,7 @@ Closure `ADVANCED` then tries to recover what the type layer threw away. LilScri
 
 ## Splits that exist so the compressor can be aggressive
 
-**`int` vs `number`.** Bitwise/shift stay `int`-only because JS itself i32-coerces them. Ordinary `int` multiply is `(a*b)|0`, never silently `Math.imul`. Source `Math.imul` stays exact low-32. Size-first may elide `|0` when `src/value_analysis.rs` proves the result is already signed i32. Performance-first keeps eager normalization. That is a **config-visible** ABI of the numeric type, not a comment.
+**`int` vs `number`.** Bitwise/shift stay `int`-only because JS itself i32-coerces them. Ordinary `int` multiply is `(a*b)|0`, never silently `Math.imul`. Source `Math.imul` stays exact low-32. `|0` never helps gzip/Brotli, so size-first and balanced drop a proven-redundant coercion. `performance-first` and `javascript.integer_coercions = true` keep it.
 
 **`struct` vs `Record<T>` vs `extern class`.** Closed layout, open data keys, and host names are three different things. Collapsing them into `object` would force property-name preservation everywhere. See [aggregates](aggregates.md).
 
