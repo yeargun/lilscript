@@ -31,7 +31,7 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
       - run: npm ci
-      - run: npm test
+      - run: npm run test:pages
       - run: npm run build:pages
       - uses: actions/configure-pages@v6
         with:
