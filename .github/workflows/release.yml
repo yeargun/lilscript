@@ -79,7 +79,7 @@ jobs:
           for binary in lilscript lilscript-codec lilpack lilscript-fmt lilscript-lint lilscript-lsp lilscript-playground; do
             cp "target/${{ matrix.target }}/release/${binary}${{ matrix.extension }}" "dist/lilscript-${{ matrix.target }}/"
           done
-          cp README.md LICENSE-MIT LICENSE-APACHE dist/lilscript-${{ matrix.target }}/
+          cp README.md LICENSE.md dist/lilscript-${{ matrix.target }}/
           tar -C dist -czf "dist/lilscript-${{ matrix.target }}.tar.gz" "lilscript-${{ matrix.target }}"
       - uses: actions/upload-artifact@v4
         with:

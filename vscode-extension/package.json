@@ -4,7 +4,7 @@
   "description": "Syntax highlighting and language-server support for the standalone LilScript language.",
   "version": "0.1.0",
   "publisher": "lilscript",
-  "license": "MIT",
+  "license": "SEE LICENSE IN LICENSE.md",
   "engines": {
     "vscode": "^1.95.0"
   },
@@ -93,6 +93,6 @@
     "syntaxes",
     "snippets",
     "README.md",
-    "LICENSE"
+    "LICENSE.md"
   ]
 }

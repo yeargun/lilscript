@@ -3,7 +3,7 @@ name = "lilscript"
 version = "0.1.0"
 edition = "2021"
 description = "Compiler for the standalone LilScript language with optimized JavaScript code generation."
-license = "MIT OR Apache-2.0"
+license-file = "LICENSE.md"
 
 [dependencies]
 logos = "0.16"
