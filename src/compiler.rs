@@ -24,12 +24,13 @@ use crate::ir::{ControlFlowModule, FunctionId};
 #[cfg(test)]
 use crate::ir::{ControlFlowOp, Intrinsic};
 use crate::js_peephole::{
-    analyze_generated_javascript, function_leading_declaration_variant,
-    identifier_name_is_clear_binding, late_generated_javascript_cleanup,
+    analyze_generated_javascript, declared_identifier_character_use_counts,
+    function_leading_declaration_variant, identifier_name_is_clear_binding,
+    late_generated_javascript_cleanup, late_generated_javascript_cleanup_pass,
     optimize_generated_javascript, remap_identifier, remap_single_character_identifiers,
-    single_character_identifier_use_counts, single_character_identifiers,
-    single_character_name_is_clear_binding, two_character_identifier_use_counts,
-    JavaScriptSyntaxMetrics,
+    repair_fused_keyword_identifiers, single_character_identifier_use_counts,
+    single_character_identifiers, single_character_name_is_clear_binding,
+    two_character_identifier_use_counts, JavaScriptSyntaxMetrics, LateJavaScriptCleanupPass,
 };
 use crate::lower::lower_to_control_flow;
 use crate::module::{
@@ -105,7 +106,28 @@ pub struct JavaScriptSelectionMetrics {
     pub baseline_performance: JavaScriptPerformanceMetrics,
     pub candidates_evaluated: usize,
     pub peephole_rewrites: usize,
+    pub decisions: JavaScriptSelectionDecisions,
     pub compiler_time_micros: u128,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct JavaScriptSelectionDecisions {
+    pub string_pooling: bool,
+    pub string_pool_minimum_savings: usize,
+    pub transitive_nested_shadowing: bool,
+    pub precise_cross_scope_shadowing: bool,
+    pub reserved_local_name_prefix: bool,
+    pub local_name_reserve: usize,
+    pub stable_local_names: bool,
+    pub frequency_order_local_names: bool,
+    pub terminal_scope_naming_challengers: usize,
+    pub terminal_scope_naming_selected: bool,
+    pub terminal_scope_naming_incumbent_bytes: Option<usize>,
+    pub terminal_scope_naming_best_bytes: Option<usize>,
+    pub terminal_string_pooling_challengers: usize,
+    pub terminal_string_pooling_selected: bool,
+    pub terminal_string_pooling_incumbent_bytes: Option<usize>,
+    pub terminal_string_pooling_best_bytes: Option<usize>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -2081,6 +2103,10 @@ fn optimize_and_select_javascript_inner<'src>(
         .find(|context| context.id == selected.plan_identity.context_id)
         .map(|context| context.reports.clone())
         .expect("selected JavaScript plan belongs to an admitted IR context");
+    let selected_options = contexts
+        .registered_plan_by_identity(selected.plan_identity)
+        .expect("selected JavaScript plan remains registered")
+        .options;
     Ok(OptimizedJavascriptCandidate {
         javascript: selected.code,
         plan_identity: selected.plan_identity,
@@ -2095,6 +2121,26 @@ fn optimize_and_select_javascript_inner<'src>(
             baseline_performance: selected.baseline_performance,
             candidates_evaluated: selected.candidates_evaluated,
             peephole_rewrites: selected.peephole_rewrites,
+            decisions: JavaScriptSelectionDecisions {
+                string_pooling: selected_options.pool_strings,
+                string_pool_minimum_savings: selected_options.string_pool_minimum_savings,
+                transitive_nested_shadowing: selected_options.transitive_nested_shadowing,
+                precise_cross_scope_shadowing: selected_options.precise_cross_scope_shadowing,
+                reserved_local_name_prefix: selected_options.reserved_local_name_prefix,
+                local_name_reserve: selected_options.local_name_reserve,
+                stable_local_names: selected_options.stable_local_names,
+                frequency_order_local_names: selected_options.frequency_order_local_names,
+                terminal_scope_naming_challengers: selected.terminal_scope_naming_challengers,
+                terminal_scope_naming_selected: selected.terminal_scope_naming_selected,
+                terminal_scope_naming_incumbent_bytes: selected
+                    .terminal_scope_naming_incumbent_bytes,
+                terminal_scope_naming_best_bytes: selected.terminal_scope_naming_best_bytes,
+                terminal_string_pooling_challengers: selected.terminal_string_pooling_challengers,
+                terminal_string_pooling_selected: selected.terminal_string_pooling_selected,
+                terminal_string_pooling_incumbent_bytes: selected
+                    .terminal_string_pooling_incumbent_bytes,
+                terminal_string_pooling_best_bytes: selected.terminal_string_pooling_best_bytes,
+            },
             compiler_time_micros: started.elapsed().as_micros(),
         },
     })
@@ -2172,6 +2218,14 @@ struct SelectedJavaScriptCandidate {
     baseline_performance: JavaScriptPerformanceMetrics,
     candidates_evaluated: usize,
     peephole_rewrites: usize,
+    terminal_scope_naming_challengers: usize,
+    terminal_scope_naming_selected: bool,
+    terminal_scope_naming_incumbent_bytes: Option<usize>,
+    terminal_scope_naming_best_bytes: Option<usize>,
+    terminal_string_pooling_challengers: usize,
+    terminal_string_pooling_selected: bool,
+    terminal_string_pooling_incumbent_bytes: Option<usize>,
+    terminal_string_pooling_best_bytes: Option<usize>,
 }
 
 #[derive(Debug, Clone)]
@@ -2752,6 +2806,19 @@ impl<'ir, 'src> JavaScriptEmissionContexts<'ir, 'src> {
             .expect("JavaScript plan registry lock is not poisoned")
             .find(context_id, options)
     }
+
+    fn registered_plan_by_identity(
+        &self,
+        identity: JavaScriptPlanIdentity,
+    ) -> Option<JavaScriptEmissionPlan> {
+        self.plan_registry
+            .lock()
+            .expect("JavaScript plan registry lock is not poisoned")
+            .plans
+            .iter()
+            .copied()
+            .find(|plan| plan.identity == identity)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -2910,45 +2977,39 @@ fn select_javascript_candidate_global(
     for ordinary_record_literals in ordinary_record_candidates {
         for pool_strings in [configured.pool_strings, false] {
             for pool_numeric_literals in [configured.pool_numeric_literals, false] {
-                for elide_safe_integer_coercions in [configured.elide_safe_integer_coercions, false]
-                {
-                    for compact_boolean_literals in [configured.compact_boolean_literals, false] {
-                        for inline_structured_closures in
-                            [configured.inline_structured_closures, false]
-                        {
-                            for pack_string_arrays in [configured.pack_string_arrays, false] {
-                                for regex_literals in [configured.regex_literals, false] {
-                                    for unused_catch_binding_elision in
-                                        [configured.unused_catch_binding_elision, false]
+                for compact_boolean_literals in [configured.compact_boolean_literals, false] {
+                    for inline_structured_closures in [configured.inline_structured_closures, false]
+                    {
+                        for pack_string_arrays in [configured.pack_string_arrays, false] {
+                            for regex_literals in [configured.regex_literals, false] {
+                                for unused_catch_binding_elision in
+                                    [configured.unused_catch_binding_elision, false]
+                                {
+                                    for compact_generator_star in
+                                        [configured.compact_generator_star, false]
                                     {
-                                        for compact_generator_star in
-                                            [configured.compact_generator_star, false]
-                                        {
-                                            let scalar_phi_candidates = scalar_phi_copy_candidates(
-                                                config,
-                                                configured.scalar_phi_copies,
-                                            );
-                                            for scalar_phi_copies in scalar_phi_candidates {
-                                                for phi_affinity_mode in phi_affinity_modes {
-                                                    let candidate =
-                                                        crate::codegen_ir_js::IrJsOptions {
-                                                            ordinary_record_literals,
-                                                            pool_strings,
-                                                            pool_numeric_literals,
-                                                            elide_safe_integer_coercions,
-                                                            compact_boolean_literals,
-                                                            inline_structured_closures,
-                                                            pack_string_arrays,
-                                                            regex_literals,
-                                                            unused_catch_binding_elision,
-                                                            compact_generator_star,
-                                                            scalar_phi_copies,
-                                                            phi_affinity_mode,
-                                                            ..configured
-                                                        };
-                                                    if !options.contains(&candidate) {
-                                                        options.push(candidate);
-                                                    }
+                                        let scalar_phi_candidates = scalar_phi_copy_candidates(
+                                            config,
+                                            configured.scalar_phi_copies,
+                                        );
+                                        for scalar_phi_copies in scalar_phi_candidates {
+                                            for phi_affinity_mode in phi_affinity_modes {
+                                                let candidate = crate::codegen_ir_js::IrJsOptions {
+                                                    ordinary_record_literals,
+                                                    pool_strings,
+                                                    pool_numeric_literals,
+                                                    compact_boolean_literals,
+                                                    inline_structured_closures,
+                                                    pack_string_arrays,
+                                                    regex_literals,
+                                                    unused_catch_binding_elision,
+                                                    compact_generator_star,
+                                                    scalar_phi_copies,
+                                                    phi_affinity_mode,
+                                                    ..configured
+                                                };
+                                                if !options.contains(&candidate) {
+                                                    options.push(candidate);
                                                 }
                                             }
                                         }
@@ -3099,6 +3160,18 @@ fn select_javascript_candidate_global(
                 if !alphabets.contains(&frequency) {
                     alphabets.push(frequency);
                 }
+                if let Ok(binding_characters) =
+                    declared_identifier_character_use_counts(&emission.code)
+                {
+                    let contextual = crate::codegen_ir_js::IdentifierAlphabet::
+                        for_code_excluding_binding_characters(
+                            &emission.code,
+                            &binding_characters,
+                        );
+                    if !alphabets.contains(&contextual) {
+                        alphabets.push(contextual);
+                    }
+                }
                 let keyword = crate::codegen_ir_js::IdentifierAlphabet::javascript_keyword();
                 if !alphabets.contains(&keyword) {
                     alphabets.push(keyword);
@@ -3209,6 +3282,77 @@ fn select_javascript_candidate_global(
         })
         .collect::<Vec<_>>();
     candidates.merge_optional(spelling_candidates)?;
+    // Local-name strategy is explored before the other axes.
+    //
+    // Whether short names are reused for the same source binding across scopes
+    // or reassigned per scope changes the byte cost of every later spelling
+    // decision, so it is a regime rather than a local tweak. Run late, it only
+    // gets flipped on finalists already selected under the other regime and
+    // the beam has no way back; run first, every later axis is explored inside
+    // both regimes.
+    if configured.cross_scope_name_reuse {
+        let finalists = top_candidate_options(
+            &mut candidates,
+            candidate_beam_width,
+            config.javascript.cost_model,
+        )?;
+        extend_javascript_candidate_beam(
+            ir,
+            module_output,
+            beam_policy,
+            &integer_analysis,
+            &mut candidates,
+            finalists,
+            |options| {
+                [crate::codegen_ir_js::IrJsOptions {
+                    precise_cross_scope_shadowing: !options.precise_cross_scope_shadowing,
+                    ..options
+                }]
+            },
+        )?;
+    }
+    if configured.mangle_identifiers {
+        let finalists = top_candidate_options(
+            &mut candidates,
+            candidate_beam_width,
+            config.javascript.cost_model,
+        )?;
+        extend_javascript_candidate_beam(
+            ir,
+            module_output,
+            beam_policy,
+            &integer_analysis,
+            &mut candidates,
+            finalists,
+            |options| {
+                [crate::codegen_ir_js::IrJsOptions {
+                    frequency_order_local_names: !options.frequency_order_local_names,
+                    ..options
+                }]
+            },
+        )?;
+    }
+    if configured.stable_local_names {
+        let finalists = top_candidate_options(
+            &mut candidates,
+            candidate_beam_width,
+            config.javascript.cost_model,
+        )?;
+        extend_javascript_candidate_beam(
+            ir,
+            module_output,
+            beam_policy,
+            &integer_analysis,
+            &mut candidates,
+            finalists,
+            |options| {
+                [crate::codegen_ir_js::IrJsOptions {
+                    stable_local_names: false,
+                    ..options
+                }]
+            },
+        )?;
+    }
     let finalists = top_candidate_options(
         &mut candidates,
         candidate_beam_width,
@@ -3361,10 +3505,59 @@ fn select_javascript_candidate_global(
         &mut candidates,
         finalists,
         |options| {
-            [crate::codegen_ir_js::IrJsOptions {
-                batch_property_assigns: !options.batch_property_assigns,
-                ..options
-            }]
+            [16, 64, 128, 256, 512].map(|string_pool_minimum_savings| {
+                crate::codegen_ir_js::IrJsOptions {
+                    pool_strings: true,
+                    string_pool_minimum_savings,
+                    ..options
+                }
+            })
+        },
+    )?;
+    let finalists = top_candidate_options(
+        &mut candidates,
+        candidate_beam_width,
+        config.javascript.cost_model,
+    )?;
+    extend_javascript_candidate_beam(
+        ir,
+        module_output,
+        beam_policy,
+        &integer_analysis,
+        &mut candidates,
+        finalists,
+        |options| {
+            [
+                crate::codegen_ir_js::IrJsOptions {
+                    batch_property_assigns: false,
+                    ..options
+                },
+                crate::codegen_ir_js::IrJsOptions {
+                    batch_property_assigns: true,
+                    batch_property_assign_minimum: 2,
+                    ..options
+                },
+                crate::codegen_ir_js::IrJsOptions {
+                    batch_property_assigns: true,
+                    batch_property_assign_minimum: 3,
+                    ..options
+                },
+                crate::codegen_ir_js::IrJsOptions {
+                    batch_property_assigns: true,
+                    batch_property_assign_minimum: 4,
+                    ..options
+                },
+                crate::codegen_ir_js::IrJsOptions {
+                    batch_property_assigns: true,
+                    batch_property_assign_minimum: 6,
+                    ..options
+                },
+                crate::codegen_ir_js::IrJsOptions {
+                    batch_property_assigns: true,
+                    batch_property_assign_minimum: 8,
+                    ..options
+                },
+            ]
         },
     )?;
     if config.javascript_optimization_enabled(
@@ -3586,35 +3779,6 @@ fn select_javascript_candidate_global(
                 },
             )?;
         }
-    }
-    // Local-name strategy is explored before the other axes, not after them.
-    //
-    // Whether short names are reused for the same source binding across scopes
-    // or reassigned per scope changes the byte cost of every later spelling
-    // decision, so it is a regime rather than a local tweak. Run late, it only
-    // ever gets flipped on finalists that were already selected under the other
-    // regime, and the beam has no way back; run first, every later axis is
-    // explored inside both regimes.
-    if configured.stable_local_names {
-        let finalists = top_candidate_options(
-            &mut candidates,
-            candidate_beam_width,
-            config.javascript.cost_model,
-        )?;
-        extend_javascript_candidate_beam(
-            ir,
-            module_output,
-            beam_policy,
-            &integer_analysis,
-            &mut candidates,
-            finalists,
-            |options| {
-                [crate::codegen_ir_js::IrJsOptions {
-                    stable_local_names: false,
-                    ..options
-                }]
-            },
-        )?;
     }
     if config.js_default_argument_variants_enabled() {
         let finalists = top_candidate_options(
@@ -4245,7 +4409,63 @@ fn select_javascript_candidate_global(
             )?;
         }
     }
-    finalize_javascript_candidates(
+    if configured.cross_scope_name_reuse {
+        // This is an exact-codec leaf over complete structural/name layouts.
+        // Making the nested-shadowing regime an early beam split can discard
+        // the conservative parent before later layout and entropy axes have
+        // exposed its eventual win. Keeping it last preserves that parent and
+        // still lets the selected codec accept every safe namespace saving.
+        let finalists = top_candidate_options(
+            &mut candidates,
+            candidate_beam_width,
+            config.javascript.cost_model,
+        )?;
+        extend_javascript_candidate_beam(
+            ir,
+            module_output,
+            beam_policy,
+            &integer_analysis,
+            &mut candidates,
+            finalists,
+            |options| {
+                [crate::codegen_ir_js::IrJsOptions {
+                    transitive_nested_shadowing: !options.transitive_nested_shadowing,
+                    ..options
+                }]
+            },
+        )?;
+    }
+    if configured.cross_scope_name_reuse {
+        // Revisit exact reference-based shadowing after every structural and
+        // entropy decision.  This regime was originally split near the front
+        // of the beam, where a locally weaker spelling could be discarded
+        // before later transforms exposed its transfer-size win.  Local-name
+        // reuse is especially non-monotone under gzip/Brotli: replacing many
+        // equally short identifiers with the same per-scope prefix can beat a
+        // raw-smaller coloring because the codec sees a much more repetitive
+        // byte stream.  The incumbent remains in the frontier, so each codec
+        // can still reject the precise-shadowing leaf independently.
+        let finalists = top_candidate_options(
+            &mut candidates,
+            candidate_beam_width,
+            config.javascript.cost_model,
+        )?;
+        extend_javascript_candidate_beam(
+            ir,
+            module_output,
+            beam_policy,
+            &integer_analysis,
+            &mut candidates,
+            finalists,
+            |options| {
+                [crate::codegen_ir_js::IrJsOptions {
+                    precise_cross_scope_shadowing: !options.precise_cross_scope_shadowing,
+                    ..options
+                }]
+            },
+        )?;
+    }
+    finalize_javascript_candidates_with_terminal_objective_challengers(
         candidates.into_candidates(),
         &configured_baseline,
         configured_plan_identity,
@@ -4253,6 +4473,7 @@ fn select_javascript_candidate_global(
         contexts,
         profile,
         candidate_limit,
+        module_output,
     )
 }
 
@@ -4982,6 +5203,340 @@ fn into_bounded_contiguous_batches<T>(items: Vec<T>, maximum_batches: usize) -> 
         .collect()
 }
 
+fn terminal_scope_naming_options(
+    parent: crate::codegen_ir_js::IrJsOptions,
+    configured: crate::codegen_ir_js::IrJsOptions,
+) -> Vec<crate::codegen_ir_js::IrJsOptions> {
+    if !configured.mangle_identifiers || !configured.cross_scope_name_reuse {
+        return Vec::new();
+    }
+
+    let mut variants = Vec::new();
+    let mut push = |options| {
+        if options != parent && !variants.contains(&options) {
+            variants.push(options);
+        }
+    };
+
+    // This is the closest safe analogue of Terser's per-scope allocator: a
+    // nested scope restarts the alphabet and excludes only parent bindings
+    // that its complete transitive reference graph can observe.
+    push(crate::codegen_ir_js::IrJsOptions {
+        precise_cross_scope_shadowing: true,
+        reserved_local_name_prefix: false,
+        ..parent
+    });
+
+    // A small globally unused prefix is intentionally raw-positive: module
+    // bindings move later in the alphabet so independent functions can start
+    // with exactly the same local names. Dictionary codecs may recover more
+    // from that repetition than the module namespace costs. Search a bounded
+    // geometric family, including both the selected and configured reserve.
+    let mut reserve_counts = vec![parent.local_name_reserve, configured.local_name_reserve];
+    reserve_counts.extend([8, 16, 32]);
+    reserve_counts.retain(|reserve| *reserve != 0);
+    reserve_counts.dedup();
+    for local_name_reserve in reserve_counts {
+        push(crate::codegen_ir_js::IrJsOptions {
+            precise_cross_scope_shadowing: true,
+            reserved_local_name_prefix: true,
+            local_name_reserve,
+            ..parent
+        });
+    }
+
+    // The narrower proof can occasionally spell a nested-function-heavy
+    // artifact better without perturbing globals and entry bindings.
+    if !parent.precise_cross_scope_shadowing {
+        push(crate::codegen_ir_js::IrJsOptions {
+            transitive_nested_shadowing: true,
+            ..parent
+        });
+    }
+    variants
+}
+
+fn terminal_string_pooling_options(
+    parent: crate::codegen_ir_js::IrJsOptions,
+    configured: crate::codegen_ir_js::IrJsOptions,
+) -> Vec<crate::codegen_ir_js::IrJsOptions> {
+    if !configured.pool_strings {
+        return Vec::new();
+    }
+    let mut variants = Vec::new();
+    let mut push = |options| {
+        if options != parent && !variants.contains(&options) {
+            variants.push(options);
+        }
+    };
+
+    // Repeated literals are already dictionary material. Keeping every
+    // raw-profitable alias can therefore make gzip/Brotli larger, while a
+    // sparse set of very expensive literals can still win. Revisit both the
+    // unpooled spelling and a denser threshold ladder on the actual final
+    // structural/naming winner.
+    push(crate::codegen_ir_js::IrJsOptions {
+        pool_strings: false,
+        ..parent
+    });
+    for string_pool_minimum_savings in [
+        parent.string_pool_minimum_savings,
+        configured.string_pool_minimum_savings,
+        16,
+        32,
+        64,
+        96,
+        128,
+        192,
+        256,
+        384,
+        512,
+        768,
+        1024,
+    ] {
+        push(crate::codegen_ir_js::IrJsOptions {
+            pool_strings: true,
+            string_pool_minimum_savings,
+            ..parent
+        });
+    }
+    variants
+}
+
+fn finalized_javascript_candidate_precedes(
+    left: &SelectedJavaScriptCandidate,
+    right: &SelectedJavaScriptCandidate,
+    config: &ProjectConfig,
+    baseline_transfer: usize,
+) -> bool {
+    let left_rank = javascript_candidate_rank(
+        config,
+        left.transfer_cost,
+        baseline_transfer,
+        left.performance.score,
+        left.baseline_performance.score,
+    );
+    let right_rank = javascript_candidate_rank(
+        config,
+        right.transfer_cost,
+        baseline_transfer,
+        right.performance.score,
+        right.baseline_performance.score,
+    );
+    (
+        left_rank,
+        left.code.len(),
+        top_level_declaration_preference(&left.code),
+        left.startup_score,
+        left.code.as_str(),
+        left.plan_identity.context_id,
+        left.plan_identity.ordinal,
+    ) < (
+        right_rank,
+        right.code.len(),
+        top_level_declaration_preference(&right.code),
+        right.startup_score,
+        right.code.as_str(),
+        right.plan_identity.context_id,
+        right.plan_identity.ordinal,
+    )
+}
+
+fn emit_terminal_javascript_challengers(
+    options: Vec<crate::codegen_ir_js::IrJsOptions>,
+    context_id: usize,
+    module_output: bool,
+    model: CompressionCostModel,
+    contexts: &JavaScriptEmissionContexts<'_, '_>,
+) -> Vec<JavaScriptEmissionCandidate> {
+    let mut candidates = Vec::new();
+    for options in options {
+        let plan = contexts
+            .registered_plan(context_id, options)
+            .or_else(|| contexts.register_plan(context_id, options));
+        let Some(plan) = plan else {
+            continue;
+        };
+        let Ok(code) = contexts.emit(plan.identity.context_id, module_output, plan.options) else {
+            continue;
+        };
+        if candidates
+            .iter()
+            .any(|candidate: &JavaScriptEmissionCandidate| candidate.code() == code)
+        {
+            continue;
+        }
+        let Ok(emission) = ScoredJavaScriptEmission::measure(code, model) else {
+            continue;
+        };
+        candidates
+            .push(JavaScriptEmissionCandidate::new_declaration_plan_with_scores(emission, plan));
+    }
+    candidates
+}
+
+#[allow(clippy::too_many_arguments)]
+fn finalize_javascript_candidates_with_terminal_objective_challengers(
+    candidates: Vec<JavaScriptEmissionCandidate>,
+    configured_baseline: &str,
+    configured_plan_identity: JavaScriptPlanIdentity,
+    config: &ProjectConfig,
+    contexts: &JavaScriptEmissionContexts<'_, '_>,
+    profile: &OptimizationProfile,
+    candidate_limit: usize,
+    module_output: bool,
+) -> Result<SelectedJavaScriptCandidate, CompileError> {
+    // The parsed peephole can make a structurally weaker emission plan become
+    // the final exact-codec winner. Applying naming leaves only to the
+    // pre-peephole beam therefore misses the parent that actually matters.
+    // Finalize normally first, then re-emit a small set of safe naming-only
+    // challengers from that exact winning plan. The incumbent remains an
+    // unconditional fallback.
+    let plan_options = candidates
+        .iter()
+        .map(|candidate| (candidate.identity(), candidate.options()))
+        .collect::<Vec<_>>();
+    let terminal_capacity = candidate_limit.saturating_sub(candidates.len());
+    let baseline_transfer = if let Some(transfer) = candidates
+        .iter()
+        .find(|candidate| candidate.identity() == configured_plan_identity)
+        .and_then(|candidate| {
+            candidate
+                .emission
+                .declaration_scores
+                .exact_cost(config.javascript.cost_model, 0)
+        }) {
+        transfer
+    } else {
+        compressed_size(configured_baseline.as_bytes(), config.javascript.cost_model)
+            .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?
+    };
+    let mut selected = finalize_javascript_candidates(
+        candidates,
+        configured_baseline,
+        configured_plan_identity,
+        config,
+        contexts,
+        profile,
+        candidate_limit,
+    )?;
+    let Some(parent_options) = plan_options
+        .iter()
+        .find_map(|(identity, options)| (*identity == selected.plan_identity).then_some(*options))
+    else {
+        return Ok(selected);
+    };
+    let mut remaining_terminal_capacity = terminal_capacity;
+    let mut candidates_evaluated = selected.candidates_evaluated;
+    let mut terminal_scope_naming_challengers = 0usize;
+    let mut terminal_scope_naming_selected = false;
+    let mut terminal_scope_naming_incumbent_bytes = None;
+    let mut terminal_scope_naming_best_bytes = None;
+    let mut terminal_string_pooling_challengers = 0usize;
+    let mut terminal_string_pooling_selected = false;
+    let mut terminal_string_pooling_incumbent_bytes = None;
+    let mut terminal_string_pooling_best_bytes = None;
+
+    let mut challenger_options = terminal_scope_naming_options(parent_options, config.js_options());
+    challenger_options.truncate(remaining_terminal_capacity);
+    let challenger_candidates = emit_terminal_javascript_challengers(
+        challenger_options,
+        selected.plan_identity.context_id,
+        module_output,
+        config.javascript.cost_model,
+        contexts,
+    );
+    remaining_terminal_capacity =
+        remaining_terminal_capacity.saturating_sub(challenger_candidates.len());
+    if !challenger_candidates.is_empty() {
+        terminal_scope_naming_challengers = challenger_candidates.len();
+        // Rank the whole naming family together so the expensive
+        // post-selection remap and cleanup searches run once, on its exact
+        // best member.
+        if let Ok(candidate) = finalize_javascript_candidates(
+            challenger_candidates,
+            configured_baseline,
+            configured_plan_identity,
+            config,
+            contexts,
+            profile,
+            usize::MAX,
+        ) {
+            candidates_evaluated =
+                candidates_evaluated.saturating_add(candidate.candidates_evaluated);
+            terminal_scope_naming_incumbent_bytes = Some(selected.transfer_cost);
+            terminal_scope_naming_best_bytes = Some(candidate.transfer_cost);
+            terminal_scope_naming_selected = finalized_javascript_candidate_precedes(
+                &candidate,
+                &selected,
+                config,
+                baseline_transfer,
+            );
+            if terminal_scope_naming_selected {
+                selected = candidate;
+            }
+        }
+    }
+
+    // String pooling has the same late-parent problem as naming. A raw-saving
+    // alias can merely duplicate bytes already represented in a codec's
+    // dictionary, so re-score an unpooled spelling and a denser threshold
+    // ladder from the actual naming winner instead of assuming that every
+    // repeated literal should be shared.
+    if let Some(pooling_parent_options) = contexts
+        .registered_plan_by_identity(selected.plan_identity)
+        .map(|plan| plan.options)
+    {
+        let mut pooling_options =
+            terminal_string_pooling_options(pooling_parent_options, config.js_options());
+        pooling_options.truncate(remaining_terminal_capacity);
+        let pooling_candidates = emit_terminal_javascript_challengers(
+            pooling_options,
+            selected.plan_identity.context_id,
+            module_output,
+            config.javascript.cost_model,
+            contexts,
+        );
+        if !pooling_candidates.is_empty() {
+            terminal_string_pooling_challengers = pooling_candidates.len();
+            if let Ok(candidate) = finalize_javascript_candidates(
+                pooling_candidates,
+                configured_baseline,
+                configured_plan_identity,
+                config,
+                contexts,
+                profile,
+                usize::MAX,
+            ) {
+                candidates_evaluated =
+                    candidates_evaluated.saturating_add(candidate.candidates_evaluated);
+                terminal_string_pooling_incumbent_bytes = Some(selected.transfer_cost);
+                terminal_string_pooling_best_bytes = Some(candidate.transfer_cost);
+                terminal_string_pooling_selected = finalized_javascript_candidate_precedes(
+                    &candidate,
+                    &selected,
+                    config,
+                    baseline_transfer,
+                );
+                if terminal_string_pooling_selected {
+                    selected = candidate;
+                }
+            }
+        }
+    }
+
+    selected.candidates_evaluated = candidates_evaluated;
+    selected.terminal_scope_naming_challengers = terminal_scope_naming_challengers;
+    selected.terminal_scope_naming_selected = terminal_scope_naming_selected;
+    selected.terminal_scope_naming_incumbent_bytes = terminal_scope_naming_incumbent_bytes;
+    selected.terminal_scope_naming_best_bytes = terminal_scope_naming_best_bytes;
+    selected.terminal_string_pooling_challengers = terminal_string_pooling_challengers;
+    selected.terminal_string_pooling_selected = terminal_string_pooling_selected;
+    selected.terminal_string_pooling_incumbent_bytes = terminal_string_pooling_incumbent_bytes;
+    selected.terminal_string_pooling_best_bytes = terminal_string_pooling_best_bytes;
+    Ok(selected)
+}
+
 fn finalize_javascript_candidates(
     candidates: Vec<JavaScriptEmissionCandidate>,
     configured_baseline: &str,
@@ -5259,6 +5814,14 @@ fn finalize_javascript_candidates_with_parallelism(
         baseline_performance,
         candidates_evaluated,
         peephole_rewrites: selected.peephole_rewrites,
+        terminal_scope_naming_challengers: 0,
+        terminal_scope_naming_selected: false,
+        terminal_scope_naming_incumbent_bytes: None,
+        terminal_scope_naming_best_bytes: None,
+        terminal_string_pooling_challengers: 0,
+        terminal_string_pooling_selected: false,
+        terminal_string_pooling_incumbent_bytes: None,
+        terminal_string_pooling_best_bytes: None,
     })
 }
 
@@ -6081,27 +6644,40 @@ fn entropy_alphabet_candidate_options(
         if !options.mangle_identifiers {
             continue;
         }
-        let option_candidate = crate::codegen_ir_js::IrJsOptions {
-            // Structural candidates can remove declarations, inline a sole
-            // function, or change punctuation long after the initial entropy
-            // alphabet was derived. Feed the complete transformed artifact
-            // back into the safe emitter rather than renaming JavaScript text:
-            // the emitter still owns every binding/reservation proof.
-            identifier_alphabet: crate::codegen_ir_js::IdentifierAlphabet::for_code(code),
-            ..options
-        };
-        if option_candidate.identifier_alphabet != options.identifier_alphabet
-            && !variants.iter().any(|variant: &JavaScriptEmissionPlan| {
-                variant.identity.context_id == parent_identity.context_id
-                    && variant.options == option_candidate
-            })
-        {
-            variants.push(JavaScriptEmissionPlan {
-                identity: parent_identity,
-                options: option_candidate,
-            });
-            if variants.len() == limit {
-                break;
+        // Structural candidates can remove declarations, inline a sole
+        // function, or change punctuation long after the initial entropy
+        // alphabet was derived. Feed the complete transformed artifact back
+        // into the safe emitter rather than renaming JavaScript text: the
+        // emitter still owns every binding/reservation proof.
+        let mut alphabets = vec![crate::codegen_ir_js::IdentifierAlphabet::for_code(code)];
+        if let Ok(binding_characters) = declared_identifier_character_use_counts(code) {
+            let contextual =
+                crate::codegen_ir_js::IdentifierAlphabet::for_code_excluding_binding_characters(
+                    code,
+                    &binding_characters,
+                );
+            if !alphabets.contains(&contextual) {
+                alphabets.push(contextual);
+            }
+        }
+        for identifier_alphabet in alphabets {
+            let option_candidate = crate::codegen_ir_js::IrJsOptions {
+                identifier_alphabet,
+                ..options
+            };
+            if option_candidate.identifier_alphabet != options.identifier_alphabet
+                && !variants.iter().any(|variant: &JavaScriptEmissionPlan| {
+                    variant.identity.context_id == parent_identity.context_id
+                        && variant.options == option_candidate
+                })
+            {
+                variants.push(JavaScriptEmissionPlan {
+                    identity: parent_identity,
+                    options: option_candidate,
+                });
+                if variants.len() == limit {
+                    return Ok(variants);
+                }
             }
         }
     }
@@ -6244,33 +6820,119 @@ fn apply_late_javascript_cleanup(
     mut selected: ScoredJavaScriptCandidate,
     config: &ProjectConfig,
 ) -> Result<ScoredJavaScriptCandidate, CompileError> {
-    if matches!(config.javascript.cost_model, CompressionCostModel::Raw) {
-        return Ok(selected);
+    #[derive(Clone)]
+    struct CleanupCandidate {
+        code: String,
+        cost: usize,
     }
-    let Ok(cleaned) = late_generated_javascript_cleanup(&selected.code) else {
-        return Ok(selected);
+
+    const BEAM_WIDTH: usize = 4;
+    const ROUNDS: usize = 2;
+
+    let original = CleanupCandidate {
+        code: selected.code.clone(),
+        cost: selected.transfer_cost,
     };
-    if cleaned == selected.code {
-        return Ok(selected);
+    let mut beam = vec![original.clone()];
+    for _ in 0..ROUNDS {
+        for pass in LateJavaScriptCleanupPass::ALL {
+            // Skipping a rewrite is a first-class branch. In particular, a
+            // raw-byte reduction is not assumed to help either dictionary
+            // codec, and a codec win in one artifact is not generalized to
+            // another artifact.
+            let mut proposals = beam.clone();
+            for candidate in &beam {
+                let Ok(code) = late_generated_javascript_cleanup_pass(&candidate.code, pass) else {
+                    continue;
+                };
+                if code == candidate.code
+                    || analyze_generated_javascript(&code).is_err()
+                    || proposals.iter().any(|proposal| proposal.code == code)
+                {
+                    continue;
+                }
+                let cost = compressed_size(code.as_bytes(), config.javascript.cost_model).map_err(
+                    |message| crate::codegen_js::CodegenError::new(Span::empty(0), message),
+                )?;
+                proposals.push(CleanupCandidate { code, cost });
+            }
+            proposals.sort_by(|left, right| {
+                (left.cost, left.code.len()).cmp(&(right.cost, right.code.len()))
+            });
+            proposals.dedup_by(|left, right| left.code == right.code);
+            proposals.truncate(BEAM_WIDTH);
+            beam = proposals;
+        }
     }
-    let cost = compressed_size(cleaned.as_bytes(), config.javascript.cost_model)
-        .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
-    if cost > selected.transfer_cost
-        || (cost == selected.transfer_cost && cleaned.len() >= selected.code.len())
+
+    // Pin the historical all-pass pipeline as a synergy proposal. The beam
+    // normally rediscovers it, but an individually losing precursor can be
+    // necessary for a later fold and may have been pruned at an earlier step.
+    if let Ok(code) = late_generated_javascript_cleanup(&original.code) {
+        if code != original.code
+            && analyze_generated_javascript(&code).is_ok()
+            && !beam.iter().any(|candidate| candidate.code == code)
+        {
+            let cost = compressed_size(code.as_bytes(), config.javascript.cost_model)
+                .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
+            beam.push(CleanupCandidate { code, cost });
+        }
+    }
+    beam.push(original);
+    beam.sort_by(|left, right| (left.cost, left.code.len()).cmp(&(right.cost, right.code.len())));
+    beam.dedup_by(|left, right| left.code == right.code);
+    let cleaned = beam
+        .into_iter()
+        .next()
+        .expect("late cleanup retains the selected JavaScript candidate");
+    if cleaned.code != selected.code
+        && cleaned.cost <= selected.transfer_cost
+        && !(cleaned.cost == selected.transfer_cost && cleaned.code.len() >= selected.code.len())
     {
+        if let Ok(metrics) = analyze_generated_javascript(&cleaned.code) {
+            selected.metrics = metrics;
+            selected.startup_score = selected.metrics.startup_score(
+                config.javascript.startup.parse_weight,
+                config.javascript.startup.compile_weight,
+                config.javascript.startup.memory_weight,
+            );
+            selected.code = cleaned.code;
+            selected.transfer_cost = cleaned.cost;
+        }
+    }
+    parenthesize_logical_assignments(selected, config)
+}
+
+fn parenthesize_logical_assignments(
+    mut selected: ScoredJavaScriptCandidate,
+    config: &ProjectConfig,
+) -> Result<ScoredJavaScriptCandidate, CompileError> {
+    let mut repaired = match late_generated_javascript_cleanup_pass(
+        &selected.code,
+        LateJavaScriptCleanupPass::OrAssignmentParens,
+    ) {
+        Ok(code) => code,
+        Err(_) => selected.code.clone(),
+    };
+    if let Ok(split) = repair_fused_keyword_identifiers(&repaired) {
+        repaired = split;
+    }
+    if repaired == selected.code {
         return Ok(selected);
     }
-    let Ok(metrics) = analyze_generated_javascript(&cleaned) else {
+    let Ok(metrics) = analyze_generated_javascript(&repaired) else {
         return Ok(selected);
     };
+    let transfer_cost = compressed_size(repaired.as_bytes(), config.javascript.cost_model)
+        .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
     selected.metrics = metrics;
     selected.startup_score = selected.metrics.startup_score(
         config.javascript.startup.parse_weight,
         config.javascript.startup.compile_weight,
         config.javascript.startup.memory_weight,
     );
-    selected.code = cleaned;
-    selected.transfer_cost = cost;
+    selected.code = repaired;
+    selected.transfer_cost = transfer_cost;
     Ok(selected)
 }
 
@@ -7061,6 +7723,38 @@ mod tests {
         assert_eq!(left.baseline_performance, right.baseline_performance);
         assert_eq!(left.candidates_evaluated, right.candidates_evaluated);
         assert_eq!(left.peephole_rewrites, right.peephole_rewrites);
+        assert_eq!(
+            left.terminal_scope_naming_challengers,
+            right.terminal_scope_naming_challengers
+        );
+        assert_eq!(
+            left.terminal_scope_naming_selected,
+            right.terminal_scope_naming_selected
+        );
+        assert_eq!(
+            left.terminal_scope_naming_incumbent_bytes,
+            right.terminal_scope_naming_incumbent_bytes
+        );
+        assert_eq!(
+            left.terminal_scope_naming_best_bytes,
+            right.terminal_scope_naming_best_bytes
+        );
+        assert_eq!(
+            left.terminal_string_pooling_challengers,
+            right.terminal_string_pooling_challengers
+        );
+        assert_eq!(
+            left.terminal_string_pooling_selected,
+            right.terminal_string_pooling_selected
+        );
+        assert_eq!(
+            left.terminal_string_pooling_incumbent_bytes,
+            right.terminal_string_pooling_incumbent_bytes
+        );
+        assert_eq!(
+            left.terminal_string_pooling_best_bytes,
+            right.terminal_string_pooling_best_bytes
+        );
     }
 
     #[test]
@@ -7487,6 +8181,76 @@ mod tests {
     }
 
     #[test]
+    fn keeps_return_separated_from_an_inlined_nullish_operand() {
+        let directory =
+            std::env::temp_dir().join(format!("lilscript-return-nullish-{}", std::process::id()));
+        std::fs::create_dir_all(&directory).unwrap();
+        let main = directory.join("main.lil");
+        std::fs::write(
+            &main,
+            r#"
+                export JsValue check = JS.method1((JsValue _s, JsValue e) => {
+                  if (JS.isNullish(e)) {
+                    return false;
+                  }
+                  return true;
+                });
+            "#,
+        )
+        .unwrap();
+
+        let output = compile_path_to_js_module(&main).unwrap();
+        assert!(
+            !output.contains("returne") && !output.contains("returna"),
+            "{output}"
+        );
+        assert!(
+            output.contains("==null") || output.contains("== null"),
+            "{output}"
+        );
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn inlines_js_invoke_wrappers_to_direct_members() {
+        let directory = std::env::temp_dir().join(format!(
+            "lilscript-js-invoke-wrapper-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&directory).unwrap();
+        let main = directory.join("main.lil");
+        let calls = (0..24)
+            .map(|index| format!("  invoke0(obj, \"m{index}\");"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        std::fs::write(
+            &main,
+            format!(
+                r#"
+                JsValue invoke0(JsValue obj, string method) {{
+                  return JS.invoke(obj, method);
+                }}
+                export JsValue tick(JsValue obj) {{
+{calls}
+                  return invoke0(obj, "onBO");
+                }}
+            "#
+            ),
+        )
+        .unwrap();
+
+        let output = compile_path_to_js_module(&main).unwrap();
+        assert!(output.contains(".onBO("), "{output}");
+        assert!(output.contains(".m0("), "{output}");
+        assert!(output.contains(".m23("), "{output}");
+        assert!(
+            !output.contains("\"onBO\"") && !output.contains("[t]("),
+            "{output}"
+        );
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
     fn restores_direct_method_calls_only_for_the_same_receiver() {
         let directory = std::env::temp_dir().join(format!(
             "lilscript-direct-host-method-{}",
@@ -7517,6 +8281,282 @@ mod tests {
             "a rebound member call must preserve its explicit receiver:\n{output}"
         );
         std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn rematerializes_same_receiver_member_calls_across_other_reads() {
+        let directory = std::env::temp_dir().join(format!(
+            "lilscript-same-receiver-member-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&directory).unwrap();
+        let main = directory.join("main.lil");
+        std::fs::write(
+            &main,
+            r#"
+                export JsValue prepare(JsValue object, JsValue value) {
+                  JsValue next = JS.call(object["enhancer_"], object, value, object["value_"], object["name_"]);
+                  if (JS.call(object["equals_"], object, object["value_"], next).truthy()) {
+                    return value;
+                  }
+                  return next;
+                }
+            "#,
+        )
+        .unwrap();
+
+        let output = compile_path_to_js_module(&main).unwrap();
+        assert!(
+            output.contains(".enhancer_(") && output.contains(".equals_("),
+            "same-receiver helpers should stay direct member calls:\n{output}"
+        );
+        assert!(
+            !output.contains(".call("),
+            "member functions must not go through Function.call:\n{output}"
+        );
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    fn js_ident_ending_at(source: &str, end: usize) -> Option<(usize, &str)> {
+        let bytes = source.as_bytes();
+        let mut start = end;
+        while start > 0
+            && (bytes[start - 1].is_ascii_alphanumeric() || matches!(bytes[start - 1], b'_' | b'$'))
+        {
+            start -= 1;
+        }
+        (start < end && !bytes[start].is_ascii_digit()).then(|| (start, &source[start..end]))
+    }
+
+    fn rebound_then_sibling_member(source: &str, assigned_field: &str, sibling_field: &str) -> bool {
+        let assigned = format!(".{assigned_field}");
+        let mut from = 0usize;
+        while let Some(rel) = source[from..].find(&assigned) {
+            let field_at = from + rel;
+            from = field_at + 1;
+            let Some((rhs_start, ident)) = js_ident_ending_at(source, field_at) else {
+                continue;
+            };
+            if rhs_start == 0 || source.as_bytes()[rhs_start - 1] != b'=' {
+                continue;
+            }
+            let Some((_, lhs)) = js_ident_ending_at(source, rhs_start - 1) else {
+                continue;
+            };
+            if lhs != ident {
+                continue;
+            }
+            let rest = &source[field_at + assigned.len()..];
+            let function_end = ["};function ", "};let ", ";export", "function "]
+                .iter()
+                .filter_map(|marker| rest.find(marker))
+                .min()
+                .unwrap_or(rest.len());
+            if rest[..function_end].contains(&format!("{ident}.{sibling_field}")) {
+                return true;
+            }
+        }
+        false
+    }
+
+    #[test]
+    fn sibling_javascript_members_keep_the_receiver() {
+        let directory = std::env::temp_dir().join(format!(
+            "lilscript-sibling-js-members-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&directory).unwrap();
+        let main = directory.join("main.lil");
+        std::fs::write(
+            &main,
+            r#"
+                class LinkDef {
+                  string href;
+                  string title;
+                  init(string href = "", string title = "") {
+                    this.href = href;
+                    this.title = title;
+                  }
+                }
+                extern class Response {
+                  string url;
+                  string statusText;
+                }
+                string join(JsValue cap, string href, string title, string raw, bool bang, string extra) {
+                  if (bang) {
+                    return href + "|" + title + "|" + raw + "|1|" + extra + JS.string(cap[1]);
+                  }
+                  return href + "|" + title + "|" + raw + "|0|" + extra + JS.string(cap[1]);
+                }
+                export string read(Map<string, LinkDef> links, JsValue cap, string key) {
+                  LinkDef? defn = links.get(key);
+                  if (defn == null) {
+                    return JS.string(cap[0]).charAt(0);
+                  }
+                  return join(cap, defn.href, defn.title, JS.string(cap[0]), JS.string(cap[0]).charAt(0) == "!", key);
+                }
+                export string read2(Map<string, LinkDef> links, JsValue cap, string key) {
+                  LinkDef? defn = links.get(key);
+                  if (defn == null) {
+                    return "";
+                  }
+                  return join(cap, defn.href, defn.title, JS.string(cap[0]), false, "x");
+                }
+                string pair(string left, string right) {
+                  if (left.length > 0) {
+                    return left + "|" + right;
+                  }
+                  return right;
+                }
+                export string webRead(Response response) {
+                  return pair(response.url, response.statusText);
+                }
+                export string webRead2(Response response) {
+                  return pair(response.url, response.statusText);
+                }
+            "#,
+        )
+        .unwrap();
+
+        let output = compile_path_to_js_module(&main).unwrap();
+        assert!(
+            !rebound_then_sibling_member(&output, "title", "href"),
+            "reusing a receiver name must not rematerialize a sibling member:\n{output}"
+        );
+        assert!(
+            !rebound_then_sibling_member(&output, "statusText", "url"),
+            "extern class fields are the same JavaScript members:\n{output}"
+        );
+        assert!(
+            output.contains(".href") && output.contains(".title"),
+            "typed fields should emit as JavaScript members:\n{output}"
+        );
+        assert!(
+            output.contains(".url") && output.contains(".statusText"),
+            "extern class fields should emit as JavaScript members:\n{output}"
+        );
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn rematerializes_same_receiver_method_calls_on_this() {
+        let directory = std::env::temp_dir().join(format!(
+            "lilscript-same-receiver-this-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&directory).unwrap();
+        let main = directory.join("main.lil");
+        std::fs::write(
+            &main,
+            r#"
+                export JsValue prepare = JS.method1((JsValue self, JsValue value) => {
+                  JsValue next = JS.call(self["enhancer_"], self, value, self["value_"], self["name_"]);
+                  if (JS.call(self["equals_"], self, self["value_"], next).truthy()) {
+                    return value;
+                  }
+                  return next;
+                });
+            "#,
+        )
+        .unwrap();
+
+        let output = compile_path_to_js_module(&main).unwrap();
+        assert!(
+            output.contains(".enhancer_(") && output.contains(".equals_("),
+            "this-receiver helpers should stay direct member calls:\n{output}"
+        );
+        assert!(
+            !output.contains(".call("),
+            "member functions must not go through Function.call:\n{output}"
+        );
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn keeps_this_on_same_receiver_member_calls_inside_nested_closures() {
+        let directory = std::env::temp_dir().join(format!(
+            "lilscript-nested-same-receiver-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&directory).unwrap();
+        let main = directory.join("main.lil");
+        std::fs::write(
+            &main,
+            r#"
+                export JsValue getDisposer(JsValue self, JsValue abortSignal) {
+                  JsValue dispose = () => {
+                    JS.call(self["dispose"], self);
+                    if (abortSignal.truthy()) {
+                      JS.call(abortSignal["removeEventListener"], abortSignal, "abort", dispose);
+                    }
+                    return JS.undefined();
+                  };
+                  return dispose;
+                }
+            "#,
+        )
+        .unwrap();
+
+        let output = compile_path_to_js_module(&main).unwrap();
+        assert!(
+            output.contains(".dispose("),
+            "captured same-receiver methods must stay member calls:\n{output}"
+        );
+        assert!(
+            !output.contains(".call("),
+            "member functions must not go through Function.call:\n{output}"
+        );
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn nested_same_receiver_member_calls_keep_javascript_this() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "JsValue probe(){\
+               JsValue self=JS.object();\
+               self[\"x\"]=1;\
+               self[\"dispose\"]=JS.method0((JsValue s)=>{s[\"x\"]=2;return JS.undefined();});\
+               JsValue extra=JS.object();\
+               extra[\"name_\"]=self[\"x\"];\
+               JsValue wrap=()=>{\
+                 JsValue name=extra[\"name_\"];\
+                 JS.call(self[\"dispose\"],self);\
+                 print(name);\
+                 return JS.undefined();\
+               };\
+               wrap();\
+               print(self[\"x\"]);\
+               return JS.undefined();\
+             }\
+             probe();",
+        )
+        .unwrap();
+        let mut config = javascript_oracle_config();
+        config.javascript.candidate_search = CandidateSearch::Off;
+        config.optimization.inlining = Some(false);
+        let javascript = compile_program_to_js_configured(&program, &config).unwrap();
+        assert!(
+            javascript.contains(".dispose("),
+            "nested same-receiver dispose must remain a member call:\n{javascript}"
+        );
+        let output = std::process::Command::new("node")
+            .arg("-e")
+            .arg(&javascript)
+            .output()
+            .expect("Node.js is required for JavaScript runtime parity tests");
+        assert!(
+            output.status.success(),
+            "node failed with {}:\n{}\n{javascript}",
+            output.status,
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            String::from_utf8(output.stdout).expect("node stdout is UTF-8"),
+            "1\n2\n",
+            "{javascript}"
+        );
     }
 
     #[test]
@@ -8020,6 +9060,103 @@ mod tests {
         .unwrap();
         assert_eq!(emitted, "new-output");
         assert_eq!(calls.get(), 1);
+    }
+
+    #[test]
+    fn keeps_a_saved_previous_value_readable_across_its_own_update() {
+        // `prev = cur` before `cur` advances is a parallel copy on the loop's
+        // back edge: the old `cur` must still be readable when `prev` takes it.
+        // Two-address coalescing used to merge the `cur` phi with its own
+        // incoming value even here, so both landed in one JavaScript name, the
+        // header compared the new value against itself, and the body ran once.
+        // marked's GFM autolink backpedal is this loop; it stopped after a
+        // single trim and left an unbalanced `)` inside the link.
+        let emitted = compile_source_to_js_module(concat!(
+            "export int steps(int n){",
+            "int prev=0;int cur=n;int count=0;",
+            "while(prev!=cur){",
+            "prev=cur;",
+            "if(cur>3){cur=cur-3;}else{cur=0;}",
+            "count=count+1;",
+            "}",
+            "return count;}",
+        ))
+        .unwrap();
+
+        assert!(
+            !copies_an_already_updated_loop_name(&emitted),
+            "{emitted}"
+        );
+    }
+
+    /// Read the two names the loop header compares, then reject an emission
+    /// where one is copied *from* the other after that other one has already
+    /// been assigned in the body. Any correct spelling — an ordered pair of
+    /// copies, a temporary, or destructuring — keeps the read ahead of the
+    /// update; only the collapsed one reads a value the update destroyed.
+    fn copies_an_already_updated_loop_name(code: &str) -> bool {
+        let Some(comparison) = code.find("!=") else {
+            return false;
+        };
+        let left = trailing_identifier(&code[..comparison]);
+        let right = leading_identifier(&code[comparison + 2..]);
+        let (Some(left), Some(right)) = (left, right) else {
+            return false;
+        };
+        let body = &code[comparison + 2 + right.len()..];
+        [(left, right), (right, left)].into_iter().any(|(saved, live)| {
+            let update = simple_assignment_position(body, live);
+            let copy = body.find(&format!("{saved}={live}")).filter(|index| {
+                body[index + saved.len() + 1 + live.len()..]
+                    .chars()
+                    .next()
+                    .is_none_or(|next| !next.is_ascii_alphanumeric() && next != '_' && next != '$')
+            });
+            matches!((update, copy), (Some(update), Some(copy)) if copy > update)
+        })
+    }
+
+    fn simple_assignment_position(code: &str, name: &str) -> Option<usize> {
+        let mut from = 0;
+        while let Some(offset) = code[from..].find(&format!("{name}=")) {
+            let index = from + offset;
+            let after = index + name.len() + 1;
+            let before_is_identifier = code[..index]
+                .chars()
+                .next_back()
+                .is_some_and(|previous| {
+                    previous.is_ascii_alphanumeric() || previous == '_' || previous == '$'
+                });
+            if !before_is_identifier && !code[after..].starts_with('=') {
+                return Some(index);
+            }
+            from = index + name.len();
+        }
+        None
+    }
+
+    fn trailing_identifier(code: &str) -> Option<&str> {
+        let end = code.len();
+        let start = code
+            .char_indices()
+            .rev()
+            .take_while(|(_, character)| {
+                character.is_ascii_alphanumeric() || *character == '_' || *character == '$'
+            })
+            .last()
+            .map(|(index, _)| index)?;
+        (start < end).then(|| &code[start..end])
+    }
+
+    fn leading_identifier(code: &str) -> Option<&str> {
+        let end = code
+            .char_indices()
+            .take_while(|(_, character)| {
+                character.is_ascii_alphanumeric() || *character == '_' || *character == '$'
+            })
+            .map(|(index, character)| index + character.len_utf8())
+            .last()?;
+        Some(&code[..end])
     }
 
     #[test]
@@ -10685,6 +11822,60 @@ mod tests {
     }
 
     #[test]
+    fn terminal_scope_naming_challenges_the_actual_winner_with_codec_friendly_prefixes() {
+        let mut config = ProjectConfig::default();
+        config.javascript.local_name_reserve = 8;
+        let configured = config.js_options();
+        assert!(configured.mangle_identifiers);
+        assert!(configured.cross_scope_name_reuse);
+
+        let parent = crate::codegen_ir_js::IrJsOptions {
+            local_name_reserve: 16,
+            ..configured
+        };
+        let variants = terminal_scope_naming_options(parent, configured);
+        assert!(variants.iter().any(|variant| {
+            variant.precise_cross_scope_shadowing && !variant.reserved_local_name_prefix
+        }));
+        for reserve in [8, 16, 32] {
+            assert!(variants.iter().any(|variant| {
+                variant.precise_cross_scope_shadowing
+                    && variant.reserved_local_name_prefix
+                    && variant.local_name_reserve == reserve
+            }));
+        }
+        assert!(variants.iter().any(|variant| {
+            variant.transitive_nested_shadowing && !variant.precise_cross_scope_shadowing
+        }));
+        assert!(variants.iter().all(|variant| *variant != parent));
+    }
+
+    #[test]
+    fn terminal_string_pooling_challenges_the_actual_winner_with_sparse_thresholds() {
+        let configured = ProjectConfig::default().js_options();
+        assert!(configured.pool_strings);
+        let parent = crate::codegen_ir_js::IrJsOptions {
+            pool_strings: true,
+            string_pool_minimum_savings: 128,
+            ..configured
+        };
+        let variants = terminal_string_pooling_options(parent, configured);
+        assert!(variants.iter().any(|variant| !variant.pool_strings));
+        for threshold in [16, 32, 64, 96, 192, 256, 384, 512, 768, 1024] {
+            assert!(variants.iter().any(|variant| {
+                variant.pool_strings && variant.string_pool_minimum_savings == threshold
+            }));
+        }
+        assert!(variants.iter().all(|variant| *variant != parent));
+
+        let disabled = crate::codegen_ir_js::IrJsOptions {
+            pool_strings: false,
+            ..configured
+        };
+        assert!(terminal_string_pooling_options(parent, disabled).is_empty());
+    }
+
+    #[test]
     fn parsed_peephole_is_independently_configurable() {
         let arena = Bump::new();
         let program = parse_source(
@@ -10877,10 +12068,7 @@ mod tests {
             "int mix(int value){return value^(value<<value);}int[] values=[1,2,3,4,5,6,7,8];print(mix(values[0]));print(mix(values[1]));print(mix(values[2]));print(mix(values[3]));print(mix(values[4]));print(mix(values[5]));print(mix(values[6]));print(mix(values[7]));",
         )
         .unwrap();
-        let selected =
-            compile_program_to_js_configured(&program, &javascript_oracle_config()).unwrap();
-        let mut inline_only = javascript_oracle_config();
-        inline_only.javascript.compression = Some(vec![
+        let sharing_compression = vec![
             CompressionDecision::IdentifierMangling,
             CompressionDecision::EntropyAwareMangling,
             CompressionDecision::QuoteStyleSelection,
@@ -10893,9 +12081,20 @@ mod tests {
             CompressionDecision::StringArrayPacking,
             CompressionDecision::ScalarPhiCopies,
             CompressionDecision::PhiAffinityCoalescing,
-        ]);
+            CompressionDecision::IrInliningVariants,
+        ];
+        let mut selected_config = javascript_oracle_config();
+        selected_config.javascript.compression = Some(sharing_compression.clone());
+        let selected = compile_program_to_js_configured(&program, &selected_config).unwrap();
+        let mut inline_only = selected_config.clone();
+        inline_only
+            .javascript
+            .compression
+            .as_mut()
+            .unwrap()
+            .retain(|decision| *decision != CompressionDecision::IrInliningVariants);
         let inlined = compile_program_to_js_configured(&program, &inline_only).unwrap();
-        let mut no_inlining = javascript_oracle_config();
+        let mut no_inlining = selected_config.clone();
         no_inlining.optimization.inlining = Some(false);
         let outlined = compile_program_to_js_configured(&program, &no_inlining).unwrap();
 
@@ -12123,6 +13322,609 @@ mod tests {
         assert!(output.contains("new "), "{output}");
         assert!(!output.contains("JS.construct"), "{output}");
         assert!(!output.contains("createJQuery"), "{output}");
+    }
+
+    #[test]
+    fn nested_js_closure_keeps_copied_value_after_source_write() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "JsValue snapshot(){\
+               JsValue value=1;\
+               JsValue oldValue=value;\
+               JsValue nested=JS.method0((JsValue _n)=>{value=2;return JS.undefined();});\
+               JS.call(nested,JS.undefined());\
+               print(oldValue);\
+               print(value);\
+               return JS.undefined();\
+             }\
+             snapshot();",
+        )
+        .unwrap();
+        let mut config = javascript_oracle_config();
+        config.javascript.candidate_search = CandidateSearch::Off;
+        config.optimization.inlining = Some(false);
+        let javascript = compile_program_to_js_configured(&program, &config).unwrap();
+        let output = std::process::Command::new("node")
+            .arg("-e")
+            .arg(&javascript)
+            .output()
+            .expect("Node.js is required for JavaScript runtime parity tests");
+        assert!(
+            output.status.success(),
+            "node failed with {}:\n{}\n{javascript}",
+            output.status,
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            String::from_utf8(output.stdout).expect("node stdout is UTF-8"),
+            "1\n2\n",
+            "{javascript}"
+        );
+    }
+
+    #[test]
+    fn keeps_copied_property_load_across_a_mutating_method_call() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "JsValue probe(){\
+               JsValue self=JS.object();\
+               self[\"x\"]=1;\
+               self[\"mutate\"]=JS.method0((JsValue s)=>{s[\"x\"]=2;return JS.undefined();});\
+               bool was=JS.strictEqual(self[\"x\"],1);\
+               JS.call(self[\"mutate\"],self);\
+               print(was);\
+               print(self[\"x\"]);\
+               return JS.undefined();\
+             }\
+             probe();",
+        )
+        .unwrap();
+        let mut config = javascript_oracle_config();
+        config.javascript.candidate_search = CandidateSearch::Off;
+        config.optimization.inlining = Some(false);
+        let javascript = compile_program_to_js_configured(&program, &config).unwrap();
+        let output = std::process::Command::new("node")
+            .arg("-e")
+            .arg(&javascript)
+            .output()
+            .expect("Node.js is required for JavaScript runtime parity tests");
+        assert!(
+            output.status.success(),
+            "node failed with {}:\n{}\n{javascript}",
+            output.status,
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            String::from_utf8(output.stdout).expect("node stdout is UTF-8"),
+            "true\n2\n",
+            "{javascript}"
+        );
+    }
+
+    #[test]
+    fn keeps_copied_property_compare_across_a_mutating_call_before_a_branch() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "JsValue probe(){\
+               JsValue self=JS.object();\
+               self[\"x\"]=1;\
+               self[\"compute\"]=JS.method0((JsValue s)=>{s[\"x\"]=2;return 3;});\
+               bool was=JS.strictEqual(self[\"x\"],1);\
+               JsValue newValue=JS.call(self[\"compute\"],self);\
+               if (was) { print(1); } else { print(0); }\
+               print(newValue);\
+               print(self[\"x\"]);\
+               return JS.undefined();\
+             }\
+             probe();",
+        )
+        .unwrap();
+        let mut config = javascript_oracle_config();
+        config.javascript.candidate_search = CandidateSearch::Off;
+        config.optimization.inlining = Some(false);
+        let javascript = compile_program_to_js_configured(&program, &config).unwrap();
+        let output = std::process::Command::new("node")
+            .arg("-e")
+            .arg(&javascript)
+            .output()
+            .expect("Node.js is required for JavaScript runtime parity tests");
+        assert!(
+            output.status.success(),
+            "node failed with {}:\n{}\n{javascript}",
+            output.status,
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            String::from_utf8(output.stdout).expect("node stdout is UTF-8"),
+            "1\n3\n2\n",
+            "{javascript}"
+        );
+    }
+
+    #[test]
+    fn keeps_toint_property_compare_across_a_js_call() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "JsValue probe(){\
+               JsValue self=JS.object();\
+               self[\"x\"]=1;\
+               self[\"compute\"]=JS.method0((JsValue s)=>{s[\"x\"]=2;return 3;});\
+               bool was=JS.number(self[\"x\"]).toInt()==1;\
+               JsValue newValue=JS.call(self[\"compute\"],self);\
+               if (was) { print(1); } else { print(0); }\
+               print(newValue);\
+               print(self[\"x\"]);\
+               return JS.undefined();\
+             }\
+             probe();",
+        )
+        .unwrap();
+        let mut config = javascript_oracle_config();
+        config.javascript.candidate_search = CandidateSearch::Off;
+        config.optimization.inlining = Some(false);
+        let javascript = compile_program_to_js_configured(&program, &config).unwrap();
+        let output = std::process::Command::new("node")
+            .arg("-e")
+            .arg(&javascript)
+            .output()
+            .expect("Node.js is required for JavaScript runtime parity tests");
+        assert!(
+            output.status.success(),
+            "node failed with {}:\n{}\n{javascript}",
+            output.status,
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            String::from_utf8(output.stdout).expect("node stdout is UTF-8"),
+            "1\n3\n2\n",
+            "{javascript}"
+        );
+    }
+
+    #[test]
+    fn keeps_toint_property_compare_across_a_js_call_when_used_in_a_later_or() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "int NOT_TRACKING=-1;\
+             int toInt(JsValue value){return JS.number(value).toInt();}\
+             JsValue call1(JsValue fn,JsValue self,JsValue a0){return JS.call(fn,self,a0);}\
+             JsValue Computed=JS.method0((JsValue self)=>self);\
+             JsValue probe(){\
+               Computed[\"prototype\"][\"trackAndCompute\"]=JS.method0((JsValue self)=>{\
+                 JsValue oldValue=self[\"value_\"];\
+                 bool wasSuspended=toInt(self[\"dependenciesState_\"])==NOT_TRACKING;\
+                 JsValue newValue=call1(self[\"computeValue_\"],self,true);\
+                 bool changed=wasSuspended||JS.strictEqual(oldValue,newValue);\
+                 if(changed){print(1);}else{print(0);}\
+                 print(newValue);\
+                 return changed;\
+               });\
+               JsValue self=JS.construct(Computed);\
+               self[\"dependenciesState_\"]=NOT_TRACKING;\
+               self[\"value_\"]=\"old\";\
+               self[\"computeValue_\"]=JS.method1((JsValue s,JsValue keep)=>{\
+                 s[\"dependenciesState_\"]=0;\
+                 return \"df\";\
+               });\
+               JS.call(self[\"trackAndCompute\"],self);\
+               return JS.undefined();\
+             }\
+             probe();",
+        )
+        .unwrap();
+        let mut config = javascript_oracle_config();
+        config.javascript.candidate_search = CandidateSearch::Off;
+        config.javascript.optimization_level = 8;
+        let javascript = compile_program_to_js_module_configured(&program, &config).unwrap();
+        let output = std::process::Command::new("node")
+            .arg("-e")
+            .arg(&javascript)
+            .output()
+            .expect("Node.js is required for JavaScript runtime parity tests");
+        assert!(
+            output.status.success(),
+            "node failed with {}:\n{}\n{javascript}",
+            output.status,
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            String::from_utf8(output.stdout).expect("node stdout is UTF-8"),
+            "1\ndf\n",
+            "{javascript}"
+        );
+    }
+
+    #[test]
+    fn declares_a_loop_carried_binding_before_a_prototype_walk() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "JsValue walk(JsValue adm, JsValue key, JsValue annotation){\
+               if(JS.strictEqual(annotation,true)){annotation=adm[\"defaultAnnotation_\"];}\
+               if(JS.strictEqual(annotation,false)){return JS.undefined();}\
+               JsValue source=adm[\"target_\"];\
+               while(source.truthy()&&!JS.strictEqual(source,JS.undefined())){\
+                 if(source[key].truthy()){break;}\
+                 source=source[\"proto\"];\
+               }\
+               return source;\
+             }\
+             JsValue proto=JS.object();\
+             proto[\"key\"]=JS.undefined();\
+             proto[\"proto\"]=JS.undefined();\
+             JsValue target=JS.object();\
+             target[\"key\"]=1;\
+             target[\"proto\"]=proto;\
+             JsValue adm=JS.object();\
+             adm[\"target_\"]=target;\
+             adm[\"defaultAnnotation_\"]=JS.object();\
+             if(JS.strictEqual(walk(adm,\"key\",true),target)){print(1);}else{print(0);}",
+        )
+        .unwrap();
+        let mut config = javascript_oracle_config();
+        config.javascript.candidate_search = CandidateSearch::Off;
+        config.javascript.optimization_level = 15;
+        config.javascript.strip_console = false;
+        config.mangle.identifiers = Some(true);
+        let javascript = compile_program_to_js_configured(&program, &config).unwrap();
+        let script = format!("\"use strict\";{javascript}");
+        let output = std::process::Command::new("node")
+            .arg("-e")
+            .arg(&script)
+            .output()
+            .expect("Node.js is required for JavaScript runtime parity tests");
+        assert!(
+            output.status.success(),
+            "node failed with {}:\n{}\n{javascript}",
+            output.status,
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            String::from_utf8(output.stdout).expect("node stdout is UTF-8"),
+            "1\n",
+            "{javascript}"
+        );
+    }
+
+    #[test]
+    fn module_level_assignment_is_not_shadowed_inside_setter() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "JsValue pred = JS.undefined();\
+             void setPred(string name, JsValue value) {\
+               if (name == \"x\") {\
+                 pred = value;\
+                 return;\
+               }\
+               pred = JS.undefined();\
+             }\
+             bool isMatch(JsValue thing) {\
+               return JS.call(pred, JS.undefined(), thing).truthy();\
+             }\
+             setPred(\"x\", JS.method1((JsValue _this, JsValue x) => {\
+               return JS.strictEqual(x, 1);\
+             }));\
+             if (isMatch(1)) { print(1); } else { print(0); }",
+        )
+        .unwrap();
+        let mut config = javascript_oracle_config();
+        config.javascript.candidate_search = CandidateSearch::Production;
+        config.javascript.optimization_level = 15;
+        config.javascript.strip_console = false;
+        config.mangle.identifiers = Some(true);
+        let javascript = compile_program_to_js_module_configured(&program, &config).unwrap();
+        let output = std::process::Command::new("node")
+            .arg("-e")
+            .arg(&javascript)
+            .output()
+            .expect("Node.js is required for JavaScript runtime parity tests");
+        assert!(
+            output.status.success(),
+            "node failed with {}:\n{}\n{javascript}",
+            output.status,
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            String::from_utf8(output.stdout).expect("node stdout is UTF-8"),
+            "1\n",
+            "{javascript}"
+        );
+    }
+
+    #[test]
+    fn method_has_temp_does_not_clobber_a_live_value_argument() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "JsValue call1(JsValue fn, JsValue self, JsValue a) {\
+               return JS.call(fn, self, a);\
+             }\
+             JsValue Ctor = JS.method0((JsValue self) => self);\
+             Ctor[\"prototype\"][\"has\"] = JS.method1((JsValue self, JsValue value) => {\
+               return false;\
+             });\
+             Ctor[\"prototype\"][\"add\"] = JS.method1((JsValue self, JsValue value) => {\
+               if (self[\"flag\"].truthy()) {\
+                 JsValue change = JS.object();\
+                 change[\"newValue\"] = value;\
+                 if (!change.truthy()) {\
+                   return self;\
+                 }\
+                 value = change[\"newValue\"];\
+               }\
+               JsValue hasFn = self[\"has\"];\
+               self[\"touched\"] = self;\
+               if (!call1(hasFn, self, value).truthy()) {\
+                 JS.call(self[\"run\"], JS.undefined(), JS.method0((JsValue _s) => {\
+                   self[\"added\"] = value;\
+                   value = self[\"added\"];\
+                   return JS.undefined();\
+                 }));\
+               }\
+               return self;\
+             });\
+             JsValue obj = JS.construct(Ctor);\
+             obj[\"run\"] = JS.method1((JsValue _s, JsValue fn) => {\
+               return JS.call(fn, JS.undefined());\
+             });\
+             JS.call(obj[\"add\"], obj, 7);\
+             print(obj[\"added\"]);",
+        )
+        .unwrap();
+        let mut config = javascript_oracle_config();
+        config.javascript.candidate_search = CandidateSearch::Production;
+        config.javascript.optimization_level = 15;
+        config.javascript.strip_console = false;
+        config.mangle.identifiers = Some(true);
+        let javascript = compile_program_to_js_module_configured(&program, &config).unwrap();
+        let output = std::process::Command::new("node")
+            .arg("-e")
+            .arg(&javascript)
+            .output()
+            .expect("Node.js is required for JavaScript runtime parity tests");
+        assert!(
+            output.status.success(),
+            "node failed with {}:\n{}\n{javascript}",
+            output.status,
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            String::from_utf8(output.stdout).expect("node stdout is UTF-8"),
+            "7\n",
+            "{javascript}"
+        );
+    }
+
+    #[test]
+    fn inner_temps_do_not_clobber_module_bindings_used_as_exports() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "JsValue when = JS.methodRest((JsValue _s, JsValue args) => {\
+               return args[0];\
+             });\
+             JsValue shallow = \"observable.shallow\";\
+             JsValue parseFlag(JsValue target, JsValue args) {\
+               bool flag = false;\
+               if (JS.number(args[\"length\"]).toInt() > 2) {\
+                 flag = args[2].truthy();\
+               }\
+               JsValue run = JS.method0((JsValue _s) => {\
+                 if (flag) { return target; }\
+                 return args[0];\
+               });\
+               JS.call(run, JS.undefined());\
+               return flag;\
+             }\
+             JsValue args = JS.array();\
+             JS.push(args, 1);\
+             JS.push(args, 2);\
+             JS.push(args, true);\
+             parseFlag(JS.object(), args);\
+             if (JS.typeOf(when) == \"function\") { print(1); } else { print(0); }\
+             print(shallow);",
+        )
+        .unwrap();
+        let mut config = javascript_oracle_config();
+        config.javascript.candidate_search = CandidateSearch::Production;
+        config.javascript.optimization_level = 15;
+        config.javascript.strip_console = false;
+        config.javascript.pool_numeric_literals = true;
+        config.javascript.local_name_reserve = 48;
+        config.javascript.stable_local_names = true;
+        config.mangle.identifiers = Some(true);
+        config.mangle.pool_strings = Some(true);
+        let javascript = compile_program_to_js_module_configured(&program, &config).unwrap();
+        let output = std::process::Command::new("node")
+            .arg("-e")
+            .arg(&javascript)
+            .output()
+            .expect("Node.js is required for JavaScript runtime parity tests");
+        assert!(
+            output.status.success(),
+            "node failed with {}:\n{}\n{javascript}",
+            output.status,
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            String::from_utf8(output.stdout).expect("node stdout is UTF-8"),
+            "1\nobservable.shallow\n",
+            "{javascript}"
+        );
+    }
+
+    #[test]
+    fn snapshot_of_a_mutable_capture_survives_production_indirect_store() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "void install(){\
+               JsValue current=1;\
+               JsValue bump=JS.method0((JsValue _s)=>{\
+                 current=2;\
+                 return JS.undefined();\
+               });\
+               JsValue track=JS.method1((JsValue _s,JsValue fn)=>{\
+                 JS.call(fn,JS.undefined());\
+                 return JS.undefined();\
+               });\
+               JsValue run=JS.method0((JsValue _s)=>{\
+                 JsValue oldValue=current;\
+                 JS.call(track,JS.undefined(),bump);\
+                 print(oldValue);\
+                 print(current);\
+                 return JS.undefined();\
+               });\
+               JS.call(run,JS.undefined());\
+             }\
+             install();",
+        )
+        .unwrap();
+        let mut config = javascript_oracle_config();
+        config.javascript.candidate_search = CandidateSearch::Production;
+        config.javascript.optimization_level = 15;
+        config.javascript.strip_console = false;
+        config.javascript.pool_numeric_literals = true;
+        config.javascript.local_name_reserve = 48;
+        config.javascript.stable_local_names = true;
+        config.javascript.function_spelling =
+            Some(crate::codegen_ir_js::FunctionSpelling::Function);
+        config.mangle.identifiers = Some(true);
+        config.mangle.pool_strings = Some(true);
+        let javascript = compile_program_to_js_module_configured(&program, &config).unwrap();
+        let output = std::process::Command::new("node")
+            .arg("-e")
+            .arg(&javascript)
+            .output()
+            .expect("Node.js is required for JavaScript runtime parity tests");
+        assert!(
+            output.status.success(),
+            "node failed with {}:\n{}\n{javascript}",
+            output.status,
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            String::from_utf8(output.stdout).expect("node stdout is UTF-8"),
+            "1\n2\n",
+            "{javascript}"
+        );
+    }
+
+    #[test]
+    fn production_nested_call_temp_does_not_reuse_a_module_callee_register() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "JsValue action = JS.undefined();\
+             JsValue call1(JsValue fn, JsValue self, JsValue a) {\
+               return JS.call(fn, self, a);\
+             }\
+             JsValue undef() {\
+               return JS.undefined();\
+             }\
+             void run() {\
+               JsValue gen = JS.object();\
+               gen[\"next\"] = JS.method1((JsValue g, JsValue x) => {\
+                 JsValue result = JS.object();\
+                 result[\"value\"] = x;\
+                 result[\"done\"] = true;\
+                 result[\"then\"] = undef();\
+                 return result;\
+               });\
+               JsValue nextStep = undef();\
+               JsValue onFulfilled = JS.method1((JsValue _f, JsValue v) => {\
+                 try {\
+                   string stepName = \"s\";\
+                   JsValue ret = call1(JS.call(action, undef(), stepName, gen[\"next\"]), gen, v);\
+                   call1(nextStep, undef(), ret);\
+                 } catch (JsValue e) {\
+                   print(\"err\");\
+                 }\
+                 return undef();\
+               });\
+               nextStep = JS.method1((JsValue _n, JsValue ret) => {\
+                 print(ret[\"value\"]);\
+                 return undef();\
+               });\
+               call1(onFulfilled, undef(), 7);\
+             }\
+             action = JS.method2((JsValue _s, JsValue name, JsValue fn) => {\
+               return fn;\
+             });\
+             run();",
+        )
+        .unwrap();
+        let mut config = javascript_oracle_config();
+        config.javascript.candidate_search = CandidateSearch::Production;
+        config.javascript.optimization_level = 15;
+        config.javascript.strip_console = false;
+        config.javascript.pool_numeric_literals = true;
+        config.javascript.local_name_reserve = 48;
+        config.javascript.stable_local_names = true;
+        config.javascript.function_spelling =
+            Some(crate::codegen_ir_js::FunctionSpelling::Function);
+        config.mangle.identifiers = Some(true);
+        config.mangle.pool_strings = Some(true);
+        let javascript = compile_program_to_js_module_configured(&program, &config).unwrap();
+        let output = std::process::Command::new("node")
+            .arg("-e")
+            .arg(&javascript)
+            .output()
+            .expect("Node.js is required for JavaScript runtime parity tests");
+        assert!(
+            output.status.success(),
+            "node failed with {}:\n{}\n{javascript}",
+            output.status,
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            String::from_utf8(output.stdout).expect("node stdout is UTF-8"),
+            "7\n",
+            "{javascript}"
+        );
+    }
+
+    #[test]
+    fn nested_js_closure_stores_captured_outer_binding() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "JsValue captured(){\
+               JsValue rejector=JS.undefined();\
+               JsValue inner=JS.method1((JsValue _s,JsValue reject)=>{rejector=reject;return JS.undefined();});\
+               JS.call(inner,JS.undefined(),7);\
+               print(rejector);\
+               return JS.undefined();\
+             }\
+             captured();",
+        )
+        .unwrap();
+        let mut config = javascript_oracle_config();
+        config.javascript.candidate_search = CandidateSearch::Off;
+        config.optimization.inlining = Some(false);
+        let javascript = compile_program_to_js_configured(&program, &config).unwrap();
+        let output = std::process::Command::new("node")
+            .arg("-e")
+            .arg(&javascript)
+            .output()
+            .expect("Node.js is required for JavaScript runtime parity tests");
+        assert!(
+            output.status.success(),
+            "node failed with {}:\n{}\n{javascript}",
+            output.status,
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            String::from_utf8(output.stdout).expect("node stdout is UTF-8"),
+            "7\n",
+            "{javascript}"
+        );
     }
 
     #[test]

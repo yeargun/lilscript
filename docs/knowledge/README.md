@@ -16,6 +16,7 @@ Read top-down. Each page is written so a later change can be judged against the 
 | Add or review a paired compression case | [Verification](verification/README.md) → [Paired-case contract](verification/paired-case-contract.md) |
 | Add a multi-function compression challenge | [Algorithm challenges](verification/algorithm-challenges.md) |
 | Pick the next compression milestone | [Active migration](migration/README.md) |
+| Resume work after a lost context, or brief a subagent | [Migration board](migration/board/README.md) |
 | Import an idea from Closure/Terser/Oxc | [Research](research/README.md) |
 
 ## Tree
@@ -98,6 +99,7 @@ Read top-down. Each page is written so a later change can be judged against the 
    - [Failure triage](verification/failure-triage.md)
    - [Release gates](verification/release-gates.md)
 8. [Active migration](migration/README.md)
+   - [Board](migration/board/README.md) — live ledger, notes, journal, subagent briefs
    - [00 — canonical folder runner](migration/00-canonical-runner.md)
    - [01 — scalars and folding](migration/01-scalars-folding.md)
    - [02 — control flow and functions](migration/02-control-functions.md)
@@ -138,6 +140,7 @@ These remain the source of truth for syntax, schema, and pass lists. The knowled
 | Types / escape | `src/semantic.rs`, `src/ir.rs` |
 | Native | `src/codegen_native.rs` |
 | App bundler | `src/bin/lilpack.rs`, `tooling/lilpack/vite-runtime.mjs` |
+| Migration board tool | `scripts/board.mjs` |
 | Paired micro comparison | `comparison/cases/` |
 | Structural algorithm comparison | `comparison/algorithms/` |
 | Closure app comparison | `comparison/apps/`, `comparison/lib/` |

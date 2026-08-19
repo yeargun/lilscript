@@ -53,6 +53,7 @@
           <a href="#libraries">Libraries</a>
           <a href="#surfaces">Selected surfaces</a>
           <a href="#jquery">jQuery</a>
+          <a href="#marked">marked</a>
           <a href="#live">Live pairs</a>
         </nav>
       </section>
@@ -416,6 +417,43 @@
         </div>
       </section>
 
+      <section class="landing-section landing-wrap" id="marked" aria-labelledby="marked-title">
+        <div class="landing-heading">
+          <p class="landing-kicker">Parse API</p>
+          <h2 id="marked-title">marked 18.0.10, scored without the extension system.</h2>
+          <p>
+            The parse API, GFM and CommonMark HTML, 660/660 against
+            <code>marked@18.0.10</code>. This port has no <code>use()</code>.
+            Official JavaScript is the parse-only 18.0.10 sources, then Oxc and
+            Terser, mangling on and off. The published LilScript artifact is
+            the compiler-selected ESM — not bundled, not post-minified, and
+            still smaller on raw, gzip-9, and Brotli-11 than either minifier,
+            while parsing the same corpus faster in Chromium.
+          </p>
+        </div>
+        <div class="lib-grid">
+          <a
+            class="lib-card"
+            href="https://yeargun.github.io/markedlil/"
+            target="_blank"
+            rel="noopener"
+          >
+            <span class="lib-card-kicker">Parse API only</span>
+            <h3>marked</h3>
+            <p>
+              Fair size lane is parse-only official Oxc with mangling on, not
+              the npm file that still includes Hooks and <code>use()</code>.
+              Smaller on all three metrics, and the fastest lane measured.
+            </p>
+            <div class="lib-card-metrics">
+              <div><small>Oxc mangle</small><b>10,092</b></div>
+              <div><small>LilScript</small><b>9,318</b></div>
+              <div class="win"><small>Brotli</small><b>−7.7%</b></div>
+            </div>
+          </a>
+        </div>
+      </section>
+
       <section class="landing-section landing-wrap" id="live" aria-labelledby="live-title">
         <div class="landing-heading">
           <p class="landing-kicker">Open the pairs</p>
@@ -469,6 +507,17 @@
             <h3>yeargun.github.io/jquerylil</h3>
             <p>jQuery 3.7.1 drop-in. Official min is still the size lane to beat.</p>
             <b>Open jQuerylil</b>
+          </a>
+          <a
+            class="project-link"
+            href="https://yeargun.github.io/markedlil/"
+            target="_blank"
+            rel="noopener"
+          >
+            <span>marked</span>
+            <h3>yeargun.github.io/markedlil</h3>
+            <p>marked 18.0.10 parse API. Parse-only official Oxc/Terser, not the full <code>use()</code> package.</p>
+            <b>Open Markedlil</b>
           </a>
           <a
             class="project-link"

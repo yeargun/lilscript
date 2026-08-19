@@ -39,6 +39,10 @@ pub struct IrJsOptions {
     pub public_aggregate_fields: bool,
     pub named_aggregate_fields: bool,
     pub pool_strings: bool,
+    /// Minimum raw-byte saving required before a repeated string receives a
+    /// shared binding. Exact-codec search raises this threshold to retain only
+    /// the most profitable aliases when pooling every raw win hurts Brotli.
+    pub string_pool_minimum_savings: usize,
     pub pool_numeric_literals: bool,
     /// Emit `Record<T>` values as ordinary object literals. This is an
     /// internal representation proposal, not a user-configurable semantic
@@ -90,6 +94,10 @@ pub struct IrJsOptions {
     /// may keep sequential assigns when the assign identifier costs more than
     /// it saves under the configured codec.
     pub batch_property_assigns: bool,
+    /// Minimum length of a consecutive property-write run eligible for the
+    /// `Object.assign` spelling. Exact-codec search varies this threshold so
+    /// profitable method tables do not force every two-write run to batch.
+    pub batch_property_assign_minimum: usize,
     /// Replace each direct call to a private zero-argument function whose
     /// complete body is `return []` with a fresh empty array literal. This is
     /// kept as a scored candidate because deleting the shared declaration can
@@ -151,8 +159,28 @@ pub struct IrJsOptions {
     pub comma_expressions: bool,
     pub update_loop_layout: bool,
     pub cross_scope_name_reuse: bool,
+    /// Let a function that emits nested JavaScript functions shadow module
+    /// function names absent from its complete transitive reference graph.
+    /// Globals, imports, and entry-scope allocations stay pinned; the broader
+    /// precise-shadowing regime remains an independent scored proposal.
+    pub transitive_nested_shadowing: bool,
+    /// Let ordinary functions shadow every module binding that neither they
+    /// nor any transitively nested closure or inlined helper references. The
+    /// module entry retains the complete top-level namespace because it shares
+    /// that lexical scope.
+    pub precise_cross_scope_shadowing: bool,
+    /// Keep the local allocator's preferred prefix out of the module binding
+    /// namespace even when precise shadowing is enabled. This deliberately
+    /// spends some top-level raw bytes to make the same short identifiers
+    /// available at the start of many independent function scopes; transfer
+    /// codecs can reward that repetition enough to recover the cost.
+    pub reserved_local_name_prefix: bool,
     pub local_name_reserve: usize,
     pub stable_local_names: bool,
+    /// Assign the earliest local identifiers to interference colors weighted
+    /// by their total emitted references instead of graph-color creation
+    /// order. This changes spelling only and is scored by exact-codec search.
+    pub frequency_order_local_names: bool,
     pub entropy_property_names: bool,
     pub function_layout: FunctionLayout,
     pub function_layout_exact_limit: usize,
@@ -195,6 +223,7 @@ impl Default for IrJsOptions {
             public_aggregate_fields: true,
             named_aggregate_fields: false,
             pool_strings: true,
+            string_pool_minimum_savings: 1,
             pool_numeric_literals: false,
             ordinary_record_literals: false,
             elide_safe_integer_coercions: true,
@@ -218,6 +247,7 @@ impl Default for IrJsOptions {
             iife_private_callee_clusters: false,
             nested_once_run_helpers: false,
             batch_property_assigns: false,
+            batch_property_assign_minimum: 2,
             inline_fresh_empty_array_factories: false,
             constructor_initializer_fusion: false,
             pure_helper_inlining: PureHelperInliningPolicy::None,
@@ -236,8 +266,12 @@ impl Default for IrJsOptions {
             comma_expressions: false,
             update_loop_layout: true,
             cross_scope_name_reuse: true,
+            transitive_nested_shadowing: false,
+            precise_cross_scope_shadowing: false,
+            reserved_local_name_prefix: false,
             local_name_reserve: 0,
             stable_local_names: false,
+            frequency_order_local_names: false,
             entropy_property_names: true,
             function_layout: FunctionLayout::Source,
             function_layout_exact_limit: 13,
@@ -302,6 +336,7 @@ const SYNTHESIZED_RUNTIME_ROOTS: &[&str] = &[
     "parseInt",
     "isFinite",
     "encodeURIComponent",
+    "encodeURI",
     "Int8Array",
     "Uint8Array",
     "Uint8ClampedArray",
@@ -349,14 +384,18 @@ const MIN_IIFE_CLUSTER_HELPERS: usize = 2;
 enum JsCallingConvention {
     Method0,
     Method1,
+    Method2,
+    Method3,
     MethodRest,
     StaticRest,
 }
 
 impl JsCallingConvention {
-    const ALL: [Self; 4] = [
+    const ALL: [Self; 6] = [
         Self::Method0,
         Self::Method1,
+        Self::Method2,
+        Self::Method3,
         Self::MethodRest,
         Self::StaticRest,
     ];
@@ -365,6 +404,8 @@ impl JsCallingConvention {
         match intrinsic {
             Intrinsic::JsMethod0 => Some(Self::Method0),
             Intrinsic::JsMethod1 => Some(Self::Method1),
+            Intrinsic::JsMethod2 => Some(Self::Method2),
+            Intrinsic::JsMethod3 => Some(Self::Method3),
             Intrinsic::JsMethodRest => Some(Self::MethodRest),
             Intrinsic::JsStaticRest => Some(Self::StaticRest),
             _ => None,
@@ -375,8 +416,10 @@ impl JsCallingConvention {
         match self {
             Self::Method0 => 0,
             Self::Method1 => 1,
-            Self::MethodRest => 2,
-            Self::StaticRest => 3,
+            Self::Method2 => 2,
+            Self::Method3 => 3,
+            Self::MethodRest => 4,
+            Self::StaticRest => 5,
         }
     }
 
@@ -384,6 +427,8 @@ impl JsCallingConvention {
         match self {
             Self::Method0 => "$jsMethod0",
             Self::Method1 => "$jsMethod1",
+            Self::Method2 => "$jsMethod2",
+            Self::Method3 => "$jsMethod3",
             Self::MethodRest => "$jsMethodRest",
             Self::StaticRest => "$jsStaticRest",
         }
@@ -393,6 +438,8 @@ impl JsCallingConvention {
         match self {
             Self::Method0 => 1,
             Self::Method1 => 2,
+            Self::Method2 => 3,
+            Self::Method3 => 4,
             Self::MethodRest => 2,
             Self::StaticRest => 1,
         }
@@ -400,13 +447,18 @@ impl JsCallingConvention {
 
     const fn replaced_parameter_indices(self) -> &'static [usize] {
         match self {
-            Self::Method0 | Self::Method1 | Self::StaticRest => &[0],
+            Self::Method0 | Self::Method1 | Self::Method2 | Self::Method3 | Self::StaticRest => {
+                &[0]
+            }
             Self::MethodRest => &[0, 1],
         }
     }
 
     const fn has_receiver(self) -> bool {
-        matches!(self, Self::Method0 | Self::Method1 | Self::MethodRest)
+        matches!(
+            self,
+            Self::Method0 | Self::Method1 | Self::Method2 | Self::Method3 | Self::MethodRest
+        )
     }
 }
 
@@ -1400,11 +1452,33 @@ impl IdentifierAlphabet {
     }
 
     pub fn for_code(code: &str) -> Self {
-        let canonical = Self::canonical();
         let mut counts = [0usize; 128];
         for byte in code.bytes().filter(|byte| byte.is_ascii()) {
             counts[byte as usize] += 1;
         }
+        Self::for_ascii_frequencies(&counts)
+    }
+
+    /// Derive an alphabet from the surrounding program text after removing
+    /// the characters contributed by existing binding spellings. This keeps
+    /// yesterday's arbitrary mangled names from biasing tomorrow's alphabet;
+    /// the caller supplies token-aware binding-character counts.
+    pub fn for_code_excluding_binding_characters(
+        code: &str,
+        binding_characters: &[usize; 128],
+    ) -> Self {
+        let mut counts = [0usize; 128];
+        for byte in code.bytes().filter(|byte| byte.is_ascii()) {
+            counts[byte as usize] += 1;
+        }
+        for (count, excluded) in counts.iter_mut().zip(binding_characters) {
+            *count = count.saturating_sub(*excluded);
+        }
+        Self::for_ascii_frequencies(&counts)
+    }
+
+    fn for_ascii_frequencies(counts: &[usize; 128]) -> Self {
+        let canonical = Self::canonical();
         let mut alphabet = canonical;
         alphabet.first.sort_unstable_by(|left, right| {
             counts[*right as usize]
@@ -1641,6 +1715,7 @@ struct IrJsEmitter<'module, 'src> {
     exclusive_recursive_iife_locals: AHashMap<(FunctionId, LocalId), FunctionId>,
     exclusive_recursive_iife_self_slots: AHashMap<FunctionId, LocalId>,
     private_callee_clusters: AHashMap<FunctionId, Vec<FunctionId>>,
+    private_cluster_scopes: AHashMap<FunctionId, AHashSet<FunctionId>>,
     named_callee_clusters: Vec<(Vec<FunctionId>, Vec<FunctionId>)>,
     named_cluster_by_root: AHashMap<FunctionId, usize>,
     emitted_named_clusters: AHashSet<usize>,
@@ -1719,6 +1794,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             exclusive_recursive_iife_locals: AHashMap::default(),
             exclusive_recursive_iife_self_slots: AHashMap::default(),
             private_callee_clusters: AHashMap::default(),
+            private_cluster_scopes: AHashMap::default(),
             named_callee_clusters: Vec::new(),
             named_cluster_by_root: AHashMap::default(),
             emitted_named_clusters: AHashSet::default(),
@@ -1969,14 +2045,24 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             valid = false;
                             break;
                         };
-                        if layout_position < next_layout_position
-                            || !crate::optimizer::javascript_class_default_is_pure_literal(
-                                &layout.fields[layout_position].ty,
-                            )
-                            || value_positions
-                                .get(value)
-                                .is_some_and(|position| *position >= allocation_index)
+                        if !crate::optimizer::javascript_class_default_is_pure_literal(
+                            &layout.fields[layout_position].ty,
+                        ) || value_positions
+                            .get(value)
+                            .is_some_and(|position| *position >= allocation_index)
                         {
+                            valid = false;
+                            break;
+                        }
+                        if let Some((_, existing)) = overrides
+                            .iter_mut()
+                            .find(|(field_index, _)| *field_index == *index)
+                        {
+                            *existing = *value;
+                            override_locations.push((function.id, block.id, instruction_index));
+                            continue;
+                        }
+                        if layout_position < next_layout_position {
                             valid = false;
                             break;
                         }
@@ -2960,29 +3046,78 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             .map(|function| function.id)
             .collect::<Vec<_>>();
         let mut clusters = AHashMap::<FunctionId, Vec<FunctionId>>::default();
+        let mut cluster_nests = AHashMap::<FunctionId, AHashSet<FunctionId>>::default();
         for root in roots {
             let mut reachable = AHashSet::default();
+            let mut nested = AHashSet::default();
             let mut pending = vec![root];
+            let mut seen = AHashSet::from_iter([root]);
             while let Some(current) = pending.pop() {
                 let Some(function) = self.module.functions.get(current.0 as usize) else {
                     continue;
                 };
                 for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
-                    let ControlFlowOp::CallDirect {
-                        function: callee, ..
-                    } = instruction.op
-                    else {
-                        continue;
-                    };
-                    if callee == root || reachable.contains(&callee) || !helper_ok(self, callee) {
-                        continue;
+                    match instruction.op {
+                        ControlFlowOp::CallDirect {
+                            function: callee, ..
+                        } => {
+                            if callee == root
+                                || reachable.contains(&callee)
+                                || nested.contains(&callee)
+                                || !helper_ok(self, callee)
+                            {
+                                continue;
+                            }
+                            reachable.insert(callee);
+                            if seen.insert(callee) {
+                                pending.push(callee);
+                            }
+                        }
+                        ControlFlowOp::Closure {
+                            function: inner, ..
+                        } => {
+                            if inner == root
+                                || nested.contains(&inner)
+                                || reachable.contains(&inner)
+                            {
+                                continue;
+                            }
+                            let exclusive = constructed.get(&inner).is_some_and(|sites| {
+                                !sites.is_empty()
+                                    && sites.iter().all(|(caller, _)| {
+                                        *caller == root
+                                            || nested.contains(caller)
+                                            || reachable.contains(caller)
+                                    })
+                            });
+                            if !exclusive {
+                                continue;
+                            }
+                            nested.insert(inner);
+                            if seen.insert(inner) {
+                                pending.push(inner);
+                            }
+                        }
+                        _ => {}
                     }
-                    reachable.insert(callee);
-                    pending.push(callee);
                 }
             }
             loop {
-                let drop = reachable
+                let drop_nested = nested
+                    .iter()
+                    .copied()
+                    .filter(|closure| {
+                        !constructed.get(closure).is_some_and(|sites| {
+                            !sites.is_empty()
+                                && sites.iter().all(|(caller, _)| {
+                                    *caller == root
+                                        || nested.contains(caller)
+                                        || reachable.contains(caller)
+                                })
+                        })
+                    })
+                    .collect::<Vec<_>>();
+                let drop_helpers = reachable
                     .iter()
                     .copied()
                     .filter(|helper| {
@@ -2991,15 +3126,19 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 && sites.iter().all(|caller| {
                                     *caller == root
                                         || reachable.contains(caller)
+                                        || nested.contains(caller)
                                         || *caller == *helper
                                 })
                         })
                     })
                     .collect::<Vec<_>>();
-                if drop.is_empty() {
+                if drop_nested.is_empty() && drop_helpers.is_empty() {
                     break;
                 }
-                for helper in drop {
+                for closure in drop_nested {
+                    nested.remove(&closure);
+                }
+                for helper in drop_helpers {
                     reachable.remove(&helper);
                 }
             }
@@ -3007,6 +3146,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 let mut helpers = reachable.into_iter().collect::<Vec<_>>();
                 helpers.sort_by_key(|id| id.0);
                 clusters.insert(root, helpers);
+                cluster_nests.insert(root, nested);
             }
         }
         let claimed = clusters.values().flatten().copied().collect::<Vec<_>>();
@@ -3240,6 +3380,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 self.nested_once_run_helpers.insert(*host, helpers);
             }
         }
+        for host in self.nested_once_run_helpers.keys() {
+            clusters.remove(host);
+        }
+        self.private_cluster_scopes = cluster_nests;
         if self.options.iife_private_callee_clusters {
             let claimed = clusters.values().flatten().copied().collect::<Vec<_>>();
             for helper in claimed {
@@ -3251,7 +3395,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     if self.named_cluster_by_root.contains_key(&root) {
                         return None;
                     }
-                    helpers.retain(|id| !self.named_cluster_by_root.contains_key(id));
+                    helpers.retain(|id| {
+                        !self.named_cluster_by_root.contains_key(id)
+                            && !self.clustered_helpers.contains(id)
+                    });
                     (helpers.len() >= MIN_IIFE_CLUSTER_HELPERS).then_some((root, helpers))
                 })
                 .collect();
@@ -3427,6 +3574,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         for (root, helpers) in &self.private_callee_clusters {
             let mut members = helpers.iter().copied().collect::<AHashSet<_>>();
             members.insert(*root);
+            if let Some(nested) = self.private_cluster_scopes.get(root) {
+                members.extend(nested.iter().copied());
+            }
             for helper in helpers {
                 members_of
                     .entry(*helper)
@@ -3435,11 +3585,16 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             }
         }
         for (roots, helpers) in &self.named_callee_clusters {
-            let members = helpers
+            let mut members = helpers
                 .iter()
                 .copied()
                 .chain(roots.iter().copied())
                 .collect::<AHashSet<_>>();
+            for root in roots {
+                if let Some(nested) = self.private_cluster_scopes.get(root) {
+                    members.extend(nested.iter().copied());
+                }
+            }
             for helper in helpers {
                 members_of
                     .entry(*helper)
@@ -3657,6 +3812,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         false,
                         &self.local_mangler(function),
                         &self.preferred_local_names,
+                        &self.string_aliases,
                         &self.numeric_aliases,
                         &self.options,
                         &self.order_sensitive_inline_pure_helpers,
@@ -4487,6 +4643,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             out.push_str(match convention {
                 JsCallingConvention::Method0 => "function(){return e(this)}",
                 JsCallingConvention::Method1 => "function(a){return e(this,a)}",
+                JsCallingConvention::Method2 => "function(a,b){return e(this,a,b)}",
+                JsCallingConvention::Method3 => "function(a,b,c){return e(this,a,b,c)}",
                 JsCallingConvention::MethodRest => "function(){return e(this,arguments)}",
                 JsCallingConvention::StaticRest => "function(){return e(arguments)}",
             });
@@ -4766,9 +4924,30 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         }
 
         if self.options.mangle_identifiers && self.options.cross_scope_name_reuse {
-            for _ in 0..self.options.local_name_reserve {
-                self.local_name_reservations
-                    .push(self.top_level_mangler.next_name());
+            // Preferred local spellings are a separate namespace policy, not
+            // top-level allocations. A function may shadow a module binding
+            // it does not reference, while `local_mangler` keeps referenced
+            // bindings reserved. Consuming these names here forced the most
+            // frequent globals to two-byte spellings merely to make the same
+            // one-byte names available inside functions.
+            if self.options.precise_cross_scope_shadowing
+                && !self.options.reserved_local_name_prefix
+            {
+                let mut local_reservation_mangler = Mangler::new(self.options.identifier_alphabet);
+                for _ in 0..self.options.local_name_reserve {
+                    self.local_name_reservations
+                        .push(local_reservation_mangler.next_name());
+                }
+            } else {
+                // The conservative regime releases these spellings inside
+                // functions, so they must be consumed in the real module
+                // namespace. Generating them from a clone would let internal
+                // functions later receive the same names and turn a local
+                // preference into a capture.
+                for _ in 0..self.options.local_name_reserve {
+                    self.local_name_reservations
+                        .push(self.top_level_mangler.next_name());
+                }
             }
             self.assign_preferred_local_names();
         }
@@ -5171,7 +5350,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 let literal_length = value.len() + 2;
                 let unaliased = count * literal_length;
                 let aliased = literal_length + 7 + count;
-                (unaliased > aliased).then(|| (unaliased - aliased, count, value))
+                let savings = unaliased.saturating_sub(aliased);
+                (savings >= self.options.string_pool_minimum_savings.max(1))
+                    .then(|| (savings, count, value))
             })
             .collect::<Vec<_>>();
         candidates.sort_unstable_by(|left, right| {
@@ -5245,7 +5426,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         if !self.options.mangle_properties {
             return;
         }
-        let stable_public_fields = self
+        let mut stable_public_fields = self
             .module
             .structs
             .iter()
@@ -5257,6 +5438,22 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             })
             .flat_map(|layout| layout.fields.iter().map(|field| field.name.to_string()))
             .collect::<AHashSet<_>>();
+        for function in self
+            .module
+            .functions
+            .iter()
+            .filter(|function| function.live)
+        {
+            for block in &function.blocks {
+                for instruction in &block.instructions {
+                    if let ControlFlowOp::HostFieldGet { property, .. }
+                    | ControlFlowOp::HostFieldSet { property, .. } = &instruction.op
+                    {
+                        stable_public_fields.insert((*property).to_string());
+                    }
+                }
+            }
+        }
         let mut frequencies = AHashMap::<String, usize>::default();
         for field in self
             .module
@@ -5275,6 +5472,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             .iter()
             .filter(|function| function.live)
         {
+            let string_constants = function_string_constants(function);
             for block in &function.blocks {
                 let loop_weight = 1 + function
                     .shapes
@@ -5292,6 +5490,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         field.filter(|field| !stable_public_fields.contains(*field))
                     {
                         *frequencies.entry(field.to_string()).or_insert(0) += loop_weight;
+                    }
+                    for key in js_member_keys_in_op(&instruction.op, &string_constants) {
+                        if mangleable_internal_js_key(&key) {
+                            *frequencies.entry(key).or_insert(0) += loop_weight;
+                        }
                     }
                 }
             }
@@ -5360,53 +5563,124 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     }
 
     fn local_mangler(&self, function: &ControlFlowFunction<'src>) -> Mangler {
-        if !self.options.cross_scope_name_reuse || function.kind == FunctionKind::Entry {
+        if !self.options.cross_scope_name_reuse {
             return self.top_level_mangler.clone();
         }
         let mut referenced = AHashSet::default();
         self.collect_top_level_references(function.id, &mut AHashSet::default(), &mut referenced);
+        self.add_cluster_helper_names(function.id, &mut referenced);
+        if function.kind == FunctionKind::Entry {
+            let mut mangler = self.top_level_mangler.clone();
+            if !self.options.precise_cross_scope_shadowing {
+                for name in &self.local_name_reservations {
+                    if !referenced.contains(name) {
+                        mangler.release(name);
+                    }
+                }
+            }
+            mangler.rewind();
+            return mangler;
+        }
         if self.emits_var_into_enclosing_scope(function) {
             for root in self.enclosing_var_scope_roots(function.id) {
                 self.collect_top_level_references(root, &mut AHashSet::default(), &mut referenced);
             }
         }
         let mut mangler = self.top_level_mangler.clone();
-        for candidate in self
-            .module
-            .functions
-            .iter()
-            .filter(|candidate| candidate.live && candidate.kind != FunctionKind::Extern)
-        {
-            if let Some(name) = self.function_names.get(&candidate.id) {
+        if self.options.precise_cross_scope_shadowing {
+            let shadowable = mangler
+                .reserved
+                .iter()
+                .filter(|name| !referenced.contains(*name))
+                .cloned()
+                .collect::<Vec<_>>();
+            for name in shadowable {
+                mangler.release(&name);
+            }
+        } else {
+            let nests_js_functions = !self.options.transitive_nested_shadowing
+                && self.emits_nested_js_functions(function);
+            for candidate in self
+                .module
+                .functions
+                .iter()
+                .filter(|candidate| candidate.live && candidate.kind != FunctionKind::Extern)
+            {
+                if let Some(name) = self.function_names.get(&candidate.id) {
+                    if nests_js_functions || referenced.contains(name) {
+                        continue;
+                    }
+                    mangler.release(name);
+                }
+            }
+            for name in &self.local_name_reservations {
                 if !referenced.contains(name) {
                     mangler.release(name);
                 }
             }
         }
-        for global in self.module.globals.iter().filter(|global| !global.external) {
-            if let Some(name) = self.global_names.get(&global.symbol) {
-                if !referenced.contains(name) {
-                    mangler.release(name);
-                }
-            }
-        }
-        for name in self.string_aliases.values() {
-            if !referenced.contains(name) {
-                mangler.release(name);
-            }
-        }
-        for name in self.numeric_aliases.values() {
-            if !referenced.contains(name) {
-                mangler.release(name);
-            }
-        }
-        for name in &self.local_name_reservations {
-            if !referenced.contains(name) {
-                mangler.release(name);
-            }
+        for name in self.cluster_scope_helper_names(function.id) {
+            mangler.reserve(&name);
         }
         mangler.rewind();
         mangler
+    }
+
+    fn cluster_scope_helper_names(&self, function: FunctionId) -> Vec<String> {
+        let mut helper_ids = Vec::new();
+        if let Some(helpers) = self.private_callee_clusters.get(&function) {
+            helper_ids.extend(helpers.iter().copied());
+        }
+        for (root, helpers) in &self.private_callee_clusters {
+            if helpers.contains(&function) {
+                helper_ids.extend(helpers.iter().copied());
+                helper_ids.push(*root);
+            }
+        }
+        if let Some(&index) = self.named_cluster_by_root.get(&function) {
+            if let Some((_, helpers)) = self.named_callee_clusters.get(index) {
+                helper_ids.extend(helpers.iter().copied());
+            }
+        }
+        for (roots, helpers) in &self.named_callee_clusters {
+            if helpers.contains(&function) || roots.contains(&function) {
+                helper_ids.extend(helpers.iter().copied());
+                helper_ids.extend(roots.iter().copied());
+            }
+        }
+        helper_ids.sort_by_key(|id| id.0);
+        helper_ids.dedup();
+        helper_ids
+            .into_iter()
+            .filter_map(|id| self.function_names.get(&id).cloned())
+            .collect()
+    }
+
+    fn add_cluster_helper_names(&self, function: FunctionId, referenced: &mut AHashSet<String>) {
+        for name in self.cluster_scope_helper_names(function) {
+            referenced.insert(name);
+        }
+    }
+
+    fn emits_nested_js_functions(&self, function: &ControlFlowFunction<'_>) -> bool {
+        function.blocks.iter().any(|block| {
+            block
+                .instructions
+                .iter()
+                .any(|instruction| match &instruction.op {
+                    ControlFlowOp::Closure { .. } => true,
+                    ControlFlowOp::CallDirect {
+                        function: callee, ..
+                    } if self.callee_body_nests_in_caller(*callee) => true,
+                    _ => false,
+                })
+        })
+    }
+
+    fn callee_body_nests_in_caller(&self, callee: FunctionId) -> bool {
+        self.inline_pure_helpers.contains(&callee)
+            || self.inline_single_use_functions.contains(&callee)
+            || self.inline_exclusive_recursive_iifes.contains(&callee)
     }
 
     fn collect_top_level_references(
@@ -5414,6 +5688,22 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         function: FunctionId,
         visited: &mut AHashSet<FunctionId>,
         referenced: &mut AHashSet<String>,
+    ) {
+        let mut visited_globals = AHashSet::default();
+        self.collect_top_level_references_inner(
+            function,
+            visited,
+            referenced,
+            &mut visited_globals,
+        );
+    }
+
+    fn collect_top_level_references_inner(
+        &self,
+        function: FunctionId,
+        visited: &mut AHashSet<FunctionId>,
+        referenced: &mut AHashSet<String>,
+        visited_globals: &mut AHashSet<SymbolId>,
     ) {
         if !visited.insert(function) {
             return;
@@ -5425,15 +5715,22 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             match &instruction.op {
                 ControlFlowOp::CallDirect {
                     function: callee, ..
-                } if self.inline_pure_helpers.contains(callee) => {
-                    // The helper binding disappears and its expression is
-                    // emitted in this caller's lexical scope. Preserve every
-                    // top-level alias/reference used by the complete selected
-                    // helper DAG; reserving only the suppressed function name
-                    // would let a caller local capture those free identifiers.
-                    self.collect_top_level_references(*callee, visited, referenced);
+                }
+                | ControlFlowOp::CallMethod {
+                    function: callee, ..
+                } if self.callee_body_nests_in_caller(*callee) => {
+                    if let Some(name) = self.function_names.get(callee) {
+                        referenced.insert(name.clone());
+                    }
+                    self.collect_top_level_references_inner(
+                        *callee,
+                        visited,
+                        referenced,
+                        visited_globals,
+                    );
                 }
                 ControlFlowOp::CallDirect { function, .. }
+                | ControlFlowOp::CallMethod { function, .. }
                 | ControlFlowOp::NewClass {
                     constructor: Some(function),
                     ..
@@ -5450,13 +5747,30 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         .functions
                         .get(closure.0 as usize)
                         .is_some_and(|closure| self.function_is_inlined(closure));
-                    if inline {
-                        self.collect_top_level_references(*closure, visited, referenced);
-                    } else if let Some(name) = self.function_names.get(closure) {
+                    if !inline {
+                        if let Some(name) = self.function_names.get(closure) {
+                            referenced.insert(name.clone());
+                        }
+                    }
+                    self.collect_top_level_references_inner(
+                        *closure,
+                        visited,
+                        referenced,
+                        visited_globals,
+                    );
+                }
+                ControlFlowOp::LoadGlobal(global) => {
+                    if let Some(name) = self.global_names.get(global) {
                         referenced.insert(name.clone());
                     }
+                    self.collect_global_initializer_references(
+                        *global,
+                        visited,
+                        referenced,
+                        visited_globals,
+                    );
                 }
-                ControlFlowOp::LoadGlobal(global) | ControlFlowOp::StoreGlobal { global, .. } => {
+                ControlFlowOp::StoreGlobal { global, .. } => {
                     if let Some(name) = self.global_names.get(global) {
                         referenced.insert(name.clone());
                     }
@@ -5518,6 +5832,134 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 }
                 _ => {}
             }
+        }
+    }
+
+    fn collect_global_initializer_references(
+        &self,
+        symbol: SymbolId,
+        visited: &mut AHashSet<FunctionId>,
+        referenced: &mut AHashSet<String>,
+        visited_globals: &mut AHashSet<SymbolId>,
+    ) {
+        if !visited_globals.insert(symbol) {
+            return;
+        }
+        let stores = self
+            .module
+            .functions
+            .iter()
+            .filter(|function| function.live)
+            .flat_map(|function| {
+                function
+                    .blocks
+                    .iter()
+                    .flat_map(|block| &block.instructions)
+                    .filter_map(move |instruction| match &instruction.op {
+                        ControlFlowOp::StoreGlobal { global, value } if *global == symbol => {
+                            Some((function.id, *value))
+                        }
+                        _ => None,
+                    })
+            })
+            .collect::<Vec<_>>();
+        for (function, value) in stores {
+            self.collect_value_cone_references(
+                function,
+                value,
+                visited,
+                referenced,
+                visited_globals,
+            );
+        }
+    }
+
+    fn collect_value_cone_references(
+        &self,
+        function: FunctionId,
+        root: ValueId,
+        visited: &mut AHashSet<FunctionId>,
+        referenced: &mut AHashSet<String>,
+        visited_globals: &mut AHashSet<SymbolId>,
+    ) {
+        let mut nested = Vec::new();
+        let mut callees = Vec::new();
+        let mut globals = Vec::new();
+        {
+            let Some(function_ir) = self.module.functions.get(function.0 as usize) else {
+                return;
+            };
+            let mut stack = vec![root];
+            let mut seen_values = AHashSet::default();
+            while let Some(value) = stack.pop() {
+                if !seen_values.insert(value) {
+                    continue;
+                }
+                for block in &function_ir.blocks {
+                    for phi in &block.phis {
+                        if phi.out == value {
+                            stack.extend(phi.incoming.iter().map(|(_, incoming)| *incoming));
+                        }
+                    }
+                    for instruction in &block.instructions {
+                        if instruction.out != Some(value) {
+                            continue;
+                        }
+                        match &instruction.op {
+                            ControlFlowOp::Closure {
+                                function: closure,
+                                captures,
+                                ..
+                            } => {
+                                nested.push(*closure);
+                                stack.extend(captures.iter().copied());
+                            }
+                            ControlFlowOp::CallDirect {
+                                function: callee,
+                                args,
+                                ..
+                            } => {
+                                callees.push(*callee);
+                                if self.callee_body_nests_in_caller(*callee) {
+                                    nested.push(*callee);
+                                }
+                                stack.extend(args.iter().copied());
+                            }
+                            ControlFlowOp::NewClass {
+                                constructor: Some(callee),
+                                args,
+                                ..
+                            } => {
+                                callees.push(*callee);
+                                stack.extend(args.iter().copied());
+                            }
+                            ControlFlowOp::LoadGlobal(global) => {
+                                globals.push(*global);
+                            }
+                            other => stack.extend(op_values(other)),
+                        }
+                    }
+                }
+            }
+        }
+        for callee in callees {
+            if let Some(name) = self.function_names.get(&callee) {
+                referenced.insert(name.clone());
+            }
+        }
+        for nested in nested {
+            self.collect_top_level_references_inner(nested, visited, referenced, visited_globals);
+        }
+        for global in globals {
+            if let Some(name) = self.global_names.get(&global) {
+                referenced.insert(name.clone());
+            }
+            self.collect_global_initializer_references(
+                global,
+                visited,
+                referenced,
+                visited_globals,
+            );
         }
     }
 
@@ -5641,7 +6083,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             })
             .unwrap_or_default();
         let replacements: &[(usize, &str)] = match convention {
-            JsCallingConvention::Method0 | JsCallingConvention::Method1 => &[(0, "this")],
+            JsCallingConvention::Method0
+            | JsCallingConvention::Method1
+            | JsCallingConvention::Method2
+            | JsCallingConvention::Method3 => &[(0, "this")],
             JsCallingConvention::MethodRest => &[(0, "this"), (1, "arguments")],
             JsCallingConvention::StaticRest => &[(0, "arguments")],
         };
@@ -5697,7 +6142,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     ) -> &'function [crate::ir::IrParameter<'src>] {
         match self.js_calling_conventions.get(&function.id) {
             Some(JsCallingConvention::Method0) => &[],
-            Some(JsCallingConvention::Method1) => &function.params[function.capture_count + 1..],
+            Some(
+                JsCallingConvention::Method1
+                | JsCallingConvention::Method2
+                | JsCallingConvention::Method3,
+            ) => &function.params[function.capture_count + 1..],
             Some(JsCallingConvention::MethodRest | JsCallingConvention::StaticRest) => &[],
             None => &function.params,
         }
@@ -5709,7 +6158,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     ) -> &'function [crate::ir::IrParameter<'src>] {
         match self.js_calling_conventions.get(&function.id) {
             Some(JsCallingConvention::Method0) => &[],
-            Some(JsCallingConvention::Method1) => &function.params[function.capture_count + 1..],
+            Some(
+                JsCallingConvention::Method1
+                | JsCallingConvention::Method2
+                | JsCallingConvention::Method3,
+            ) => &function.params[function.capture_count + 1..],
             Some(JsCallingConvention::MethodRest | JsCallingConvention::StaticRest) => &[],
             None => &function.params[function.capture_count..],
         }
@@ -6163,6 +6616,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             false,
             &local_mangler,
             &self.preferred_local_names,
+            &self.string_aliases,
             &self.numeric_aliases,
             &self.options,
             &self.order_sensitive_inline_pure_helpers,
@@ -6273,6 +6727,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             !single_block && !structured,
             &local_mangler,
             &self.preferred_local_names,
+            &self.string_aliases,
             &self.numeric_aliases,
             &self.options,
             &self.order_sensitive_inline_pure_helpers,
@@ -6978,6 +7433,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             false,
             &local_mangler,
             &self.preferred_local_names,
+            &self.string_aliases,
             &self.numeric_aliases,
             &self.options,
             &self.order_sensitive_inline_pure_helpers,
@@ -7192,6 +7648,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         else {
             return Ok(None);
         };
+        if context.value_names.get(&object).map(String::as_str) == Some("this") {
+            return Ok(None);
+        };
         let mut pairs = vec![(first_key.clone(), first_value)];
         let mut keys = AHashSet::from_iter([first_key]);
         let mut deferred = Vec::new();
@@ -7223,11 +7682,18 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             }
             break;
         }
-        if pairs.len() < 2 {
+        if pairs.len() < self.options.batch_property_assign_minimum.max(2) {
             return Ok(None);
         }
         let mut rendered = String::new();
         for index in deferred {
+            // The normal linear walk emits a declaration immediately before a
+            // closure selected by `sink_entry_function_declarations`. A
+            // property batch consumes cache-only instructions out of that
+            // walk, so preserve the same side effect here before caching the
+            // closure reference. Otherwise the function group omits the
+            // declaration while the Object.assign literal still names it.
+            self.emit_sunk_entry_function(&block.instructions[index], &mut rendered)?;
             self.emit_linear_instruction(
                 &block.instructions[index],
                 block.id,
@@ -7247,7 +7713,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             if index != 0 {
                 rendered.push(',');
             }
-            push_object_literal_key(&mut rendered, key, self.options.string_quote);
+            push_object_literal_key(
+                &mut rendered,
+                self.property_name(key),
+                self.options.string_quote,
+            );
             rendered.push(':');
             rendered.push_str(&strip_outer_parens(take_value(*value, context, cache)?));
         }
@@ -7378,6 +7848,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 value,
             } => {
                 let object = take_value(*object, context, cache)?;
+                let property = self.property_name(property);
                 let access = if is_js_property_identifier(property) {
                     JsExpression::member(
                         object,
@@ -7476,7 +7947,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     out.push_str("delete ");
                     out.push_str(name);
                     out.push('[');
-                    out.push_str(&render_string_literal(key, self.options.string_quote));
+                    out.push_str(&render_string_literal(
+                        self.property_name(key),
+                        self.options.string_quote,
+                    ));
                     out.push_str("];");
                 }
             }
@@ -7487,6 +7961,18 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             return Ok(());
         }
 
+        // Nested cache operands were themselves fused into this expression.
+        // Check before `render_instruction_op` consumes them: deferring a
+        // pure wrapper such as `toInt(this.x)==-1` across a later call would
+        // re-read `this.x` after that call mutates it.
+        let nested_observable = context.evaluation_is_observable(instruction)
+            || codegen_op_values(&instruction.op, &context.string_constants)
+                .iter()
+                .any(|value| {
+                    cache.contains_key(value)
+                        && (context.observable_values.contains(value)
+                            || context.cached_observable.borrow().contains(value))
+                });
         let expression = self.render_instruction_op(instruction, context, cache)?;
         let Some(out_value) = instruction.out else {
             if !expression.is_empty() {
@@ -7497,16 +7983,21 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         };
         let use_count = uses.get(&out_value).copied().unwrap_or(0);
         let observable_evaluation = context.evaluation_is_observable(instruction);
+        let allow_fuse = fuse_with_next
+            && (!nested_observable || !context.operand_order_fusable.contains(&out_value));
         if use_count == 0 {
             if op_has_side_effects(&instruction.op) || observable_evaluation {
                 out.push_str(&expression_statement(expression));
                 out.push(';');
             }
         } else if !context.is_stored(out_value)
-            && ((!observable_evaluation && use_count == 1 && op_can_defer(&instruction.op))
-                || fuse_with_next)
+            && ((!nested_observable && use_count == 1 && op_can_defer(&instruction.op))
+                || allow_fuse)
         {
             cache.insert(out_value, expression);
+            if nested_observable || op_has_side_effects(&instruction.op) {
+                context.cached_observable.borrow_mut().insert(out_value);
+            }
         } else {
             emit_bound_value(context, out_value, expression, predeclared, out)?;
         }
@@ -7683,6 +8174,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             true,
             &local_mangler,
             &self.preferred_local_names,
+            &self.string_aliases,
             &self.numeric_aliases,
             &self.options,
             &self.order_sensitive_inline_pure_helpers,
@@ -7879,6 +8371,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             false,
             &local_mangler,
             &self.preferred_local_names,
+            &self.string_aliases,
             &self.numeric_aliases,
             &self.options,
             &self.order_sensitive_inline_pure_helpers,
@@ -8162,7 +8655,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 })
                                 .flatten()
                         {
-                            out.push_str(&condition);
+                            out.push_str(&parenthesize_ternary_test(&condition));
                             out.push('?');
                             out.push_str(then_target);
                             out.push('=');
@@ -8183,7 +8676,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             })
                             .flatten()
                         {
-                            out.push_str(&condition);
+                            out.push_str(&parenthesize_ternary_test(&condition));
                             out.push('?');
                             push_conditional_arm(out, &then_expression);
                             out.push(':');
@@ -8637,7 +9130,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         } else if let Some(update_clause) = &update_clause {
                             out.push_str("for(");
                             if let Some(initializer) = &for_initializer {
-                                out.push_str(initializer);
+                                push_for_initializer(out, initializer);
                             }
                             out.push(';');
                             if body_on_true {
@@ -8653,7 +9146,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             if reuse_for_spelling {
                                 out.push_str("for(");
                                 if let Some(initializer) = &for_initializer {
-                                    out.push_str(initializer);
+                                    push_for_initializer(out, initializer);
                                 }
                                 out.push(';');
                             } else {
@@ -9340,6 +9833,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             None
         };
 
+        let cone = header_eager_cone(block, lhs, skipped_condition);
+        if header_has_post_cone_prefix(block, &cone) {
+            return Ok(None);
+        }
+
         if !state.enter(header) {
             return Ok(None);
         }
@@ -9861,7 +10359,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         let mut pending_effect: Option<(JsExpression, Vec<ValueId>)> = None;
         let eager_cone = required_eager_root.map(|root| header_eager_cone(block, root, skipped));
         for instruction in &block.instructions {
-            if instruction.out == skipped {
+            if skipped.is_some_and(|skipped| instruction.out == Some(skipped)) {
                 continue;
             }
             if let Some(cone) = &eager_cone {
@@ -10453,6 +10951,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             ControlFlowOp::HostFieldGet { object, property }
                 if matches!(instruction.ty, Some(Type::Nullable(_))) =>
             {
+                let property = *property;
                 if context.is_js_value(*object) {
                     let object = take_value(*object, context, cache)?.at_least(JsPrecedence::Call);
                     return Ok(JsExpression::raw(
@@ -10616,23 +11115,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     if rendered.len() > 1 {
                         rendered.push(',');
                     }
-                    if decoded_source_string(key) == "__proto__" {
-                        rendered.push('[');
-                        rendered.push_str(&render_string_literal(key, self.options.string_quote));
-                        rendered.push(']');
-                    } else if key
-                        .as_bytes()
-                        .first()
-                        .is_some_and(|byte| is_js_identifier_start(*byte))
-                        && key
-                            .as_bytes()
-                            .iter()
-                            .all(|byte| is_js_identifier_byte(*byte))
-                    {
-                        rendered.push_str(key);
-                    } else {
-                        rendered.push_str(&render_string_literal(key, self.options.string_quote));
-                    }
+                    rendered.push_str(&object_literal_key(
+                        self.property_name(key),
+                        self.options.string_quote,
+                    ));
                     rendered.push(':');
                     rendered.push_str(&strip_outer_parens(value(*item, cache)?));
                 }
@@ -10655,29 +11141,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             rendered.push_str(&strip_outer_parens(value(*item, cache)?));
                         }
                         RecordOperand::Entry(key, item) => {
-                            if decoded_source_string(key) == "__proto__" {
-                                rendered.push('[');
-                                rendered.push_str(&render_string_literal(
-                                    key,
-                                    self.options.string_quote,
-                                ));
-                                rendered.push(']');
-                            } else if key
-                                .as_bytes()
-                                .first()
-                                .is_some_and(|byte| is_js_identifier_start(*byte))
-                                && key
-                                    .as_bytes()
-                                    .iter()
-                                    .all(|byte| is_js_identifier_byte(*byte))
-                            {
-                                rendered.push_str(key);
-                            } else {
-                                rendered.push_str(&render_string_literal(
-                                    key,
-                                    self.options.string_quote,
-                                ));
-                            }
+                            rendered.push_str(&object_literal_key(
+                                self.property_name(key),
+                                self.options.string_quote,
+                            ));
                             rendered.push(':');
                             rendered.push_str(&strip_outer_parens(value(*item, cache)?));
                         }
@@ -10814,6 +11281,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             ),
             ControlFlowOp::RecordFieldGet { object, property } => {
                 let object = value(*object, cache)?;
+                let property = self.property_name(property);
                 let member = if is_js_property_identifier(property) {
                     JsExpression::member(
                         object,
@@ -10844,7 +11312,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 });
                 for key in excluded {
                     rendered.push_str("delete b[");
-                    rendered.push_str(&render_string_literal(key, self.options.string_quote));
+                    rendered.push_str(&render_string_literal(
+                        self.property_name(key),
+                        self.options.string_quote,
+                    ));
                     rendered.push_str("];");
                 }
                 rendered.push_str("return b})(");
@@ -11184,30 +11655,70 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     }
 
     /// Return the base object for a member read that produced `value`.
-    /// Callers additionally require the read to remain deferred in the local
-    /// expression cache, which guarantees that turning `member.call(base, …)`
-    /// back into `base[key](…)` does not move the lookup across an effect.
+    /// A later `fn.call(base, …)` rewrite is only valid when that read is
+    /// still a member expression, or when the property is a static identifier
+    /// that can be rematerialized onto `base`. A spilled function name must
+    /// keep `.call(base, …)`: `var fn=base.method; fn()` drops `this`.
     fn deferred_member_receiver(&self, function: FunctionId, value: ValueId) -> Option<ValueId> {
+        self.member_read_instruction(function, value)
+            .and_then(|instruction| match instruction.op {
+                ControlFlowOp::IndexGet { object, .. }
+                | ControlFlowOp::HostFieldGet { object, .. }
+                | ControlFlowOp::RecordFieldGet { object, .. }
+                | ControlFlowOp::FieldGet { object, .. }
+                | ControlFlowOp::Intrinsic {
+                    intrinsic: Intrinsic::JsGetProperty,
+                    receiver: Some(object),
+                    ..
+                } => Some(object),
+                _ => None,
+            })
+    }
+
+    fn member_read_instruction(
+        &self,
+        function: FunctionId,
+        value: ValueId,
+    ) -> Option<&ControlFlowInstruction<'_>> {
         self.module
             .functions
             .get(function.0 as usize)?
             .blocks
             .iter()
             .flat_map(|block| &block.instructions)
-            .find_map(|instruction| {
-                (instruction.out == Some(value)).then_some(match instruction.op {
-                    ControlFlowOp::IndexGet { object, .. }
-                    | ControlFlowOp::HostFieldGet { object, .. }
-                    | ControlFlowOp::RecordFieldGet { object, .. }
-                    | ControlFlowOp::FieldGet { object, .. }
-                    | ControlFlowOp::Intrinsic {
-                        intrinsic: Intrinsic::JsGetProperty,
-                        receiver: Some(object),
-                        ..
-                    } => Some(object),
-                    _ => None,
-                })?
-            })
+            .find(|instruction| instruction.out == Some(value))
+    }
+
+    fn same_receiver_static_member<'a>(
+        &'a self,
+        callee: ValueId,
+        this_arg: ValueId,
+        context: &'a LocalNames,
+    ) -> Option<&'a str> {
+        if self.deferred_member_receiver(context.function_id, callee) != Some(this_arg) {
+            return None;
+        }
+        let instruction = self.member_read_instruction(context.function_id, callee)?;
+        let property = match &instruction.op {
+            ControlFlowOp::HostFieldGet { property, .. }
+            | ControlFlowOp::RecordFieldGet { property, .. }
+            | ControlFlowOp::FieldGet {
+                field: property, ..
+            } => (property != &"__proto__" && is_js_property_identifier(property))
+                .then_some(*property),
+            ControlFlowOp::IndexGet { index, .. } => {
+                static_identifier_property(*index, &context.string_constants)
+            }
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::JsGetProperty,
+                args,
+                ..
+            } => args
+                .first()
+                .and_then(|key| static_identifier_property(*key, &context.string_constants)),
+            _ => None,
+        }?;
+        Some(self.property_name(property))
     }
 
     fn render_call(
@@ -11309,6 +11820,21 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             })
     }
 
+    fn render_in_operator_key(
+        &self,
+        key: ValueId,
+        context: &LocalNames,
+        cache: &mut ExpressionCache,
+    ) -> Result<JsExpression, CodegenError> {
+        if let Some(property) = static_identifier_property(key, &context.string_constants) {
+            return Ok(JsExpression::atom(render_string_literal(
+                self.property_name(property),
+                self.options.string_quote,
+            )));
+        }
+        take_value(key, context, cache)
+    }
+
     fn render_index_access(
         &self,
         object: ValueId,
@@ -11329,7 +11855,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         if let Some(property) = static_identifier_property(index, &context.string_constants) {
             return Ok(JsExpression::member(
                 object,
-                property,
+                self.property_name(property),
                 self.options.elide_call_chain_parentheses,
             ));
         }
@@ -11405,28 +11931,13 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         "plain-object literal key is not a constant string",
                     )
                 })?;
-                let decoded_key = decoded_source_string(source_key);
                 // Plain-object keys are syntax metadata, not runtime inputs.
                 // Rendering them directly avoids extending an SSA value's live
                 // range merely to print property syntax.
-                if decoded_key != "__proto__" && is_js_property_identifier(&decoded_key) {
-                    rendered.push_str(&decoded_key);
-                } else if decoded_key != "__proto__" {
-                    rendered.push_str(&render_string_literal(
-                        source_key,
-                        self.options.string_quote,
-                    ));
-                } else {
-                    // `__proto__: value` has legacy prototype-setter semantics;
-                    // the computed spelling creates the ordinary own property
-                    // represented by the IR.
-                    rendered.push('[');
-                    rendered.push_str(&render_string_literal(
-                        source_key,
-                        self.options.string_quote,
-                    ));
-                    rendered.push(']');
-                }
+                rendered.push_str(&object_literal_key(
+                    self.property_name(source_key),
+                    self.options.string_quote,
+                ));
                 rendered.push(':');
                 rendered.push_str(&strip_outer_parens(take_value(pair[1], context, cache)?));
             }
@@ -11562,6 +12073,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             Intrinsic::JsParseFloat => Some("parseFloat"),
             Intrinsic::JsParseInt => Some("parseInt"),
             Intrinsic::JsIsFinite => Some("isFinite"),
+            Intrinsic::JsEncodeURI => Some("encodeURI"),
             Intrinsic::JsEncodeURIComponent => Some("encodeURIComponent"),
             Intrinsic::JsObjectCreate => Some("Object.create"),
             Intrinsic::JsGetPrototypeOf => Some("Object.getPrototypeOf"),
@@ -11571,7 +12083,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         if let Some(callee) = static_callee {
             if matches!(
                 intrinsic,
-                Intrinsic::JsParseFloat | Intrinsic::JsParseInt | Intrinsic::JsEncodeURIComponent
+                Intrinsic::JsParseFloat
+                    | Intrinsic::JsParseInt
+                    | Intrinsic::JsEncodeURI
+                    | Intrinsic::JsEncodeURIComponent
             ) {
                 let mut rendered_args = Vec::with_capacity(args.len());
                 for (index, arg) in args.iter().enumerate() {
@@ -11656,7 +12171,6 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 "missing receiver",
             )
         })?;
-        let receiver_was_deferred = cache.contains_key(&receiver_id);
         let mut receiver = take_value(receiver_id, context, cache)?;
         if matches!(
             intrinsic,
@@ -11675,6 +12189,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 | Intrinsic::StringEndsWith
                 | Intrinsic::StringToUpperCase
                 | Intrinsic::StringToLowerCase
+                | Intrinsic::StringTrim
+                | Intrinsic::StringTrimStart
+                | Intrinsic::StringTrimEnd
+                | Intrinsic::StringSearch
+                | Intrinsic::StringSlice
+                | Intrinsic::StringReplace
+                | Intrinsic::StringSplit
+                | Intrinsic::StringCodePointLength
         ) {
             receiver = receiver.without_explicit_tostring();
         }
@@ -11854,13 +12376,30 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     return self.render_call(receiver, &args[1..], context, cache);
                 }
                 if intrinsic == Intrinsic::JsCall
-                    && receiver_was_deferred
                     && args.first().is_some_and(|this_arg| {
                         self.deferred_member_receiver(context.function_id, receiver_id)
                             == Some(*this_arg)
                     })
                 {
-                    return self.render_call(receiver, &args[1..], context, cache);
+                    let this_arg = args[0];
+                    if receiver.root == JsExpressionRoot::Member {
+                        return self.render_call(receiver, &args[1..], context, cache);
+                    }
+                    if let Some(property) =
+                        self.same_receiver_static_member(receiver_id, this_arg, context)
+                    {
+                        let object = take_value(this_arg, context, cache)?;
+                        return self.render_call(
+                            JsExpression::member(
+                                object,
+                                property,
+                                self.options.elide_call_chain_parentheses,
+                            ),
+                            &args[1..],
+                            context,
+                            cache,
+                        );
+                    }
                 }
                 return self.render_call(
                     JsExpression::member(
@@ -11880,8 +12419,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         "JS.invoke requires a property key",
                     ));
                 };
-                let property = static_identifier_property(*key, &context.string_constants);
-                let receiver = if property.is_some_and(|name| {
+                let source_property = static_identifier_property(*key, &context.string_constants);
+                let property = source_property.map(|name| self.property_name(name));
+                let receiver = if source_property.is_some_and(|name| {
                     matches!(
                         name,
                         "charAt"
@@ -11932,7 +12472,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         self.options.elide_call_chain_parentheses,
                     )
                 };
-                if property.is_some_and(|name| matches!(name, "test" | "exec")) {
+                if source_property.is_some_and(|name| matches!(name, "test" | "exec")) {
                     let mut rendered_args = Vec::with_capacity(call_args.len());
                     for (index, arg) in call_args.iter().enumerate() {
                         let mut value = take_value(*arg, context, cache)?;
@@ -11952,11 +12492,21 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         "JS.delete requires one key",
                     ));
                 };
-                let access = JsExpression::index(
-                    receiver,
-                    take_value(*key, context, cache)?,
-                    self.options.elide_call_chain_parentheses,
-                );
+                let access = if let Some(property) =
+                    static_identifier_property(*key, &context.string_constants)
+                {
+                    JsExpression::member(
+                        receiver,
+                        self.property_name(property),
+                        self.options.elide_call_chain_parentheses,
+                    )
+                } else {
+                    JsExpression::index(
+                        receiver,
+                        take_value(*key, context, cache)?,
+                        self.options.elide_call_chain_parentheses,
+                    )
+                };
                 return Ok(JsExpression::raw(
                     format!("delete {access}"),
                     JsPrecedence::Unary,
@@ -11969,7 +12519,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         "JS.has requires one key",
                     ));
                 };
-                let key = take_value(*key, context, cache)?;
+                let key = self.render_in_operator_key(*key, context, cache)?;
                 return Ok(JsExpression::raw(
                     format!(
                         "{} in Object({})",
@@ -11989,7 +12539,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 return Ok(JsExpression::raw(
                     format!(
                         "{} in {}",
-                        take_value(*key, context, cache)?.at_least(JsPrecedence::Relational),
+                        self.render_in_operator_key(*key, context, cache)?
+                            .at_least(JsPrecedence::Relational),
                         receiver.at_least(JsPrecedence::Relational),
                     ),
                     JsPrecedence::Relational,
@@ -12005,12 +12556,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         "JS.get requires one key",
                     ));
                 };
-                if let Some(property) =
-                    static_identifier_property(*key, &context.string_constants)
+                if let Some(property) = static_identifier_property(*key, &context.string_constants)
                 {
                     return Ok(JsExpression::member(
                         receiver,
-                        property,
+                        self.property_name(property),
                         self.options.elide_call_chain_parentheses,
                     ));
                 }
@@ -12024,13 +12574,16 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             | Intrinsic::JsStringIndexOf
             | Intrinsic::JsStringReplace
             | Intrinsic::JsStringMatch
-            | Intrinsic::JsStringSplit => {
+            | Intrinsic::JsStringSplit
+            | Intrinsic::StringSlice
+            | Intrinsic::StringReplace
+            | Intrinsic::StringSplit => {
                 let method = match intrinsic {
-                    Intrinsic::JsStringSlice => "slice",
+                    Intrinsic::JsStringSlice | Intrinsic::StringSlice => "slice",
                     Intrinsic::JsStringIndexOf => "indexOf",
-                    Intrinsic::JsStringReplace => "replace",
+                    Intrinsic::JsStringReplace | Intrinsic::StringReplace => "replace",
                     Intrinsic::JsStringMatch => "match",
-                    Intrinsic::JsStringSplit => "split",
+                    Intrinsic::JsStringSplit | Intrinsic::StringSplit => "split",
                     _ => unreachable!(),
                 };
                 return self.render_call(
@@ -12249,6 +12802,38 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     JsExpression::integer_normalization(call)
                 });
             }
+            Intrinsic::StringSearch => {
+                let call = self.render_call(
+                    JsExpression::member(
+                        receiver,
+                        "search",
+                        self.options.elide_call_chain_parentheses,
+                    ),
+                    args,
+                    context,
+                    cache,
+                )?;
+                let elide = self.options.elide_safe_integer_coercions
+                    && out.is_some_and(|out| context.can_elide_i32_coercion(out));
+                return Ok(if elide {
+                    call
+                } else {
+                    JsExpression::integer_normalization(call)
+                });
+            }
+            Intrinsic::StringCodePointLength => {
+                let length = JsExpression::raw(
+                    format!("[...{}].length", receiver.at_least(JsPrecedence::Primary)),
+                    JsPrecedence::Member,
+                );
+                let elide = self.options.elide_safe_integer_coercions
+                    && out.is_some_and(|out| context.can_elide_i32_coercion(out));
+                return Ok(if elide {
+                    length
+                } else {
+                    JsExpression::integer_normalization(length)
+                });
+            }
             Intrinsic::StringCharAt => {
                 return self.render_call(
                     JsExpression::member(
@@ -12292,7 +12877,13 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 ));
             }
             Intrinsic::FloatToInt => {
-                return Ok(JsExpression::integer_normalization(receiver));
+                let elide = self.options.elide_safe_integer_coercions
+                    && out.is_some_and(|out| context.can_elide_i32_coercion(out));
+                return Ok(if elide {
+                    receiver
+                } else {
+                    JsExpression::integer_normalization(receiver)
+                });
             }
             Intrinsic::FloatAbs
             | Intrinsic::FloatFloor
@@ -12389,6 +12980,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             Intrinsic::StringEndsWith => "endsWith",
             Intrinsic::StringToUpperCase => "toUpperCase",
             Intrinsic::StringToLowerCase => "toLowerCase",
+            Intrinsic::StringTrim => "trim",
+            Intrinsic::StringTrimStart => "trimStart",
+            Intrinsic::StringTrimEnd => "trimEnd",
             Intrinsic::Print
             | Intrinsic::IntImul
             | Intrinsic::MapNew
@@ -12403,6 +12997,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             | Intrinsic::JsParseFloat
             | Intrinsic::JsParseInt
             | Intrinsic::JsIsFinite
+            | Intrinsic::JsEncodeURI
             | Intrinsic::JsEncodeURIComponent
             | Intrinsic::JsObjectCreate
             | Intrinsic::JsGetPrototypeOf
@@ -12435,6 +13030,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             | Intrinsic::JsApply
             | Intrinsic::JsMethod0
             | Intrinsic::JsMethod1
+            | Intrinsic::JsMethod2
+            | Intrinsic::JsMethod3
             | Intrinsic::JsMethodRest
             | Intrinsic::JsStaticRest
             | Intrinsic::JsGetProperty
@@ -12447,6 +13044,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             | Intrinsic::JsStringReplace
             | Intrinsic::JsStringMatch
             | Intrinsic::JsStringSplit
+            | Intrinsic::StringSlice
+            | Intrinsic::StringReplace
+            | Intrinsic::StringSplit
             | Intrinsic::JsRegexExec
             | Intrinsic::JsArrayPush
             | Intrinsic::JsArrayPop
@@ -12568,6 +13168,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 false,
                 &wrapper_mangler,
                 &self.preferred_local_names,
+                &self.string_aliases,
                 &self.numeric_aliases,
                 &self.options,
                 &self.order_sensitive_inline_pure_helpers,
@@ -12624,6 +13225,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             false,
             &local_mangler,
             &self.preferred_local_names,
+            &self.string_aliases,
             &self.numeric_aliases,
             &self.options,
             &self.order_sensitive_inline_pure_helpers,
@@ -13701,22 +14303,6 @@ fn push_concise_arrow_body(out: &mut String, expression: &str) {
 
 fn object_method_shorthand(property: &str, expression: &JsExpression) -> Option<String> {
     arrow_block_as_object_method(property, expression)
-        .or_else(|| function_expr_as_object_method(property, expression))
-}
-
-fn function_expr_as_object_method(property: &str, expression: &JsExpression) -> Option<String> {
-    if !is_js_property_identifier(property) {
-        return None;
-    }
-    let code = expression
-        .ungrouped
-        .as_deref()
-        .unwrap_or(expression.code.as_str());
-    let rest = code.strip_prefix("function")?.trim_start();
-    if rest.starts_with('*') || !rest.starts_with('(') || !rest.ends_with('}') {
-        return None;
-    }
-    expression_delimiters_are_balanced(rest).then(|| format!("{property}{rest}"))
 }
 
 fn arrow_block_as_object_method(property: &str, expression: &JsExpression) -> Option<String> {
@@ -14671,12 +15257,51 @@ fn peek_merge_return_expression(
 
 fn push_return_conditional(out: &mut String, condition: &str, then_ret: &str, else_ret: &str) {
     out.push_str("return ");
-    out.push_str(condition);
+    out.push_str(&parenthesize_ternary_test(condition));
     out.push('?');
     push_conditional_arm(out, then_ret);
     out.push(':');
     push_conditional_arm(out, else_ret);
     out.push(';');
+}
+
+fn parenthesize_ternary_test(condition: &str) -> String {
+    if expression_has_top_level_conditional(condition) {
+        format!("({condition})")
+    } else {
+        condition.to_string()
+    }
+}
+
+fn expression_has_top_level_conditional(expression: &str) -> bool {
+    let bytes = expression.as_bytes();
+    let mut depth = 0usize;
+    let mut quote = None;
+    let mut escaped = false;
+    let mut index = 0usize;
+    while index < bytes.len() {
+        let byte = bytes[index];
+        if let Some(active) = quote {
+            if escaped {
+                escaped = false;
+            } else if byte == b'\\' {
+                escaped = true;
+            } else if byte == active {
+                quote = None;
+            }
+            index += 1;
+            continue;
+        }
+        match byte {
+            b'\'' | b'"' | b'`' => quote = Some(byte),
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => depth = depth.saturating_sub(1),
+            b'?' if depth == 0 => return true,
+            _ => {}
+        }
+        index += 1;
+    }
+    false
 }
 
 fn compact_top_level_expression_statements(output: &str) -> Option<String> {
@@ -14722,6 +15347,42 @@ fn compact_top_level_expression_statements(output: &str) -> Option<String> {
     let mut compact = statements.join(",");
     compact.push(';');
     Some(compact)
+}
+
+fn push_for_initializer(out: &mut String, initializer: &str) {
+    if for_initializer_is_identifier_assigns(initializer) {
+        out.push_str("var ");
+    }
+    out.push_str(initializer);
+}
+
+fn for_initializer_is_identifier_assigns(initializer: &str) -> bool {
+    if initializer.is_empty() {
+        return false;
+    }
+    let mut start = 0usize;
+    loop {
+        let rest = &initializer[start..];
+        let split = split_top_level_comma(rest);
+        let part = split.map_or(rest, |index| &rest[..index]);
+        let Some(eq) = part.find('=') else {
+            return false;
+        };
+        if part.as_bytes().get(eq + 1) == Some(&b'=') {
+            return false;
+        }
+        let name = &part[..eq];
+        if name.is_empty()
+            || !is_js_identifier_start(name.as_bytes()[0])
+            || !name.bytes().all(is_js_identifier_byte)
+        {
+            return false;
+        }
+        match split {
+            Some(index) => start += index + 1,
+            None => return true,
+        }
+    }
 }
 
 fn take_trailing_expression_statements(output: &mut String) -> Option<String> {
@@ -15034,6 +15695,7 @@ struct LocalNames {
     js_value_values: AHashSet<ValueId>,
     record_values: AHashSet<ValueId>,
     observable_values: AHashSet<ValueId>,
+    cached_observable: RefCell<AHashSet<ValueId>>,
     inlined_values: AHashMap<ValueId, JsExpression>,
     string_constants: AHashMap<ValueId, String>,
     global_loads: AHashMap<ValueId, SymbolId>,
@@ -15324,19 +15986,29 @@ fn property_assign_parts(
     }
 }
 
-fn push_object_literal_key(out: &mut String, source_key: &str, quote: StringQuote) {
+fn object_literal_key(source_key: &str, quote: StringQuote) -> String {
     let decoded = decoded_source_string(source_key);
     if decoded != "__proto__" && is_js_property_identifier(&decoded) {
-        out.push_str(&decoded);
-        return;
+        return decoded;
     }
     if decoded == "__proto__" {
-        out.push('[');
-        out.push_str(&render_string_literal(source_key, quote));
-        out.push(']');
-        return;
+        let mut rendered = String::from("[");
+        rendered.push_str(&render_string_literal(source_key, quote));
+        rendered.push(']');
+        return rendered;
     }
-    out.push_str(&render_string_literal(source_key, quote));
+    // Template literals are not PropertyName tokens, so `{`* text`:v}` is a
+    // syntax error. Fall back to a string literal for punctuated keys.
+    let key_quote = if quote == StringQuote::Template {
+        StringQuote::Double
+    } else {
+        quote
+    };
+    render_string_literal(source_key, key_quote)
+}
+
+fn push_object_literal_key(out: &mut String, source_key: &str, quote: StringQuote) {
+    out.push_str(&object_literal_key(source_key, quote));
 }
 
 fn adapter_is_named_evaluation_value(op: &ControlFlowOp<'_>, adapter: ValueId) -> bool {
@@ -16155,6 +16827,7 @@ impl LocalNames {
         all_values: bool,
         parent: &Mangler,
         preferred_local_names: &AHashMap<String, String>,
+        string_aliases: &AHashMap<String, String>,
         numeric_aliases: &AHashMap<String, String>,
         options: &IrJsOptions,
         order_sensitive_inline_pure_helpers: &AHashSet<FunctionId>,
@@ -16292,8 +16965,18 @@ impl LocalNames {
                 }
                 (Some(out), ControlFlowOp::Const(ConstValue::String(value))) => {
                     let rendered = render_string_literal(value, options.string_quote);
-                    (literalized_regex_arguments.contains(&out) || !options.pool_strings)
+                    let use_count = uses.get(&out).copied().unwrap_or(0);
+                    let inline_cost = rendered.len().saturating_mul(use_count);
+                    let binding_cost = rendered.len().saturating_add(7).saturating_add(use_count);
+                    let savings = inline_cost.saturating_sub(binding_cost);
+                    if let Some(alias) = string_aliases.get(value) {
+                        Some((out, JsExpression::atom(alias.clone())))
+                    } else {
+                        (literalized_regex_arguments.contains(&out)
+                            || !options.pool_strings
+                            || savings < options.string_pool_minimum_savings.max(1))
                         .then_some((out, JsExpression::atom(rendered)))
+                    }
                 }
                 (Some(out), ControlFlowOp::LoadGlobal(symbol)) => global_names
                     .get(symbol)
@@ -16399,6 +17082,16 @@ impl LocalNames {
                                 &operand_order_fusable,
                             ) || (edge_value == Some(value)
                                 && can_defer_value_to_block_end(function, block, index, value)));
+                    // Observable producers selected only as transitive
+                    // operand-order values are deliberately materialized by
+                    // the emitter. Caching one could move a getter/proxy read
+                    // across another nested observable operand. Name
+                    // allocation must make the same decision: otherwise the
+                    // consumer falls back to an SSA name whose declaration
+                    // was never emitted.
+                    let fused = fused
+                        && !(operand_order_fusable.contains(&value)
+                            && op_evaluation_is_observable(function, instruction));
                     if ((cross_block.contains(&value) && !structured_iteration_input)
                         || (use_count > 1 && !structured_iteration_input)
                         || (loop_capture_values.contains(&value)
@@ -16554,10 +17247,25 @@ impl LocalNames {
                     }
                 }
             }
-            for name in &mut color_names {
-                if name.is_empty() {
-                    *name = mangler.next_name();
+            let mut unnamed_colors = (0..color_count)
+                .filter(|color| color_names[*color].is_empty())
+                .collect::<Vec<_>>();
+            if options.frequency_order_local_names {
+                let mut weights = vec![0usize; color_count];
+                let mut first_values = vec![u32::MAX; color_count];
+                for (value, color) in &colors {
+                    weights[*color] = weights[*color]
+                        .saturating_add(uses.get(value).copied().unwrap_or(0).saturating_add(1));
+                    first_values[*color] = first_values[*color].min(value.0);
                 }
+                unnamed_colors.sort_unstable_by(|left, right| {
+                    weights[*right]
+                        .cmp(&weights[*left])
+                        .then_with(|| first_values[*left].cmp(&first_values[*right]))
+                });
+            }
+            for color in unnamed_colors {
+                color_names[color] = mangler.next_name();
             }
             for value in &values {
                 if inlined_values.contains_key(value) {
@@ -16633,6 +17341,7 @@ impl LocalNames {
             js_value_values,
             record_values,
             observable_values,
+            cached_observable: RefCell::new(AHashSet::default()),
             inlined_values,
             string_constants,
             global_loads,
@@ -16904,6 +17613,9 @@ fn operand_order_fusable_values(
             let mut next_slot = operands.len();
             for index in (0..consumer).rev() {
                 let produced = &block.instructions[index];
+                if instruction_loads_mutable_capture(function, produced) {
+                    break;
+                }
                 let Some(out) = produced.out else {
                     break;
                 };
@@ -16926,6 +17638,9 @@ fn operand_order_fusable_values(
                     continue;
                 }
                 if skip_inert && !op_evaluation_is_observable(function, produced) {
+                    if op_has_side_effects(&produced.op) {
+                        break;
+                    }
                     continue;
                 }
                 break;
@@ -16964,6 +17679,9 @@ fn aggregate_operand_order_fusable(
     visited.insert(consumer);
     for index in (0..consumer).rev() {
         let produced = &block.instructions[index];
+        if instruction_loads_mutable_capture(function, produced) {
+            break;
+        }
         let order_sensitive = operand_order_sensitive(function, produced);
         let Some(out) = produced.out else {
             if order_sensitive {
@@ -17049,6 +17767,22 @@ fn unique_use_is_visited(
 /// feeding one of those would turn an unconditional evaluation into a
 /// conditional one. Constructor arguments and closure captures are named by
 /// separate rules and would be left half-nested.
+fn instruction_loads_mutable_capture(
+    function: &ControlFlowFunction<'_>,
+    instruction: &crate::ir::ControlFlowInstruction<'_>,
+) -> bool {
+    let local = match &instruction.op {
+        ControlFlowOp::LoadLocal(local) | ControlFlowOp::CaptureLocal(local) => *local,
+        _ => return false,
+    };
+    function.mutable_capture_locals.contains(&local)
+        || function
+            .params
+            .iter()
+            .take(function.capture_count)
+            .any(|parameter| parameter.local == local)
+}
+
 fn operand_order_sensitive(
     function: &ControlFlowFunction<'_>,
     instruction: &crate::ir::ControlFlowInstruction<'_>,
@@ -17177,7 +17911,11 @@ fn emit_bound_value(
     let name = context.value_name(dest)?;
     let value = strip_outer_parens(expression);
     if value == name {
-        context.mark_declared(dest)?;
+        if context.claim_declaration(dest)? {
+            out.push_str(if predeclared { "var " } else { "let " });
+            out.push_str(name);
+            out.push(';');
+        }
         return Ok(());
     }
     emit_binding_prefix(context, dest, predeclared, out)?;
@@ -17255,16 +17993,14 @@ fn coalesce_value_names(
         }
         for instruction in &block.instructions {
             let mut operands = AHashSet::default();
-            for value in op_values(&instruction.op) {
-                collect_deferred_named_values(
-                    value,
-                    &named,
-                    &value_definitions,
-                    &deferred_definitions,
-                    &mut AHashSet::default(),
-                    &mut operands,
-                );
-            }
+            collect_named_op_values(
+                function,
+                &instruction.op,
+                &named,
+                &value_definitions,
+                &deferred_definitions,
+                &mut operands,
+            );
             for value in operands {
                 if !block_definitions[index].contains(&value) {
                     local_uses[index].insert(value);
@@ -17282,6 +18018,7 @@ fn coalesce_value_names(
         {
             let mut operands = AHashSet::default();
             collect_deferred_named_values(
+                function,
                 value,
                 &named,
                 &value_definitions,
@@ -17318,6 +18055,7 @@ fn coalesce_value_names(
                         .find(|(predecessor, _)| predecessor == &block.id)
                     {
                         collect_deferred_named_values(
+                            function,
                             *value,
                             &named,
                             &value_definitions,
@@ -17374,6 +18112,7 @@ fn coalesce_value_names(
             .flat_map(terminator_values)
         {
             collect_deferred_named_values(
+                function,
                 value,
                 &named,
                 &value_definitions,
@@ -17384,15 +18123,19 @@ fn coalesce_value_names(
         }
         for instruction in block.instructions.iter().rev() {
             let mut operands = AHashSet::default();
-            for value in op_values(&instruction.op) {
-                collect_deferred_named_values(
-                    value,
-                    &named,
-                    &value_definitions,
-                    &deferred_definitions,
-                    &mut AHashSet::default(),
-                    &mut operands,
-                );
+            collect_named_op_values(
+                function,
+                &instruction.op,
+                &named,
+                &value_definitions,
+                &deferred_definitions,
+                &mut operands,
+            );
+            let simultaneous = operands.iter().copied().collect::<Vec<_>>();
+            for (position, left) in simultaneous.iter().enumerate() {
+                for right in &simultaneous[position + 1..] {
+                    connect(&mut interference, *left, *right, false);
+                }
             }
             if let Some(out) = instruction.out.filter(|out| named.contains(out)) {
                 if matches!(
@@ -17544,6 +18287,7 @@ fn coalesce_value_names(
         }
     }
 
+    extend_capture_snapshot_interference(function, &named, &mut interference);
     extend_short_circuit_prefix_interference(function, &named, &mut interference);
 
     let mut values = named.into_iter().collect::<Vec<_>>();
@@ -17670,6 +18414,7 @@ fn extend_local_phi_expression_interference(
         let mut dependencies = AHashSet::default();
         for (_, incoming) in &phi.incoming {
             collect_deferred_named_values(
+                function,
                 *incoming,
                 named,
                 definitions,
@@ -18053,9 +18798,14 @@ fn capture_cell_writeback_values(
         .collect::<AHashSet<_>>();
     for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
         match &instruction.op {
-            ControlFlowOp::LoadLocal(loaded) | ControlFlowOp::CaptureLocal(loaded)
-                if *loaded == local =>
-            {
+            ControlFlowOp::LoadLocal(loaded) if *loaded == local => {
+                if let Some(out) = instruction.out {
+                    if value_is_stored_back_to_local(function, local, out) {
+                        chain.insert(out);
+                    }
+                }
+            }
+            ControlFlowOp::CaptureLocal(loaded) if *loaded == local => {
                 if let Some(out) = instruction.out {
                     chain.insert(out);
                 }
@@ -18065,6 +18815,9 @@ fn capture_cell_writeback_values(
     }
     for block in &function.blocks {
         for phi in &block.phis {
+            if phi.origin.local() == Some(local) {
+                chain.insert(phi.out);
+            }
             let crate::ir::PhiOrigin::Expression(crate::ir::ExpressionPhi::ShortCircuit {
                 lhs,
                 ..
@@ -18090,6 +18843,24 @@ fn capture_cell_writeback_values(
         }
     }
     chain
+}
+
+fn value_is_stored_back_to_local(
+    function: &ControlFlowFunction<'_>,
+    local: LocalId,
+    value: ValueId,
+) -> bool {
+    function.blocks.iter().any(|block| {
+        block.instructions.iter().any(|instruction| {
+            matches!(
+                instruction.op,
+                ControlFlowOp::StoreLocal {
+                    local: stored,
+                    value: stored_value,
+                } if stored == local && stored_value == value
+            )
+        })
+    })
 }
 
 fn capture_cell_writeback_pairs(
@@ -18209,6 +18980,18 @@ fn safe_two_address_phi_pairs(
                             *incoming,
                             phi.out,
                         )
+                        // The incoming value being fresh is only half of the
+                        // proof. The phi result must also be dead from the point
+                        // the incoming exists, or one JavaScript name has to hold
+                        // both at once. A phi definition has no instruction index,
+                        // so the scan covers its whole block.
+                        && target_is_unused_until_phi_redefinition(
+                            function,
+                            *incoming_block,
+                            0,
+                            block.id,
+                            phi.out,
+                        )
                     {
                         pairs.insert((phi.out, *incoming));
                         continue;
@@ -18231,7 +19014,7 @@ fn safe_two_address_phi_pairs(
                 if target_is_unused_until_phi_redefinition(
                     function,
                     *definition_block,
-                    *definition_index,
+                    *definition_index + 1,
                     block.id,
                     phi.out,
                 ) {
@@ -18259,7 +19042,7 @@ fn safe_two_address_phi_pairs(
                     if target_is_unused_until_phi_redefinition(
                         function,
                         *definition_block,
-                        *definition_index,
+                        *definition_index + 1,
                         block.id,
                         phi.out,
                     ) {
@@ -18293,7 +19076,40 @@ fn safe_two_address_phi_pairs(
             }
         }
     }
+    let parallel_copy_results = parallel_copy_phi_results(function);
+    pairs.retain(|(left, right)| {
+        !parallel_copy_results.contains(left) && !parallel_copy_results.contains(right)
+    });
     pairs
+}
+
+/// `prev = cur` followed by an update of `cur` becomes two phis fed by one edge:
+/// the second reads the first phi's result *after* the edge has already produced
+/// the replacement value. Both values are therefore live at the same instant, so
+/// the phi result cannot be two-address coalesced with anything — a shared name
+/// makes the copy observe the update and the loop mistakes new state for old.
+///
+/// This is a property of the edge, not of any single fold, so it is enforced once
+/// over the finished pair set rather than at each site that proposes a pair.
+fn parallel_copy_phi_results(function: &ControlFlowFunction<'_>) -> AHashSet<ValueId> {
+    let mut results = AHashSet::default();
+    for block in &function.blocks {
+        for phi in &block.phis {
+            for (predecessor, _) in &phi.incoming {
+                let copied_on_edge = block.phis.iter().any(|other| {
+                    other.out != phi.out
+                        && other.incoming.iter().any(|(from, value)| {
+                            from == predecessor && *value == phi.out
+                        })
+                });
+                if copied_on_edge {
+                    results.insert(phi.out);
+                    break;
+                }
+            }
+        }
+    }
+    results
 }
 
 fn incoming_is_unit_update_of(
@@ -18561,12 +19377,12 @@ fn phi_edge_uses(
 fn target_is_unused_until_phi_redefinition(
     function: &ControlFlowFunction<'_>,
     definition_block: BlockId,
-    definition_index: usize,
+    definition_start: usize,
     phi_block: BlockId,
     target: ValueId,
 ) -> bool {
     let definition = &function.blocks[definition_block.0 as usize];
-    if definition.instructions[definition_index + 1..]
+    if definition.instructions[definition_start..]
         .iter()
         .any(|instruction| op_values(&instruction.op).contains(&target))
         || definition
@@ -18734,7 +19550,40 @@ fn color_phi_affinity_groups(
     colors
 }
 
+fn collect_named_op_values(
+    function: &ControlFlowFunction<'_>,
+    op: &ControlFlowOp<'_>,
+    named: &AHashSet<ValueId>,
+    definitions: &AHashMap<ValueId, &ControlFlowOp<'_>>,
+    deferred_definitions: &AHashSet<ValueId>,
+    values: &mut AHashSet<ValueId>,
+) {
+    match op {
+        ControlFlowOp::LoadLocal(local) | ControlFlowOp::CaptureLocal(local) => {
+            for value in capture_cell_writeback_values(function, *local) {
+                if named.contains(&value) {
+                    values.insert(value);
+                }
+            }
+        }
+        _ => {
+            for value in op_values(op) {
+                collect_deferred_named_values(
+                    function,
+                    value,
+                    named,
+                    definitions,
+                    deferred_definitions,
+                    &mut AHashSet::default(),
+                    values,
+                );
+            }
+        }
+    }
+}
+
 fn collect_deferred_named_values(
+    function: &ControlFlowFunction<'_>,
     value: ValueId,
     named: &AHashSet<ValueId>,
     definitions: &AHashMap<ValueId, &ControlFlowOp<'_>>,
@@ -18752,15 +19601,27 @@ fn collect_deferred_named_values(
     let Some(op) = definitions.get(&value) else {
         return;
     };
-    for operand in op_values(op) {
-        collect_deferred_named_values(
-            operand,
-            named,
-            definitions,
-            deferred_definitions,
-            visited,
-            values,
-        );
+    match op {
+        ControlFlowOp::LoadLocal(local) | ControlFlowOp::CaptureLocal(local) => {
+            for cell_value in capture_cell_writeback_values(function, *local) {
+                if named.contains(&cell_value) {
+                    values.insert(cell_value);
+                }
+            }
+        }
+        _ => {
+            for operand in op_values(op) {
+                collect_deferred_named_values(
+                    function,
+                    operand,
+                    named,
+                    definitions,
+                    deferred_definitions,
+                    visited,
+                    values,
+                );
+            }
+        }
     }
 }
 
@@ -19236,6 +20097,26 @@ fn value_is_identity_of(
     value == source
 }
 
+fn member_extract_receiver(op: &ControlFlowOp<'_>) -> Option<ValueId> {
+    match op {
+        ControlFlowOp::FieldGet { object, .. }
+        | ControlFlowOp::RecordFieldGet { object, .. }
+        | ControlFlowOp::HostFieldGet { object, .. }
+        | ControlFlowOp::IndexGet { object, .. } => Some(*object),
+        ControlFlowOp::Intrinsic {
+            intrinsic:
+                Intrinsic::ArrayLength
+                | Intrinsic::StringLength
+                | Intrinsic::MapSize
+                | Intrinsic::SetSize
+                | Intrinsic::BufferByteLength,
+            receiver: Some(receiver),
+            args,
+        } if args.is_empty() => Some(*receiver),
+        _ => None,
+    }
+}
+
 fn value_is_optional_access_of(
     function: &ControlFlowFunction<'_>,
     value: ValueId,
@@ -19250,22 +20131,8 @@ fn value_is_optional_access_of(
     let Some(op) = definitions.get(&value) else {
         return false;
     };
-    let receiver = match op {
-        ControlFlowOp::FieldGet { object, .. }
-        | ControlFlowOp::RecordFieldGet { object, .. }
-        | ControlFlowOp::HostFieldGet { object, .. }
-        | ControlFlowOp::IndexGet { object, .. } => *object,
-        ControlFlowOp::Intrinsic {
-            intrinsic:
-                Intrinsic::ArrayLength
-                | Intrinsic::StringLength
-                | Intrinsic::MapSize
-                | Intrinsic::SetSize
-                | Intrinsic::BufferByteLength,
-            receiver: Some(receiver),
-            args,
-        } if args.is_empty() => *receiver,
-        _ => return false,
+    let Some(receiver) = member_extract_receiver(op) else {
+        return false;
     };
     value_is_identity_of(function, receiver, object)
 }
@@ -19351,6 +20218,51 @@ fn instruction_in_header_cone(
     }
 }
 
+fn extend_capture_snapshot_interference(
+    function: &ControlFlowFunction<'_>,
+    named: &AHashSet<ValueId>,
+    interference: &mut AHashMap<ValueId, AHashSet<ValueId>>,
+) {
+    let locals = function
+        .params
+        .iter()
+        .take(function.capture_count)
+        .map(|parameter| parameter.local)
+        .chain(
+            function
+                .params
+                .iter()
+                .filter(|parameter| function.mutable_capture_locals.contains(&parameter.local))
+                .map(|parameter| parameter.local),
+        )
+        .chain(function.mutable_capture_locals.iter().copied())
+        .collect::<AHashSet<_>>();
+    for local in locals {
+        let cell = capture_cell_writeback_values(function, local);
+        for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
+            let ControlFlowOp::LoadLocal(loaded) = &instruction.op else {
+                continue;
+            };
+            if *loaded != local {
+                continue;
+            }
+            let Some(out) = instruction.out else {
+                continue;
+            };
+            if !named.contains(&out) || cell.contains(&out) {
+                continue;
+            }
+            for identity in &cell {
+                if *identity == out || !named.contains(identity) {
+                    continue;
+                }
+                interference.entry(out).or_default().insert(*identity);
+                interference.entry(*identity).or_default().insert(out);
+            }
+        }
+    }
+}
+
 fn extend_short_circuit_prefix_interference(
     function: &ControlFlowFunction<'_>,
     named: &AHashSet<ValueId>,
@@ -19400,6 +20312,21 @@ fn header_has_any_prefix(function: &ControlFlowFunction<'_>, header: BlockId) ->
         .instructions
         .iter()
         .any(|instruction| !instruction_in_header_cone(instruction, &cone))
+}
+
+fn header_has_post_cone_prefix(
+    block: &crate::ir::ControlFlowBlock<'_>,
+    cone: &AHashSet<ValueId>,
+) -> bool {
+    let mut seen_cone = false;
+    for instruction in &block.instructions {
+        if instruction_in_header_cone(instruction, cone) {
+            seen_cone = true;
+        } else if seen_cone {
+            return true;
+        }
+    }
+    false
 }
 
 fn op_can_render_in_expression_region(op: &ControlFlowOp<'_>) -> bool {
@@ -19516,6 +20443,84 @@ fn use_counts(function: &ControlFlowFunction<'_>) -> AHashMap<ValueId, usize> {
         }
     }
     counts
+}
+
+fn function_string_constants(function: &ControlFlowFunction<'_>) -> AHashMap<ValueId, String> {
+    function
+        .blocks
+        .iter()
+        .flat_map(|block| &block.instructions)
+        .filter_map(|instruction| match (instruction.out, &instruction.op) {
+            (Some(out), ControlFlowOp::Const(ConstValue::String(value))) => {
+                Some((out, value.to_string()))
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+fn mangleable_internal_js_key(name: &str) -> bool {
+    name != "__proto__" && name.ends_with('_') && is_js_property_identifier(name)
+}
+
+fn js_member_keys_in_op(
+    op: &ControlFlowOp<'_>,
+    string_constants: &AHashMap<ValueId, String>,
+) -> Vec<String> {
+    match op {
+        ControlFlowOp::HostFieldGet { property, .. }
+        | ControlFlowOp::HostFieldSet { property, .. }
+        | ControlFlowOp::RecordFieldGet { property, .. }
+        | ControlFlowOp::RecordFieldSet { property, .. } => vec![(*property).to_string()],
+        ControlFlowOp::Record(entries) => entries
+            .iter()
+            .map(|(key, _)| (*key).to_string())
+            .collect(),
+        ControlFlowOp::RecordSpread(operands) => operands
+            .iter()
+            .filter_map(|operand| match operand {
+                RecordOperand::Entry(key, _) => Some((*key).to_string()),
+                RecordOperand::Spread(_) => None,
+            })
+            .collect(),
+        ControlFlowOp::RecordRest { excluded, .. } => {
+            excluded.iter().map(|key| (*key).to_string()).collect()
+        }
+        ControlFlowOp::IndexGet { index, .. } | ControlFlowOp::IndexSet { index, .. } => {
+            static_identifier_property(*index, string_constants)
+                .map(str::to_string)
+                .into_iter()
+                .collect()
+        }
+        ControlFlowOp::Intrinsic {
+            intrinsic:
+                Intrinsic::JsGetProperty
+                | Intrinsic::JsDeleteProperty
+                | Intrinsic::JsHasProperty
+                | Intrinsic::JsInProperty
+                | Intrinsic::JsInvoke,
+            args,
+            ..
+        } => args
+            .first()
+            .and_then(|key| static_identifier_property(*key, string_constants))
+            .map(str::to_string)
+            .into_iter()
+            .collect(),
+        ControlFlowOp::Intrinsic {
+            intrinsic: Intrinsic::JsPlainObject,
+            args,
+            ..
+        } => args
+            .chunks_exact(2)
+            .filter_map(|pair| {
+                string_constants.get(&pair[0]).and_then(|key| {
+                    is_js_property_identifier(key).then(|| key.clone())
+                })
+            })
+            .collect(),
+        _ => Vec::new(),
+    }
 }
 
 fn static_identifier_property(
@@ -20311,6 +21316,12 @@ fn op_can_defer(op: &ControlFlowOp<'_>) -> bool {
                     | Intrinsic::JsStringSlice
                     | Intrinsic::JsStringIndexOf
                     | Intrinsic::JsStringSplit
+                    | Intrinsic::StringSlice
+                    | Intrinsic::StringSplit
+                    | Intrinsic::StringTrim
+                    | Intrinsic::StringTrimStart
+                    | Intrinsic::StringTrimEnd
+                    | Intrinsic::StringCodePointLength
                     | Intrinsic::JsBox,
                 ..
             }
@@ -20374,6 +21385,9 @@ fn expression_only_op(op: &ControlFlowOp<'_>) -> bool {
                     | Intrinsic::JsStringReplace
                     | Intrinsic::JsStringMatch
                     | Intrinsic::JsRegexExec
+                    | Intrinsic::StringSearch
+                    | Intrinsic::StringReplace
+                    | Intrinsic::JsEncodeURI
                     | Intrinsic::JsCall
                     | Intrinsic::JsConstruct
                     | Intrinsic::JsInvoke
@@ -20630,7 +21644,7 @@ fn op_evaluation_is_observable(
             .copied()
             .any(|value| dynamic_value_can_run_user_code(function, value)),
         ControlFlowOp::Intrinsic {
-            intrinsic: Intrinsic::JsEncodeURIComponent,
+            intrinsic: Intrinsic::JsEncodeURI | Intrinsic::JsEncodeURIComponent,
             ..
         } => true,
         ControlFlowOp::Intrinsic {
@@ -21051,6 +22065,9 @@ fn op_has_side_effects(op: &ControlFlowOp<'_>) -> bool {
                     | Intrinsic::JsStringReplace
                     | Intrinsic::JsStringMatch
                     | Intrinsic::JsRegexExec
+                    | Intrinsic::StringSearch
+                    | Intrinsic::StringReplace
+                    | Intrinsic::JsEncodeURI
                     | Intrinsic::JsCall
                     | Intrinsic::JsConstruct
                     | Intrinsic::JsInvoke
@@ -21363,10 +22380,14 @@ fn binary_operator(op: IrBinaryOp) -> &'static str {
 }
 
 fn token_safe_binary_rhs(op: IrBinaryOp, rhs: String) -> String {
-    if op == IrBinaryOp::Sub && rhs.starts_with('-') {
-        format!("({rhs})")
-    } else {
-        rhs
+    match op {
+        IrBinaryOp::Sub if rhs.starts_with('-') => format!("({rhs})"),
+        // Without a token boundary, `left+ +right` becomes `left++right`
+        // and is parsed as a postfix update (or rejected outright). A single
+        // space is the shortest grammar-safe spelling for unary plus and
+        // prefix-increment right operands.
+        IrBinaryOp::Add if rhs.starts_with('+') => format!(" {rhs}"),
+        _ => rhs,
     }
 }
 
@@ -21845,6 +22866,66 @@ mod tests {
         compile_with_options(source, IrJsOptions::default())
     }
 
+    fn js_ident_ending_at(source: &str, end: usize) -> Option<(usize, &str)> {
+        let bytes = source.as_bytes();
+        let mut start = end;
+        while start > 0
+            && (bytes[start - 1].is_ascii_alphanumeric() || matches!(bytes[start - 1], b'_' | b'$'))
+        {
+            start -= 1;
+        }
+        (start < end && !bytes[start].is_ascii_digit()).then(|| (start, &source[start..end]))
+    }
+
+    fn rebound_then_sibling_member(source: &str, assigned_field: &str, sibling_field: &str) -> bool {
+        let assigned = format!(".{assigned_field}");
+        let mut from = 0usize;
+        while let Some(rel) = source[from..].find(&assigned) {
+            let field_at = from + rel;
+            from = field_at + 1;
+            let Some((rhs_start, ident)) = js_ident_ending_at(source, field_at) else {
+                continue;
+            };
+            if rhs_start == 0 || source.as_bytes()[rhs_start - 1] != b'=' {
+                continue;
+            }
+            let Some((_, lhs)) = js_ident_ending_at(source, rhs_start - 1) else {
+                continue;
+            };
+            if lhs != ident {
+                continue;
+            }
+            let rest = &source[field_at + assigned.len()..];
+            let function_end = ["};function ", "};let ", ";export", "function "]
+                .iter()
+                .filter_map(|marker| rest.find(marker))
+                .min()
+                .unwrap_or(rest.len());
+            if rest[..function_end].contains(&format!("{ident}.{sibling_field}")) {
+                return true;
+            }
+        }
+        false
+    }
+
+    #[test]
+    fn emits_plain_object_literals_from_js_object_pairs() {
+        let output = compile(
+            r#"
+                extern JsValue read();
+                extern void consume(JsValue value);
+                consume(JS.object("type","update","object",read(),"newValue",1));
+            "#,
+        );
+        assert!(
+            output.contains("{type:\"update\"") || output.contains("{type:'update'"),
+            "{output}"
+        );
+        assert!(output.contains("object:"), "{output}");
+        assert!(output.contains("newValue:"), "{output}");
+        assert!(!output.contains("__proto__"), "{output}");
+    }
+
     #[test]
     fn emits_javascript_abi_without_runtime_wrappers() {
         let output = compile(
@@ -21868,6 +22949,58 @@ mod tests {
         assert!(output.contains(" in Object("), "{output}");
         assert!(output.contains("delete "), "{output}");
         assert!(!output.contains("JS."), "{output}");
+    }
+
+    #[test]
+    fn merge_empty_second_keeps_destination_length() {
+        let source = r#"
+            extern void inspect(JsValue v);
+            JsValue merge(JsValue first, JsValue second) {
+              float len = JS.number(second["length"]);
+              float j = 0.0;
+              float i = first.length;
+              for (; j < len; j++) {
+                first[i++] = second[j];
+              }
+              first["length"] = i;
+              return first;
+            }
+            inspect(merge(JS.array(), JS.array()));
+            inspect(merge([1.0], JS.array()));
+            inspect(merge([1.0], [2.0, 3.0]));
+        "#;
+        for mutation_spelling in [
+            MutationSpelling::Assignment,
+            MutationSpelling::Prefix,
+            MutationSpelling::Postfix,
+            MutationSpelling::Compound,
+        ] {
+            for loop_spelling in [LoopSpelling::Auto, LoopSpelling::While, LoopSpelling::For] {
+                for phi_affinity_mode in [
+                    PhiAffinityMode::Conservative,
+                    PhiAffinityMode::Direct,
+                    PhiAffinityMode::Grouped,
+                ] {
+                    let output = compile_with_options(
+                        source,
+                        IrJsOptions {
+                            mutation_spelling,
+                            loop_spelling,
+                            phi_affinity_mode,
+                            mangle_identifiers: false,
+                            ..IrJsOptions::default()
+                        },
+                    );
+                    let result = run_javascript(&format!(
+                        "let traces=[];function inspect(v){{traces.push(JSON.stringify(v))}}{output};process.stdout.write(traces.join('|'))"
+                    ));
+                    assert_eq!(
+                        result, "[]|[1]|[1,2,3]",
+                        "{mutation_spelling:?} {loop_spelling:?} {phi_affinity_mode:?}\n{output}\n{result}"
+                    );
+                }
+            }
+        }
     }
 
     #[test]
@@ -22558,6 +23691,38 @@ mod tests {
     }
 
     #[test]
+    fn does_not_reuse_a_receiver_name_for_a_sibling_field() {
+        let output = compile_module(
+            r#"
+                class LinkDef {
+                  string href;
+                  string title;
+                  init(string href="", string title=""){this.href=href;this.title=title;}
+                }
+                string join(JsValue cap, string href, string title, string raw, bool bang, string extra) {
+                  if (bang) { return href+"|"+title+"|"+raw+"|1|"+extra; }
+                  return href+"|"+title+"|"+raw+"|0|"+extra;
+                }
+                export string read(Map<string, LinkDef> links, JsValue cap, string key) {
+                  LinkDef? defn = links.get(key);
+                  if (defn == null) { return ""; }
+                  return join(cap, defn.href, defn.title, JS.string(cap[0]), JS.string(cap[0]).charAt(0)=="!", key);
+                }
+                export string read2(Map<string, LinkDef> links, JsValue cap, string key) {
+                  LinkDef? defn = links.get(key);
+                  if (defn == null) { return ""; }
+                  return join(cap, defn.href, defn.title, JS.string(cap[0]), false, "x");
+                }
+            "#,
+        );
+        assert!(
+            !rebound_then_sibling_member(&output, "title", "href"),
+            "a field extract must not steal the receiver while sibling members remain:\n{output}"
+        );
+        assert!(output.contains(".href") && output.contains(".title"), "{output}");
+    }
+
+    #[test]
     fn does_not_materialize_static_identifier_keys_as_runtime_values() {
         let output = compile_module(
             "export void install(JsValue first,JsValue second,bool choose){first[\"shared\"]=1;if(choose){second[\"shared\"]=2;}else{second[\"other\"]=3;}}",
@@ -22826,6 +23991,74 @@ mod tests {
     }
 
     #[test]
+    fn keeps_short_circuit_lhs_property_read_before_an_intervening_mutating_call() {
+        let code = compile(
+            "int toInt(JsValue value){return JS.number(value).toInt();}\
+             JsValue call1(JsValue fn,JsValue self,JsValue a0){return JS.call(fn,self,a0);}\
+             JsValue Computed=JS.method0((JsValue self)=>self);\
+             Computed[\"prototype\"][\"trackAndCompute\"]=JS.method0((JsValue self)=>{\
+               JsValue oldValue=self[\"value_\"];\
+               bool wasSuspended=toInt(self[\"dependenciesState_\"])==-1;\
+               JsValue newValue=call1(self[\"computeValue_\"],self,true);\
+               bool changed=wasSuspended||JS.strictEqual(oldValue,newValue);\
+               if(changed){print(1);}else{print(0);}\
+               print(newValue);\
+               return changed;\
+             });\
+             JsValue self=JS.construct(Computed);\
+             self[\"dependenciesState_\"]=-1;\
+             self[\"value_\"]=\"old\";\
+             self[\"computeValue_\"]=JS.method1((JsValue s,JsValue keep)=>{\
+               s[\"dependenciesState_\"]=0;\
+               return \"df\";\
+             });\
+             JS.call(self[\"trackAndCompute\"],self);",
+        );
+        assert_eq!(run_javascript(&code), "1\ndf\n", "{code}");
+    }
+
+    #[test]
+    fn fuses_constructable_method_tables_into_javascript_classes() {
+        let code = compile(
+            r#"
+                extern JsValue Object;
+                JsValue Atom = JS.methodRest((JsValue self, JsValue args) => {
+                  self["name_"] = args[0];
+                  return self;
+                });
+                Atom["prototype"]["report"] = JS.method0((JsValue self) => self["name_"]);
+                Atom["prototype"]["kind"] = JS.method0((JsValue self) => "atom");
+                JsValue Box = JS.methodRest((JsValue self, JsValue args) => {
+                  JS.call(Atom, self, args[1]);
+                  self["value_"] = args[0];
+                  return self;
+                });
+                JS.invoke(Object, "setPrototypeOf", Box["prototype"], Atom["prototype"]);
+                Box["prototype"]["get"] = JS.method0((JsValue self) => self["value_"]);
+                Box["prototype"]["set"] = JS.method1((JsValue self, JsValue next) => {
+                  self["value_"] = next;
+                  return next;
+                });
+                JsValue box = JS.construct(Box, 7, "n");
+                print(JS.call(box["get"], box));
+                print(JS.call(box["report"], box));
+                print(JS.object("type", "update", "object", box, "newValue", 8)["type"]);
+            "#,
+        );
+        let (fused, count) =
+            crate::js_peephole::fold_constructor_prototype_tables_to_classes(&code)
+                .expect("method tables fuse");
+        assert!(count >= 1, "{code}\n---\n{fused}");
+        assert!(fused.contains("class"), "{fused}");
+        assert!(
+            fused.contains("{type:") || fused.contains("{type:"),
+            "{fused}"
+        );
+        assert!(!fused.contains("__proto__"), "{fused}");
+        assert_eq!(run_javascript(&fused).trim(), "7\nn\nupdate", "{fused}");
+    }
+
+    #[test]
     fn reconstructs_nullish_expression_phis() {
         let code = compile_module(
             "extern string? read();extern string fallback();export string choose(){return read()??fallback();}",
@@ -22978,6 +24211,24 @@ mod tests {
         let cb_x = foreign_gap.find("cb(\"x\")").expect(&foreign_gap);
         let gap = foreign_gap.find("gap()").expect(&foreign_gap);
         assert!(cb_x < gap, "{foreign_gap}");
+    }
+
+    #[test]
+    fn aggregate_operand_fusion_materializes_observable_chained_reads() {
+        let code = compile_with_options(
+            "extern bool test(JsValue value);extern JsValue rows();extern JsValue candidate();extern void run(func(JsValue)->void callback);void install(JsValue tuples,JsValue selected){JsValue makeResolve=(float depth,JsValue deferred,JsValue handler,JsValue special=null)=>{return handler;};run((JsValue value)=>{JsValue progress=null;if(test(selected)){progress=selected;}JS.invoke(tuples[0][3],\"add\",JS.call(makeResolve,JS.undefined(),0.0,value,progress,value[\"notifyWith\"]));JsValue fulfilled=null;if(test(selected)){fulfilled=selected;}JS.invoke(tuples[1][3],\"add\",JS.call(makeResolve,JS.undefined(),0.0,value,fulfilled));JsValue rejected=null;if(test(selected)){rejected=selected;}JS.invoke(tuples[2][3],\"add\",JS.call(makeResolve,JS.undefined(),0.0,value,rejected));});}install(rows(),candidate());",
+            IrJsOptions {
+                mangle_identifiers: false,
+                operand_order_fusion: true,
+                aggregate_operand_order_fusion: true,
+                ..IrJsOptions::default()
+            },
+        );
+
+        let trace = run_javascript(&format!(
+            "let hits=[];function test(){{return true}}function rows(){{return [[0,0,0,{{add(value){{hits.push(value)}}}}],[0,0,0,{{add(value){{hits.push(value)}}}}],[0,0,0,{{add(value){{hits.push(value)}}}}]]}}function candidate(){{return 7}}function run(callback){{callback({{notifyWith:null}})}};{code};process.stdout.write(hits.join(','))"
+        ));
+        assert_eq!(trace, "7,7,7", "{code}");
     }
 
     #[test]
@@ -23176,6 +24427,47 @@ mod tests {
     }
 
     #[test]
+    fn local_phi_expression_keeps_outputless_arm_stores() {
+        let output = compile_with_options(
+            r#"
+extern void inspect(JsValue value);
+JsValue select(JsValue self,JsValue args){
+  JsValue typeArg=args[0];
+  JsValue data=args[1];
+  string type="fx";
+  float setter=2.0;
+  if(typeArg is string){
+    type=typeArg;
+  }else{
+    data=typeArg;
+    setter=1.0;
+  }
+  inspect(setter);
+  return JS.method0((JsValue _self)=>[type,data]);
+}
+JsValue wrapped=JS.methodRest(select);
+JsValue stringCase=JS.call(wrapped,null,"custom",7.0);
+inspect(JS.call(stringCase,null));
+JsValue valueCase=JS.call(wrapped,null,9.0);
+inspect(JS.call(valueCase,null));
+"#,
+            IrJsOptions {
+                local_phi_expression_regions: true,
+                ..IrJsOptions::default()
+            },
+        );
+
+        assert_eq!(
+            run_javascript(&format!(
+                "let values=[];function inspect(value){{values.push(JSON.stringify(value))}};{output};process.stdout.write(values.join('\\n'))"
+            ))
+            .trim(),
+            "2\n[\"custom\",7]\n1\n[\"fx\",9]",
+            "{output}"
+        );
+    }
+
+    #[test]
     fn loop_capture_wrapper_params_do_not_shadow_mutable_cells() {
         let options = IrJsOptions {
             mangle_identifiers: true,
@@ -23190,6 +24482,59 @@ mod tests {
             options,
         );
         assert_eq!(run_javascript(&output).trim(), "resolved", "{output}");
+    }
+
+    #[test]
+    fn inner_temps_do_not_clobber_module_bindings_used_as_exports() {
+        let options = IrJsOptions {
+            mangle_identifiers: true,
+            cross_scope_name_reuse: true,
+            local_name_reserve: 48,
+            stable_local_names: true,
+            control_flow_spelling: ControlFlowSpelling::StateMachine,
+            function_spelling: FunctionSpelling::Function,
+            pool_strings: true,
+            pool_numeric_literals: true,
+            ..IrJsOptions::default()
+        };
+        let output = compile_without_inlining_with_options(
+            r#"
+                JsValue when = JS.methodRest((JsValue _s, JsValue args) => args[0]);
+                JsValue label = "observable.ref";
+                JsValue parseFlag(JsValue target, JsValue args) {
+                    bool flag = false;
+                    if (JS.number(args["length"]).toInt() > 2) {
+                        flag = args[2].truthy();
+                    }
+                    JsValue run = JS.method0((JsValue _s) => {
+                        if (flag) {
+                            return target;
+                        }
+                        return args[0];
+                    });
+                    JS.call(run, JS.undefined());
+                    return flag;
+                }
+                JsValue args = JS.array();
+                JS.push(args, 1);
+                JS.push(args, 2);
+                JS.push(args, true);
+                parseFlag(JS.object(), args);
+                if (JS.typeOf(when) == "function") {
+                    print(1);
+                } else {
+                    print(0);
+                }
+                print(label);
+            "#,
+            false,
+            options,
+        );
+        assert_eq!(
+            run_javascript(&output).trim(),
+            "1\nobservable.ref",
+            "{output}"
+        );
     }
 
     #[test]
@@ -23232,6 +24577,308 @@ mod tests {
         );
         assert!(output.contains("run(1,2)"), "{output}");
         assert!(!output.contains(".call("), "{output}");
+    }
+
+    #[test]
+    fn nested_captured_locals_use_reserved_short_names() {
+        let options = IrJsOptions {
+            mangle_identifiers: true,
+            cross_scope_name_reuse: true,
+            local_name_reserve: 8,
+            ..IrJsOptions::default()
+        };
+        let output = compile_with_options(
+            "void run(){JsValue list=JS.array();func()->JsValue fire=()=>{JS.push(list,1);return list;};print(JS.number(JS.get(fire(),\"length\")));}run();",
+            options,
+        );
+        assert_eq!(run_javascript(&output).trim(), "1", "{output}");
+        let has_reserved_capture = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].iter().any(|name| {
+            output.contains(&format!("{name}.push("))
+                || output.contains(&format!("push.call({name},"))
+        });
+        assert!(
+            has_reserved_capture,
+            "captured list should keep a reserved one-character name, got {output}"
+        );
+    }
+
+    #[test]
+    fn unreferenced_module_bindings_can_be_shadowed_by_short_local_names() {
+        let output = compile_without_inlining_with_options(
+            "extern void keep(func(int)->void cb);void alpha(){print(1);}void beta(int value){print(value);}alpha();keep(beta);",
+            false,
+            IrJsOptions {
+                mangle_identifiers: true,
+                cross_scope_name_reuse: true,
+                precise_cross_scope_shadowing: true,
+                local_name_reserve: 8,
+                function_spelling: FunctionSpelling::Function,
+                ..IrJsOptions::default()
+            },
+        );
+
+        assert!(output.contains("function a("), "{output}");
+        assert!(output.contains("keep(function(a)"), "{output}");
+        assert_eq!(
+            run_javascript(&format!("function keep(cb){{cb(2)}};{output}")).trim(),
+            "1\n2",
+            "{output}"
+        );
+    }
+
+    #[test]
+    fn precise_shadowing_can_reserve_a_repeated_local_name_prefix() {
+        let output = compile_without_inlining_with_options(
+            "extern void keep(func(int)->void cb);void alpha(int value){print(value);}void beta(int value){print(value+1);}keep(alpha);keep(alpha);keep(beta);keep(beta);",
+            false,
+            IrJsOptions {
+                mangle_identifiers: true,
+                cross_scope_name_reuse: true,
+                precise_cross_scope_shadowing: true,
+                reserved_local_name_prefix: true,
+                local_name_reserve: 2,
+                function_spelling: FunctionSpelling::Function,
+                ..IrJsOptions::default()
+            },
+        );
+
+        assert!(!output.contains("function a("), "{output}");
+        assert!(!output.contains("function b("), "{output}");
+        assert!(output.matches("(a)").count() >= 2, "{output}");
+        assert_eq!(
+            run_javascript(&format!("function keep(cb){{cb(2)}};{output}")).trim(),
+            "2\n2\n3\n3",
+            "{output}"
+        );
+    }
+
+    #[test]
+    fn transitive_nested_shadowing_reuses_only_unreferenced_function_names() {
+        let source = "extern void keep(func(int)->void cb);void alpha(){print(1);}void beta(int value){func()->void inner=()=>{print(value);};inner();}alpha();keep(beta);";
+        let base = IrJsOptions {
+            mangle_identifiers: true,
+            cross_scope_name_reuse: true,
+            local_name_reserve: 0,
+            function_spelling: FunctionSpelling::Function,
+            ..IrJsOptions::default()
+        };
+        let conservative = compile_without_inlining_with_options(source, false, base);
+        let transitive = compile_without_inlining_with_options(
+            source,
+            false,
+            IrJsOptions {
+                transitive_nested_shadowing: true,
+                ..base
+            },
+        );
+
+        assert!(!conservative.contains("keep(function(a)"), "{conservative}");
+        assert!(transitive.contains("keep(function(a)"), "{transitive}");
+        for output in [&conservative, &transitive] {
+            assert_eq!(
+                run_javascript(&format!("function keep(cb){{cb(2)}};{output}")).trim(),
+                "1\n2",
+                "{output}"
+            );
+        }
+
+        let referenced = compile_without_inlining_with_options(
+            "extern void keep(func(int)->void cb);void alpha(){print(1);}void beta(int value){func()->void inner=()=>{alpha();print(value);};inner();}keep(beta);",
+            false,
+            IrJsOptions {
+                transitive_nested_shadowing: true,
+                ..base
+            },
+        );
+        assert!(referenced.contains("function a("), "{referenced}");
+        assert!(
+            !referenced.contains("keep(function(a)"),
+            "nested reference was captured by a local: {referenced}"
+        );
+        assert_eq!(
+            run_javascript(&format!("function keep(cb){{cb(2)}};{referenced}")).trim(),
+            "1\n2",
+            "{referenced}"
+        );
+    }
+
+    #[test]
+    fn precise_shadowing_does_not_let_host_locals_steal_nested_helper_names() {
+        let options = IrJsOptions {
+            mangle_identifiers: true,
+            cross_scope_name_reuse: true,
+            precise_cross_scope_shadowing: true,
+            local_name_reserve: 48,
+            function_spelling: FunctionSpelling::Function,
+            ..IrJsOptions::default()
+        };
+        let output = compile_with_options(
+            r#"
+extern JsValue globalThis;
+JsValue helper(){return JS.undefined();}
+void run(){
+  string name="ObservableArray";
+  JsValue trap=JS.method2((JsValue _s,JsValue target,JsValue key)=>{
+    return JS.call(globalThis["parseInt"],helper(),key);
+  });
+  print(name);
+  print(JS.call(trap,JS.undefined(),JS.object(),"42"));
+}
+run();
+"#,
+            options,
+        );
+        assert_eq!(
+            run_javascript(&output).trim(),
+            "ObservableArray\n42",
+            "{output}"
+        );
+    }
+
+    #[test]
+    fn precise_shadowing_keeps_helpers_used_by_inlined_module_record_traps() {
+        let options = IrJsOptions {
+            mangle_identifiers: true,
+            cross_scope_name_reuse: true,
+            precise_cross_scope_shadowing: true,
+            local_name_reserve: 48,
+            function_spelling: FunctionSpelling::Function,
+            ..IrJsOptions::default()
+        };
+        let output = compile_with_options(
+            r#"
+extern JsValue globalThis;
+JsValue helper(){return JS.undefined();}
+JsValue traps=record{
+  get:JS.method2((JsValue _s,JsValue target,JsValue key)=>{
+    return JS.call(globalThis["parseInt"],helper(),key);
+  })
+};
+export JsValue factory=JS.methodRest((JsValue _s,JsValue args)=>{
+  string name="ObservableArray";
+  JsValue inner=JS.method0((JsValue __s)=>{
+    return JS.call(traps["get"],traps,JS.object(),"42");
+  });
+  return JS.call(inner,JS.undefined());
+});
+print(JS.call(factory,JS.undefined()));
+"#,
+            options,
+        );
+        assert_eq!(run_javascript(&output).trim(), "42", "{output}");
+    }
+
+    #[test]
+    fn snapshot_of_a_mutable_capture_survives_a_nested_store() {
+        let output = compile_with_options(
+            r#"
+void install(){
+  int current=1;
+  JsValue bump=JS.method0((JsValue _s)=>{current=2;return JS.undefined();});
+  JsValue run=JS.method0((JsValue _s)=>{
+    int oldValue=current;
+    JS.call(bump,JS.undefined());
+    print(oldValue);
+    print(current);
+    return JS.undefined();
+  });
+  JS.call(run,JS.undefined());
+}
+install();
+"#,
+            IrJsOptions {
+                mangle_identifiers: true,
+                cross_scope_name_reuse: true,
+                precise_cross_scope_shadowing: true,
+                local_name_reserve: 48,
+                function_spelling: FunctionSpelling::Function,
+                ..IrJsOptions::default()
+            },
+        );
+        assert_eq!(run_javascript(&output).trim(), "1\n2", "{output}");
+        let unmangled = compile_with_options(
+            r#"
+void install(){
+  int current=1;
+  JsValue bump=JS.method0((JsValue _s)=>{current=2;return JS.undefined();});
+  JsValue run=JS.method0((JsValue _s)=>{
+    int oldValue=current;
+    JS.call(bump,JS.undefined());
+    print(oldValue);
+    print(current);
+    return JS.undefined();
+  });
+  JS.call(run,JS.undefined());
+}
+install();
+"#,
+            IrJsOptions {
+                mangle_identifiers: false,
+                function_spelling: FunctionSpelling::Function,
+                ..IrJsOptions::default()
+            },
+        );
+        assert_eq!(run_javascript(&unmangled).trim(), "1\n2", "{unmangled}");
+    }
+
+    #[test]
+    fn snapshot_of_a_mutable_capture_survives_an_indirect_nested_store() {
+        let output = compile_with_options(
+            r#"
+void install(){
+  int current=1;
+  JsValue bump=JS.method0((JsValue _s)=>{current=2;return JS.undefined();});
+  JsValue track=JS.method1((JsValue _s,JsValue fn)=>{
+    JS.call(fn,JS.undefined());
+    return JS.undefined();
+  });
+  JsValue run=JS.method0((JsValue _s)=>{
+    int oldValue=current;
+    JS.call(track,JS.undefined(),bump);
+    print(oldValue);
+    print(current);
+    return JS.undefined();
+  });
+  JS.call(run,JS.undefined());
+}
+install();
+"#,
+            IrJsOptions {
+                mangle_identifiers: true,
+                cross_scope_name_reuse: true,
+                precise_cross_scope_shadowing: true,
+                local_name_reserve: 48,
+                operand_order_fusion: true,
+                comma_expressions: true,
+                function_spelling: FunctionSpelling::Function,
+                ..IrJsOptions::default()
+            },
+        );
+        assert_eq!(run_javascript(&output).trim(), "1\n2", "{output}");
+        let peepholed = crate::js_peephole::optimize_generated_javascript(&output)
+            .expect("snapshot javascript parses");
+        assert_eq!(
+            run_javascript(&peepholed.code).trim(),
+            "1\n2",
+            "{}",
+            peepholed.code
+        );
+    }
+
+    #[test]
+    fn nested_function_expressions_do_not_reuse_a_captured_module_name() {
+        let options = IrJsOptions {
+            mangle_identifiers: true,
+            cross_scope_name_reuse: true,
+            local_name_reserve: 8,
+            function_spelling: FunctionSpelling::Function,
+            ..IrJsOptions::default()
+        };
+        let output = compile_with_options(
+            "func(int)->int scale=(int x)=>x/1000;void run(){int rest=5;func(int)->int inner=(int vel)=>scale(vel)-rest;print(inner(3000));}run();",
+            options,
+        );
+        assert_eq!(run_javascript(&output).trim(), "-2", "{output}");
     }
 
     #[test]
@@ -23812,6 +25459,7 @@ mod tests {
                 &Mangler::default(),
                 &AHashMap::default(),
                 &AHashMap::default(),
+                &AHashMap::default(),
                 &options,
                 &AHashSet::default(),
                 &loop_captured_closures(function),
@@ -24159,6 +25807,7 @@ mod tests {
             &Mangler::default(),
             &AHashMap::default(),
             &AHashMap::default(),
+            &AHashMap::default(),
             &IrJsOptions {
                 scalar_phi_copies: false,
                 ..IrJsOptions::default()
@@ -24484,6 +26133,45 @@ mod tests {
     }
 
     #[test]
+    fn fuses_constructor_fields_that_share_one_constant() {
+        let readable = IrJsOptions {
+            mangle_identifiers: false,
+            mangle_properties: false,
+            constructor_initializer_fusion: true,
+            ..IrJsOptions::default()
+        };
+        let output = compile_without_inlining_with_options(
+            "class Flags{bool ready;bool stopped;init(){this.ready=false;this.stopped=false;}}Flags flags=new Flags();print(`${flags.ready}:${flags.stopped}`);",
+            false,
+            readable,
+        );
+        assert!(!output.contains("$init"), "{output}");
+        assert_eq!(run_javascript(&output), "false:false\n", "{output}");
+    }
+
+    #[test]
+    fn fuses_constructor_defaults_then_overwritten_fields() {
+        let readable = IrJsOptions {
+            mangle_identifiers: false,
+            mangle_properties: false,
+            constructor_initializer_fusion: true,
+            ..IrJsOptions::default()
+        };
+        let output = compile_without_inlining_with_options(
+            "class Token{int kind;string raw;string text;init(){this.kind=0;this.raw=\"\";this.text=\"\";}}Token make(int kind,string raw){Token token=new Token();token.kind=kind;token.raw=raw;return token;}print(make(2,\"#\").kind);print(make(2,\"#\").raw);",
+            false,
+            readable,
+        );
+        assert!(
+            output.contains("[2,\"#\",\"\"]")
+                || output.contains("{kind:2,raw:\"#\",text:\"\"}"),
+            "{output}"
+        );
+        assert!(!output.contains("$init") && !output.contains(".kind="), "{output}");
+        assert_eq!(run_javascript(&output), "2\n#\n", "{output}");
+    }
+
+    #[test]
     fn fuses_partial_positional_and_complete_constant_initializers() {
         let readable = IrJsOptions {
             mangle_identifiers: false,
@@ -24774,6 +26462,41 @@ mod tests {
     }
 
     #[test]
+    fn mangles_trailing_underscore_js_keys() {
+        let output = compile_module_with_options(
+            "export JsValue read(JsValue self){self[\"value_\"]=1;return self[\"value_\"];}",
+            IrJsOptions {
+                mangle_identifiers: false,
+                mangle_properties: true,
+                mangle_exports: false,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(!output.contains("value_"), "{output}");
+        assert!(output.contains(".a=") || output.contains(".a;"), "{output}");
+        let public = compile_module_with_options(
+            "export JsValue read(JsValue self){return self[\"get\"];}",
+            IrJsOptions {
+                mangle_identifiers: false,
+                mangle_properties: true,
+                mangle_exports: false,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(public.contains(".get"), "{public}");
+        let method = compile_module_with_options(
+            "export JsValue run(JsValue self){self[\"value_\"]=JS.method1((JsValue s,JsValue x)=>x);return JS.call(self[\"value_\"],self,1);}",
+            IrJsOptions {
+                mangle_identifiers: false,
+                mangle_properties: true,
+                mangle_exports: false,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(!method.contains("value_"), "{method}");
+    }
+
+    #[test]
     fn preserves_class_field_names_at_dynamic_js_boundaries() {
         let source = "extern JsValue createEmptyObject();class Box{int value;init(int value){this.value=value;}}export bool check(){JsValue bag=createEmptyObject();Box box=new Box(3);bag[\"box\"]=box;return bag[\"box\"][\"value\"]==3;}";
         for mangle_exports in [false, true] {
@@ -24818,12 +26541,7 @@ mod tests {
         let wrapped = JsExpression::raw("bindMethodRest((a,b)=>{return a+b})", JsPrecedence::Call);
         assert!(arrow_block_as_object_method("apply", &wrapped).is_none());
         let method = JsExpression::raw("function(){return this}", JsPrecedence::Primary);
-        assert_eq!(
-            function_expr_as_object_method("empty", &method).as_deref(),
-            Some("empty(){return this}")
-        );
-        let named = JsExpression::raw("function empty(){return this}", JsPrecedence::Primary);
-        assert!(function_expr_as_object_method("empty", &named).is_none());
+        assert!(object_method_shorthand("empty", &method).is_none());
     }
 
     #[test]
@@ -25637,6 +27355,68 @@ mod tests {
     }
 
     #[test]
+    fn assigned_this_methods_keep_named_formals_instead_of_arguments() {
+        let output = compile(
+            "extern JsValue this;extern void consume(JsValue value);JsValue animate(JsValue prop,JsValue speed,JsValue easing,JsValue complete){JsValue self=this;consume(prop);consume(speed);consume(easing);consume(complete);return self;}JsValue obj=JS.object();obj[\"animate\"]=animate;consume(obj);",
+        );
+        assert!(!output.contains("arguments"), "{output}");
+        assert!(
+            output.contains("function(") && !output.contains("function(){"),
+            "{output}"
+        );
+        let trace = run_javascript(&format!(
+            "let seen=null,props=[];function consume(value){{if(value&&value.animate){{seen=value}}else props.push(value)}};{output};process.stdout.write([seen.animate.call({{ok:1}},'p','s','e','c').ok,props.join('')].join(':'))"
+        ));
+        assert_eq!(trace, "1:psec", "{output}");
+    }
+
+    #[test]
+    fn fused_method2_keeps_named_formals_instead_of_arguments() {
+        let output = compile(
+            "extern void consume(JsValue value);JsValue header=JS.method2((JsValue self,JsValue name,JsValue value)=>{consume(name);consume(value);return self;});consume(header);",
+        );
+        assert!(!output.contains("arguments"), "{output}");
+        assert!(
+            output.contains("function(") && !output.contains("function(){"),
+            "{output}"
+        );
+        assert!(
+            output.contains("function(a,b)")
+                || output.contains("function(b,c)")
+                || output.contains("function(a,b){")
+                || output.contains("function(b,c){"),
+            "{output}"
+        );
+        let trace = run_javascript(&format!(
+            "let seen=null,props=[];function consume(value){{if(typeof value==='function'){{seen=value}}else props.push(value)}};{output};process.stdout.write([seen.call({{ok:1}},'n','v').ok,props.join('')].join(':'))"
+        ));
+        assert_eq!(trace, "1:nv", "{output}");
+    }
+
+    #[test]
+    fn fused_method3_keeps_named_formals_instead_of_arguments() {
+        let output = compile(
+            "extern void consume(JsValue value);JsValue trap=JS.method3((JsValue self,JsValue target,JsValue key,JsValue value)=>{consume(target);consume(key);consume(value);return self;});consume(trap);",
+        );
+        assert!(!output.contains("arguments"), "{output}");
+        assert!(
+            output.contains("function(") && !output.contains("function(){"),
+            "{output}"
+        );
+        assert!(
+            output.contains("function(a,b,c)")
+                || output.contains("function(b,c,d)")
+                || output.contains("function(a,b,c){")
+                || output.contains("function(b,c,d){"),
+            "{output}"
+        );
+        let trace = run_javascript(&format!(
+            "let seen=null,props=[];function consume(value){{if(typeof value==='function'){{seen=value}}else props.push(value)}};{output};process.stdout.write([seen.call({{ok:1}},'t','k','v').ok,props.join('')].join(':'))"
+        ));
+        assert_eq!(trace, "1:tkv", "{output}");
+    }
+
+    #[test]
     fn elides_stringify_when_concatenating_a_string_literal() {
         let output = compile("extern JsValue read();print(JS.string(read())+\"//\");");
         assert!(!output.contains("+\"\""), "{output}");
@@ -25661,6 +27441,120 @@ mod tests {
         assert!(!exec_output.contains("+\"\""), "{exec_output}");
         assert!(exec_output.contains(".exec("), "{exec_output}");
     }
+
+    #[test]
+    fn inlines_string_trim_search_and_regex_last_index_host_calls() {
+        let output = compile_host_alias_with_options(
+            r#"
+                extern string stringTrim(string s);
+                extern string stringTrimEnd(string s);
+                extern string stringTrimStart(string s);
+                extern float stringSearch(string s, Regex re);
+                extern void regexSetLastIndex(Regex re, float value);
+                extern string encodeURIValue(string s);
+                extern float codePointCount(string s);
+                Regex re=new Regex("a","g");
+                print(stringTrim(" x "));
+                print(stringTrimEnd("x "));
+                print(stringTrimStart(" x"));
+                print(stringSearch("xa",re));
+                regexSetLastIndex(re,0.0);
+                print(encodeURIValue(" "));
+                print(codePointCount("ab"));
+            "#,
+            false,
+            IrJsOptions::default(),
+        );
+        assert!(output.contains(".trim("), "{output}");
+        assert!(output.contains(".trimEnd("), "{output}");
+        assert!(output.contains(".trimStart("), "{output}");
+        assert!(output.contains(".search("), "{output}");
+        assert!(output.contains(".lastIndex="), "{output}");
+        assert!(output.contains("encodeURI(") || output.contains("=encodeURI"), "{output}");
+        assert!(
+            output.contains("[...") && output.contains("].length"),
+            "{output}"
+        );
+        assert!(!output.contains("stringTrim("), "{output}");
+        assert!(!output.contains("regexSetLastIndex("), "{output}");
+        assert!(!output.contains("encodeURIValue("), "{output}");
+        assert!(!output.contains("codePointCount("), "{output}");
+    }
+
+    #[test]
+    fn emits_typed_string_and_regex_javascript_members() {
+        let output = compile(
+            r#"
+                Regex re=new Regex("a","g");
+                print(" x ".trim());
+                print("x ".trimEnd());
+                print(" x".trimStart());
+                print("xa".search(re));
+                re.lastIndex=0;
+                print("abcdef".slice(1,4));
+                print("a b".split(" ").join(","));
+                print("ab".codePointLength());
+                print(JS.encodeURI(" "));
+                print(JS.encodeURIComponent(" "));
+                print(JS.string(re.exec("a")));
+            "#,
+        );
+        assert!(output.contains(".trim("), "{output}");
+        assert!(output.contains(".trimEnd("), "{output}");
+        assert!(output.contains(".trimStart("), "{output}");
+        assert!(output.contains(".search("), "{output}");
+        assert!(output.contains(".lastIndex="), "{output}");
+        assert!(output.contains(".slice("), "{output}");
+        assert!(output.contains(".split("), "{output}");
+        assert!(
+            output.contains("[...") && output.contains("].length"),
+            "{output}"
+        );
+        assert!(output.contains("encodeURI("), "{output}");
+        assert!(output.contains("encodeURIComponent("), "{output}");
+        assert!(output.contains(".exec("), "{output}");
+        assert!(!output.contains("stringTrim("), "{output}");
+        assert!(!output.contains("regexSetLastIndex("), "{output}");
+        assert!(!output.contains("encodeURIValue("), "{output}");
+        assert!(!output.contains("codePointCount("), "{output}");
+        assert!(!output.contains("pickRegex"), "{output}");
+        let trace = run_javascript(&output);
+        assert_eq!(trace, "x\nx\nx\n1\nbcd\na,b\n2\n%20\n%20\na\n", "{output}");
+    }
+
+    #[test]
+    fn if_return_regex_choice_emits_a_javascript_ternary() {
+        let output = compile_without_inlining(
+            r#"
+                extern bool flag();
+                Regex pick(bool live,Regex whenTrue,Regex whenFalse){if(live){return whenTrue;}return whenFalse;}
+                print(pick(flag(),new Regex("a"),new Regex("b")).source);
+            "#,
+            false,
+        );
+        assert!(output.contains('?'), "{output}");
+        assert!(!output.contains("pickRegex"), "{output}");
+        let trace = run_javascript(&format!("function flag(){{return true}};{output}"));
+        assert_eq!(trace, "a\n", "{output}");
+    }
+
+    #[test]
+    fn grouping_keeps_inlined_int_length_from_stealing_subtract() {
+        let output = compile(
+            r#"
+                int points(string s){return s.codePointLength();}
+                int run(string s){if(s.length>0){int n=points(s)-1;return n;}return 0;}
+                print(run("**"));
+            "#,
+        );
+        assert!(
+            !output.contains("|0-1"),
+            "identifier substitution must keep JS bitwise | tighter than minus:\n{output}"
+        );
+        let trace = run_javascript(&output);
+        assert_eq!(trace, "1\n", "{output}");
+    }
+
 
     #[test]
     fn elides_stringify_before_string_methods_and_keeps_returned_stringify() {
@@ -25935,6 +27829,68 @@ mod tests {
         );
         assert!(mangled.contains("=(function(){"), "{mangled}");
         assert_eq!(run_javascript(&mangled), "13\n", "{mangled}");
+    }
+
+    #[test]
+    fn wraps_helpers_reached_only_through_exclusive_nested_closures() {
+        let output = compile_without_inlining_with_options(
+            "int innerA(int x){if(x<0){return 0;}return x+1;}int innerB(int x){if(x>10){return 10;}return x;}int innerC(int x){return x+2;}int innerD(int x){return x+3;}JsValue root(JsValue value){JsValue done=(JsValue status)=>innerA(0)+innerB(1)+innerC(2)+innerD(3);return done(value);}print(root(0));",
+            false,
+            IrJsOptions {
+                mangle_identifiers: false,
+                iife_private_callee_clusters: true,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(
+            output.contains("var root=(function(){")
+                && output.contains("function innerA")
+                && output.contains("function innerB")
+                && output.contains("function innerC")
+                && output.contains("function innerD")
+                && output.contains("return function")
+                && output.contains("})();"),
+            "{output}"
+        );
+        assert_eq!(output.matches("function root").count(), 0, "{output}");
+        assert_eq!(run_javascript(&output), "6\n", "{output}");
+    }
+
+    #[test]
+    fn clustered_root_params_do_not_shadow_helpers_captured_by_nested_closures() {
+        let output = compile_without_inlining_with_options(
+            "extern void keep(func(string[], string)->string cb);string last(string[] xs){return xs[xs.length-1];}string walk(string[] xs,string src){if(xs.length>0){return last(xs);}return src;}string parse(string src,bool block,string opt){keep(walk);if(block){return opt;}return src;}print(parse(\"x\",true,\"ok\"));",
+            false,
+            IrJsOptions {
+                mangle_identifiers: true,
+                cross_scope_name_reuse: true,
+                iife_private_callee_clusters: true,
+                local_name_reserve: 8,
+                function_spelling: FunctionSpelling::Arrow,
+                ..IrJsOptions::default()
+            },
+        );
+        let trace = run_javascript(&format!(
+            "function keep(cb){{if(cb([\"hello\",\"world\"],\"src\")!==\"world\")throw new Error('shadowed last');}};{output}"
+        ));
+        assert_eq!(trace, "ok\n", "{output}");
+    }
+
+    #[test]
+    fn clustered_helper_locals_do_not_shadow_sibling_helpers() {
+        let output = compile_without_inlining_with_options(
+            "string tag(){return \"x\";}string other(){return \"y\";}string third(){return \"z\";}string fourth(){return \"w\";}string render(string s){string out=\"<b>\";out=out+s;string built=out+tag();return built+other()+third()+fourth();}string root(string s){return render(s);}print(root(\"q\"));",
+            false,
+            IrJsOptions {
+                mangle_identifiers: true,
+                cross_scope_name_reuse: true,
+                iife_private_callee_clusters: true,
+                local_name_reserve: 8,
+                function_spelling: FunctionSpelling::Arrow,
+                ..IrJsOptions::default()
+            },
+        );
+        assert_eq!(run_javascript(&output), "<b>qxyzw\n", "{output}");
     }
 
     #[test]
@@ -26250,6 +28206,47 @@ mod tests {
     }
 
     #[test]
+    fn property_write_batching_respects_the_run_threshold() {
+        let output = compile_with_options(
+            "extern JsValue input();extern void consume(JsValue value);JsValue obj=input();obj[\"alpha\"]=1;obj[\"beta\"]=2;consume(obj);",
+            IrJsOptions {
+                mangle_identifiers: false,
+                batch_property_assigns: true,
+                batch_property_assign_minimum: 3,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(!output.contains("Object.assign("), "{output}");
+        assert!(
+            output.contains(".alpha=1") && output.contains(".beta=2"),
+            "{output}"
+        );
+    }
+
+    #[test]
+    fn property_write_batching_emits_sunk_function_declarations() {
+        let output = compile_without_inlining_with_options(
+            "extern JsValue input();extern void consume(JsValue value);JsValue first(JsValue value=null){return value;}JsValue second(JsValue value=null){return value;}JsValue obj=input();obj[\"alpha\"]=1;obj[\"first\"]=first;obj[\"beta\"]=2;obj[\"second\"]=second;consume(obj);",
+            false,
+            IrJsOptions {
+                mangle_identifiers: false,
+                batch_property_assigns: true,
+                batch_property_assign_minimum: 4,
+                sink_entry_function_declarations: true,
+                ..IrJsOptions::default()
+            },
+        );
+
+        assert!(output.contains("Object.assign("), "{output}");
+        assert!(output.contains("function first("), "{output}");
+        assert!(output.contains("function second("), "{output}");
+        let trace = run_javascript(&format!(
+            "let seen;function input(){{return {{}}}}function consume(value){{seen=value}};{output};process.stdout.write(`${{seen.alpha}}:${{seen.first(3)}}:${{seen.beta}}:${{seen.second(4)}}`)"
+        ));
+        assert_eq!(trace, "1:3:2:4", "{output}");
+    }
+
+    #[test]
     fn emits_negated_empty_else_as_or_statement() {
         let output = compile("extern bool keep();extern void side();if(!keep()){side();}");
         assert!(
@@ -26425,14 +28422,14 @@ mod tests {
     #[test]
     fn fallback_adapters_preserve_javascript_function_reflection_and_arguments() {
         let output = compile(
-            "extern void inspect(JsValue value);JsValue method0Target(JsValue self){return self;}JsValue method1Target(JsValue self,JsValue arg){return self;}JsValue methodRestTarget(JsValue self,JsValue args){return args;}JsValue staticRestTarget(JsValue args){return args;}inspect(JS.method0(method0Target));inspect(JS.method0(method0Target));inspect(JS.method1(method1Target));inspect(JS.method1(method1Target));inspect(JS.methodRest(methodRestTarget));inspect(JS.methodRest(methodRestTarget));inspect(JS.staticRest(staticRestTarget));inspect(JS.staticRest(staticRestTarget));method0Target(null);method1Target(null,null);methodRestTarget(null,JS.undefined());staticRestTarget(JS.undefined());",
+            "extern void inspect(JsValue value);JsValue method0Target(JsValue self){return self;}JsValue method1Target(JsValue self,JsValue arg){return self;}JsValue method2Target(JsValue self,JsValue a,JsValue b){return self;}JsValue method3Target(JsValue self,JsValue a,JsValue b,JsValue c){return self;}JsValue methodRestTarget(JsValue self,JsValue args){return args;}JsValue staticRestTarget(JsValue args){return args;}inspect(JS.method0(method0Target));inspect(JS.method0(method0Target));inspect(JS.method1(method1Target));inspect(JS.method1(method1Target));inspect(JS.method2(method2Target));inspect(JS.method2(method2Target));inspect(JS.method3(method3Target));inspect(JS.method3(method3Target));inspect(JS.methodRest(methodRestTarget));inspect(JS.methodRest(methodRestTarget));inspect(JS.staticRest(staticRestTarget));inspect(JS.staticRest(staticRestTarget));method0Target(null);method1Target(null,null);method2Target(null,null,null);method3Target(null,null,null,null);methodRestTarget(null,JS.undefined());staticRestTarget(JS.undefined());",
         );
         let trace = run_javascript(&format!(
-            "let wrappers=[];function inspect(value){{wrappers.push(value)}}{output};let [m0a,m0b,m1a,m1b,mra,mrb,sra,srb]=wrappers,marker={{ok:true}},rest=mra.call(marker,4,5),staticArgs=sra(6,7),constructible=wrappers.every(value=>{{try{{Reflect.construct(value,[]);return true}}catch{{return false}}}});process.stdout.write('TRACE:'+[m0a!==m0b,m1a!==m1b,mra!==mrb,sra!==srb,m0a.length,m1a.length,mra.length,sra.length,wrappers.every(value=>value.name===''),wrappers.every(value=>Object.hasOwn(value,'prototype')),constructible,m0a.call(marker)===marker,m1a.call(marker,9)===marker,Object.prototype.toString.call(rest),rest.length,rest[0],rest[1],Object.prototype.toString.call(staticArgs),staticArgs.length,staticArgs[0],staticArgs[1]].join(':'))"
+            "let wrappers=[];function inspect(value){{wrappers.push(value)}}{output};let [m0a,m0b,m1a,m1b,m2a,m2b,m3a,m3b,mra,mrb,sra,srb]=wrappers,marker={{ok:true}},rest=mra.call(marker,4,5),staticArgs=sra(6,7),constructible=wrappers.every(value=>{{try{{Reflect.construct(value,[]);return true}}catch{{return false}}}});process.stdout.write('TRACE:'+[m0a!==m0b,m1a!==m1b,m2a!==m2b,m3a!==m3b,mra!==mrb,sra!==srb,m0a.length,m1a.length,m2a.length,m3a.length,mra.length,sra.length,wrappers.every(value=>value.name===''),wrappers.every(value=>Object.hasOwn(value,'prototype')),constructible,m0a.call(marker)===marker,m1a.call(marker,9)===marker,m2a.call(marker,8,7)===marker,m3a.call(marker,8,7,6)===marker,Object.prototype.toString.call(rest),rest.length,rest[0],rest[1],Object.prototype.toString.call(staticArgs),staticArgs.length,staticArgs[0],staticArgs[1]].join(':'))"
         ));
         assert_eq!(
             trace,
-            "TRACE:true:true:true:true:0:1:0:0:true:true:true:true:true:[object Arguments]:2:4:5:[object Arguments]:2:6:7",
+            "TRACE:true:true:true:true:true:true:0:1:2:3:0:0:true:true:true:true:true:true:true:[object Arguments]:2:4:5:[object Arguments]:2:6:7",
             "{output}"
         );
     }
@@ -26688,6 +28685,51 @@ mod tests {
         assert_eq!(
             encode_identifier(0, &IdentifierAlphabet::javascript_keyword()),
             "e"
+        );
+
+        let mut binding_characters = [0usize; 128];
+        binding_characters[b'n' as usize] = 7;
+        let contextual = IdentifierAlphabet::for_code_excluding_binding_characters(
+            "nnnnnnneeeeett",
+            &binding_characters,
+        );
+        assert_eq!(encode_identifier(0, &contextual), "e");
+        assert_eq!(encode_identifier(1, &contextual), "t");
+    }
+
+    #[test]
+    fn frequency_ordered_local_names_prioritize_hot_interference_colors() {
+        let source = "extern void sink(int value);export void run(int cold,int hot){sink(hot);sink(hot);sink(hot);sink(cold);}";
+        let baseline = compile_module_with_options(
+            source,
+            IrJsOptions {
+                mangle_identifiers: true,
+                mangle_exports: false,
+                function_spelling: FunctionSpelling::Function,
+                frequency_order_local_names: false,
+                ..IrJsOptions::default()
+            },
+        );
+        let weighted = compile_module_with_options(
+            source,
+            IrJsOptions {
+                mangle_identifiers: true,
+                mangle_exports: false,
+                function_spelling: FunctionSpelling::Function,
+                frequency_order_local_names: true,
+                ..IrJsOptions::default()
+            },
+        );
+
+        assert!(baseline.contains("function a(a,b)"), "{baseline}");
+        assert!(
+            baseline.contains("sink(b);sink(b);sink(b);sink(a)"),
+            "{baseline}"
+        );
+        assert!(weighted.contains("function a(b,a)"), "{weighted}");
+        assert!(
+            weighted.contains("sink(a);sink(a);sink(a);sink(b)"),
+            "{weighted}"
         );
     }
 
@@ -27469,6 +29511,28 @@ mod tests {
     }
 
     #[test]
+    fn separates_addition_from_unary_plus_operands() {
+        assert_eq!(
+            token_safe_binary_rhs(IrBinaryOp::Add, "+read()".to_string()),
+            " +read()"
+        );
+        let expression = JsExpression::binary(
+            IrBinaryOp::Add,
+            JsExpression::atom("left"),
+            JsExpression::unary("+", JsExpression::atom("read()")),
+        )
+        .into_minimal();
+        assert_eq!(expression, "left+ +read()");
+        assert_eq!(
+            run_javascript(&format!(
+                "let left=2;function read(){{return 3}};console.log({expression})"
+            ))
+            .trim(),
+            "5"
+        );
+    }
+
+    #[test]
     fn preserves_nested_shift_associativity_after_coercion_elision() {
         let output = compile_with_options(
             "extern int read();int value=read();print(value>>((value%2)>>>18));",
@@ -27505,6 +29569,50 @@ mod tests {
     fn emits_simple_branch_bodies_without_braces() {
         let output = compile("extern int read();int value=read();if(value==0){print(1);}print(2);");
         assert!(!output.contains("{console.log"), "{output}");
+    }
+
+    #[test]
+    fn parenthesizes_a_ternary_phi_used_as_a_later_ternary_test() {
+        assert_eq!(parenthesize_ternary_test("a"), "a");
+        assert_eq!(parenthesize_ternary_test("a&&b"), "a&&b");
+        assert_eq!(parenthesize_ternary_test("a?b:c"), "(a?b:c)");
+        assert_eq!(parenthesize_ternary_test("(a?b:c)&&d"), "(a?b:c)&&d");
+
+        let source = r#"
+            int applyFlag(bool numeric, int value, int flags, int mask) {
+                bool on = false;
+                if (numeric) {
+                    on = value == 1;
+                } else {
+                    on = value != 0;
+                }
+                if (on) {
+                    flags = flags | mask;
+                } else {
+                    flags = flags & (mask ^ -1);
+                }
+                return flags;
+            }
+            print(applyFlag(true, 1, 0, 1));
+            print(applyFlag(true, 0, 1, 1));
+            print(applyFlag(false, 2, 0, 1));
+            print(applyFlag(false, 0, 1, 1));
+        "#;
+        let output = compile_without_inlining_with_options(
+            source,
+            false,
+            IrJsOptions {
+                mangle_identifiers: false,
+                conditional_expressions: false,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(
+            output.contains("(numeric?") || output.contains("(numeric ?"),
+            "a ternary used as a later ternary test must be parenthesized: {output}"
+        );
+        let trace = run_javascript(&output);
+        assert_eq!(trace, "1\n0\n1\n0\n", "{output}\n{trace}");
     }
 
     #[test]
@@ -28380,6 +30488,25 @@ mod tests {
     }
 
     #[test]
+    fn template_quote_mode_does_not_emit_template_object_keys() {
+        let output = compile_module_with_options(
+            r#"export JsValue bag(){JsValue c=JS.object();c["* text"]=true;c["text html"]=1.0;return c;}"#,
+            IrJsOptions {
+                string_quote: StringQuote::Template,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(
+            !output.contains("{`* text`") && !output.contains(",`text html`"),
+            "{output}"
+        );
+        assert!(
+            output.contains("\"* text\"") || output.contains("'* text'"),
+            "{output}"
+        );
+    }
+
+    #[test]
     fn renders_template_quote_candidates_without_interpolation() {
         assert_eq!(
             render_string_literal("plain", StringQuote::Template),
@@ -28473,7 +30600,30 @@ mod tests {
             },
         );
 
-        assert_eq!(output.matches("a-repeated-application-string").count(), 3);
+        assert_eq!(
+            output.matches("a-repeated-application-string").count(),
+            3,
+            "{output}"
+        );
+        assert!(!output.starts_with("let "), "{output}");
+    }
+
+    #[test]
+    fn string_pooling_respects_the_minimum_raw_saving() {
+        let output = compile_with_options(
+            "extern void sink(string value);sink(\"a-repeated-application-string\");sink(\"a-repeated-application-string\");sink(\"a-repeated-application-string\");",
+            IrJsOptions {
+                pool_strings: true,
+                string_pool_minimum_savings: usize::MAX,
+                ..IrJsOptions::default()
+            },
+        );
+
+        assert_eq!(
+            output.matches("a-repeated-application-string").count(),
+            3,
+            "{output}"
+        );
         assert!(!output.starts_with("let "), "{output}");
     }
 

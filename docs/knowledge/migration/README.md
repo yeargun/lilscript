@@ -2,7 +2,13 @@
 
 Parent: [knowledge tree](../README.md). Verification contract:
 [verification](../verification/README.md). Archive:
-[old migration](../old-migration/README.md).
+[old migration](../old-migration/README.md). Live state:
+[board](board/README.md).
+
+This file is the **order** of the work. The [board](board/README.md) is **where the
+work currently is**: open tasks, evidence with commands, and the dead ends already
+ruled out. A session resuming cold reads the board first — `node scripts/board.mjs
+status` — and comes back here for why a phase exists.
 
 The **main goal** is a growing set of independently authored LilScript/JavaScript
 pairs that prove compressability. Each case is a folder. Each gated metric compares
@@ -54,6 +60,7 @@ coverage; unique semantic families do.
 ## Ownership
 
 - This folder owns order.
+- [`board/`](board/README.md) owns live status, per-task notes, and subagent briefs.
 - [Verification](../verification/README.md) owns measurement meaning.
 - `comparison/cases/canonical/` owns the hand-authored corpus.
 - `comparison/cases/catalog.mjs` owns generated variants.
