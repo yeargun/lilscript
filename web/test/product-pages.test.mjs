@@ -6,6 +6,8 @@ const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 const [
   config,
   home,
+  language,
+  compare,
   lilastro,
   lastro,
   solidlil,
@@ -16,6 +18,8 @@ const [
 ] = await Promise.all([
   read("vite.config.js"),
   read("index.html"),
+  read("language.html"),
+  read("compare.html"),
   read("lilastro.html"),
   read("lastro.html"),
   read("solidlil.html"),
@@ -28,6 +32,8 @@ const [
 test("the product site gives every major surface a production entry", () => {
   for (const entry of [
     "home",
+    "language",
+    "compare",
     "demos",
     "playground",
     "lilastro",
@@ -37,14 +43,23 @@ test("the product site gives every major surface a production entry", () => {
   ]) {
     assert.match(config, new RegExp(`${entry}: resolve`), entry);
   }
-  assert.match(home, /LilScript is a typed, compression-first language/);
-  assert.match(home, /href="\/demos\.html"/);
-  assert.match(home, /href="\/playground\.html"/);
-  assert.match(home, /href="\/lilastro\.html"/);
-  assert.match(home, /href="\/lastro\.html"/);
-  assert.match(home, /href="\/solidlil\.html"/);
-  assert.match(home, /href="\/demos\.html#lastro"/);
-  assert.match(home, /href="\/demos\.html#solidlil-keyed"/);
+    assert.match(home, /LilScript is a typed, compression-first language/);
+    assert.match(home, /href="\/language\.html"/);
+    assert.match(home, /href="\/compare\.html"/);
+    assert.match(home, /href="\/demos\.html"/);
+    assert.match(home, /href="\/playground\.html"/);
+    assert.match(home, /href="\/lilastro\.html"/);
+    assert.match(home, /href="\/lastro\.html"/);
+    assert.match(home, /href="\/solidlil\.html"/);
+    assert.match(home, /href="\/demos\.html#lastro"/);
+    assert.match(home, /href="\/demos\.html#solidlil-keyed"/);
+    assert.match(home, /href="\/demos\.html#motion-showcase-carousel"/);
+    assert.match(home, /https:\/\/yeargun\.github\.io\/solidlil\//);
+    assert.match(home, /https:\/\/yeargun\.github\.io\/motionlil\//);
+    assert.match(home, /https:\/\/yeargun\.github\.io\/mobxlil\//);
+    assert.match(home, /https:\/\/yeargun\.github\.io\/jquerylil\//);
+    assert.match(home, /https:\/\/yeargun\.github\.io\/monacolil\//);
+    assert.match(home, /href="\/delivery\.html"/);
 });
 
 test("Lilastro, Lastro, and SolidLil state distinct implementation boundaries", () => {
@@ -69,6 +84,24 @@ test("Lilastro, Lastro, and SolidLil state distinct implementation boundaries", 
   assert.equal(lsxParity.counts.excluded, 2);
   assert.equal(lsxParity.counts.loweringVerified, 21);
   assert.equal(lsxParity.counts.runtimeVerified, 21);
+});
+
+test("language and compare pages cover syntax, config, and measured ports", () => {
+  assert.match(language, /id="syntax"/);
+  assert.match(language, /id="aggregates"/);
+  assert.match(language, /id="mangling"/);
+  assert.match(language, /javascript\.cost_model/);
+  assert.match(language, /href="\/docs.html"/);
+  assert.match(language, /href="\/delivery.html"/);
+  assert.match(compare, /id="monaco"/);
+  assert.match(compare, /413,607/);
+  assert.match(compare, /id="jquery"/);
+  assert.match(compare, /href="\/demos.html#solidlil-keyed"/);
+  assert.match(compare, /href="\/demos.html#motion-showcase-carousel"/);
+  assert.match(compare, /https:\/\/yeargun\.github\.io\/solidlil\//);
+  assert.match(compare, /https:\/\/yeargun\.github\.io\/monacolil\//);
+  assert.match(compare, /href="\/delivery.html"/);
+  assert.match(home, /5–10%/);
 });
 
 test("Parcel Market starts accessibly and keeps the fake-payment boundary explicit", () => {

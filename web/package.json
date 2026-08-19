@@ -10,6 +10,7 @@
     "catalog": "node scripts/generate-benchmark-catalog.mjs",
     "dev": "vite --port 5173",
     "build": "npm run catalog && vite build",
+    "build:pages": "LILSCRIPT_PAGES_BASE=/lilscript/ vite build && node scripts/prepare-pages.mjs",
     "preview": "vite preview --port 4174",
     "test": "node --test test/*.test.mjs",
     "publish:motion-lab": "node ../benchmarks/popular/publish-motion-lab.mjs"

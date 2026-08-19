@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="LilScript syntax, types, struct and class lowering, property mangling, codec objectives, and compiler configuration."
+    />
+    <title>Language | LilScript</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/src/styles.css" />
+    <link rel="stylesheet" href="/src/landing.css" />
+  </head>
+  <body class="content-page landing-page">
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <header class="site-header">
+      <a class="wordmark" href="/" aria-label="LilScript home"
+        ><span class="wordmark-mark" aria-hidden="true">L</span
+        ><span>LilScript</span></a
+      >
+      <button
+        class="nav-toggle icon-button"
+        type="button"
+        aria-label="Toggle navigation"
+        aria-expanded="false"
+      >
+        <i data-lucide="menu" aria-hidden="true"></i>
+      </button>
+      <nav class="site-nav" aria-label="Primary navigation"></nav>
+    </header>
+
+    <main id="main-content" class="landing-wrap">
+      <section class="compare-intro">
+        <p class="landing-kicker">Syntax · behaviors · config</p>
+        <h1>The language the compiler can prove.</h1>
+        <p class="lead">
+          LilScript is its own typed language. It is not TypeScript with extra
+          comments. Types are the compilation model: they decide representation,
+          what may be mangled, and what must keep a JavaScript name. This page
+          is the readable tour. The full contract is in
+          <a href="/docs.html">the docs</a>.
+        </p>
+        <nav class="lang-toc" aria-label="Language sections">
+          <a href="#syntax">Syntax</a>
+          <a href="#types">Types</a>
+          <a href="#aggregates">Structs and classes</a>
+          <a href="#mangling">Mangling</a>
+          <a href="#codec">Codec objective</a>
+          <a href="#performance">Performance</a>
+          <a href="#config">Configuration</a>
+          <a href="#tooling">Toolchain</a>
+          <a href="#world">Closed world</a>
+        </nav>
+      </section>
+
+      <section class="landing-section lang-block" id="syntax">
+        <h2>Syntax</h2>
+        <p>
+          Declarations put the type first. Locals need an initializer.
+          <code>auto</code> infers from that initializer. Methods and functions
+          look familiar; the difference is that the compiler still knows the
+          types after parse.
+        </p>
+        <pre class="landing-code"><code>int count = 5;
+float ratio = 3.14;
+string title = "LilScript";
+bool enabled = true;
+int[] scores = [10, 20, 30];
+auto doubled = scores.map((int value) =&gt; value * 2);
+
+pure int square(int value) {
+  return value * value;
+}</code></pre>
+        <p>
+          Statements end with <code>;</code> except blocks. Strings are double
+          quotes; templates use backticks. Comments are <code>//</code> and
+          <code>/* */</code>. Source is UTF-8. The file extension is
+          <code>.lil</code>.
+        </p>
+      </section>
+
+      <section class="landing-section lang-block" id="types">
+        <h2>Types</h2>
+        <p>
+          Each type has a defined JavaScript (and, where it is portable, native)
+          representation. There is no erased layer that a later minifier has to
+          reverse-engineer.
+        </p>
+        <table class="lang-table">
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th>Meaning</th>
+              <th>JavaScript</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>int</code></td>
+              <td>Signed 32-bit, operator-defined overflow</td>
+              <td>Number with i32 operations</td>
+            </tr>
+            <tr>
+              <td><code>float</code> / <code>number</code></td>
+              <td>IEEE-754 binary64</td>
+              <td>Number</td>
+            </tr>
+            <tr>
+              <td><code>bool</code>, <code>string</code></td>
+              <td>Exact values, immutable text</td>
+              <td>Boolean, String</td>
+            </tr>
+            <tr>
+              <td><code>T?</code></td>
+              <td><code>T</code> or <code>null</code>, narrowed by checks</td>
+              <td>Value or <code>null</code></td>
+            </tr>
+            <tr>
+              <td><code>struct</code> / <code>class</code></td>
+              <td>Fixed fields, field indexes in IR</td>
+              <td>Scalars, array slots, or a boundary object</td>
+            </tr>
+            <tr>
+              <td><code>Record&lt;T&gt;</code></td>
+              <td>Open string keys — keys are data</td>
+              <td>Null-prototype object</td>
+            </tr>
+            <tr>
+              <td><code>extern class</code></td>
+              <td>Host object, exact member names</td>
+              <td>Existing host object</td>
+            </tr>
+            <tr>
+              <td><code>JsValue</code></td>
+              <td>Narrow dynamic hatch</td>
+              <td>Unchanged host value</td>
+            </tr>
+            <tr>
+              <td><code>Task&lt;T&gt;</code></td>
+              <td>Typed async result</td>
+              <td>Promise-compatible</td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          <code>int</code> widens to <code>number</code>. Bitwise operators stay
+          <code>int</code>. Enums are integer discriminants with no metadata
+          object. Generics are checked, then erased or boxed at a boundary.
+        </p>
+      </section>
+
+      <section class="landing-section lang-block" id="aggregates">
+        <h2>Structs, classes, objects</h2>
+        <p>
+          This is the main reason a rewrite can be both smaller and a bit
+          faster. The language does not pretend every value is a string-keyed
+          object.
+        </p>
+        <table class="lang-table">
+          <thead>
+            <tr>
+              <th>Kind</th>
+              <th>Job</th>
+              <th>What the compiler may do</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>struct</code></td>
+              <td>Positional value</td>
+              <td>Scalar-replace if it never escapes; otherwise array slots</td>
+            </tr>
+            <tr>
+              <td><code>class</code></td>
+              <td>Nominal reference, <code>init</code>, methods</td>
+              <td>Devirtualize; dissolve locals; flatten single inheritance</td>
+            </tr>
+            <tr>
+              <td><code>object</code></td>
+              <td>Closed public singleton</td>
+              <td>Keep ABI keys; nest and mangle private bodies</td>
+            </tr>
+            <tr>
+              <td><code>Record&lt;T&gt;</code></td>
+              <td>Open map</td>
+              <td>Never mangle keys</td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          Overriding is rejected on purpose. Silent static dispatch would be
+          unsound; vtables would add size. Construction is
+          <code>Point{10, 20}</code> for structs and <code>new Vector(3, 4)</code>
+          for classes.
+        </p>
+        <p>
+          Two independent knobs sit on top of that.
+          <code>javascript.aggregate_layout</code> chooses array backing versus
+          named objects for instances.
+          <code>javascript.public_aggregate_abi</code> chooses named fields
+          versus opaque array handles at a reusable JavaScript boundary.
+        </p>
+      </section>
+
+      <section class="landing-section lang-block" id="mangling">
+        <h2>Mangling</h2>
+        <p>
+          Most minifiers mangle locals. LilScript also mangles owned properties
+          and the method names that would live on a prototype — when the owner
+          is LilScript. <code>document.createElement</code> does not get
+          renamed. Record keys are data. Export names are a separate opt-in for
+          closed apps.
+        </p>
+        <pre class="landing-code"><code>[mangle]
+# identifiers = true
+# properties = true   # size-first default
+# exports = false     # keep public ESM names unless the whole app is LilScript
+# pool_strings = true</code></pre>
+        <p>
+          Identifier spelling is searched, not guessed. The compiler re-ranks
+          short names against the selected codec: gzip cares about a 32&nbsp;KiB
+          window, Brotli about a much larger one and a context model. Similar
+          functions can reserve the same local letters so back-references hit.
+        </p>
+      </section>
+
+      <section class="landing-section lang-block" id="codec">
+        <h2>Codec objective</h2>
+        <p>
+          Served bytes are the product.
+          <code>javascript.cost_model</code> is the score:
+        </p>
+        <table class="lang-table">
+          <thead>
+            <tr>
+              <th>cost_model</th>
+              <th>What is measured</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>raw</code></td>
+              <td>Emitted UTF-8 length</td>
+            </tr>
+            <tr>
+              <td><code>gzip</code></td>
+              <td>Stock zlib 1.3.1, level 9, deterministic mtime</td>
+            </tr>
+            <tr>
+              <td><code>brotli</code></td>
+              <td>Official Google Brotli 1.1.0, quality 11 — the usual default</td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          The three disagree. A raw win can be a Brotli loss. Candidate search
+          emits legal alternatives and keeps the winner for the configured
+          objective only. That is why a gzip-tuned build is allowed to look
+          worse on Brotli.
+        </p>
+      </section>
+
+      <section class="landing-section lang-block" id="performance">
+        <h2>Performance is an objective too</h2>
+        <p>
+          Compression is the reason the language exists. It is not the only
+          ranking key. <code>javascript.priority</code> trades transfer size
+          against a static model of parse, compile, allocation, and indirect
+          calls:
+        </p>
+        <table class="lang-table">
+          <thead>
+            <tr>
+              <th>priority</th>
+              <th>Ranks</th>
+              <th>Typical effect</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>size-first</code></td>
+              <td>Transfer first</td>
+              <td>Broadest search, property mangling, packing, layout search</td>
+            </tr>
+            <tr>
+              <td><code>balanced</code></td>
+              <td>Mix of size and shape</td>
+              <td>Fewer size-only tactics</td>
+            </tr>
+            <tr>
+              <td><code>performance-first</code></td>
+              <td>Shape first</td>
+              <td>Keeps <code>|0</code>, less packing, hotter lowering</td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          Array-backed structs and scalar replacement are also runtime choices:
+          fewer hidden classes, less pointer chasing, sometimes less heap.
+          That is why the same rewrite can be smaller on the wire and a little
+          cheaper in memory.
+        </p>
+      </section>
+
+      <section class="landing-section lang-block" id="config">
+        <h2>Configuration</h2>
+        <p>
+          The compiler discovers <code>lilscript.toml</code> from the entry
+          file. Unknown keys are errors. There are a lot of knobs — that is
+          intentional. A reusable package and a closed app are not the same
+          product.
+        </p>
+        <pre class="landing-code"><code>[javascript]
+priority = "size-first"
+cost_model = "brotli"
+optimization_level = 15
+candidate_search = "production"
+
+[optimization]
+preset = "maximum"
+inlining = true
+scalar_replacement = true
+dead_code_elimination = true
+
+[mangle]
+properties = true
+exports = false
+
+[bundle]
+mode = "split"</code></pre>
+        <div class="config-grid">
+          <article>
+            <h3>Public vs closed</h3>
+            <p>
+              Keep export names for an npm-shaped library. Turn
+              <code>mangle.exports</code> on when the whole consumer graph is
+              LilScript.
+            </p>
+          </article>
+          <article>
+            <h3>Development</h3>
+            <p>
+              <code>--mode development</code> and <code>lilpack dev</code> skip
+              the multi-candidate search so reloads stay usable.
+            </p>
+          </article>
+          <article>
+            <h3>Exact allowlists</h3>
+            <p>
+              <code>javascript.compression</code> and
+              <code>javascript.optimizations</code> can name the tactics that
+              are even legal. Omit them to use the profile defaults.
+            </p>
+          </article>
+          <article>
+            <h3>Native</h3>
+            <p>
+              The same IR can emit C11 or a native binary. Host-only features
+              are rejected there rather than approximated.
+            </p>
+          </article>
+        </div>
+        <p>
+          The schema dump lives in the
+          <a href="/docs.html#configuration">configuration docs</a>.
+        </p>
+      </section>
+
+      <section class="landing-section lang-block" id="tooling">
+        <h2>Toolchain</h2>
+        <p>
+          The language is meant to sit next to ordinary web work, not in a
+          Java-sized batch job.
+        </p>
+        <div class="config-grid">
+          <article>
+            <h3>Lilpack</h3>
+            <p>
+              Vite 8 plugin that shells out to <code>lilscript</code>. Mixed
+              <code>.lil</code> / JS / TS graphs, HMR, production hashing.
+              Details on the <a href="/delivery.html">Lilpack page</a>.
+            </p>
+          </article>
+          <article>
+            <h3>VS Code and LSP</h3>
+            <p>
+              <code>lilscript-lsp</code> plus <code>vscode-extension/</code>:
+              highlight, diagnostics, completion, hover, symbols, rename,
+              format, import organize.
+            </p>
+          </article>
+          <article>
+            <h3>Lint and format</h3>
+            <p>
+              <code>lilscript-lint</code> and <code>lilscript-fmt</code>. JSON
+              and SARIF exist for agents and CI.
+            </p>
+          </article>
+          <article>
+            <h3>Playground</h3>
+            <p>
+              Compile a snippet in the browser on the
+              <a href="/playground.html">playground</a>.
+            </p>
+          </article>
+        </div>
+        <pre class="landing-code"><code>cargo build --release --bins
+target/release/lilscript app.lil -o app.js
+target/release/lilpack dev
+target/release/lilscript-lsp --help</code></pre>
+      </section>
+
+      <section class="landing-section lang-block" id="world">
+        <h2>Closed world</h2>
+        <p>
+          The entry file and every static import are one compilation unit.
+          Crossing into the host takes an explicit <code>extern</code> or
+          <code>extern class</code>. Values that escape keep a boundary ABI.
+          Dynamic <code>import("./feature")</code> is a typed lazy chunk, not an
+          untyped Promise of anything.
+        </p>
+        <p>
+          That closed world is the Closure Advanced idea, restated as a
+          language. The difference is that proofs exist before JavaScript is
+          spelled, and the compile loop is built for everyday web work.
+        </p>
+        <div class="landing-actions">
+          <a class="primary-link" href="/docs.html"
+            >Full language docs<i data-lucide="arrow-right" aria-hidden="true"></i
+          ></a>
+          <a class="secondary-link" href="/compare.html">Measured ports</a>
+          <a class="secondary-link" href="/playground.html">Playground</a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="landing-footer landing-wrap">
+      <span>LilScript language</span>
+      <nav aria-label="Footer">
+        <a href="/">Overview</a>
+        <a href="/compare.html">Compare</a>
+        <a href="/docs.html">Docs</a>
+        <a href="/delivery.html">Lilpack</a>
+        <a href="https://github.com/yeargun/lilscript" target="_blank" rel="noopener">GitHub</a>
+      </nav>
+    </footer>
+    <script type="module" src="/src/site.js"></script>
+  </body>
+</html>

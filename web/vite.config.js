@@ -34,6 +34,7 @@ function rewritePublicIndex() {
 
 export default defineConfig({
   appType: "mpa",
+  base: process.env.LILSCRIPT_PAGES_BASE ?? "/",
   plugins: [rewritePublicIndex()],
   server: {
     proxy: {
@@ -46,6 +47,8 @@ export default defineConfig({
     rolldownOptions: {
       input: {
         home: resolveHtml("index.html"),
+        language: resolveHtml("language.html"),
+        compare: resolveHtml("compare.html"),
         demos: resolveHtml("demos.html"),
         playground: resolveHtml("playground.html"),
         about: resolveHtml("about.html"),

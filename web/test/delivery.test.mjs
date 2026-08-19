@@ -38,8 +38,9 @@ test("delivery page states dependency, injection, cache, and multi-target bounda
 
 test("every primary page links to the delivery architecture", async () => {
   const pages = [
-    "index.html", "docs.html", "benchmarks.html", "libraries.html", "explorer.html",
-    "benchmark-detail.html", "delivery.html", "roadmap.html", "about.html",
+    "index.html", "language.html", "compare.html", "docs.html", "benchmarks.html",
+    "libraries.html", "explorer.html", "benchmark-detail.html", "delivery.html",
+    "roadmap.html", "about.html",
   ];
   for (const page of pages) {
     const html = await readFile(new URL(`../${page}`, import.meta.url), "utf8");

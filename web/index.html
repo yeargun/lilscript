@@ -5,12 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="LilScript is a typed, compression-first language. Lilpack delivers it to the web. Compare Lastro, SolidLil, libraries, and algorithms against JavaScript and SolidJS."
+      content="LilScript is a typed language that compiles to mangled, codec-scored JavaScript. Lilpack delivers it with Vite-speed reloads. Typical ports are 5–10% smaller under gzip or Brotli."
     />
-    <title>LilScript — a language built to ship less JavaScript</title>
+    <title>LilScript — compiles to smaller JavaScript</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="/src/styles.css" />
+    <link rel="stylesheet" href="/src/landing.css" />
   </head>
-  <body class="content-page home-page">
+  <body class="content-page landing-page">
     <a class="skip-link" href="#main-content">Skip to content</a>
     <header class="site-header">
       <a class="wordmark" href="/" aria-label="LilScript home"
@@ -29,301 +36,553 @@
     </header>
 
     <main id="main-content">
-      <section class="product-hero content-width">
+      <section class="landing-hero landing-wrap">
         <div>
-          <p class="eyebrow">A language-centered web stack</p>
-          <h1>Write LilScript.<br /><span>Ship less JavaScript.</span></h1>
-          <p class="hero-summary">
-            LilScript is a typed, compression-first language. The compiler owns
-            types, optimization, mangling, and codec search. Lilpack is the
-            bundler that compiles <code>.lil</code> modules and delivers them
-            through Vite 8. They are not the same thing.
+          <p class="landing-kicker">Language · compiler · Lilpack</p>
+          <h1>Write LilScript. Ship less JavaScript.</h1>
+          <p class="lead">
+            LilScript is a typed, compression-first language. The compiler
+            mangles, reshapes, and scores a complete JavaScript artifact against
+            the codec you pick — <strong>gzip</strong>, <strong>Brotli</strong>,
+            or <strong>raw</strong> size. Lilpack is the Vite-based delivery
+            path: fast reloads, a language server, the usual editor tools.
           </p>
-          <div class="hero-actions">
-            <a class="primary-link" href="/demos.html"
-              >Open the demos<i data-lucide="arrow-right" aria-hidden="true"></i
+          <div class="landing-actions">
+            <a class="primary-link" href="/compare.html"
+              >See the comparisons<i data-lucide="arrow-right" aria-hidden="true"></i
             ></a>
+            <a class="secondary-link" href="/language.html">Read the language</a>
             <a class="secondary-link" href="/playground.html"
-              >Try the language<i data-lucide="play" aria-hidden="true"></i
+              >Try the playground<i data-lucide="play" aria-hidden="true"></i
             ></a>
           </div>
         </div>
-        <aside
-          class="hero-definition"
-          aria-label="The LilScript stack in one minute"
-        >
-          <p class="eyebrow">In one minute</p>
+        <aside class="landing-aside" aria-label="What the names mean">
+          <p>
+            A successor to Google Closure Compiler Advanced mode — the closed
+            world, the property work — without a Java toolchain, and with a
+            compile loop that is meant to sit next to Vite.
+          </p>
           <dl>
             <div>
               <dt>LilScript</dt>
               <dd>
-                The language, type system, SSA optimizer, and JavaScript/native
-                backends. Source of truth is <code>.lil</code>, not TypeScript.
+                The language, types, optimizer, and JavaScript (or native)
+                backends. Source of truth is <code>.lil</code>.
               </dd>
             </div>
             <div>
               <dt><a href="/delivery.html">Lilpack</a></dt>
               <dd>
-                The delivery interface: mixed <code>.lil</code> / JS / TS
-                graphs, HMR, and production bundles. It does not replace the
-                compiler.
+                Compiles <code>.lil</code> modules through Vite 8. HMR, mixed
+                JS/TS graphs, production hashes. Not a second minifier.
               </dd>
             </div>
             <div>
-              <dt>Projects</dt>
+              <dt>Typical cut</dt>
               <dd>
-                Lilastro, SolidLil, and Lastro sit on that path. They prove
-                pages, reactivity, and a full app — they are not the language.
+                Ports we keep measuring land around <strong>5–10%</strong>
+                smaller after gzip or Brotli. Some surfaces do better. A few
+                stay even. jQuery is not a win yet.
               </dd>
             </div>
           </dl>
         </aside>
       </section>
 
-      <section class="stack-band" aria-labelledby="stack-title">
-        <div class="content-width">
-          <div class="section-heading">
-            <p class="eyebrow">One name per job</p>
-            <h2 id="stack-title">
-              The parts fit together. They are not the same thing.
-            </h2>
-            <p>
-              Start with LilScript source. Add only the project layer the
-              application needs. Lilpack owns delivery at the edge of the graph.
-            </p>
-          </div>
-          <ol class="stack-flow" aria-label="Lilscript web delivery flow">
-            <li>
-              <span>01 · language</span><strong>LilScript</strong>
-              <p>
-                Types, semantics, whole-program optimization, JavaScript and
-                native output. Gzip and Brotli are scored on complete artifacts.
-              </p>
-            </li>
-            <li>
-              <span>02 · optional layer</span
-              ><strong>Lilastro or SolidLil</strong>
-              <p>
-                Static page structure or a Solid-compatible reactive DOM,
-                still authored in LilScript and LSX.
-              </p>
-            </li>
-            <li>
-              <span>03 · delivery</span><strong>Lilpack</strong>
-              <p>
-                Compiles the module graph, keeps HMR honest, and ships the
-                compiler’s JavaScript. It is not a second optimizer stacked on
-                Terser.
-              </p>
-            </li>
-            <li>
-              <span>04 · application</span><strong>Lastro</strong>
-              <p>
-                The product experiment: Parcel Market, compared live against
-                its Astro control in the demos.
-              </p>
-            </li>
-          </ol>
+      <section class="landing-code-pair" aria-label="LilScript and the JavaScript it emits">
+        <div class="landing-code-col">
+          <header><span>LilScript</span><span>types stay until codegen</span></header>
+          <pre class="landing-code"><code>class Vector {
+  float x;
+  float y;
+
+  init(float x, float y) {
+    this.x = x;
+    this.y = y;
+  }
+
+  float lengthSquared() {
+    return this.x * this.x + this.y * this.y;
+  }
+}
+
+int[] values = [1, 2, 3, 4];
+auto doubled = values.map((int value) =&gt; value * 2);
+int sum = 0;
+for (int i = 0; i &lt; doubled.length; i++) {
+  sum += doubled[i];
+}
+Vector vector = new Vector(3.0, 4.0);
+if (vector.lengthSquared() == 25.0) {
+  print(`sum=${sum}`);
+}</code></pre>
+        </div>
+        <div class="landing-code-col">
+          <header><span>Emitted JavaScript</span><span>111 B in the full sample</span></header>
+          <pre class="landing-code"><code>var b=[1,2,3,4].map(a=&gt;a*2|0);
+var a=0,c=0;
+while(a&lt;b.length){
+  c=c+b[a]|0;
+  a=a+1|0;
+}
+console.log(`sum=${c}`)</code></pre>
         </div>
       </section>
 
-      <section
-        class="content-band content-width"
-        aria-labelledby="demos-title"
-      >
-        <div class="section-heading">
-          <p class="eyebrow">Demos, as pairs</p>
-          <h2 id="demos-title">Click a card. Compare both frames.</h2>
+      <section class="landing-section landing-wrap" aria-labelledby="how-title">
+        <div class="landing-heading">
+          <p class="landing-kicker">01 · How it gets smaller</p>
+          <h2 id="how-title">The compiler is allowed to change the shape of the program.</h2>
           <p>
-            Live iframes for Lastro and SolidLil sit beside measured library
-            and algorithm pairs. Brotli, gzip, and compilation settings stay
-            under the stage.
+            Minifiers rename locals after the objects already exist. LilScript
+            proves what can disappear before JavaScript is spelled — then
+            measures the finished file under the codec you chose.
           </p>
         </div>
-        <div class="home-demo-grid">
-          <a class="home-demo-card" href="/demos.html#lastro">
-            <span>Application</span>
-            <h3>Lastro</h3>
+        <div class="idea-grid">
+          <article>
+            <span>Mangling</span>
+            <h3>Properties, including methods</h3>
             <p>
-              Parcel Market next to the Astro control. Same CSS and behavior
-              contract; 2,665 B vs 2,672 B Brotli JavaScript.
+              Owned fields and class methods can be renamed. Host names stay
+              exact. That includes the names that would otherwise sit on a
+              JavaScript prototype — when the type system owns them, they are
+              safe to mangle.
             </p>
-            <b>Open the pair</b>
-          </a>
-          <a class="home-demo-card" href="/demos.html#solidlil-keyed">
-            <span>SolidLil + LSX</span>
-            <h3>SolidJS</h3>
+          </article>
+          <article>
+            <span>Layout</span>
+            <h3>Objects become arrays, or vanish</h3>
             <p>
-              Keyed table app, public ABI, and LSX versus JSX. Left is SolidJS;
-              right is the LilScript compile.
+              <code>struct</code> and <code>class</code> are not glue.
+              Non-escaping values scalar-replace into <code>var</code> /
+              <code>let</code>. Values that stay become compact arrays. That
+              helps transfer size, memory, and access cost.
             </p>
-            <b>Open the pair</b>
+          </article>
+          <article>
+            <span>Objective</span>
+            <h3>Gzip, Brotli, or raw</h3>
+            <p>
+              <code>javascript.cost_model</code> is the score the search
+              actually uses. A shorter raw spelling can lose under Brotli.
+              Performance is a separate knob: size-first is the default;
+              performance-first keeps hotter shapes.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section class="dark-band" aria-labelledby="monaco-title">
+        <div class="landing-section landing-wrap">
+          <div class="monaco-feature">
+            <div class="landing-heading">
+              <p class="landing-kicker">02 · Monaco · the VS Code editor</p>
+              <h2 id="monaco-title">
+                The editor that ships in VS Code, rewritten and compiled.
+              </h2>
+              <p>
+                Two production pages. One is npm <code>monaco-editor@0.56</code>.
+                The other is the LilScript editor compiled from
+                <code>entry.lil</code> plus the monaco-editor-core catalog — not
+                monaco with a few files swapped. Microsoft’s TypeScript language
+                service is still on both sides.
+              </p>
+              <div class="landing-actions">
+                <a
+                  class="primary-link"
+                  href="https://yeargun.github.io/monacolil/"
+                  target="_blank"
+                  rel="noopener"
+                  >Open monacolil<i data-lucide="external-link" aria-hidden="true"></i
+                ></a>
+                <a class="secondary-link" href="/compare.html#monaco"
+                  >Notes on this page</a
+                >
+              </div>
+            </div>
+            <div class="monaco-stats" aria-label="Monaco Brotli sizes">
+              <div>
+                <small>npm ide.js · Brotli</small>
+                <b>904,810 B</b>
+              </div>
+              <div class="win">
+                <small>LilScript ide.js · Brotli</small>
+                <b>413,607 B</b>
+              </div>
+              <div>
+                <small>JS editor + workers, no tsc</small>
+                <b>1,433,800 B</b>
+              </div>
+              <div class="win">
+                <small>Lil editor + workers, no tsc</small>
+                <b>415,045 B</b>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="landing-section landing-wrap" aria-labelledby="ports-title">
+        <div class="landing-heading">
+          <p class="landing-kicker">03 · Libraries we actually port</p>
+          <h2 id="ports-title">A grid of measured rewrites, not a slogan.</h2>
+          <p>
+            Each card is a scoped contract: same behavior, Brotli-11 of the
+            selected JavaScript, npm + Vite 8 unless noted. Open a card for the
+            live pair, the project page, or the compare notes.
+          </p>
+        </div>
+        <div class="lib-grid">
+          <a
+            class="lib-card"
+            href="https://yeargun.github.io/monacolil/"
+            target="_blank"
+            rel="noopener"
+          >
+            <span class="lib-card-kicker">Editor · VS Code</span>
+            <h3>Monaco</h3>
+            <p>
+              Compiled Lil editor + catalog versus npm monaco-editor. TypeScript
+              <code>ts.worker</code> is still Microsoft’s.
+            </p>
+            <div class="lib-card-metrics">
+              <div><small>npm Brotli</small><b>904,810</b></div>
+              <div><small>LilScript</small><b>413,607</b></div>
+              <div class="win"><small>ide.js</small><b>−54%</b></div>
+            </div>
           </a>
-          <a class="home-demo-card" href="/demos.html#motion-showcase-carousel">
-            <span>Libraries &amp; motion</span>
+          <a
+            class="lib-card"
+            href="https://yeargun.github.io/motionlil/"
+            target="_blank"
+            rel="noopener"
+          >
+            <span class="lib-card-kicker">Selected surface</span>
             <h3>Motion</h3>
             <p>
-              npm motion and the LilScript port in matching call-site fixtures,
-              then nanoid, mitt, hashes, and algorithm cases.
+              <code>mix</code>, <code>wrap</code>, <code>stagger</code>,
+              <code>spring</code> — same equations as npm motion@13. Not the
+              full DOM package.
             </p>
-            <b>Open the pair</b>
+            <div class="lib-card-metrics">
+              <div><small>npm Vite</small><b>4,044</b></div>
+              <div><small>LilScript</small><b>2,333</b></div>
+              <div class="win"><small>Brotli</small><b>−42%</b></div>
+            </div>
           </a>
-        </div>
-      </section>
-
-      <section
-        class="content-band content-width"
-        aria-labelledby="projects-title"
-      >
-        <div class="section-heading">
-          <p class="eyebrow">Implementation projects</p>
-          <h2 id="projects-title">Read each experiment on its own terms</h2>
-          <p>
-            Every page separates current implementation, measured evidence, and
-            unsolved scope.
-          </p>
-        </div>
-        <div class="project-grid">
-          <article class="project-card project-card-primary">
-            <span class="status-tag implemented">Implemented POC</span>
-            <h3>Lilastro</h3>
-            <p>
-              A local <code>.lilastro</code> page compiler and CLI. It emits the
-              static shell, passes Lilscript entries to Lilpack, and uses Vite
-              8/Rolldown/Oxc for delivery.
-            </p>
-            <a href="/lilastro.html"
-              >How Lilastro works<i
-                data-lucide="arrow-right"
-                aria-hidden="true"
-              ></i
-            ></a>
-          </article>
-          <article class="project-card">
-            <span class="status-tag implemented"
-              >Runtime + client LSX parity</span
-            >
+          <a
+            class="lib-card"
+            href="https://yeargun.github.io/solidlil/"
+            target="_blank"
+            rel="noopener"
+          >
+            <span class="lib-card-kicker">Framework</span>
             <h3>SolidLil</h3>
             <p>
-              The pinned browser Core, Web, and Store runtime exposes all 135
-              public exports, passes 469/469 unchanged upstream tests, and
-              verifies all 21 in-scope client LSX families. Hydration and SSR
-              remain explicit server-coupled exclusions.
+              Official Solid versus the LilScript compile. Keyed table app, plus
+              verified Core / Store / client Web surfaces.
             </p>
-            <a href="/solidlil.html"
-              >See scope and evidence<i
-                data-lucide="arrow-right"
-                aria-hidden="true"
-              ></i
-            ></a>
-            <a href="/demos.html#solidlil-keyed"
-              >Compare SolidJS live<i
-                data-lucide="arrow-right"
-                aria-hidden="true"
-              ></i
-            ></a>
-          </article>
-          <article class="project-card">
-            <span class="status-tag experiment">Application experiment</span>
+            <div class="lib-card-metrics">
+              <div><small>Solid keyed</small><b>4,358</b></div>
+              <div><small>SolidLil</small><b>3,940</b></div>
+              <div class="win"><small>Brotli</small><b>−10%</b></div>
+            </div>
+          </a>
+          <a class="lib-card" href="/demos.html#lib-gl-matrix">
+            <span class="lib-card-kicker">Exact entrypoint</span>
+            <h3>gl-matrix</h3>
+            <p>Complete ESM root namespace, aliases, and live array type.</p>
+            <div class="lib-card-metrics">
+              <div><small>npm Vite</small><b>14,330</b></div>
+              <div><small>LilScript</small><b>14,116</b></div>
+              <div class="win"><small>Brotli</small><b>−1.5%</b></div>
+            </div>
+          </a>
+          <a class="lib-card" href="/demos.html#port-murmurhash-js">
+            <span class="lib-card-kicker">Complete package</span>
+            <h3>murmurhash-js</h3>
+            <p>MurmurHash 2 and 3, reusable root API, same checksums.</p>
+            <div class="lib-card-metrics">
+              <div><small>npm Vite</small><b>902</b></div>
+              <div><small>LilScript</small><b>409</b></div>
+              <div class="win"><small>Brotli</small><b>−55%</b></div>
+            </div>
+          </a>
+          <a class="lib-card" href="/demos.html#port-js-levenshtein">
+            <span class="lib-card-kicker">Complete package</span>
+            <h3>js-levenshtein</h3>
+            <p>Full root entrypoint. Eligible on size and the 1.05× runtime gate.</p>
+            <div class="lib-card-metrics">
+              <div><small>npm Vite</small><b>825</b></div>
+              <div><small>LilScript</small><b>404</b></div>
+              <div class="win"><small>Brotli</small><b>−51%</b></div>
+            </div>
+          </a>
+          <a class="lib-card" href="/demos.html#port-micro-math">
+            <span class="lib-card-kicker">Complete package</span>
+            <h3>clamp + lerp</h3>
+            <p>Both published roots. Types let the wrappers disappear.</p>
+            <div class="lib-card-metrics">
+              <div><small>npm Vite</small><b>519</b></div>
+              <div><small>LilScript</small><b>112</b></div>
+              <div class="win"><small>Brotli</small><b>−78%</b></div>
+            </div>
+          </a>
+          <a class="lib-card" href="/demos.html#port-emotion-hash">
+            <span class="lib-card-kicker">Complete package</span>
+            <h3>@emotion/hash</h3>
+            <p>Published root. Eligible against Vite and Closure ADVANCED.</p>
+            <div class="lib-card-metrics">
+              <div><small>npm Vite</small><b>330</b></div>
+              <div><small>LilScript</small><b>231</b></div>
+              <div class="win"><small>Brotli</small><b>−30%</b></div>
+            </div>
+          </a>
+          <a class="lib-card" href="/demos.html#port-robust-predicates">
+            <span class="lib-card-kicker">Complete package</span>
+            <h3>robust-predicates</h3>
+            <p>Geometric predicates. Large typed corpus, modest transfer cut.</p>
+            <div class="lib-card-metrics">
+              <div><small>npm Vite</small><b>6,456</b></div>
+              <div><small>LilScript</small><b>5,972</b></div>
+              <div class="win"><small>Brotli</small><b>−7.5%</b></div>
+            </div>
+          </a>
+          <a class="lib-card" href="/demos.html#lib-nanoid">
+            <span class="lib-card-kicker">Exact entrypoint</span>
+            <h3>Nano ID</h3>
+            <p>Published browser entrypoint. Effectively even on Brotli.</p>
+            <div class="lib-card-metrics">
+              <div><small>npm Vite</small><b>409</b></div>
+              <div><small>LilScript</small><b>408</b></div>
+              <div class="win"><small>Brotli</small><b>−0.2%</b></div>
+            </div>
+          </a>
+          <a
+            class="lib-card"
+            href="https://yeargun.github.io/mobxlil/"
+            target="_blank"
+            rel="noopener"
+          >
+            <span class="lib-card-kicker">Exact package</span>
+            <h3>MobX 7</h3>
+            <p>
+              Public API, 769 official tests. 17,610 B → 16,736 B Brotli versus
+              Vite+Terser of npm.
+            </p>
+            <div class="lib-card-metrics">
+              <div><small>Vite+Terser</small><b>17,610</b></div>
+              <div><small>LilScript</small><b>16,736</b></div>
+              <div class="win"><small>Brotli</small><b>−5%</b></div>
+            </div>
+          </a>
+          <a class="lib-card" href="/demos.html#lastro">
+            <span class="lib-card-kicker">Application</span>
             <h3>Lastro</h3>
             <p>
-              The app-level proving ground. Parcel Market exercises loading,
-              list state, checkout, accessibility, and the Lilastro/Lilpack
-              path.
+              Parcel Market next to the Astro control. Same CSS and behavior.
             </p>
-            <a href="/lastro.html"
-              >Understand the Lastro boundary<i
-                data-lucide="arrow-right"
-                aria-hidden="true"
-              ></i
-            ></a>
-            <a href="/demos.html#lastro"
-              >Use Parcel Market<i
-                data-lucide="arrow-right"
-                aria-hidden="true"
-              ></i
-            ></a>
+            <div class="lib-card-metrics">
+              <div><small>Astro</small><b>2,672</b></div>
+              <div><small>Lastro</small><b>2,665</b></div>
+              <div class="win"><small>Brotli</small><b>−0.3%</b></div>
+            </div>
+          </a>
+          <a
+            class="lib-card"
+            href="https://yeargun.github.io/jquerylil/"
+            target="_blank"
+            rel="noopener"
+          >
+            <span class="lib-card-kicker">In progress</span>
+            <h3>jQuery 3.7.1</h3>
+            <p>
+              Full surface is ported and under test. Not a published size win.
+              Public names stay a config choice.
+            </p>
+            <div class="lib-card-metrics">
+              <div><small>npm min</small><b>27,445</b></div>
+              <div><small>LilScript</small><b>38,560</b></div>
+              <div class="loss"><small>Brotli</small><b>open</b></div>
+            </div>
+          </a>
+        </div>
+        <p class="note-box">
+          <strong>How to read this.</strong> Brotli-11 of the selected
+          JavaScript, same <code>lilscript-codec</code> scorers. Kernels move
+          more than public libraries. mitt and clsx are currently a few bytes
+          larger. Subset ports (Preact, Zod, Acorn, Redux Toolkit) live on the
+          <a href="/compare.html">compare page</a> and are labeled as such.
+        </p>
+      </section>
+
+      <section class="landing-section landing-wrap" aria-labelledby="projects-title">
+        <div class="landing-heading">
+          <p class="landing-kicker">04 · Published ports</p>
+          <h2 id="projects-title">The github.io labs, one per library.</h2>
+          <p>
+            Each port has its own site: install the package, open the paired
+            demos, read the receipts. The in-repo stage is still here for the
+            rest of the corpus.
+          </p>
+        </div>
+        <div class="project-links">
+          <a
+            class="project-link"
+            href="https://yeargun.github.io/solidlil/"
+            target="_blank"
+            rel="noopener"
+          >
+            <span>@itslil/solidjs</span>
+            <h3>SolidLil</h3>
+            <p>
+              Solid 2.0 client, LSX, and the js-framework-benchmark keyed table.
+            </p>
+            <b>yeargun.github.io/solidlil</b>
+          </a>
+          <a
+            class="project-link"
+            href="https://yeargun.github.io/motionlil/"
+            target="_blank"
+            rel="noopener"
+          >
+            <span>motionlil</span>
+            <h3>Motion</h3>
+            <p>16 paired browser fixtures. Carousel, spring, gestures, scroll.</p>
+            <b>yeargun.github.io/motionlil</b>
+          </a>
+          <a
+            class="project-link"
+            href="https://yeargun.github.io/mobxlil/"
+            target="_blank"
+            rel="noopener"
+          >
+            <span>@itslil/mobx</span>
+            <h3>MobX</h3>
+            <p>
+              MobX 7 public API. Official tests pass; Vite+Terser Brotli is the
+              fair size lane.
+            </p>
+            <b>yeargun.github.io/mobxlil</b>
+          </a>
+          <a
+            class="project-link"
+            href="https://yeargun.github.io/jquerylil/"
+            target="_blank"
+            rel="noopener"
+          >
+            <span>@itslil/jquery</span>
+            <h3>jQuery</h3>
+            <p>
+              jQuery 3.7.1 public API. Ported and measured; official min is
+              still smaller on Brotli.
+            </p>
+            <b>yeargun.github.io/jquerylil</b>
+          </a>
+          <a
+            class="project-link"
+            href="https://yeargun.github.io/monacolil/"
+            target="_blank"
+            rel="noopener"
+          >
+            <span>@itslil/monaco-editor</span>
+            <h3>Monaco</h3>
+            <p>
+              monaco-editor 0.56, submodule-by-submodule, plus the paired IDE.
+            </p>
+            <b>yeargun.github.io/monacolil</b>
+          </a>
+          <a class="project-link" href="/demos.html">
+            <span>In-repo stage</span>
+            <h3>Demos and algorithms</h3>
+            <p>
+              Lastro, hashes, paired Closure cases, and the rest of the corpus
+              on this site.
+            </p>
+            <b>Browse every demo</b>
+          </a>
+        </div>
+        <div class="landing-actions">
+          <a class="secondary-link" href="/demos.html#solidlil-keyed">Solid keyed pair</a>
+          <a class="secondary-link" href="/demos.html#motion-showcase-carousel">Motion carousel</a>
+          <a class="secondary-link" href="/demos.html#lastro">Lastro</a>
+          <a class="secondary-link" href="/solidlil.html">SolidLil evidence</a>
+          <a class="secondary-link" href="/lilastro.html">Lilastro</a>
+          <a class="secondary-link" href="/lastro.html">Lastro notes</a>
+          <a class="secondary-link" href="/delivery.html">Lilpack</a>
+        </div>
+      </section>
+
+      <section class="landing-section landing-wrap" aria-labelledby="toolchain-title">
+        <div class="landing-heading">
+          <p class="landing-kicker">05 · Tooling</p>
+          <h2 id="toolchain-title">The language has to feel like a web toolchain.</h2>
+          <p>
+            Closure’s Advanced mode is the closest ancestor. The Java stack
+            around it is slow and awkward for everyday web work. LilScript is
+            being built so reload, analysis, and editor support sit on par
+            with the rest of the ecosystem.
+          </p>
+        </div>
+        <div class="idea-grid">
+          <article>
+            <span>Lilpack</span>
+            <h3>Vite-speed reloads</h3>
+            <p>
+              <code>lilpack dev</code> turns candidate search off and keeps HMR
+              honest. Production uses the project <code>lilscript.toml</code>.
+            </p>
+          </article>
+          <article>
+            <span>Editor</span>
+            <h3>VS Code + LSP</h3>
+            <p>
+              <code>lilscript-lsp</code> and the repo extension: highlight,
+              diagnostics, completion, hover, rename, format.
+            </p>
+          </article>
+          <article>
+            <span>Config</span>
+            <h3>A lot of knobs</h3>
+            <p>
+              Codec, priority, mangling, inlining, layouts, chunks. The
+              <a href="/language.html#config">language page</a> walks the ones
+              that change behavior.
+            </p>
           </article>
         </div>
       </section>
 
-      <section class="evidence-band" aria-labelledby="evidence-title">
-        <div class="content-width">
-          <div class="section-heading">
-            <p class="eyebrow">Size evidence, with boundaries</p>
-            <h2 id="evidence-title">Smaller is a measurement, not a slogan</h2>
-            <p>
-              We compare equivalent behavior, publish raw and compressed output,
-              and state when an implementation covers only part of another
-              ecosystem.
-            </p>
-          </div>
-          <div class="evidence-grid">
-            <article>
-              <div class="metric-pair">
-                <strong>2,665 B</strong><span>Brotli JavaScript</span>
-              </div>
-              <h3>Lilastro + Lilpack marketplace</h3>
-              <p>
-                The accessibility-matched Astro build is 2,672 B Brotli. The
-                current win is 7 B (0.3%)—real, reproducible, and deliberately
-                described as tiny.
-              </p>
-              <a href="/demos.html#lastro">Open the live pair</a>
-            </article>
-            <article>
-              <div class="metric-pair">
-                <strong>8,507 B</strong><span>Brotli open-world Core</span>
-              </div>
-              <h3>SolidLil exact browser runtime</h3>
-              <p>
-                Official Solid Core is 8,551 B and Store is also smaller. Web
-                passes the same public and behavior gates but remains 385 B
-                larger, so the loss stays visible.
-              </p>
-              <a href="/demos.html#solidlil-api"
-                >Open the SolidLil pairs</a
-              >
-            </article>
-          </div>
-          <div class="codec-explainer">
-            <strong>How to read the numbers</strong>
-            <p>
-              <b>Raw</b> shows emitted code volume. <b>gzip</b> is common
-              transfer compression. <b>Brotli</b> is a stronger production
-              transfer codec. A result matters only after behavior and scope
-              match.
-            </p>
-            <a class="secondary-link" href="/demos.html"
-              >Open demos<i
-                data-lucide="arrow-right"
-                aria-hidden="true"
-              ></i
-            ></a>
-          </div>
-        </div>
-      </section>
-
-      <section class="demo-callout content-width" aria-labelledby="demo-title">
-        <div>
-          <p class="eyebrow">Sixty-plus comparisons</p>
-          <h2 id="demo-title">Libraries and algorithms use the same stage.</h2>
+      <section class="landing-section landing-wrap" aria-labelledby="models-title">
+        <div class="landing-heading">
+          <p class="landing-kicker">06 · Models, and the 5–10%</p>
+          <h2 id="models-title">Current models write LilScript without much invention.</h2>
           <p>
-            Popular ports, complete packages, paired compression cases, and
-            algorithm challenges are cards too. Click one to put npm/JS on the
-            left and the LilScript compile on the right, with gzip, Brotli, and
-            toolchain notes underneath.
+            That was not the plan; it is just what we keep seeing. A library
+            rewrite is often close to one-shot, and the compiled file is usually
+            smaller once gzip or Brotli is applied. Across the ports we
+            maintain, that cut is typically about 5% to 10%. The cards above are
+            the measured exceptions and the near-ties — not a promise that every
+            file will move that far.
           </p>
         </div>
-        <a class="primary-link" href="/demos.html"
-          >Browse every demo<i data-lucide="arrow-right" aria-hidden="true"></i
-        ></a>
       </section>
     </main>
 
-    <footer class="site-footer content-width">
-      <span>LilScript web stack</span
-      ><a href="/demos.html">Demos</a>
+    <footer class="landing-footer landing-wrap">
+      <span>LilScript</span>
+      <nav aria-label="Footer">
+        <a href="/language.html">Language</a>
+        <a href="/compare.html">Compare</a>
+        <a href="/demos.html">Demos</a>
+        <a href="/playground.html">Playground</a>
+        <a href="/delivery.html">Lilpack</a>
+        <a href="/docs.html">Docs</a>
+        <a href="/about.html">About</a>
+        <a href="https://github.com/yeargun/lilscript" target="_blank" rel="noopener">GitHub</a>
+      </nav>
     </footer>
     <script type="module" src="/src/site.js"></script>
   </body>

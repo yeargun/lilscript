@@ -2,6 +2,7 @@ import libraryData from "./library-results.json";
 import clientRuntime from "./client-runtime-results.json";
 import popularData from "./popular-library-results.json";
 import motionLab from "./motion-lab-results.json";
+import { withBase } from "./base.js";
 import { renderIcons } from "./site.js";
 
 const number = new Intl.NumberFormat("en-US");
@@ -87,7 +88,7 @@ function popularRow(result) {
   const boundary = result.blockers?.length
     ? result.blockers.join(" ")
     : result.compatibilityNotes;
-  const detailHref = `/benchmark-detail.html?project=${encodeURIComponent(`popular:${result.id}`)}`;
+  const detailHref = `${withBase("/benchmark-detail.html")}?project=${encodeURIComponent(`popular:${result.id}`)}`;
   const examplesHref =
     result.id === "motion"
       ? ` <a class="secondary-link" href="#motion-lab-examples">Open examples</a>`
@@ -469,7 +470,7 @@ const surfaceRows = solidLilComparisons
     const contract = Number.isFinite(surface.exportCount)
       ? `${number.format(surface.exportCount)} exact exports`
       : "whole-program observable contract";
-    return `<tr${className}><th><a class="project-link" href="/benchmark-detail.html?project=${encodeURIComponent(solidLilDetailKey(surface))}">${escape(surface.title)}<i data-lucide="external-link" aria-hidden="true"></i></a><small class="table-note">${escape(contract)} · ${escape(surface.boundary)} · ${escape(surface.status)}</small></th><td>${number.format(solid.brotli)} / ${number.format(solidlil.brotli)}</td><td>${number.format(solid.gzip)} / ${number.format(solidlil.gzip)}</td><td>${number.format(solid.raw)} / ${number.format(solidlil.raw)}</td><td>${delta(solidlil.brotli, solid.brotli)}</td></tr>`;
+    return `<tr${className}><th><a class="project-link" href="${withBase("/benchmark-detail.html")}?project=${encodeURIComponent(solidLilDetailKey(surface))}">${escape(surface.title)}<i data-lucide="external-link" aria-hidden="true"></i></a><small class="table-note">${escape(contract)} · ${escape(surface.boundary)} · ${escape(surface.status)}</small></th><td>${number.format(solid.brotli)} / ${number.format(solidlil.brotli)}</td><td>${number.format(solid.gzip)} / ${number.format(solidlil.gzip)}</td><td>${number.format(solid.raw)} / ${number.format(solidlil.raw)}</td><td>${delta(solidlil.brotli, solid.brotli)}</td></tr>`;
   })
   .join("");
 const app = clientRuntime.appSnapshot;

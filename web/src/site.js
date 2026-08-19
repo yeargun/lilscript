@@ -12,6 +12,7 @@ import {
   X,
   createIcons,
 } from "lucide";
+import { localPath, withBase } from "./base.js";
 
 export const icons = {
   ArrowRight,
@@ -33,26 +34,34 @@ export function renderIcons(root = document) {
 
 const navigation = [
   ["Overview", "/"],
+  ["Language", "/language.html"],
+  ["Compare", "/compare.html"],
   ["Demos", "/demos.html"],
-  ["Language", "/docs.html"],
   ["Projects", "/lilastro.html"],
-  ["Evidence", "/benchmarks.html"],
   ["Playground", "/playground.html"],
-  ["About", "/about.html"],
 ];
 
 function navigationSection(pathname) {
-  if (pathname === "/" || pathname.endsWith("/index.html")) return "/";
-  if (pathname.endsWith("/demos.html") || pathname.endsWith("/marketplace.html")) return "/demos.html";
-  if (pathname.endsWith("/docs.html")) return "/docs.html";
-  if (["/lilastro.html", "/lastro.html", "/solidlil.html", "/delivery.html"].some((path) => pathname.endsWith(path))) {
+  const path = localPath(pathname);
+  if (path === "/" || path.endsWith("/index.html")) return "/";
+  if (path.endsWith("/language.html") || path.endsWith("/docs.html")) return "/language.html";
+  if (
+    [
+      "/compare.html",
+      "/benchmarks.html",
+      "/explorer.html",
+      "/libraries.html",
+      "/benchmark-detail.html",
+      "/roadmap.html",
+    ].some((href) => path.endsWith(href))
+  ) {
+    return "/compare.html";
+  }
+  if (path.endsWith("/demos.html") || path.endsWith("/marketplace.html")) return "/demos.html";
+  if (["/lilastro.html", "/lastro.html", "/solidlil.html", "/delivery.html"].some((href) => path.endsWith(href))) {
     return "/lilastro.html";
   }
-  if (["/benchmarks.html", "/explorer.html", "/libraries.html", "/benchmark-detail.html", "/roadmap.html"].some((path) => pathname.endsWith(path))) {
-    return "/benchmarks.html";
-  }
-  if (pathname.endsWith("/playground.html")) return "/playground.html";
-  if (pathname.endsWith("/about.html")) return "/about.html";
+  if (path.endsWith("/playground.html")) return "/playground.html";
   return "";
 }
 
@@ -61,7 +70,7 @@ function setupGlobalNavigation() {
   if (!nav) return;
   const active = navigationSection(window.location.pathname);
   nav.innerHTML = navigation
-    .map(([label, href]) => `<a${active === href ? ' class="active" aria-current="page"' : ""} href="${href}">${label}</a>`)
+    .map(([label, href]) => `<a${active === href ? ' class="active" aria-current="page"' : ""} href="${withBase(href)}">${label}</a>`)
     .join("");
   document.querySelector(".wordmark")?.setAttribute("aria-label", "LilScript home");
 }

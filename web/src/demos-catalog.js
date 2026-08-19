@@ -9,6 +9,7 @@ import apiParity from "./solid-api-parity.json" with { type: "json" };
 import lsxParity from "./solid-lsx-parity.json" with { type: "json" };
 
 import previewMap from "./demo-preview-map.json" with { type: "json" };
+import { withBase } from "./base.js";
 
 export const demoGroups = [
   { id: "apps", title: "Applications" },
@@ -54,7 +55,7 @@ function pageUrl(url) {
   const normalized = path.endsWith(".html")
     ? path
     : `${path.endsWith("/") ? path : `${path}/`}index.html`;
-  return `${normalized}${query ? `?${query}` : ""}${hash}`;
+  return `${withBase(normalized)}${query ? `?${query}` : ""}${hash}`;
 }
 
 function pick(list, id) {

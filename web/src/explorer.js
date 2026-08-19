@@ -4,6 +4,7 @@ import {
   percentageSaved,
   summarizeArtifacts,
 } from "./benchmark-metrics.js";
+import { withBase } from "./base.js";
 import { renderIcons } from "./site.js";
 
 const number = new Intl.NumberFormat("en-US");
@@ -255,7 +256,7 @@ function render() {
       .map(
         ({ project, artifact }) => `
     <tr>
-      <th class="project-cell"><a class="project-link" target="_blank" rel="noopener" href="/benchmark-detail.html?project=${encodeURIComponent(project.key)}">${escape(project.title)}<i data-lucide="external-link" aria-hidden="true"></i></a><span class="project-meta"><span>${escape(labels[project.category] ?? project.category)}</span><span class="status-badge ${escape(project.status)}">${escape(project.status)}</span></span><small>${escape(project.packages.map((item) => item.name).join(" + ") || project.id)}</small></th>
+      <th class="project-cell"><a class="project-link" target="_blank" rel="noopener" href="${withBase("/benchmark-detail.html")}?project=${encodeURIComponent(project.key)}">${escape(project.title)}<i data-lucide="external-link" aria-hidden="true"></i></a><span class="project-meta"><span>${escape(labels[project.category] ?? project.category)}</span><span class="status-badge ${escape(project.status)}">${escape(project.status)}</span></span><small>${escape(project.packages.map((item) => item.name).join(" + ") || project.id)}</small></th>
       <td class="optional-column optional-cell" data-label="Category">${escape(labels[project.category] ?? project.category)}</td><td class="optional-column optional-cell" data-label="Status"><span class="status-badge ${escape(project.status)}">${escape(project.status)}</span></td>
       <td class="artifact-cell" data-label="Artifact">${escape(artifact.label)}<small>${escape(artifact.tool)}</small></td><td class="optional-column optional-cell" data-label="Tool">${escape(artifact.tool)}</td><td class="mangling-cell" data-label="Mangling">${escape(artifact.mode)}<small>properties: ${escape(artifact.propertyMangling)}</small></td><td class="optional-column optional-cell" data-label="Properties">${escape(artifact.propertyMangling)}</td>
       <td class="numeric metric-cell" data-label="Brotli-11"><span class="metric-value">${number.format(artifact.brotli)}</span><small class="metric-rate">${rateLabel(artifact.raw, artifact.brotli)}</small></td><td class="numeric metric-cell" data-label="Gzip-9"><span class="metric-value">${number.format(artifact.gzip)}</span><small class="metric-rate">${rateLabel(artifact.raw, artifact.gzip)}</small></td><td class="numeric metric-cell" data-label="Raw"><span class="metric-value">${number.format(artifact.raw)}</span><small class="metric-rate">baseline</small></td>

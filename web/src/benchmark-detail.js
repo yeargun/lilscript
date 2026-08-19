@@ -1,4 +1,5 @@
 import catalog from "./benchmark-catalog.json";
+import { withBase } from "./base.js";
 import { renderIcons } from "./site.js";
 
 const number = new Intl.NumberFormat("en-US");
@@ -14,7 +15,7 @@ const root = document.querySelector("[data-project-detail]");
 
 if (!project) {
   document.title = "Benchmark not found | LilScript";
-  root.innerHTML = `<section class="comparison-intro"><p class="eyebrow">Unknown project</p><h1>That benchmark is not in the catalog.</h1><a class="primary-link" href="/explorer.html">Open benchmark explorer</a></section>`;
+  root.innerHTML = `<section class="comparison-intro"><p class="eyebrow">Unknown project</p><h1>That benchmark is not in the catalog.</h1><a class="primary-link" href="${withBase("/explorer.html")}">Open benchmark explorer</a></section>`;
 } else {
   document.title = `${project.title} benchmark | LilScript`;
   const packages = project.packages.length
@@ -33,7 +34,7 @@ if (!project) {
     )
     .join("");
   root.innerHTML = `
-    <section class="comparison-intro detail-hero"><div class="detail-badges"><span>${escape(project.category)}</span><span class="status-badge ${escape(project.status)}">${escape(project.status)}</span></div><h1>${escape(project.title)}</h1><p class="lead">${escape(project.summary)}</p>${packages}<a class="secondary-link" href="/explorer.html"><i data-lucide="arrow-right" aria-hidden="true"></i>Back to all rows</a></section>
+    <section class="comparison-intro detail-hero"><div class="detail-badges"><span>${escape(project.category)}</span><span class="status-badge ${escape(project.status)}">${escape(project.status)}</span></div><h1>${escape(project.title)}</h1><p class="lead">${escape(project.summary)}</p>${packages}<a class="secondary-link" href="${withBase("/explorer.html")}"><i data-lucide="arrow-right" aria-hidden="true"></i>Back to all rows</a></section>
     ${project.demos?.length ? `<section class="benchmark-project"><header><p class="eyebrow">Openable examples</p><h2>Run npm and LilScript side by side</h2><p>Each link opens a built Vite fixture in a new tab.</p></header><div class="benchmark-links">${project.demos.map((demo) => `<a class="secondary-link" target="_blank" rel="noopener" href="${escape(demo.url)}">${escape(demo.label)}<i data-lucide="external-link" aria-hidden="true"></i></a>`).join("")}</div></section>` : ""}
     <section class="benchmark-project"><header><p class="eyebrow">Comparable boundary</p><h2>Why these rows can be compared</h2><p>${escape(project.fairness)}</p>${project.expected == null ? "" : `<code class="benchmark-contract">${escape(project.expected)}</code>`}${project.blockers?.length ? `<p class="comparison-note"><strong>Current blockers:</strong> ${escape(project.blockers.join(" "))}</p>` : ""}${project.exclusions?.length ? `<p class="comparison-note"><strong>Explicit exclusions:</strong> ${escape(project.exclusions.join(" · "))}</p>` : ""}</header></section>
     <section class="benchmark-project"><header><p class="eyebrow">Published artifacts</p><h2>Transport and raw bytes</h2><p>Brotli-11 is the primary column. Property-renamed rows are only valid under the boundary above; every compression cell measures its JavaScript file independently.</p></header><div class="benchmark-table-wrap"><table><thead><tr><th>Artifact</th><th>Tool</th><th>Mangling</th><th>Properties</th><th>Brotli-11 · primary</th><th>Gzip-9</th><th>Raw</th><th>Median ms</th></tr></thead><tbody>${artifacts}</tbody></table></div></section>
