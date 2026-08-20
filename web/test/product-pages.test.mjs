@@ -64,6 +64,7 @@ test("the product site gives every major surface a production entry", () => {
     assert.match(home, /https:\/\/github\.com\/yeargun\/lilscript/);
     assert.match(home, /Star the repo/);
     assert.match(home, /class="repo-star"/);
+    assert.match(home, /class="repo-star-chip"/);
 });
 
 test("Lilastro, Lastro, and SolidLil state distinct implementation boundaries", () => {
