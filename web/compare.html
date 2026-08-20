@@ -93,7 +93,7 @@
             <div class="monaco-stats">
               <div>
                 <small>npm ide.js</small>
-                <b>904,810 B</b>
+                <b>887,420 B</b>
               </div>
               <div class="win">
                 <small>Lil ide.js</small>
@@ -101,7 +101,7 @@
               </div>
               <div>
                 <small>JS + workers, no tsc</small>
-                <b>1,433,800 B</b>
+                <b>1,416,410 B</b>
               </div>
               <div class="win">
                 <small>Lil + workers, no tsc</small>
@@ -125,23 +125,23 @@
             rel="noopener"
           >
             <span class="lib-card-kicker">SolidLil · keyed app</span>
-            <h3>Solid vs SolidLil</h3>
+            <h3>Solid 2.0 vs SolidLil</h3>
             <p>
-              js-framework-benchmark keyed table. Official Solid on the left,
+              Official js-framework-benchmark keyed table. Solid 2.0 on the left,
               compiler-only SolidLil on the right.
             </p>
             <div class="lib-card-metrics">
-              <div><small>Solid</small><b>4,358</b></div>
-              <div><small>SolidLil</small><b>3,940</b></div>
-              <div class="win"><small>Brotli</small><b>−10%</b></div>
+              <div><small>Solid 2.0</small><b>11,180</b></div>
+              <div><small>SolidLil</small><b>3,862</b></div>
+              <div class="win"><small>Brotli</small><b>−65%</b></div>
             </div>
           </a>
           <a class="lib-card" href="/solidlil.html">
-            <span class="lib-card-kicker">Open-world Core</span>
+            <span class="lib-card-kicker">Historical Solid 1.9</span>
             <h3>solid-js Core</h3>
             <p>
-              135 public exports, 469/469 unchanged upstream tests. Client Web
-              excludes SSR and hydration.
+              Archived 1.9 open-world Core row. Current published port is Solid
+              2.0 on the SolidLil lab.
             </p>
             <div class="lib-card-metrics">
               <div><small>Solid Core</small><b>8,551</b></div>
@@ -150,9 +150,11 @@
             </div>
           </a>
           <a class="lib-card" href="/solidlil.html">
-            <span class="lib-card-kicker">Store API</span>
+            <span class="lib-card-kicker">Historical Solid 1.9</span>
             <h3>solid-js Store</h3>
-            <p>Complete 8-export browser Store surface, behavior-equivalent.</p>
+            <p>
+              Archived 1.9 Store surface. Not the current Solid 2.0 client row.
+            </p>
             <div class="lib-card-metrics">
               <div><small>Solid Store</small><b>4,286</b></div>
               <div><small>SolidLil</small><b>4,231</b></div>
@@ -384,8 +386,8 @@
 
       <section class="landing-section landing-wrap" id="jquery" aria-labelledby="jquery-title">
         <div class="landing-heading">
-          <p class="landing-kicker">In progress</p>
-          <h2 id="jquery-title">jQuery 3.7.1 is ported. It is not smaller yet.</h2>
+          <p class="landing-kicker">Published · not smaller</p>
+          <h2 id="jquery-title">jQuery 3.7.1 is published. It is not smaller yet.</h2>
           <p>
             The public-library row is a pressure test: host-heavy, string keys,
             a plugin facade. Behavior lanes for core, deferred, data, events,
@@ -406,12 +408,12 @@
             <h3>jQuery</h3>
             <p>
               Dual configs: stable <code>$</code> for a script tag, full mangle
-              for a LilScript-only app.
+              for a LilScript-only app. Official min is still 1.13× smaller.
             </p>
             <div class="lib-card-metrics">
               <div><small>npm min</small><b>27,445</b></div>
-              <div><small>LilScript</small><b>38,560</b></div>
-              <div class="loss"><small>Brotli</small><b>open</b></div>
+              <div><small>LilScript</small><b>30,973</b></div>
+              <div class="loss"><small>Brotli</small><b>+13%</b></div>
             </div>
           </a>
         </div>
@@ -447,8 +449,8 @@
             </p>
             <div class="lib-card-metrics">
               <div><small>Oxc mangle</small><b>10,092</b></div>
-              <div><small>LilScript</small><b>9,318</b></div>
-              <div class="win"><small>Brotli</small><b>−7.7%</b></div>
+              <div><small>LilScript</small><b>9,580</b></div>
+              <div class="win"><small>Brotli</small><b>−5.1%</b></div>
             </div>
           </a>
         </div>
@@ -472,7 +474,7 @@
           >
             <span>SolidLil</span>
             <h3>yeargun.github.io/solidlil</h3>
-            <p>Solid 2.0 client lab and the keyed table.</p>
+            <p>Solid 2.0 client lab and the official keyed table (11,180 B → 3,862 B).</p>
             <b>Open SolidLil</b>
           </a>
           <a
@@ -505,7 +507,7 @@
           >
             <span>jQuery</span>
             <h3>yeargun.github.io/jquerylil</h3>
-            <p>jQuery 3.7.1 drop-in. Official min is still the size lane to beat.</p>
+            <p>jQuery 3.7.1 drop-in. Official min is still 1.13× smaller on Brotli.</p>
             <b>Open jQuerylil</b>
           </a>
           <a
@@ -516,7 +518,7 @@
           >
             <span>marked</span>
             <h3>yeargun.github.io/markedlil</h3>
-            <p>marked 18.0.10 parse API. Parse-only official Oxc/Terser, not the full <code>use()</code> package.</p>
+            <p>marked 18.0.10 parse API. 9,580 B vs parse-only official Oxc 10,092 B, not the full <code>use()</code> package.</p>
             <b>Open Markedlil</b>
           </a>
           <a

@@ -58,8 +58,12 @@ test("the product site gives every major surface a production entry", () => {
     assert.match(home, /https:\/\/yeargun\.github\.io\/motionlil\//);
     assert.match(home, /https:\/\/yeargun\.github\.io\/mobxlil\//);
     assert.match(home, /https:\/\/yeargun\.github\.io\/jquerylil\//);
+    assert.match(home, /https:\/\/yeargun\.github\.io\/markedlil\//);
     assert.match(home, /https:\/\/yeargun\.github\.io\/monacolil\//);
     assert.match(home, /href="\/delivery\.html"/);
+    assert.match(home, /https:\/\/github\.com\/yeargun\/lilscript/);
+    assert.match(home, /Star the repo/);
+    assert.match(home, /class="repo-star"/);
 });
 
 test("Lilastro, Lastro, and SolidLil state distinct implementation boundaries", () => {
@@ -68,6 +72,9 @@ test("Lilastro, Lastro, and SolidLil state distinct implementation boundaries", 
   assert.match(lilastro, /not a published general Astro replacement/);
   assert.match(lastro, /no separate Lastro compiler package/i);
   assert.match(lastro, /application experiment/i);
+  assert.match(solidlil, /https:\/\/yeargun\.github\.io\/solidlil\//);
+  assert.match(solidlil, /11,180/);
+  assert.match(solidlil, /3,862/);
   assert.match(solidlil, /135\/135\s+public\s+exports/);
   assert.match(solidlil, /469\/469\s+unchanged\s+upstream\s+tests/);
   assert.match(solidlil, /Runtime \+ client LSX parity/);
@@ -93,13 +100,24 @@ test("language and compare pages cover syntax, config, and measured ports", () =
   assert.match(language, /javascript\.cost_model/);
   assert.match(language, /href="\/docs.html"/);
   assert.match(language, /href="\/delivery.html"/);
-  assert.match(compare, /id="monaco"/);
+    assert.match(compare, /id="monaco"/);
+  assert.match(compare, /887,420/);
   assert.match(compare, /413,607/);
+  assert.match(compare, /11,180/);
+  assert.match(compare, /3,862/);
+  assert.match(compare, /30,973/);
+  assert.match(compare, /9,580/);
   assert.match(compare, /id="jquery"/);
+  assert.match(compare, /id="marked"/);
+  assert.match(home, /887,420/);
+  assert.match(home, /11,180/);
+  assert.match(home, /30,973/);
+  assert.match(home, /9,580/);
   assert.match(compare, /href="\/demos.html#solidlil-keyed"/);
   assert.match(compare, /href="\/demos.html#motion-showcase-carousel"/);
   assert.match(compare, /https:\/\/yeargun\.github\.io\/solidlil\//);
   assert.match(compare, /https:\/\/yeargun\.github\.io\/monacolil\//);
+  assert.match(compare, /https:\/\/yeargun\.github\.io\/markedlil\//);
   assert.match(compare, /href="\/delivery.html"/);
   assert.match(home, /5–10%/);
 });
