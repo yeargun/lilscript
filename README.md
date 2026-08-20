@@ -1,12 +1,23 @@
 # LilScript
 
-LilScript is a standalone, statically typed language with type-first declarations,
-nominal structs and classes, typed closures, and JavaScript-style array and
-string methods. Generic functions and classes use inferred, statically checked
-type arguments. It has its own lexer, parser, type system, SSA IR, optimizer,
-JavaScript backend, and native C backend. `.lil` is never interpreted as loose
-JavaScript or TypeScript. Typed foreign ESM edges can point at JavaScript or
-TypeScript, and Lilpack integrates Vite to process that foreign graph.
+**LilScript makes JavaScript libraries smaller.**
+
+Site: [yeargun.github.io/lilscript](https://yeargun.github.io/lilscript/)
+
+LilScript is a typed, compression-first language that compiles into JavaScript, and sometimes into an executable (that path will be more stable later). The compiler mangles and reshapes the program into optimized JS that is typically **5–15% smaller** — after gzip, Brotli, or raw — than the best-performing JS toolchains (Oxc, esbuild, Terser, and similar).
+
+## What has been proven
+
+- **Monaco / VS Code’s editor core** — independently compiled monaco-editor-core modules are about **20% smaller** on average (Brotli). The paired IDE `ide.js` is **887,420 → 413,607** Brotli (−53%). Live: [yeargun.github.io/monacolil](https://yeargun.github.io/monacolil/)
+- **marked** — parse API of `marked@18.0.10`, 660/660 HTML match. **10,092 → 9,580** Brotli vs parse-only official Oxc (−5.1%), and about **13% faster** on documents in Chromium. Live: [yeargun.github.io/markedlil](https://yeargun.github.io/markedlil/)
+- **Solid 2.0** — official js-framework-benchmark keyed table: **11,180 → 3,862** Brotli (−65%). Live: [yeargun.github.io/solidlil](https://yeargun.github.io/solidlil/)
+- **Motion, MobX, jQuery, and smaller complete packages** — same idea, scoped contracts. Motion’s selected surface is **4,044 → 2,333** Brotli. MobX is a small win vs Vite 8 Oxc. jQuery is ported and published; official min is still smaller. Labs: [motionlil](https://yeargun.github.io/motionlil/), [mobxlil](https://yeargun.github.io/mobxlil/), [jquerylil](https://yeargun.github.io/jquerylil/)
+
+It works with pretty much any JS/TS library you rewrite. Comparisons vs npm + Vite 8 / Oxc / Terser / Closure are on the [compare page](https://yeargun.github.io/lilscript/compare.html).
+
+## How it compresses JS finer than Vite / Oxc / Terser / esbuild
+
+### 1. By changing the app
 
 ```lilscript
 class Vector {
@@ -26,510 +37,62 @@ class Vector {
 int[] values = [1, 2, 3, 4];
 auto doubled = values.map((int value) => value * 2);
 int sum = 0;
-for (int index = 0; index < doubled.length; index++) {
-  sum += doubled[index];
+for (int i = 0; i < doubled.length; i++) {
+  sum += doubled[i];
 }
 Vector vector = new Vector(3.0, 4.0);
-
 if (vector.lengthSquared() == 25.0) {
   print(`sum=${sum}`);
-} else {
-  print("invalid");
 }
 ```
 
-The optimized JavaScript for this program is 111 bytes. The class is
-devirtualized and scalar-replaced, the method and constructor disappear, and
-the output preserves signed 32-bit `int` behavior.
+That compiles to:
 
-Generic values keep the same type-first declaration style:
-
-```lilscript
-class Box<T> {
-  T value;
-
-  init(T value) {
-    this.value = value;
-  }
-
-  T get() {
-    return this.value;
-  }
+```js
+var b=[1,2,3,4].map(a=>a*2|0);
+var a=0,c=0;
+while(a<b.length){
+  c=c+b[a]|0;
+  a=a+1|0;
 }
-
-T apply<T>(T value, func(T)->T transform) {
-  return transform(value);
-}
-
-Box<int> box = new Box(7);
-print(apply(box.get(), (int value) => value + 1));
+console.log(`sum=${c}`)
 ```
 
-## Toolchain
+This is not minification of the same program. The compiler **changed the app**. The class is gone. The method is gone. The vector never escaped, so it scalar-replaced into nothing.
 
-Rust 1.85 or newer is recommended. Native output additionally requires a C11
-compiler such as Clang. Lilpack and the repository's Vite 8 projects use the
-nvm-pinned Node.js version in `.nvmrc`; run `nvm use` before npm workflows.
-Vite requires Node.js 20.19+ or 22.12+. The benchmark suite additionally
-requires Java and curl.
+Oxc / esbuild / Terser start from JavaScript and mostly keep the shape of the app. LilScript is designed so the compiler has extra knowledge before JS is spelled — the same idea as Google Closure Compiler Advanced mode, and beyond.
+
+### 2. Tryhard property mangling
+
+Open a large web app (ChatGPT is a good example) and read the shipped JS. You will see a lot of framework properties that never got minified. They stay human-readable.
+
+Those names stay because the toolchain cannot prove they are local. A property might be a public API, a DOM field, a framework hook, or something a plugin reads by string. So the minifier leaves it.
+
+LilScript does two things:
+
+- **(a) Eliminate the objects.** Convenience classes and bags become scalars, arrays, and tight loops — the `Vector` example, at library scale.
+- **(b) Rename for the codec.** Names are not just “make everything one letter.” gzip and Brotli win when the same short tokens repeat. The compiler picks high-frequency short names and **scores the finished file** against the compression algorithm you asked for (`raw`, `gzip`, or `brotli`). Different `cost_model` → different names → a different file that is smaller after *that* codec.
+
+That is why the same program can be 5–15% smaller after gzip / Brotli / raw: the JS is shaped and named for the compressor, not for a human reading the AST.
+
+## Try it
+
+Rust 1.85+ recommended. Native output needs a C11 compiler.
 
 ```sh
-nvm use
-npm --prefix tooling/lilpack ci
 cargo build --release --bins
-
-# Optimized JavaScript to stdout or a file
 target/release/lilscript examples/v01.lil
-target/release/lilscript examples/v01.lil -o app.js
-
-# Reusable ESM with retained, mangled named exports
-target/release/lilscript tests/modules/esm-entry.lil --target js-module -o library.mjs
-
-# Static ESM chunks plus app.manifest.json, controlled by lilscript.toml
-target/release/lilscript src/main.lil --target js-module -o build/app.mjs
-
-# Portable C or a native executable
-target/release/lilscript examples/full_conformance.lil --target c -o app.c
-target/release/lilscript examples/full_conformance.lil --target native -o app
-
-# Parse and check once, then produce optimized app.js, app.c, and app
-target/release/lilscript examples/full_conformance.lil --target all -o build/app
-
-# Generate stable function/loop keys for an optional external PGO profile
-target/release/lilscript src/main.lil --profile-template lilscript.profile.json
-
-# Reproduce the compiler's exact raw/gzip-9/Brotli-11 measurements
-target/release/lilscript-codec --json app.js vendor.js
-
-# Lilpack development server, Vite overlay, and dependency-aware HMR
-target/release/lilpack dev examples/mixed-app/main.lil \
-  --root examples/mixed-app --port 5173
-
-# Production bundle: optimized Lilscript plus JS/TS/CSS/assets
-target/release/lilpack build examples/mixed-app/main.lil \
-  --root examples/mixed-app --out-dir dist
+target/release/lilscript examples/v01.lil --target all -o build/v01
 ```
 
-The native target invokes `${CC:-clang}` with C11 and `-O3`.
-`lilscript-codec` shares the compiler's measurement implementation and uses
-statically bundled upstream zlib C 1.3.1 plus official Google Brotli C 1.1.0;
-benchmark and publication gates fail instead of falling back to platform codecs.
+You pick the objective codec in `lilscript.toml` (`javascript.cost_model`: `raw`, `gzip`, or `brotli`), plus the usual size / performance / compile-time tradeoffs. Full schema: [docs/configuration.md](docs/configuration.md). Language contract: [docs/language-v0.1.md](docs/language-v0.1.md). Why the knobs exist: [docs/knowledge/README.md](docs/knowledge/README.md).
 
-Compiler policy is configured in an auto-discovered `lilscript.toml`, or with
-`--config path/to/lilscript.toml`. Presets and per-pass overrides control
-folding, CSE, global optimization, inlining, scalar replacement, DCE, identifier
-and boundary-property mangling, public-export mangling, and string pooling.
-Internal aggregates lower to scalars or positional arrays; escaped values use
-their named boundary ABI, and `extern class` host names stay exact. The default
-JavaScript-specific `priority = "size-first"` policy minimizes the
-selected release transfer metric. Four profiles, numeric
-inline budgets, a JavaScript search-effort level from 0 to 15, exact
-`optimizations` and `compression` allowlists, and deterministic startup-cost
-limits control the performance/size tradeoff without changing C/native
-optimization.
-Production builds use an exact configurable raw, gzip-9, or Brotli-11 cost
-model to select among bounded pooling, literal-table packing, coercion-elision,
-boolean-literal, identifier-alphabet, quote-style, structured-closure,
-proof-gated pure-helper substitution, dense string-return tables, host-alias
-spelling, standards-valid grammar-elision, declaration, conditional/comma, loop/update,
-switch-dispatch, mutation, and
-SSA-copy-layout candidates, including declaration orders aware of gzip's
-32-KiB and Brotli's configured 4-MiB history windows, plus configured,
-closure-factory-preserving, unspecialized, and fully outlined optimizer IRs. A
-parsed final peephole and
-syntax-derived parse/compile/memory guard run before selection. A separate
-optional generated-syntax nesting ceiling provides a hard cross-engine guard.
-The typed-IR performance model separately scores deoptimization-sensitive
-control flow and runtime shapes, allocation pressure, unresolved indirect
-calls, and known monomorphic calls. Optional versioned profile counters weight
-hot functions and loops and drive bounded constant/callback specialization and
-constant-capture closure cloning without source annotations;
-`--mode development` skips that compressor loop. `--explain human|json`
-reports optimizer passes, transfer/startup/performance metrics, candidate and
-rewrite counts, and compiler time. The
-size default omits signed-32-bit coercions only where range analysis proves
-them redundant. It never introduces `Math.imul`: ordinary `int` multiplication
-uses JavaScript multiplication followed by signed-i32 normalization. A
-source-written `Math.imul(left,right)` is preserved as the explicit exact
-low-32-bit operation for code that deliberately needs it.
-Integer `&`, `|`, `^`, `<<`, `>>`, and `>>>` operate on signed 32-bit values;
-shift counts are masked to five bits. Use `value.toUnsignedString(radix)` when
-the unsigned bit pattern, rather than the signed integer, must cross a string
-boundary.
-Bundle policy selects a single artifact, source-module-preserving ESM chunks,
-or deploy-cost-scored shared and lazy chunks. Exact raw/gzip/Brotli bytes,
-requests, dependency depth, preload policy, reachability, and cache reuse feed
-the chunk score. See
-[docs/configuration.md](docs/configuration.md) for the complete schema and exact
-chunk eligibility rules, and
-[docs/knowledge/config](docs/knowledge/config/README.md) for how those knobs
-change compiler behavior.
+Lilpack is the Vite-based delivery path (`lilpack dev` / `lilpack build`). VS Code + `lilscript-lsp` live in this repo.
 
-## Modules and tree shaking
+## Models, PRs, discussion
 
-Static imports are compiler inputs, not emitted JavaScript wrappers:
+Current models can often oneshot a library rewrite in LilScript. On glue-heavy JS, that can land past 20% smaller, sometimes with a bit of runtime improvement (size is the point; perf usually matters less).
 
-```lilscript
-// math.lil
-export pure int square(int value) {
-  return value * value;
-}
+PRs and experiments are welcome. Please respect the [LilScript License](LICENSE.md) — modified MIT, and it does not grant use with React.
 
-// main.lil
-import { square as sq } from "./math";
-print(sq(5));
-```
-
-Compiling `main.lil` discovers the complete relative module graph, validates
-exports, isolates private names, and optimizes the linked program once. Cross-file
-inlining and DCE can reduce this example to `console.log(25)`. Exported code is
-removed when unreachable. Purity is inferred automatically; `pure` is an
-optional checked contract, and `pure extern` is a trusted host promise.
-
-`--target js-module` is the reusable-library mode. It preserves the root
-module's runtime exports as optimization roots, still removes private dead code,
-and emits compact ESM aliases such as `export{b as square,a as answer}`. Export
-lists support aliases (`export { internalName as publicName };`). Struct and
-class exports are compile-time type exports; functions and globals are runtime
-ESM exports. The default `js`, `c`, `native`, and `all` targets remain
-closed-world executable builds, so their exports do not prevent DCE.
-
-`import("./feature")` returns a typed asynchronous module value. Its `then`,
-`catch`, and `finally` callbacks are checked, unused namespace exports are tree
-shaken, and split builds emit a real lazy chunk with normalized load failures.
-Lazy-only modules are initialization-free by contract.
-
-When `bundle.mode` is `split` or `preserve-modules`, JavaScript output becomes
-an ESM entry plus sibling chunks and a deterministic manifest containing
-transport sizes, dependency edges, content hashes, preload files, and deploy
-costs. The whole program is still optimized before partitioning. C and native
-output stay single artifacts; dynamic module tasks themselves are JavaScript
-only.
-
-Bare imports resolve from content-verified path dependencies in
-`lilscript.lock`. Run `lilscript src/main.lil --write-lock -o build/app.js` to
-pin the transitive semver/ABI graph. Normal builds reject stale source hashes
-and never rewrite the lock. The full contract is in
-[docs/modules-and-delivery.md](docs/modules-and-delivery.md).
-
-LilScript can also own typed edges into foreign ESM without making JavaScript
-the application entry:
-
-```lilscript
-import extern { add as hostAdd } from "./host.ts";
-extern int hostAdd(int left, int right);
-
-print(hostAdd(20, 22));
-```
-
-The imported local name must have a matching `extern` function, global, or
-class contract. The Lilscript compiler keeps the source specifier as native ESM
-and remains responsible for the closed Lilscript graph, types, SSA optimization,
-and compression. Lilpack owns the application build graph and invokes Vite
-internally for JavaScript, TypeScript, JSX/TSX, CSS, assets, npm resolution,
-tree shaking, chunk hashing, source maps, and the final deployment manifest.
-Vite is an engine behind Lilpack, not the public application architecture.
-
-`lilpack dev` watches compiler-discovered transitive `.lil`, configuration, and
-lock/profile inputs while Vite tracks the JS/TS/assets side of the graph. It
-uses Vite's module transform cache, error overlay, WebSocket HMR, and dependency
-invalidation; development compilation skips the expensive compressor candidate
-search. An entry that exports `hotAccept()` becomes a self-accepting update
-boundary, with `hotDispose()` called first when present. Without that contract,
-normal Vite propagation safely falls back to a page reload. See the exact
-interop and HMR contract in
-[docs/modules-and-delivery.md](docs/modules-and-delivery.md).
-
-## Playground
-
-```sh
-cd web
-npm install
-npm run build
-cd ..
-cargo run --release --bin lilscript-playground
-```
-
-Open `http://127.0.0.1:4173`. The playground compiles LilScript on the Rust server,
-shows generated JavaScript and source diagnostics, and executes output in a
-sandboxed iframe. The same vanilla Vite project includes `/docs.html`,
-`/benchmarks.html`, `/libraries.html`, `/explorer.html`, `/roadmap.html`, and
-`/about.html`; it contains plain HTML, CSS, and JavaScript with no Astro files.
-The explorer is generated from checked benchmark JSON and real repository
-source files. It filters and sorts 38 projects / 168 artifact lanes, and each
-project opens a separate source, method, package, and artifact detail page.
-
-The playground UI itself can still be developed with Vite in separate
-terminals; this is a repository UI workflow, not LilScript's application build
-architecture:
-
-```sh
-cargo run --release --bin lilscript-playground
-cd web && npm run dev
-```
-
-Open `http://127.0.0.1:5173`. Vite proxies `/api/compile` to the Rust server on
-port 4173.
-
-## VS Code
-
-The repository includes a native language server and installable VS Code
-extension with `.lil` syntax highlighting, compiler and linter diagnostics,
-completion, hover documentation, snippets, symbols, semantic tokens,
-scope-aware rename/references, formatting, import organization, and quick fixes.
-
-```sh
-cargo build --release --bin lilscript-lsp
-cd vscode-extension
-npm install
-npm run package
-code --install-extension lilscript-vscode-0.1.0.vsix
-```
-
-The extension discovers the language server in this repository's release or
-debug target directory, then falls back to `PATH`. Set `lilscript.server.path` in
-VS Code settings when the executable is installed elsewhere.
-
-The standalone Rust tools use the same project configuration:
-
-```sh
-target/release/lilscript-lint src --deny-warnings
-target/release/lilscript-lint src --format sarif
-target/release/lilscript-fmt src --check
-```
-
-Lint presets, per-rule severities, suppressions, formatter policy, and global
-disable switches are configured in `lilscript.toml`. The library API also
-accepts zero-copy Rust `LintRuleProvider` implementations over the checked
-module and optimized IR. Provider namespaces can be enabled independently, so
-project rules remain separate from the compiler and keep stable rule IDs for
-JSON, SARIF, the LSP, and coding agents.
-
-## Web platform
-
-Browser objects use typed, zero-wrapper host declarations. Exact host names are
-preserved even when property mangling is enabled:
-
-```lilscript
-extern class Document {
-  Element createElement(string tag);
-  Element? querySelector(string selector);
-}
-extern Document document;
-```
-
-`document.createElement(...)` emits as the same direct JavaScript operation.
-`ArrayBuffer`, `SharedArrayBuffer`, `Uint8Array`, and `Float32Array` are core
-types with direct JavaScript lowering and portable storage lowering for C. Browser host-object
-access itself is rejected by native targets unless it is isolated behind an
-ordinary user-defined `extern` function ABI. The exact scope and deployment
-requirements are in [docs/web-platform.md](docs/web-platform.md).
-
-## Compiler Pipeline
-
-```text
-LilScript source
-  -> Logos lexer
-  -> bumpalo arena recursive-descent parser
-  -> static module graph resolution and private-name linking
-  -> symbols, scopes, type checking, capture analysis
-  -> typed control-flow IR
-  -> mem2reg SSA and phi insertion
-  -> devirtualization and inlining
-  -> proof-driven private implementation sharing
-  -> constant/branch folding, GVN, algebraic simplification
-  -> pure-call, dead-store, unreachable and whole-program DCE
-  -> escape analysis and scalar replacement
-  -> liveness coalescing and frequency-ranked mangling
-  -> optimized JavaScript and/or native C
-```
-
-The major implementation boundaries are in `src/lexer.rs`, `src/parser.rs`,
-`src/module.rs`, `src/semantic.rs`, `src/lower.rs`, `src/ir.rs`, `src/optimizer.rs`,
-`src/codegen_ir_js.rs`, and `src/codegen_native.rs`. The executable language
-contract is [docs/language-v0.1.md](docs/language-v0.1.md).
-Why the language and compiler behave as they do, and how `lilscript.toml`
-changes that, is the knowledge tree:
-[docs/knowledge/README.md](docs/knowledge/README.md).
-
-## Verification
-
-```sh
-cargo fmt --all -- --check
-cargo clippy --all-targets -- -D warnings
-cargo test --all-targets
-scripts/verify.sh
-benchmarks/run.sh
-node benchmarks/finite-values/run.mjs
-node benchmarks/function-folding/run.mjs
-node benchmarks/function-subsumption/run.mjs
-node benchmarks/function-layout/run.mjs
-node benchmarks/ir-variants/run.mjs
-node benchmarks/profile-guided/run.mjs
-npm --prefix benchmarks/apps ci
-npm --prefix benchmarks/apps run benchmark
-npm --prefix benchmarks/libraries ci
-npm --prefix benchmarks/libraries run benchmark
-npm --prefix benchmarks/popular ci
-npm --prefix benchmarks/popular run benchmark
-npm --prefix benchmarks/browser ci
-npm --prefix benchmarks/browser run install-browser
-npm --prefix benchmarks/browser run benchmark
-npm --prefix benchmarks/scenarios ci
-npm --prefix benchmarks/scenarios run benchmark
-node benchmarks/paired/run.mjs
-npm --prefix web run build
-npm --prefix vscode-extension run package
-```
-
-`scripts/verify.sh` compares Node and native output for two conformance suites
-and links a generated aggregate ABI against a C host. It also runs 69 programs
-through JavaScript, emitted C, and native executables with maximum and disabled
-optional optimization, for 138 matrix executions, plus a framed LSP session
-through diagnostics, completion, hover, symbols, semantic tokens, references,
-rename, formatting, quick fixes, and shutdown.
-The verification script also generates 64 deterministic typed programs and
-includes byte and Float32 binary-memory kernels, then requires an independent
-checked-AST Rust evaluator,
-optimized JavaScript, optimizer-disabled JavaScript, direct native output, and
-independently compiled emitted C to agree exactly. The evaluator scope and seed
-reproduction commands are in
-[`docs/differential-testing.md`](docs/differential-testing.md).
-`benchmarks/run.sh`
-downloads the pinned Closure Compiler `v20260804`, verifies its SHA-256, runs
-`ADVANCED` compilation,
-checks equivalent runtime output, and measures normalized raw, gzip-9, and
-Brotli-11 bytes.
-The isolated profile-guided higher-order-call fixture executes the same output
-contract before measuring and changes from `111/107/80` to `107/104/77`
-raw/gzip-9/Brotli-11 bytes. This demonstrates one bounded specialization win;
-it is not a universal PGO size claim.
-
-The finite-value ablation holds inlining and scalar replacement disabled in
-both variants and toggles only interprocedural finite-value propagation. Both
-artifacts execute the same contract; the pass reduces the checked workload from
-`216/155/118` to `143/108/77` raw/gzip-9/Brotli-11 bytes.
-The inlining-IR ablation holds every other optimizer and emitter decision
-constant; exact codec selection improves `267/144/109` to `219/113/83`.
-Late identical-private-function folding improves its isolated workload from
-`177/139/111` to `123/129/105`. Compressor-selected declaration layout keeps
-raw size at `1,133` while improving gzip/Brotli from `460/369` to `454/362`;
-source order remains a candidate, so the heuristic is not forced.
-Proof-driven private-function subsumption binds an existing broader
-implementation's extra scalar or known-function parameter and improves its
-isolated workload from `445/217/179` to `351/201/172`. Exported and
-address-taken identities are excluded, and the untouched optimizer IR remains
-codec-scored.
-
-The source-neutral lane in `benchmarks/paired` mechanically generates readable
-LilScript and JavaScript from one workload schema. Every case must agree through
-Closure JavaScript, LilScript JavaScript, emitted C, and native execution, and
-LilScript may not exceed Closure in any per-case Brotli cell under the project
-default while raw and gzip tradeoffs remain published. The
-separate Chromium gate uses alternating warmed samples and requires the 95%
-bootstrap upper runtime ratio to remain at or below `1.03`. These are scoped
-regression gates, not universal compiler-superiority claims.
-
-On the repository's ten compiler workloads LilScript totals 1,457 raw / 1,280
-gzip / 1,032 Brotli bytes versus Closure at 2,450 / 1,771 / 1,471. LilScript is
-smaller in all 30 measured cells. The separate application lab
-compares five readable JavaScript references with matching-scope LilScript,
-feeds those exact references to Closure `ADVANCED`, and keeps hand-specialized
-JavaScript as an oracle. Its checked-in run totals 1,794 raw / 1,283 gzip /
-1,088 Brotli bytes for LilScript versus 2,231 / 1,512 / 1,303 for Closure; the
-hand oracle remains smaller at 1,008 / 840 / 745. Real Alien Signals, mitt, and
-Motion applications are built separately by Vite and excluded from compiler
-totals. All 26 comparable/diagnostic JavaScript artifacts, three Vite package
-builds, and six native executables pass checked-in output contracts. Matching
-those contracts is regression evidence, not proof of complete library
-compatibility. In the checked-in 25-sample module-evaluation run, LilScript is
-1.038x Closure's runtime and hand-specialized JavaScript is 0.681x, so runtime
-parity is not yet claimed. Compiler methodology and tables are in
-[docs/benchmark-results.md](docs/benchmark-results.md); the pass-by-pass
-responsibility mapping is in
-[docs/optimization-coverage.md](docs/optimization-coverage.md), and the Vite
-8/Oxc versus Closure `ADVANCED` architecture audit is in
-[docs/vite-closure-minification-audit.md](docs/vite-closure-minification-audit.md).
-
-The complete-library lab measures installed npm packages against LilScript
-ports after translated upstream assertions, dense differential API checks, and
-JavaScript/C/native app contracts. All seven currently selected complete
-entrypoints pass the raw/Brotli, throughput, and retained-memory publication
-gates against npm/Vite 8 and public-surface-preserving Closure ADVANCED. Their
-LilScript Brotli sizes are 272 bytes for `@motionone/easing`, 131 for `clamp` +
-`lerp`, 106 for `string-hash`, 408 for `js-levenshtein`, 234 for
-`@emotion/hash`, 414 for `murmurhash-js`, and 6,192 for the complete
-`robust-predicates` root. Those corpus results are published without a universal
-superiority claim in
-[benchmarks/libraries/RESULTS.md](benchmarks/libraries/RESULTS.md) and at
-`/libraries.html` in the Vite site.
-
-The separate populated-package corpus only publishes complete selected
-entrypoints after algorithm, public-API, differential behavior, throughput,
-retained-memory, and matching Brotli-objective size gates. Raw and gzip are
-diagnostics for those Brotli-selected artifacts and may lose. Its current eligible rows
-beat or tie npm/Vite 8 and public-API-preserving Closure `ADVANCED` in Brotli:
-Nano ID is `408 / 409 / 414`, mitt is `300 / 300 / 311`, clsx is
-`481 / 493 / 499`, and gl-matrix is `14,056 / 14,330 / 14,328` bytes
-(LilScript / Vite / Closure). The clsx port preserves its raw recursive
-JavaScript-value algorithm without an allocation-changing conversion facade.
-Incomplete ports remain excluded from that claim; see
-[benchmarks/popular/RESULTS.md](benchmarks/popular/RESULTS.md) and
-[benchmarks/popular/PERFORMANCE.md](benchmarks/popular/PERFORMANCE.md).
-
-The [SolidLil lab](labs/solid-client) is an ordinary root-owned workspace in
-this monorepo. The pinned browser runtime exposes and verifies all 135
-Core/Web/Store exports, matches their value types and function arities, and
-passes 469/469 unchanged upstream tests across 26 files. Open-world Core is
-8,507 versus 8,551 Brotli-11 bytes and Store is 4,230 versus 4,286; Web remains
-an explicit optimization loss at 12,040 versus 11,655. The ownership suite
-covers reverse cleanup, stale disposer/handle isolation after slot reuse,
-mapped/indexed row disposal, late resource resolution, and stable
-mount/dispose memory. The separate 23-family LSX strict gate remains red at 12
-fully verified lowering families and 14 families with integrated runtime
-evidence.
-
-The published Solid JSX versus SolidLil LSX todolist row (3,722 versus 5,479
-Brotli-11 bytes) is an archived sibling-worktree snapshot. The LSX parser,
-lowerer, and Vite transform have moved into the monorepo, but the complete app
-and its interaction/performance/memory gates have not, so that historical row
-is not current compatibility evidence.
-The real-application matrix in `benchmarks/scenarios` adds login-risk,
-animation-timeline, and geometry-hit-test workloads plus a property-boundary
-stress case. Each application compares Vite 8 unminified, Vite/Oxc, Vite with
-Terser private-property mangling, Closure ADVANCED, LilScript unmangled,
-LilScript public-safe, LilScript closed-world, and LilScript followed by Vite.
-All application lanes also match C/native output. The property stress case
-keeps objects alive behind a key-insensitive host boundary: LilScript property
-mangling changes `155/143/107` to `105/117/90` raw/gzip/Brotli bytes.
-The maintained implementation and research backlog is in
-[docs/roadmap.md](docs/roadmap.md).
-Motion's audited compatibility gate is in
-[docs/motion-compatibility.md](docs/motion-compatibility.md).
-
-## v0.1 Scope
-
-The implemented v0.1 language includes wrapping `int`, web-native
-`number`/`float`, other primitive and nominal types, arrays,
-typed maps and sets, fixed-length array/shared buffers and unsigned byte views,
-functions and closures, zero-runtime closed enums with exhaustive `match`,
-plain-object `Record<T>` values with typed `Object` and portable JSON operations,
-JavaScript-only ECMAScript `Regex` construction, testing, and metadata,
-JavaScript-native async functions, typed `Task<T>` composition, `await`,
-`throw`, and structured `try`/`catch`/`finally`,
-array/record spread, nullable array/record destructuring with copy-safe rest,
-and callback-free `for...of` over arrays and typed arrays,
-typed `Generator<T>` functions and methods with direct `yield`, `yield*`, and
-native JavaScript `for...of`, structs, classes, constructors, generic
-non-virtual single inheritance with checked `super(...)` chaining, static modules,
-checked purity contracts, control flow, compound assignment, templates,
-inferred generic functions and classes, nullable `T?` values with direct
-null-guard narrowing, first-class `A | B` unions with tagged native lowering,
-portable `value is Type` union-member guards with branch narrowing,
-explicit host `extern` declarations,
-and the standard methods listed in the language contract. Package management,
-lockfiles, typed lazy module loading, and runtime chunks are project-delivery
-capabilities. Generic struct literals, structured cancellation, virtual method
-overriding, async generators, and a direct machine-code backend are outside v0.1; native
-executables currently use optimized C as the final lowering stage and reject
-JavaScript-only generators and inherited class layouts.
+If you have opinions on where the language and compiler should go, open an issue or comment. I would like to discuss it.
