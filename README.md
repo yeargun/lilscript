@@ -10,6 +10,7 @@ LilScript is a typed, compression-first language that compiles into JavaScript, 
 
 - **Monaco / VS Code’s editor core** — independently compiled monaco-editor-core modules are about **20% smaller** on average (Brotli). The paired IDE `ide.js` is **887,420 → 413,607** Brotli (−53%). Live: [yeargun.github.io/monacolil](https://yeargun.github.io/monacolil/)
 - **marked** — parse API of `marked@18.0.10`, 660/660 HTML match. **10,092 → 9,580** Brotli vs parse-only official Oxc (−5.1%), and about **13% faster** on documents in Chromium. Live: [yeargun.github.io/markedlil](https://yeargun.github.io/markedlil/)
+- **Zod** — `zod@4.4.3` classic API, 1353/1353 official tests. **54,791 → 34,152** Brotli vs Vite 8 Oxc closer-world (−37.7%). Live: [yeargun.github.io/zodlil](https://yeargun.github.io/zodlil/)
 - **Solid 2.0** — official js-framework-benchmark keyed table: **11,180 → 3,862** Brotli (−65%). Live: [yeargun.github.io/solidlil](https://yeargun.github.io/solidlil/)
 - **Motion, MobX, jQuery, and smaller complete packages** — same idea, scoped contracts. Motion’s selected surface is **4,044 → 2,333** Brotli. MobX is a small win vs Vite 8 Oxc. jQuery is ported and published; official min is still smaller. Labs: [motionlil](https://yeargun.github.io/motionlil/), [mobxlil](https://yeargun.github.io/mobxlil/), [jquerylil](https://yeargun.github.io/jquerylil/)
 
