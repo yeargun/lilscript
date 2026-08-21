@@ -311,6 +311,7 @@ pub enum Stmt<'ast, 'src> {
         element: Ident<'src>,
         iterable: Expr<'ast, 'src>,
         body: &'ast Stmt<'ast, 'src>,
+        inline: bool,
         span: Span,
     },
     Break(Span),
@@ -321,6 +322,29 @@ pub enum Stmt<'ast, 'src> {
 pub enum ForInitializer<'ast, 'src> {
     VarDecl(VarDecl<'ast, 'src>),
     Expr(Expr<'ast, 'src>),
+}
+
+impl<'ast, 'src> Expr<'ast, 'src> {
+    pub fn const_list_literals(&self) -> Option<Vec<&Expr<'ast, 'src>>> {
+        let Expr::ArrayLiteral { elements, .. } = self else {
+            return None;
+        };
+        let mut values = Vec::with_capacity(elements.len());
+        for element in *elements {
+            match element {
+                ArrayElement::Value(value) if value.is_const_scalar() => values.push(value),
+                _ => return None,
+            }
+        }
+        Some(values)
+    }
+
+    pub const fn is_const_scalar(&self) -> bool {
+        matches!(
+            self,
+            Self::Int(..) | Self::Float(..) | Self::String(..) | Self::Bool(..) | Self::Null(..)
+        )
+    }
 }
 
 impl<'ast, 'src> Stmt<'ast, 'src> {

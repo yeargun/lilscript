@@ -19,6 +19,7 @@ pub mod package;
 pub mod parser;
 pub mod profile;
 pub mod semantic;
+pub mod for_of_family;
 pub mod span;
 mod stable_hash;
 pub mod typed_array;

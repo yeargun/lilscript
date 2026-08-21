@@ -36,6 +36,7 @@ identical_function_folding = true
 # path_sensitive_propagation = true
 # parameterized_function_merging = true
 profile_guided = true
+# for_of_specialize_family = 8 # 0 off; residual for-of over the first array parameter emits clones plus a picker
 
 [javascript]
 priority = "size-first"
@@ -277,6 +278,7 @@ unless `integer_coercions = true`.
   default. Other priorities leave it off unless an exact allowlist or
   `mangle.properties` opts in.
 - `export-mangling` permits public ESM export names to be shortened.
+- `[mangle] extern_fields` (default on) keeps `extern class` member names exact so a JS library ABI stays readable. Set `false` for a closed LilScript program; host members such as `string.length` still do not mangle.
 - `array-pipeline-fusion` fuses eligible same-block `map`→`map` chains.
 - `partial-escape-sinking` sinks LocalOnly allocations into the single Branch
   arm that uses them.

@@ -296,6 +296,13 @@ because JavaScript string iteration uses Unicode code points while the native
 string indexing contract is UTF-16-oriented, and silently combining those
 semantics would be target-dependent.
 
+`inline for (T value of [/* const list */])` unrolls at compile time. The
+iterable must be an array literal of `int`, `float`, `string`, or `bool`
+values. `break` and `continue` are rejected because there is no runtime loop.
+A closed program uses this when the table is in the compilation unit. When
+`optimization.for_of_specialize_family` is set, a residual `for` over a
+function's first array parameter also gets unrolled clones plus a picker.
+
 `Map<K, V>` and `Set<T>` are mutable and invariant. `Map.get(key)` returns
 `V?`; missing keys and stored `null` values therefore have the same result, as
 they do after JavaScript lowering with `?? null`. Collection keys use

@@ -541,8 +541,17 @@ impl<'arena, 'src> Parser<'arena, 'src> {
             return self.parse_while_after_keyword();
         }
 
+        if self.looks_like_inline_for() {
+            self.advance();
+            self.expect(
+                |kind| matches!(kind, TokenKind::For),
+                "expected `for` after `inline`",
+            )?;
+            return self.parse_for_after_keyword(true);
+        }
+
         if self.match_kind(|kind| matches!(kind, TokenKind::For)) {
-            return self.parse_for_after_keyword();
+            return self.parse_for_after_keyword(false);
         }
 
         if self.match_kind(|kind| matches!(kind, TokenKind::Break)) {
@@ -1087,7 +1096,15 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         })
     }
 
-    fn parse_for_after_keyword(&mut self) -> Result<Stmt<'arena, 'src>, ParseError> {
+    fn looks_like_inline_for(&self) -> bool {
+        matches!(self.peek_kind(), Some(TokenKind::Ident("inline")))
+            && self.check_next(|kind| matches!(kind, TokenKind::For))
+    }
+
+    fn parse_for_after_keyword(
+        &mut self,
+        inline: bool,
+    ) -> Result<Stmt<'arena, 'src>, ParseError> {
         let start = self.previous_span();
         self.expect(
             |kind| matches!(kind, TokenKind::LParen),
@@ -1100,6 +1117,12 @@ impl<'arena, 'src> Parser<'arena, 'src> {
             let ty = self.parse_type()?;
             let name = self.expect_ident("expected variable name")?;
             if self.match_kind(|kind| matches!(kind, TokenKind::In)) {
+                if inline {
+                    return Err(ParseError::new(
+                        start,
+                        "`inline for` requires `for (T name of constList)`",
+                    ));
+                }
                 let object = self.parse_expression()?;
                 self.expect(
                     |kind| matches!(kind, TokenKind::RParen),
@@ -1125,6 +1148,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                     element_type: ty,
                     element: name,
                     iterable,
+                    inline,
                     span: start.merge(body.span()),
                     body,
                 });
@@ -1156,6 +1180,12 @@ impl<'arena, 'src> Parser<'arena, 'src> {
             "expected `)` after for clauses",
         )?;
         let body = self.arena.alloc(self.parse_statement()?);
+        if inline {
+            return Err(ParseError::new(
+                start,
+                "`inline for` requires `for (T name of constList)`",
+            ));
+        }
         Ok(Stmt::For {
             initializer,
             condition,
@@ -2420,7 +2450,35 @@ mod tests {
             "int[] values=[1,2];for(int value of values){print(value);}",
         )
         .unwrap();
-        assert!(matches!(&program.items[1], Item::Stmt(Stmt::ForOf { .. })));
+        assert!(matches!(
+            &program.items[1],
+            Item::Stmt(Stmt::ForOf { inline: false, .. })
+        ));
+    }
+
+    #[test]
+    fn parses_inline_for_over_const_list() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "int total=0;inline for(int value of [1,2,3]){total+=value;}print(total);",
+        )
+        .unwrap();
+        assert!(matches!(
+            &program.items[1],
+            Item::Stmt(Stmt::ForOf { inline: true, .. })
+        ));
+    }
+
+    #[test]
+    fn rejects_inline_for_in() {
+        let arena = Bump::new();
+        let error = parse_source(&arena, "inline for(string key in value){}")
+            .unwrap_err();
+        assert!(
+            error.message.contains("`inline for` requires"),
+            "{error:?}"
+        );
     }
 
     #[test]

@@ -43,6 +43,7 @@ pub struct ModuleSet {
     pub dependency_order: Vec<ModuleId>,
     pub root: ModuleId,
     pub eager: Vec<bool>,
+    pub for_of_specialize_family: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -129,7 +130,9 @@ fn discover_modules_configured_inner(
             error.message,
         )
     })?;
-    discover_modules_inner(root, root_source, resolver)
+    let mut modules = discover_modules_inner(root, root_source, resolver)?;
+    modules.for_of_specialize_family = config.optimization.for_of_specialize_family();
+    Ok(modules)
 }
 
 fn discover_modules_inner(
@@ -173,6 +176,7 @@ fn discover_modules_inner(
         dependency_order: loader.dependency_order,
         root,
         eager,
+        for_of_specialize_family: 0,
     })
 }
 
@@ -662,6 +666,13 @@ pub fn parse_modules<'arena>(
         .iter()
         .map(|module| {
             parse_source(arena, &module.source)
+                .map(|program| {
+                    crate::for_of_family::expand_for_of_families(
+                        arena,
+                        program,
+                        modules.for_of_specialize_family,
+                    )
+                })
                 .map_err(|error| ModuleError::from_parse(&module.path, &module.source, error))
         })
         .collect()
@@ -1637,6 +1648,7 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
                 element,
                 iterable,
                 body,
+                inline,
                 span,
             } => {
                 self.push_scope();
@@ -1651,6 +1663,7 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
                     element,
                     iterable,
                     body,
+                    inline: *inline,
                     span: self.span(*span),
                 }
             }
@@ -2055,6 +2068,7 @@ mod tests {
             dependency_order: vec![1, 0],
             root: 0,
             eager: vec![true, true],
+            for_of_specialize_family: 0,
         };
         let arena = Bump::new();
         let modules = arena.alloc(modules);
@@ -2123,6 +2137,7 @@ mod tests {
             dependency_order: vec![1, 2, 0],
             root: 0,
             eager: vec![true, true, true],
+            for_of_specialize_family: 0,
         };
         let arena = Bump::new();
         let modules = arena.alloc(modules);
@@ -2169,6 +2184,7 @@ mod tests {
                 dependency_order: vec![1, 0],
                 root: 0,
                 eager: vec![true, true],
+                for_of_specialize_family: 0,
             };
             let arena = Bump::new();
             let modules = arena.alloc(modules);

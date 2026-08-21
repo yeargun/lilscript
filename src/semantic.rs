@@ -1866,11 +1866,26 @@ impl<'src> Analyzer<'src> {
                 element,
                 iterable,
                 body,
+                inline,
                 ..
             } => {
                 self.push_scope();
                 let declared = self.resolve_value_type(*element_type, "for-of element")?;
                 let iterable_type = self.analyze_expr(iterable, None)?;
+                if *inline {
+                    if iterable.const_list_literals().is_none() {
+                        return Err(SemanticError::new(
+                            iterable.span(),
+                            "`inline for` requires a constant array literal of int, float, string, or bool values",
+                        ));
+                    }
+                    if statement_contains_loop_control(body, false) {
+                        return Err(SemanticError::new(
+                            body.span(),
+                            "`inline for` cannot contain `break` or `continue`",
+                        ));
+                    }
+                }
                 let actual = match iterable_type {
                     Type::Array(element) => *element,
                     Type::Generator(element) => *element,
@@ -1894,9 +1909,13 @@ impl<'src> Analyzer<'src> {
                 };
                 self.require_assignable(&declared, &actual, element_type.span)?;
                 self.declare(*element, declared)?;
-                self.loop_depth += 1;
-                self.analyze_stmt(body)?;
-                self.loop_depth -= 1;
+                if *inline {
+                    self.analyze_stmt(body)?;
+                } else {
+                    self.loop_depth += 1;
+                    self.analyze_stmt(body)?;
+                    self.loop_depth -= 1;
+                }
                 self.pop_scope();
                 Ok(())
             }
@@ -6274,6 +6293,49 @@ fn count_stmt_super_calls(statement: &Stmt<'_, '_>) -> usize {
     }
 }
 
+fn statement_contains_loop_control(statement: &Stmt<'_, '_>, inside_loop: bool) -> bool {
+    match statement {
+        Stmt::Break(_) | Stmt::Continue(_) => !inside_loop,
+        Stmt::Block { body, .. } => body
+            .iter()
+            .any(|stmt| statement_contains_loop_control(stmt, inside_loop)),
+        Stmt::If {
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            statement_contains_loop_control(then_branch, inside_loop)
+                || else_branch
+                    .as_ref()
+                    .is_some_and(|branch| statement_contains_loop_control(branch, inside_loop))
+        }
+        Stmt::Try {
+            body,
+            catch,
+            finally,
+            ..
+        } => {
+            body.iter()
+                .any(|stmt| statement_contains_loop_control(stmt, inside_loop))
+                || catch.as_ref().is_some_and(|clause| {
+                    clause
+                        .body
+                        .iter()
+                        .any(|stmt| statement_contains_loop_control(stmt, inside_loop))
+                })
+                || finally
+                    .as_ref()
+                    .is_some_and(|body| body.iter().any(|stmt| statement_contains_loop_control(stmt, inside_loop)))
+        }
+        Stmt::While { body, .. } | Stmt::For { body, .. } | Stmt::ForIn { body, .. } => {
+            statement_contains_loop_control(body, true)
+        }
+        Stmt::ForOf { inline: true, body, .. } => statement_contains_loop_control(body, inside_loop),
+        Stmt::ForOf { body, .. } => statement_contains_loop_control(body, true),
+        _ => false,
+    }
+}
+
 fn statement_contains_break(statement: &Stmt<'_, '_>) -> bool {
     match statement {
         Stmt::Break(_) => true,
@@ -6921,6 +6983,24 @@ mod tests {
 
         let string = check("for(string value of \"text\"){}").unwrap_err();
         assert!(string.message.contains("array or typed array"), "{string}");
+    }
+
+    #[test]
+    fn checks_inline_for_requires_const_list() {
+        check("int total=0;inline for(int value of [1,2,3]){total+=value;}").unwrap();
+
+        let runtime = check("int[] values=[1,2];inline for(int value of values){}").unwrap_err();
+        assert!(
+            runtime.message.contains("constant array literal"),
+            "{runtime}"
+        );
+
+        let control =
+            check("inline for(int value of [1,2]){break;}").unwrap_err();
+        assert!(
+            control.message.contains("`break` or `continue`"),
+            "{control}"
+        );
     }
 
     #[test]

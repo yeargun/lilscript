@@ -713,6 +713,31 @@ impl<'src> JsEmitter<'src> {
                 element,
                 iterable,
                 body,
+                inline: true,
+                ..
+            } => {
+                let values = iterable.const_list_literals().ok_or_else(|| {
+                    CodegenError::new(
+                        iterable.span(),
+                        "`inline for` requires a constant array literal",
+                    )
+                })?;
+                self.push_scope();
+                let element = self.declare_name(*element)?;
+                for value in values {
+                    out.push_str(&element);
+                    out.push('=');
+                    self.emit_expr(value, out)?;
+                    out.push(';');
+                    self.emit_control_body(body, out)?;
+                }
+                self.pop_scope();
+                Ok(())
+            }
+            Stmt::ForOf {
+                element,
+                iterable,
+                body,
                 ..
             } => {
                 self.push_scope();

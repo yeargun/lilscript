@@ -183,6 +183,7 @@ pub struct AggregateLayout<'src> {
     pub base: Option<&'src str>,
     pub fields: Vec<AggregateField<'src>>,
     pub object: bool,
+    pub external: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

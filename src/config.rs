@@ -229,6 +229,7 @@ impl ProjectConfig {
                 self.javascript
                     .compression_enabled(CompressionDecision::ExportMangling)
             }),
+            mangle_extern_fields: self.mangle.extern_fields.unwrap_or(true),
             public_aggregate_fields: matches!(
                 self.javascript.public_aggregate_abi,
                 PublicAggregateAbi::Named
@@ -1471,6 +1472,7 @@ pub struct OptimizationConfig {
     pub path_sensitive_propagation: Option<bool>,
     pub parameterized_function_merging: Option<bool>,
     pub profile_guided: Option<bool>,
+    pub for_of_specialize_family: Option<usize>,
 }
 
 impl Default for OptimizationConfig {
@@ -1500,11 +1502,16 @@ impl Default for OptimizationConfig {
             path_sensitive_propagation: None,
             parameterized_function_merging: None,
             profile_guided: None,
+            for_of_specialize_family: None,
         }
     }
 }
 
 impl OptimizationConfig {
+    pub fn for_of_specialize_family(&self) -> usize {
+        self.for_of_specialize_family.unwrap_or(0)
+    }
+
     pub fn resolve(&self) -> OptimizationOptions {
         let base = match self.preset {
             OptimizationPreset::None => OptimizationOptions::disabled(),
@@ -1576,6 +1583,7 @@ pub struct MangleConfig {
     pub identifiers: Option<bool>,
     pub properties: Option<bool>,
     pub exports: Option<bool>,
+    pub extern_fields: Option<bool>,
     pub pool_strings: Option<bool>,
 }
 
@@ -2035,6 +2043,11 @@ max_inline_growth = 3
         .unwrap();
         assert!(explicit_mangle.js_options().mangle_identifiers);
         assert!(explicit_mangle.js_options().pool_strings);
+        assert!(explicit_mangle.js_options().mangle_extern_fields);
+
+        let closed: ProjectConfig = toml::from_str("[mangle]\nextern_fields=false\n").unwrap();
+        assert!(!closed.js_options().mangle_extern_fields);
+        assert!(ProjectConfig::default().js_options().mangle_extern_fields);
     }
 
     #[test]

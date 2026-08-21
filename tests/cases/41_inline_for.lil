@@ -1,0 +1,11 @@
+int total = 0;
+inline for (int value of [1, 2, 3, 4]) {
+  total += value;
+}
+print(total);
+
+string joined = "";
+inline for (string part of ["ab", "cd"]) {
+  joined = joined + part;
+}
+print(joined);

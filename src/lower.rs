@@ -517,6 +517,7 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
                     })
                     .collect(),
                 object: false,
+                external: false,
             })
             .collect::<Vec<_>>();
         structs.sort_unstable_by_key(|layout| layout.name);
@@ -540,6 +541,7 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
                     })
                     .collect(),
                 object: info.object,
+                external: info.external,
             })
             .collect::<Vec<_>>();
         classes.sort_unstable_by_key(|layout| layout.name);
@@ -964,9 +966,16 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                 element,
                 iterable,
                 body,
+                inline,
                 span,
                 ..
-            } => self.lower_for_of(*element, iterable, body, *span),
+            } => {
+                if *inline {
+                    self.lower_inline_for(*element, iterable, body, *span)
+                } else {
+                    self.lower_for_of(*element, iterable, body, *span)
+                }
+            }
             Stmt::Break(span) => {
                 let (_, break_target) = self.loop_targets.last().copied().ok_or_else(|| {
                     LowerError::new(*span, "`break` reached lowering outside a loop")
@@ -1438,6 +1447,42 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
         self.loop_targets.pop();
         self.direct_value_by_symbol.remove(&symbol);
         self.current = exit;
+        Ok(())
+    }
+
+    fn lower_inline_for<'ast>(
+        &mut self,
+        element: Ident<'src>,
+        iterable: &Expr<'ast, 'src>,
+        body: &Stmt<'ast, 'src>,
+        span: Span,
+    ) -> Result<(), LowerError> {
+        let values = iterable.const_list_literals().ok_or_else(|| {
+            LowerError::new(
+                iterable.span(),
+                "`inline for` requires a constant array literal",
+            )
+        })?;
+        let symbol = self.symbol(element)?;
+        let declared_element_type = self
+            .semantics
+            .binding_type(element.span)
+            .cloned()
+            .ok_or_else(|| LowerError::new(element.span, "missing inline-for element type"))?;
+        let element_local =
+            self.add_local(symbol, element.name, declared_element_type, element.span);
+        let _ = span;
+        for value in values {
+            let lowered = self.lower_expr(value)?;
+            self.emit_effect(
+                ControlFlowOp::StoreLocal {
+                    local: element_local,
+                    value: lowered,
+                },
+                element.span,
+            )?;
+            self.lower_stmt(body)?;
+        }
         Ok(())
     }
 
